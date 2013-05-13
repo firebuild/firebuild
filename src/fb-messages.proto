@@ -1,0 +1,79 @@
+// Protocol Buffer definitions for FireBuild
+// Copyright (c) 2013 Balint Reczey.  All rights reserved.
+
+// Message for storing and retrieving the content of a file
+message FileContent {
+	required bytes sha1_hash = 1; // identifies the file content
+	required bytes content = 2; // fie content as raw bytes
+}
+
+// File state
+message File {
+	// identifies the file content, may be empty if file is not found
+	optional bytes sha1_hash = 1;
+
+	// TODO add alternate hash values generated after preprocessing the file
+	// with programs keeping the semantic content (e.g. removing white spaces)
+	//repeated AltHash alt_hash = 2;
+
+	// file path, absolute or relative
+	optional string path = 3;
+
+	// last modification time
+	optional int64 mtime = 4;
+
+	// file size, length in case of stdio
+	optional int64 size = 5;
+
+	// TODO refine mode 
+	optional int32 mode = 6;
+}
+
+message Dir {
+	required string path = 1;
+	repeated string entry = 2;
+}
+
+message EnvVar {
+	required string name = 1;
+	required string value = 2;
+}
+
+message Process {
+	// program file
+	required File executable = 6;
+
+	// command parameters, starting with name of the command
+	repeated string command = 8;
+
+	required string exec_dir = 7;
+
+	// exit status of the process
+	optional int32 exit_status = 4;
+
+	// special purpose file descriptors, not having file name
+	optional File stdin = 16;
+	optional File stdout = 17;
+	optional File stderr = 18;
+
+	// all files read by the process
+	repeated File file_read = 1;
+
+	// all files written by the process
+	repeated File file_written = 2;
+
+	// files not found by the process
+	// if any of those files are present, the result may change
+	repeated File file_not_found = 3;
+
+	repeated File file_perm_denied = 20;
+
+	repeated Dir dir_listed = 21;
+
+	repeated EnvVar env_var = 19;
+
+	repeated Process child = 5;
+	// TODO
+	// signals?
+	//
+}
