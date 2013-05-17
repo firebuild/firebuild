@@ -5,9 +5,10 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS fb-messages.proto)
 
 add_library(fbintercept MODULE
+  intercept.cc
   ${PROTO_SRCS})
 
-target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES})
+target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES} dl)
 
 add_executable(firebuild firebuild.cc ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES})
