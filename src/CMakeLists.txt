@@ -6,6 +6,7 @@ PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS fb-messages.proto)
 
 add_library(fbintercept MODULE
   intercept.cc
+  env.c
   ${PROTO_SRCS})
 
 target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES} dl)

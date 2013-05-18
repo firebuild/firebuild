@@ -39,6 +39,31 @@ message EnvVar {
 	required string value = 2;
 }
 
+
+// interceptor library queries FireBuild supervisor if it can shotcut execution of the process
+message ShortCutProcessQuery {
+	// process id
+	optional int64 pid = 1;
+	// parent pid
+	optional int64 ppid = 2;
+	// working dir process started in
+	optional string cwd = 3;
+	// only argv, sending argc would be redundant
+	repeated string arg = 4;
+	// environment variables in unprocessed NAME=value form
+	repeated string env_var = 5;
+}
+
+// FireBuild supervisor's response with details of shortcutting
+message ShortCutProcessResp {
+	required bool shortcut = 1;
+	optional int64 exit_status = 2;
+}
+
+service ShortCutProcessService {
+  rpc ShortCutProcess (ShortCutProcessQuery) returns (ShortCutProcessResp);
+}
+
 message Process {
 	// program file
 	required File executable = 6;
