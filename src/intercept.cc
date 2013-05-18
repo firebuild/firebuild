@@ -14,10 +14,11 @@ using namespace std;
 #define IC_VOID(ret_type, name, parameters, body)			\
   extern ret_type (name) parameters					\
   {									\
-  static ret_type (*name##_orig)parameters;				\
-  if (!name##_orig) {							\
-    name##_orig = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);	\
-    assert(name##_orig);						\
+    /* original intercepted function */					\
+    static ret_type (*orig_fn)parameters;				\
+    if (!orig_fn) {							\
+      orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);		\
+      assert(orig_fn);							\
   }									\
   { 									\
     body; /* this is where interceptor function body goes */		\
@@ -61,37 +62,37 @@ using namespace std;
 IC_OPEN_VA(int, open, (__const char *__file, int __oflag, ...),
 	   {
 	     cout << "intercept!" << endl;
-	     ret = open_orig(__file, __oflag, mode);
+	     ret = orig_fn(__file, __oflag, mode);
 	   })
 
 IC_OPEN_VA(int, open64, (__const char *__file, int __oflag, ...),
 	   {
 	     cout << "intercept!" << endl;
-	     ret = open64_orig(__file, __oflag, mode);
+	     ret = orig_fn(__file, __oflag, mode);
 	   })
 
 IC_OPEN_VA(int, openat, (int __fd, int __oflag, ...),
 	   {
 	     cout << "intercept!" << endl;
-	     ret = openat_orig(__fd, __oflag, mode);
+	     ret = orig_fn(__fd, __oflag, mode);
 	   })
 
 IC_OPEN_VA(int, openat64, (int __fd, int __oflag, ...),
 	   {
 	     cout << "intercept!" << endl;
-	     ret = openat64_orig(__fd, __oflag, mode);
+	     ret = orig_fn(__fd, __oflag, mode);
 	   })
 
 IC(int, creat, (__const char *__file, __mode_t __mode),
 	   {
 	     cout << "intercept!" << endl;
-	     ret = creat_orig(__file, __mode);
+	     ret = orig_fn(__file, __mode);
 	   })
 
 IC(int, creat64, (__const char *__file, __mode_t __mode),
 	   {
 	     cout << "intercept!" << endl;
-	     ret = creat64_orig(__file, __mode);
+	     ret = orig_fn(__file, __mode);
 	   })
 // TODO?
 // lockf lockf64
