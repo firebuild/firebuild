@@ -73,7 +73,7 @@ message OpenFile {
 	optional int32 flags = 3;
 	// mode, decoding is left for FireBuild supervisor
 	optional int32 mode = 4;
-	// return value
+	// return value, the file descriptor if != -1
 	optional int32 ret = 5;
 	// error no., when ret = -1
 	optional int32 error_no = 6;
@@ -84,6 +84,21 @@ message OpenFileResp {
 	// to supervisor
 	optional bool collect_state = 1;
 }
+
+message CreateFile {
+	// process id
+	optional int64 pid = 1;
+	// file path
+	optional string	file = 2;
+	// mode, decoding is left for FireBuild supervisor
+	optional int32 mode = 4;
+	// return value, the file descriptor if != -1
+	optional int32 ret = 5;
+	// error no., when ret = -1
+	optional int32 error_no = 6;
+}
+
+
 
 message Process {
 	// program file

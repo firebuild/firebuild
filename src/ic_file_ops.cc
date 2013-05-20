@@ -15,7 +15,7 @@ using namespace std;
 // TODO? 
 //int fcntl (int __fd, int __cmd, ...);
 
-/* */
+/* Intercept open variants */
 static void
 intercept_open (const char *file, const int flags, const int mode,
 	       const int ret, const int error_no)
@@ -25,6 +25,7 @@ intercept_open (const char *file, const int flags, const int mode,
   m.set_file(file);
   m.set_flags(flags);
   m.set_mode(mode);
+  m.set_ret(ret);
   m.set_error_no(error_no);
 
   cout << "intercept open!" << endl;
@@ -66,16 +67,35 @@ IC_OPEN_VA(int, openat, (int __fd, __const char *__file, int __oflag, ...),
 IC_OPEN_VA(int, openat64, (int __fd, __const char *__file, int __oflag, ...),
 	   {ret = orig_fn(__fd, __file, __oflag, mode);})
 
-IC(int, creat, (__const char *__file, __mode_t __mode),
-	   {
-	     cout << "intercept!" << endl;
-	     ret = orig_fn(__file, __mode);
-	   })
+/* Intercept creat variants */
+static void
+intercept_create (const char *file, const int mode,
+	       const int ret, const int error_no)
+{
+  CreateFile m;
+  m.set_pid(getpid());
+  m.set_file(file);
+  m.set_mode(mode);
+  m.set_ret(ret);
+  m.set_error_no(error_no);
 
-IC(int, creat64, (__const char *__file, __mode_t __mode),
-	   {
-	     cout << "intercept!" << endl;
-	     ret = orig_fn(__file, __mode);
-	   })
+  cout << "intercept create!" << endl;
+  // TODO send to supervisor
+}
+
+
+#define IC_CREATE(name)							\
+  IC(int, name, (__const char *__file, __mode_t __mode), {		\
+      int error_no;							\
+      ret = orig_fn(__file, __mode);					\
+      error_no = errno;							\
+      intercept_create(__file, __mode, ret, error_no);			\
+      errno = error_no;							\
+    })
+
+IC_CREATE(creat)
+IC_CREATE(creat64)
+
 // TODO?
 // lockf lockf64
+
