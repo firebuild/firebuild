@@ -76,7 +76,7 @@ message OpenFile {
 	// return value
 	optional int32 ret = 5;
 	// error no., when ret = -1
-	optional int32 errno = 6;
+	optional int32 error_no = 6;
 }
 
 message OpenFileResp {
