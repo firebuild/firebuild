@@ -64,6 +64,27 @@ service ShortCutProcessService {
   rpc ShortCutProcess (ShortCutProcessQuery) returns (ShortCutProcessResp);
 }
 
+message OpenFile {
+	// process id
+	optional int64 pid = 1;
+	// file path
+	optional string	file = 2;
+	// flags, decoding is left for FireBuild supervisor
+	optional int32 flags = 3;
+	// mode, decoding is left for FireBuild supervisor
+	optional int32 mode = 4;
+	// return value
+	optional int32 ret = 5;
+	// error no., when ret = -1
+	optional int32 errno = 6;
+}
+
+message OpenFileResp {
+	// true if interceptor library needs to collect file state and send back
+	// to supervisor
+	optional bool collect_state = 1;
+}
+
 message Process {
 	// program file
 	required File executable = 6;
