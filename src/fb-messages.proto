@@ -98,6 +98,14 @@ message CreateFile {
 	optional int32 error_no = 6;
 }
 
+message CloseFile {
+	// process id
+	optional int64 pid = 1;
+	// file descriptor
+	optional int64 fd = 4;
+	// return value
+	optional int32 ret = 5;
+}
 
 
 message Process {

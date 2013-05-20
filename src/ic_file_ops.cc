@@ -99,3 +99,27 @@ IC_CREATE(creat64)
 // TODO?
 // lockf lockf64
 
+/* unistd.h */
+
+// TODO
+// access, euidacces, eaccess, faccessat
+
+/* Intercept close */
+static void
+intercept_close (const int fd, const int ret)
+{
+  CloseFile m;
+  m.set_pid(getpid());
+  m.set_fd(fd);
+  m.set_ret(ret);
+
+  cout << "intercept close!" << endl;
+  // TODO send to supervisor
+}
+
+
+
+IC(int, close, (int __fd), {
+      ret = orig_fn(__fd);
+      intercept_close(__fd, ret);
+    })
