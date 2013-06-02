@@ -64,6 +64,13 @@ service ShortCutProcessService {
   rpc ShortCutProcess (ShortCutProcessQuery) returns (ShortCutProcessResp);
 }
 
+// Those function calls are not handled specially in interceptor lib and
+// are reported once per process to supervisor
+message GenericCall {
+	// function name
+	required string call = 1;
+}
+
 message OpenFile {
 	// process id
 	optional int64 pid = 1;

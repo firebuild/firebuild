@@ -36,3 +36,26 @@
 	  })
 
 #endif
+
+/**
+ * Just send the intercepted function's name
+ */
+#define IC_GENERIC(ret_type, name, parameters, body)	\
+  IC(ret_type, name, parameters,			\
+     {							\
+       GenericCall m;					\
+       m.set_call(#name);				\
+       /* TODO send to supervisor */			\
+       cerr << "intercept generic call: " <<#name << endl;	\
+       body;						\
+     })
+
+#define IC_GENERIC_VOID(ret_type, name, parameters, body)	\
+  IC_VOID(ret_type, name, parameters,				\
+	  {							\
+	    GenericCall m;					\
+	    m.set_call(#name);					\
+	    /* TODO send to supervisor */			\
+	    cerr << "intercept generic call: " <<#name << endl;	\
+	    body;						\
+	  })
