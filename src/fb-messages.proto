@@ -116,6 +116,10 @@ message CloseFile {
 
 
 message Process {
+	// process id
+	optional int64 pid = 23;
+	// SHA1 sum of process and children
+	optional bytes sha1_id = 24;
 	// program file
 	required File executable = 6;
 
@@ -148,7 +152,8 @@ message Process {
 
 	repeated EnvVar env_var = 19;
 
-	repeated Process child = 5;
+	// child processes referenced by SHA1
+	repeated bytes child_sha1 = 5;
 	// TODO
 	// signals?
 	//
