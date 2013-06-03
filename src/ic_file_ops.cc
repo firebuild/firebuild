@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include "intercept.h"
+#include "ic_orig_fns.h"
 #include "fb-messages.pb.h"
 
 using namespace std;
@@ -21,7 +22,7 @@ intercept_open (const char *file, const int flags, const int mode,
 	       const int ret, const int error_no)
 {
   OpenFile m;
-  m.set_pid(getpid());
+  m.set_pid(ic_orig_getpid());
   m.set_file(file);
   m.set_flags(flags);
   m.set_mode(mode);
@@ -73,7 +74,7 @@ intercept_create (const char *file, const int mode,
 	       const int ret, const int error_no)
 {
   CreateFile m;
-  m.set_pid(getpid());
+  m.set_pid(ic_orig_getpid());
   m.set_file(file);
   m.set_mode(mode);
   m.set_ret(ret);
@@ -105,7 +106,7 @@ static void
 intercept_close (const int fd, const int ret)
 {
   CloseFile m;
-  m.set_pid(getpid());
+  m.set_pid(ic_orig_getpid());
   m.set_fd(fd);
   m.set_ret(ret);
 

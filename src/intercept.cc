@@ -3,11 +3,11 @@
 #include <cstdarg>
 #include <unistd.h>
 #include <errno.h>
+#include <dlfcn.h>
 
 #include "intercept.h"
 #include "env.h"
 #include "fb-messages.pb.h"
-
 using namespace std;
 
 #ifdef  __cplusplus
@@ -16,9 +16,37 @@ extern "C" {
 
 static void fb_ic_load() __attribute__ ((constructor));
 
+__pid_t (*ic_orig_getpid) (void);
+__pid_t (*ic_orig_getppid) (void);
+char * (*ic_orig_getcwd) (char *, size_t);
+
 #ifdef  __cplusplus
 }
 #endif
+
+/**
+ * Get pointer to a function implemented in the next shared
+ * library. In our case this is a function we intercept.
+ * @param[in] name function's name
+ */
+static void *
+get_orig_fn (const char* name)
+{
+  void * function = dlsym(RTLD_NEXT, name);
+  assert(function);
+  return function;
+}
+
+/**
+ * Get pointers to all the functions we intercept but we also want to use
+ */
+static void
+set_orig_fns ()
+{
+  ic_orig_getpid = (__pid_t(*)(void))get_orig_fn("getpid");
+  ic_orig_getppid = (__pid_t(*)(void))get_orig_fn("getppid");
+  ic_orig_getcwd = (char *(*)(char *, size_t))get_orig_fn("getppid");
+}
 
 /** buffer for getcwd */
 #define CWD_BUFSIZE 4096
@@ -36,10 +64,11 @@ static void fb_ic_load()
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+  set_orig_fns();
   get_argv_env(&argv, &env);
-  pid = getpid();
-  ppid = getppid();
-  cwd_ret = getcwd(cwd_buf, CWD_BUFSIZE);
+  pid = ic_orig_getpid();
+  ppid = ic_orig_getppid();
+  cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
   assert(cwd_ret != NULL);
 
   proc.set_pid(pid);
