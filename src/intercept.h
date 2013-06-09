@@ -7,6 +7,33 @@
 
 #include <dlfcn.h>
 
+/* create global array indexed by intercepted function's id */
+#define IC_VOID(_ret_type, name, _parameters, _body)	\
+  IC_FN_IDX_##name,
+#define IC(_ret_type, name, _parameters, _body)	\
+  IC_FN_IDX_##name,
+#define IC_GENERIC(_ret_type, name, _parameters, _body)	\
+  IC_FN_IDX_##name,
+#define IC_GENERIC_VOID(_ret_type, name, _parameters, _body)	\
+  IC_FN_IDX_##name,
+
+/* we need to include every file using IC() macro to create index for all
+ * functions */
+enum {
+#include "ic_file_ops.h"
+  IC_FN_IDX_MAX
+};
+
+#undef IC_VOID
+#undef IC
+#undef IC_GENERIC
+#undef IC_GENERIC_VOID
+
+typedef struct {
+  bool called;
+} ic_fn_info;
+
+extern ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
 /**
  * Intercept call returning void
@@ -40,22 +67,28 @@
 /**
  * Just send the intercepted function's name
  */
-#define IC_GENERIC(ret_type, name, parameters, body)	\
-  IC(ret_type, name, parameters,			\
-     {							\
-       GenericCall m;					\
-       m.set_call(#name);				\
-       /* TODO send to supervisor */			\
-       cerr << "intercept generic call: " <<#name << endl;	\
-       body;						\
+#define IC_GENERIC(ret_type, name, parameters, body)		\
+  IC(ret_type, name, parameters,				\
+     {								\
+       if (!ic_fn[IC_FN_IDX_##name].called) {			\
+	 GenericCall m;						\
+	 m.set_call(#name);					\
+	 /* TODO send to supervisor */				\
+	 cerr << "intercept generic call: " <<#name << endl;	\
+	 ic_fn[IC_FN_IDX_##name].called = true;			\
+       }							\
+       body;							\
      })
 
-#define IC_GENERIC_VOID(ret_type, name, parameters, body)	\
-  IC_VOID(ret_type, name, parameters,				\
-	  {							\
-	    GenericCall m;					\
-	    m.set_call(#name);					\
-	    /* TODO send to supervisor */			\
-	    cerr << "intercept generic call: " <<#name << endl;	\
-	    body;						\
+#define IC_GENERIC_VOID(ret_type, name, parameters, body)		\
+  IC_VOID(ret_type, name, parameters,					\
+	  {								\
+	    if (!ic_fn[IC_FN_IDX_##name].called) {			\
+	      GenericCall m;						\
+	      m.set_call(#name);					\
+	      /* TODO send to supervisor */				\
+	      cerr << "intercept generic call: " <<#name << endl;	\
+	      ic_fn[IC_FN_IDX_##name].called = true;			\
+	    }								\
+	    body;							\
 	  })

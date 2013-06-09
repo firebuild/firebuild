@@ -24,6 +24,21 @@ char * (*ic_orig_getcwd) (char *, size_t);
 }
 #endif
 
+/* global vars */
+ic_fn_info ic_fn[IC_FN_IDX_MAX];
+
+/**
+ * Reset globally maintained information about intercepted funtions
+ */
+static void
+reset_fn_infos ()
+{
+  int i;
+  for (i = 0; i < IC_FN_IDX_MAX ; i++) {
+    ic_fn[i].called = false;
+  }
+}
+
 /**
  * Get pointer to a function implemented in the next shared
  * library. In our case this is a function we intercept.
@@ -65,6 +80,7 @@ static void fb_ic_load()
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   set_orig_fns();
+  reset_fn_infos();
   get_argv_env(&argv, &env);
   pid = ic_orig_getpid();
   ppid = ic_orig_getppid();
