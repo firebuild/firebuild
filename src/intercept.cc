@@ -16,16 +16,18 @@ extern "C" {
 
 static void fb_ic_load() __attribute__ ((constructor));
 
-__pid_t (*ic_orig_getpid) (void);
-__pid_t (*ic_orig_getppid) (void);
-char * (*ic_orig_getcwd) (char *, size_t);
-
 #ifdef  __cplusplus
 }
 #endif
 
 /* global vars */
 ic_fn_info ic_fn[IC_FN_IDX_MAX];
+
+/* original intercepted functions */
+__pid_t (*ic_orig_getpid) (void);
+__pid_t (*ic_orig_getppid) (void);
+char * (*ic_orig_getcwd) (char *, size_t);
+
 
 /**
  * Reset globally maintained information about intercepted funtions

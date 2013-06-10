@@ -35,6 +35,10 @@ typedef struct {
 
 extern ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
+extern __pid_t (*ic_orig_getpid) (void);
+extern __pid_t (*ic_orig_getppid) (void);
+extern char * (*ic_orig_getcwd) (char *__buf, size_t __size);
+
 /**
  * Intercept call returning void
  */

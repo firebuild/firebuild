@@ -8,7 +8,6 @@
 #include <iostream>
 
 #include "intercept.h"
-#include "ic_orig_fns.h"
 #include "fb-messages.pb.h"
 
 using namespace std;
