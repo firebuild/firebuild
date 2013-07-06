@@ -75,5 +75,9 @@ intercept_exit (const int status)
   // TODO send to supervisor
 }
 
+/* make intercepted functions visible */
+#pragma GCC visibility push(default)
 
 #include "ic_file_ops.h"
+
+#pragma GCC visibility pop

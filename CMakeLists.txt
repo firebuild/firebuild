@@ -12,6 +12,7 @@ set(TENTATIVE_C_FLAGS
   -Wunreachable-code
   -Wunsafe-loop-optimizations
   -Warray-bounds
+  -fvisibility=hidden
   -Wredundant-decls)
 
 foreach(FLAG ${TENTATIVE_C_FLAGS})
