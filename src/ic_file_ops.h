@@ -137,28 +137,8 @@ IC_GENERIC(int, fexecve, (int __fd, char *__const __argv[], char *__const __envp
 IC_GENERIC(int, execv, (__const char *__path, char *__const __argv[]),
            {ret = orig_fn(__path, __argv);})
 
-/* TODO why on earth do we need those fns? */
-IC_GENERIC(int, execle, (__const char *__path, __const char *__arg, ...),
-           {/* to not forget about that */
-	     assert( 0 && "processes calling execle are not supported");
-	     ret = 0;
-	   })
-
-IC_GENERIC(int, execl, (__const char *__path, __const char *__arg, ...),
-           {/* to not forget about that */
-	     assert( 0 && "processes calling execle are not supported");
-	     ret = 0;
-	   })
-
 IC_GENERIC(int, execvp, (__const char *__file, char *__const __argv[]),
            {ret = orig_fn(__file, __argv);})
-
-/* TODO */
-IC_GENERIC(int, execlp, (__const char *__file, __const char *__arg, ...),
-           {/* to not forget about that */
-	     assert( 0 && "processes calling execle are not supported");
-	     ret = 0;
-	   })
 
 IC_GENERIC(int, execvpe, (__const char *__file, char *__const __argv[],
 			  char *__const __envp[]),

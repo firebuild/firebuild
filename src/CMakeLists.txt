@@ -8,6 +8,7 @@ add_library(fbintercept MODULE
   intercept.cc
   env.c
   ic_file_ops.cc
+  ic_redirect_only.cc
   ${PROTO_SRCS})
 
 target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES} dl)
