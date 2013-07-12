@@ -26,10 +26,10 @@ static char** get_sanitized_env()
   vector<string>::iterator it;
 
   // TODO get from config files
-  const string pass_through_env_vars[][2] = {{"PATH", ""}, {"SHELL", ""}};
+  const string pass_through_env_vars[][2] = {{"PATH", ""}, {"SHELL", ""},
+					     {"LD_LIBRARY_PATH", ""}};
   const string preset_env_vars[][2] = {{"FB_SOCKET", "1234"},
-				       {"LD_PRELOAD", "libfbintercept.so"},
-				       {"LD_LIBRARY_PATH", "src"}};
+				       {"LD_PRELOAD", "libfbintercept.so"}};
 
   cout << "Passing through environment variables:" << endl;
   for (i = 0; i < sizeof(pass_through_env_vars) / (2 * sizeof(string)); i++) {
