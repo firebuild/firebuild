@@ -212,13 +212,11 @@ IC_GENERIC(int, setresuid, (__uid_t __ruid, __uid_t __euid, __uid_t __suid),
 IC_GENERIC(int, setresgid, (__gid_t __rgid, __gid_t __egid, __gid_t __sgid),
            {ret = orig_fn(__rgid, __egid, __sgid);})
 
-/* TODO */
-/*
+/* TODO reinit per process data, etc.*/
+
 IC_GENERIC(__pid_t, fork, (void),
            {ret = orig_fn();})
-IC_GENERIC(__pid_t, vfork, (void),
-           {ret = orig_fn();})
-*/
+
 /*  probably never used */
 IC_GENERIC(char*, ttyname, (int __fd),
            {ret = orig_fn(__fd);})
