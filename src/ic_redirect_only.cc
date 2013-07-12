@@ -51,6 +51,17 @@ IC_EXECLXX ( , e)
 IC_EXECLXX (p, )
 IC_EXECLXX (p, e)
 
+/**
+ * vfork simply calling fork
+ *
+ * vfork interception would be a bit complicated to implement properly
+ * and most of the programs will work properly with fork
+ */
+extern __pid_t vfork (void)
+{
+  return fork();
+}
+
 #pragma GCC visibility pop
 
 #ifdef  __cplusplus
