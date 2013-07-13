@@ -6,6 +6,7 @@
 #define _INTERCEPT_H
 
 #include <dlfcn.h>
+#include <pthread.h>
 
 /* create global array indexed by intercepted function's id */
 #define IC_VOID(_ret_type, name, _parameters, _body)	\
@@ -38,6 +39,11 @@ extern ic_fn_info ic_fn[IC_FN_IDX_MAX];
 extern __pid_t (*ic_orig_getpid) (void);
 extern __pid_t (*ic_orig_getppid) (void);
 extern char * (*ic_orig_getcwd) (char *__buf, size_t __size);
+extern ssize_t (*ic_orig_write) (int, const void*, size_t);
+extern ssize_t (*ic_orig_read) (int, const void*, size_t);
+
+/** Global lock for serializing critical interceptor actions */
+extern pthread_mutex_t ic_global_lock;
 
 /**
  * Intercept call returning void

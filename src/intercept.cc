@@ -8,6 +8,8 @@
 #include "intercept.h"
 #include "env.h"
 #include "fb-messages.pb.h"
+#include "firebuild_common.h"
+
 using namespace std;
 
 #ifdef  __cplusplus
@@ -27,6 +29,11 @@ ic_fn_info ic_fn[IC_FN_IDX_MAX];
 __pid_t (*ic_orig_getpid) (void);
 __pid_t (*ic_orig_getppid) (void);
 char * (*ic_orig_getcwd) (char *, size_t);
+ssize_t(*ic_orig_write)(int, const void *, size_t);
+ssize_t(*ic_orig_read)(int, const void *, size_t);
+
+/** Global lock for serializing critical interceptor actions */
+pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
 
 
 /**
@@ -63,6 +70,8 @@ set_orig_fns ()
   ic_orig_getpid = (__pid_t(*)(void))get_orig_fn("getpid");
   ic_orig_getppid = (__pid_t(*)(void))get_orig_fn("getppid");
   ic_orig_getcwd = (char *(*)(char *, size_t))get_orig_fn("getppid");
+  ic_orig_write = (ssize_t(*)(int, const void *, size_t))get_orig_fn("write");
+  ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
 }
 
 /** buffer for getcwd */
@@ -106,3 +115,16 @@ static void fb_ic_load()
 
 }
 
+/** wrapper for write() retrying on recoverable errors*/
+ssize_t fb_write_buf(int fd, const void *buf, const size_t count)
+{
+  pthread_mutex_lock(&ic_global_lock);
+  FB_IO_OP_BUF(ic_orig_write, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
+}
+
+/** wrapper for write() retrying on recoverable errors*/
+ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
+{
+  pthread_mutex_lock(&ic_global_lock);
+  FB_IO_OP_BUF(ic_orig_read, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
+}

@@ -2,7 +2,10 @@
 #include "fb-messages.pb.h"
 #include <string>
 #include <iostream>
+#include <cerrno>
 #include <unistd.h>
+
+#include "firebuild_common.h"
 
 using namespace std;
 
@@ -99,4 +102,16 @@ int main(int argc, char* argv[]) {
   google::protobuf::ShutdownProtobufLibrary();
 
   return ret;
+}
+
+/** wrapper for write() retrying on recoverable errors*/
+ssize_t fb_write_buf(int fd, const void *buf, const size_t count)
+{
+  FB_IO_OP_BUF(write, fd, buf, count, {})
+}
+
+/** wrapper for read() retrying on recoverable errors*/
+ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
+{
+  FB_IO_OP_BUF(read, fd, buf, count, {})
 }
