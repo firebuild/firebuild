@@ -66,7 +66,7 @@ intercept_close (const int fd, const int ret)
 
 /* TODO finish */
 static void
-intercept_exit (const int status)
+intercept_exit (const int /* status*/)
 {
   GenericCall m;
   m.set_call("exit");

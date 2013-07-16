@@ -20,6 +20,8 @@ extern "C" {
     unsigned int argc = 0, argc_size = 16;				\
     char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*))); \
     va_start(ap, __arg);						\
+    /* silence ... unused warnings */					\
+    (void)call_; (void)call_e;						\
     argv[argc] = const_cast<char *>(__arg);				\
     while (argv[argc]) {						\
       argv[++argc] = static_cast<char *>(va_arg(ap, char*));		\

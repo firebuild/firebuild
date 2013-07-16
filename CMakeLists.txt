@@ -5,14 +5,22 @@ cmake_minimum_required(VERSION 2.8)
 include(CheckCCompilerFlag)
 
 set(TENTATIVE_C_FLAGS
+  -W
+  -Wall
   -Wextra
+  -ggdb
   -Werror
+  -Wpointer-arith
+  -Warray-bounds
+  -Wcast-align
   -Wformat -Wformat-security
   -fstrict-overflow -Wstrict-overflow=4
   -Wunreachable-code
   -Wunsafe-loop-optimizations
   -Warray-bounds
   -fvisibility=hidden
+  -Woverflow
+  -Wlogical-op
   -Wredundant-decls)
 
 foreach(FLAG ${TENTATIVE_C_FLAGS})
