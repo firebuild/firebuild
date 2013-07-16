@@ -4,6 +4,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
 
 #include "intercept.h"
 #include "env.h"
@@ -17,6 +20,7 @@ extern "C" {
 #endif
 
 static void fb_ic_load() __attribute__ ((constructor));
+static void fb_ic_cleanup() __attribute__ ((destructor));
 
 #ifdef  __cplusplus
 }
@@ -34,6 +38,12 @@ ssize_t(*ic_orig_read)(int, const void *, size_t);
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/** Connection string to supervisor */
+char * fb_conn_string = NULL;
+
+/** Connection file descriptor to supervisor */
+int fb_sv_conn = -1;
 
 
 /**
@@ -74,6 +84,33 @@ set_orig_fns ()
   ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
 }
 
+/**
+ * Set up supervisor connection
+ */
+void
+init_supervisor_conn () {
+
+  struct sockaddr_un remote;
+  size_t len;
+
+  if (fb_conn_string == NULL) {
+    fb_conn_string = strdup(getenv("FB_SOCKET"));
+  }
+
+  if ((fb_sv_conn = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    assert(fb_sv_conn != -1);
+  }
+
+  remote.sun_family = AF_UNIX;
+  assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
+  strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
+
+  len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+  if (connect(fb_sv_conn, (struct sockaddr *)&remote, len) == -1) {
+    assert(0 && "connection to supervisor failed");
+  }
+}
+
 /** buffer for getcwd */
 #define CWD_BUFSIZE 4096
 static char cwd_buf[CWD_BUFSIZE];
@@ -86,34 +123,48 @@ static void fb_ic_load()
 {
   char **argv, **env, **cursor, *cwd_ret;
   __pid_t pid, ppid;
-  ShortCutProcessQuery proc;
+  ShortCutProcessQuery *proc;
+  InterceptorMsg ic_msg;
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   set_orig_fns();
   reset_fn_infos();
+
+  init_supervisor_conn();
+
   get_argv_env(&argv, &env);
   pid = ic_orig_getpid();
   ppid = ic_orig_getppid();
   cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
   assert(cwd_ret != NULL);
 
-  proc.set_pid(pid);
-  proc.set_ppid(ppid);
-  proc.set_cwd(cwd_buf);
+  proc = ic_msg.mutable_scproc_query();
+
+  proc->set_pid(pid);
+  proc->set_ppid(ppid);
+  proc->set_cwd(cwd_buf);
 
   for (cursor = argv; *cursor != NULL; cursor++) {
-    proc.add_arg(*cursor);
+    proc->add_arg(*cursor);
   }
 
   for (cursor = env; *cursor != NULL; cursor++) {
-    proc.add_env_var(*cursor);
+    proc->add_env_var(*cursor);
   }
 
-  // TODO query supervisor if we can shortcut this process
+  fb_send_msg(ic_msg, fb_sv_conn);
   //exit(ret);
 
 }
+
+static void fb_ic_cleanup()
+{
+  // Optional:  Delete all global objects allocated by libprotobuf.
+  google::protobuf::ShutdownProtobufLibrary();
+  close(fb_sv_conn);
+}
+
 
 /** wrapper for write() retrying on recoverable errors*/
 ssize_t fb_write_buf(int fd, const void *buf, const size_t count)

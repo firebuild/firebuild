@@ -158,3 +158,19 @@ message Process {
 	// signals?
 	//
 }
+
+// wrapper for messages supervisor can send
+message SupervisorMsg {
+	optional ShortCutProcessResp scproc_resp= 1;
+	optional OpenFileResp open_file_resp = 2;
+}
+
+// wrapper for messages interceptor can send
+message InterceptorMsg {
+	optional ShortCutProcessQuery scproc_query = 1;
+	optional OpenFile open_file = 2;
+	optional CreateFile create_file = 3;
+	optional CloseFile close_file = 4;
+	optional Process proc = 5;
+	optional GenericCall gen_call = 6;
+}
