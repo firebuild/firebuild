@@ -69,14 +69,19 @@ intercept_close (const int fd, const int ret)
 
 /* TODO finish */
 static void
-intercept_exit (const int /* status*/)
+intercept_exit (const int status)
 {
   InterceptorMsg ic_msg;
-  GenericCall *m;
-  m = ic_msg.mutable_gen_call();
-  m->set_call("exit");
-
+  SupervisorMsg sv_msg;
+  Exit *m;
+  m = ic_msg.mutable_exit();
+  m->set_exit_status(status);
   fb_send_msg(ic_msg, fb_sv_conn);
+  fb_recv_msg(sv_msg, fb_sv_conn);
+  if (!sv_msg.ack()) {
+    // something unexpected happened ...
+    assert(0);
+  }
 
 }
 

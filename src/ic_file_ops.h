@@ -146,8 +146,18 @@ IC_GENERIC(int, execvpe, (__const char *__file, char *__const __argv[],
 
 /* ignore: nice */
 
-/* TODO */
+IC_VOID(void, exit, (int __status), {
+    intercept_exit(__status);
+    orig_fn(__status);
+    while (true);
+  })
+
 IC_VOID(void, _exit, (int __status), {
+    intercept_exit(__status);
+    orig_fn(__status);
+    while (true);
+  })
+IC_VOID(void, quick_exit, (int __status), {
     intercept_exit(__status);
     orig_fn(__status);
     while (true);

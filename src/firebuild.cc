@@ -122,6 +122,39 @@ init_signal_handlers(void)
   }
 }
 
+/**
+ * Process message coming from interceptor
+ * @param fb_conn file desctiptor of the connection
+ * @return fd_conn can be kept open
+ */
+bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
+  if (ic_msg.has_scproc_query()) {
+    SupervisorMsg sv_msg;
+    ShortCutProcessResp *scproc_resp;
+    scproc_resp = sv_msg.mutable_scproc_resp();
+    // TODO look up stored result
+    if (false /* can shortcut*/) {
+      scproc_resp->set_shortcut(true);
+      scproc_resp->set_exit_status(0);
+    } else {
+      scproc_resp->set_shortcut(false);
+    }
+    fb_send_msg(sv_msg, fd_conn);
+  } else if (ic_msg.has_open_file()) {
+  } else if (ic_msg.has_create_file()) {
+  } else if (ic_msg.has_close_file()) {
+  } else if (ic_msg.has_proc()) {
+  } else if (ic_msg.has_exit()) {
+    SupervisorMsg sv_msg;
+    sv_msg.set_ack(true);
+    fb_send_msg(sv_msg, fd_conn);
+    return (false);
+  } else if (ic_msg.has_gen_call()) {
+  }
+
+  return true;
+}
+
 
 int main(int argc, char* argv[]) {
 
@@ -195,8 +228,8 @@ int main(int argc, char* argv[]) {
       fd_set master;    // master file descriptor list
       fd_set read_fds;  // temp file descriptor list for select()
 
-      InterceptorMsg sv_msg;
-      SupervisorMsg ic_msg;
+      InterceptorMsg ic_msg;
+      SupervisorMsg sv_msg;
 
       bool child_exited = false;
 
@@ -262,7 +295,7 @@ int main(int argc, char* argv[]) {
 	      // handle data from a client
 	      ssize_t nbytes;
 
-	      if ((nbytes = fb_recv_msg(sv_msg, i)) <= 0) {
+	      if ((nbytes = fb_recv_msg(ic_msg, i)) <= 0) {
 		// got error or connection closed by client
 		if (nbytes == 0) {
 		  // connection closed
@@ -273,10 +306,13 @@ int main(int argc, char* argv[]) {
 		close(i); // bye!
 		FD_CLR(i, &master); // remove from master set
 	      } else {
-		// TODO process message
 		io::FileOutputStream * fos = new io::FileOutputStream(STDERR_FILENO);
-		TextFormat::Print(sv_msg, fos);
+		TextFormat::Print(ic_msg, fos);
 		fos->Flush();
+		if (!proc_ic_msg(ic_msg, i)) {
+		  close(i); // bye!
+		  FD_CLR(i, &master); // remove from master set
+		}
 	      }
 	    }
 	  }

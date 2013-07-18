@@ -124,7 +124,9 @@ static void fb_ic_load()
   char **argv, **env, **cursor, *cwd_ret;
   __pid_t pid, ppid;
   ShortCutProcessQuery *proc;
+  ShortCutProcessResp * resp;
   InterceptorMsg ic_msg;
+  SupervisorMsg sv_msg;
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -154,8 +156,17 @@ static void fb_ic_load()
   }
 
   fb_send_msg(ic_msg, fb_sv_conn);
-  //exit(ret);
+  fb_recv_msg(sv_msg, fb_sv_conn);
 
+  resp = sv_msg.mutable_scproc_resp();
+  // we may return immediately if supervisor decides that way
+  if (resp->shortcut()) {
+    if (resp->has_exit_status()) {
+      exit(resp->exit_status());
+    } else {
+      // TODO send error
+    }
+  }
 }
 
 static void fb_ic_cleanup()
