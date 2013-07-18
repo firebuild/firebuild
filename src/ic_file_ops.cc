@@ -20,16 +20,17 @@ static void
 intercept_open (const char *file, const int flags, const int mode,
 	       const int ret, const int error_no)
 {
-  OpenFile m;
-  m.set_pid(ic_orig_getpid());
-  m.set_file(file);
-  m.set_flags(flags);
-  m.set_mode(mode);
-  m.set_ret(ret);
-  m.set_error_no(error_no);
+  InterceptorMsg ic_msg;
+  OpenFile *m;
+  m = ic_msg.mutable_open_file();
+  m->set_pid(ic_orig_getpid());
+  m->set_file(file);
+  m->set_flags(flags);
+  m->set_mode(mode);
+  m->set_ret(ret);
+  m->set_error_no(error_no);
 
-  cout << "intercept open!" << endl;
-  // TODO send to supervisor and collect file status if needed
+  fb_send_msg(ic_msg, fb_sv_conn);
 }
 
 
@@ -38,15 +39,16 @@ static void
 intercept_create (const char *file, const int mode,
 	       const int ret, const int error_no)
 {
-  CreateFile m;
-  m.set_pid(ic_orig_getpid());
-  m.set_file(file);
-  m.set_mode(mode);
-  m.set_ret(ret);
-  m.set_error_no(error_no);
+  InterceptorMsg ic_msg;
+  CreateFile *m;
+  m = ic_msg.mutable_create_file();
+  m->set_pid(ic_orig_getpid());
+  m->set_file(file);
+  m->set_mode(mode);
+  m->set_ret(ret);
+  m->set_error_no(error_no);
 
-  cout << "intercept create!" << endl;
-  // TODO send to supervisor
+  fb_send_msg(ic_msg, fb_sv_conn);
 }
 
 
@@ -54,13 +56,14 @@ intercept_create (const char *file, const int mode,
 static void
 intercept_close (const int fd, const int ret)
 {
-  CloseFile m;
-  m.set_pid(ic_orig_getpid());
-  m.set_fd(fd);
-  m.set_ret(ret);
+  InterceptorMsg ic_msg;
+  CloseFile *m;
+  m = ic_msg.mutable_close_file();
+  m->set_pid(ic_orig_getpid());
+  m->set_fd(fd);
+  m->set_ret(ret);
 
-  cout << "intercept close!" << endl;
-  // TODO send to supervisor
+  fb_send_msg(ic_msg, fb_sv_conn);
 }
 
 
@@ -68,11 +71,13 @@ intercept_close (const int fd, const int ret)
 static void
 intercept_exit (const int /* status*/)
 {
-  GenericCall m;
-  m.set_call("exit");
+  InterceptorMsg ic_msg;
+  GenericCall *m;
+  m = ic_msg.mutable_gen_call();
+  m->set_call("exit");
 
-  cout << "intercept exit!" << endl;
-  // TODO send to supervisor
+  fb_send_msg(ic_msg, fb_sv_conn);
+
 }
 
 /* make intercepted functions visible */

@@ -7,7 +7,7 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
-
+#include "firebuild_common.h"
 /* create global array indexed by intercepted function's id */
 #define IC_VOID(_ret_type, name, _parameters, _body)	\
   IC_FN_IDX_##name,
@@ -45,6 +45,9 @@ extern ssize_t (*ic_orig_read) (int, const void*, size_t);
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
+/** Connection file descriptor to supervisor */
+extern int fb_sv_conn;
+
 /**
  * Intercept call returning void
  */
@@ -52,7 +55,7 @@ extern pthread_mutex_t ic_global_lock;
   extern ret_type (name) parameters					\
   {									\
     /* original intercepted function */					\
-    static ret_type (*orig_fn)parameters;				\
+    static ret_type (*orig_fn)parameters = NULL;			\
     if (!orig_fn) {							\
       orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);		\
       assert(orig_fn);							\
@@ -81,10 +84,11 @@ extern pthread_mutex_t ic_global_lock;
   IC(ret_type, name, parameters,				\
      {								\
        if (!ic_fn[IC_FN_IDX_##name].called) {			\
-	 GenericCall m;						\
-	 m.set_call(#name);					\
-	 /* TODO send to supervisor */				\
-	 cerr << "intercept generic call: " <<#name << endl;	\
+	 InterceptorMsg ic_msg;					\
+	 GenericCall *m;					\
+	 m = ic_msg.mutable_gen_call();				\
+	 m->set_call(#name);					\
+	 fb_send_msg(ic_msg, fb_sv_conn);			\
 	 ic_fn[IC_FN_IDX_##name].called = true;			\
        }							\
        body;							\
@@ -94,10 +98,11 @@ extern pthread_mutex_t ic_global_lock;
   IC_VOID(ret_type, name, parameters,					\
 	  {								\
 	    if (!ic_fn[IC_FN_IDX_##name].called) {			\
-	      GenericCall m;						\
-	      m.set_call(#name);					\
-	      /* TODO send to supervisor */				\
-	      cerr << "intercept generic call: " <<#name << endl;	\
+	      InterceptorMsg ic_msg;					\
+	      GenericCall *m;						\
+	      m = ic_msg.mutable_gen_call();				\
+	      m->set_call(#name);					\
+	      fb_send_msg(ic_msg, fb_sv_conn);				\
 	      ic_fn[IC_FN_IDX_##name].called = true;			\
 	    }								\
 	    body;							\
