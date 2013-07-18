@@ -16,7 +16,6 @@ set(TENTATIVE_C_FLAGS
   -Wformat -Wformat-security
   -fstrict-overflow -Wstrict-overflow=4
   -Wunreachable-code
-  -Wunsafe-loop-optimizations
   -Warray-bounds
   -fvisibility=hidden
   -Woverflow
