@@ -9,7 +9,9 @@ extern "C" {
 #endif
 
 
-/**/
+/**
+ * generator for intercepting various execl.. calls
+ */
 #define IC_EXECLXX(with_p, with_e)					\
   extern int execl##with_p##with_e(__const char *__path,  __const char *__arg, ...) \
   {									\

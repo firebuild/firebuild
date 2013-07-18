@@ -60,10 +60,6 @@ message ShortCutProcessResp {
 	optional int64 exit_status = 2;
 }
 
-service ShortCutProcessService {
-  rpc ShortCutProcess (ShortCutProcessQuery) returns (ShortCutProcessResp);
-}
-
 // Those function calls are not handled specially in interceptor lib and
 // are reported once per process to supervisor
 message GenericCall {
@@ -72,8 +68,6 @@ message GenericCall {
 }
 
 message OpenFile {
-	// process id
-	optional int64 pid = 1;
 	// file path
 	optional string	file = 2;
 	// flags, decoding is left for FireBuild supervisor
@@ -93,8 +87,6 @@ message OpenFileResp {
 }
 
 message CreateFile {
-	// process id
-	optional int64 pid = 1;
 	// file path
 	optional string	file = 2;
 	// mode, decoding is left for FireBuild supervisor
@@ -106,8 +98,6 @@ message CreateFile {
 }
 
 message CloseFile {
-	// process id
-	optional int64 pid = 1;
 	// file descriptor
 	optional int64 fd = 4;
 	// return value

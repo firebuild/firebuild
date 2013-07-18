@@ -23,7 +23,6 @@ intercept_open (const char *file, const int flags, const int mode,
   InterceptorMsg ic_msg;
   OpenFile *m;
   m = ic_msg.mutable_open_file();
-  m->set_pid(ic_orig_getpid());
   m->set_file(file);
   m->set_flags(flags);
   m->set_mode(mode);
@@ -42,7 +41,6 @@ intercept_create (const char *file, const int mode,
   InterceptorMsg ic_msg;
   CreateFile *m;
   m = ic_msg.mutable_create_file();
-  m->set_pid(ic_orig_getpid());
   m->set_file(file);
   m->set_mode(mode);
   m->set_ret(ret);
@@ -59,7 +57,6 @@ intercept_close (const int fd, const int ret)
   InterceptorMsg ic_msg;
   CloseFile *m;
   m = ic_msg.mutable_close_file();
-  m->set_pid(ic_orig_getpid());
   m->set_fd(fd);
   m->set_ret(ret);
 
