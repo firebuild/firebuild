@@ -42,6 +42,12 @@ extern char * (*ic_orig_getcwd) (char *__buf, size_t __size);
 extern ssize_t (*ic_orig_write) (int, const void*, size_t);
 extern ssize_t (*ic_orig_read) (int, const void*, size_t);
 
+/** Reset globally maintained information about intercepted funtions */
+extern void reset_fn_infos ();
+
+/**  Set up supervisor connection */
+extern void init_supervisor_conn ();
+
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
@@ -50,6 +56,12 @@ extern int fb_sv_conn;
 
 /** interceptor init has been run */
 extern bool ic_init_done;
+
+/**
+ * Stored PID
+ * When getpid() returns a different value, we missed a fork() :-)
+ */
+extern int ic_pid;
 
 #ifdef  __cplusplus
 extern "C" {

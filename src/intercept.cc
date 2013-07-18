@@ -48,9 +48,15 @@ int fb_sv_conn = -1;
 bool ic_init_done = false;
 
 /**
+ * Stored PID
+ * When getpid() returns a different value, we missed a fork() :-)
+ */
+int ic_pid;
+
+/**
  * Reset globally maintained information about intercepted funtions
  */
-static void
+void
 reset_fn_infos ()
 {
   int i;
@@ -85,9 +91,7 @@ set_orig_fns ()
   ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
 }
 
-/**
- * Set up supervisor connection
- */
+/**  Set up supervisor connection */
 void
 init_supervisor_conn () {
 
@@ -117,7 +121,7 @@ init_supervisor_conn () {
 static char cwd_buf[CWD_BUFSIZE];
 
 /**
- * Initialize interceptor's data structures and sync with supervisor
+ * Initialize interceptor's data structures and synC With supervisor
  */
 static void fb_ic_init()
 {
@@ -136,7 +140,7 @@ static void fb_ic_init()
   init_supervisor_conn();
 
   get_argv_env(&argv, &env);
-  pid = ic_orig_getpid();
+  ic_pid = pid = ic_orig_getpid();
   ppid = ic_orig_getppid();
   cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
   assert(cwd_ret != NULL);

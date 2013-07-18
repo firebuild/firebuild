@@ -89,6 +89,40 @@ intercept_exit (const int status)
 }
 
 /* make intercepted functions visible */
+static __pid_t
+intercept_fork (const __pid_t ret)
+{
+  InterceptorMsg ic_msg;
+  __pid_t pid;
+
+  if (ret == 0) {
+    // child
+    ForkChild *m;
+    reset_fn_infos();
+    ic_pid = pid = ic_orig_getpid();
+    // unlock global interceptor lock if it is locked
+    pthread_mutex_trylock(&ic_global_lock);
+    pthread_mutex_unlock(&ic_global_lock);
+    // reconnect to supervisor
+    close(fb_sv_conn);
+    fb_sv_conn = -1;
+    init_supervisor_conn();
+    m = ic_msg.mutable_fork_child();
+    m->set_pid(pid);
+    m->set_ppid(ic_orig_getppid());
+    fb_send_msg(ic_msg, fb_sv_conn);
+  } else {
+    // parent
+    ForkParent *m;
+    m = ic_msg.mutable_fork_parent();
+    m->set_pid(ic_pid);
+    m->set_child_pid(ret);
+    fb_send_msg(ic_msg, fb_sv_conn);
+  }
+  return ret;
+}
+
+/* make intercepted functions visible */
 #pragma GCC visibility push(default)
 
 #include "ic_file_ops.h"
