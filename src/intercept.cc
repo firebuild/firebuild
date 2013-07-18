@@ -19,7 +19,6 @@ using namespace std;
 extern "C" {
 #endif
 
-static void fb_ic_load() __attribute__ ((constructor));
 static void fb_ic_cleanup() __attribute__ ((destructor));
 
 #ifdef  __cplusplus
@@ -45,6 +44,8 @@ char * fb_conn_string = NULL;
 /** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
 
+/** interceptor init has been run */
+bool ic_init_done = false;
 
 /**
  * Reset globally maintained information about intercepted funtions
@@ -116,10 +117,9 @@ init_supervisor_conn () {
 static char cwd_buf[CWD_BUFSIZE];
 
 /**
- * Collect information about process the earliest possible, right
- * when interceptor library loads
+ * Initialize interceptor's data structures and sync with supervisor
  */
-static void fb_ic_load()
+static void fb_ic_init()
 {
   char **argv, **env, **cursor, *cwd_ret;
   __pid_t pid, ppid;
@@ -167,7 +167,20 @@ static void fb_ic_load()
       // TODO send error
     }
   }
+  ic_init_done = true;
 }
+
+/**
+ * Collect information about process the earliest possible, right
+ * when interceptor library loads or when the first interceped call happens
+ */
+void fb_ic_load()
+{
+  if (!ic_init_done) {
+    fb_ic_init();
+  }
+}
+
 
 static void fb_ic_cleanup()
 {

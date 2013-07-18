@@ -48,6 +48,19 @@ extern pthread_mutex_t ic_global_lock;
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
+/** interceptor init has been run */
+extern bool ic_init_done;
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
+extern void fb_ic_load() __attribute__ ((constructor));
+
+#ifdef  __cplusplus
+}
+#endif
+
 /**
  * Intercept call returning void
  */
@@ -60,6 +73,7 @@ extern int fb_sv_conn;
       orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);		\
       assert(orig_fn);							\
   }									\
+    fb_ic_load();							\
   { 									\
     body; /* this is where interceptor function body goes */		\
   }									\
