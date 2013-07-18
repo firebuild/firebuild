@@ -42,6 +42,7 @@ static char** get_sanitized_env()
 
   // TODO get from config files
   const string pass_through_env_vars[][2] = {{"PATH", ""}, {"SHELL", ""},
+					     {"PWD", ""},
 					     {"LD_LIBRARY_PATH", ""}};
   string preset_env_vars[][2] = {{"FB_SOCKET", fb_conn_string},
 				 {"LD_PRELOAD", "libfbintercept.so"}};
