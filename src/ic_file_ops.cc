@@ -6,6 +6,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include <iostream>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include "intercept.h"
 #include "fb-messages.pb.h"
@@ -64,15 +66,19 @@ intercept_close (const int fd, const int ret)
 }
 
 
-/* TODO finish */
 static void
 intercept_exit (const int status)
 {
   InterceptorMsg ic_msg;
   SupervisorMsg sv_msg;
   Exit *m;
+  struct rusage ru;
+
   m = ic_msg.mutable_exit();
   m->set_exit_status(status);
+  getrusage(RUSAGE_SELF, &ru);
+  m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
+  m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
   fb_send_msg(ic_msg, fb_sv_conn);
   fb_recv_msg(sv_msg, fb_sv_conn);
   if (!sv_msg.ack()) {

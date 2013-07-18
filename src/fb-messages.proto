@@ -152,7 +152,10 @@ message Process {
 message Exit {
 	// exit status of the process
 	required int32 exit_status = 1;
-
+	// user CPU time in milliseconds
+	required int64 utime_m = 2;
+	// system CPU time in milliseconds
+	required int64 stime_m = 3;
 }
 
 // wrapper for messages supervisor can send
