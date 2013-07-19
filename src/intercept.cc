@@ -53,6 +53,9 @@ bool ic_init_done = false;
  */
 int ic_pid;
 
+/** Per thread variable which we turn on inside call interception */
+__thread bool intercept_on = false;
+
 /**
  * Reset globally maintained information about intercepted funtions
  */
@@ -121,7 +124,7 @@ init_supervisor_conn () {
 static char cwd_buf[CWD_BUFSIZE];
 
 /**
- * Initialize interceptor's data structures and synC With supervisor
+ * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init()
 {

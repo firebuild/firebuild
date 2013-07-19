@@ -63,6 +63,9 @@ extern bool ic_init_done;
  */
 extern int ic_pid;
 
+/** Per thread variable which we turn on inside call interception */
+extern __thread bool intercept_on;
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -85,10 +88,13 @@ extern void fb_ic_load() __attribute__ ((constructor));
       orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);		\
       assert(orig_fn);							\
   }									\
+    assert(intercept_on == false);					\
+    intercept_on = true;						\
     fb_ic_load();							\
   { 									\
     body; /* this is where interceptor function body goes */		\
   }									\
+  intercept_on = false;							\
 }
 
 /**
