@@ -52,6 +52,8 @@ message ShortCutProcessQuery {
 	repeated string arg = 4;
 	// environment variables in unprocessed NAME=value form
 	repeated string env_var = 5;
+	// full path of the binary
+	optional string executable = 6;
 }
 
 // FireBuild supervisor's response with details of shortcutting

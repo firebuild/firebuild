@@ -41,6 +41,8 @@ extern __pid_t (*ic_orig_getppid) (void);
 extern char * (*ic_orig_getcwd) (char *__buf, size_t __size);
 extern ssize_t (*ic_orig_write) (int, const void*, size_t);
 extern ssize_t (*ic_orig_read) (int, const void*, size_t);
+extern ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
+extern int (*ic_orig_close) (int);
 
 /** Reset globally maintained information about intercepted funtions */
 extern void reset_fn_infos ();
@@ -104,6 +106,7 @@ extern void fb_ic_load() __attribute__ ((constructor));
   IC_VOID(ret_type, name, parameters,					\
 	  { ret_type ret;						\
 	    body;							\
+	    intercept_on = false;					\
 	    return ret;							\
 	  })
 

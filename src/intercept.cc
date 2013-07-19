@@ -34,6 +34,8 @@ __pid_t (*ic_orig_getppid) (void);
 char * (*ic_orig_getcwd) (char *, size_t);
 ssize_t(*ic_orig_write)(int, const void *, size_t);
 ssize_t(*ic_orig_read)(int, const void *, size_t);
+ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
+int (*ic_orig_close) (int);
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -92,6 +94,10 @@ set_orig_fns ()
   ic_orig_getcwd = (char *(*)(char *, size_t))get_orig_fn("getppid");
   ic_orig_write = (ssize_t(*)(int, const void *, size_t))get_orig_fn("write");
   ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
+  ic_orig_readlink = (ssize_t (*) (const char*, char*, size_t))get_orig_fn("readlink");
+  ic_orig_close = (int (*) (int))get_orig_fn("close");
+
+
 }
 
 /**  Set up supervisor connection */
@@ -162,6 +168,24 @@ static void fb_ic_init()
     proc->add_env_var(*cursor);
   }
 
+  // get full executable path
+  // see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
+  // and man 2 readlink
+  {
+    char linkname[CWD_BUFSIZE];
+    ssize_t r;
+    r = ic_orig_readlink("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
+
+    if ((r < 0) || (r > CWD_BUFSIZE - 1)) {
+      // skip
+      goto exec_path_filled;
+    }
+
+    linkname[r] = '\0';
+    proc->set_executable(linkname);
+    }
+ exec_path_filled:
+
   fb_send_msg(ic_msg, fb_sv_conn);
   fb_recv_msg(sv_msg, fb_sv_conn);
 
@@ -193,7 +217,7 @@ static void fb_ic_cleanup()
 {
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
-  close(fb_sv_conn);
+  ic_orig_close(fb_sv_conn);
 }
 
 

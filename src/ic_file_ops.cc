@@ -104,7 +104,7 @@ intercept_fork (const __pid_t ret)
     pthread_mutex_trylock(&ic_global_lock);
     pthread_mutex_unlock(&ic_global_lock);
     // reconnect to supervisor
-    close(fb_sv_conn);
+    ic_orig_close(fb_sv_conn);
     fb_sv_conn = -1;
     init_supervisor_conn();
     m = ic_msg.mutable_fork_child();
