@@ -51,18 +51,52 @@ intercept_create (const char *file, const int mode,
   fb_send_msg(ic_msg, fb_sv_conn);
 }
 
+#define IC2_SIMPLE_INT_1P(ics_pmtype, ics_pmname, ics_pmattrname, ics_ptype) \
+  static void								\
+  intercept_##ics_pmname (ics_ptype ics_p, int ret)			\
+  {									\
+    InterceptorMsg ic_msg;						\
+    ics_pmtype *m;							\
+    int saved_errno = errno;						\
+									\
+    m = ic_msg.mutable_##ics_pmname();					\
+    m->set_##ics_pmattrname(ics_p);							\
+    if (ret == -1) {							\
+      m->set_error_no(saved_errno);					\
+    }									\
+									\
+    fb_send_msg(ic_msg, fb_sv_conn);					\
+    errno = saved_errno;						\
+  }
 
+/* Intercept unlink */
+IC2_SIMPLE_INT_1P(UnLink, unlink, path, const char *)
+/* Intercept chdir */
+IC2_SIMPLE_INT_1P(ChDir, chdir, dir, const char *)
+/* Intercept fchdir */
+IC2_SIMPLE_INT_1P(FChDir, fchdir, dir, const int)
 /* Intercept close */
+IC2_SIMPLE_INT_1P(Close, close, fd, const int)
+/* Intercept rmdir */
+IC2_SIMPLE_INT_1P(RmDir, rmdir, dir, const char *)
+
+/* Intercept getcwd variants */
 static void
-intercept_close (const int fd, const int ret)
+intercept_getcwd (const char *dir)
 {
   InterceptorMsg ic_msg;
-  CloseFile *m;
-  m = ic_msg.mutable_close_file();
-  m->set_fd(fd);
-  m->set_ret(ret);
+  GetCwd *m;
+  int saved_errno = errno;
+
+  m = ic_msg.mutable_get_cwd();
+  if (dir != NULL) {
+    m->set_dir(dir);
+  } else {
+    m->set_error_no(saved_errno);
+  }
 
   fb_send_msg(ic_msg, fb_sv_conn);
+  errno = saved_errno;
 }
 
 

@@ -112,17 +112,32 @@ IC_GENERIC(int, lchown, (__const char *__file, __uid_t __owner, __gid_t __group)
 	   {ret = orig_fn(__file, __owner, __group);})
 IC_GENERIC(int, fchownat, (int __fd, __const char *__file, __uid_t __owner,__gid_t __group, int __flag),
 	   {ret = orig_fn(__fd, __file, __owner, __group, __flag);})
-IC_GENERIC(int, chdir, (__const char *__path),
-	   {ret = orig_fn(__path);})
 
-IC_GENERIC(int, fchdir, (int __fd),
-           {ret = orig_fn(__fd);})
-IC_GENERIC(char*, getcwd, (char *__buf, size_t __size),
-           {ret = orig_fn(__buf, __size);})
-IC_GENERIC(char*, get_current_dir_name, (void),
-           {ret = orig_fn();})
-IC_GENERIC(char*, getwd, (char *__buf),
-           {ret = orig_fn(__buf);})
+IC(int, chdir, (__const char *__path), {
+    ret = orig_fn(__path);
+    intercept_chdir(__path, ret);
+  })
+
+IC(int, fchdir, (int __fd), {
+    ret = orig_fn(__fd);
+    intercept_fchdir(__fd, ret);
+  })
+
+IC(char*, getcwd, (char *__buf, size_t __size), {
+    ret = orig_fn(__buf, __size);
+    intercept_getcwd(ret);
+  })
+
+IC(char*, get_current_dir_name, (void), {
+    ret = orig_fn();
+    intercept_getcwd(ret);
+  })
+
+IC(char*, getwd, (char *__buf), {
+    ret = orig_fn(__buf);
+    intercept_getcwd(ret);
+  })
+
 IC_GENERIC(int, dup, (int __fd),
            {ret = orig_fn(__fd);})
 IC_GENERIC(int, dup2, (int __fd, int __fd2),
@@ -252,12 +267,16 @@ IC_GENERIC(int, symlinkat, (__const char *__from, int __tofd, __const char *__to
 IC_GENERIC(ssize_t, readlinkat, (int __fd, __const char *__restrict __path,
 				 char *__restrict __buf, size_t __len),
            {ret = orig_fn(__fd, __path, __buf, __len);})
-IC_GENERIC(int, unlink, (__const char *__name),
-           {ret = orig_fn(__name);})
+IC(int, unlink, (__const char *__name), {
+    ret = orig_fn(__name);
+    intercept_unlink(__name, ret);
+  })
 IC_GENERIC(int, unlinkat, (int __fd, __const char *__name, int __flag),
            {ret = orig_fn(__fd, __name, __flag);})
-IC_GENERIC(int, rmdir, (__const char *__path),
-           {ret = orig_fn(__path);})
+IC(int, rmdir, (__const char *__path), {
+    ret = orig_fn(__path);
+    intercept_rmdir(__path, ret);
+  })
 
 
 IC_GENERIC(__pid_t, tcgetpgrp, (int __fd),

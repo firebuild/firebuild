@@ -99,11 +99,46 @@ message CreateFile {
 	optional int32 error_no = 6;
 }
 
-message CloseFile {
+message GetCwd {
+	// result directory
+	optional string	dir = 1;
+	// error no., when ret = NULL
+	optional int32 error_no = 2;
+}
+
+message ChDir {
+	// directory path
+	optional string	dir = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
+message FChDir {
+	// directory fd
+	optional int64 dir = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
+message UnLink {
+	// path name
+	optional string path = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
+message RmDir {
+	// dir path
+	optional string dir = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
+message Close {
 	// file descriptor
-	optional int64 fd = 4;
+	optional int64 fd = 1;
 	// return value
-	optional int32 ret = 5;
+	optional int32 error_no = 2;
 }
 
 
@@ -189,10 +224,15 @@ message InterceptorMsg {
 	optional ShortCutProcessQuery scproc_query = 1;
 	optional OpenFile open_file = 2;
 	optional CreateFile create_file = 3;
-	optional CloseFile close_file = 4;
+	optional Close close = 4;
 	optional Process proc = 5;
 	optional GenericCall gen_call = 6;
 	optional Exit exit = 7;
 	optional ForkChild fork_child = 8;
 	optional ForkParent fork_parent = 9;
+	optional GetCwd get_cwd = 10;
+	optional ChDir chdir = 11;
+	optional FChDir fchdir = 12;
+	optional UnLink unlink = 13;
+	optional RmDir rmdir = 14;
 }

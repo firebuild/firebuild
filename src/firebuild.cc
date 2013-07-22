@@ -143,7 +143,7 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
     fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_open_file()) {
   } else if (ic_msg.has_create_file()) {
-  } else if (ic_msg.has_close_file()) {
+  } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit()) {
     SupervisorMsg sv_msg;
