@@ -104,14 +104,24 @@ IC_GENERIC(int, pause, (void),
 	   {ret = orig_fn();})
 
 // TODO finish
-IC_GENERIC(int, chown, (__const char *__file, __uid_t __owner, __gid_t __group),
-	   {ret = orig_fn(__file, __owner, __group);})
-IC_GENERIC(int, fchown, (int __fd, __uid_t __owner, __gid_t __group),
-	   {ret = orig_fn(__fd, __owner, __group);})
-IC_GENERIC(int, lchown, (__const char *__file, __uid_t __owner, __gid_t __group),
-	   {ret = orig_fn(__file, __owner, __group);})
-IC_GENERIC(int, fchownat, (int __fd, __const char *__file, __uid_t __owner,__gid_t __group, int __flag),
-	   {ret = orig_fn(__fd, __file, __owner, __group, __flag);})
+IC(int, chown, (__const char *__file, __uid_t __owner, __gid_t __group), {
+    ret = orig_fn(__file, __owner, __group);
+    intercept_chown(__file, __owner, __group, ret);
+  })
+
+IC(int, fchown, (int __fd, __uid_t __owner, __gid_t __group), {
+    ret = orig_fn(__fd, __owner, __group);
+    intercept_fchown(__fd, __owner, __group, ret);
+  })
+IC(int, lchown, (__const char *__file, __uid_t __owner, __gid_t __group), {
+    ret = orig_fn(__file, __owner, __group);
+    intercept_lchown(__file, __owner, __group, ret);
+  })
+IC(int, fchownat, (int __fd, __const char *__file, __uid_t __owner,
+		   __gid_t __group, int __flag), {
+     ret = orig_fn(__fd, __file, __owner, __group, __flag);
+     intercept_fchownat(__fd, __file, __owner, __group, __flag, ret);
+   })
 
 IC(int, chdir, (__const char *__path), {
     ret = orig_fn(__path);
@@ -252,18 +262,23 @@ IC_GENERIC(int, ttyname_r, (int __fd, char *__buf, size_t __buflen),
 /* ignore: isatty ttyslot */
 
 /* TODO !!! */
-IC_GENERIC(int, link, (__const char *__from, __const char *__to),
-           {ret = orig_fn(__from, __to);})
-IC_GENERIC(int, linkat, (int __fromfd, __const char *__from, int __tofd,
-			 __const char *__to, int __flags),
-           {ret = orig_fn(__fromfd, __from, __tofd, __to, __flags);})
-IC_GENERIC(int, symlink, (__const char *__from, __const char *__to),
-           {ret = orig_fn(__from, __to);})
+IC(int, link, (__const char *__from, __const char *__to),
+   {ret = orig_fn(__from, __to); intercept_link(__from, __to, ret);})
+IC(int, linkat, (int __fromfd, __const char *__from, int __tofd,
+		 __const char *__to, int __flags),
+   {
+     ret = orig_fn(__fromfd, __from, __tofd, __to, __flags);
+     intercept_linkat(__fromfd, __from, __tofd, __to, __flags, ret);
+   })
+IC(int, symlink, (__const char *__from, __const char *__to),
+   {ret = orig_fn(__from, __to); intercept_symlink(__from, __to, ret);})
 IC_GENERIC(ssize_t, readlink, (__const char *__restrict __path,
 			       char *__restrict __buf, size_t __len),
            {ret = orig_fn(__path, __buf, __len);})
-IC_GENERIC(int, symlinkat, (__const char *__from, int __tofd, __const char *__to),
-           {ret = orig_fn(__from, __tofd, __to);})
+IC(int, symlinkat, (__const char *__from, int __tofd, __const char *__to),
+   {ret = orig_fn(__from, __tofd, __to);
+     intercept_symlinkat( __from, __tofd, __to, ret);
+   })
 IC_GENERIC(ssize_t, readlinkat, (int __fd, __const char *__restrict __path,
 				 char *__restrict __buf, size_t __len),
            {ret = orig_fn(__fd, __path, __buf, __len);})
@@ -271,8 +286,10 @@ IC(int, unlink, (__const char *__name), {
     ret = orig_fn(__name);
     intercept_unlink(__name, ret);
   })
-IC_GENERIC(int, unlinkat, (int __fd, __const char *__name, int __flag),
-           {ret = orig_fn(__fd, __name, __flag);})
+IC(int, unlinkat, (int __fd, __const char *__name, int __flag),
+   {ret = orig_fn(__fd, __name, __flag);
+     intercept_unlinkat(__fd, __name, __flag, ret);
+   })
 IC(int, rmdir, (__const char *__path), {
     ret = orig_fn(__path);
     intercept_rmdir(__path, ret);
@@ -342,10 +359,15 @@ IC_GENERIC(int, ftruncate64, (int __fd, __off64_t __length),
 /* TODO test */
 IC_GENERIC(long int, syscall, (long int __sysno, __gnuc_va_list __ap),
            {ret = orig_fn(__sysno, __ap);})
-IC_GENERIC(int, lockf, (int __fd, int __cmd, __off_t __len),
-           {ret = orig_fn(__fd, __cmd, __len);})
-IC_GENERIC(int, lockf64, (int __fd, int __cmd, __off64_t __len),
-           {ret = orig_fn(__fd, __cmd, __len);})
+/* we probably won't use offset in supervisor's logic */
+IC(int, lockf, (int __fd, int __cmd, __off_t __len), {
+    ret = orig_fn(__fd, __cmd, __len);
+    intercept_lockf(__fd, __cmd, /* __len,*/ ret);
+  })
+IC(int, lockf64, (int __fd, int __cmd, __off64_t __len), {
+    ret = orig_fn(__fd, __cmd, __len);
+    intercept_lockf(__fd, __cmd, /*__len,*/ ret);
+  })
 
 /* ignored: fdatasync crypt encrypt swab */
 

@@ -137,10 +137,121 @@ message RmDir {
 message Close {
 	// file descriptor
 	optional int64 fd = 1;
-	// return value
+	// error no., when ret = -1
 	optional int32 error_no = 2;
 }
 
+message Chown {
+	// file path
+	optional string path = 1;
+	// uid
+	optional int32 owner = 2;
+	// gid
+	optional int32 group = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message FChown {
+	// file descriptor
+	optional int64 fd = 1;
+	// uid
+	optional int32 owner = 2;
+	// gid
+	optional int32 group = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message FChownAt {
+	// dir file descriptor
+	optional int64 dirfd = 1;
+	// file path
+	optional string path = 2;
+	// uid
+	optional int32 owner = 3;
+	// gid
+	optional int32 group = 4;
+	// flags
+	optional int32 flags = 5;
+	// error no., when ret = -1
+	optional int32 error_no = 6;
+}
+
+message LChown {
+	// file path
+	optional string path = 1;
+	// uid
+	optional int32 owner = 2;
+	// gid
+	optional int32 group = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message UnLinkAt {
+	// dir fd
+	optional int32 dirfd = 1;
+	// path name
+	optional string pathname = 2;
+	// flags
+	optional int32 flags = 3;
+	// error qno., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message Link {
+	// old file path
+	optional string oldpath = 1;
+	// new file path
+	optional string newpath = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
+message LinkAt {
+	// old dir fd
+	optional int32 olddirfd = 1;
+	// old file path
+	optional string oldpath = 2;
+	// new dir fd
+	optional int32 newdirfd = 3;
+	// new file path
+	optional string newpath = 4;
+	// flags
+	optional int32 flags = 5;
+	// error no., when ret = -1
+	optional int32 error_no = 6;
+}
+
+message Symlink {
+	// old file path
+	optional string oldpath = 1;
+	// new file path
+	optional string newpath = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
+message SymlinkAt {
+	// old file path
+	optional string oldpath = 1;
+	// new dir fd
+	optional int32 newdirfd = 2;
+	// new file path
+	optional string newpath = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message LockF {
+	// file fd
+	optional int32 fd = 1;
+	// lock command
+	optional int32 cmd = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
 
 message Process {
 	// process id
@@ -235,4 +346,14 @@ message InterceptorMsg {
 	optional FChDir fchdir = 12;
 	optional UnLink unlink = 13;
 	optional RmDir rmdir = 14;
+	optional Chown chown = 15;
+	optional FChown fchown = 16;
+	optional FChownAt fchownat = 17;
+	optional LChown lchown = 18;
+	optional UnLinkAt unlinkat = 19;
+	optional Link link = 20;
+	optional LinkAt linkat = 21;
+	optional Symlink symlink = 22;
+	optional SymlinkAt symlinkat = 23;
+	optional LockF lockf = 24;
 }
