@@ -339,10 +339,8 @@ IC_GENERIC(char*, getpass, (__const char *__prompt),
 IC_GENERIC(long int, gethostid, (void),
            {ret = orig_fn();})
 
-/* ignore: sync */
+// ignore: sync, getpagesize (calloc calls it)
 
-IC_GENERIC(int, getpagesize, (void),
-           {ret = orig_fn();})
 IC_GENERIC(int, getdtablesize, (void),
            {ret = orig_fn();})
 IC_GENERIC(int, truncate, (__const char *__file, __off_t __length),
