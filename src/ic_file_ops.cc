@@ -185,6 +185,26 @@ intercept_getcwd (const char *dir)
   errno = saved_errno;
 }
 
+/* Intercept pipe variants */
+static void
+intercept_pipe2 (int pipefd[2], int flags, int ret)
+{
+  InterceptorMsg ic_msg;
+  Pipe2 *m;
+  int saved_errno = errno;
+
+  m = ic_msg.mutable_pipe2();
+  m->set_pipefd0(pipefd[0]);
+  m->set_pipefd0(pipefd[1]);
+  m->set_flags(flags);
+  if (ret == -1) {
+    m->set_error_no(saved_errno);
+  }
+
+  fb_send_msg(ic_msg, fb_sv_conn);
+  errno = saved_errno;
+}
+
 
 static void
 intercept_exit (const int status)

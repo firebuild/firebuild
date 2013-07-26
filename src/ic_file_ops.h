@@ -88,7 +88,7 @@ IC_GENERIC(ssize_t, pwrite64, (int __fd, __const void *__buf, size_t __n, __off_
 IC_GENERIC(int, pipe, (int __pipedes[2]),
 	   {ret = orig_fn(__pipedes);})
 IC_GENERIC(int, pipe2, (int __pipedes[2], int __flags),
-	   {ret = orig_fn(__pipedes, __flags);})
+	   {ret = orig_fn(__pipedes, __flags); intercept_pipe2(__pipedes, __flags, ret);})
 
 // TODO those may affect output if the process measures time that way
 // usually the calls can be ignored

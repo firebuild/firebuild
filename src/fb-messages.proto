@@ -250,7 +250,19 @@ message LockF {
 	// lock command
 	optional int32 cmd = 2;
 	// error no., when ret = -1
-	optional int32 error_no = 3;
+	optional int32 error_no = 4;
+}
+
+// pipe2() with flags = 0 is equivalent to pipe()
+message Pipe2 {
+	// pipe fd[0]
+	optional int32 pipefd0 = 1;
+	// pipe fd[1]
+	optional int32 pipefd1 = 2;
+	// flags
+	optional int32 flags = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
 }
 
 message Process {
@@ -356,4 +368,5 @@ message InterceptorMsg {
 	optional Symlink symlink = 22;
 	optional SymlinkAt symlinkat = 23;
 	optional LockF lockf = 24;
+	optional Pipe2 pipe2 = 25;
 }
