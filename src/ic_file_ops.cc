@@ -51,7 +51,16 @@ intercept_create (const char *file, const int mode,
   fb_send_msg(ic_msg, fb_sv_conn);
 }
 
-#define IC2_SIMPLE_INT_NP(ics_pmtype, ics_pmname, ics_pars, ics_body)	\
+typedef char* CHARS;
+
+#define IC2_MSG_IC2_WITH_RET  m->set_ret(ret)
+#define IC2_MSG_IC2_NO_RET
+
+#define IC2_ERR_VAL_int -1
+#define IC2_ERR_VAL_CHARS NULL
+
+#define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,	\
+		      ics_pmname, ics_pars, ics_body)			\
   static void								\
   intercept_##ics_pmname ics_pars					\
   {									\
@@ -61,51 +70,57 @@ intercept_create (const char *file, const int mode,
 									\
     m = ic_msg.mutable_##ics_pmname();					\
     ics_body;								\
-    if (ret == -1) {							\
+    IC2_MSG_##ics_with_rettype;						\
+    if (ret == IC2_ERR_VAL_##ics_rettype) {				\
       m->set_error_no(saved_errno);					\
     }									\
-									\
     fb_send_msg(ic_msg, fb_sv_conn);					\
     errno = saved_errno;						\
   }
 
-#define IC2_SIMPLE_INT_1P(ics_pmtype, ics_pmname,			\
-			  ics_ptype1, ics_pmattrname1)			\
-  IC2_SIMPLE_INT_NP(ics_pmtype, ics_pmname,				\
-		    (ics_ptype1 ics_p1, int ret),			\
-		    {m->set_##ics_pmattrname1(ics_p1);})
+#define IC2_SIMPLE_1P(ics_rettype, ics_with_rettype, ics_pmtype,	\
+		      ics_pmname,					\
+		      ics_ptype1, ics_pmattrname1)			\
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
+		(ics_ptype1 ics_p1, ics_rettype ret),			\
+		{m->set_##ics_pmattrname1(ics_p1);})
 
-#define IC2_SIMPLE_INT_2P(ics_pmtype, ics_pmname,			\
-			  ics_ptype1, ics_pmattrname1,			\
-			  ics_ptype2, ics_pmattrname2)			\
-  IC2_SIMPLE_INT_NP(ics_pmtype, ics_pmname,				\
-		    (ics_ptype1 ics_p1, ics_ptype2 ics_p2, int ret),	\
+#define IC2_SIMPLE_2P(ics_rettype, ics_with_rettype, ics_pmtype,	\
+		      ics_pmname,					\
+		      ics_ptype1, ics_pmattrname1,			\
+		      ics_ptype2, ics_pmattrname2)			\
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
+		    (ics_ptype1 ics_p1, ics_ptype2 ics_p2,		\
+		     ics_rettype ret),					\
 		    {							\
 		      m->set_##ics_pmattrname1(ics_p1);			\
 		      m->set_##ics_pmattrname2(ics_p2);			\
 		    })
 
-#define IC2_SIMPLE_INT_3P(ics_pmtype, ics_pmname,			\
-			  ics_ptype1, ics_pmattrname1,			\
-			  ics_ptype2, ics_pmattrname2,			\
-			  ics_ptype3, ics_pmattrname3)			\
-  IC2_SIMPLE_INT_NP(ics_pmtype, ics_pmname,				\
+#define IC2_SIMPLE_3P(ics_rettype, ics_with_rettype, ics_pmtype,	\
+		      ics_pmname,					\
+		      ics_ptype1, ics_pmattrname1,			\
+		      ics_ptype2, ics_pmattrname2,			\
+		      ics_ptype3, ics_pmattrname3)			\
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
 		    (ics_ptype1 ics_p1, ics_ptype2 ics_p2,		\
-		     ics_ptype3 ics_p3, int ret),			\
+		     ics_ptype3 ics_p3, ics_rettype ret),		\
 		    {							\
 		      m->set_##ics_pmattrname1(ics_p1);			\
 		      m->set_##ics_pmattrname2(ics_p2);			\
 		      m->set_##ics_pmattrname3(ics_p3);			\
 		    })
 
-#define IC2_SIMPLE_INT_4P(ics_pmtype, ics_pmname,			\
-			  ics_ptype1, ics_pmattrname1,			\
-			  ics_ptype2, ics_pmattrname2,			\
-			  ics_ptype3, ics_pmattrname3,			\
-			  ics_ptype4, ics_pmattrname4)			\
-  IC2_SIMPLE_INT_NP(ics_pmtype, ics_pmname,				\
+#define IC2_SIMPLE_4P(ics_rettype, ics_with_rettype, ics_pmtype,	\
+		      ics_pmname,					\
+		      ics_ptype1, ics_pmattrname1,			\
+		      ics_ptype2, ics_pmattrname2,			\
+		      ics_ptype3, ics_pmattrname3,			\
+		      ics_ptype4, ics_pmattrname4)			\
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
 		    (ics_ptype1 ics_p1, ics_ptype2 ics_p2,		\
-		     ics_ptype3 ics_p3, ics_ptype4 ics_p4, int ret),	\
+		     ics_ptype3 ics_p3, ics_ptype4 ics_p4,		\
+		     ics_rettype ret),					\
 		    {							\
 		      m->set_##ics_pmattrname1(ics_p1);			\
 		      m->set_##ics_pmattrname2(ics_p2);			\
@@ -113,16 +128,17 @@ intercept_create (const char *file, const int mode,
 		      m->set_##ics_pmattrname4(ics_p4);			\
 		    })
 
-#define IC2_SIMPLE_INT_5P(ics_pmtype, ics_pmname,			\
-			  ics_ptype1, ics_pmattrname1,			\
-			  ics_ptype2, ics_pmattrname2,			\
-			  ics_ptype3, ics_pmattrname3,			\
-			  ics_ptype4, ics_pmattrname4,			\
-			  ics_ptype5, ics_pmattrname5)			\
-  IC2_SIMPLE_INT_NP(ics_pmtype, ics_pmname,				\
+#define IC2_SIMPLE_5P(ics_rettype, ics_with_rettype, ics_pmtype,	\
+		      ics_pmname,					\
+		      ics_ptype1, ics_pmattrname1,			\
+		      ics_ptype2, ics_pmattrname2,			\
+		      ics_ptype3, ics_pmattrname3,			\
+		      ics_ptype4, ics_pmattrname4,			\
+		      ics_ptype5, ics_pmattrname5)			\
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
 		    (ics_ptype1 ics_p1, ics_ptype2 ics_p2,		\
 		     ics_ptype3 ics_p3, ics_ptype4 ics_p4,		\
-		     ics_ptype5 ics_p5, int ret),						\
+		     ics_ptype5 ics_p5, ics_rettype ret),		\
 		    {							\
 		      m->set_##ics_pmattrname1(ics_p1);			\
 		      m->set_##ics_pmattrname2(ics_p2);			\
@@ -132,37 +148,37 @@ intercept_create (const char *file, const int mode,
 		    })
 
 /* Intercept unlink */
-IC2_SIMPLE_INT_1P(UnLink, unlink, const char *, path)
+IC2_SIMPLE_1P(int, IC2_NO_RET, UnLink, unlink, const char *, path)
 /* Intercept unlinkat */
-IC2_SIMPLE_INT_3P(UnLinkAt, unlinkat, int, dirfd, const char *, pathname, int, flags)
+IC2_SIMPLE_3P(int, IC2_NO_RET, UnLinkAt, unlinkat, int, dirfd, const char *, pathname, int, flags)
 /* Intercept chdir */
-IC2_SIMPLE_INT_1P(ChDir, chdir, const char *, dir)
+IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 /* Intercept fchdir */
-IC2_SIMPLE_INT_1P(FChDir, fchdir, const int, dir)
+IC2_SIMPLE_1P(int, IC2_NO_RET, FChDir, fchdir, const int, dir)
 /* Intercept close */
-IC2_SIMPLE_INT_1P(Close, close, const int, fd)
+IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept rmdir */
-IC2_SIMPLE_INT_1P(RmDir, rmdir, const char *, dir)
+IC2_SIMPLE_1P(int, IC2_NO_RET, RmDir, rmdir, const char *, dir)
 /* Intercept chown */
-IC2_SIMPLE_INT_3P(Chown, chown, const char *, path, uid_t, owner, gid_t, group)
+IC2_SIMPLE_3P(int, IC2_NO_RET, Chown, chown, const char *, path, uid_t, owner, gid_t, group)
 /* Intercept fchown */
-IC2_SIMPLE_INT_3P(FChown, fchown, int, fd, uid_t, owner, gid_t, group)
+IC2_SIMPLE_3P(int, IC2_NO_RET, FChown, fchown, int, fd, uid_t, owner, gid_t, group)
 /* Intercept fchownat */
-IC2_SIMPLE_INT_5P(FChownAt, fchownat, int, dirfd, const char *, path, uid_t,
+IC2_SIMPLE_5P(int, IC2_NO_RET, FChownAt, fchownat, int, dirfd, const char *, path, uid_t,
 		  owner, gid_t, group, int, flags)
 /* Intercept lchown */
-IC2_SIMPLE_INT_3P(LChown, lchown, const char *, path, uid_t, owner, gid_t, group)
+IC2_SIMPLE_3P(int, IC2_NO_RET, LChown, lchown, const char *, path, uid_t, owner, gid_t, group)
 /* Intercept link */
-IC2_SIMPLE_INT_2P(Link, link, const char *, oldpath, const char *, newpath)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Link, link, const char *, oldpath, const char *, newpath)
 /* Intercept linkat */
-IC2_SIMPLE_INT_5P(LinkAt, linkat, int, olddirfd, const char *, oldpath, int,
+IC2_SIMPLE_5P(int, IC2_NO_RET, LinkAt, linkat, int, olddirfd, const char *, oldpath, int,
 		  newdirfd, const char *, newpath, int, flags)
 /* Intercept symlink */
-IC2_SIMPLE_INT_2P(Symlink, symlink, const char *, oldpath, const char *, newpath)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Symlink, symlink, const char *, oldpath, const char *, newpath)
 /* Intercept symlinkat */
-IC2_SIMPLE_INT_3P(SymlinkAt, symlinkat, const char *, oldpath, int, newdirfd, const char *, newpath)
+IC2_SIMPLE_3P(int, IC2_NO_RET, SymlinkAt, symlinkat, const char *, oldpath, int, newdirfd, const char *, newpath)
 /* Intercept lockf (without offset)*/
-IC2_SIMPLE_INT_2P(LockF, lockf, int, fd, int, cmd)
+IC2_SIMPLE_2P(int, IC2_NO_RET, LockF, lockf, int, fd, int, cmd)
 
 
 
