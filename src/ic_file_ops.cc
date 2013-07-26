@@ -205,6 +205,8 @@ intercept_exit (const int status)
     // something unexpected happened ...
     assert(0);
   }
+  // exit handlers may call intercepted functions
+  intercept_on = false;
 
 }
 
