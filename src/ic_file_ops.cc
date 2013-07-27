@@ -17,39 +17,6 @@ using namespace std;
 // TODO? 
 //int fcntl (int __fd, int __cmd, ...);
 
-/* Intercept open variants */
-static void
-intercept_open (const char *file, const int flags, const int mode,
-	       const int ret, const int error_no)
-{
-  InterceptorMsg ic_msg;
-  OpenFile *m;
-  m = ic_msg.mutable_open_file();
-  m->set_file(file);
-  m->set_flags(flags);
-  m->set_mode(mode);
-  m->set_ret(ret);
-  m->set_error_no(error_no);
-
-  fb_send_msg(ic_msg, fb_sv_conn);
-}
-
-
-/* Intercept creat variants */
-static void
-intercept_create (const char *file, const int mode,
-	       const int ret, const int error_no)
-{
-  InterceptorMsg ic_msg;
-  CreateFile *m;
-  m = ic_msg.mutable_create_file();
-  m->set_file(file);
-  m->set_mode(mode);
-  m->set_ret(ret);
-  m->set_error_no(error_no);
-
-  fb_send_msg(ic_msg, fb_sv_conn);
-}
 
 typedef char* CHARS;
 
@@ -77,6 +44,11 @@ typedef char* CHARS;
     fb_send_msg(ic_msg, fb_sv_conn);					\
     errno = saved_errno;						\
   }
+
+#define IC2_SIMPLE_0P(ics_rettype, ics_with_rettype, ics_pmtype,	\
+		      ics_pmname)					\
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
+		(ics_rettype ret), {})
 
 #define IC2_SIMPLE_1P(ics_rettype, ics_with_rettype, ics_pmtype,	\
 		      ics_pmname,					\
@@ -179,27 +151,13 @@ IC2_SIMPLE_2P(int, IC2_NO_RET, Symlink, symlink, const char *, oldpath, const ch
 IC2_SIMPLE_3P(int, IC2_NO_RET, SymlinkAt, symlinkat, const char *, oldpath, int, newdirfd, const char *, newpath)
 /* Intercept lockf (without offset)*/
 IC2_SIMPLE_2P(int, IC2_NO_RET, LockF, lockf, int, fd, int, cmd)
+/* Intercept open variants */
+IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
+/* Intercept creat */
+IC2_SIMPLE_2P(int, IC2_WITH_RET, Creat, creat, const char *, file, int, mode)
+/* Intercept getcwd */
+IC2_SIMPLE_0P(CHARS, IC2_WITH_RET, GetCwd, getcwd)
 
-
-
-/* Intercept getcwd variants */
-static void
-intercept_getcwd (const char *dir)
-{
-  InterceptorMsg ic_msg;
-  GetCwd *m;
-  int saved_errno = errno;
-
-  m = ic_msg.mutable_get_cwd();
-  if (dir != NULL) {
-    m->set_dir(dir);
-  } else {
-    m->set_error_no(saved_errno);
-  }
-
-  fb_send_msg(ic_msg, fb_sv_conn);
-  errno = saved_errno;
-}
 
 /* Intercept pipe variants */
 static void

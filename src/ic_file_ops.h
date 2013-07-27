@@ -10,7 +10,6 @@
 #define IC_OPEN_VA(ret_type, name, parameters, body)			\
   IC(ret_type, name, parameters,					\
      {									\
-       int open_errno;							\
        mode_t mode = 0;							\
        if (__oflag & O_CREAT) {						\
 	 va_list ap;							\
@@ -20,9 +19,7 @@
        }								\
 									\
        body;								\
-       open_errno = errno;						\
-       intercept_open(__file, __oflag, mode, ret, open_errno);		\
-       errno = open_errno;						\
+       intercept_open(__file, __oflag, mode, ret);			\
      })
 
 
@@ -38,13 +35,10 @@ IC_OPEN_VA(int, openat, (int __fd, __const char *__file, int __oflag, ...),
 IC_OPEN_VA(int, openat64, (int __fd, __const char *__file, int __oflag, ...),
 	   {ret = orig_fn(__fd, __file, __oflag, mode);})
 
-#define IC_CREATE(name)							\
-  IC(int, name, (__const char *__file, __mode_t __mode), {		\
-      int error_no;							\
-      ret = orig_fn(__file, __mode);					\
-      error_no = errno;							\
-      intercept_create(__file, __mode, ret, error_no);			\
-      errno = error_no;							\
+#define IC_CREATE(name)						\
+  IC(int, name, (__const char *__file, __mode_t __mode), {	\
+      ret = orig_fn(__file, __mode);				\
+      intercept_creat(__file, __mode, ret);			\
     })
 
 IC_CREATE(creat)
