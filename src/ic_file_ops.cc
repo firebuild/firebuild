@@ -24,6 +24,7 @@ typedef char* CHARS;
 #define IC2_MSG_IC2_NO_RET
 
 #define IC2_ERR_VAL_int -1
+#define IC2_ERR_VAL_long -1
 #define IC2_ERR_VAL_CHARS NULL
 
 #define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,	\
@@ -157,6 +158,12 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flag
 IC2_SIMPLE_2P(int, IC2_WITH_RET, Creat, creat, const char *, file, int, mode)
 /* Intercept getcwd */
 IC2_SIMPLE_0P(CHARS, IC2_WITH_RET, GetCwd, getcwd)
+/* Intercept sysconf */
+IC2_SIMPLE_1P(long, IC2_WITH_RET, Sysconf, sysconf, int, name)
+/* Intercept dup */
+IC2_SIMPLE_1P(int, IC2_WITH_RET, Dup, dup, int, oldfd)
+/* Intercept dup */
+IC2_SIMPLE_3P(int, IC2_WITH_RET, Dup3, dup3, int, oldfd, int, newfd, int, flags)
 
 
 /* Intercept pipe variants */

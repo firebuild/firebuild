@@ -142,12 +142,12 @@ IC(char*, getwd, (char *__buf), {
     intercept_getcwd(ret);
   })
 
-IC_GENERIC(int, dup, (int __fd),
-           {ret = orig_fn(__fd);})
-IC_GENERIC(int, dup2, (int __fd, int __fd2),
-           {ret = orig_fn(__fd, __fd2);})
-IC_GENERIC(int, dup3, (int __fd, int __fd2, int __flags),
-	   {ret = orig_fn(__fd, __fd2, __flags);})
+IC(int, dup, (int __fd),
+   {ret = orig_fn(__fd); intercept_dup(__fd, ret);})
+IC(int, dup2, (int __fd, int __fd2),
+   {ret = orig_fn(__fd, __fd2); intercept_dup3(__fd, __fd2, 0, ret);})
+IC(int, dup3, (int __fd, int __fd2, int __flags),
+   {ret = orig_fn(__fd, __fd2, __flags); intercept_dup3(__fd, __fd2, __flags, ret);})
 
 IC_GENERIC(int, execve, (__const char *__path, char *__const __argv[], char *__const __envp[]),
            {ret = orig_fn(__path, __argv, __envp);})
@@ -186,8 +186,8 @@ IC_GENERIC(long int, pathconf, (__const char *__path, int __name),
            {ret = orig_fn(__path, __name);})
 IC_GENERIC(long int, fpathconf, (int __fd, int __name),
            {ret = orig_fn(__fd, __name);})
-IC_GENERIC(long int, sysconf, (int __name),
-           {ret = orig_fn(__name);})
+IC(long int, sysconf, (int __name),
+   {ret = orig_fn(__name);intercept_sysconf(__name, ret);})
 IC_GENERIC(size_t, confstr, (int __name, char *__buf, size_t __len),
            {ret = orig_fn(__name, __buf, __len);})
 IC_GENERIC(__pid_t, getpid, (void),
