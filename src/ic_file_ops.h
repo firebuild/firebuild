@@ -79,10 +79,10 @@ IC_GENERIC(ssize_t, pread64, (int __fd, void *__buf, size_t __nbytes, __off_t __
 IC_GENERIC(ssize_t, pwrite64, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
 	   {ret = orig_fn(__fd, __buf, __n, __offset);})
 // TODO intercept to handle communication between forked children and parent
-IC_GENERIC(int, pipe, (int __pipedes[2]),
-	   {ret = orig_fn(__pipedes);})
-IC_GENERIC(int, pipe2, (int __pipedes[2], int __flags),
-	   {ret = orig_fn(__pipedes, __flags); intercept_pipe2(__pipedes, __flags, ret);})
+IC(int, pipe, (int __pipedes[2]),
+   {ret = orig_fn(__pipedes); intercept_pipe2(__pipedes, 0, ret);})
+IC(int, pipe2, (int __pipedes[2], int __flags),
+   {ret = orig_fn(__pipedes, __flags); intercept_pipe2(__pipedes, __flags, ret);})
 
 // TODO those may affect output if the process measures time that way
 // usually the calls can be ignored
@@ -268,23 +268,18 @@ IC(int, symlink, (__const char *__from, __const char *__to),
    {ret = orig_fn(__from, __to); intercept_symlink(__from, __to, ret);})
 IC(ssize_t, readlink, (__const char *__restrict __path,
 		       char *__restrict __buf, size_t __len), {
-     char *ret_path;
      ret = orig_fn(__path, __buf, __len);
-     if ((ret >= 0) && (abs(ret) <= __len)) {
-       ret_path = strndup(__buf, ret);
-     } else {
-       ret_path = strdup("");
-     }
-     intercept_readlink(__path, ret_path, ret);
-     free(ret_path);
+     intercept_readlink_helper(-1, __path, __buf, __len, ret);
    })
 IC(int, symlinkat, (__const char *__from, int __tofd, __const char *__to),
    {ret = orig_fn(__from, __tofd, __to);
      intercept_symlinkat( __from, __tofd, __to, ret);
    })
-IC_GENERIC(ssize_t, readlinkat, (int __fd, __const char *__restrict __path,
-				 char *__restrict __buf, size_t __len),
-           {ret = orig_fn(__fd, __path, __buf, __len);})
+IC(ssize_t, readlinkat, (int __dirfd, __const char *__restrict __path,
+			 char *__restrict __buf, size_t __len), {
+     ret = orig_fn(__dirfd, __path, __buf, __len);
+     intercept_readlink_helper(__dirfd, __path, __buf, __len, ret);
+   })
 IC(int, unlink, (__const char *__name), {
     ret = orig_fn(__name);
     intercept_unlink(__name, ret);

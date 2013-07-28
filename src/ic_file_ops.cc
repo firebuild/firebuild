@@ -164,8 +164,31 @@ IC2_SIMPLE_1P(long, IC2_WITH_RET, Sysconf, sysconf, int, name)
 IC2_SIMPLE_1P(int, IC2_WITH_RET, Dup, dup, int, oldfd)
 /* Intercept dup */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Dup3, dup3, int, oldfd, int, newfd, int, flags)
+
 /* Intercept readlink */
 IC2_SIMPLE_2P(int, IC2_NO_RET, ReadLink, readlink, const char *, path, const char *, ret_path)
+/* Intercept readlinkat */
+IC2_SIMPLE_3P(int, IC2_NO_RET, ReadLinkAt, readlinkat, int, dirfd, const char *, path, const char *, ret_path)
+
+/** Frontend for intercept_readlink and intercept_readlinkat */
+static void
+intercept_readlink_helper(int fd, const char *path, const char *buf,
+			  size_t len, ssize_t ret)
+{
+  char *ret_path;
+  if ((ret >= 0) && (abs(ret) <= len)) {
+    ret_path = strndup(buf, ret);
+  } else {
+    ret_path = strdup("");
+  }
+  if (fd != -1 ) {
+    intercept_readlink(path, ret_path, ret);
+  } else {
+    intercept_readlinkat(fd, path, ret_path, ret);
+  }
+  free(ret_path);
+}
+
 
 
 /* Intercept pipe variants */

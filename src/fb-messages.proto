@@ -136,6 +136,17 @@ message ReadLink {
 	optional int32 error_no = 3;
 }
 
+message ReadLinkAt {
+	// dir file descriptor
+	optional int64 dirfd = 1;
+	// path name
+	optional string path = 2;
+	// returned path
+	optional string ret_path = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
 message RmDir {
 	// dir path
 	optional string dir = 1;
@@ -413,4 +424,5 @@ message InterceptorMsg {
 	optional Dup dup = 27;
 	optional Dup3 dup3 = 28;
 	optional ReadLink readlink = 29;
+	optional ReadLinkAt readlinkat = 30;
 }
