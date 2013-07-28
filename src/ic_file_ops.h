@@ -53,14 +53,14 @@ IC(int, close, (int __fd), {
       intercept_close(__fd, ret);
     })
 
-IC_GENERIC(int, access, (__const char *__name, int __type),
-	   {ret = orig_fn(__name, __type);})
-IC_GENERIC(int, euidaccess, (__const char *__name, int __type),
-	   {ret = orig_fn(__name, __type);})
-IC_GENERIC(int, eaccess, (__const char *__name, int __type),
-	   {ret = orig_fn(__name, __type);})
-IC_GENERIC(int, faccessat, (int __fd, __const char *__file, int __type, int __flag),
-	   {ret = orig_fn(__fd, __file, __type, __flag);})
+IC(int, access, (__const char *__name, int __type),
+   {ret = orig_fn(__name, __type); intercept_access(__name, __type, ret);})
+IC(int, euidaccess, (__const char *__name, int __type),
+   {ret = orig_fn(__name, __type); intercept_eaccess(__name, __type, ret);})
+IC(int, eaccess, (__const char *__name, int __type),
+   {ret = orig_fn(__name, __type); intercept_eaccess(__name, __type, ret);})
+IC(int, faccessat, (int __fd, __const char *__file, int __type, int __flag),
+   {ret = orig_fn(__fd, __file, __type, __flag); intercept_faccessat(__fd, __file, __type, __flag, ret);})
 
 // ignored: lseek lseek64
 // those don't let new information enter the process

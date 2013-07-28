@@ -189,6 +189,12 @@ intercept_readlink_helper(int fd, const char *path, const char *buf,
   free(ret_path);
 }
 
+/* Intercept access */
+IC2_SIMPLE_2P(int, IC2_NO_RET, Access, access, const char *, pathname, int, mode)
+/* Intercept eaccess */
+IC2_SIMPLE_2P(int, IC2_NO_RET, EAccess, eaccess, const char *, pathname, int, mode)
+/* Intercept faccessat */
+IC2_SIMPLE_4P(int, IC2_NO_RET, FAccessAt, faccessat, int, dirfd, const char *, pathname, int, mode, int, flags)
 
 
 /* Intercept pipe variants */

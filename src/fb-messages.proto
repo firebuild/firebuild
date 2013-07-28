@@ -147,6 +147,37 @@ message ReadLinkAt {
 	optional int32 error_no = 4;
 }
 
+message Access {
+	// path to file
+	optional string pathname = 1;
+	// acess mode
+	optional int32 mode = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
+message EAccess {
+	// path to file
+	optional string pathname = 1;
+	// access mode
+	optional int32 mode = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
+message FAccessAt {
+	// dir file descriptor
+	optional int64 dirfd = 1;
+	// path to file
+	optional string pathname = 2;
+	// access mode
+	optional int32 mode = 3;
+	// flags
+	optional int32 flags = 4;
+	// error no., when ret = -1
+	optional int32 error_no = 5;
+}
+
 message RmDir {
 	// dir path
 	optional string dir = 1;
@@ -425,4 +456,7 @@ message InterceptorMsg {
 	optional Dup3 dup3 = 28;
 	optional ReadLink readlink = 29;
 	optional ReadLinkAt readlinkat = 30;
+	optional Access access = 31;
+	optional EAccess eaccess = 32;
+	optional FAccessAt faccessat = 33;
 }
