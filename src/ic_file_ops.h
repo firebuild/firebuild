@@ -266,9 +266,18 @@ IC(int, linkat, (int __fromfd, __const char *__from, int __tofd,
    })
 IC(int, symlink, (__const char *__from, __const char *__to),
    {ret = orig_fn(__from, __to); intercept_symlink(__from, __to, ret);})
-IC_GENERIC(ssize_t, readlink, (__const char *__restrict __path,
-			       char *__restrict __buf, size_t __len),
-           {ret = orig_fn(__path, __buf, __len);})
+IC(ssize_t, readlink, (__const char *__restrict __path,
+		       char *__restrict __buf, size_t __len), {
+     char *ret_path;
+     ret = orig_fn(__path, __buf, __len);
+     if ((ret >= 0) && (abs(ret) <= __len)) {
+       ret_path = strndup(__buf, ret);
+     } else {
+       ret_path = strdup("");
+     }
+     intercept_readlink(__path, ret_path, ret);
+     free(ret_path);
+   })
 IC(int, symlinkat, (__const char *__from, int __tofd, __const char *__to),
    {ret = orig_fn(__from, __tofd, __to);
      intercept_symlinkat( __from, __tofd, __to, ret);

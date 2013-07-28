@@ -127,6 +127,15 @@ message UnLink {
 	optional int32 error_no = 2;
 }
 
+message ReadLink {
+	// path name
+	optional string path = 1;
+	// returned path
+	optional string ret_path = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
 message RmDir {
 	// dir path
 	optional string dir = 1;
@@ -403,4 +412,5 @@ message InterceptorMsg {
 	optional Sysconf sysconf = 26;
 	optional Dup dup = 27;
 	optional Dup3 dup3 = 28;
+	optional ReadLink readlink = 29;
 }
