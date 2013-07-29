@@ -278,6 +278,10 @@ IC2_SIMPLE_0P(int, IC2_NO_RET, ExecVFailed, execvfailed)
 IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name, size_t, len)
 /* Intercept getdomainname */
 IC2_SIMPLE_2P(int, IC2_NO_RET, GetDomainname, getdomainname, const char *, name, size_t, len)
+/* Intercept truncate(64) */
+IC2_SIMPLE_2P(int, IC2_NO_RET, Truncate, truncate, const char *, path, off64_t, len)
+/* Intercept ftruncate(64) */
+IC2_SIMPLE_2P(int, IC2_NO_RET, FTruncate, ftruncate, int, fd, off64_t, len)
 
 static void
 intercept_exit (const int status)

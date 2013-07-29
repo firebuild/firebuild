@@ -360,14 +360,22 @@ IC_GENERIC(long int, gethostid, (void),
 
 IC_GENERIC(int, getdtablesize, (void),
            {ret = orig_fn();})
-IC_GENERIC(int, truncate, (__const char *__file, __off_t __length),
-           {ret = orig_fn(__file, __length);})
-IC_GENERIC(int, truncate64, (__const char *__file, __off64_t __length),
-           {ret = orig_fn(__file, __length);})
-IC_GENERIC(int, ftruncate, (int __fd, __off_t __length),
-           {ret = orig_fn(__fd, __length);})
-IC_GENERIC(int, ftruncate64, (int __fd, __off64_t __length),
-           {ret = orig_fn(__fd, __length);})
+IC(int, truncate, (__const char *__file, __off_t __length), {
+    ret = orig_fn(__file, __length);
+    intercept_truncate(__file, __length, ret);
+  })
+IC(int, truncate64, (__const char *__file, __off64_t __length), {
+    ret = orig_fn(__file, __length);
+    intercept_truncate(__file, __length, ret);
+  })
+IC(int, ftruncate, (int __fd, __off_t __length), {
+    ret = orig_fn(__fd, __length);
+    intercept_ftruncate(__fd, __length, ret);
+  })
+IC(int, ftruncate64, (int __fd, __off64_t __length), {
+    ret = orig_fn(__fd, __length);
+    intercept_ftruncate(__fd, __length, ret);
+  })
 
 /* ignore: brk sbrk */
 
