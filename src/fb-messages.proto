@@ -411,6 +411,15 @@ message Sysconf {
 	optional int32 error_no = 3;
 }
 
+message GetHostname {
+	// name
+	optional string name = 1;
+	// value
+	optional int64 len = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
 message Exit {
 	// exit status of the process
 	required int32 exit_status = 1;
@@ -481,4 +490,5 @@ message InterceptorMsg {
 	optional FAccessAt faccessat = 33;
 	optional ExecV execv = 34;
 	optional ExecVFailed execvfailed = 35;
+	optional GetHostname gethostname = 36;
 }
