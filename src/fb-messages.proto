@@ -447,6 +447,28 @@ message FTruncate {
 	optional int32 error_no = 3;
 }
 
+message PathConf {
+	// path name
+	optional string path = 1;
+	// option name
+	optional int32 name = 2;
+	// option value
+	optional int64 ret = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message FPathConf {
+	// file fd
+	optional int32 fd = 1;
+	// option name
+	optional int32 name = 2;
+	// option value
+	optional int64 ret = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
 message Exit {
 	// exit status of the process
 	required int32 exit_status = 1;
@@ -521,4 +543,6 @@ message InterceptorMsg {
 	optional GetDomainname getdomainname = 37;
 	optional Truncate truncate = 38;
 	optional FTruncate ftruncate = 39;
+	optional PathConf pathconf = 40;
+	optional FPathConf fpathconf = 41;
 }

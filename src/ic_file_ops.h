@@ -197,10 +197,10 @@ IC_VOID(void, quick_exit, (int __status), {
     while (true);
   })
 
-IC_GENERIC(long int, pathconf, (__const char *__path, int __name),
-           {ret = orig_fn(__path, __name);})
-IC_GENERIC(long int, fpathconf, (int __fd, int __name),
-           {ret = orig_fn(__fd, __name);})
+IC(long int, pathconf, (__const char *__path, int __name),
+   {ret = orig_fn(__path, __name); intercept_pathconf(__path, __name, ret);})
+IC(long int, fpathconf, (int __fd, int __name),
+   {ret = orig_fn(__fd, __name); intercept_fpathconf(__fd, __name, ret);})
 IC(long int, sysconf, (int __name),
    {ret = orig_fn(__name);intercept_sysconf(__name, ret);})
 IC_GENERIC(size_t, confstr, (int __name, char *__buf, size_t __len),
