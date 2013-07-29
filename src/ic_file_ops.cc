@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <cstdarg>
+#include <cstdio>
 #include <cassert>
 #include <errno.h>
 #include <unistd.h>
@@ -217,6 +218,61 @@ intercept_pipe2 (int pipefd[2], int flags, int ret)
   errno = saved_errno;
 }
 
+
+static void
+intercept_execve (bool with_p, const char *file, int fd, char *const argv[], char *const envp[])
+{
+  InterceptorMsg ic_msg;
+  SupervisorMsg sv_msg;
+  ExecV *m;
+  int i;
+  char * tmp_path;
+  m = ic_msg.mutable_execv();
+  if (with_p) {
+    m->set_with_p(with_p);
+  }
+  if ((file != NULL) && (fd == -1)) {
+    m->set_file(file);
+  } else {
+    m->set_fd(fd);
+  }
+  for (i = 0; argv[i] != NULL; i++) {
+    m->add_arg(argv[i]);
+  }
+  for (i = 0; envp[i] != NULL; i++) {
+    m->add_env(envp[i]);
+  }
+  if (fd == -1){
+    if ((tmp_path = getenv("PATH"))) {
+      m->set_path(tmp_path);
+    } else {
+      /* we have to fall back as described in man execvp */
+      char *cs_path, cwd_buf[CWD_BUFSIZE];
+      size_t n = ic_orig_confstr(_CS_PATH, NULL, 0);
+      cs_path = (char *)malloc(n);
+      assert (cs_path != NULL);
+      ic_orig_confstr(_CS_PATH, cs_path, n);
+      ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
+      n = snprintf(NULL, 0, "%s:%s", cwd_buf, cs_path);
+      tmp_path = (char*)malloc(n + 1);
+      snprintf(tmp_path, n+1, "%s:%s", cwd_buf, cs_path);
+      m->set_path(tmp_path);
+      free(tmp_path);
+      free(cs_path);
+    }
+  }
+  fb_send_msg(ic_msg, fb_sv_conn);
+  fb_recv_msg(sv_msg, fb_sv_conn);
+  if (!sv_msg.ack()) {
+    // something unexpected happened ...
+    assert(0);
+  }
+  // exit handlers may call intercepted functions
+  intercept_on = false;
+
+}
+/* Intercept failed (f)execv*() */
+IC2_SIMPLE_0P(int, IC2_NO_RET, ExecVFailed, execvfailed)
 
 static void
 intercept_exit (const int status)

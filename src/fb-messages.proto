@@ -338,6 +338,26 @@ message Dup3 {
 	optional int32 error_no = 5;
 }
 
+message ExecV {
+	// file to execute
+	optional string file = 1;
+	// file fd to execute, in case of fexecve()
+	optional int32 fd = 2;
+	// argv[]
+	repeated string arg = 3;
+	// envp[] in case of execve()/execvpe() it is passed as parameter
+	repeated string env = 4;
+	// true, in case of execvp()/execvpe()
+	optional bool with_p = 5;
+	// PATH , or confstr(_CS_PATH), if PATH is not set
+	optional string path = 6;
+}
+
+message ExecVFailed {
+	// error no., when ret = -1
+	required int32 error_no = 5;
+}
+
 message Process {
 	// process id
 	optional int64 pid = 23;
@@ -459,4 +479,6 @@ message InterceptorMsg {
 	optional Access access = 31;
 	optional EAccess eaccess = 32;
 	optional FAccessAt faccessat = 33;
+	optional ExecV execv = 34;
+	optional ExecVFailed execvfailed = 35;
 }

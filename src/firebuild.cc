@@ -145,11 +145,11 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
   } else if (ic_msg.has_creat()) {
   } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
-  } else if (ic_msg.has_exit()) {
+  } else if (ic_msg.has_exit() ||
+	     ic_msg.has_execv()) {
     SupervisorMsg sv_msg;
     sv_msg.set_ack(true);
     fb_send_msg(sv_msg, fd_conn);
-    return (false);
   } else if (ic_msg.has_gen_call()) {
   }
 
@@ -300,6 +300,7 @@ int main(int argc, char* argv[]) {
 		// got error or connection closed by client
 		if (nbytes == 0) {
 		  // connection closed
+		  // TODO handle process exit
 		  printf("socket %d hung up\n", i);
 		} else {
 		  perror("recv");

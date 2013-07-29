@@ -36,9 +36,13 @@ typedef struct {
 
 extern ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
+/** buffer size for getcwd */
+#define CWD_BUFSIZE 4096
+
 extern __pid_t (*ic_orig_getpid) (void);
 extern __pid_t (*ic_orig_getppid) (void);
 extern char * (*ic_orig_getcwd) (char *__buf, size_t __size);
+extern size_t (*ic_orig_confstr) (int, char *, size_t);
 extern ssize_t (*ic_orig_write) (int, const void*, size_t);
 extern ssize_t (*ic_orig_read) (int, const void*, size_t);
 extern ssize_t (*ic_orig_readlink) (const char*, char*, size_t);

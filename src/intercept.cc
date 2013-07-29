@@ -32,6 +32,7 @@ ic_fn_info ic_fn[IC_FN_IDX_MAX];
 __pid_t (*ic_orig_getpid) (void);
 __pid_t (*ic_orig_getppid) (void);
 char * (*ic_orig_getcwd) (char *, size_t);
+size_t (*ic_orig_confstr) (int, char *, size_t);
 ssize_t(*ic_orig_write)(int, const void *, size_t);
 ssize_t(*ic_orig_read)(int, const void *, size_t);
 ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
@@ -92,6 +93,7 @@ set_orig_fns ()
   ic_orig_getpid = (__pid_t(*)(void))get_orig_fn("getpid");
   ic_orig_getppid = (__pid_t(*)(void))get_orig_fn("getppid");
   ic_orig_getcwd = (char *(*)(char *, size_t))get_orig_fn("getppid");
+  ic_orig_confstr = (size_t (*)(int, char *, size_t))get_orig_fn("confstr");
   ic_orig_write = (ssize_t(*)(int, const void *, size_t))get_orig_fn("write");
   ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
   ic_orig_readlink = (ssize_t (*) (const char*, char*, size_t))get_orig_fn("readlink");
@@ -125,16 +127,13 @@ init_supervisor_conn () {
   }
 }
 
-/** buffer for getcwd */
-#define CWD_BUFSIZE 4096
-static char cwd_buf[CWD_BUFSIZE];
-
 /**
  * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init()
 {
   char **argv, **env, **cursor, *cwd_ret;
+  char cwd_buf[CWD_BUFSIZE];
   __pid_t pid, ppid;
   ShortCutProcessQuery *proc;
   ShortCutProcessResp * resp;
