@@ -327,8 +327,10 @@ IC_GENERIC(int, sethostname, (__const char *__name, size_t __len),
            {ret = orig_fn(__name, __len);})
 IC_GENERIC(int, sethostid, (long int __id),
            {ret = orig_fn(__id);})
-IC_GENERIC(int, getdomainname, (char *__name, size_t __len),
-           {ret = orig_fn(__name, __len);})
+IC(int, getdomainname, (char *__name, size_t __len), {
+    ret = orig_fn(__name, __len);
+    intercept_getdomainname(__name, __len, ret);
+  })
 IC_GENERIC(int, setdomainname, (__const char *__name, size_t __len),
            {ret = orig_fn(__name, __len);})
 
