@@ -7,6 +7,8 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
+#include <vector>
+
 #include "firebuild_common.h"
 /* create global array indexed by intercepted function's id */
 #define IC_VOID(_ret_type, name, _parameters, _body)	\
@@ -35,6 +37,18 @@ typedef struct {
 } ic_fn_info;
 
 extern ic_fn_info ic_fn[IC_FN_IDX_MAX];
+
+/** file usage state */
+typedef struct {
+  bool read; /** file has been read */
+  bool written; /** file has been written to */
+} fd_state;
+
+/** file fd states */
+extern std::vector<fd_state> fd_states;
+
+/** Global lock for manipulating fd states */
+extern pthread_mutex_t ic_fd_states_lock;
 
 /** buffer size for getcwd */
 #define CWD_BUFSIZE 4096

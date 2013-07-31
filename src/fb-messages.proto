@@ -469,6 +469,20 @@ message FPathConf {
 	optional int32 error_no = 4;
 }
 
+message Read {
+	// file fd
+	required int32 fd = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message Write {
+	// file fd
+	required int32 fd = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
 message Exit {
 	// exit status of the process
 	required int32 exit_status = 1;
@@ -545,4 +559,6 @@ message InterceptorMsg {
 	optional FTruncate ftruncate = 39;
 	optional PathConf pathconf = 40;
 	optional FPathConf fpathconf = 41;
+	optional Read read = 42;
+	optional Write write = 43;
 }

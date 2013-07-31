@@ -288,6 +288,93 @@ IC2_SIMPLE_2P(long, IC2_WITH_RET, PathConf, pathconf, const char *, path, int, n
 IC2_SIMPLE_2P(long, IC2_WITH_RET, FPathConf, fpathconf, int, fd, int, name)
 
 static void
+intercept_read (const int fd, ssize_t ret)
+{
+  pthread_mutex_lock(&ic_fd_states_lock);
+  try {
+    fd_states.at(fd);
+  } catch (exception& e) {
+    fd_states.resize(fd + 1);
+  }
+  if (fd_states[fd].read == false) {
+    fd_states[fd].read = true;
+    pthread_mutex_unlock(&ic_fd_states_lock);
+    int saved_errno = errno;
+    InterceptorMsg ic_msg;
+    Read *m;
+
+    m = ic_msg.mutable_read();
+    if (ret == -1) {
+      m->set_error_no(saved_errno);
+    }
+    m->set_fd(fd);
+    fb_send_msg(ic_msg, fb_sv_conn);
+
+    errno = saved_errno;
+  }
+  pthread_mutex_unlock(&ic_fd_states_lock);
+}
+
+
+static void
+intercept_write (const int fd, ssize_t ret)
+{
+  pthread_mutex_lock(&ic_fd_states_lock);
+  try {
+    fd_states.at(fd);
+  } catch (exception& e) {
+    fd_states.resize(fd + 1);
+  }
+  if (fd_states[fd].written == false) {
+    fd_states[fd].written = true;
+    pthread_mutex_unlock(&ic_fd_states_lock);
+    int saved_errno = errno;
+    InterceptorMsg ic_msg;
+    Write *m;
+
+    m = ic_msg.mutable_write();
+    if (ret == -1) {
+      m->set_error_no(saved_errno);
+    }
+    m->set_fd(fd);
+    fb_send_msg(ic_msg, fb_sv_conn);
+
+    errno = saved_errno;
+  }
+  pthread_mutex_unlock(&ic_fd_states_lock);
+}
+
+static void
+clear_file_state(const int fd) {
+  if (fd >= 0) {
+    pthread_mutex_lock(&ic_fd_states_lock);
+    try {
+      fd_states.at(fd);
+    } catch (exception& e) {
+      fd_states.resize(fd + 1);
+    }
+    fd_states[fd].read = false;
+    fd_states[fd].written = false;
+    pthread_mutex_unlock(&ic_fd_states_lock);
+  }
+}
+
+static void
+copy_file_state(const int to_fd, const int from_fd) {
+  if ((to_fd >= 0) && (from_fd >= 0)) {
+    pthread_mutex_lock(&ic_fd_states_lock);
+    try {
+      fd_states.at(to_fd);
+    } catch (exception& e) {
+      fd_states.resize(to_fd + 1);
+    }
+    fd_states[to_fd] = fd_states[from_fd];
+    pthread_mutex_unlock(&ic_fd_states_lock);
+  }
+}
+
+
+static void
 intercept_exit (const int status)
 {
   InterceptorMsg ic_msg;

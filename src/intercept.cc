@@ -28,6 +28,12 @@ static void fb_ic_cleanup() __attribute__ ((destructor));
 /* global vars */
 ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
+/** file fd states */
+std::vector<fd_state> fd_states;
+
+/** Global lock for manipulating fd states */
+pthread_mutex_t ic_fd_states_lock;
+
 /* original intercepted functions */
 __pid_t (*ic_orig_getpid) (void);
 __pid_t (*ic_orig_getppid) (void);

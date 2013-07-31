@@ -20,6 +20,7 @@
 									\
        body;								\
        intercept_open(__file, __oflag, mode, ret);			\
+       clear_file_state(ret);						\
      })
 
 
@@ -39,6 +40,7 @@ IC_OPEN_VA(int, openat64, (int __fd, __const char *__file, int __oflag, ...),
   IC(int, name, (__const char *__file, __mode_t __mode), {	\
       ret = orig_fn(__file, __mode);				\
       intercept_creat(__file, __mode, ret);			\
+      clear_file_state(ret);					\
     })
 
 IC_CREATE(creat)
@@ -51,6 +53,7 @@ IC_CREATE(creat64)
 IC(int, close, (int __fd), {
       ret = orig_fn(__fd);
       intercept_close(__fd, ret);
+      clear_file_state(ret);
     })
 
 IC(int, access, (__const char *__name, int __type),
@@ -66,23 +69,31 @@ IC(int, faccessat, (int __fd, __const char *__file, int __type, int __flag),
 // those don't let new information enter the process
 
 // TODO finish to handle stdio
-IC_GENERIC(ssize_t, read, (int __fd, void *__buf, size_t __nbytes),
-	   {ret = orig_fn(__fd, __buf, __nbytes);})
-IC_GENERIC(ssize_t, write, (int __fd, __const void *__buf, size_t __n),
-	   {ret = orig_fn(__fd, __buf, __n);})
-IC_GENERIC(ssize_t, pread, (int __fd, void *__buf, size_t __nbytes, __off_t __offset),
-	   {ret = orig_fn(__fd, __buf, __nbytes, __offset);})
-IC_GENERIC(ssize_t, pwrite, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
-	   {ret = orig_fn(__fd, __buf, __n, __offset);})
-IC_GENERIC(ssize_t, pread64, (int __fd, void *__buf, size_t __nbytes, __off_t __offset),
-	   {ret = orig_fn(__fd, __buf, __nbytes, __offset);})
-IC_GENERIC(ssize_t, pwrite64, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
-	   {ret = orig_fn(__fd, __buf, __n, __offset);})
+IC(ssize_t, read, (int __fd, void *__buf, size_t __nbytes),
+   {ret = orig_fn(__fd, __buf, __nbytes); intercept_read(__fd, ret);})
+IC(ssize_t, write, (int __fd, __const void *__buf, size_t __n),
+   {ret = orig_fn(__fd, __buf, __n); intercept_write(__fd, ret);})
+IC(ssize_t, pread, (int __fd, void *__buf, size_t __nbytes, __off_t __offset),
+   {ret = orig_fn(__fd, __buf, __nbytes, __offset); intercept_read(__fd, ret);})
+IC(ssize_t, pwrite, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
+   {ret = orig_fn(__fd, __buf, __n, __offset); intercept_write(__fd, ret);})
+IC(ssize_t, pread64, (int __fd, void *__buf, size_t __nbytes, __off_t __offset),
+   {ret = orig_fn(__fd, __buf, __nbytes, __offset); intercept_read(__fd, ret);})
+IC(ssize_t, pwrite64, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
+   {ret = orig_fn(__fd, __buf, __n, __offset); intercept_write(__fd, ret);})
 // TODO intercept to handle communication between forked children and parent
-IC(int, pipe, (int __pipedes[2]),
-   {ret = orig_fn(__pipedes); intercept_pipe2(__pipedes, 0, ret);})
-IC(int, pipe2, (int __pipedes[2], int __flags),
-   {ret = orig_fn(__pipedes, __flags); intercept_pipe2(__pipedes, __flags, ret);})
+IC(int, pipe, (int __pipedes[2]), {
+    ret = orig_fn(__pipedes);
+    intercept_pipe2(__pipedes, 0, ret);
+    clear_file_state(__pipedes[0]);
+    clear_file_state(__pipedes[1]);
+})
+IC(int, pipe2, (int __pipedes[2], int __flags), {
+    ret = orig_fn(__pipedes, __flags);
+    intercept_pipe2(__pipedes, __flags, ret);
+    clear_file_state(__pipedes[0]);
+    clear_file_state(__pipedes[1]);
+  })
 
 // TODO those may affect output if the process measures time that way
 // usually the calls can be ignored
@@ -142,12 +153,25 @@ IC(char*, getwd, (char *__buf), {
     intercept_getcwd(ret);
   })
 
-IC(int, dup, (int __fd),
-   {ret = orig_fn(__fd); intercept_dup(__fd, ret);})
-IC(int, dup2, (int __fd, int __fd2),
-   {ret = orig_fn(__fd, __fd2); intercept_dup3(__fd, __fd2, 0, ret);})
-IC(int, dup3, (int __fd, int __fd2, int __flags),
-   {ret = orig_fn(__fd, __fd2, __flags); intercept_dup3(__fd, __fd2, __flags, ret);})
+IC(int, dup, (int __fd), {
+    ret = orig_fn(__fd);
+    intercept_dup(__fd, ret);
+    copy_file_state(ret, __fd);
+  })
+IC(int, dup2, (int __fd, int __fd2), {
+    ret = orig_fn(__fd, __fd2);
+    intercept_dup3(__fd, __fd2, 0, ret);
+    if (ret != -1) {
+      copy_file_state (__fd2, __fd);
+    }
+  })
+IC(int, dup3, (int __fd, int __fd2, int __flags), {
+    ret = orig_fn(__fd, __fd2, __flags);
+    intercept_dup3(__fd, __fd2, __flags, ret);
+    if (ret != -1) {
+      copy_file_state (__fd2, __fd);
+    }
+  })
 
 IC(int, execve, (__const char *__path, char *__const __argv[], char *__const __envp[]), {
     intercept_execve(false, __path, -1, __argv, __envp);
