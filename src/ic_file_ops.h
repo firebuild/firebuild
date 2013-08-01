@@ -176,30 +176,35 @@ IC(int, dup3, (int __fd, int __fd2, int __flags), {
 IC(int, execve, (__const char *__path, char *__const __argv[], char *__const __envp[]), {
     intercept_execve(false, __path, -1, __argv, __envp);
     ret = orig_fn(__path, __argv, __envp);
-    intercept_execvfailed(ret);
+    init_supervisor_conn();
+    intercept_execvfailed(ic_pid, ret);
   })
 IC(int, fexecve, (int __fd, char *__const __argv[], char *__const __envp[]), {
     intercept_execve(false, NULL, __fd, __argv, environ);
     ret = orig_fn(__fd, __argv, __envp);
-    intercept_execvfailed(ret);
+    init_supervisor_conn();
+    intercept_execvfailed(ic_pid, ret);
   })
 IC(int, execv, (__const char *__path, char *__const __argv[]), {
     intercept_execve(false, __path, -1, __argv, environ);
     ret = orig_fn(__path, __argv);
-    intercept_execvfailed(ret);
+    init_supervisor_conn();
+    intercept_execvfailed(ic_pid, ret);
   })
 
 IC(int, execvp, (__const char *__file, char *__const __argv[]), {
     intercept_execve(true, __file, -1, __argv, environ);
     ret = orig_fn(__file, __argv);
-    intercept_execvfailed(ret);
+    init_supervisor_conn();
+    intercept_execvfailed(ic_pid, ret);
   })
 
 IC(int, execvpe, (__const char *__file, char *__const __argv[],
 		  char *__const __envp[]), {
      intercept_execve(true, __file, -1, __argv, __envp);
      ret = orig_fn(__file, __argv, __envp);
-     intercept_execvfailed(ret);
+     init_supervisor_conn();
+     intercept_execvfailed(ic_pid, ret);
    })
 
 /* ignore: nice */

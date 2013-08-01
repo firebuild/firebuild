@@ -252,8 +252,12 @@ int main(int argc, char* argv[]) {
 	}
         read_fds = master; // copy it
 	if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
-	  perror("select");
-	  exit(4);
+	  if (errno != EINTR) {
+	    perror("select");
+	    exit(4);
+	  } else {
+	    break;
+	  }
         }
 
         // run through the existing connections looking for data to read
@@ -308,6 +312,7 @@ int main(int argc, char* argv[]) {
 		close(i); // bye!
 		FD_CLR(i, &master); // remove from master set
 	      } else {
+		cerr << "fd " << i << ": ";
 		io::FileOutputStream * fos = new io::FileOutputStream(STDERR_FILENO);
 		TextFormat::Print(ic_msg, fos);
 		fos->Flush();

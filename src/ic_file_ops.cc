@@ -267,12 +267,10 @@ intercept_execve (bool with_p, const char *file, int fd, char *const argv[], cha
     // something unexpected happened ...
     assert(0);
   }
-  // exit handlers may call intercepted functions
-  intercept_on = false;
 
 }
 /* Intercept failed (f)execv*() */
-IC2_SIMPLE_0P(int, IC2_NO_RET, ExecVFailed, execvfailed)
+IC2_SIMPLE_1P(int, IC2_NO_RET, ExecVFailed, execvfailed, int, pid)
 
 /* Intercept gethostname */
 IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name, size_t, len)

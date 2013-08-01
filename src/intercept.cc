@@ -119,7 +119,8 @@ init_supervisor_conn () {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
   }
 
-  if ((fb_sv_conn = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+  if ((fb_sv_conn = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1) {
+    assert(fb_sv_conn > STDERR_FILENO);
     assert(fb_sv_conn != -1);
   }
 
