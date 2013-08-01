@@ -379,6 +379,7 @@ intercept_exit (const int status)
   SupervisorMsg sv_msg;
   Exit *m;
   struct rusage ru;
+  ssize_t len;
 
   m = ic_msg.mutable_exit();
   m->set_exit_status(status);
@@ -386,10 +387,10 @@ intercept_exit (const int status)
   m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
   m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
   fb_send_msg(ic_msg, fb_sv_conn);
-  fb_recv_msg(sv_msg, fb_sv_conn);
-  if (!sv_msg.ack()) {
+  len = fb_recv_msg(sv_msg, fb_sv_conn);
+  if ((len > 0) && (!sv_msg.ack())) {
     // something unexpected happened ...
-    assert(0);
+    assert(0 && "Supervisor did not ack exit");
   }
   // exit handlers may call intercepted functions
   intercept_on = false;
