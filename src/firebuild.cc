@@ -18,9 +18,11 @@
 using namespace std;
 using namespace google::protobuf;
 
-string fb_conn_string;
+static char *fb_conn_string;
 static int sigchld_fds[2];
 static int child_pid, child_ret = 1;
+static io::FileOutputStream * error_fos;
+static int debug_level = 0;
 
 static void usage()
 {
@@ -56,24 +58,32 @@ static char** get_sanitized_env()
   string preset_env_vars[][2] = {{"FB_SOCKET", fb_conn_string},
 				 {"LD_PRELOAD", "libfbintercept.so"}};
 
-  cout << "Passing through environment variables:" << endl;
+  if (debug_level >= 1) {
+    cout << "Passing through environment variables:" << endl;
+  }
   for (i = 0; i < sizeof(pass_through_env_vars) / (2 * sizeof(string)); i++) {
     if (NULL  != getenv(pass_through_env_vars[i][0].c_str())) {
       env_v.push_back(pass_through_env_vars[i][0] + "="
 		      + getenv(pass_through_env_vars[i][0].c_str()));
+      if (debug_level >= 1) {
+	cout << " " << env_v.back() << endl;
+      }
+    }
+  }
+  if (debug_level >= 1) {
+    cout << endl;
+    cout << "Setting preset environment variables:" << endl;
+  }
+  for (i = 0; i < sizeof(preset_env_vars) / (2 * sizeof(string)); i++) {
+    env_v.push_back(preset_env_vars[i][0] + "=" + preset_env_vars[i][1]);
+    if (debug_level >= 1) {
       cout << " " << env_v.back() << endl;
     }
   }
 
-  cout << endl;
-
-  cout << "Setting preset environment variables:" << endl;
-  for (i = 0; i < sizeof(preset_env_vars) / (2 * sizeof(string)); i++) {
-    env_v.push_back(preset_env_vars[i][0] + "=" + preset_env_vars[i][1]);
-    cout << " " << env_v.back() << endl;
+  if (debug_level >= 1) {
+    cout << endl;
   }
-
-  cout << endl;
 
   ret_env = static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
 
@@ -169,7 +179,7 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
 int main(int argc, char* argv[]) {
 
   char **env_exec, *config_file = NULL;
-  int i, c, debug_level = 0;
+  int i, c;
   string tempdir;
 
   // parse options
@@ -196,6 +206,7 @@ int main(int argc, char* argv[]) {
       break;
 
     case 'd':
+      debug_level = atoi(optarg);
       if ((debug_level < 0) || (debug_level > 3)) {
 	usage();
 	exit(1);
@@ -212,7 +223,6 @@ int main(int argc, char* argv[]) {
       exit(1);
     }
   }
-  cout << optind << endl;
   if (optind >= argc) {
     usage();
     exit(1);
@@ -222,7 +232,10 @@ int main(int argc, char* argv[]) {
   // compatible with the version of the headers we compiled against.
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  fb_conn_string = tempnam(NULL, "firebuild");
+  error_fos = new io::FileOutputStream(STDERR_FILENO);
+  {
+    fb_conn_string = tempnam(NULL, "firebuild");
+  }
   env_exec = get_sanitized_env();
 
   init_signal_handlers();
@@ -244,7 +257,7 @@ int main(int argc, char* argv[]) {
     }
 
     local.sun_family = AF_UNIX;
-    strncpy(local.sun_path, fb_conn_string.c_str(), sizeof(local.sun_path));
+    strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path));
     unlink(local.sun_path);
     len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(listener, (struct sockaddr *)&local, len) == -1) {
@@ -272,6 +285,8 @@ int main(int argc, char* argv[]) {
       argv_exec[i] = NULL;
 
       execvpe(argv[optind], argv_exec, env_exec);
+      perror("Executing build command failed");
+      exit(1);
     } else {
       // supervisor process
       int newfd;        // newly accept()ed socket descriptor
@@ -356,17 +371,20 @@ int main(int argc, char* argv[]) {
 		if (nbytes == 0) {
 		  // connection closed
 		  // TODO handle process exit
-		  printf("socket %d hung up\n", i);
+		  if (debug_level >= 2) {
+		    printf("socket %d hung up\n", i);
+		  }
 		} else {
 		  perror("recv");
 		}
 		close(i); // bye!
 		FD_CLR(i, &master); // remove from master set
 	      } else {
-		cerr << "fd " << i << ": ";
-		io::FileOutputStream * fos = new io::FileOutputStream(STDERR_FILENO);
-		TextFormat::Print(ic_msg, fos);
-		fos->Flush();
+		if (debug_level >= 2) {
+		  cerr << "fd " << i << ": ";
+		  TextFormat::Print(ic_msg, error_fos);
+		  error_fos->Flush();
+		}
 		if (!proc_ic_msg(ic_msg, i)) {
 		  close(i); // bye!
 		  FD_CLR(i, &master); // remove from master set
@@ -386,8 +404,11 @@ int main(int argc, char* argv[]) {
     }
     free(env_exec);
 
-    unlink(fb_conn_string.c_str());
+    unlink(fb_conn_string);
   }
+
+  delete(error_fos);
+  free(fb_conn_string);
 
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
