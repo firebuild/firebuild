@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <unistd.h>
 #include <signal.h>
+#include <getopt.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -23,8 +24,16 @@ static int child_pid, child_ret = 1;
 
 static void usage()
 {
-  cout << "usage: firebuild <build command>" << endl;
-  exit(0);
+  cout << "Usage: firebuild [OPTIONS] <BUILD COMMAND>" << endl;
+  cout << "Execute BUILD COMMAND with FireBuild™ instrumentation" << endl;
+  cout << "" << endl;
+  cout << "Mandatory arguments to long options are mandatory for short options too." << endl;
+  cout << "   -c --config-file=FILE     use FILE as configuration file" << endl;
+  cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << endl;
+  cout << "   -h --help                 show this help" << endl;
+  cout << "Exit status:" << endl;
+  cout << " exit status of the BUILD COMMAND" << endl;
+  cout << " 1  in case of failure" << endl;
 }
 
 /**
@@ -159,12 +168,54 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
 
 int main(int argc, char* argv[]) {
 
-  char** env_exec;
-  int i;
+  char **env_exec, *config_file = NULL;
+  int i, c, debug_level = 0;
   string tempdir;
 
-  if (argc < 2) {
+  // parse options
+
+  while (1) {
+    int option_index = 0;
+    static struct option long_options[] = {
+      {"config-file",  required_argument, 0,  'c' },
+      {"debug-level",  required_argument, 0,  'd' },
+      {"help",         no_argument,       0,  'h' },
+      {0,         0,                 0,  0 }
+    };
+
+    c = getopt_long(argc, argv, "c:d:h",
+		    long_options, &option_index);
+    if (c == -1)
+      break;
+
+    switch (c) {
+    case 'c':
+      config_file = optarg;
+      // TODO use config file
+      (void)config_file;
+      break;
+
+    case 'd':
+      if ((debug_level < 0) || (debug_level > 3)) {
+	usage();
+	exit(1);
+      }
+      break;
+
+    case 'h':
+      usage();
+      exit(0);
+      break;
+
+    default:
+      usage();
+      exit(1);
+    }
+  }
+  cout << optind << endl;
+  if (optind >= argc) {
     usage();
+    exit(1);
   }
 
   // Verify that the version of the ProtoBuf library that we linked against is
@@ -208,19 +259,19 @@ int main(int argc, char* argv[]) {
 
     if ((child_pid = fork()) == 0) {
       // intercepted process
-      char* argv_exec[argc + 1];
+      char* argv_exec[argc - optind + 1];
 
       // we don't need those
       close(sigchld_fds[0]);
       close(sigchld_fds[1]);
       close(listener);
       // create and execute build command
-      for (i = 0; i < argc; i++) {
-	argv_exec[i] = argv[i + 1];
+      for (i = 0; i < argc - optind ; i++) {
+	argv_exec[i] = argv[optind + i];
       }
       argv_exec[i] = NULL;
 
-      execvpe(argv[1], argv_exec, env_exec);
+      execvpe(argv[optind], argv_exec, env_exec);
     } else {
       // supervisor process
       int newfd;        // newly accept()ed socket descriptor
@@ -254,7 +305,7 @@ int main(int argc, char* argv[]) {
 	if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
 	  if (errno != EINTR) {
 	    perror("select");
-	    exit(4);
+	    exit(1);
 	  } else {
 	    break;
 	  }
