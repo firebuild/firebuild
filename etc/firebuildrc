@@ -1,0 +1,14 @@
+// Default configuration file for FireBuild
+
+version = 1.0;
+
+// enviromnent variables passed to the build command
+env_vars = {
+  // the following environment variables are passed to the build command unchanged
+  pass_through = [ "PATH", "SHELL", "PWD", "LD_LIBRARY_PATH" ];
+
+  // the folloving env vars are pre-set to the values configured below
+  // Note that FB_SOCKET is also set by firebuild internally 
+  preset = ["LD_PRELOAD=libfbintercept.so"];
+};
+

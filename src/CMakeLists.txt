@@ -1,5 +1,6 @@
 
 find_package(Protobuf REQUIRED)
+find_package(LibConfig REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS fb-messages.proto)
@@ -19,4 +20,4 @@ add_executable(firebuild
   firebuild_common.cc
   ${PROTO_SRCS}
   ${PROTO_HDRS})
-target_link_libraries(firebuild ${PROTOBUF_LIBRARIES})
+target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY})

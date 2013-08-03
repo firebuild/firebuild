@@ -10,19 +10,26 @@
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <fcntl.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
-
+#include <libconfig.h++>
 #include "firebuild_common.h"
 
 using namespace std;
 using namespace google::protobuf;
+using namespace libconfig;
+
+static char global_cfg[] = "/etc/firebuildrc";
 
 static char *fb_conn_string;
 static int sigchld_fds[2];
 static int child_pid, child_ret = 1;
 static io::FileOutputStream * error_fos;
 static int debug_level = 0;
+
+/** global configuration */
+libconfig::Config cfg;
 
 static void usage()
 {
@@ -38,6 +45,43 @@ static void usage()
   cout << " 1  in case of failure" << endl;
 }
 
+/** Parse configuration file */
+static void
+parse_cfg_file(char *cfg_file)
+{
+  if (cfg_file == NULL) {
+    char * homedir = getenv("HOME");
+    int cfg_fd;
+    if ((homedir != NULL ) && (-1 != (cfg_fd = open(string(homedir + string("/.firebuildrc")).c_str(), O_RDONLY)))) {
+      // fall back to private config file
+      cfg_file = const_cast<char*>(string(homedir + string("/.firebuildrc")).c_str());
+      close(cfg_fd);
+    } else {
+      cfg_fd = open(global_cfg, O_RDONLY);
+      if (cfg_fd != -1) {
+	// fall back to global config file
+	cfg_file = global_cfg;
+	close(cfg_fd);
+      }
+    }
+  }
+  try
+    {
+      cfg.readFile(cfg_file);
+    }
+  catch(const FileIOException &fioex)
+    {
+      std::cerr << "Could not read configuration file " << cfg_file << std::endl;
+      exit(EXIT_FAILURE);
+    }
+  catch(const ParseException &pex)
+    {
+      std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+		<< " - " << pex.getError() << std::endl;
+      exit(EXIT_FAILURE);
+    }
+}
+
 /**
  * Construct a NULL-terminated array of "NAME=VALUE" environment variables
  * for the build command. The returned stings and array must be free()-d.
@@ -46,25 +90,22 @@ static void usage()
  */
 static char** get_sanitized_env()
 {
-  unsigned int i;
+  int i;
   vector<string> env_v;
   char ** ret_env;
   vector<string>::iterator it;
-
-  // TODO get from config files
-  const string pass_through_env_vars[][2] = {{"PATH", ""}, {"SHELL", ""},
-					     {"PWD", ""},
-					     {"LD_LIBRARY_PATH", ""}};
-  string preset_env_vars[][2] = {{"FB_SOCKET", fb_conn_string},
-				 {"LD_PRELOAD", "libfbintercept.so"}};
+  const Setting& root = cfg.getRoot();
+  const Setting& pass_through = root["env_vars"]["pass_through"];
+  const Setting& preset = root["env_vars"]["preset"];
+  int count = pass_through.getLength();
 
   if (debug_level >= 1) {
     cout << "Passing through environment variables:" << endl;
   }
-  for (i = 0; i < sizeof(pass_through_env_vars) / (2 * sizeof(string)); i++) {
-    if (NULL  != getenv(pass_through_env_vars[i][0].c_str())) {
-      env_v.push_back(pass_through_env_vars[i][0] + "="
-		      + getenv(pass_through_env_vars[i][0].c_str()));
+  for (i = 0; i < count ; i++) {
+    char * got_env = getenv(pass_through[i].c_str());
+    if (NULL  != got_env) {
+      env_v.push_back(pass_through[i].c_str() + string("=") + string(got_env));
       if (debug_level >= 1) {
 	cout << " " << env_v.back() << endl;
       }
@@ -74,11 +115,16 @@ static char** get_sanitized_env()
     cout << endl;
     cout << "Setting preset environment variables:" << endl;
   }
-  for (i = 0; i < sizeof(preset_env_vars) / (2 * sizeof(string)); i++) {
-    env_v.push_back(preset_env_vars[i][0] + "=" + preset_env_vars[i][1]);
+  count = preset.getLength();
+  for (i = 0; i < count; i++) {
+    env_v.push_back(preset[i]);
     if (debug_level >= 1) {
       cout << " " << env_v.back() << endl;
     }
+  }
+  env_v.push_back("FB_SOCKET=" + string(fb_conn_string));
+  if (debug_level >= 1) {
+    cout << " " << env_v.back() << endl;
   }
 
   if (debug_level >= 1) {
@@ -227,6 +273,8 @@ int main(int argc, char* argv[]) {
     usage();
     exit(1);
   }
+
+  parse_cfg_file(config_file);
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.
