@@ -147,6 +147,35 @@ message ReadLinkAt {
 	optional int32 error_no = 4;
 }
 
+message Remove {
+	// path to file
+	optional string filename = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
+message Rename {
+	// path to old file
+	optional string oldpath = 1;
+	// path to new file
+	optional string newpath = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
+message RenameAt {
+	// old dir file descriptor
+	optional int32 oldfd = 1;
+	// path to old file
+	optional string oldpath = 2;
+	// new dir file descriptor
+	optional int32 newfd = 3;
+	// path to new file
+	optional string newpath = 4;
+	// error no., when ret = -1
+	optional int32 error_no = 5;
+}
+
 message Access {
 	// path to file
 	optional string pathname = 1;
@@ -563,4 +592,7 @@ message InterceptorMsg {
 	optional FPathConf fpathconf = 41;
 	optional Read read = 42;
 	optional Write write = 43;
+	optional Remove remove = 44;
+	optional Rename rename = 45;
+	optional RenameAt renameat = 46;
 }

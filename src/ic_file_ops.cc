@@ -190,6 +190,13 @@ intercept_readlink_helper(int fd, const char *path, const char *buf,
   free(ret_path);
 }
 
+/* Intercept remove */
+IC2_SIMPLE_1P(int, IC2_NO_RET, Remove, remove, const char *, filename)
+/* Intercept rename */
+IC2_SIMPLE_2P(int, IC2_NO_RET, Rename, rename, const char *, oldpath, const char *, newpath)
+/* Intercept renameat */
+IC2_SIMPLE_4P(int, IC2_NO_RET, RenameAt, renameat, int, oldfd, const char *, oldpath, int, newfd, const char *, newpath)
+
 /* Intercept access */
 IC2_SIMPLE_2P(int, IC2_NO_RET, Access, access, const char *, pathname, int, mode)
 /* Intercept eaccess */

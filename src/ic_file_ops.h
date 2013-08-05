@@ -428,3 +428,12 @@ IC_GENERIC(char*, ctermid, (char *__s),
 
 
 // TODO stat.h
+
+// TODO finish stdio.h
+IC(int, remove, (const char *filename), {
+    ret = orig_fn(filename); intercept_remove(filename, ret);})
+IC(int, rename, (const char *oldpath, const char *newpath), {
+    ret = orig_fn(oldpath, newpath); intercept_rename(oldpath, newpath, ret);})
+IC(int, renameat, (int oldfd, const char *oldpath, int newfd, const char *newpath), {
+    ret = orig_fn(oldfd, oldpath, newfd, newpath);
+    intercept_renameat(oldfd, oldpath, newfd, newpath, ret);})
