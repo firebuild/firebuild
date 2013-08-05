@@ -427,7 +427,78 @@ IC_GENERIC(char*, ctermid, (char *__s),
            {ret = orig_fn(__s);})
 
 
-// TODO stat.h
+// TODO intercept fns
+IC_GENERIC(int, stat, (const char *file, struct stat *buf), {
+    ret = orig_fn(file, buf); /*intercept_stat(file, buf, ret);*/})
+IC_GENERIC(int, fstat, (int fd, struct stat *buf), {
+    ret = orig_fn(fd, buf); /*intercept_fstat64(fd, buf, ret);*/})
+IC_GENERIC(int, stat64, (const char *file, struct stat64 *buf), {
+    ret = orig_fn(file, buf); /*intercept_stat64(file, buf, ret);*/})
+IC_GENERIC(int, fstat64, (int fd, struct stat64 *buf), {
+    ret = orig_fn(fd, buf); /*intercept_fstat64(fd, buf, ret);*/})
+IC_GENERIC(int, fstatat, (int fd, const char * file,
+			  struct stat *buf, int flag), {
+	     ret = orig_fn(fd, file, buf, flag); /*intercept_();*/})
+IC_GENERIC(int, fstatat64, (int fd, const char * file,
+			    struct stat64 *buf, int flag), {
+	     ret = orig_fn(fd, file, buf, flag); /*intercept_();*/})
+IC_GENERIC(int, lstat, (const char *file, struct stat *buf), {
+    ret = orig_fn(file, buf); /*intercept_lstat(file, buf, ret);*/})
+IC_GENERIC(int, lstat64, (const char *file, struct stat64 *buf), {
+    ret = orig_fn(file, buf); /*intercept_lstat64(file, buf, ret);*/})
+
+IC_GENERIC(int, chmod, (const char *file, __mode_t mode), {
+    ret = orig_fn(file, mode); /*intercept_();*/})
+IC_GENERIC(int, lchmod, (const char *file, __mode_t mode), {
+    ret = orig_fn(file, mode); /*intercept_();*/})
+IC_GENERIC(int, fchmod, (int fd, __mode_t mode), {
+    ret = orig_fn(fd, mode); /*intercept_();*/})
+IC_GENERIC(int, fchmodat, (int fd, const char *file, __mode_t mode, int flag), {
+    ret = orig_fn(fd, file, mode, flag); /*intercept_();*/})
+IC_GENERIC(mode_t, umask, (__mode_t mask), {
+    ret = orig_fn(mask); /*intercept_();*/})
+IC_GENERIC(mode_t, getumask, (void), {
+    ret = orig_fn(); /*intercept_();*/})
+IC_GENERIC(int, mkdir, (const char *path, __mode_t mode), {
+    ret = orig_fn(path, mode); /*intercept_();*/})
+IC_GENERIC(int, mkdirat, (int fd, const char *path, __mode_t mode), {
+    ret = orig_fn(fd, path, mode); /*intercept_();*/})
+IC_GENERIC(int, mknod, (const char *path, __mode_t mode, __dev_t dev), {
+    ret = orig_fn(path, mode, dev); /*intercept_();*/})
+IC_GENERIC(int, mknodat, (int fd, const char *path, __mode_t mode, __dev_t dev), {
+    ret = orig_fn(fd, path, mode, dev); /*intercept_();*/})
+IC_GENERIC(int, mkfifo, (const char *path, __mode_t mode), {
+    ret = orig_fn(path, mode); /*intercept_();*/})
+IC_GENERIC(int, mkfifoat, (int fd, const char *path, __mode_t mode), {
+    ret = orig_fn(fd, path, mode); /*intercept_();*/})
+IC_GENERIC(int, utimensat, (int fd, const char *path, const struct timespec times[2],
+			    int flags), {
+	     ret = orig_fn(fd, path, times, flags); /*intercept_();*/})
+IC_GENERIC(int, futimens, (int fd, const struct timespec times[2]), {
+    ret = orig_fn(fd, times); /*intercept_();*/})
+IC_GENERIC(int, __fxstat, (int ver, int fildes, struct stat *stat_buf), {
+    ret = orig_fn(ver, fildes, stat_buf); /*intercept_();*/})
+IC_GENERIC(int, __xstat, (int ver, const char *filename, struct stat *stat_buf), {
+    ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
+IC_GENERIC(int, __lxstat, (int ver, const char *filename, struct stat *stat_buf), {
+    ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
+IC_GENERIC(int, __fxstatat, (int ver, int fildes, const char *filename,
+			     struct stat *stat_buf, int flag), {
+	     ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
+IC_GENERIC(int, __fxstat64, (int ver, int fildes, struct stat64 *stat_buf), {
+    ret = orig_fn(ver, fildes, stat_buf); /*intercept_();*/})
+IC_GENERIC(int, __xstat64, (int ver, const char *filename, struct stat64 *stat_buf), {
+    ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
+IC_GENERIC(int, __lxstat64, (int ver, const char *filename, struct stat64 *stat_buf), {
+    ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
+IC_GENERIC(int, __fxstatat64, (int ver, int fildes, const char *filename,
+			     struct stat64 *stat_buf, int flag), {
+	     ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
+IC_GENERIC(int, __xmknod, (int ver, const char *path, mode_t mode, __dev_t *dev), {
+    ret = orig_fn(ver, path, mode, dev); /*intercept_();*/})
+IC_GENERIC(int, __xmknodat, (int ver, int fd, const char *path,
+					__mode_t mode, __dev_t *dev), {
+	     ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
 
 // TODO finish stdio.h
 IC(int, remove, (const char *filename), {
