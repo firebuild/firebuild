@@ -367,6 +367,15 @@ message Dup3 {
 	optional int32 error_no = 5;
 }
 
+message DLOpen {
+	// file path
+	optional string	filename = 1;
+	// flag, decoding is left for FireBuild supervisor
+	optional int32 flag = 2;
+	// error no., when ret = -1
+	optional int32 error_no = 3;
+}
+
 message ExecV {
 	// file to execute
 	optional string file = 1;
@@ -595,4 +604,5 @@ message InterceptorMsg {
 	optional Remove remove = 44;
 	optional Rename rename = 45;
 	optional RenameAt renameat = 46;
+	optional DLOpen dlopen = 47;
 }

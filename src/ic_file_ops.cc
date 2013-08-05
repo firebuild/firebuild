@@ -20,6 +20,7 @@ using namespace std;
 
 
 typedef char* CHARS;
+typedef void* VOIDPT;
 
 #define IC2_MSG_IC2_WITH_RET  m->set_ret(ret)
 #define IC2_MSG_IC2_NO_RET
@@ -27,6 +28,7 @@ typedef char* CHARS;
 #define IC2_ERR_VAL_int -1
 #define IC2_ERR_VAL_long -1
 #define IC2_ERR_VAL_CHARS NULL
+#define IC2_ERR_VAL_VOIDPT NULL
 
 #define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,	\
 		      ics_pmname, ics_pars, ics_body)			\
@@ -204,6 +206,8 @@ IC2_SIMPLE_2P(int, IC2_NO_RET, EAccess, eaccess, const char *, pathname, int, mo
 /* Intercept faccessat */
 IC2_SIMPLE_4P(int, IC2_NO_RET, FAccessAt, faccessat, int, dirfd, const char *, pathname, int, mode, int, flags)
 
+/* Intercept dlopen */
+IC2_SIMPLE_2P(VOIDPT, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, flag)
 
 /* Intercept pipe variants */
 static void

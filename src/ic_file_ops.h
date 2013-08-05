@@ -508,3 +508,7 @@ IC(int, rename, (const char *oldpath, const char *newpath), {
 IC(int, renameat, (int oldfd, const char *oldpath, int newfd, const char *newpath), {
     ret = orig_fn(oldfd, oldpath, newfd, newpath);
     intercept_renameat(oldfd, oldpath, newfd, newpath, ret);})
+
+
+IC(void*, dlopen, (const char *filename, int flag), {
+    ret = orig_fn(filename, flag); intercept_dlopen(filename, flag, ret);})
