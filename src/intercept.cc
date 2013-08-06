@@ -193,6 +193,12 @@ static void fb_ic_init()
     }
  exec_path_filled:
 
+  // list loaded shared libs
+  {
+    FileList *fl = proc->mutable_libs();
+    dl_iterate_phdr(shared_libs_cb, fl);
+
+  }
   fb_send_msg(ic_msg, fb_sv_conn);
   fb_recv_msg(sv_msg, fb_sv_conn);
 
@@ -240,6 +246,21 @@ ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
 {
   pthread_mutex_lock(&ic_global_lock);
   FB_IO_OP_BUF(ic_orig_read, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
+}
+
+/** Add shared library's name to the file list */
+int
+shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data)
+{
+  FileList *fl = (FileList*)data;
+  //unused
+  (void)size;
+
+  if (info->dlpi_name[0] != '\0') {
+    fl->add_file(info->dlpi_name);
+  }
+
+  return 0;
 }
 
 /* make auditing functions visible */

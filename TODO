@@ -1,0 +1,9 @@
+FireBuild TODO items
+====================
+- track changes to shared library search path
+  Now processes report all the loaded shared libraries at start and exit.
+  One idea is if /etc/ld.so.cache lists all libs used by the build at the
+  same place where they were resolved in a cached run, the search path
+  changes do not affect the build and cached results can be reused.
+  LD_LIBRARY_PATH still has to be checked this case.
+

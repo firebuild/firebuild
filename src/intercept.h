@@ -77,6 +77,9 @@ extern int fb_sv_conn;
 /** interceptor init has been run */
 extern bool ic_init_done;
 
+/** Add shared library's name to the file list */
+extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
+
 /**
  * Stored PID
  * When getpid() returns a different value, we missed a fork() :-)

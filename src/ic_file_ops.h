@@ -215,6 +215,12 @@ IC_VOID(void, exit, (int __status), {
     while (true);
   })
 
+IC_VOID(void, exit_group, (int __status), {
+    intercept_exit(__status);
+    orig_fn(__status);
+    while (true);
+  })
+
 IC_VOID(void, _exit, (int __status), {
     intercept_exit(__status);
     orig_fn(__status);

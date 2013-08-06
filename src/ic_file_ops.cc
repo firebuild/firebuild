@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <link.h>
 
 #include "intercept.h"
 #include "fb-messages.pb.h"
@@ -403,6 +404,11 @@ intercept_exit (const int status)
   getrusage(RUSAGE_SELF, &ru);
   m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
   m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
+  {
+    FileList *fl = m->mutable_libs();
+    dl_iterate_phdr(shared_libs_cb, fl);
+
+  }
   fb_send_msg(ic_msg, fb_sv_conn);
   len = fb_recv_msg(sv_msg, fb_sv_conn);
   if ((len > 0) && (!sv_msg.ack())) {

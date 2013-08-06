@@ -54,6 +54,8 @@ message ShortCutProcessQuery {
 	repeated string env_var = 5;
 	// full path of the binary
 	optional string executable = 6;
+	// loaded shared libraries in the beginning
+	optional FileList libs = 7;
 }
 
 // FireBuild supervisor's response with details of shortcutting
@@ -552,6 +554,14 @@ message Write {
 	optional int32 error_no = 4;
 }
 
+message FileList {
+	repeated string file = 1;
+}
+
+message DLClose {
+	// loaded shared libraries before dlclose
+	optional FileList libs = 1;
+}
 message Exit {
 	// exit status of the process
 	required int32 exit_status = 1;
@@ -559,6 +569,8 @@ message Exit {
 	required int64 utime_m = 2;
 	// system CPU time in milliseconds
 	required int64 stime_m = 3;
+	// loaded shared libraries at exit
+	optional FileList libs = 4;
 }
 
 // fork()'s child
@@ -651,4 +663,5 @@ message InterceptorMsg {
 	optional FCloseAll fcloseall = 50;
 	optional LAObjSearch la_objsearch = 51;
 	optional LAObjOpen la_objopen = 52;
+	optional DLClose dlclose = 53;
 }
