@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <link.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
@@ -240,3 +241,70 @@ ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
   pthread_mutex_lock(&ic_global_lock);
   FB_IO_OP_BUF(ic_orig_read, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
 }
+
+/* make auditing functions visible */
+#pragma GCC visibility push(default)
+
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Dynamic linker auditing function
+ * see man rtld-audit(7) for details
+ */
+unsigned int
+la_version(unsigned int version)
+{
+  return version;
+}
+
+/**
+ * Send path to supervisor whenever the dynamic linker wants to load a shared
+ * library
+ */
+char *
+la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
+{
+  InterceptorMsg ic_msg;
+  LAObjSearch *los = ic_msg.mutable_la_objsearch();
+
+  // unused
+  (void)cookie;
+
+  fb_ic_load();
+
+  los->set_name(name);
+  los->set_flag(flag);
+  fb_send_msg(ic_msg, fb_sv_conn);
+
+  return const_cast<char*>(name);
+}
+
+/**
+ * Send path to supervisor whenever the dynamic linker loads a shared library
+ */
+unsigned int
+la_objopen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie)
+{
+  InterceptorMsg ic_msg;
+  LAObjOpen *los = ic_msg.mutable_la_objopen();
+
+  // unused
+  (void)lmid;
+  (void)cookie;
+
+  fb_ic_load();
+
+  los->set_name(map->l_name);
+  fb_send_msg(ic_msg, fb_sv_conn);
+
+  return LA_FLG_BINDTO | LA_FLG_BINDFROM;
+}
+
+
+#ifdef  __cplusplus
+}
+#endif
+
+#pragma GCC visibility pop
