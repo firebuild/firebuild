@@ -133,6 +133,8 @@ IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 IC2_SIMPLE_1P(int, IC2_NO_RET, FChDir, fchdir, const int, dir)
 /* Intercept close */
 IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
+/* Intercept fcloseall */
+IC2_SIMPLE_0P(int, IC2_NO_RET, FCloseAll, fcloseall)
 /* Intercept rmdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, RmDir, rmdir, const char *, dir)
 /* Intercept chown */
@@ -295,6 +297,10 @@ IC2_SIMPLE_2P(int, IC2_NO_RET, FTruncate, ftruncate, int, fd, off64_t, len)
 IC2_SIMPLE_2P(long, IC2_WITH_RET, PathConf, pathconf, const char *, path, int, name)
 /* Intercept fpathconf */
 IC2_SIMPLE_2P(long, IC2_WITH_RET, FPathConf, fpathconf, int, fd, int, name)
+/* Intercept fopen */
+IC2_SIMPLE_2P(int, IC2_WITH_RET, FOpen, fopen, const char *, filename, const char *, modes)
+/* Intercept freopen */
+IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const char *, modes, int, fd)
 
 static void
 intercept_read (const int fd, ssize_t ret)

@@ -82,6 +82,30 @@ message Open {
 	optional int32 error_no = 6;
 }
 
+message FOpen {
+	// file path
+	optional string	filename = 1;
+	// modes, decoding is left for FireBuild supervisor
+	optional string modes = 2;
+	// return value, the file descriptor if != -1
+	optional int32 ret = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message FReOpen {
+	// file path
+	optional string	filename = 1;
+	// modes, decoding is left for FireBuild supervisor
+	optional string modes = 2;
+	// file descriptor associated to the stream to be reopened
+	optional int32 fd = 3;
+	// return value, the file descriptor if != -1
+	optional int32 ret = 4;
+	// error no., when ret = -1
+	optional int32 error_no = 5;
+}
+
 message OpenFileResp {
 	// true if interceptor library needs to collect file state and send back
 	// to supervisor
@@ -219,6 +243,11 @@ message Close {
 	optional int64 fd = 1;
 	// error no., when ret = -1
 	optional int32 error_no = 2;
+}
+
+message FCloseAll {
+	// error no., when ret = -1
+	optional int32 error_no = 1;
 }
 
 message Chown {
@@ -605,4 +634,7 @@ message InterceptorMsg {
 	optional Rename rename = 45;
 	optional RenameAt renameat = 46;
 	optional DLOpen dlopen = 47;
+	optional FOpen fopen = 48;
+	optional FReOpen freopen = 49;
+	optional FCloseAll fcloseall = 50;
 }

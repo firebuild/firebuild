@@ -509,6 +509,30 @@ IC(int, renameat, (int oldfd, const char *oldpath, int newfd, const char *newpat
     ret = orig_fn(oldfd, oldpath, newfd, newpath);
     intercept_renameat(oldfd, oldpath, newfd, newpath, ret);})
 
+IC(FILE*, fopen, (const char *filename, const char *modes),{
+    ret = orig_fn(filename, modes);
+    intercept_fopen(filename, modes, (ret)?fileno(ret):(-1));})
+IC(FILE*, fopen64, (const char *filename, const char *modes),{
+    ret = orig_fn(filename, modes);
+    intercept_fopen(filename, modes, (ret)?fileno(ret):(-1));})
+IC(FILE*, freopen, (const char *filename, const char *modes, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(filename, modes, stream);
+    intercept_freopen(filename, modes, stream_fileno,(ret)?fileno(ret):(-1));})
+IC(FILE*, freopen64, (const char *filename, const char *modes, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(filename, modes, stream);
+    intercept_freopen(filename, modes, stream_fileno,(ret)?fileno(ret):(-1));})
+
+// ignore fdopen, since it does not open new file
+IC(int, fclose, (FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_close(stream_fileno, (ret == EOF)?-1:ret);})
+IC(int, fcloseall, (void),{
+    ret = orig_fn();
+    intercept_fcloseall((ret == EOF)?-1:ret);})
+
 
 IC(void*, dlopen, (const char *filename, int flag), {
     ret = orig_fn(filename, flag); intercept_dlopen(filename, flag, ret);})
