@@ -1,12 +1,14 @@
 
 #include <cassert>
 #include <cstdarg>
+#include <cstdlib>
 #include <unistd.h>
 #include <errno.h>
 #include <dlfcn.h>
 #include <link.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/resource.h>
 
 
 #include "intercept.h"
@@ -56,6 +58,9 @@ int fb_sv_conn = -1;
 
 /** interceptor init has been run */
 bool ic_init_done = false;
+
+/** interceptor handled exit */
+bool fb_exit_handled = false;
 
 /**
  * Stored PID
@@ -155,6 +160,8 @@ static void fb_ic_init()
 
   init_supervisor_conn();
 
+  on_exit(handle_exit, NULL);
+
   get_argv_env(&argv, &env);
   ic_pid = pid = ic_orig_getpid();
   ppid = ic_orig_getppid();
@@ -224,6 +231,37 @@ void fb_ic_load()
     fb_ic_init();
   }
 }
+void
+handle_exit (const int status, void*)
+{
+  if (!fb_exit_handled) {
+    // TODO atomic set
+    fb_exit_handled = true;
+    InterceptorMsg ic_msg;
+    SupervisorMsg sv_msg;
+    Exit *m;
+    struct rusage ru;
+    ssize_t len;
+
+    m = ic_msg.mutable_exit();
+    m->set_exit_status(status);
+    getrusage(RUSAGE_SELF, &ru);
+    m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
+    m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
+    {
+      FileList *fl = m->mutable_libs();
+      dl_iterate_phdr(shared_libs_cb, fl);
+
+    }
+    fb_send_msg(ic_msg, fb_sv_conn);
+    len = fb_recv_msg(sv_msg, fb_sv_conn);
+    if ((len > 0) && (!sv_msg.ack())) {
+      // something unexpected happened ...
+      assert(0 && "Supervisor did not ack exit");
+    }
+  }
+}
+
 
 
 static void fb_ic_cleanup()

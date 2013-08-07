@@ -77,6 +77,9 @@ extern int fb_sv_conn;
 /** interceptor init has been run */
 extern bool ic_init_done;
 
+/** interceptor handled exit */
+extern bool fb_exit_handled;
+
 /** Add shared library's name to the file list */
 extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 
@@ -94,6 +97,7 @@ extern "C" {
 #endif
 
 extern void fb_ic_load() __attribute__ ((constructor));
+extern void handle_exit (const int status, void*);
 
 #ifdef  __cplusplus
 }
