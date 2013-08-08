@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <iostream>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <dirent.h>
 #include <link.h>
 
 #include "intercept.h"
@@ -30,6 +32,8 @@ typedef void* VOIDPT;
 #define IC2_ERR_VAL_CHARS NULL
 #define IC2_ERR_VAL_VOIDPT NULL
 
+#define IC2_WAIT_ACK
+
 #define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,	\
 		      ics_pmname, ics_pars, ics_body)			\
   static void								\
@@ -46,6 +50,7 @@ typedef void* VOIDPT;
       m->set_error_no(saved_errno);					\
     }									\
     fb_send_msg(ic_msg, fb_sv_conn);					\
+    IC2_WAIT_ACK;							\
     errno = saved_errno;						\
   }
 
@@ -301,6 +306,23 @@ IC2_SIMPLE_2P(long, IC2_WITH_RET, FPathConf, fpathconf, int, fd, int, name)
 IC2_SIMPLE_2P(int, IC2_WITH_RET, FOpen, fopen, const char *, filename, const char *, modes)
 /* Intercept freopen */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const char *, modes, int, fd)
+
+// macro generated interceptor functions below require ACK from supervisor
+#undef IC2_WAIT_ACK
+#define IC2_WAIT_ACK {					\
+    SupervisorMsg sv_msg;				\
+    fb_recv_msg(sv_msg, fb_sv_conn);			\
+    if (!sv_msg.ack()) {				\
+      /* something unexpected happened ... */		\
+      assert(0);					\
+    }							\
+  }
+
+/* Intercept opendir */
+IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, OpenDir, opendir, const char *, name)
+
+#undef IC2_WAIT_ACK
+
 
 static void
 intercept_read (const int fd, ssize_t ret)

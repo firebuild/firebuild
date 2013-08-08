@@ -211,7 +211,8 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
   } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
-	     ic_msg.has_execv()) {
+	     ic_msg.has_execv()||
+	     ic_msg.has_opendir()) {
     SupervisorMsg sv_msg;
     sv_msg.set_ack(true);
     fb_send_msg(sv_msg, fd_conn);

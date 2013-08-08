@@ -542,3 +542,6 @@ IC(int, fcloseall, (void),{
 
 IC(void*, dlopen, (const char *filename, int flag), {
     ret = orig_fn(filename, flag); intercept_dlopen(filename, flag, ret);})
+
+IC(DIR *, opendir, (const char *name), {
+    ret = orig_fn(name); intercept_opendir(name, ret);})

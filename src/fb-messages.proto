@@ -95,6 +95,13 @@ message FOpen {
 	optional int32 error_no = 4;
 }
 
+message OpenDir {
+	// path
+	optional string	name = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
 message FReOpen {
 	// file path
 	optional string	filename = 1;
@@ -664,4 +671,5 @@ message InterceptorMsg {
 	optional LAObjSearch la_objsearch = 51;
 	optional LAObjOpen la_objopen = 52;
 	optional DLClose dlclose = 53;
+	optional OpenDir opendir = 54;
 }
