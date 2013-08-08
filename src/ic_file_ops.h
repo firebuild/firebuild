@@ -545,3 +545,32 @@ IC(void*, dlopen, (const char *filename, int flag), {
 
 IC(DIR *, opendir, (const char *name), {
     ret = orig_fn(name); intercept_opendir(name, ret);})
+
+IC_GENERIC(size_t, fread, (void *ptr, size_t size, size_t nmemb, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(ptr, size, nmemb, stream);
+    intercept_read(stream_fileno, (ret < nmemb)?-1:ret);})
+IC_GENERIC(size_t, fwrite, (const void *ptr, size_t size, size_t nmemb, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(ptr, size, nmemb, stream);
+    intercept_write(stream_fileno, (ret < nmemb)?-1:ret);})
+
+IC(int, fputc, (int c, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(c, stream);
+    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+IC(int, fputs, (const char *s, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(s, stream);
+    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+IC(int, putc, (int c, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(c, stream);
+    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+IC(int, putchar, (int c),{
+    ret = orig_fn(c);
+    intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
+IC(int, puts, (const char *s),{
+    ret = orig_fn(s);
+    intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
+
