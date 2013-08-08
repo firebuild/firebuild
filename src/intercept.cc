@@ -46,6 +46,7 @@ ssize_t(*ic_orig_write)(int, const void *, size_t);
 ssize_t(*ic_orig_read)(int, const void *, size_t);
 ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
 int (*ic_orig_close) (int);
+void* (*ic_orig_dlopen) (const char *, int);
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -110,6 +111,7 @@ set_orig_fns ()
   ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
   ic_orig_readlink = (ssize_t (*) (const char*, char*, size_t))get_orig_fn("readlink");
   ic_orig_close = (int (*) (int))get_orig_fn("close");
+  ic_orig_dlopen = (void* (*) (const char*, int))get_orig_fn("dlopen");
 
 
 }

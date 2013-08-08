@@ -61,6 +61,7 @@ extern ssize_t (*ic_orig_write) (int, const void*, size_t);
 extern ssize_t (*ic_orig_read) (int, const void*, size_t);
 extern ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
 extern int (*ic_orig_close) (int);
+extern void* (*ic_orig_dlopen) (const char *, int);
 
 /** Reset globally maintained information about intercepted funtions */
 extern void reset_fn_infos ();
