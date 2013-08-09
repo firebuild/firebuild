@@ -546,6 +546,7 @@ IC(void*, dlopen, (const char *filename, int flag), {
 IC(DIR *, opendir, (const char *name), {
     ret = orig_fn(name); intercept_opendir(name, ret);})
 
+/** generate two intercepted functions, one for name and one for name_unlocked */
 #define IC_WITH_UNLOCKED(ret_type, name, parameters, body)		\
   IC(ret_type, name, parameters, body)					\
   IC(ret_type, name##_unlocked, parameters, body)
@@ -588,4 +589,35 @@ IC_WITH_UNLOCKED(int, putwchar, (int c),{
 IC_WITH_UNLOCKED(int, puts, (const char *s),{
     ret = orig_fn(s);
     intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
+
+IC_WITH_UNLOCKED(int, fgetc, (FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_read(stream_fileno, (ret == EOF)?-1:1);})
+IC_WITH_UNLOCKED(wint_t, fgetwc, (FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_read(stream_fileno, (ret == WEOF)?-1:2);})
+IC_WITH_UNLOCKED(char*, fgets, (char *s, int n, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(s, n, stream);
+    intercept_read(stream_fileno, ret?strlen(ret):-1);})
+IC_WITH_UNLOCKED(int, getc, (FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_read(stream_fileno, (ret == EOF)?-1:1);})
+IC_WITH_UNLOCKED(wint_t, getwc, (FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_read(stream_fileno, (ret == WEOF)?-1:2);})
+IC_WITH_UNLOCKED(int, getchar, (void),{
+    ret = orig_fn();
+    intercept_read(STDOUT_FILENO, (ret == EOF)?-1:1);})
+IC_WITH_UNLOCKED(wint_t, getwchar, (void),{
+    ret = orig_fn();
+    intercept_read(STDOUT_FILENO, (ret == WEOF)?-1:2);})
+/* should be never used, see man gets*/
+IC_WITH_UNLOCKED(char*, gets, (char *s),{
+    ret = orig_fn(s);
+    intercept_read(STDOUT_FILENO, ret?strlen(ret):-1);})
 
