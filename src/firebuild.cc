@@ -230,7 +230,7 @@ int main(int argc, char* argv[]) {
   string tempdir;
 
   // parse options
-
+  setenv("POSIXLY_CORRECT", "1", true);
   while (1) {
     int option_index = 0;
     static struct option long_options[] = {
