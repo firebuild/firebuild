@@ -563,6 +563,10 @@ IC_WITH_UNLOCKED(int, fputc, (int c, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
     intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+IC_WITH_UNLOCKED(int, fputwc, (int c, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(c, stream);
+    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, fputs, (const char *s, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(s, stream);
@@ -571,7 +575,14 @@ IC_WITH_UNLOCKED(int, putc, (int c, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
     intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+IC_WITH_UNLOCKED(int, putwc, (int c, FILE *stream),{
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(c, stream);
+    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, putchar, (int c),{
+    ret = orig_fn(c);
+    intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
+IC_WITH_UNLOCKED(int, putwchar, (int c),{
     ret = orig_fn(c);
     intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, puts, (const char *s),{

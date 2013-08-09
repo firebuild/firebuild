@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <cstdarg>
 #include <cstdio>
+#include <cwchar>
 #include <cassert>
 #include <errno.h>
 #include <unistd.h>
