@@ -224,8 +224,11 @@ IC_VOID(void, exit_group, (int __status), {
 IC_VOID(void, _exit, (int __status), {
     intercept_exit(__status);
     orig_fn(__status);
-    while (true);
-  })
+    while (true);})
+IC_VOID(void, _Exit, (int __status), {
+    intercept_exit(__status);
+    orig_fn(__status);
+    while (true);})
 IC_VOID(void, quick_exit, (int __status), {
     intercept_exit(__status);
     orig_fn(__status);
@@ -621,3 +624,62 @@ IC_WITH_UNLOCKED(char*, gets, (char *s),{
     ret = orig_fn(s);
     intercept_read(STDOUT_FILENO, ret?strlen(ret):-1);})
 
+
+// socket.h
+IC_GENERIC(int, socket, (int domain, int type, int protocol),
+           {ret = orig_fn(domain, type, protocol);})
+IC_GENERIC(int, socketpair, (int domain, int type, int protocol,int sv[2]),
+           {ret = orig_fn(domain, type, protocol, sv);})
+IC_GENERIC(int, bind, (int fd, const struct sockaddr addr, socklen_t len),
+           {ret = orig_fn(fd, addr, len);})
+IC_GENERIC(int, getsockname, (int fd, struct sockaddr addr, socklen_t *addrlen),
+	   {ret = orig_fn(fd, addr, addrlen);})
+IC_GENERIC(int, connect, (int fd, const struct sockaddr addr, socklen_t len),
+           {ret = orig_fn(fd, addr, len);})
+IC_GENERIC(int, getpeername, (int fd, struct sockaddr addr, socklen_t *addrlen),
+	   {ret = orig_fn(fd, addr, addrlen);})
+IC_GENERIC(ssize_t, send, (int fd, const void *buf, size_t n, int flags),
+           {ret = orig_fn(fd, buf, n, flags);})
+IC_GENERIC(ssize_t, recv, (int fd, void *buf, size_t n, int flags),
+           {ret = orig_fn(fd, buf, n, flags);})
+IC_GENERIC(ssize_t, sendto, (int fd, const void *buf, size_t n, int flags,
+			     const struct sockaddr *dest_addr, socklen_t addrlen),
+           {ret = orig_fn(fd, buf, n, flags, dest_addr, addrlen);})
+IC_GENERIC(ssize_t, recvfrom, (int fd, void *buf, size_t n, int flags,
+			       struct sockaddr *src_addr, socklen_t *addrlen),
+           {ret = orig_fn(fd, buf, n, flags, src_addr, addrlen);})
+IC_GENERIC(ssize_t, sendmsg, (int fd, const struct msghdr *message, int flags),
+	   {ret = orig_fn(fd, message, flags);})
+IC_GENERIC(ssize_t, recvmsg, (int fd, struct msghdr *message, int flags),
+	   {ret = orig_fn(fd, message, flags);})
+
+IC_GENERIC(int, getsockopt, (int fd, int level, int optname, void *optval, socklen_t *optlen),
+           {ret = orig_fn(fd, level, optname, optval, optlen);})
+IC_GENERIC(int, setsockopt, (int fd, int level, int optname, void *optval, socklen_t *optlen),
+           {ret = orig_fn(fd, level, optname, optval, optlen);})
+IC_GENERIC(int, listen, (int fd, int n),
+           {ret = orig_fn(fd, n);})
+IC_GENERIC(int, accept, (int sockfd, struct sockaddr *addr, socklen_t *addrlen), {
+    ret = orig_fn(sockfd, addr, addrlen);})
+IC_GENERIC(int, accept4, (int sockfd, struct sockaddr *addr, socklen_t *addrlen, int flags), {
+    ret = orig_fn(sockfd, addr, addrlen, flags);})
+IC_GENERIC(int, shutdown, (int fd, int how),
+           {ret = orig_fn(fd, how);})
+IC_GENERIC(int, sockatmark, (int fd),
+           {ret = orig_fn(fd);})
+IC_GENERIC(int, isfdtype, (int fd, int fdtype),
+           {ret = orig_fn(fd, fdtype);})
+
+// mntent.h
+IC_GENERIC(FILE*, setmntent, (const char *file, const char *mode),
+           {ret = orig_fn(file, mode);})
+IC_GENERIC(struct mntent *, getmntent, (FILE *stream),
+           {ret = orig_fn(stream);})
+IC_GENERIC(struct mntent *, getmntent_r, (FILE *stream, struct mntent *mntbuf, char *buf, int buflen),
+           {ret = orig_fn(stream, mntbuf, buf, buflen);})
+IC_GENERIC(int, addmntent, (FILE *stream,const struct mntent *mnt),
+           {ret = orig_fn(stream, mnt);})
+IC_GENERIC(int, endmntent, (FILE *stream),
+           {ret = orig_fn(stream);})
+IC_GENERIC(char*, hasmntopt, (const struct mntent *mnt, const char *opt),
+           {ret = orig_fn(mnt, opt);})

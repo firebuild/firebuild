@@ -47,6 +47,7 @@ ssize_t(*ic_orig_read)(int, const void *, size_t);
 ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
 int (*ic_orig_close) (int);
 void* (*ic_orig_dlopen) (const char *, int);
+int (*ic_orig_socket) (int, int, int);
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -112,6 +113,7 @@ set_orig_fns ()
   ic_orig_readlink = (ssize_t (*) (const char*, char*, size_t))get_orig_fn("readlink");
   ic_orig_close = (int (*) (int))get_orig_fn("close");
   ic_orig_dlopen = (void* (*) (const char*, int))get_orig_fn("dlopen");
+  ic_orig_socket = (int (*) (int, int, int))get_orig_fn("socket");
 
 
 }
@@ -127,7 +129,7 @@ init_supervisor_conn () {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
   }
 
-  if ((fb_sv_conn = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1) {
+  if ((fb_sv_conn = ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1) {
     assert(fb_sv_conn > STDERR_FILENO);
     assert(fb_sv_conn != -1);
   }

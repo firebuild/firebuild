@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <cstdarg>
 #include <cstdio>
+#include <mntent.h>
 #include <cwchar>
 #include <cassert>
 #include <errno.h>
@@ -10,6 +11,7 @@
 #include <iostream>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <dirent.h>
 #include <link.h>
 
