@@ -372,7 +372,15 @@ IC(int, getdomainname, (char *__name, size_t __len), {
 IC_GENERIC(int, setdomainname, (__const char *__name, size_t __len),
            {ret = orig_fn(__name, __len);})
 
-/* ignore: vhangup revoke profil acct */
+IC_GENERIC(int, vhangup, (void),
+           {ret = orig_fn();})
+IC_GENERIC(int, revoke, (const char *file),
+           {ret = orig_fn(file);})
+IC_GENERIC(int, profil, (unsigned short int *sample_buffer, size_t size,
+                   size_t offset, unsigned int scale),
+           {ret = orig_fn(sample_buffer, size, offset, scale);})
+IC_GENERIC(int, acct, (const char *filename),
+           {ret = orig_fn(filename);})
 
 IC_GENERIC(char*, getusershell, (void),
            {ret = orig_fn();})
@@ -683,3 +691,44 @@ IC_GENERIC(int, endmntent, (FILE *stream),
            {ret = orig_fn(stream);})
 IC_GENERIC(char*, hasmntopt, (const struct mntent *mnt, const char *opt),
            {ret = orig_fn(mnt, opt);})
+
+//time.h
+IC_GENERIC(clock_t, clock, (void),
+           {ret = orig_fn();})
+IC_GENERIC(time_t, time, (time_t *timer),
+           {ret = orig_fn(timer);})
+
+// ignore: difftime mktime strftime strptime strftime_l strptime_l asctime ctime
+// tzname daylight timezone tzset localtime gmtime localtime_r gmtime_r ctime_r
+// asctime_r timegm timelocal dysize getdate getdate_r
+
+IC_GENERIC(int, stime, (const time_t *when),
+           {ret = orig_fn(when);})
+IC_GENERIC(int, nanosleep, (const struct timespec *req,
+			    struct timespec *rem),
+           {ret = orig_fn(req, rem);})
+IC_GENERIC(int, clock_getres, (clockid_t clock_id, struct timespec *res),
+           {ret = orig_fn(clock_id, res);})
+IC_GENERIC(int, clock_gettime, (clockid_t clock_id, struct timespec *tp),
+           {ret = orig_fn(clock_id, tp);})
+IC_GENERIC(int, clock_settime, (clockid_t clock_id, const struct timespec *tp),
+           {ret = orig_fn(clock_id, tp);})
+IC_GENERIC(int, clock_nanosleep, (clockid_t clock_id, int flags,
+				  const struct timespec *request,
+				  struct timespec *remain),
+           {ret = orig_fn(clock_id, flags, request, remain);})
+IC_GENERIC(int, clock_getcpuclockid, (pid_t pid, clockid_t *clock_id),
+           {ret = orig_fn(pid, clock_id);})
+IC_GENERIC(int, timer_create, (clockid_t clock_id, struct sigevent *sevp,
+			       timer_t *timerid),
+           {ret = orig_fn(clock_id, sevp, timerid);})
+IC_GENERIC(int, timer_delete, (timer_t timerid),
+           {ret = orig_fn(timerid);})
+IC_GENERIC(int, timer_settime, (timer_t timerid, int flags,
+				const struct itimerspec *new_value,
+				struct itimerspec * old_value),
+           {ret = orig_fn(timerid, flags, new_value, old_value);})
+IC_GENERIC(int, timer_gettime, (timer_t timerid, struct itimerspec *value),
+           {ret = orig_fn(timerid, value);})
+IC_GENERIC(int, timer_getoverrun, (timer_t timerid),
+           {ret = orig_fn(timerid);})
