@@ -215,6 +215,10 @@ IC2_SIMPLE_2P(int, IC2_NO_RET, Access, access, const char *, pathname, int, mode
 IC2_SIMPLE_2P(int, IC2_NO_RET, EAccess, eaccess, const char *, pathname, int, mode)
 /* Intercept faccessat */
 IC2_SIMPLE_4P(int, IC2_NO_RET, FAccessAt, faccessat, int, dirfd, const char *, pathname, int, mode, int, flags)
+/* Intercept (l)utime(s) */
+IC2_SIMPLE_3P(int, IC2_NO_RET, UTime, utime, int, at, const char *, file, bool, link)
+/* Intercept futimes */
+IC2_SIMPLE_1P(int, IC2_NO_RET, FUTime, futime, int, fd)
 
 /* Intercept dlopen */
 IC2_SIMPLE_2P(VOIDPT, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, flag)

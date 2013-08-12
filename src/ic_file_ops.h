@@ -488,11 +488,12 @@ IC_GENERIC(int, mkfifo, (const char *path, __mode_t mode), {
     ret = orig_fn(path, mode); /*intercept_();*/})
 IC_GENERIC(int, mkfifoat, (int fd, const char *path, __mode_t mode), {
     ret = orig_fn(fd, path, mode); /*intercept_();*/})
-IC_GENERIC(int, utimensat, (int fd, const char *path, const struct timespec times[2],
-			    int flags), {
-	     ret = orig_fn(fd, path, times, flags); /*intercept_();*/})
-IC_GENERIC(int, futimens, (int fd, const struct timespec times[2]), {
-    ret = orig_fn(fd, times); /*intercept_();*/})
+IC(int, utimensat, (int fd, const char *path, const struct timespec times[2],
+		    int flags), {
+     ret = orig_fn(fd, path, times, flags);
+     intercept_utime(fd, path, (flags & AT_SYMLINK_NOFOLLOW)?true:false, ret);})
+IC(int, futimens, (int fd, const struct timespec times[2]), {
+    ret = orig_fn(fd, times); intercept_futime(fd, ret);})
 IC_GENERIC(int, __fxstat, (int ver, int fildes, struct stat *stat_buf), {
     ret = orig_fn(ver, fildes, stat_buf); /*intercept_();*/})
 IC_GENERIC(int, __xstat, (int ver, const char *filename, struct stat *stat_buf), {
@@ -732,3 +733,27 @@ IC_GENERIC(int, timer_gettime, (timer_t timerid, struct itimerspec *value),
            {ret = orig_fn(timerid, value);})
 IC_GENERIC(int, timer_getoverrun, (timer_t timerid),
            {ret = orig_fn(timerid);})
+
+// sys/time.h
+IC_GENERIC(int, gettimeofday, (struct timeval *tv,
+			       struct timezone *tz),
+           {ret = orig_fn(tv, tz);})
+IC_GENERIC(int, settimeofday, (const struct timeval *tv,
+			       const struct timezone *tz),
+           {ret = orig_fn(tv, tz);})
+IC_GENERIC(int, adjtime, (const struct timeval *delta, struct timeval *olddelta),
+           {ret = orig_fn(delta, olddelta);})
+IC_GENERIC(int, getitimer, (int which, struct itimerval *curr_value),
+           {ret = orig_fn(which, curr_value);})
+IC_GENERIC(int, setitimer, (int which,const struct itimerval *new_value,
+			    struct itimerval *old_value),
+           {ret = orig_fn(which, new_value, old_value);})
+IC(int, utimes, (const char *file, const struct timeval tvp[2]),
+   {ret = orig_fn(file, tvp); intercept_utime(-1, file, false, ret);})
+IC(int, lutimes, (const char *file, const struct timeval tvp[2]),
+   {ret = orig_fn(file, tvp); intercept_utime(-1, file, true, ret);})
+IC(int, futimes, (int fd, const struct timeval tvp[2]),
+   {ret = orig_fn(fd, tvp);intercept_futime(fd, ret);})
+IC(int, futimesat, (int fd, const char *file, const struct timeval times[2]),
+   {ret = orig_fn(fd, file, times); intercept_utime(fd, file, false, ret);})
+

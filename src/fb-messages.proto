@@ -371,6 +371,24 @@ message LockF {
 	optional int32 error_no = 4;
 }
 
+message UTime {
+	// file name
+	optional string file = 1;
+	// it was actually lutime(), so don't follow symlink
+	optional bool link = 2;
+	// ..at(), like utimensat
+	optional int32 at = 3;
+	// error no., when ret = -1
+	optional int32 error_no = 4;
+}
+
+message FUTime {
+	// file fd
+	optional int32 fd = 1;
+	// error no., when ret = -1
+	optional int32 error_no = 2;
+}
+
 // pipe2() with flags = 0 is equivalent to pipe()
 message Pipe2 {
 	// pipe fd[0]
@@ -672,4 +690,6 @@ message InterceptorMsg {
 	optional LAObjOpen la_objopen = 52;
 	optional DLClose dlclose = 53;
 	optional OpenDir opendir = 54;
+	optional UTime utime = 55;
+	optional FUTime futime = 56;
 }
