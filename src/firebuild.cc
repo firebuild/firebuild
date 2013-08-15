@@ -184,7 +184,7 @@ init_signal_handlers(void)
 
   if (sigaction(SIGCHLD, &sa, NULL) == -1) {
     perror("Could not set up signal handler for SIGCHLD.");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -256,23 +256,23 @@ int main(int argc, char* argv[]) {
       debug_level = atoi(optarg);
       if ((debug_level < 0) || (debug_level > 3)) {
 	usage();
-	exit(1);
+	exit(EXIT_FAILURE);
       }
       break;
 
     case 'h':
       usage();
-      exit(0);
+      exit(EXIT_SUCCESS);
       break;
 
     default:
       usage();
-      exit(1);
+      exit(EXIT_FAILURE);
     }
   }
   if (optind >= argc) {
     usage();
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   parse_cfg_file(config_file);
@@ -291,7 +291,7 @@ int main(int argc, char* argv[]) {
 
   if (pipe(sigchld_fds) == -1) {
     perror("pipe");
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // run command and handle interceptor messages
@@ -302,7 +302,7 @@ int main(int argc, char* argv[]) {
 
     if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
       perror("socket");
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     local.sun_family = AF_UNIX;
@@ -311,12 +311,12 @@ int main(int argc, char* argv[]) {
     len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(listener, (struct sockaddr *)&local, len) == -1) {
       perror("bind");
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     if (listen(listener, 500) == -1) {
       perror("listen");
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     if ((child_pid = fork()) == 0) {
@@ -335,7 +335,7 @@ int main(int argc, char* argv[]) {
 
       execvpe(argv[optind], argv_exec, env_exec);
       perror("Executing build command failed");
-      exit(1);
+      exit(EXIT_FAILURE);
     } else {
       // supervisor process
       int newfd;        // newly accept()ed socket descriptor
@@ -462,7 +462,7 @@ int main(int argc, char* argv[]) {
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
 
-  return child_ret;
+  exit(child_ret);
 }
 
 /** wrapper for write() retrying on recoverable errors*/
