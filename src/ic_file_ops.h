@@ -437,9 +437,10 @@ IC(int, ftruncate64, (int __fd, __off64_t __length), {
 
 /* ignore: brk sbrk */
 
-/* TODO test */
-IC_GENERIC(long int, syscall, (long int __sysno, __gnuc_va_list __ap),
-           {ret = orig_fn(__sysno, __ap);})
+/* TODO
+IC_GENERIC(long int, syscall, (long int __sysno, ...),
+           {ret = orig_fn(__sysno, XXX);})
+*/
 /* we probably won't use offset in supervisor's logic */
 IC(int, lockf, (int __fd, int __cmd, __off_t __len), {
     ret = orig_fn(__fd, __cmd, __len);
@@ -588,10 +589,10 @@ IC_WITH_UNLOCKED(int, fputc, (int c, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
     intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
-IC_WITH_UNLOCKED(int, fputwc, (int c, FILE *stream),{
+IC_WITH_UNLOCKED(wint_t, fputwc, (wchar_t c, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
-    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+    intercept_write(stream_fileno, (ret == WEOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, fputs, (const char *s, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(s, stream);
@@ -600,16 +601,16 @@ IC_WITH_UNLOCKED(int, putc, (int c, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
     intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
-IC_WITH_UNLOCKED(int, putwc, (int c, FILE *stream),{
+IC_WITH_UNLOCKED(wint_t, putwc, (wchar_t c, FILE *stream),{
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
-    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+    intercept_write(stream_fileno, (ret == WEOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, putchar, (int c),{
     ret = orig_fn(c);
     intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
-IC_WITH_UNLOCKED(int, putwchar, (int c),{
+IC_WITH_UNLOCKED(wint_t, putwchar, (wchar_t c),{
     ret = orig_fn(c);
-    intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
+    intercept_write(STDOUT_FILENO, (ret == WEOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, puts, (const char *s),{
     ret = orig_fn(s);
     intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
@@ -651,13 +652,13 @@ IC_GENERIC(int, socket, (int domain, int type, int protocol),
            {ret = orig_fn(domain, type, protocol);})
 IC_GENERIC(int, socketpair, (int domain, int type, int protocol,int sv[2]),
            {ret = orig_fn(domain, type, protocol, sv);})
-IC_GENERIC(int, bind, (int fd, const struct sockaddr addr, socklen_t len),
+IC_GENERIC(int, bind, (int fd, const struct sockaddr *addr, socklen_t len),
            {ret = orig_fn(fd, addr, len);})
-IC_GENERIC(int, getsockname, (int fd, struct sockaddr addr, socklen_t *addrlen),
+IC_GENERIC(int, getsockname, (int fd, struct sockaddr *addr, socklen_t *addrlen),
 	   {ret = orig_fn(fd, addr, addrlen);})
-IC_GENERIC(int, connect, (int fd, const struct sockaddr addr, socklen_t len),
+IC_GENERIC(int, connect, (int fd, const struct sockaddr *addr, socklen_t len),
            {ret = orig_fn(fd, addr, len);})
-IC_GENERIC(int, getpeername, (int fd, struct sockaddr addr, socklen_t *addrlen),
+IC_GENERIC(int, getpeername, (int fd, struct sockaddr *addr, socklen_t *addrlen),
 	   {ret = orig_fn(fd, addr, addrlen);})
 IC_GENERIC(ssize_t, send, (int fd, const void *buf, size_t n, int flags),
            {ret = orig_fn(fd, buf, n, flags);})
@@ -676,7 +677,7 @@ IC_GENERIC(ssize_t, recvmsg, (int fd, struct msghdr *message, int flags),
 
 IC_GENERIC(int, getsockopt, (int fd, int level, int optname, void *optval, socklen_t *optlen),
            {ret = orig_fn(fd, level, optname, optval, optlen);})
-IC_GENERIC(int, setsockopt, (int fd, int level, int optname, void *optval, socklen_t *optlen),
+IC_GENERIC(int, setsockopt, (int fd, int level, int optname, const void *optval, socklen_t optlen),
            {ret = orig_fn(fd, level, optname, optval, optlen);})
 IC_GENERIC(int, listen, (int fd, int n),
            {ret = orig_fn(fd, n);})

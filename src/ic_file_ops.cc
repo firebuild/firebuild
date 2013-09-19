@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <iostream>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -488,6 +489,14 @@ extern int firebuild_fake_main(int argc, char **argv, char **env)
 /* make intercepted functions visible */
 #pragma GCC visibility push(default)
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 #include "ic_file_ops.h"
+
+#ifdef  __cplusplus
+}
+#endif
 
 #pragma GCC visibility pop
