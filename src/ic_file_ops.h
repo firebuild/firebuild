@@ -46,6 +46,18 @@ IC_OPEN_VA(int, openat64, (int __fd, __const char *__file, int __oflag, ...),
 IC_CREATE(creat)
 IC_CREATE(creat64)
 
+/* libc internal */
+IC(int, __libc_start_main, (int (*main) (int, char **, char **),
+                              int argc, char **ubp_av,
+                              void (*init) (void), void (*fini) (void),
+                            void (*rtld_fini) (void), void (* stack_end)), {
+     char * main_and_argv[2];
+     main_and_argv[0] = (char *)main;
+     main_and_argv[1] = (char *)ubp_av;
+     intercept_on = false;
+     ret = orig_fn(firebuild_fake_main, argc, main_and_argv, init, fini, rtld_fini, stack_end);
+                                })
+
 /*  covered in unistd.h: lockf lockf64 */
 
 /* unistd.h */

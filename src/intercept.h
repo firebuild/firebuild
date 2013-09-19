@@ -100,6 +100,10 @@ extern "C" {
 
 extern void fb_ic_load() __attribute__ ((constructor));
 extern void handle_exit (const int status, void*);
+extern int __libc_start_main (int (*main) (int, char **, char **),
+                              int argc, char **ubp_av,
+                              void (*init) (void), void (*fini) (void),
+                              void (*rtld_fini) (void), void (* stack_end));
 
 #ifdef  __cplusplus
 }
