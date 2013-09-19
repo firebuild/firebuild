@@ -227,12 +227,6 @@ IC_VOID(void, exit, (int __status), {
     while (true);
   })
 
-IC_VOID(void, exit_group, (int __status), {
-    intercept_exit(__status);
-    orig_fn(__status);
-    while (true);
-  })
-
 IC_VOID(void, _exit, (int __status), {
     intercept_exit(__status);
     orig_fn(__status);
@@ -611,7 +605,7 @@ IC_WITH_UNLOCKED(int, putchar, (int c),{
 IC_WITH_UNLOCKED(wint_t, putwchar, (wchar_t c),{
     ret = orig_fn(c);
     intercept_write(STDOUT_FILENO, (ret == WEOF)?-1:ret);})
-IC_WITH_UNLOCKED(int, puts, (const char *s),{
+IC(int, puts, (const char *s),{
     ret = orig_fn(s);
     intercept_write(STDOUT_FILENO, (ret == EOF)?-1:ret);})
 
@@ -642,7 +636,7 @@ IC_WITH_UNLOCKED(wint_t, getwchar, (void),{
     ret = orig_fn();
     intercept_read(STDOUT_FILENO, (ret == WEOF)?-1:2);})
 /* should be never used, see man gets*/
-IC_WITH_UNLOCKED(char*, gets, (char *s),{
+IC(char*, gets, (char *s),{
     ret = orig_fn(s);
     intercept_read(STDOUT_FILENO, ret?strlen(ret):-1);})
 
