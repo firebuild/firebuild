@@ -74,6 +74,9 @@ int ic_pid;
 /** Per thread variable which we turn on inside call interception */
 __thread bool intercept_on = false;
 
+/** debugging level */
+int debug_level = 0;
+
 /**
  * Reset globally maintained information about intercepted funtions
  */
@@ -219,7 +222,11 @@ static void fb_ic_init()
     if (resp->has_exit_status()) {
       exit(resp->exit_status());
     } else {
-      // TODO send error
+      fb_error("Request to shortct process without exit status provided");
+    }
+  } else {
+    if (resp->has_debug_level()) {
+      debug_level = resp->debug_level();
     }
   }
   ic_init_done = true;
@@ -303,6 +310,28 @@ shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data)
   }
 
   return 0;
+}
+
+/** Send error message to supervisor */
+extern void fb_error(const char* msg)
+{
+  InterceptorMsg ic_msg;
+  FBError *err;
+  err = ic_msg.mutable_fb_error();
+  err->set_msg(msg);
+  fb_send_msg(ic_msg, fb_sv_conn);
+}
+
+/** Send debug message to supervisor id debug level is at least lvl */
+extern void fb_debug(int lvl, const char* msg)
+{
+  if (debug_level >= lvl) {
+    InterceptorMsg ic_msg;
+    FBDebug *dbg;
+    dbg = ic_msg.mutable_fb_debug();
+    dbg->set_msg(msg);
+    fb_send_msg(ic_msg, fb_sv_conn);
+  }
 }
 
 /* make auditing functions visible */

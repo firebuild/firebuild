@@ -86,6 +86,12 @@ extern bool fb_exit_handled;
 /** Add shared library's name to the file list */
 extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 
+/** Send error message to supervisor */
+extern void fb_error(const char* msg);
+
+/** Send debug message to supervisor id debug level is at least lvl */
+extern void fb_debug(int lvl, const char* msg);
+
 /**
  * Stored PID
  * When getpid() returns a different value, we missed a fork() :-)

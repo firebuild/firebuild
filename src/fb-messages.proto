@@ -62,6 +62,8 @@ message ShortCutProcessQuery {
 message ShortCutProcessResp {
 	required bool shortcut = 1;
 	optional int64 exit_status = 2;
+	// makse sense only for shortcut = false
+	optional int32 debug_level = 3;
 }
 
 // Those function calls are not handled specially in interceptor lib and
@@ -69,6 +71,17 @@ message ShortCutProcessResp {
 message GenericCall {
 	// function name
 	required string call = 1;
+}
+
+// FireBuild error
+message FBError {
+	// error message
+	required string msg = 1;
+}
+// FireBuild debugging message
+message FBDebug {
+	// error message
+	required string msg = 1;
 }
 
 message Open {
@@ -692,4 +705,6 @@ message InterceptorMsg {
 	optional OpenDir opendir = 54;
 	optional UTime utime = 55;
 	optional FUTime futime = 56;
+	optional FBError fb_error = 57;
+	optional FBDebug fb_debug = 58;
 }

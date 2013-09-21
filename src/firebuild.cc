@@ -204,6 +204,9 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
       scproc_resp->set_exit_status(0);
     } else {
       scproc_resp->set_shortcut(false);
+      if (debug_level != 0) {
+        scproc_resp->set_debug_level(debug_level);
+      }
     }
     fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_open()) {
