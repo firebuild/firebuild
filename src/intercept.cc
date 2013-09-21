@@ -48,6 +48,7 @@ ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
 int (*ic_orig_close) (int);
 void* (*ic_orig_dlopen) (const char *, int);
 int (*ic_orig_socket) (int, int, int);
+int (*ic_orig_connect) (int, const struct sockaddr *, socklen_t);
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -114,8 +115,7 @@ set_orig_fns ()
   ic_orig_close = (int (*) (int))get_orig_fn("close");
   ic_orig_dlopen = (void* (*) (const char*, int))get_orig_fn("dlopen");
   ic_orig_socket = (int (*) (int, int, int))get_orig_fn("socket");
-
-
+  ic_orig_connect = (int (*) (int, const struct sockaddr *, socklen_t))get_orig_fn("connect");
 }
 
 /**  Set up supervisor connection */
@@ -139,7 +139,7 @@ init_supervisor_conn () {
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
   len = strlen(remote.sun_path) + sizeof(remote.sun_family);
-  if (connect(fb_sv_conn, (struct sockaddr *)&remote, len) == -1) {
+  if (ic_orig_connect(fb_sv_conn, (struct sockaddr *)&remote, len) == -1) {
     assert(0 && "connection to supervisor failed");
   }
 }
