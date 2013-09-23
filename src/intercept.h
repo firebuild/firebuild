@@ -11,14 +11,54 @@
 #include <vector>
 
 #include "firebuild_common.h"
+
+/**
+ * Intercept call
+ */
+#define IC(ret_type, name, parameters, body)				\
+  IC_VOID(ret_type, name, parameters,					\
+	  { ret_type ret;						\
+	    body;							\
+	    intercept_on = false;					\
+	    return ret;							\
+	  })
+
+#endif
+
+/**
+ * Just send the intercepted function's name
+ */
+#define IC_GENERIC(ret_type, name, parameters, body)		\
+  IC(ret_type, name, parameters,				\
+     {								\
+       if (!ic_fn[IC_FN_IDX_##name].called) {			\
+	 InterceptorMsg ic_msg;					\
+	 GenericCall *m;					\
+	 m = ic_msg.mutable_gen_call();				\
+	 m->set_call(#name);					\
+	 fb_send_msg(ic_msg, fb_sv_conn);			\
+	 ic_fn[IC_FN_IDX_##name].called = true;			\
+       }							\
+       body;							\
+     })
+
+#define IC_GENERIC_VOID(ret_type, name, parameters, body)		\
+  IC_VOID(ret_type, name, parameters,					\
+	  {								\
+	    if (!ic_fn[IC_FN_IDX_##name].called) {			\
+	      InterceptorMsg ic_msg;					\
+	      GenericCall *m;						\
+	      m = ic_msg.mutable_gen_call();				\
+	      m->set_call(#name);					\
+	      fb_send_msg(ic_msg, fb_sv_conn);				\
+	      ic_fn[IC_FN_IDX_##name].called = true;			\
+	    }								\
+	    body;							\
+	  })
+
+
 /* create global array indexed by intercepted function's id */
 #define IC_VOID(_ret_type, name, _parameters, _body)	\
-  IC_FN_IDX_##name,
-#define IC(_ret_type, name, _parameters, _body)	\
-  IC_FN_IDX_##name,
-#define IC_GENERIC(_ret_type, name, _parameters, _body)	\
-  IC_FN_IDX_##name,
-#define IC_GENERIC_VOID(_ret_type, name, _parameters, _body)	\
   IC_FN_IDX_##name,
 
 /* we need to include every file using IC() macro to create index for all
@@ -27,31 +67,16 @@ enum {
 #include "ic_file_ops.h"
   IC_FN_IDX_MAX
 };
-
 #undef IC_VOID
-#undef IC
-#undef IC_GENERIC
-#undef IC_GENERIC_VOID
 
 /* create ic_orig_... version of intercepted function */
 #define IC_VOID(ret_type, name, parameters, _body)	\
   extern ret_type (*ic_orig_##name) parameters;
-#define IC(ret_type, name, parameters, body)    \
-  IC_VOID(ret_type, name, parameters, body)
-#define IC_GENERIC(ret_type, name, parameters, body)    \
-  IC_VOID(ret_type, name, parameters, body)
-#define IC_GENERIC_VOID(ret_type, name, parameters, body)	\
-  IC_VOID(ret_type, name, parameters, body)
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
 #include "ic_file_ops.h"
-
 #undef IC_VOID
-#undef IC
-#undef IC_GENERIC
-#undef IC_GENERIC_VOID
-
 
 typedef struct {
   bool called;
@@ -146,46 +171,3 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
   intercept_on = false;							\
 }
 
-/**
- * Intercept call 
- */
-#define IC(ret_type, name, parameters, body)				\
-  IC_VOID(ret_type, name, parameters,					\
-	  { ret_type ret;						\
-	    body;							\
-	    intercept_on = false;					\
-	    return ret;							\
-	  })
-
-#endif
-
-/**
- * Just send the intercepted function's name
- */
-#define IC_GENERIC(ret_type, name, parameters, body)		\
-  IC(ret_type, name, parameters,				\
-     {								\
-       if (!ic_fn[IC_FN_IDX_##name].called) {			\
-	 InterceptorMsg ic_msg;					\
-	 GenericCall *m;					\
-	 m = ic_msg.mutable_gen_call();				\
-	 m->set_call(#name);					\
-	 fb_send_msg(ic_msg, fb_sv_conn);			\
-	 ic_fn[IC_FN_IDX_##name].called = true;			\
-       }							\
-       body;							\
-     })
-
-#define IC_GENERIC_VOID(ret_type, name, parameters, body)		\
-  IC_VOID(ret_type, name, parameters,					\
-	  {								\
-	    if (!ic_fn[IC_FN_IDX_##name].called) {			\
-	      InterceptorMsg ic_msg;					\
-	      GenericCall *m;						\
-	      m = ic_msg.mutable_gen_call();				\
-	      m->set_call(#name);					\
-	      fb_send_msg(ic_msg, fb_sv_conn);				\
-	      ic_fn[IC_FN_IDX_##name].called = true;			\
-	    }								\
-	    body;							\
-	  })
