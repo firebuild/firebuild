@@ -37,18 +37,17 @@ std::vector<fd_state> fd_states;
 /** Global lock for manipulating fd states */
 pthread_mutex_t ic_fd_states_lock;
 
-/* original intercepted functions */
-__pid_t (*ic_orig_getpid) (void);
-__pid_t (*ic_orig_getppid) (void);
-char * (*ic_orig_getcwd) (char *, size_t);
-size_t (*ic_orig_confstr) (int, char *, size_t);
-ssize_t(*ic_orig_write)(int, const void *, size_t);
-ssize_t(*ic_orig_read)(int, const void *, size_t);
-ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
-int (*ic_orig_close) (int);
-void* (*ic_orig_dlopen) (const char *, int);
-int (*ic_orig_socket) (int, int, int);
-int (*ic_orig_connect) (int, const struct sockaddr *, socklen_t);
+/* local declarations for original intercepted functions */
+#undef IC_VOID
+/* create ic_orig_... version of intercepted function */
+#define IC_VOID(ret_type, name, parameters, _body)	\
+  ret_type (*ic_orig_##name) parameters;
+
+/* we need to include every file using IC() macro to create ic_orig_... version
+ * for all functions */
+#include "ic_file_ops.h"
+
+#undef IC_VOID
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -97,8 +96,7 @@ reset_fn_infos ()
 static void *
 get_orig_fn (const char* name)
 {
-  void * function = dlsym(RTLD_NEXT, name);
-  assert(function);
+  void * const function = dlsym(RTLD_NEXT, name);
   return function;
 }
 
@@ -108,17 +106,15 @@ get_orig_fn (const char* name)
 static void
 set_orig_fns ()
 {
-  ic_orig_getpid = (__pid_t(*)(void))get_orig_fn("getpid");
-  ic_orig_getppid = (__pid_t(*)(void))get_orig_fn("getppid");
-  ic_orig_getcwd = (char *(*)(char *, size_t))get_orig_fn("getppid");
-  ic_orig_confstr = (size_t (*)(int, char *, size_t))get_orig_fn("confstr");
-  ic_orig_write = (ssize_t(*)(int, const void *, size_t))get_orig_fn("write");
-  ic_orig_read = (ssize_t(*)(int, const void *, size_t))get_orig_fn("read");
-  ic_orig_readlink = (ssize_t (*) (const char*, char*, size_t))get_orig_fn("readlink");
-  ic_orig_close = (int (*) (int))get_orig_fn("close");
-  ic_orig_dlopen = (void* (*) (const char*, int))get_orig_fn("dlopen");
-  ic_orig_socket = (int (*) (int, int, int))get_orig_fn("socket");
-  ic_orig_connect = (int (*) (int, const struct sockaddr *, socklen_t))get_orig_fn("connect");
+  /* lookup ic_orig_... version of intercepted function */
+#define IC_VOID(ret_type, name, parameters, _body)              \
+  ic_orig_##name = (ret_type (*)parameters)get_orig_fn(#name);
+
+  /* we need to include every file using IC() macro to create ic_orig_... version
+   * for all functions */
+#include "ic_file_ops.h"
+
+#undef IC_VOID
 }
 
 /**  Set up supervisor connection */

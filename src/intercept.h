@@ -7,6 +7,7 @@
 
 #include <dlfcn.h>
 #include <pthread.h>
+#include <dirent.h>
 #include <vector>
 
 #include "firebuild_common.h"
@@ -32,6 +33,26 @@ enum {
 #undef IC_GENERIC
 #undef IC_GENERIC_VOID
 
+/* create ic_orig_... version of intercepted function */
+#define IC_VOID(ret_type, name, parameters, _body)	\
+  extern ret_type (*ic_orig_##name) parameters;
+#define IC(ret_type, name, parameters, body)    \
+  IC_VOID(ret_type, name, parameters, body)
+#define IC_GENERIC(ret_type, name, parameters, body)    \
+  IC_VOID(ret_type, name, parameters, body)
+#define IC_GENERIC_VOID(ret_type, name, parameters, body)	\
+  IC_VOID(ret_type, name, parameters, body)
+
+/* we need to include every file using IC() macro to create ic_orig_... version
+ * for all functions */
+#include "ic_file_ops.h"
+
+#undef IC_VOID
+#undef IC
+#undef IC_GENERIC
+#undef IC_GENERIC_VOID
+
+
 typedef struct {
   bool called;
 } ic_fn_info;
@@ -52,18 +73,6 @@ extern pthread_mutex_t ic_fd_states_lock;
 
 /** buffer size for getcwd */
 #define CWD_BUFSIZE 4096
-
-extern __pid_t (*ic_orig_getpid) (void);
-extern __pid_t (*ic_orig_getppid) (void);
-extern char * (*ic_orig_getcwd) (char *__buf, size_t __size);
-extern size_t (*ic_orig_confstr) (int, char *, size_t);
-extern ssize_t (*ic_orig_write) (int, const void*, size_t);
-extern ssize_t (*ic_orig_read) (int, const void*, size_t);
-extern ssize_t (*ic_orig_readlink) (const char*, char*, size_t);
-extern int (*ic_orig_close) (int);
-extern void* (*ic_orig_dlopen) (const char *, int);
-extern int (*ic_orig_socket) (int, int, int);
-extern int (*ic_orig_connect) (int, const struct sockaddr *, socklen_t);
 
 /** Reset globally maintained information about intercepted funtions */
 extern void reset_fn_infos ();
