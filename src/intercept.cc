@@ -76,6 +76,25 @@ __thread bool intercept_on = false;
 /** debugging level */
 int debug_level = 0;
 
+/** Insert marker open()-s for strace, ltrace, etc. */
+static bool insert_trace_markers = false;
+
+/** Insert interception begin marker */
+void insert_begin_marker()
+{
+  if (insert_trace_markers) {
+    ic_orig_open("/firebuild-intercept-begin", 0);
+  }
+}
+
+/** Insert interception end marker */
+void insert_end_marker()
+{
+  if (insert_trace_markers) {
+    ic_orig_open("/firebuild-intercept-end", 0);
+  }
+}
+
 /**
  * Reset globally maintained information about intercepted funtions
  */
@@ -160,6 +179,10 @@ static void fb_ic_init()
 
   set_orig_fns();
   reset_fn_infos();
+
+  if(NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
+    insert_trace_markers = true;
+  }
 
   init_supervisor_conn();
 

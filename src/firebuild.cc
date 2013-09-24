@@ -27,6 +27,7 @@ static int sigchld_fds[2];
 static int child_pid, child_ret = 1;
 static io::FileOutputStream * error_fos;
 static int debug_level = 0;
+static bool insert_trace_markers = false;
 
 /** global configuration */
 libconfig::Config cfg;
@@ -40,6 +41,10 @@ static void usage()
   cout << "   -c --config-file=FILE     use FILE as configuration file" << endl;
   cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << endl;
   cout << "   -h --help                 show this help" << endl;
+  cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << endl;
+  cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << endl;
+  cout << "                             to let users find unintercepted calls using" << endl;
+  cout << "                             strace or ltrace" << endl;
   cout << "Exit status:" << endl;
   cout << " exit status of the BUILD COMMAND" << endl;
   cout << " 1  in case of failure" << endl;
@@ -129,6 +134,10 @@ static char** get_sanitized_env()
 
   if (debug_level >= 1) {
     cout << endl;
+  }
+
+  if (insert_trace_markers) {
+    env_v.push_back("FB_INSERT_TRACE_MARKERS=1");
   }
 
   ret_env = static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
@@ -240,10 +249,11 @@ int main(int argc, char* argv[]) {
       {"config-file",  required_argument, 0,  'c' },
       {"debug-level",  required_argument, 0,  'd' },
       {"help",         no_argument,       0,  'h' },
+      {"insert-trace-markers", no_argument, 0,'i' },
       {0,         0,                 0,  0 }
     };
 
-    c = getopt_long(argc, argv, "c:d:h",
+    c = getopt_long(argc, argv, "c:d:hi",
 		    long_options, &option_index);
     if (c == -1)
       break;
@@ -266,6 +276,10 @@ int main(int argc, char* argv[]) {
     case 'h':
       usage();
       exit(EXIT_SUCCESS);
+      break;
+
+    case 'i':
+      insert_trace_markers = true;
       break;
 
     default:

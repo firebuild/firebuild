@@ -19,6 +19,7 @@
   IC_VOID(ret_type, name, parameters,					\
 	  { ret_type ret;						\
 	    body;							\
+	    insert_end_marker();					\
 	    intercept_on = false;					\
 	    return ret;							\
 	  })
@@ -117,6 +118,12 @@ extern bool ic_init_done;
 /** interceptor handled exit */
 extern bool fb_exit_handled;
 
+/** Insert begin marker strace, ltrace, etc. */
+extern void insert_begin_marker();
+
+/** Insert end marker strace, ltrace, etc. */
+extern void insert_end_marker();
+
 /** Add shared library's name to the file list */
 extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 
@@ -166,10 +173,12 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
     }									\
     assert(intercept_on == false);					\
     intercept_on = true;						\
+    insert_begin_marker();						\
     fb_ic_load();							\
   { 									\
     body; /* this is where interceptor function body goes */		\
   }									\
+  insert_end_marker();							\
   intercept_on = false;							\
 }
 

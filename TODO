@@ -6,4 +6,5 @@ FireBuild TODO items
   same place where they were resolved in a cached run, the search path
   changes do not affect the build and cached results can be reused.
   LD_LIBRARY_PATH still has to be checked this case.
-
+- add man page including detailed documentation for --insert-trace-markers
+  usage
