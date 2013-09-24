@@ -163,7 +163,7 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
     if (!orig_fn) {							\
       orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);		\
       assert(orig_fn);							\
-  }									\
+    }									\
     assert(intercept_on == false);					\
     intercept_on = true;						\
     fb_ic_load();							\
