@@ -156,8 +156,10 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
 #define IC_VOID(ret_type, name, parameters, body)			\
   extern ret_type (name) parameters					\
   {									\
-    /* original intercepted function */					\
-    static ret_type (*orig_fn)parameters = NULL;			\
+    /* local name for original intercepted function */			\
+    ret_type (* orig_fn)parameters = ic_orig_##name;			\
+    /* If we are called before the constructor we have to look up */	\
+    /* function for ourself. This happens once per process run. */	\
     if (!orig_fn) {							\
       orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);		\
       assert(orig_fn);							\
