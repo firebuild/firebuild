@@ -261,8 +261,6 @@ int main(int argc, char* argv[]) {
     switch (c) {
     case 'c':
       config_file = optarg;
-      // TODO use config file
-      (void)config_file;
       break;
 
     case 'd':
