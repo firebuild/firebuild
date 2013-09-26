@@ -13,6 +13,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/vfs.h>
+#include <sys/statvfs.h>
 #include <dirent.h>
 #include <link.h>
 

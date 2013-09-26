@@ -765,3 +765,23 @@ IC(int, futimes, (int fd, const struct timeval tvp[2]),
 IC(int, futimesat, (int fd, const char *file, const struct timeval times[2]),
    {ret = orig_fn(fd, file, times); intercept_utime(fd, file, false, ret);})
 
+// sys/statfs.h
+IC_GENERIC(int, statfs, (const char *file, struct statfs *buf),
+           {ret = orig_fn(file, buf);})
+IC_GENERIC(int, statfs64, (const char *file, struct statfs64 *buf),
+           {ret = orig_fn(file, buf);})
+IC_GENERIC(int, fstatfs, (int fildes, struct statfs *buf),
+           {ret = orig_fn(fildes, buf);})
+IC_GENERIC(int, fstatfs64, (int fildes, struct statfs64 *buf),
+           {ret = orig_fn(fildes, buf);})
+
+// sys/fstatvfs.h
+IC_GENERIC(int, statvfs, (const char *file, struct statvfs *buf),
+           {ret = orig_fn(file, buf);})
+IC_GENERIC(int, statvfs64, (const char *file, struct statvfs64 *buf),
+           {ret = orig_fn(file, buf);})
+IC_GENERIC(int, fstatvfs, (int fildes, struct statvfs *buf),
+           {ret = orig_fn(fildes, buf);})
+IC_GENERIC(int, fstatvfs64, (int fildes, struct statvfs64 *buf),
+           {ret = orig_fn(fildes, buf);})
+
