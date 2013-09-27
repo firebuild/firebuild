@@ -11,35 +11,35 @@
   IC(ret_type, name, parameters,					\
      {									\
        mode_t mode = 0;							\
-       if (__oflag & O_CREAT) {						\
+       if (oflag & O_CREAT) {						\
 	 va_list ap;							\
-	 va_start(ap, __oflag);						\
+	 va_start(ap, oflag);						\
 	 mode = va_arg(ap, mode_t);					\
 	 va_end(ap);							\
        }								\
 									\
        body;								\
-       intercept_open(__file, __oflag, mode, ret);			\
+       intercept_open(file, oflag, mode, ret);			\
        clear_file_state(ret);						\
      })
 
 
-IC_OPEN_VA(int, open, (__const char *__file, int __oflag, ...),
-	   {ret = orig_fn(__file, __oflag, mode);})
+IC_OPEN_VA(int, open, (const char *file, int oflag, ...),
+	   {ret = orig_fn(file, oflag, mode);})
 
-IC_OPEN_VA(int, open64, (__const char *__file, int __oflag, ...),
-	   {ret = orig_fn(__file, __oflag, mode);})
+IC_OPEN_VA(int, open64, (const char *file, int oflag, ...),
+	   {ret = orig_fn(file, oflag, mode);})
 
-IC_OPEN_VA(int, openat, (int __fd, __const char *__file, int __oflag, ...),
-	   {ret = orig_fn(__fd, __file, __oflag, mode);})
+IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
+	   {ret = orig_fn(fd, file, oflag, mode);})
 
-IC_OPEN_VA(int, openat64, (int __fd, __const char *__file, int __oflag, ...),
-	   {ret = orig_fn(__fd, __file, __oflag, mode);})
+IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
+	   {ret = orig_fn(fd, file, oflag, mode);})
 
 #define IC_CREATE(name)						\
-  IC(int, name, (__const char *__file, __mode_t __mode), {	\
-      ret = orig_fn(__file, __mode);				\
-      intercept_creat(__file, __mode, ret);			\
+  IC(int, name, (const char *file, mode_t mode), {	\
+      ret = orig_fn(file, mode);				\
+      intercept_creat(file, mode, ret);			\
       clear_file_state(ret);					\
     })
 
@@ -63,96 +63,96 @@ IC(int, __libc_start_main, (int (*main) (int, char **, char **),
 
 /* unistd.h */
 
-IC(int, close, (int __fd), {
-      ret = orig_fn(__fd);
-      intercept_close(__fd, ret);
+IC(int, close, (int fd), {
+      ret = orig_fn(fd);
+      intercept_close(fd, ret);
       clear_file_state(ret);
     })
 
-IC(int, access, (__const char *__name, int __type),
-   {ret = orig_fn(__name, __type); intercept_access(__name, __type, ret);})
-IC(int, euidaccess, (__const char *__name, int __type),
-   {ret = orig_fn(__name, __type); intercept_eaccess(__name, __type, ret);})
-IC(int, eaccess, (__const char *__name, int __type),
-   {ret = orig_fn(__name, __type); intercept_eaccess(__name, __type, ret);})
-IC(int, faccessat, (int __fd, __const char *__file, int __type, int __flag),
-   {ret = orig_fn(__fd, __file, __type, __flag); intercept_faccessat(__fd, __file, __type, __flag, ret);})
+IC(int, access, (const char *name, int type),
+   {ret = orig_fn(name, type); intercept_access(name, type, ret);})
+IC(int, euidaccess, (const char *name, int type),
+   {ret = orig_fn(name, type); intercept_eaccess(name, type, ret);})
+IC(int, eaccess, (const char *name, int type),
+   {ret = orig_fn(name, type); intercept_eaccess(name, type, ret);})
+IC(int, faccessat, (int fd, const char *file, int type, int flag),
+   {ret = orig_fn(fd, file, type, flag); intercept_faccessat(fd, file, type, flag, ret);})
 
 // ignored: lseek lseek64
 // those don't let new information enter the process
 
 // TODO finish to handle stdio
-IC(ssize_t, read, (int __fd, void *__buf, size_t __nbytes),
-   {ret = orig_fn(__fd, __buf, __nbytes); intercept_read(__fd, ret);})
-IC(ssize_t, write, (int __fd, __const void *__buf, size_t __n),
-   {ret = orig_fn(__fd, __buf, __n); intercept_write(__fd, ret);})
-IC(ssize_t, pread, (int __fd, void *__buf, size_t __nbytes, __off_t __offset),
-   {ret = orig_fn(__fd, __buf, __nbytes, __offset); intercept_read(__fd, ret);})
-IC(ssize_t, pwrite, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
-   {ret = orig_fn(__fd, __buf, __n, __offset); intercept_write(__fd, ret);})
-IC(ssize_t, pread64, (int __fd, void *__buf, size_t __nbytes, __off_t __offset),
-   {ret = orig_fn(__fd, __buf, __nbytes, __offset); intercept_read(__fd, ret);})
-IC(ssize_t, pwrite64, (int __fd, __const void *__buf, size_t __n, __off_t __offset),
-   {ret = orig_fn(__fd, __buf, __n, __offset); intercept_write(__fd, ret);})
+IC(ssize_t, read, (int fd, void *buf, size_t nbytes),
+   {ret = orig_fn(fd, buf, nbytes); intercept_read(fd, ret);})
+IC(ssize_t, write, (int fd, const void *buf, size_t n),
+   {ret = orig_fn(fd, buf, n); intercept_write(fd, ret);})
+IC(ssize_t, pread, (int fd, void *buf, size_t nbytes, off_t offset),
+   {ret = orig_fn(fd, buf, nbytes, offset); intercept_read(fd, ret);})
+IC(ssize_t, pwrite, (int fd, const void *buf, size_t n, off_t offset),
+   {ret = orig_fn(fd, buf, n, offset); intercept_write(fd, ret);})
+IC(ssize_t, pread64, (int fd, void *buf, size_t nbytes, off_t offset),
+   {ret = orig_fn(fd, buf, nbytes, offset); intercept_read(fd, ret);})
+IC(ssize_t, pwrite64, (int fd, const void *buf, size_t n, off_t offset),
+   {ret = orig_fn(fd, buf, n, offset); intercept_write(fd, ret);})
 // TODO intercept to handle communication between forked children and parent
-IC(int, pipe, (int __pipedes[2]), {
-    ret = orig_fn(__pipedes);
-    intercept_pipe2(__pipedes, 0, ret);
-    clear_file_state(__pipedes[0]);
-    clear_file_state(__pipedes[1]);
+IC(int, pipe, (int pipedes[2]), {
+    ret = orig_fn(pipedes);
+    intercept_pipe2(pipedes, 0, ret);
+    clear_file_state(pipedes[0]);
+    clear_file_state(pipedes[1]);
 })
-IC(int, pipe2, (int __pipedes[2], int __flags), {
-    ret = orig_fn(__pipedes, __flags);
-    intercept_pipe2(__pipedes, __flags, ret);
-    clear_file_state(__pipedes[0]);
-    clear_file_state(__pipedes[1]);
+IC(int, pipe2, (int pipedes[2], int flags), {
+    ret = orig_fn(pipedes, flags);
+    intercept_pipe2(pipedes, flags, ret);
+    clear_file_state(pipedes[0]);
+    clear_file_state(pipedes[1]);
   })
 
 // TODO those may affect output if the process measures time that way
 // usually the calls can be ignored
-IC_GENERIC(unsigned int, alarm, (unsigned int __seconds),
-	   {ret = orig_fn(__seconds);})
-IC_GENERIC(unsigned int, sleep, (unsigned int __seconds),
-	   {ret = orig_fn(__seconds);})
-IC_GENERIC(__useconds_t, ualarm, (__useconds_t __value, __useconds_t __interval),
-	   {ret = orig_fn(__value, __interval);})
-IC_GENERIC(int, usleep, (__useconds_t __useconds),
-	   {ret = orig_fn(__useconds);})
+IC_GENERIC(unsigned int, alarm, (unsigned int seconds),
+	   {ret = orig_fn(seconds);})
+IC_GENERIC(unsigned int, sleep, (unsigned int seconds),
+	   {ret = orig_fn(seconds);})
+IC_GENERIC(useconds_t, ualarm, (useconds_t value, useconds_t interval),
+	   {ret = orig_fn(value, interval);})
+IC_GENERIC(int, usleep, (useconds_t useconds),
+	   {ret = orig_fn(useconds);})
 IC_GENERIC(int, pause, (void),
 	   {ret = orig_fn();})
 
 // TODO finish
-IC(int, chown, (__const char *__file, __uid_t __owner, __gid_t __group), {
-    ret = orig_fn(__file, __owner, __group);
-    intercept_chown(__file, __owner, __group, ret);
+IC(int, chown, (const char *file, uid_t owner, gid_t group), {
+    ret = orig_fn(file, owner, group);
+    intercept_chown(file, owner, group, ret);
   })
 
-IC(int, fchown, (int __fd, __uid_t __owner, __gid_t __group), {
-    ret = orig_fn(__fd, __owner, __group);
-    intercept_fchown(__fd, __owner, __group, ret);
+IC(int, fchown, (int fd, uid_t owner, gid_t group), {
+    ret = orig_fn(fd, owner, group);
+    intercept_fchown(fd, owner, group, ret);
   })
-IC(int, lchown, (__const char *__file, __uid_t __owner, __gid_t __group), {
-    ret = orig_fn(__file, __owner, __group);
-    intercept_lchown(__file, __owner, __group, ret);
+IC(int, lchown, (const char *file, uid_t owner, gid_t group), {
+    ret = orig_fn(file, owner, group);
+    intercept_lchown(file, owner, group, ret);
   })
-IC(int, fchownat, (int __fd, __const char *__file, __uid_t __owner,
-		   __gid_t __group, int __flag), {
-     ret = orig_fn(__fd, __file, __owner, __group, __flag);
-     intercept_fchownat(__fd, __file, __owner, __group, __flag, ret);
+IC(int, fchownat, (int fd, const char *file, uid_t owner,
+		   gid_t group, int flag), {
+     ret = orig_fn(fd, file, owner, group, flag);
+     intercept_fchownat(fd, file, owner, group, flag, ret);
    })
 
-IC(int, chdir, (__const char *__path), {
-    ret = orig_fn(__path);
-    intercept_chdir(__path, ret);
+IC(int, chdir, (const char *path), {
+    ret = orig_fn(path);
+    intercept_chdir(path, ret);
   })
 
-IC(int, fchdir, (int __fd), {
-    ret = orig_fn(__fd);
-    intercept_fchdir(__fd, ret);
+IC(int, fchdir, (int fd), {
+    ret = orig_fn(fd);
+    intercept_fchdir(fd, ret);
   })
 
-IC(char*, getcwd, (char *__buf, size_t __size), {
-    ret = orig_fn(__buf, __size);
+IC(char*, getcwd, (char *buf, size_t size), {
+    ret = orig_fn(buf, size);
     intercept_getcwd(ret);
   })
 
@@ -161,223 +161,223 @@ IC(char*, get_current_dir_name, (void), {
     intercept_getcwd(ret);
   })
 
-IC(char*, getwd, (char *__buf), {
-    ret = orig_fn(__buf);
+IC(char*, getwd, (char *buf), {
+    ret = orig_fn(buf);
     intercept_getcwd(ret);
   })
 
-IC(int, dup, (int __fd), {
-    ret = orig_fn(__fd);
-    intercept_dup(__fd, ret);
-    copy_file_state(ret, __fd);
+IC(int, dup, (int fd), {
+    ret = orig_fn(fd);
+    intercept_dup(fd, ret);
+    copy_file_state(ret, fd);
   })
-IC(int, dup2, (int __fd, int __fd2), {
-    ret = orig_fn(__fd, __fd2);
-    intercept_dup3(__fd, __fd2, 0, ret);
+IC(int, dup2, (int fd, int fd2), {
+    ret = orig_fn(fd, fd2);
+    intercept_dup3(fd, fd2, 0, ret);
     if (ret != -1) {
-      copy_file_state (__fd2, __fd);
+      copy_file_state (fd2, fd);
     }
   })
-IC(int, dup3, (int __fd, int __fd2, int __flags), {
-    ret = orig_fn(__fd, __fd2, __flags);
-    intercept_dup3(__fd, __fd2, __flags, ret);
+IC(int, dup3, (int fd, int fd2, int flags), {
+    ret = orig_fn(fd, fd2, flags);
+    intercept_dup3(fd, fd2, flags, ret);
     if (ret != -1) {
-      copy_file_state (__fd2, __fd);
+      copy_file_state (fd2, fd);
     }
   })
 
-IC(int, execve, (__const char *__path, char *__const __argv[], char *__const __envp[]), {
-    intercept_execve(false, __path, -1, __argv, __envp);
-    ret = orig_fn(__path, __argv, __envp);
+IC(int, execve, (const char *path, char *const argv[], char *const envp[]), {
+    intercept_execve(false, path, -1, argv, envp);
+    ret = orig_fn(path, argv, envp);
     init_supervisor_conn();
     intercept_execvfailed(ic_pid, ret);
   })
-IC(int, fexecve, (int __fd, char *__const __argv[], char *__const __envp[]), {
-    intercept_execve(false, NULL, __fd, __argv, environ);
-    ret = orig_fn(__fd, __argv, __envp);
+IC(int, fexecve, (int fd, char *const argv[], char *const envp[]), {
+    intercept_execve(false, NULL, fd, argv, environ);
+    ret = orig_fn(fd, argv, envp);
     init_supervisor_conn();
     intercept_execvfailed(ic_pid, ret);
   })
-IC(int, execv, (__const char *__path, char *__const __argv[]), {
-    intercept_execve(false, __path, -1, __argv, environ);
-    ret = orig_fn(__path, __argv);
-    init_supervisor_conn();
-    intercept_execvfailed(ic_pid, ret);
-  })
-
-IC(int, execvp, (__const char *__file, char *__const __argv[]), {
-    intercept_execve(true, __file, -1, __argv, environ);
-    ret = orig_fn(__file, __argv);
+IC(int, execv, (const char *path, char *const argv[]), {
+    intercept_execve(false, path, -1, argv, environ);
+    ret = orig_fn(path, argv);
     init_supervisor_conn();
     intercept_execvfailed(ic_pid, ret);
   })
 
-IC(int, execvpe, (__const char *__file, char *__const __argv[],
-		  char *__const __envp[]), {
-     intercept_execve(true, __file, -1, __argv, __envp);
-     ret = orig_fn(__file, __argv, __envp);
+IC(int, execvp, (const char *file, char *const argv[]), {
+    intercept_execve(true, file, -1, argv, environ);
+    ret = orig_fn(file, argv);
+    init_supervisor_conn();
+    intercept_execvfailed(ic_pid, ret);
+  })
+
+IC(int, execvpe, (const char *file, char *const argv[],
+		  char *const envp[]), {
+     intercept_execve(true, file, -1, argv, envp);
+     ret = orig_fn(file, argv, envp);
      init_supervisor_conn();
      intercept_execvfailed(ic_pid, ret);
    })
 
 /* ignore: nice */
 
-IC_VOID(void, exit, (int __status), {
-    intercept_exit(__status);
-    orig_fn(__status);
+IC_VOID(void, exit, (int status), {
+    intercept_exit(status);
+    orig_fn(status);
     while (true);
   })
 
-IC_VOID(void, _exit, (int __status), {
-    intercept_exit(__status);
-    orig_fn(__status);
+IC_VOID(void, _exit, (int status), {
+    intercept_exit(status);
+    orig_fn(status);
     while (true);})
-IC_VOID(void, _Exit, (int __status), {
-    intercept_exit(__status);
-    orig_fn(__status);
+IC_VOID(void, _Exit, (int status), {
+    intercept_exit(status);
+    orig_fn(status);
     while (true);})
-IC_VOID(void, quick_exit, (int __status), {
-    intercept_exit(__status);
-    orig_fn(__status);
+IC_VOID(void, quick_exit, (int status), {
+    intercept_exit(status);
+    orig_fn(status);
     while (true);
   })
 
-IC(long int, pathconf, (__const char *__path, int __name),
-   {ret = orig_fn(__path, __name); intercept_pathconf(__path, __name, ret);})
-IC(long int, fpathconf, (int __fd, int __name),
-   {ret = orig_fn(__fd, __name); intercept_fpathconf(__fd, __name, ret);})
-IC(long int, sysconf, (int __name),
-   {ret = orig_fn(__name);intercept_sysconf(__name, ret);})
-IC_GENERIC(size_t, confstr, (int __name, char *__buf, size_t __len),
-           {ret = orig_fn(__name, __buf, __len);})
-IC_GENERIC(__pid_t, getpid, (void),
+IC(long int, pathconf, (const char *path, int name),
+   {ret = orig_fn(path, name); intercept_pathconf(path, name, ret);})
+IC(long int, fpathconf, (int fd, int name),
+   {ret = orig_fn(fd, name); intercept_fpathconf(fd, name, ret);})
+IC(long int, sysconf, (int name),
+   {ret = orig_fn(name);intercept_sysconf(name, ret);})
+IC_GENERIC(size_t, confstr, (int name, char *buf, size_t len),
+           {ret = orig_fn(name, buf, len);})
+IC_GENERIC(pid_t, getpid, (void),
            {ret = orig_fn();})
-IC_GENERIC(__pid_t, getppid, (void),
+IC_GENERIC(pid_t, getppid, (void),
            {ret = orig_fn();})
-IC_GENERIC(__pid_t, getpgrp, (void),
+IC_GENERIC(pid_t, getpgrp, (void),
            {ret = orig_fn();})
-IC_GENERIC(__pid_t, __getpgid, (__pid_t __pid),
-           {ret = orig_fn(__pid);})
-IC_GENERIC(__pid_t, getpgid, (__pid_t __pid),
-           {ret = orig_fn(__pid);})
-IC_GENERIC(int, setpgid, (__pid_t __pid, __pid_t __pgid),
-           {ret = orig_fn(__pid, __pgid);})
+IC_GENERIC(pid_t, getpgid, (pid_t pid),
+           {ret = orig_fn(pid);})
+IC_GENERIC(pid_t, __getpgid, (pid_t pid),
+           {ret = orig_fn(pid);})
+IC_GENERIC(int, setpgid, (pid_t pid, pid_t pgid),
+           {ret = orig_fn(pid, pgid);})
 IC_GENERIC(int, setpgrp, (void),
            {ret = orig_fn();})
-IC_GENERIC(__pid_t, setsid, (void),
+IC_GENERIC(pid_t, setsid, (void),
            {ret = orig_fn();})
-IC_GENERIC(__pid_t, getsid, (__pid_t __pid),
-           {ret = orig_fn(__pid);})
-IC_GENERIC(__uid_t, getuid, (void),
+IC_GENERIC(pid_t, getsid, (pid_t pid),
+           {ret = orig_fn(pid);})
+IC_GENERIC(uid_t, getuid, (void),
            {ret = orig_fn();})
-IC_GENERIC(__uid_t, geteuid, (void),
+IC_GENERIC(uid_t, geteuid, (void),
            {ret = orig_fn();})
-IC_GENERIC(__gid_t, getgid, (void),
+IC_GENERIC(gid_t, getgid, (void),
            {ret = orig_fn();})
-IC_GENERIC(__gid_t, getegid, (void),
+IC_GENERIC(gid_t, getegid, (void),
            {ret = orig_fn();})
-IC_GENERIC(int, getgroups, (int __size, __gid_t __list[]),
-           {ret = orig_fn(__size, __list);})
-IC_GENERIC(int, group_member, (__gid_t __gid),
-           {ret = orig_fn(__gid);})
-IC_GENERIC(int, setuid, (__uid_t __uid),
-           {ret = orig_fn(__uid);})
-IC_GENERIC(int, setreuid, (__uid_t __ruid, __uid_t __euid),
-           {ret = orig_fn(__ruid, __euid);})
-IC_GENERIC(int, seteuid, (__uid_t __uid),
-           {ret = orig_fn(__uid);})
-IC_GENERIC(int, setgid, (__gid_t __gid),
-           {ret = orig_fn(__gid);})
-IC_GENERIC(int, setregid, (__gid_t __rgid, __gid_t __egid),
-           {ret = orig_fn(__rgid, __egid);})
-IC_GENERIC(int, setegid, (__gid_t __gid),
-           {ret = orig_fn(__gid);})
-IC_GENERIC(int, getresuid, (__uid_t *__ruid, __uid_t *__euid, __uid_t *__suid),
-           {ret = orig_fn(__ruid, __euid, __suid);})
-IC_GENERIC(int, getresgid, (__gid_t *__rgid, __gid_t *__egid, __gid_t *__sgid),
-           {ret = orig_fn(__rgid, __egid, __sgid);})
-IC_GENERIC(int, setresuid, (__uid_t __ruid, __uid_t __euid, __uid_t __suid),
-           {ret = orig_fn(__ruid, __euid, __suid);})
-IC_GENERIC(int, setresgid, (__gid_t __rgid, __gid_t __egid, __gid_t __sgid),
-           {ret = orig_fn(__rgid, __egid, __sgid);})
+IC_GENERIC(int, getgroups, (int size, gid_t list[]),
+           {ret = orig_fn(size, list);})
+IC_GENERIC(int, group_member, (gid_t gid),
+           {ret = orig_fn(gid);})
+IC_GENERIC(int, setuid, (uid_t uid),
+           {ret = orig_fn(uid);})
+IC_GENERIC(int, setreuid, (uid_t ruid, uid_t euid),
+           {ret = orig_fn(ruid, euid);})
+IC_GENERIC(int, seteuid, (uid_t uid),
+           {ret = orig_fn(uid);})
+IC_GENERIC(int, setgid, (gid_t gid),
+           {ret = orig_fn(gid);})
+IC_GENERIC(int, setregid, (gid_t rgid, gid_t egid),
+           {ret = orig_fn(rgid, egid);})
+IC_GENERIC(int, setegid, (gid_t gid),
+           {ret = orig_fn(gid);})
+IC_GENERIC(int, getresuid, (uid_t *ruid, uid_t *euid, uid_t *suid),
+           {ret = orig_fn(ruid, euid, suid);})
+IC_GENERIC(int, getresgid, (gid_t *rgid, gid_t *egid, gid_t *sgid),
+           {ret = orig_fn(rgid, egid, sgid);})
+IC_GENERIC(int, setresuid, (uid_t ruid, uid_t euid, uid_t suid),
+           {ret = orig_fn(ruid, euid, suid);})
+IC_GENERIC(int, setresgid, (gid_t rgid, gid_t egid, gid_t sgid),
+           {ret = orig_fn(rgid, egid, sgid);})
 
-IC(__pid_t, fork, (void),
+IC(pid_t, fork, (void),
    {
      ret = orig_fn();
      intercept_fork(ret);
    })
 
 /*  probably never used */
-IC_GENERIC(char*, ttyname, (int __fd),
-           {ret = orig_fn(__fd);})
-IC_GENERIC(int, ttyname_r, (int __fd, char *__buf, size_t __buflen),
-           {ret = orig_fn(__fd, __buf, __buflen);})
+IC_GENERIC(char*, ttyname, (int fd),
+           {ret = orig_fn(fd);})
+IC_GENERIC(int, ttyname_r, (int fd, char *buf, size_t buflen),
+           {ret = orig_fn(fd, buf, buflen);})
 
 /* ignore: isatty ttyslot */
 
 /* TODO !!! */
-IC(int, link, (__const char *__from, __const char *__to),
-   {ret = orig_fn(__from, __to); intercept_link(__from, __to, ret);})
-IC(int, linkat, (int __fromfd, __const char *__from, int __tofd,
-		 __const char *__to, int __flags),
+IC(int, link, (const char *from, const char *to),
+   {ret = orig_fn(from, to); intercept_link(from, to, ret);})
+IC(int, linkat, (int fromfd, const char *from, int tofd,
+		 const char *to, int flags),
    {
-     ret = orig_fn(__fromfd, __from, __tofd, __to, __flags);
-     intercept_linkat(__fromfd, __from, __tofd, __to, __flags, ret);
+     ret = orig_fn(fromfd, from, tofd, to, flags);
+     intercept_linkat(fromfd, from, tofd, to, flags, ret);
    })
-IC(int, symlink, (__const char *__from, __const char *__to),
-   {ret = orig_fn(__from, __to); intercept_symlink(__from, __to, ret);})
-IC(ssize_t, readlink, (__const char *__restrict __path,
-		       char *__restrict __buf, size_t __len), {
-     ret = orig_fn(__path, __buf, __len);
-     intercept_readlink_helper(-1, __path, __buf, __len, ret);
+IC(int, symlink, (const char *from, const char *to),
+   {ret = orig_fn(from, to); intercept_symlink(from, to, ret);})
+IC(ssize_t, readlink, (const char *path,
+		       char *buf, size_t len), {
+     ret = orig_fn(path, buf, len);
+     intercept_readlink_helper(-1, path, buf, len, ret);
    })
-IC(int, symlinkat, (__const char *__from, int __tofd, __const char *__to),
-   {ret = orig_fn(__from, __tofd, __to);
-     intercept_symlinkat( __from, __tofd, __to, ret);
+IC(int, symlinkat, (const char *from, int tofd, const char *to),
+   {ret = orig_fn(from, tofd, to);
+     intercept_symlinkat( from, tofd, to, ret);
    })
-IC(ssize_t, readlinkat, (int __dirfd, __const char *__restrict __path,
-			 char *__restrict __buf, size_t __len), {
-     ret = orig_fn(__dirfd, __path, __buf, __len);
-     intercept_readlink_helper(__dirfd, __path, __buf, __len, ret);
+IC(ssize_t, readlinkat, (int dirfd, const char *path,
+			 char *buf, size_t len), {
+     ret = orig_fn(dirfd, path, buf, len);
+     intercept_readlink_helper(dirfd, path, buf, len, ret);
    })
-IC(int, unlink, (__const char *__name), {
-    ret = orig_fn(__name);
-    intercept_unlink(__name, ret);
+IC(int, unlink, (const char *name), {
+    ret = orig_fn(name);
+    intercept_unlink(name, ret);
   })
-IC(int, unlinkat, (int __fd, __const char *__name, int __flag),
-   {ret = orig_fn(__fd, __name, __flag);
-     intercept_unlinkat(__fd, __name, __flag, ret);
+IC(int, unlinkat, (int fd, const char *name, int flag),
+   {ret = orig_fn(fd, name, flag);
+     intercept_unlinkat(fd, name, flag, ret);
    })
-IC(int, rmdir, (__const char *__path), {
-    ret = orig_fn(__path);
-    intercept_rmdir(__path, ret);
+IC(int, rmdir, (const char *path), {
+    ret = orig_fn(path);
+    intercept_rmdir(path, ret);
   })
 
 
-IC_GENERIC(__pid_t, tcgetpgrp, (int __fd),
-           {ret = orig_fn(__fd);})
-IC_GENERIC(int, tcsetpgrp, (int __fd, __pid_t __pgrp_id),
-           {ret = orig_fn(__fd, __pgrp_id);})
+IC_GENERIC(pid_t, tcgetpgrp, (int fd),
+           {ret = orig_fn(fd);})
+IC_GENERIC(int, tcsetpgrp, (int fd, pid_t pgrp_id),
+           {ret = orig_fn(fd, pgrp_id);})
 IC_GENERIC(char*, getlogin, (void),
            {ret = orig_fn();})
-IC_GENERIC(int, getlogin_r, (char *__name, size_t __name_len),
-           {ret = orig_fn(__name, __name_len);})
-IC_GENERIC(int, setlogin, (__const char *__name),
-           {ret = orig_fn(__name);})
-IC(int, gethostname, (char *__name, size_t __len), {
-    ret = orig_fn(__name, __len);
-    intercept_gethostname(__name, __len, ret);
+IC_GENERIC(int, getlogin_r, (char *name, size_t name_len),
+           {ret = orig_fn(name, name_len);})
+IC_GENERIC(int, setlogin, (const char *name),
+           {ret = orig_fn(name);})
+IC(int, gethostname, (char *name, size_t len), {
+    ret = orig_fn(name, len);
+    intercept_gethostname(name, len, ret);
   })
-IC_GENERIC(int, sethostname, (__const char *__name, size_t __len),
-           {ret = orig_fn(__name, __len);})
-IC_GENERIC(int, sethostid, (long int __id),
-           {ret = orig_fn(__id);})
-IC(int, getdomainname, (char *__name, size_t __len), {
-    ret = orig_fn(__name, __len);
-    intercept_getdomainname(__name, __len, ret);
+IC_GENERIC(int, sethostname, (const char *name, size_t len),
+           {ret = orig_fn(name, len);})
+IC_GENERIC(int, sethostid, (long int id),
+           {ret = orig_fn(id);})
+IC(int, getdomainname, (char *name, size_t len), {
+    ret = orig_fn(name, len);
+    intercept_getdomainname(name, len, ret);
   })
-IC_GENERIC(int, setdomainname, (__const char *__name, size_t __len),
-           {ret = orig_fn(__name, __len);})
+IC_GENERIC(int, setdomainname, (const char *name, size_t len),
+           {ret = orig_fn(name, len);})
 
 IC_GENERIC(int, vhangup, (void),
            {ret = orig_fn();})
@@ -396,13 +396,13 @@ IC_GENERIC_VOID(void, endusershell, (void),
 IC_GENERIC_VOID(void, setusershell, (void),
            {orig_fn();})
 
-IC_GENERIC(int, daemon, (int __nochdir, int __noclose),
-           {ret = orig_fn(__nochdir, __noclose);})
-IC_GENERIC(int, chroot, (__const char *__path),
-           {ret = orig_fn(__path);})
+IC_GENERIC(int, daemon, (int nochdir, int noclose),
+           {ret = orig_fn(nochdir, noclose);})
+IC_GENERIC(int, chroot, (const char *path),
+           {ret = orig_fn(path);})
 /* this may be ignored */
-IC_GENERIC(char*, getpass, (__const char *__prompt),
-           {ret = orig_fn(__prompt);})
+IC_GENERIC(char*, getpass, (const char *prompt),
+           {ret = orig_fn(prompt);})
 
 // ignore fsync
 
@@ -413,43 +413,43 @@ IC_GENERIC(long int, gethostid, (void),
 
 IC_GENERIC(int, getdtablesize, (void),
            {ret = orig_fn();})
-IC(int, truncate, (__const char *__file, __off_t __length), {
-    ret = orig_fn(__file, __length);
-    intercept_truncate(__file, __length, ret);
+IC(int, truncate, (const char *file, off_t length), {
+    ret = orig_fn(file, length);
+    intercept_truncate(file, length, ret);
   })
-IC(int, truncate64, (__const char *__file, __off64_t __length), {
-    ret = orig_fn(__file, __length);
-    intercept_truncate(__file, __length, ret);
+IC(int, truncate64, (const char *file, off64_t length), {
+    ret = orig_fn(file, length);
+    intercept_truncate(file, length, ret);
   })
-IC(int, ftruncate, (int __fd, __off_t __length), {
-    ret = orig_fn(__fd, __length);
-    intercept_ftruncate(__fd, __length, ret);
+IC(int, ftruncate, (int fd, off_t length), {
+    ret = orig_fn(fd, length);
+    intercept_ftruncate(fd, length, ret);
   })
-IC(int, ftruncate64, (int __fd, __off64_t __length), {
-    ret = orig_fn(__fd, __length);
-    intercept_ftruncate(__fd, __length, ret);
+IC(int, ftruncate64, (int fd, off64_t length), {
+    ret = orig_fn(fd, length);
+    intercept_ftruncate(fd, length, ret);
   })
 
 /* ignore: brk sbrk */
 
 /* TODO
-IC_GENERIC(long int, syscall, (long int __sysno, ...),
-           {ret = orig_fn(__sysno, XXX);})
+IC_GENERIC(long int, syscall, (long int sysno, ...),
+           {ret = orig_fn(sysno, XXX);})
 */
 /* we probably won't use offset in supervisor's logic */
-IC(int, lockf, (int __fd, int __cmd, __off_t __len), {
-    ret = orig_fn(__fd, __cmd, __len);
-    intercept_lockf(__fd, __cmd, /* __len,*/ ret);
+IC(int, lockf, (int fd, int cmd, off_t len), {
+    ret = orig_fn(fd, cmd, len);
+    intercept_lockf(fd, cmd, /* len,*/ ret);
   })
-IC(int, lockf64, (int __fd, int __cmd, __off64_t __len), {
-    ret = orig_fn(__fd, __cmd, __len);
-    intercept_lockf(__fd, __cmd, /*__len,*/ ret);
+IC(int, lockf64, (int fd, int cmd, off64_t len), {
+    ret = orig_fn(fd, cmd, len);
+    intercept_lockf(fd, cmd, /*len,*/ ret);
   })
 
 /* ignored: fdatasync crypt encrypt swab */
 
-IC_GENERIC(char*, ctermid, (char *__s),
-           {ret = orig_fn(__s);})
+IC_GENERIC(char*, ctermid, (char *s),
+           {ret = orig_fn(s);})
 
 
 // TODO intercept fns
@@ -472,29 +472,29 @@ IC_GENERIC(int, lstat, (const char *file, struct stat *buf), {
 IC_GENERIC(int, lstat64, (const char *file, struct stat64 *buf), {
     ret = orig_fn(file, buf); /*intercept_lstat64(file, buf, ret);*/})
 
-IC_GENERIC(int, chmod, (const char *file, __mode_t mode), {
+IC_GENERIC(int, chmod, (const char *file, mode_t mode), {
     ret = orig_fn(file, mode); /*intercept_();*/})
-IC_GENERIC(int, lchmod, (const char *file, __mode_t mode), {
+IC_GENERIC(int, lchmod, (const char *file, mode_t mode), {
     ret = orig_fn(file, mode); /*intercept_();*/})
-IC_GENERIC(int, fchmod, (int fd, __mode_t mode), {
+IC_GENERIC(int, fchmod, (int fd, mode_t mode), {
     ret = orig_fn(fd, mode); /*intercept_();*/})
-IC_GENERIC(int, fchmodat, (int fd, const char *file, __mode_t mode, int flag), {
+IC_GENERIC(int, fchmodat, (int fd, const char *file, mode_t mode, int flag), {
     ret = orig_fn(fd, file, mode, flag); /*intercept_();*/})
-IC_GENERIC(mode_t, umask, (__mode_t mask), {
+IC_GENERIC(mode_t, umask, (mode_t mask), {
     ret = orig_fn(mask); /*intercept_();*/})
 IC_GENERIC(mode_t, getumask, (void), {
     ret = orig_fn(); /*intercept_();*/})
-IC_GENERIC(int, mkdir, (const char *path, __mode_t mode), {
+IC_GENERIC(int, mkdir, (const char *path, mode_t mode), {
     ret = orig_fn(path, mode); /*intercept_();*/})
-IC_GENERIC(int, mkdirat, (int fd, const char *path, __mode_t mode), {
+IC_GENERIC(int, mkdirat, (int fd, const char *path, mode_t mode), {
     ret = orig_fn(fd, path, mode); /*intercept_();*/})
-IC_GENERIC(int, mknod, (const char *path, __mode_t mode, __dev_t dev), {
+IC_GENERIC(int, mknod, (const char *path, mode_t mode, dev_t dev), {
     ret = orig_fn(path, mode, dev); /*intercept_();*/})
-IC_GENERIC(int, mknodat, (int fd, const char *path, __mode_t mode, __dev_t dev), {
+IC_GENERIC(int, mknodat, (int fd, const char *path, mode_t mode, dev_t dev), {
     ret = orig_fn(fd, path, mode, dev); /*intercept_();*/})
-IC_GENERIC(int, mkfifo, (const char *path, __mode_t mode), {
+IC_GENERIC(int, mkfifo, (const char *path, mode_t mode), {
     ret = orig_fn(path, mode); /*intercept_();*/})
-IC_GENERIC(int, mkfifoat, (int fd, const char *path, __mode_t mode), {
+IC_GENERIC(int, mkfifoat, (int fd, const char *path, mode_t mode), {
     ret = orig_fn(fd, path, mode); /*intercept_();*/})
 IC(int, utimensat, (int fd, const char *path, const struct timespec times[2],
 		    int flags), {
@@ -520,10 +520,10 @@ IC_GENERIC(int, __lxstat64, (int ver, const char *filename, struct stat64 *stat_
 IC_GENERIC(int, __fxstatat64, (int ver, int fildes, const char *filename,
 			     struct stat64 *stat_buf, int flag), {
 	     ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
-IC_GENERIC(int, __xmknod, (int ver, const char *path, mode_t mode, __dev_t *dev), {
+IC_GENERIC(int, xmknod, (int ver, const char *path, mode_t mode, dev_t *dev), {
     ret = orig_fn(ver, path, mode, dev); /*intercept_();*/})
-IC_GENERIC(int, __xmknodat, (int ver, int fd, const char *path,
-					__mode_t mode, __dev_t *dev), {
+IC_GENERIC(int, xmknodat, (int ver, int fd, const char *path,
+					mode_t mode, dev_t *dev), {
 	     ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
 
 // TODO finish stdio.h

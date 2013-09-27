@@ -173,7 +173,7 @@ static void fb_ic_init()
 {
   char **argv, **env, **cursor, *cwd_ret;
   char cwd_buf[CWD_BUFSIZE];
-  __pid_t pid, ppid;
+  pid_t pid, ppid;
   ShortCutProcessQuery *proc;
   ShortCutProcessResp * resp;
   InterceptorMsg ic_msg;

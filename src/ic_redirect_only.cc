@@ -13,7 +13,7 @@ extern "C" {
  * generator for intercepting various execl.. calls
  */
 #define IC_EXECLXX(with_p, with_e)					\
-  extern int execl##with_p##with_e(__const char *__path,  __const char *__arg, ...) \
+  extern int execl##with_p##with_e(const char *path,  const char *arg, ...) \
   {									\
     va_list ap;								\
     char **envp;							\
@@ -21,10 +21,10 @@ extern "C" {
     const bool call_ = false, call_e = true; /* tricky consts, TRUE means we get and pass env */ \
     unsigned int argc = 0, argc_size = 16;				\
     char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*))); \
-    va_start(ap, __arg);						\
+    va_start(ap, arg);						\
     /* silence ... unused warnings */					\
     (void)call_; (void)call_e;						\
-    argv[argc] = const_cast<char *>(__arg);				\
+    argv[argc] = const_cast<char *>(arg);				\
     while (argv[argc]) {						\
       argv[++argc] = static_cast<char *>(va_arg(ap, char*));		\
       if (argc == argc_size - 1) {					\
@@ -38,9 +38,9 @@ extern "C" {
     va_end(ap);								\
 									\
     if (call_##with_e == true) {					\
-      ret = execv##with_p##e(__path, argv, envp);			\
+      ret = execv##with_p##e(path, argv, envp);			\
     } else {								\
-      ret = execv##with_p(__path, argv);				\
+      ret = execv##with_p(path, argv);				\
     }									\
     free (argv);							\
     return ret;								\
@@ -61,7 +61,7 @@ IC_EXECLXX (p, e)
  * vfork interception would be a bit complicated to implement properly
  * and most of the programs will work properly with fork
  */
-extern __pid_t vfork (void)
+extern pid_t vfork (void)
 {
   return fork();
 }

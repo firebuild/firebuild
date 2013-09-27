@@ -24,7 +24,7 @@
 using namespace std;
 
 // TODO? 
-//int fcntl (int __fd, int __cmd, ...);
+//int fcntl (int fd, int cmd, ...);
 
 
 typedef char* CHARS;
@@ -434,11 +434,11 @@ intercept_exit (const int status)
 }
 
 /* make intercepted functions visible */
-static __pid_t
-intercept_fork (const __pid_t ret)
+static pid_t
+intercept_fork (const pid_t ret)
 {
   InterceptorMsg ic_msg;
-  __pid_t pid;
+  pid_t pid;
 
   if (ret == 0) {
     // child
