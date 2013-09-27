@@ -475,10 +475,13 @@ IC(int, ftruncate64, (int fd, off64_t length), {
 
 /* ignore: brk sbrk */
 
-/* TODO
-   IC_GENERIC(long int, syscall, (long int sysno, ...),
-   {ret = orig_fn(sysno, XXX);})
-*/
+IC(long int, syscall, (long int sysno, ...), {
+    void *args = __builtin_apply_args();
+    void const * const result = __builtin_apply((void (*)(...))orig_fn,
+                                                args, 100);
+    ret = *(long int *)result;
+    intercept_syscall(sysno, ret);})
+
 /* we probably won't use offset in supervisor's logic */
 IC(int, lockf, (int fd, int cmd, off_t len), {
     ret = orig_fn(fd, cmd, len);

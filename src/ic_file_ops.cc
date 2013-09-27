@@ -176,6 +176,8 @@ IC2_SIMPLE_2P(int, IC2_WITH_RET, Creat, creat, const char *, file, int, mode)
 IC2_SIMPLE_0P(CHARS, IC2_WITH_RET, GetCwd, getcwd)
 /* Intercept sysconf */
 IC2_SIMPLE_1P(long, IC2_WITH_RET, Sysconf, sysconf, int, name)
+/* Intercept syscall */
+IC2_SIMPLE_1P(long, IC2_WITH_RET, SysCall, syscall, int, number)
 /* Intercept dup */
 IC2_SIMPLE_1P(int, IC2_WITH_RET, Dup, dup, int, oldfd)
 /* Intercept dup */

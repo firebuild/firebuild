@@ -540,6 +540,15 @@ message Sysconf {
     optional int32 error_no = 3;
 }
 
+message SysCall {
+    // syscall number (id)
+    optional int64 number = 1;
+    // return value
+    optional int64 ret = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
+}
+
 message GetHostname {
     // name
     optional string name = 1;
@@ -729,4 +738,5 @@ message InterceptorMsg {
     optional FBDebug fb_debug = 58;
     optional FDOpenDir fdopendir = 59;
     optional Fcntl fcntl = 60;
+    optional SysCall syscall = 61;
 }
