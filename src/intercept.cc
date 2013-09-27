@@ -227,7 +227,7 @@ static void fb_ic_init()
 
     linkname[r] = '\0';
     proc->set_executable(linkname);
-    }
+  }
  exec_path_filled:
 
   // list loaded shared libs

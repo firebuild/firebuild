@@ -51,20 +51,20 @@ IC_GENERIC(int, fcntl, (int fd, int cmd, ...), {
  * Intercept open variants with varible length arg list.
  * mode is filled based on presence of O_CREAT flag
  */
-#define IC_OPEN_VA(ret_type, name, parameters, body)			\
-  IC(ret_type, name, parameters,					\
-     {									\
-       mode_t mode = 0;							\
-       if (oflag & O_CREAT) {						\
-	 va_list ap;							\
-	 va_start(ap, oflag);						\
-	 mode = va_arg(ap, mode_t);					\
-	 va_end(ap);							\
-       }								\
-									\
-       body;								\
-       intercept_open(file, oflag, mode, ret);			\
-       clear_file_state(ret);						\
+#define IC_OPEN_VA(ret_type, name, parameters, body)	\
+  IC(ret_type, name, parameters,			\
+     {							\
+       mode_t mode = 0;					\
+       if (oflag & O_CREAT) {				\
+	 va_list ap;					\
+	 va_start(ap, oflag);				\
+	 mode = va_arg(ap, mode_t);			\
+	 va_end(ap);					\
+       }						\
+							\
+       body;						\
+       intercept_open(file, oflag, mode, ret);		\
+       clear_file_state(ret);				\
      })
 
 
@@ -80,11 +80,11 @@ IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
 IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
 	   {ret = orig_fn(fd, file, oflag, mode);})
 
-#define IC_CREATE(name)						\
+#define IC_CREATE(name)					\
   IC(int, name, (const char *file, mode_t mode), {	\
-      ret = orig_fn(file, mode);				\
+      ret = orig_fn(file, mode);			\
       intercept_creat(file, mode, ret);			\
-      clear_file_state(ret);					\
+      clear_file_state(ret);				\
     })
 
 IC_CREATE(creat)
@@ -92,8 +92,8 @@ IC_CREATE(creat64)
 
 /* libc internal */
 IC(int, __libc_start_main, (int (*main) (int, char **, char **),
-                              int argc, char **ubp_av,
-                              void (*init) (void), void (*fini) (void),
+			    int argc, char **ubp_av,
+			    void (*init) (void), void (*fini) (void),
                             void (*rtld_fini) (void), void (* stack_end)), {
      char * main_and_argv[2];
      main_and_argv[0] = (char *)main;
@@ -101,17 +101,17 @@ IC(int, __libc_start_main, (int (*main) (int, char **, char **),
      intercept_on = false;
      insert_end_marker();
      ret = orig_fn(firebuild_fake_main, argc, main_and_argv, init, fini, rtld_fini, stack_end);
-                                })
+   })
 
 /*  covered in unistd.h: lockf lockf64 */
 
 /* unistd.h */
 
 IC(int, close, (int fd), {
-      ret = orig_fn(fd);
-      intercept_close(fd, ret);
-      clear_file_state(ret);
-    })
+    ret = orig_fn(fd);
+    intercept_close(fd, ret);
+    clear_file_state(ret);
+  })
 
 IC(int, access, (const char *name, int type),
    {ret = orig_fn(name, type); intercept_access(name, type, ret);})
@@ -144,7 +144,7 @@ IC(int, pipe, (int pipedes[2]), {
     intercept_pipe2(pipedes, 0, ret);
     clear_file_state(pipedes[0]);
     clear_file_state(pipedes[1]);
-})
+  })
 IC(int, pipe2, (int pipedes[2], int flags), {
     ret = orig_fn(pipedes, flags);
     intercept_pipe2(pipedes, flags, ret);
@@ -428,7 +428,7 @@ IC_GENERIC(int, vhangup, (void),
 IC_GENERIC(int, revoke, (const char *file),
            {ret = orig_fn(file);})
 IC_GENERIC(int, profil, (unsigned short int *sample_buffer, size_t size,
-                   size_t offset, unsigned int scale),
+			 size_t offset, unsigned int scale),
            {ret = orig_fn(sample_buffer, size, offset, scale);})
 IC_GENERIC(int, acct, (const char *filename),
            {ret = orig_fn(filename);})
@@ -436,9 +436,9 @@ IC_GENERIC(int, acct, (const char *filename),
 IC_GENERIC(char*, getusershell, (void),
            {ret = orig_fn();})
 IC_GENERIC_VOID(void, endusershell, (void),
-           {orig_fn();})
+		{orig_fn();})
 IC_GENERIC_VOID(void, setusershell, (void),
-           {orig_fn();})
+		{orig_fn();})
 
 IC_GENERIC(int, daemon, (int nochdir, int noclose),
            {ret = orig_fn(nochdir, noclose);})
@@ -477,8 +477,8 @@ IC(int, ftruncate64, (int fd, off64_t length), {
 /* ignore: brk sbrk */
 
 /* TODO
-IC_GENERIC(long int, syscall, (long int sysno, ...),
-           {ret = orig_fn(sysno, XXX);})
+   IC_GENERIC(long int, syscall, (long int sysno, ...),
+   {ret = orig_fn(sysno, XXX);})
 */
 /* we probably won't use offset in supervisor's logic */
 IC(int, lockf, (int fd, int cmd, off_t len), {
@@ -562,12 +562,12 @@ IC_GENERIC(int, __xstat64, (int ver, const char *filename, struct stat64 *stat_b
 IC_GENERIC(int, __lxstat64, (int ver, const char *filename, struct stat64 *stat_buf), {
     ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
 IC_GENERIC(int, __fxstatat64, (int ver, int fildes, const char *filename,
-			     struct stat64 *stat_buf, int flag), {
+			       struct stat64 *stat_buf, int flag), {
 	     ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
 IC_GENERIC(int, xmknod, (int ver, const char *path, mode_t mode, dev_t *dev), {
     ret = orig_fn(ver, path, mode, dev); /*intercept_();*/})
 IC_GENERIC(int, xmknodat, (int ver, int fd, const char *path,
-					mode_t mode, dev_t *dev), {
+			   mode_t mode, dev_t *dev), {
 	     ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
 
 // TODO finish stdio.h
@@ -622,7 +622,7 @@ IC_GENERIC(int, readdir_r, (DIR *dirp, struct dirent *entry,
 			    struct dirent **result),
            {ret = orig_fn(dirp, entry, result);})
 IC_GENERIC(int, readdir64_r, (DIR *dirp, struct dirent64 *entry,
-			    struct dirent64 **result),
+			      struct dirent64 **result),
            {ret = orig_fn(dirp, entry, result);})
 IC_GENERIC_VOID(void, rewinddir, (DIR *dirp),
 		{orig_fn(dirp);})
@@ -643,8 +643,8 @@ IC_GENERIC(ssize_t, getdirentries64, (int fd, char *buf, size_t nbytes,
 
 
 /** generate two intercepted functions, one for name and one for name_unlocked */
-#define IC_WITH_UNLOCKED(ret_type, name, parameters, body)		\
-  IC(ret_type, name, parameters, body)					\
+#define IC_WITH_UNLOCKED(ret_type, name, parameters, body)	\
+  IC(ret_type, name, parameters, body)				\
   IC(ret_type, name##_unlocked, parameters, body)
 
 IC_WITH_UNLOCKED(size_t, fread, (void *ptr, size_t size, size_t nmemb, FILE *stream),{

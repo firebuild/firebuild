@@ -172,7 +172,7 @@ sigchld_handler (int /*sig */)
     write(sigchld_fds[1], buf, sizeof(buf));
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "Child process has been killed by signal %d",
-	     WTERMSIG(status));
+	    WTERMSIG(status));
     write(sigchld_fds[1], buf, 1);
   }
 }
@@ -484,11 +484,11 @@ int main(int argc, char* argv[]) {
 /** wrapper for write() retrying on recoverable errors*/
 ssize_t fb_write_buf(int fd, const void *buf, const size_t count)
 {
-  FB_IO_OP_BUF(write, fd, buf, count, {})
+  FB_IO_OP_BUF(write, fd, buf, count, {});
 }
 
 /** wrapper for read() retrying on recoverable errors*/
 ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
 {
-  FB_IO_OP_BUF(read, fd, buf, count, {})
+  FB_IO_OP_BUF(read, fd, buf, count, {});
 }

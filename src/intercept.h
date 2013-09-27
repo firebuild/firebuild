@@ -15,13 +15,13 @@
 /**
  * Intercept call
  */
-#define IC(ret_type, name, parameters, body)				\
-  IC_VOID(ret_type, name, parameters,					\
-	  { ret_type ret;						\
-	    body;							\
-	    insert_end_marker();					\
-	    intercept_on = false;					\
-	    return ret;							\
+#define IC(ret_type, name, parameters, body)	\
+  IC_VOID(ret_type, name, parameters,		\
+	  { ret_type ret;			\
+	    body;				\
+	    insert_end_marker();		\
+	    intercept_on = false;		\
+	    return ret;				\
 	  })
 
 #endif
@@ -29,32 +29,32 @@
 /**
  * Just send the intercepted function's name
  */
-#define IC_GENERIC(ret_type, name, parameters, body)		\
-  IC(ret_type, name, parameters,				\
-     {								\
-       if (!ic_fn[IC_FN_IDX_##name].called) {			\
-	 InterceptorMsg ic_msg;					\
-	 GenericCall *m;					\
-	 m = ic_msg.mutable_gen_call();				\
-	 m->set_call(#name);					\
-	 fb_send_msg(ic_msg, fb_sv_conn);			\
-	 ic_fn[IC_FN_IDX_##name].called = true;			\
-       }							\
-       body;							\
+#define IC_GENERIC(ret_type, name, parameters, body)	\
+  IC(ret_type, name, parameters,			\
+     {							\
+       if (!ic_fn[IC_FN_IDX_##name].called) {		\
+	 InterceptorMsg ic_msg;				\
+	 GenericCall *m;				\
+	 m = ic_msg.mutable_gen_call();			\
+	 m->set_call(#name);				\
+	 fb_send_msg(ic_msg, fb_sv_conn);		\
+	 ic_fn[IC_FN_IDX_##name].called = true;		\
+       }						\
+       body;						\
      })
 
-#define IC_GENERIC_VOID(ret_type, name, parameters, body)		\
-  IC_VOID(ret_type, name, parameters,					\
-	  {								\
-	    if (!ic_fn[IC_FN_IDX_##name].called) {			\
-	      InterceptorMsg ic_msg;					\
-	      GenericCall *m;						\
-	      m = ic_msg.mutable_gen_call();				\
-	      m->set_call(#name);					\
-	      fb_send_msg(ic_msg, fb_sv_conn);				\
-	      ic_fn[IC_FN_IDX_##name].called = true;			\
-	    }								\
-	    body;							\
+#define IC_GENERIC_VOID(ret_type, name, parameters, body)	\
+  IC_VOID(ret_type, name, parameters,				\
+	  {							\
+	    if (!ic_fn[IC_FN_IDX_##name].called) {		\
+	      InterceptorMsg ic_msg;				\
+	      GenericCall *m;					\
+	      m = ic_msg.mutable_gen_call();			\
+	      m->set_call(#name);				\
+	      fb_send_msg(ic_msg, fb_sv_conn);			\
+	      ic_fn[IC_FN_IDX_##name].called = true;		\
+	    }							\
+	    body;						\
 	  })
 
 
@@ -149,9 +149,9 @@ extern "C" {
 extern void fb_ic_load() __attribute__ ((constructor));
 extern void handle_exit (const int status, void*);
 extern int __libc_start_main (int (*main) (int, char **, char **),
-                              int argc, char **ubp_av,
-                              void (*init) (void), void (*fini) (void),
-                              void (*rtld_fini) (void), void (* stack_end));
+			      int argc, char **ubp_av,
+			      void (*init) (void), void (*fini) (void),
+			      void (*rtld_fini) (void), void (* stack_end));
 
 #ifdef  __cplusplus
 }
@@ -175,10 +175,9 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
     intercept_on = true;						\
     insert_begin_marker();						\
     fb_ic_load();							\
-  { 									\
-    body; /* this is where interceptor function body goes */		\
-  }									\
-  insert_end_marker();							\
-  intercept_on = false;							\
-}
-
+    { 									\
+      body; /* this is where interceptor function body goes */		\
+    }									\
+    insert_end_marker();						\
+    intercept_on = false;						\
+  }

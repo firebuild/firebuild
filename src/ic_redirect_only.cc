@@ -21,7 +21,7 @@ extern "C" {
     const bool call_ = false, call_e = true; /* tricky consts, TRUE means we get and pass env */ \
     unsigned int argc = 0, argc_size = 16;				\
     char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*))); \
-    va_start(ap, arg);						\
+    va_start(ap, arg);							\
     /* silence ... unused warnings */					\
     (void)call_; (void)call_e;						\
     argv[argc] = const_cast<char *>(arg);				\
@@ -38,9 +38,9 @@ extern "C" {
     va_end(ap);								\
 									\
     if (call_##with_e == true) {					\
-      ret = execv##with_p##e(path, argv, envp);			\
+      ret = execv##with_p##e(path, argv, envp);				\
     } else {								\
-      ret = execv##with_p(path, argv);				\
+      ret = execv##with_p(path, argv);					\
     }									\
     free (argv);							\
     return ret;								\
