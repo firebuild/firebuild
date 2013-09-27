@@ -330,6 +330,8 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 
 /* Intercept opendir */
 IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, OpenDir, opendir, const char *, name)
+/* Intercept fdopendir */
+IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
 
 #undef IC2_WAIT_ACK
 

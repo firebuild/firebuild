@@ -563,8 +563,40 @@ IC(int, fcloseall, (void),{
 IC(void*, dlopen, (const char *filename, int flag), {
     ret = orig_fn(filename, flag); intercept_dlopen(filename, flag, ret);})
 
+// dirent.h
 IC(DIR *, opendir, (const char *name), {
     ret = orig_fn(name); intercept_opendir(name, ret);})
+IC(DIR *, fdopendir, (int fd), {
+    ret = orig_fn(fd); intercept_fdopendir(fd, ret);})
+IC_GENERIC(int, closedir, (DIR *dirp),
+           {ret = orig_fn(dirp);})
+IC_GENERIC(struct dirent *, readdir, (DIR *dirp),
+           {ret = orig_fn(dirp);})
+IC_GENERIC(struct dirent64 *, readdir64, (DIR *dirp),
+           {ret = orig_fn(dirp);})
+IC_GENERIC(int, readdir_r, (DIR *dirp, struct dirent *entry,
+			    struct dirent **result),
+           {ret = orig_fn(dirp, entry, result);})
+IC_GENERIC(int, readdir64_r, (DIR *dirp, struct dirent64 *entry,
+			    struct dirent64 **result),
+           {ret = orig_fn(dirp, entry, result);})
+IC_GENERIC_VOID(void, rewinddir, (DIR *dirp),
+		{orig_fn(dirp);})
+IC_GENERIC_VOID(void, seekdir, (DIR *dirp, long int pos),
+		{orig_fn(dirp, pos);})
+IC_GENERIC(long int, telldir, (DIR *dirp),
+           {ret = orig_fn(dirp);})
+IC_GENERIC(int, dirfd, (DIR *dirp),
+           {ret = orig_fn(dirp);})
+// ignore scandir scandir64 alphasort
+IC_GENERIC(ssize_t, getdirentries, (int fd, char *buf, size_t nbytes,
+				    off_t *basep),
+           {ret = orig_fn(fd, buf, nbytes, basep);})
+IC_GENERIC(ssize_t, getdirentries64, (int fd, char *buf, size_t nbytes,
+				      off64_t *basep),
+           {ret = orig_fn(fd, buf, nbytes, basep);})
+// ignore versionsort versionsort64
+
 
 /** generate two intercepted functions, one for name and one for name_unlocked */
 #define IC_WITH_UNLOCKED(ret_type, name, parameters, body)		\
