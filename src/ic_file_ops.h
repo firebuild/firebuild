@@ -817,3 +817,13 @@ IC_GENERIC(int, fstatvfs, (int fildes, struct statvfs *buf),
 IC_GENERIC(int, fstatvfs64, (int fildes, struct statvfs64 *buf),
            {ret = orig_fn(fildes, buf);})
 
+// sys/ioctl.h
+/* ioctl() may have a third argument */
+IC_GENERIC(int, ioctl, (int fd, unsigned long int request, ...), {
+    va_list ap;
+    void *argp;
+    va_start(ap, request);
+    argp = va_arg(ap, void*);
+    va_end(ap);
+    ret = orig_fn(fd, request, argp);})
+
