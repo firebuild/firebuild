@@ -23,10 +23,6 @@
 
 using namespace std;
 
-// TODO? 
-//int fcntl (int fd, int cmd, ...);
-
-
 typedef char* CHARS;
 typedef void* VOIDPT;
 
@@ -168,6 +164,10 @@ IC2_SIMPLE_2P(int, IC2_NO_RET, Symlink, symlink, const char *, oldpath, const ch
 IC2_SIMPLE_3P(int, IC2_NO_RET, SymlinkAt, symlinkat, const char *, oldpath, int, newdirfd, const char *, newpath)
 /* Intercept lockf (without offset)*/
 IC2_SIMPLE_2P(int, IC2_NO_RET, LockF, lockf, int, fd, int, cmd)
+/* Intercept fcntl with arg */
+IC2_SIMPLE_3P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd, int, arg)
+/* Intercept fcntl without arg */
+IC2_SIMPLE_2P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd)
 /* Intercept open variants */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
 /* Intercept creat */

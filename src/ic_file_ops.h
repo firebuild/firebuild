@@ -3,6 +3,50 @@
  * IC() macro.
  */
 
+IC_GENERIC(int, fcntl, (int fd, int cmd, ...), {
+    va_list ap;
+    void *args = __builtin_apply_args();
+    void *result = __builtin_apply((void (*)(...))orig_fn, args, 100);
+    //    __builtin_apply((void (*)(...))intercept_fcntl, args, 100);
+
+    ret = *(int*)result;
+
+    va_start(ap, cmd);
+    switch (cmd) {
+    case F_DUPFD:
+    case F_DUPFD_CLOEXEC:
+    case F_SETFD:
+    case F_SETFL:
+    case F_SETOWN:
+    case F_SETSIG:
+    case F_SETLEASE:
+    case F_NOTIFY:
+    case F_SETPIPE_SZ: {
+      int arg = va_arg(ap, int);
+      intercept_fcntl(fd, cmd, arg, ret);
+      break;
+    }
+    case F_GETOWN: /* arg missing*/
+    case F_GETFD:
+    case F_GETFL:
+    case F_GETSIG:
+    case F_GETLEASE:
+    case F_GETPIPE_SZ:
+    case F_SETLK: /* struct flock * arg */
+    case F_SETLKW:
+    case F_GETLK:
+    case F_GETOWN_EX: /* struct f_owner_ex * arg */
+    case F_SETOWN_EX: {
+      intercept_fcntl(fd, cmd, ret);
+      break;
+    }
+    default: {
+      fb_error("unknown fcntl() cmd: " + cmd);
+    }
+    }
+    va_end(ap);
+  })
+
 /**
  * Intercept open variants with varible length arg list.
  * mode is filled based on presence of O_CREAT flag

@@ -84,6 +84,19 @@ message FBDebug {
 	required string msg = 1;
 }
 
+message Fcntl {
+	// file descriptor
+	optional int32 fd = 1;
+	// command
+	optional int32 cmd = 2;
+	// arg, if present
+	optional int32 arg = 3;
+	// return value, depends on cmd
+	optional int32 ret = 4;
+	// error no., when ret = -1
+	optional int32 error_no = 5;
+}
+
 message Open {
 	// file path
 	optional string	file = 2;
@@ -715,4 +728,5 @@ message InterceptorMsg {
 	optional FBError fb_error = 57;
 	optional FBDebug fb_debug = 58;
 	optional FDOpenDir fdopendir = 59;
+	optional Fcntl fcntl = 60;
 }
