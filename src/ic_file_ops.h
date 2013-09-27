@@ -3,11 +3,10 @@
  * IC() macro.
  */
 
-IC_GENERIC(int, fcntl, (int fd, int cmd, ...), {
+IC(int, fcntl, (int fd, int cmd, ...), {
     va_list ap;
     void *args = __builtin_apply_args();
-    void *result = __builtin_apply((void (*)(...))orig_fn, args, 100);
-    //    __builtin_apply((void (*)(...))intercept_fcntl, args, 100);
+    void const * const result = __builtin_apply((void (*)(...))orig_fn, args, 100);
 
     ret = *(int*)result;
 
