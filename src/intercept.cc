@@ -83,7 +83,9 @@ static bool insert_trace_markers = false;
 void insert_begin_marker()
 {
   if (insert_trace_markers) {
+    int saved_errno = errno;
     ic_orig_open("/firebuild-intercept-begin", 0);
+    errno = saved_errno;
   }
 }
 
@@ -91,7 +93,9 @@ void insert_begin_marker()
 void insert_end_marker()
 {
   if (insert_trace_markers) {
+    int saved_errno = errno;
     ic_orig_open("/firebuild-intercept-end", 0);
+    errno = saved_errno;
   }
 }
 
