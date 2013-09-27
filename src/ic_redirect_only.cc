@@ -12,39 +12,39 @@ extern "C" {
 /**
  * generator for intercepting various execl.. calls
  */
-#define IC_EXECLXX(with_p, with_e)					\
+#define IC_EXECLXX(with_p, with_e)                                      \
   extern int execl##with_p##with_e(const char *path,  const char *arg, ...) \
-  {									\
-    va_list ap;								\
-    char **envp;							\
-    int ret;								\
+  {                                                                     \
+    va_list ap;                                                         \
+    char **envp;                                                        \
+    int ret;                                                            \
     const bool call_ = false, call_e = true; /* tricky consts, TRUE means we get and pass env */ \
-    unsigned int argc = 0, argc_size = 16;				\
+    unsigned int argc = 0, argc_size = 16;                              \
     char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*))); \
-    va_start(ap, arg);							\
-    /* silence ... unused warnings */					\
-    (void)call_; (void)call_e;						\
-    argv[argc] = const_cast<char *>(arg);				\
-    while (argv[argc]) {						\
-      argv[++argc] = static_cast<char *>(va_arg(ap, char*));		\
-      if (argc == argc_size - 1) {					\
-	argc_size *= 2;							\
-	argv = static_cast<char **>(realloc(argv, argc_size * sizeof(char*))); \
-      }									\
-    }									\
-    if (call_##with_e) {						\
-      envp = static_cast<char **>(va_arg(ap, char**));			\
-    }									\
-    va_end(ap);								\
-									\
-    if (call_##with_e == true) {					\
-      ret = execv##with_p##e(path, argv, envp);				\
-    } else {								\
-      ret = execv##with_p(path, argv);					\
-    }									\
-    free (argv);							\
-    return ret;								\
-  }									\
+    va_start(ap, arg);                                                  \
+    /* silence ... unused warnings */                                   \
+    (void)call_; (void)call_e;                                          \
+    argv[argc] = const_cast<char *>(arg);                               \
+    while (argv[argc]) {                                                \
+      argv[++argc] = static_cast<char *>(va_arg(ap, char*));            \
+      if (argc == argc_size - 1) {                                      \
+        argc_size *= 2;                                                 \
+        argv = static_cast<char **>(realloc(argv, argc_size * sizeof(char*))); \
+      }                                                                 \
+    }                                                                   \
+    if (call_##with_e) {                                                \
+      envp = static_cast<char **>(va_arg(ap, char**));                  \
+    }                                                                   \
+    va_end(ap);                                                         \
+                                                                        \
+    if (call_##with_e == true) {                                        \
+      ret = execv##with_p##e(path, argv, envp);                         \
+    } else {                                                            \
+      ret = execv##with_p(path, argv);                                  \
+    }                                                                   \
+    free (argv);                                                        \
+    return ret;                                                         \
+  }                                                                     \
 
 /* make redirected functions visible */
 #pragma GCC visibility push(default)

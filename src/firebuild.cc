@@ -64,9 +64,9 @@ parse_cfg_file(char *cfg_file)
     } else {
       cfg_fd = open(global_cfg, O_RDONLY);
       if (cfg_fd != -1) {
-	// fall back to global config file
-	cfg_file = global_cfg;
-	close(cfg_fd);
+        // fall back to global config file
+        cfg_file = global_cfg;
+        close(cfg_fd);
       }
     }
   }
@@ -82,7 +82,7 @@ parse_cfg_file(char *cfg_file)
   catch(const ParseException &pex)
     {
       std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-		<< " - " << pex.getError() << std::endl;
+                << " - " << pex.getError() << std::endl;
       exit(EXIT_FAILURE);
     }
 }
@@ -112,7 +112,7 @@ static char** get_sanitized_env()
     if (NULL  != got_env) {
       env_v.push_back(pass_through[i].c_str() + string("=") + string(got_env));
       if (debug_level >= 1) {
-	cout << " " << env_v.back() << endl;
+        cout << " " << env_v.back() << endl;
       }
     }
   }
@@ -172,7 +172,7 @@ sigchld_handler (int /*sig */)
     write(sigchld_fds[1], buf, sizeof(buf));
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "Child process has been killed by signal %d",
-	    WTERMSIG(status));
+            WTERMSIG(status));
     write(sigchld_fds[1], buf, 1);
   }
 }
@@ -223,9 +223,9 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
   } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
-	     ic_msg.has_execv() ||
-	     ic_msg.has_fdopendir() ||
-	     ic_msg.has_opendir()) {
+             ic_msg.has_execv() ||
+             ic_msg.has_fdopendir() ||
+             ic_msg.has_opendir()) {
     SupervisorMsg sv_msg;
     sv_msg.set_ack(true);
     fb_send_msg(sv_msg, fd_conn);
@@ -255,7 +255,7 @@ int main(int argc, char* argv[]) {
     };
 
     c = getopt_long(argc, argv, "c:d:hi",
-		    long_options, &option_index);
+                    long_options, &option_index);
     if (c == -1)
       break;
 
@@ -267,8 +267,8 @@ int main(int argc, char* argv[]) {
     case 'd':
       debug_level = atoi(optarg);
       if ((debug_level < 0) || (debug_level > 3)) {
-	usage();
-	exit(EXIT_FAILURE);
+        usage();
+        exit(EXIT_FAILURE);
       }
       break;
 
@@ -345,7 +345,7 @@ int main(int argc, char* argv[]) {
       close(listener);
       // create and execute build command
       for (i = 0; i < argc - optind ; i++) {
-	argv_exec[i] = argv[optind + i];
+        argv_exec[i] = argv[optind + i];
       }
       argv_exec[i] = NULL;
 
@@ -378,86 +378,86 @@ int main(int argc, char* argv[]) {
       fdmax = listener; // so far, it's this one
       // main loop for processing interceptor messages
       for(;;) {
-	if (child_exited) {
-	  break;
-	}
+        if (child_exited) {
+          break;
+        }
         read_fds = master; // copy it
-	if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
-	  if (errno != EINTR) {
-	    perror("select");
-	    exit(1);
-	  } else {
-	    break;
-	  }
+        if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
+          if (errno != EINTR) {
+            perror("select");
+            exit(1);
+          } else {
+            break;
+          }
         }
 
         // run through the existing connections looking for data to read
         for(i = 0; i <= fdmax; i++) {
-	  if (FD_ISSET(i, &read_fds)) { // we got one!!
-	    if (i == listener) {
-	      // handle new connections
-	      struct sockaddr_un remote;
-	      socklen_t addrlen = sizeof(remote);
+          if (FD_ISSET(i, &read_fds)) { // we got one!!
+            if (i == listener) {
+              // handle new connections
+              struct sockaddr_un remote;
+              socklen_t addrlen = sizeof(remote);
 
-	      newfd = accept(listener,
-			     (struct sockaddr *)&remote,
-			     &addrlen);
-	      if (newfd == -1) {
-		perror("accept");
-	      } else {
-		struct ucred creds;
-		socklen_t optlen = sizeof(creds);
-		getsockopt(newfd, SOL_SOCKET, SO_PEERCRED, &creds, &optlen);
-		if (euid != creds.uid) {
-		  // someone else started using the socket
-		  fprintf(stderr,
-			  "Unauthorized connection from pid %d, uid %d, gid %d\n",
-			  creds.pid, creds.uid, creds.gid);
-		  close(newfd);
-		} else {
-		  FD_SET(newfd, &master); // add to master set
-		  if (newfd > fdmax) {    // keep track of the max
-		    fdmax = newfd;
-		  }
-		}
-		// TODO debug
-	      }
-	    } else if (i == sigchld_fds[0]) {
-	      // Our child has exited.
-	      // Process remaining messages, then we are done.
-	      child_exited = true;
-	      continue;
-	    } else {
-	      // handle data from a client
-	      ssize_t nbytes;
+              newfd = accept(listener,
+                             (struct sockaddr *)&remote,
+                             &addrlen);
+              if (newfd == -1) {
+                perror("accept");
+              } else {
+                struct ucred creds;
+                socklen_t optlen = sizeof(creds);
+                getsockopt(newfd, SOL_SOCKET, SO_PEERCRED, &creds, &optlen);
+                if (euid != creds.uid) {
+                  // someone else started using the socket
+                  fprintf(stderr,
+                          "Unauthorized connection from pid %d, uid %d, gid %d\n",
+                          creds.pid, creds.uid, creds.gid);
+                  close(newfd);
+                } else {
+                  FD_SET(newfd, &master); // add to master set
+                  if (newfd > fdmax) {    // keep track of the max
+                    fdmax = newfd;
+                  }
+                }
+                // TODO debug
+              }
+            } else if (i == sigchld_fds[0]) {
+              // Our child has exited.
+              // Process remaining messages, then we are done.
+              child_exited = true;
+              continue;
+            } else {
+              // handle data from a client
+              ssize_t nbytes;
 
-	      if ((nbytes = fb_recv_msg(ic_msg, i)) <= 0) {
-		// got error or connection closed by client
-		if (nbytes == 0) {
-		  // connection closed
-		  // TODO handle process exit
-		  if (debug_level >= 2) {
-		    printf("socket %d hung up\n", i);
-		  }
-		} else {
-		  perror("recv");
-		}
-		close(i); // bye!
-		FD_CLR(i, &master); // remove from master set
-	      } else {
-		if (debug_level >= 2) {
-		  cerr << "fd " << i << ": ";
-		  TextFormat::Print(ic_msg, error_fos);
-		  error_fos->Flush();
-		}
-		if (!proc_ic_msg(ic_msg, i)) {
-		  close(i); // bye!
-		  FD_CLR(i, &master); // remove from master set
-		}
-	      }
-	    }
-	  }
-	}
+              if ((nbytes = fb_recv_msg(ic_msg, i)) <= 0) {
+                // got error or connection closed by client
+                if (nbytes == 0) {
+                  // connection closed
+                  // TODO handle process exit
+                  if (debug_level >= 2) {
+                    printf("socket %d hung up\n", i);
+                  }
+                } else {
+                  perror("recv");
+                }
+                close(i); // bye!
+                FD_CLR(i, &master); // remove from master set
+              } else {
+                if (debug_level >= 2) {
+                  cerr << "fd " << i << ": ";
+                  TextFormat::Print(ic_msg, error_fos);
+                  error_fos->Flush();
+                }
+                if (!proc_ic_msg(ic_msg, i)) {
+                  close(i); // bye!
+                  FD_CLR(i, &master); // remove from master set
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

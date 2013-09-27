@@ -36,99 +36,99 @@ typedef void* VOIDPT;
 
 #define IC2_WAIT_ACK
 
-#define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,	\
-		      ics_pmname, ics_pars, ics_body)			\
-  static void								\
-  intercept_##ics_pmname ics_pars					\
-  {									\
-    InterceptorMsg ic_msg;						\
-    ics_pmtype *m;							\
-    int saved_errno = errno;						\
-									\
-    m = ic_msg.mutable_##ics_pmname();					\
-    ics_body;								\
-    IC2_MSG_##ics_with_rettype;						\
-    if (ret == IC2_ERR_VAL_##ics_rettype) {				\
-      m->set_error_no(saved_errno);					\
-    }									\
-    fb_send_msg(ic_msg, fb_sv_conn);					\
-    IC2_WAIT_ACK;							\
-    errno = saved_errno;						\
+#define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,   \
+                      ics_pmname, ics_pars, ics_body)               \
+  static void                                                       \
+  intercept_##ics_pmname ics_pars                                   \
+  {                                                                 \
+    InterceptorMsg ic_msg;                                          \
+    ics_pmtype *m;                                                  \
+    int saved_errno = errno;                                        \
+                                                                    \
+    m = ic_msg.mutable_##ics_pmname();                              \
+    ics_body;                                                       \
+    IC2_MSG_##ics_with_rettype;                                     \
+    if (ret == IC2_ERR_VAL_##ics_rettype) {                         \
+      m->set_error_no(saved_errno);                                 \
+    }                                                               \
+    fb_send_msg(ic_msg, fb_sv_conn);                                \
+    IC2_WAIT_ACK;                                                   \
+    errno = saved_errno;                                            \
   }
 
-#define IC2_SIMPLE_0P(ics_rettype, ics_with_rettype, ics_pmtype,	\
-		      ics_pmname)					\
-  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
-		(ics_rettype ret), {})
+#define IC2_SIMPLE_0P(ics_rettype, ics_with_rettype, ics_pmtype,        \
+                      ics_pmname)                                       \
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,  \
+                (ics_rettype ret), {})
 
-#define IC2_SIMPLE_1P(ics_rettype, ics_with_rettype, ics_pmtype,	\
-		      ics_pmname,					\
-		      ics_ptype1, ics_pmattrname1)			\
-  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
-		(ics_ptype1 ics_p1, ics_rettype ret),			\
-		{m->set_##ics_pmattrname1(ics_p1);})
+#define IC2_SIMPLE_1P(ics_rettype, ics_with_rettype, ics_pmtype,        \
+                      ics_pmname,                                       \
+                      ics_ptype1, ics_pmattrname1)                      \
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,  \
+                (ics_ptype1 ics_p1, ics_rettype ret),                   \
+                {m->set_##ics_pmattrname1(ics_p1);})
 
-#define IC2_SIMPLE_2P(ics_rettype, ics_with_rettype, ics_pmtype,	\
-		      ics_pmname,					\
-		      ics_ptype1, ics_pmattrname1,			\
-		      ics_ptype2, ics_pmattrname2)			\
-  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
-		(ics_ptype1 ics_p1, ics_ptype2 ics_p2,			\
-		 ics_rettype ret),					\
-		{							\
-		  m->set_##ics_pmattrname1(ics_p1);			\
-		  m->set_##ics_pmattrname2(ics_p2);			\
-		})
+#define IC2_SIMPLE_2P(ics_rettype, ics_with_rettype, ics_pmtype,        \
+                      ics_pmname,                                       \
+                      ics_ptype1, ics_pmattrname1,                      \
+                      ics_ptype2, ics_pmattrname2)                      \
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,  \
+                (ics_ptype1 ics_p1, ics_ptype2 ics_p2,                  \
+                 ics_rettype ret),                                      \
+                {                                                       \
+                  m->set_##ics_pmattrname1(ics_p1);                     \
+                  m->set_##ics_pmattrname2(ics_p2);                     \
+                })
 
-#define IC2_SIMPLE_3P(ics_rettype, ics_with_rettype, ics_pmtype,	\
-		      ics_pmname,					\
-		      ics_ptype1, ics_pmattrname1,			\
-		      ics_ptype2, ics_pmattrname2,			\
-		      ics_ptype3, ics_pmattrname3)			\
-  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
-		(ics_ptype1 ics_p1, ics_ptype2 ics_p2,			\
-		 ics_ptype3 ics_p3, ics_rettype ret),			\
-		{							\
-		  m->set_##ics_pmattrname1(ics_p1);			\
-		  m->set_##ics_pmattrname2(ics_p2);			\
-		  m->set_##ics_pmattrname3(ics_p3);			\
-		})
+#define IC2_SIMPLE_3P(ics_rettype, ics_with_rettype, ics_pmtype,        \
+                      ics_pmname,                                       \
+                      ics_ptype1, ics_pmattrname1,                      \
+                      ics_ptype2, ics_pmattrname2,                      \
+                      ics_ptype3, ics_pmattrname3)                      \
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,  \
+                (ics_ptype1 ics_p1, ics_ptype2 ics_p2,                  \
+                 ics_ptype3 ics_p3, ics_rettype ret),                   \
+                {                                                       \
+                  m->set_##ics_pmattrname1(ics_p1);                     \
+                  m->set_##ics_pmattrname2(ics_p2);                     \
+                  m->set_##ics_pmattrname3(ics_p3);                     \
+                })
 
-#define IC2_SIMPLE_4P(ics_rettype, ics_with_rettype, ics_pmtype,	\
-		      ics_pmname,					\
-		      ics_ptype1, ics_pmattrname1,			\
-		      ics_ptype2, ics_pmattrname2,			\
-		      ics_ptype3, ics_pmattrname3,			\
-		      ics_ptype4, ics_pmattrname4)			\
-  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
-		(ics_ptype1 ics_p1, ics_ptype2 ics_p2,			\
-		 ics_ptype3 ics_p3, ics_ptype4 ics_p4,			\
-		 ics_rettype ret),					\
-		{							\
-		  m->set_##ics_pmattrname1(ics_p1);			\
-		  m->set_##ics_pmattrname2(ics_p2);			\
-		  m->set_##ics_pmattrname3(ics_p3);			\
-		  m->set_##ics_pmattrname4(ics_p4);			\
-		})
+#define IC2_SIMPLE_4P(ics_rettype, ics_with_rettype, ics_pmtype,        \
+                      ics_pmname,                                       \
+                      ics_ptype1, ics_pmattrname1,                      \
+                      ics_ptype2, ics_pmattrname2,                      \
+                      ics_ptype3, ics_pmattrname3,                      \
+                      ics_ptype4, ics_pmattrname4)                      \
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,  \
+                (ics_ptype1 ics_p1, ics_ptype2 ics_p2,                  \
+                 ics_ptype3 ics_p3, ics_ptype4 ics_p4,                  \
+                 ics_rettype ret),                                      \
+                {                                                       \
+                  m->set_##ics_pmattrname1(ics_p1);                     \
+                  m->set_##ics_pmattrname2(ics_p2);                     \
+                  m->set_##ics_pmattrname3(ics_p3);                     \
+                  m->set_##ics_pmattrname4(ics_p4);                     \
+                })
 
-#define IC2_SIMPLE_5P(ics_rettype, ics_with_rettype, ics_pmtype,	\
-		      ics_pmname,					\
-		      ics_ptype1, ics_pmattrname1,			\
-		      ics_ptype2, ics_pmattrname2,			\
-		      ics_ptype3, ics_pmattrname3,			\
-		      ics_ptype4, ics_pmattrname4,			\
-		      ics_ptype5, ics_pmattrname5)			\
-  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,	\
-		(ics_ptype1 ics_p1, ics_ptype2 ics_p2,			\
-		 ics_ptype3 ics_p3, ics_ptype4 ics_p4,			\
-		 ics_ptype5 ics_p5, ics_rettype ret),			\
-		{							\
-		  m->set_##ics_pmattrname1(ics_p1);			\
-		  m->set_##ics_pmattrname2(ics_p2);			\
-		  m->set_##ics_pmattrname3(ics_p3);			\
-		  m->set_##ics_pmattrname4(ics_p4);			\
-		  m->set_##ics_pmattrname5(ics_p5);			\
-		})
+#define IC2_SIMPLE_5P(ics_rettype, ics_with_rettype, ics_pmtype,        \
+                      ics_pmname,                                       \
+                      ics_ptype1, ics_pmattrname1,                      \
+                      ics_ptype2, ics_pmattrname2,                      \
+                      ics_ptype3, ics_pmattrname3,                      \
+                      ics_ptype4, ics_pmattrname4,                      \
+                      ics_ptype5, ics_pmattrname5)                      \
+  IC2_SIMPLE_NP(ics_rettype, ics_with_rettype, ics_pmtype, ics_pmname,  \
+                (ics_ptype1 ics_p1, ics_ptype2 ics_p2,                  \
+                 ics_ptype3 ics_p3, ics_ptype4 ics_p4,                  \
+                 ics_ptype5 ics_p5, ics_rettype ret),                   \
+                {                                                       \
+                  m->set_##ics_pmattrname1(ics_p1);                     \
+                  m->set_##ics_pmattrname2(ics_p2);                     \
+                  m->set_##ics_pmattrname3(ics_p3);                     \
+                  m->set_##ics_pmattrname4(ics_p4);                     \
+                  m->set_##ics_pmattrname5(ics_p5);                     \
+                })
 
 /* Intercept unlink */
 IC2_SIMPLE_1P(int, IC2_NO_RET, UnLink, unlink, const char *, path)
@@ -150,14 +150,14 @@ IC2_SIMPLE_3P(int, IC2_NO_RET, Chown, chown, const char *, path, uid_t, owner, g
 IC2_SIMPLE_3P(int, IC2_NO_RET, FChown, fchown, int, fd, uid_t, owner, gid_t, group)
 /* Intercept fchownat */
 IC2_SIMPLE_5P(int, IC2_NO_RET, FChownAt, fchownat, int, dirfd, const char *, path, uid_t,
-	      owner, gid_t, group, int, flags)
+              owner, gid_t, group, int, flags)
 /* Intercept lchown */
 IC2_SIMPLE_3P(int, IC2_NO_RET, LChown, lchown, const char *, path, uid_t, owner, gid_t, group)
 /* Intercept link */
 IC2_SIMPLE_2P(int, IC2_NO_RET, Link, link, const char *, oldpath, const char *, newpath)
 /* Intercept linkat */
 IC2_SIMPLE_5P(int, IC2_NO_RET, LinkAt, linkat, int, olddirfd, const char *, oldpath, int,
-	      newdirfd, const char *, newpath, int, flags)
+              newdirfd, const char *, newpath, int, flags)
 /* Intercept symlink */
 IC2_SIMPLE_2P(int, IC2_NO_RET, Symlink, symlink, const char *, oldpath, const char *, newpath)
 /* Intercept symlinkat */
@@ -189,7 +189,7 @@ IC2_SIMPLE_3P(int, IC2_NO_RET, ReadLinkAt, readlinkat, int, dirfd, const char *,
 /** Frontend for intercept_readlink and intercept_readlinkat */
 static void
 intercept_readlink_helper(int fd, const char *path, const char *buf,
-			  size_t len, ssize_t ret)
+                          size_t len, ssize_t ret)
 {
   char *ret_path;
   if ((ret >= 0) && (abs(ret) <= len)) {
@@ -319,13 +319,13 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
-#define IC2_WAIT_ACK {				\
-    SupervisorMsg sv_msg;			\
-    fb_recv_msg(sv_msg, fb_sv_conn);		\
-    if (!sv_msg.ack()) {			\
-      /* something unexpected happened ... */	\
-      assert(0);				\
-    }						\
+#define IC2_WAIT_ACK {                          \
+    SupervisorMsg sv_msg;                       \
+    fb_recv_msg(sv_msg, fb_sv_conn);            \
+    if (!sv_msg.ack()) {                        \
+      /* something unexpected happened ... */   \
+      assert(0);                                \
+    }                                           \
   }
 
 /* Intercept opendir */

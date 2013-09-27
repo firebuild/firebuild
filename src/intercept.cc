@@ -40,7 +40,7 @@ pthread_mutex_t ic_fd_states_lock;
 /* local declarations for original intercepted functions */
 #undef IC_VOID
 /* create ic_orig_... version of intercepted function */
-#define IC_VOID(ret_type, name, parameters, _body)	\
+#define IC_VOID(ret_type, name, parameters, _body)  \
   ret_type (*ic_orig_##name) parameters;
 
 /* we need to include every file using IC() macro to create ic_orig_... version

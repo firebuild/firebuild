@@ -3,730 +3,730 @@
 
 // Message for storing and retrieving the content of a file
 message FileContent {
-	required bytes sha1_hash = 1; // identifies the file content
-	required bytes content = 2; // fie content as raw bytes
+    required bytes sha1_hash = 1; // identifies the file content
+    required bytes content = 2; // fie content as raw bytes
 }
 
 // File state
 message File {
-	// identifies the file content, may be empty if file is not found
-	optional bytes sha1_hash = 1;
+    // identifies the file content, may be empty if file is not found
+    optional bytes sha1_hash = 1;
 
-	// TODO add alternate hash values generated after preprocessing the file
-	// with programs keeping the semantic content (e.g. removing white spaces)
-	//repeated AltHash alt_hash = 2;
+    // TODO add alternate hash values generated after preprocessing the file
+    // with programs keeping the semantic content (e.g. removing white spaces)
+    //repeated AltHash alt_hash = 2;
 
-	// file path, absolute or relative
-	optional string path = 3;
+    // file path, absolute or relative
+    optional string path = 3;
 
-	// last modification time
-	optional int64 mtime = 4;
+    // last modification time
+    optional int64 mtime = 4;
 
-	// file size, length in case of stdio
-	optional int64 size = 5;
+    // file size, length in case of stdio
+    optional int64 size = 5;
 
-	// TODO refine mode 
-	optional int32 mode = 6;
+    // TODO refine mode 
+    optional int32 mode = 6;
 }
 
 message Dir {
-	required string path = 1;
-	repeated string entry = 2;
+    required string path = 1;
+    repeated string entry = 2;
 }
 
 message EnvVar {
-	required string name = 1;
-	required string value = 2;
+    required string name = 1;
+    required string value = 2;
 }
 
 
 // interceptor library queries FireBuild supervisor if it can shotcut execution of the process
 message ShortCutProcessQuery {
-	// process id
-	optional int64 pid = 1;
-	// parent pid
-	optional int64 ppid = 2;
-	// working dir process started in
-	optional string cwd = 3;
-	// only argv, sending argc would be redundant
-	repeated string arg = 4;
-	// environment variables in unprocessed NAME=value form
-	repeated string env_var = 5;
-	// full path of the binary
-	optional string executable = 6;
-	// loaded shared libraries in the beginning
-	optional FileList libs = 7;
+    // process id
+    optional int64 pid = 1;
+    // parent pid
+    optional int64 ppid = 2;
+    // working dir process started in
+    optional string cwd = 3;
+    // only argv, sending argc would be redundant
+    repeated string arg = 4;
+    // environment variables in unprocessed NAME=value form
+    repeated string env_var = 5;
+    // full path of the binary
+    optional string executable = 6;
+    // loaded shared libraries in the beginning
+    optional FileList libs = 7;
 }
 
 // FireBuild supervisor's response with details of shortcutting
 message ShortCutProcessResp {
-	required bool shortcut = 1;
-	optional int64 exit_status = 2;
-	// makse sense only for shortcut = false
-	optional int32 debug_level = 3;
+    required bool shortcut = 1;
+    optional int64 exit_status = 2;
+    // makse sense only for shortcut = false
+    optional int32 debug_level = 3;
 }
 
 // Those function calls are not handled specially in interceptor lib and
 // are reported once per process to supervisor
 message GenericCall {
-	// function name
-	required string call = 1;
+    // function name
+    required string call = 1;
 }
 
 // FireBuild error
 message FBError {
-	// error message
-	required string msg = 1;
+    // error message
+    required string msg = 1;
 }
 // FireBuild debugging message
 message FBDebug {
-	// error message
-	required string msg = 1;
+    // error message
+    required string msg = 1;
 }
 
 message Fcntl {
-	// file descriptor
-	optional int32 fd = 1;
-	// command
-	optional int32 cmd = 2;
-	// arg, if present
-	optional int32 arg = 3;
-	// return value, depends on cmd
-	optional int32 ret = 4;
-	// error no., when ret = -1
-	optional int32 error_no = 5;
+    // file descriptor
+    optional int32 fd = 1;
+    // command
+    optional int32 cmd = 2;
+    // arg, if present
+    optional int32 arg = 3;
+    // return value, depends on cmd
+    optional int32 ret = 4;
+    // error no., when ret = -1
+    optional int32 error_no = 5;
 }
 
 message Open {
-	// file path
-	optional string	file = 2;
-	// flags, decoding is left for FireBuild supervisor
-	optional int32 flags = 3;
-	// mode, decoding is left for FireBuild supervisor
-	optional int32 mode = 4;
-	// return value, the file descriptor if != -1
-	optional int32 ret = 5;
-	// error no., when ret = -1
-	optional int32 error_no = 6;
+    // file path
+    optional string    file = 2;
+    // flags, decoding is left for FireBuild supervisor
+    optional int32 flags = 3;
+    // mode, decoding is left for FireBuild supervisor
+    optional int32 mode = 4;
+    // return value, the file descriptor if != -1
+    optional int32 ret = 5;
+    // error no., when ret = -1
+    optional int32 error_no = 6;
 }
 
 message FOpen {
-	// file path
-	optional string	filename = 1;
-	// modes, decoding is left for FireBuild supervisor
-	optional string modes = 2;
-	// return value, the file descriptor if != -1
-	optional int32 ret = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file path
+    optional string    filename = 1;
+    // modes, decoding is left for FireBuild supervisor
+    optional string modes = 2;
+    // return value, the file descriptor if != -1
+    optional int32 ret = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message OpenDir {
-	// path
-	optional string	name = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // path
+    optional string    name = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message FDOpenDir {
-	// file descriptor
-	optional int32 fd = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // file descriptor
+    optional int32 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message FReOpen {
-	// file path
-	optional string	filename = 1;
-	// modes, decoding is left for FireBuild supervisor
-	optional string modes = 2;
-	// file descriptor associated to the stream to be reopened
-	optional int32 fd = 3;
-	// return value, the file descriptor if != -1
-	optional int32 ret = 4;
-	// error no., when ret = -1
-	optional int32 error_no = 5;
+    // file path
+    optional string    filename = 1;
+    // modes, decoding is left for FireBuild supervisor
+    optional string modes = 2;
+    // file descriptor associated to the stream to be reopened
+    optional int32 fd = 3;
+    // return value, the file descriptor if != -1
+    optional int32 ret = 4;
+    // error no., when ret = -1
+    optional int32 error_no = 5;
 }
 
 message OpenFileResp {
-	// true if interceptor library needs to collect file state and send back
-	// to supervisor
-	optional bool collect_state = 1;
+    // true if interceptor library needs to collect file state and send back
+    // to supervisor
+    optional bool collect_state = 1;
 }
 
 message Creat {
-	// file path
-	optional string	file = 2;
-	// mode, decoding is left for FireBuild supervisor
-	optional int32 mode = 4;
-	// return value, the file descriptor if != -1
-	optional int32 ret = 5;
-	// error no., when ret = -1
-	optional int32 error_no = 6;
+    // file path
+    optional string    file = 2;
+    // mode, decoding is left for FireBuild supervisor
+    optional int32 mode = 4;
+    // return value, the file descriptor if != -1
+    optional int32 ret = 5;
+    // error no., when ret = -1
+    optional int32 error_no = 6;
 }
 
 message GetCwd {
-	// result directory
-	optional string	ret = 1;
-	// error no., when ret = NULL
-	optional int32 error_no = 2;
+    // result directory
+    optional string    ret = 1;
+    // error no., when ret = NULL
+    optional int32 error_no = 2;
 }
 
 message ChDir {
-	// directory path
-	optional string	dir = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // directory path
+    optional string    dir = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message FChDir {
-	// directory fd
-	optional int64 dir = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // directory fd
+    optional int64 dir = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message UnLink {
-	// path name
-	optional string path = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // path name
+    optional string path = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message ReadLink {
-	// path name
-	optional string path = 1;
-	// returned path
-	optional string ret_path = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // path name
+    optional string path = 1;
+    // returned path
+    optional string ret_path = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message ReadLinkAt {
-	// dir file descriptor
-	optional int64 dirfd = 1;
-	// path name
-	optional string path = 2;
-	// returned path
-	optional string ret_path = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // dir file descriptor
+    optional int64 dirfd = 1;
+    // path name
+    optional string path = 2;
+    // returned path
+    optional string ret_path = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message Remove {
-	// path to file
-	optional string filename = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // path to file
+    optional string filename = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message Rename {
-	// path to old file
-	optional string oldpath = 1;
-	// path to new file
-	optional string newpath = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // path to old file
+    optional string oldpath = 1;
+    // path to new file
+    optional string newpath = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message RenameAt {
-	// old dir file descriptor
-	optional int32 oldfd = 1;
-	// path to old file
-	optional string oldpath = 2;
-	// new dir file descriptor
-	optional int32 newfd = 3;
-	// path to new file
-	optional string newpath = 4;
-	// error no., when ret = -1
-	optional int32 error_no = 5;
+    // old dir file descriptor
+    optional int32 oldfd = 1;
+    // path to old file
+    optional string oldpath = 2;
+    // new dir file descriptor
+    optional int32 newfd = 3;
+    // path to new file
+    optional string newpath = 4;
+    // error no., when ret = -1
+    optional int32 error_no = 5;
 }
 
 message Access {
-	// path to file
-	optional string pathname = 1;
-	// acess mode
-	optional int32 mode = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // path to file
+    optional string pathname = 1;
+    // acess mode
+    optional int32 mode = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message EAccess {
-	// path to file
-	optional string pathname = 1;
-	// access mode
-	optional int32 mode = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // path to file
+    optional string pathname = 1;
+    // access mode
+    optional int32 mode = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message FAccessAt {
-	// dir file descriptor
-	optional int64 dirfd = 1;
-	// path to file
-	optional string pathname = 2;
-	// access mode
-	optional int32 mode = 3;
-	// flags
-	optional int32 flags = 4;
-	// error no., when ret = -1
-	optional int32 error_no = 5;
+    // dir file descriptor
+    optional int64 dirfd = 1;
+    // path to file
+    optional string pathname = 2;
+    // access mode
+    optional int32 mode = 3;
+    // flags
+    optional int32 flags = 4;
+    // error no., when ret = -1
+    optional int32 error_no = 5;
 }
 
 message RmDir {
-	// dir path
-	optional string dir = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // dir path
+    optional string dir = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message Close {
-	// file descriptor
-	optional int64 fd = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // file descriptor
+    optional int64 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 message FCloseAll {
-	// error no., when ret = -1
-	optional int32 error_no = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 1;
 }
 
 message Chown {
-	// file path
-	optional string path = 1;
-	// uid
-	optional int32 owner = 2;
-	// gid
-	optional int32 group = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file path
+    optional string path = 1;
+    // uid
+    optional int32 owner = 2;
+    // gid
+    optional int32 group = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message FChown {
-	// file descriptor
-	optional int64 fd = 1;
-	// uid
-	optional int32 owner = 2;
-	// gid
-	optional int32 group = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file descriptor
+    optional int64 fd = 1;
+    // uid
+    optional int32 owner = 2;
+    // gid
+    optional int32 group = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message FChownAt {
-	// dir file descriptor
-	optional int64 dirfd = 1;
-	// file path
-	optional string path = 2;
-	// uid
-	optional int32 owner = 3;
-	// gid
-	optional int32 group = 4;
-	// flags
-	optional int32 flags = 5;
-	// error no., when ret = -1
-	optional int32 error_no = 6;
+    // dir file descriptor
+    optional int64 dirfd = 1;
+    // file path
+    optional string path = 2;
+    // uid
+    optional int32 owner = 3;
+    // gid
+    optional int32 group = 4;
+    // flags
+    optional int32 flags = 5;
+    // error no., when ret = -1
+    optional int32 error_no = 6;
 }
 
 message LChown {
-	// file path
-	optional string path = 1;
-	// uid
-	optional int32 owner = 2;
-	// gid
-	optional int32 group = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file path
+    optional string path = 1;
+    // uid
+    optional int32 owner = 2;
+    // gid
+    optional int32 group = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message UnLinkAt {
-	// dir fd
-	optional int32 dirfd = 1;
-	// path name
-	optional string pathname = 2;
-	// flags
-	optional int32 flags = 3;
-	// error qno., when ret = -1
-	optional int32 error_no = 4;
+    // dir fd
+    optional int32 dirfd = 1;
+    // path name
+    optional string pathname = 2;
+    // flags
+    optional int32 flags = 3;
+    // error qno., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message Link {
-	// old file path
-	optional string oldpath = 1;
-	// new file path
-	optional string newpath = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // old file path
+    optional string oldpath = 1;
+    // new file path
+    optional string newpath = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message LinkAt {
-	// old dir fd
-	optional int32 olddirfd = 1;
-	// old file path
-	optional string oldpath = 2;
-	// new dir fd
-	optional int32 newdirfd = 3;
-	// new file path
-	optional string newpath = 4;
-	// flags
-	optional int32 flags = 5;
-	// error no., when ret = -1
-	optional int32 error_no = 6;
+    // old dir fd
+    optional int32 olddirfd = 1;
+    // old file path
+    optional string oldpath = 2;
+    // new dir fd
+    optional int32 newdirfd = 3;
+    // new file path
+    optional string newpath = 4;
+    // flags
+    optional int32 flags = 5;
+    // error no., when ret = -1
+    optional int32 error_no = 6;
 }
 
 message Symlink {
-	// old file path
-	optional string oldpath = 1;
-	// new file path
-	optional string newpath = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // old file path
+    optional string oldpath = 1;
+    // new file path
+    optional string newpath = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message SymlinkAt {
-	// old file path
-	optional string oldpath = 1;
-	// new dir fd
-	optional int32 newdirfd = 2;
-	// new file path
-	optional string newpath = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // old file path
+    optional string oldpath = 1;
+    // new dir fd
+    optional int32 newdirfd = 2;
+    // new file path
+    optional string newpath = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message LockF {
-	// file fd
-	optional int32 fd = 1;
-	// lock command
-	optional int32 cmd = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file fd
+    optional int32 fd = 1;
+    // lock command
+    optional int32 cmd = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message UTime {
-	// file name
-	optional string file = 1;
-	// it was actually lutime(), so don't follow symlink
-	optional bool link = 2;
-	// ..at(), like utimensat
-	optional int32 at = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file name
+    optional string file = 1;
+    // it was actually lutime(), so don't follow symlink
+    optional bool link = 2;
+    // ..at(), like utimensat
+    optional int32 at = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message FUTime {
-	// file fd
-	optional int32 fd = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 2;
+    // file fd
+    optional int32 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
 }
 
 // pipe2() with flags = 0 is equivalent to pipe()
 message Pipe2 {
-	// pipe fd[0]
-	optional int32 pipefd0 = 1;
-	// pipe fd[1]
-	optional int32 pipefd1 = 2;
-	// flags
-	optional int32 flags = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // pipe fd[0]
+    optional int32 pipefd0 = 1;
+    // pipe fd[1]
+    optional int32 pipefd1 = 2;
+    // flags
+    optional int32 flags = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message Dup {
-	// old file fd
-	optional int32 oldfd = 1;
-	// new fd
-	optional int32 ret = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // old file fd
+    optional int32 oldfd = 1;
+    // new fd
+    optional int32 ret = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message Dup3 {
-	// old file fd
-	optional int32 oldfd = 1;
-	// new file fd
-	optional int32 newfd = 2;
-	// flags
-	optional int32 flags = 3;
-	// new fd returned
-	optional int32 ret = 4;
-	// error no., when ret = -1
-	optional int32 error_no = 5;
+    // old file fd
+    optional int32 oldfd = 1;
+    // new file fd
+    optional int32 newfd = 2;
+    // flags
+    optional int32 flags = 3;
+    // new fd returned
+    optional int32 ret = 4;
+    // error no., when ret = -1
+    optional int32 error_no = 5;
 }
 
 message DLOpen {
-	// file path
-	optional string	filename = 1;
-	// flag, decoding is left for FireBuild supervisor
-	optional int32 flag = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // file path
+    optional string    filename = 1;
+    // flag, decoding is left for FireBuild supervisor
+    optional int32 flag = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message ExecV {
-	// file to execute
-	optional string file = 1;
-	// file fd to execute, in case of fexecve()
-	optional int32 fd = 2;
-	// argv[]
-	repeated string arg = 3;
-	// envp[] in case of execve()/execvpe() it is passed as parameter
-	repeated string env = 4;
-	// true, in case of execvp()/execvpe()
-	optional bool with_p = 5;
-	// PATH , or confstr(_CS_PATH), if PATH is not set
-	optional string path = 6;
+    // file to execute
+    optional string file = 1;
+    // file fd to execute, in case of fexecve()
+    optional int32 fd = 2;
+    // argv[]
+    repeated string arg = 3;
+    // envp[] in case of execve()/execvpe() it is passed as parameter
+    repeated string env = 4;
+    // true, in case of execvp()/execvpe()
+    optional bool with_p = 5;
+    // PATH , or confstr(_CS_PATH), if PATH is not set
+    optional string path = 6;
 }
 
 message ExecVFailed {
-	// process id
-	optional int64 pid = 1;
-	// error no., when ret = -1
-	required int32 error_no = 5;
+    // process id
+    optional int64 pid = 1;
+    // error no., when ret = -1
+    required int32 error_no = 5;
 }
 
 message Process {
-	// process id
-	optional int64 pid = 23;
-	// SHA1 sum of process and children
-	optional bytes sha1_id = 24;
-	// program file
-	required File executable = 6;
+    // process id
+    optional int64 pid = 23;
+    // SHA1 sum of process and children
+    optional bytes sha1_id = 24;
+    // program file
+    required File executable = 6;
 
-	// command parameters, starting with name of the command
-	repeated string command = 8;
+    // command parameters, starting with name of the command
+    repeated string command = 8;
 
-	required string exec_dir = 7;
+    required string exec_dir = 7;
 
-	// exit status of the process
-	optional int32 exit_status = 4;
+    // exit status of the process
+    optional int32 exit_status = 4;
 
-	// special purpose file descriptors, not having file name
-	optional File stdin = 16;
-	optional File stdout = 17;
-	optional File stderr = 18;
+    // special purpose file descriptors, not having file name
+    optional File stdin = 16;
+    optional File stdout = 17;
+    optional File stderr = 18;
 
-	// all files read by the process
-	repeated File file_read = 1;
+    // all files read by the process
+    repeated File file_read = 1;
 
-	// all files written by the process
-	repeated File file_written = 2;
+    // all files written by the process
+    repeated File file_written = 2;
 
-	// files not found by the process
-	// if any of those files are present, the result may change
-	repeated File file_not_found = 3;
+    // files not found by the process
+    // if any of those files are present, the result may change
+    repeated File file_not_found = 3;
 
-	repeated File file_perm_denied = 20;
+    repeated File file_perm_denied = 20;
 
-	repeated Dir dir_listed = 21;
+    repeated Dir dir_listed = 21;
 
-	repeated EnvVar env_var = 19;
+    repeated EnvVar env_var = 19;
 
-	// child processes referenced by SHA1
-	repeated bytes child_sha1 = 5;
-	// TODO
-	// signals?
-	//
+    // child processes referenced by SHA1
+    repeated bytes child_sha1 = 5;
+    // TODO
+    // signals?
+    //
 }
 
 message Sysconf {
-	// name
-	optional int64 name = 1;
-	// value
-	optional int64 ret = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // name
+    optional int64 name = 1;
+    // value
+    optional int64 ret = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message GetHostname {
-	// name
-	optional string name = 1;
-	// value
-	optional int64 len = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // name
+    optional string name = 1;
+    // value
+    optional int64 len = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message GetDomainname {
-	// name
-	optional string name = 1;
-	// value
-	optional int64 len = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // name
+    optional string name = 1;
+    // value
+    optional int64 len = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message Truncate {
-	// name
-	optional string path = 1;
-	// lenght
-	optional int64 len = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // name
+    optional string path = 1;
+    // lenght
+    optional int64 len = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message FTruncate {
-	// file fd
-	optional int32 fd = 1;
-	// lenght
-	optional int64 len = 2;
-	// error no., when ret = -1
-	optional int32 error_no = 3;
+    // file fd
+    optional int32 fd = 1;
+    // lenght
+    optional int64 len = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
 }
 
 message PathConf {
-	// path name
-	optional string path = 1;
-	// option name
-	optional int32 name = 2;
-	// option value
-	optional int64 ret = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // path name
+    optional string path = 1;
+    // option name
+    optional int32 name = 2;
+    // option value
+    optional int64 ret = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message FPathConf {
-	// file fd
-	optional int32 fd = 1;
-	// option name
-	optional int32 name = 2;
-	// option value
-	optional int64 ret = 3;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file fd
+    optional int32 fd = 1;
+    // option name
+    optional int32 name = 2;
+    // option value
+    optional int64 ret = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message Read {
-	// file fd
-	required int32 fd = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file fd
+    required int32 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message Write {
-	// file fd
-	required int32 fd = 1;
-	// error no., when ret = -1
-	optional int32 error_no = 4;
+    // file fd
+    required int32 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
 }
 
 message FileList {
-	repeated string file = 1;
+    repeated string file = 1;
 }
 
 message DLClose {
-	// loaded shared libraries before dlclose
-	optional FileList libs = 1;
+    // loaded shared libraries before dlclose
+    optional FileList libs = 1;
 }
 message Exit {
-	// exit status of the process
-	required int32 exit_status = 1;
-	// user CPU time in milliseconds
-	required int64 utime_m = 2;
-	// system CPU time in milliseconds
-	required int64 stime_m = 3;
-	// loaded shared libraries at exit
-	optional FileList libs = 4;
+    // exit status of the process
+    required int32 exit_status = 1;
+    // user CPU time in milliseconds
+    required int64 utime_m = 2;
+    // system CPU time in milliseconds
+    required int64 stime_m = 3;
+    // loaded shared libraries at exit
+    optional FileList libs = 4;
 }
 
 // fork()'s child
 message ForkChild {
-	// process id
-	required int64 pid = 1;
-	// process parent id
-	required int64 ppid = 2;
+    // process id
+    required int64 pid = 1;
+    // process parent id
+    required int64 ppid = 2;
 }
 
 // process calling fork()
 message ForkParent {
-	// process id
-	required int64 pid = 1;
-	// child's process id
-	required int64 child_pid = 2;
+    // process id
+    required int64 pid = 1;
+    // child's process id
+    required int64 child_pid = 2;
 }
 
 message LAObjSearch {
-	// file name
-	required string name = 1;
-	// search flag
-	required int32 flag = 2;
+    // file name
+    required string name = 1;
+    // search flag
+    required int32 flag = 2;
 }
 
 message LAObjOpen {
-	// file name
-	required string name = 1;
+    // file name
+    required string name = 1;
 }
 
 // wrapper for messages supervisor can send
 message SupervisorMsg {
-	optional ShortCutProcessResp scproc_resp= 1;
-	optional OpenFileResp open_file_resp = 2;
-	// simple ack for interceptor messages
-	optional bool ack = 3;
+    optional ShortCutProcessResp scproc_resp= 1;
+    optional OpenFileResp open_file_resp = 2;
+    // simple ack for interceptor messages
+    optional bool ack = 3;
 }
 
 // wrapper for messages interceptor can send
 message InterceptorMsg {
-	optional ShortCutProcessQuery scproc_query = 1;
-	optional Open open = 2;
-	optional Creat creat = 3;
-	optional Close close = 4;
-	optional Process proc = 5;
-	optional GenericCall gen_call = 6;
-	optional Exit exit = 7;
-	optional ForkChild fork_child = 8;
-	optional ForkParent fork_parent = 9;
-	optional GetCwd getcwd = 10;
-	optional ChDir chdir = 11;
-	optional FChDir fchdir = 12;
-	optional UnLink unlink = 13;
-	optional RmDir rmdir = 14;
-	optional Chown chown = 15;
-	optional FChown fchown = 16;
-	optional FChownAt fchownat = 17;
-	optional LChown lchown = 18;
-	optional UnLinkAt unlinkat = 19;
-	optional Link link = 20;
-	optional LinkAt linkat = 21;
-	optional Symlink symlink = 22;
-	optional SymlinkAt symlinkat = 23;
-	optional LockF lockf = 24;
-	optional Pipe2 pipe2 = 25;
-	optional Sysconf sysconf = 26;
-	optional Dup dup = 27;
-	optional Dup3 dup3 = 28;
-	optional ReadLink readlink = 29;
-	optional ReadLinkAt readlinkat = 30;
-	optional Access access = 31;
-	optional EAccess eaccess = 32;
-	optional FAccessAt faccessat = 33;
-	optional ExecV execv = 34;
-	optional ExecVFailed execvfailed = 35;
-	optional GetHostname gethostname = 36;
-	optional GetDomainname getdomainname = 37;
-	optional Truncate truncate = 38;
-	optional FTruncate ftruncate = 39;
-	optional PathConf pathconf = 40;
-	optional FPathConf fpathconf = 41;
-	optional Read read = 42;
-	optional Write write = 43;
-	optional Remove remove = 44;
-	optional Rename rename = 45;
-	optional RenameAt renameat = 46;
-	optional DLOpen dlopen = 47;
-	optional FOpen fopen = 48;
-	optional FReOpen freopen = 49;
-	optional FCloseAll fcloseall = 50;
-	optional LAObjSearch la_objsearch = 51;
-	optional LAObjOpen la_objopen = 52;
-	optional DLClose dlclose = 53;
-	optional OpenDir opendir = 54;
-	optional UTime utime = 55;
-	optional FUTime futime = 56;
-	optional FBError fb_error = 57;
-	optional FBDebug fb_debug = 58;
-	optional FDOpenDir fdopendir = 59;
-	optional Fcntl fcntl = 60;
+    optional ShortCutProcessQuery scproc_query = 1;
+    optional Open open = 2;
+    optional Creat creat = 3;
+    optional Close close = 4;
+    optional Process proc = 5;
+    optional GenericCall gen_call = 6;
+    optional Exit exit = 7;
+    optional ForkChild fork_child = 8;
+    optional ForkParent fork_parent = 9;
+    optional GetCwd getcwd = 10;
+    optional ChDir chdir = 11;
+    optional FChDir fchdir = 12;
+    optional UnLink unlink = 13;
+    optional RmDir rmdir = 14;
+    optional Chown chown = 15;
+    optional FChown fchown = 16;
+    optional FChownAt fchownat = 17;
+    optional LChown lchown = 18;
+    optional UnLinkAt unlinkat = 19;
+    optional Link link = 20;
+    optional LinkAt linkat = 21;
+    optional Symlink symlink = 22;
+    optional SymlinkAt symlinkat = 23;
+    optional LockF lockf = 24;
+    optional Pipe2 pipe2 = 25;
+    optional Sysconf sysconf = 26;
+    optional Dup dup = 27;
+    optional Dup3 dup3 = 28;
+    optional ReadLink readlink = 29;
+    optional ReadLinkAt readlinkat = 30;
+    optional Access access = 31;
+    optional EAccess eaccess = 32;
+    optional FAccessAt faccessat = 33;
+    optional ExecV execv = 34;
+    optional ExecVFailed execvfailed = 35;
+    optional GetHostname gethostname = 36;
+    optional GetDomainname getdomainname = 37;
+    optional Truncate truncate = 38;
+    optional FTruncate ftruncate = 39;
+    optional PathConf pathconf = 40;
+    optional FPathConf fpathconf = 41;
+    optional Read read = 42;
+    optional Write write = 43;
+    optional Remove remove = 44;
+    optional Rename rename = 45;
+    optional RenameAt renameat = 46;
+    optional DLOpen dlopen = 47;
+    optional FOpen fopen = 48;
+    optional FReOpen freopen = 49;
+    optional FCloseAll fcloseall = 50;
+    optional LAObjSearch la_objsearch = 51;
+    optional LAObjOpen la_objopen = 52;
+    optional DLClose dlclose = 53;
+    optional OpenDir opendir = 54;
+    optional UTime utime = 55;
+    optional FUTime futime = 56;
+    optional FBError fb_error = 57;
+    optional FBDebug fb_debug = 58;
+    optional FDOpenDir fdopendir = 59;
+    optional Fcntl fcntl = 60;
 }

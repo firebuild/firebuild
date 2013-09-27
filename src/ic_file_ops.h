@@ -52,39 +52,39 @@ IC_GENERIC(int, fcntl, (int fd, int cmd, ...), {
  * mode is filled based on presence of O_CREAT flag
  */
 #define IC_OPEN_VA(ret_type, name, parameters, body)	\
-  IC(ret_type, name, parameters,			\
-     {							\
-       mode_t mode = 0;					\
-       if (oflag & O_CREAT) {				\
-	 va_list ap;					\
-	 va_start(ap, oflag);				\
-	 mode = va_arg(ap, mode_t);			\
-	 va_end(ap);					\
-       }						\
-							\
-       body;						\
-       intercept_open(file, oflag, mode, ret);		\
-       clear_file_state(ret);				\
+  IC(ret_type, name, parameters,                        \
+     {                                                  \
+       mode_t mode = 0;                                 \
+       if (oflag & O_CREAT) {                           \
+         va_list ap;                                    \
+         va_start(ap, oflag);                           \
+         mode = va_arg(ap, mode_t);                     \
+         va_end(ap);                                    \
+       }                                                \
+                                                        \
+       body;                                            \
+       intercept_open(file, oflag, mode, ret);          \
+       clear_file_state(ret);                           \
      })
 
 
 IC_OPEN_VA(int, open, (const char *file, int oflag, ...),
-	   {ret = orig_fn(file, oflag, mode);})
+           {ret = orig_fn(file, oflag, mode);})
 
 IC_OPEN_VA(int, open64, (const char *file, int oflag, ...),
-	   {ret = orig_fn(file, oflag, mode);})
+           {ret = orig_fn(file, oflag, mode);})
 
 IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
-	   {ret = orig_fn(fd, file, oflag, mode);})
+           {ret = orig_fn(fd, file, oflag, mode);})
 
 IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
-	   {ret = orig_fn(fd, file, oflag, mode);})
+           {ret = orig_fn(fd, file, oflag, mode);})
 
-#define IC_CREATE(name)					\
+#define IC_CREATE(name)                             \
   IC(int, name, (const char *file, mode_t mode), {	\
-      ret = orig_fn(file, mode);			\
-      intercept_creat(file, mode, ret);			\
-      clear_file_state(ret);				\
+      ret = orig_fn(file, mode);                    \
+      intercept_creat(file, mode, ret);             \
+      clear_file_state(ret);                        \
     })
 
 IC_CREATE(creat)
@@ -92,8 +92,8 @@ IC_CREATE(creat64)
 
 /* libc internal */
 IC(int, __libc_start_main, (int (*main) (int, char **, char **),
-			    int argc, char **ubp_av,
-			    void (*init) (void), void (*fini) (void),
+                            int argc, char **ubp_av,
+                            void (*init) (void), void (*fini) (void),
                             void (*rtld_fini) (void), void (* stack_end)), {
      char * main_and_argv[2];
      main_and_argv[0] = (char *)main;
@@ -155,15 +155,15 @@ IC(int, pipe2, (int pipedes[2], int flags), {
 // TODO those may affect output if the process measures time that way
 // usually the calls can be ignored
 IC_GENERIC(unsigned int, alarm, (unsigned int seconds),
-	   {ret = orig_fn(seconds);})
+           {ret = orig_fn(seconds);})
 IC_GENERIC(unsigned int, sleep, (unsigned int seconds),
-	   {ret = orig_fn(seconds);})
+           {ret = orig_fn(seconds);})
 IC_GENERIC(useconds_t, ualarm, (useconds_t value, useconds_t interval),
-	   {ret = orig_fn(value, interval);})
+           {ret = orig_fn(value, interval);})
 IC_GENERIC(int, usleep, (useconds_t useconds),
-	   {ret = orig_fn(useconds);})
+           {ret = orig_fn(useconds);})
 IC_GENERIC(int, pause, (void),
-	   {ret = orig_fn();})
+           {ret = orig_fn();})
 
 // TODO finish
 IC(int, chown, (const char *file, uid_t owner, gid_t group), {
@@ -180,7 +180,7 @@ IC(int, lchown, (const char *file, uid_t owner, gid_t group), {
     intercept_lchown(file, owner, group, ret);
   })
 IC(int, fchownat, (int fd, const char *file, uid_t owner,
-		   gid_t group, int flag), {
+                   gid_t group, int flag), {
      ret = orig_fn(fd, file, owner, group, flag);
      intercept_fchownat(fd, file, owner, group, flag, ret);
    })
@@ -257,7 +257,7 @@ IC(int, execvp, (const char *file, char *const argv[]), {
   })
 
 IC(int, execvpe, (const char *file, char *const argv[],
-		  char *const envp[]), {
+                  char *const envp[]), {
      intercept_execve(true, file, -1, argv, envp);
      ret = orig_fn(file, argv, envp);
      init_supervisor_conn();
@@ -363,7 +363,7 @@ IC_GENERIC(int, ttyname_r, (int fd, char *buf, size_t buflen),
 IC(int, link, (const char *from, const char *to),
    {ret = orig_fn(from, to); intercept_link(from, to, ret);})
 IC(int, linkat, (int fromfd, const char *from, int tofd,
-		 const char *to, int flags),
+                 const char *to, int flags),
    {
      ret = orig_fn(fromfd, from, tofd, to, flags);
      intercept_linkat(fromfd, from, tofd, to, flags, ret);
@@ -371,7 +371,7 @@ IC(int, linkat, (int fromfd, const char *from, int tofd,
 IC(int, symlink, (const char *from, const char *to),
    {ret = orig_fn(from, to); intercept_symlink(from, to, ret);})
 IC(ssize_t, readlink, (const char *path,
-		       char *buf, size_t len), {
+                       char *buf, size_t len), {
      ret = orig_fn(path, buf, len);
      intercept_readlink_helper(-1, path, buf, len, ret);
    })
@@ -380,7 +380,7 @@ IC(int, symlinkat, (const char *from, int tofd, const char *to),
      intercept_symlinkat( from, tofd, to, ret);
    })
 IC(ssize_t, readlinkat, (int dirfd, const char *path,
-			 char *buf, size_t len), {
+                         char *buf, size_t len), {
      ret = orig_fn(dirfd, path, buf, len);
      intercept_readlink_helper(dirfd, path, buf, len, ret);
    })
@@ -428,7 +428,7 @@ IC_GENERIC(int, vhangup, (void),
 IC_GENERIC(int, revoke, (const char *file),
            {ret = orig_fn(file);})
 IC_GENERIC(int, profil, (unsigned short int *sample_buffer, size_t size,
-			 size_t offset, unsigned int scale),
+                         size_t offset, unsigned int scale),
            {ret = orig_fn(sample_buffer, size, offset, scale);})
 IC_GENERIC(int, acct, (const char *filename),
            {ret = orig_fn(filename);})
@@ -436,9 +436,9 @@ IC_GENERIC(int, acct, (const char *filename),
 IC_GENERIC(char*, getusershell, (void),
            {ret = orig_fn();})
 IC_GENERIC_VOID(void, endusershell, (void),
-		{orig_fn();})
+                {orig_fn();})
 IC_GENERIC_VOID(void, setusershell, (void),
-		{orig_fn();})
+                {orig_fn();})
 
 IC_GENERIC(int, daemon, (int nochdir, int noclose),
            {ret = orig_fn(nochdir, noclose);})
@@ -506,11 +506,11 @@ IC_GENERIC(int, stat64, (const char *file, struct stat64 *buf), {
 IC_GENERIC(int, fstat64, (int fd, struct stat64 *buf), {
     ret = orig_fn(fd, buf); /*intercept_fstat64(fd, buf, ret);*/})
 IC_GENERIC(int, fstatat, (int fd, const char * file,
-			  struct stat *buf, int flag), {
-	     ret = orig_fn(fd, file, buf, flag); /*intercept_();*/})
+                          struct stat *buf, int flag), {
+             ret = orig_fn(fd, file, buf, flag); /*intercept_();*/})
 IC_GENERIC(int, fstatat64, (int fd, const char * file,
-			    struct stat64 *buf, int flag), {
-	     ret = orig_fn(fd, file, buf, flag); /*intercept_();*/})
+                            struct stat64 *buf, int flag), {
+             ret = orig_fn(fd, file, buf, flag); /*intercept_();*/})
 IC_GENERIC(int, lstat, (const char *file, struct stat *buf), {
     ret = orig_fn(file, buf); /*intercept_lstat(file, buf, ret);*/})
 IC_GENERIC(int, lstat64, (const char *file, struct stat64 *buf), {
@@ -541,7 +541,7 @@ IC_GENERIC(int, mkfifo, (const char *path, mode_t mode), {
 IC_GENERIC(int, mkfifoat, (int fd, const char *path, mode_t mode), {
     ret = orig_fn(fd, path, mode); /*intercept_();*/})
 IC(int, utimensat, (int fd, const char *path, const struct timespec times[2],
-		    int flags), {
+                    int flags), {
      ret = orig_fn(fd, path, times, flags);
      intercept_utime(fd, path, (flags & AT_SYMLINK_NOFOLLOW)?true:false, ret);})
 IC(int, futimens, (int fd, const struct timespec times[2]), {
@@ -553,8 +553,8 @@ IC_GENERIC(int, __xstat, (int ver, const char *filename, struct stat *stat_buf),
 IC_GENERIC(int, __lxstat, (int ver, const char *filename, struct stat *stat_buf), {
     ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
 IC_GENERIC(int, __fxstatat, (int ver, int fildes, const char *filename,
-			     struct stat *stat_buf, int flag), {
-	     ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
+                             struct stat *stat_buf, int flag), {
+             ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
 IC_GENERIC(int, __fxstat64, (int ver, int fildes, struct stat64 *stat_buf), {
     ret = orig_fn(ver, fildes, stat_buf); /*intercept_();*/})
 IC_GENERIC(int, __xstat64, (int ver, const char *filename, struct stat64 *stat_buf), {
@@ -562,13 +562,13 @@ IC_GENERIC(int, __xstat64, (int ver, const char *filename, struct stat64 *stat_b
 IC_GENERIC(int, __lxstat64, (int ver, const char *filename, struct stat64 *stat_buf), {
     ret = orig_fn(ver, filename, stat_buf); /*intercept_();*/})
 IC_GENERIC(int, __fxstatat64, (int ver, int fildes, const char *filename,
-			       struct stat64 *stat_buf, int flag), {
-	     ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
+                               struct stat64 *stat_buf, int flag), {
+             ret = orig_fn(ver, fildes, filename, stat_buf, flag); /*intercept_();*/})
 IC_GENERIC(int, xmknod, (int ver, const char *path, mode_t mode, dev_t *dev), {
     ret = orig_fn(ver, path, mode, dev); /*intercept_();*/})
 IC_GENERIC(int, xmknodat, (int ver, int fd, const char *path,
-			   mode_t mode, dev_t *dev), {
-	     ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
+                           mode_t mode, dev_t *dev), {
+             ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
 
 // TODO finish stdio.h
 IC(int, remove, (const char *filename), {
@@ -619,32 +619,32 @@ IC_GENERIC(struct dirent *, readdir, (DIR *dirp),
 IC_GENERIC(struct dirent64 *, readdir64, (DIR *dirp),
            {ret = orig_fn(dirp);})
 IC_GENERIC(int, readdir_r, (DIR *dirp, struct dirent *entry,
-			    struct dirent **result),
+                            struct dirent **result),
            {ret = orig_fn(dirp, entry, result);})
 IC_GENERIC(int, readdir64_r, (DIR *dirp, struct dirent64 *entry,
-			      struct dirent64 **result),
+                              struct dirent64 **result),
            {ret = orig_fn(dirp, entry, result);})
 IC_GENERIC_VOID(void, rewinddir, (DIR *dirp),
-		{orig_fn(dirp);})
+                {orig_fn(dirp);})
 IC_GENERIC_VOID(void, seekdir, (DIR *dirp, long int pos),
-		{orig_fn(dirp, pos);})
+                {orig_fn(dirp, pos);})
 IC_GENERIC(long int, telldir, (DIR *dirp),
            {ret = orig_fn(dirp);})
 IC_GENERIC(int, dirfd, (DIR *dirp),
            {ret = orig_fn(dirp);})
 // ignore scandir scandir64 alphasort
 IC_GENERIC(ssize_t, getdirentries, (int fd, char *buf, size_t nbytes,
-				    off_t *basep),
+                                    off_t *basep),
            {ret = orig_fn(fd, buf, nbytes, basep);})
 IC_GENERIC(ssize_t, getdirentries64, (int fd, char *buf, size_t nbytes,
-				      off64_t *basep),
+                                      off64_t *basep),
            {ret = orig_fn(fd, buf, nbytes, basep);})
 // ignore versionsort versionsort64
 
 
 /** generate two intercepted functions, one for name and one for name_unlocked */
 #define IC_WITH_UNLOCKED(ret_type, name, parameters, body)	\
-  IC(ret_type, name, parameters, body)				\
+  IC(ret_type, name, parameters, body)                      \
   IC(ret_type, name##_unlocked, parameters, body)
 
 IC_WITH_UNLOCKED(size_t, fread, (void *ptr, size_t size, size_t nmemb, FILE *stream),{
@@ -726,25 +726,25 @@ IC_GENERIC(int, socketpair, (int domain, int type, int protocol,int sv[2]),
 IC_GENERIC(int, bind, (int fd, const struct sockaddr *addr, socklen_t len),
            {ret = orig_fn(fd, addr, len);})
 IC_GENERIC(int, getsockname, (int fd, struct sockaddr *addr, socklen_t *addrlen),
-	   {ret = orig_fn(fd, addr, addrlen);})
+           {ret = orig_fn(fd, addr, addrlen);})
 IC_GENERIC(int, connect, (int fd, const struct sockaddr *addr, socklen_t len),
            {ret = orig_fn(fd, addr, len);})
 IC_GENERIC(int, getpeername, (int fd, struct sockaddr *addr, socklen_t *addrlen),
-	   {ret = orig_fn(fd, addr, addrlen);})
+           {ret = orig_fn(fd, addr, addrlen);})
 IC_GENERIC(ssize_t, send, (int fd, const void *buf, size_t n, int flags),
            {ret = orig_fn(fd, buf, n, flags);})
 IC_GENERIC(ssize_t, recv, (int fd, void *buf, size_t n, int flags),
            {ret = orig_fn(fd, buf, n, flags);})
 IC_GENERIC(ssize_t, sendto, (int fd, const void *buf, size_t n, int flags,
-			     const struct sockaddr *dest_addr, socklen_t addrlen),
+                             const struct sockaddr *dest_addr, socklen_t addrlen),
            {ret = orig_fn(fd, buf, n, flags, dest_addr, addrlen);})
 IC_GENERIC(ssize_t, recvfrom, (int fd, void *buf, size_t n, int flags,
-			       struct sockaddr *src_addr, socklen_t *addrlen),
+                               struct sockaddr *src_addr, socklen_t *addrlen),
            {ret = orig_fn(fd, buf, n, flags, src_addr, addrlen);})
 IC_GENERIC(ssize_t, sendmsg, (int fd, const struct msghdr *message, int flags),
-	   {ret = orig_fn(fd, message, flags);})
+           {ret = orig_fn(fd, message, flags);})
 IC_GENERIC(ssize_t, recvmsg, (int fd, struct msghdr *message, int flags),
-	   {ret = orig_fn(fd, message, flags);})
+           {ret = orig_fn(fd, message, flags);})
 
 IC_GENERIC(int, getsockopt, (int fd, int level, int optname, void *optval, socklen_t *optlen),
            {ret = orig_fn(fd, level, optname, optval, optlen);})
@@ -790,7 +790,7 @@ IC_GENERIC(time_t, time, (time_t *timer),
 IC_GENERIC(int, stime, (const time_t *when),
            {ret = orig_fn(when);})
 IC_GENERIC(int, nanosleep, (const struct timespec *req,
-			    struct timespec *rem),
+                            struct timespec *rem),
            {ret = orig_fn(req, rem);})
 IC_GENERIC(int, clock_getres, (clockid_t clock_id, struct timespec *res),
            {ret = orig_fn(clock_id, res);})
@@ -799,19 +799,19 @@ IC_GENERIC(int, clock_gettime, (clockid_t clock_id, struct timespec *tp),
 IC_GENERIC(int, clock_settime, (clockid_t clock_id, const struct timespec *tp),
            {ret = orig_fn(clock_id, tp);})
 IC_GENERIC(int, clock_nanosleep, (clockid_t clock_id, int flags,
-				  const struct timespec *request,
-				  struct timespec *remain),
+                                  const struct timespec *request,
+                                  struct timespec *remain),
            {ret = orig_fn(clock_id, flags, request, remain);})
 IC_GENERIC(int, clock_getcpuclockid, (pid_t pid, clockid_t *clock_id),
            {ret = orig_fn(pid, clock_id);})
 IC_GENERIC(int, timer_create, (clockid_t clock_id, struct sigevent *sevp,
-			       timer_t *timerid),
+                               timer_t *timerid),
            {ret = orig_fn(clock_id, sevp, timerid);})
 IC_GENERIC(int, timer_delete, (timer_t timerid),
            {ret = orig_fn(timerid);})
 IC_GENERIC(int, timer_settime, (timer_t timerid, int flags,
-				const struct itimerspec *new_value,
-				struct itimerspec * old_value),
+                                const struct itimerspec *new_value,
+                                struct itimerspec * old_value),
            {ret = orig_fn(timerid, flags, new_value, old_value);})
 IC_GENERIC(int, timer_gettime, (timer_t timerid, struct itimerspec *value),
            {ret = orig_fn(timerid, value);})
@@ -820,17 +820,17 @@ IC_GENERIC(int, timer_getoverrun, (timer_t timerid),
 
 // sys/time.h
 IC_GENERIC(int, gettimeofday, (struct timeval *tv,
-			       struct timezone *tz),
+                               struct timezone *tz),
            {ret = orig_fn(tv, tz);})
 IC_GENERIC(int, settimeofday, (const struct timeval *tv,
-			       const struct timezone *tz),
+                               const struct timezone *tz),
            {ret = orig_fn(tv, tz);})
 IC_GENERIC(int, adjtime, (const struct timeval *delta, struct timeval *olddelta),
            {ret = orig_fn(delta, olddelta);})
 IC_GENERIC(int, getitimer, (int which, struct itimerval *curr_value),
            {ret = orig_fn(which, curr_value);})
 IC_GENERIC(int, setitimer, (int which,const struct itimerval *new_value,
-			    struct itimerval *old_value),
+                            struct itimerval *old_value),
            {ret = orig_fn(which, new_value, old_value);})
 IC(int, utimes, (const char *file, const struct timeval tvp[2]),
    {ret = orig_fn(file, tvp); intercept_utime(-1, file, false, ret);})

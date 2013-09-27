@@ -8,3 +8,10 @@ awk 'BEGIN {SKIP=0}
      /firebuild-intercept-end/ {SKIP=0; next}
      {if (SKIP == 0 ) { print $0 } else {next;}}'  /tmp/ls.trace
 
+Emacs code indentation style:
+(setq-default indent-tabs-mode nil)
+(setq default-tab-width 4)
+(add-hook 'c-mode-common-hook
+          (lambda()
+            (c-set-offset 'inextern-lang 0)))
+
