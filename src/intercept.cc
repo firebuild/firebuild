@@ -41,7 +41,7 @@ pthread_mutex_t ic_fd_states_lock;
 #undef IC_VOID
 /* create ic_orig_... version of intercepted function */
 #define IC_VOID(ret_type, name, parameters, _body)  \
-  ret_type (*ic_orig_##name) parameters;
+  ret_type (*ic_orig_##name) parameters = NULL;
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
@@ -84,7 +84,13 @@ void insert_begin_marker()
 {
   if (insert_trace_markers) {
     int saved_errno = errno;
-    ic_orig_open("/firebuild-intercept-begin", 0);
+    if (ic_orig_open) {
+      ic_orig_open("/firebuild-intercept-begin", 0);
+    } else {
+      int (*orig_open) (const char*, int, ...) = (int(*)(const char*, int, ...))dlsym(RTLD_NEXT, "open");
+      assert(orig_open);
+      orig_open("/firebuild-intercept-begin", 0);
+    }
     errno = saved_errno;
   }
 }
@@ -184,6 +190,9 @@ static void fb_ic_init()
   set_orig_fns();
   reset_fn_infos();
 
+  intercept_on = true;
+  insert_begin_marker();
+
   if(NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
     insert_trace_markers = true;
   }
@@ -253,6 +262,8 @@ static void fb_ic_init()
     }
   }
   ic_init_done = true;
+  insert_end_marker();
+  intercept_on = false;
 }
 
 /**
