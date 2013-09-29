@@ -22,6 +22,7 @@
 #include "fb-messages.pb.h"
 
 using namespace std;
+using namespace firebuild::msg;
 
 typedef char* CHARS;
 typedef void* VOIDPT;

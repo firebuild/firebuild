@@ -19,6 +19,7 @@
 using namespace std;
 using namespace google::protobuf;
 using namespace libconfig;
+using namespace firebuild::msg;
 
 static char global_cfg[] = "/etc/firebuildrc";
 

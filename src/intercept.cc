@@ -17,6 +17,7 @@
 #include "firebuild_common.h"
 
 using namespace std;
+using namespace firebuild::msg;
 
 #ifdef  __cplusplus
 extern "C" {

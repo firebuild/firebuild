@@ -1,6 +1,8 @@
 // Protocol Buffer definitions for FireBuild
 // Copyright (c) 2013 Balint Reczey.  All rights reserved.
 
+package firebuild.msg;
+
 // Message for storing and retrieving the content of a file
 message FileContent {
     required bytes sha1_hash = 1; // identifies the file content
