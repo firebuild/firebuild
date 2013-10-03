@@ -15,10 +15,12 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <libconfig.h++>
 #include "firebuild_common.h"
+#include "ProcessTree.h"
 
 using namespace std;
 using namespace google::protobuf;
 using namespace libconfig;
+using namespace firebuild;
 using namespace firebuild::msg;
 
 static char global_cfg[] = "/etc/firebuildrc";
@@ -29,6 +31,7 @@ static int child_pid, child_ret = 1;
 static io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
+static ProcessTree proc_tree;
 
 /** global configuration */
 libconfig::Config cfg;
@@ -207,7 +210,11 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
   if (ic_msg.has_scproc_query()) {
     SupervisorMsg sv_msg;
     ShortCutProcessResp *scproc_resp;
+    ::firebuild::ExecedProcess* proc;
     scproc_resp = sv_msg.mutable_scproc_resp();
+    /* record new process */
+    proc = new ::firebuild::ExecedProcess (ic_msg.scproc_query());
+    proc_tree.insert(*proc, fd_conn);
     // TODO look up stored result
     if (false /* can shortcut*/) {
       scproc_resp->set_shortcut(true);
@@ -219,6 +226,14 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
       }
     }
     fb_send_msg(sv_msg, fd_conn);
+  } else if (ic_msg.has_fork_child()) {
+    ::firebuild::ForkedProcess* proc;
+    /* record new process */
+    proc = new ::firebuild::ForkedProcess (ic_msg.fork_child());
+    proc_tree.insert(*proc, fd_conn);
+  } else if (ic_msg.has_execvfailed()) {
+    ::firebuild::Process *proc = proc_tree.pid2proc.at(ic_msg.execvfailed().pid());
+    proc_tree.sock2proc[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
   } else if (ic_msg.has_creat()) {
   } else if (ic_msg.has_close()) {
@@ -227,6 +242,13 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
              ic_msg.has_execv() ||
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
+    if (ic_msg.has_exit()) {
+      ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
+      proc->exit_result(ic_msg.exit().exit_status(),
+                        ic_msg.exit().utime_m(),
+                        ic_msg.exit().stime_m());
+      proc_tree.exit(*proc, fd_conn);
+    }
     SupervisorMsg sv_msg;
     sv_msg.set_ack(true);
     fb_send_msg(sv_msg, fd_conn);

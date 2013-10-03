@@ -18,6 +18,10 @@ target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES} dl)
 add_executable(firebuild
   firebuild.cc
   firebuild_common.cc
+  Process.cc
+  ExecedProcess.cc
+  ForkedProcess.cc
+  ProcessTree.cc
   ${PROTO_SRCS}
   ${PROTO_HDRS})
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY})

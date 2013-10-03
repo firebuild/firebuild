@@ -192,7 +192,7 @@ IC2_SIMPLE_3P(int, IC2_NO_RET, ReadLinkAt, readlinkat, int, dirfd, const char *,
 /** Frontend for intercept_readlink and intercept_readlinkat */
 static void
 intercept_readlink_helper(int fd, const char *path, const char *buf,
-                          size_t len, ssize_t ret)
+                          ssize_t len, ssize_t ret)
 {
   char *ret_path;
   if ((ret >= 0) && (abs(ret) <= len)) {
