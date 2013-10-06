@@ -66,5 +66,47 @@ void ProcessTree::exit (Process &p, const int sock)
   // TODO maybe this is not needed
   sock2proc.erase(sock);
 }
+
+void ProcessTree::export2dot_recurse(Process &p)
+{
+  if (p.type == FB_PROC_EXEC_STARTED) {
+    export2dot((ExecedProcess&)p);
+  }
+  if (p.exec_child != NULL) {
+    cout << "p" << p.fb_pid << " -> p" << p.exec_child->fb_pid << ";" << endl;
+    export2dot_recurse(*p.exec_child);
+  }
+  for (unsigned int i = 0; i < p.children.size(); i++) {
+    export2dot_recurse(*p.children[i]);
+  }
+}
+
+void ProcessTree::export2dot()
+{
+  cout << "digraph G {" << endl;
+  export2dot_recurse(*root);
+  cout << "}" << endl;
+}
+
+void ProcessTree::export2dot(ExecedProcess &p)
+{
+  cout << " subgraph cluster_"<< p.fb_pid << " {" <<endl;
+  cout << " label = \"" << p.args[0] << "\";" << endl;
+  if (p.children.size() > 0) {
+    export2dot((Process&)p, p.children);
+  } else {
+    cout << " p" << p.fb_pid << ";" << endl;
+  }
+  cout << "}" << endl;
+}
+
+void ProcessTree::export2dot(Process &p, vector<Process*> &children)
+{
+  for (unsigned int i = 0; i < children.size(); i++) {
+    cout << " p" << p.fb_pid << " -> p" << children[i]->fb_pid << ";" << endl;
+    export2dot((Process&)*children[i], children[i]->children);
+  }
+}
+
 }
 

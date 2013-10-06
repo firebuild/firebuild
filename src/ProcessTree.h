@@ -3,6 +3,7 @@
 #define FB_PROCESS_TREE_H
 
 #include <unordered_map>
+#include <ostream>
 
 
 #include "Process.h"
@@ -16,6 +17,11 @@ namespace firebuild
 
 class ProcessTree
 {
+ private:
+  void export2dot_recurse(Process &p);
+  void export2dot(ExecedProcess &p);
+  void export2dot(Process &p, vector<Process*> &children);
+
  public:
   ExecedProcess *root = NULL;
   unordered_map<int, Process*> sock2proc;
@@ -27,6 +33,7 @@ class ProcessTree
   void insert (ExecedProcess &p, const int sock);
   void insert (ForkedProcess &p, const int sock);
   void exit (Process &p, const int sock);
+  void export2dot ();
 };
 
 }
