@@ -67,44 +67,46 @@ void ProcessTree::exit (Process &p, const int sock)
   sock2proc.erase(sock);
 }
 
-void ProcessTree::export2dot_recurse(Process &p)
+void ProcessTree::export2js_recurse(Process &p, unsigned int level)
 {
   if (p.type == FB_PROC_EXEC_STARTED) {
-    export2dot((ExecedProcess&)p);
+    if (level > 0) {
+      cout << endl;
+    }
+    cout << string(2 * level, ' ') << "{";
+    export2js((ExecedProcess&)p, level);
+    cout << string(2 * level, ' ') << " children : [";
   }
   if (p.exec_child != NULL) {
-    cout << "p" << p.fb_pid << " -> p" << p.exec_child->fb_pid << ";" << endl;
-    export2dot_recurse(*p.exec_child);
+    export2js_recurse(*p.exec_child, level + 1);
   }
   for (unsigned int i = 0; i < p.children.size(); i++) {
-    export2dot_recurse(*p.children[i]);
+    export2js_recurse(*p.children[i], level);
+  }
+  if (p.type == FB_PROC_EXEC_STARTED) {
+    if (level == 0) {
+      cout << "]};" << endl;
+    } else {
+      cout << "]},";
+    }
   }
 }
 
-void ProcessTree::export2dot()
+void ProcessTree::export2js()
 {
-  cout << "digraph G {" << endl;
-  export2dot_recurse(*root);
-  cout << "}" << endl;
+  cout << "root = ";
+  export2js_recurse(*root, 0);
 }
 
-void ProcessTree::export2dot(ExecedProcess &p)
+void ProcessTree::export2js(ExecedProcess &p, unsigned int level)
 {
-  cout << " subgraph cluster_"<< p.fb_pid << " {" <<endl;
-  cout << " label = \"" << p.args[0] << "\";" << endl;
-  if (p.children.size() > 0) {
-    export2dot((Process&)p, p.children);
-  } else {
-    cout << " p" << p.fb_pid << ";" << endl;
-  }
-  cout << "}" << endl;
-}
-
-void ProcessTree::export2dot(Process &p, vector<Process*> &children)
-{
-  for (unsigned int i = 0; i < children.size(); i++) {
-    cout << " p" << p.fb_pid << " -> p" << children[i]->fb_pid << ";" << endl;
-    export2dot((Process&)*children[i], children[i]->children);
+  unsigned int indent = 2 * level;
+  cout << "name :\"" << p.args[0] << "\"," << endl;
+  cout << string(indent + 1, ' ') << "id :" << p.fb_pid << "," << endl;
+  cout << string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << endl;
+  cout << string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << endl;
+  if (p.state == FB_PROC_FINISHED) {
+    cout << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
   }
 }
 

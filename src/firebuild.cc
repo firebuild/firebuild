@@ -486,7 +486,7 @@ int main(int argc, char* argv[]) {
   }
   // show process tree if needed
   if (debug_level >= 1) {
-    proc_tree.export2dot();
+    proc_tree.export2js();
   }
 
   // clean up everything
