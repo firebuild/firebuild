@@ -248,6 +248,10 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
                         ic_msg.exit().utime_m(),
                         ic_msg.exit().stime_m());
       proc_tree.exit(*proc, fd_conn);
+    } else if (ic_msg.has_execv()) {
+      ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
+      proc->update_rusage(ic_msg.execv().utime_m(),
+                          ic_msg.execv().stime_m());
     }
     SupervisorMsg sv_msg;
     sv_msg.set_ack(true);
@@ -484,6 +488,10 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+
+  // postprocess process tree
+  proc_tree.sum_rusage_recurse(*proc_tree.root);
+
   // show process tree if needed
   if (debug_level >= 1) {
     proc_tree.export2js();

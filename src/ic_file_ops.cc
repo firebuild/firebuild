@@ -17,6 +17,7 @@
 #include <sys/statvfs.h>
 #include <dirent.h>
 #include <link.h>
+#include <sys/resource.h>
 
 #include "intercept.h"
 #include "fb-messages.pb.h"
@@ -258,6 +259,8 @@ intercept_execve (bool with_p, const char *file, int fd, char *const argv[], cha
   ExecV *m;
   int i;
   char * tmp_path;
+  struct rusage ru;
+
   m = ic_msg.mutable_execv();
   if (with_p) {
     m->set_with_p(with_p);
@@ -292,6 +295,12 @@ intercept_execve (bool with_p, const char *file, int fd, char *const argv[], cha
       free(cs_path);
     }
   }
+
+  // get CPU time used up to this exec()
+  getrusage(RUSAGE_SELF, &ru);
+  m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
+  m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
+
   fb_send_msg(ic_msg, fb_sv_conn);
   fb_recv_msg(sv_msg, fb_sv_conn);
   if (!sv_msg.ack()) {

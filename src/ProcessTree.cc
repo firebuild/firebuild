@@ -67,6 +67,25 @@ void ProcessTree::exit (Process &p, const int sock)
   sock2proc.erase(sock);
 }
 
+void ProcessTree::sum_rusage_recurse(Process &p)
+{
+  if (p.type == FB_PROC_EXEC_STARTED) {
+    ExecedProcess *e = (ExecedProcess*)&p;
+    e->sum_rusage(&e->sum_utime_m,
+                 &e->sum_stime_m);
+    if (e->exec_parent) {
+      e->sum_utime_m -= e->exec_parent->utime_m;
+      e->sum_stime_m -= e->exec_parent->stime_m;
+    }
+  }
+  if (p.exec_child != NULL) {
+    sum_rusage_recurse(*p.exec_child);
+  }
+  for (unsigned int i = 0; i < p.children.size(); i++) {
+    sum_rusage_recurse(*p.children[i]);
+  }
+}
+
 void ProcessTree::export2js_recurse(Process &p, unsigned int level)
 {
   if (p.type == FB_PROC_EXEC_STARTED) {
@@ -103,8 +122,8 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level)
   unsigned int indent = 2 * level;
   cout << "name :\"" << p.args[0] << "\"," << endl;
   cout << string(indent + 1, ' ') << "id :" << p.fb_pid << "," << endl;
-  cout << string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << endl;
-  cout << string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << endl;
+  cout << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
+  cout << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
   if (p.state == FB_PROC_FINISHED) {
     cout << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
   }

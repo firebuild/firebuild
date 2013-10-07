@@ -480,6 +480,10 @@ message ExecV {
     optional bool with_p = 5;
     // PATH , or confstr(_CS_PATH), if PATH is not set
     optional string path = 6;
+    // user CPU time in milliseconds
+    required int64 utime_m = 7;
+    // system CPU time in milliseconds
+    required int64 stime_m = 8;
 }
 
 message ExecVFailed {

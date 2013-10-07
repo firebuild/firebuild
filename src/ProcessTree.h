@@ -32,6 +32,7 @@ class ProcessTree
   void insert (ExecedProcess &p, const int sock);
   void insert (ForkedProcess &p, const int sock);
   void exit (Process &p, const int sock);
+  void sum_rusage_recurse(Process &p);
   void export2js ();
 };
 
