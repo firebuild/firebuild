@@ -489,12 +489,17 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // postprocess process tree
-  proc_tree.sum_rusage_recurse(*proc_tree.root);
+  if (!proc_tree.root) {
+    cerr << "ERROR: Could not collect any information about the build process" << endl;
+    child_ret = EXIT_FAILURE;
+  } else {
+    // postprocess process tree
+    proc_tree.sum_rusage_recurse(*proc_tree.root);
 
-  // show process tree if needed
-  if (debug_level >= 1) {
-    proc_tree.export2js();
+    // show process tree if needed
+    if (debug_level >= 1) {
+      proc_tree.export2js();
+    }
   }
 
   // clean up everything
