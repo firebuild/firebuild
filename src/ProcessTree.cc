@@ -86,46 +86,46 @@ void ProcessTree::sum_rusage_recurse(Process &p)
   }
 }
 
-void ProcessTree::export2js_recurse(Process &p, unsigned int level)
+void ProcessTree::export2js_recurse(Process &p, unsigned int level, ostream& o)
 {
   if (p.type == FB_PROC_EXEC_STARTED) {
     if (level > 0) {
-      cout << endl;
+      o << endl;
     }
-    cout << string(2 * level, ' ') << "{";
-    export2js((ExecedProcess&)p, level);
-    cout << string(2 * level, ' ') << " children : [";
+    o << string(2 * level, ' ') << "{";
+    export2js((ExecedProcess&)p, level, o);
+    o << string(2 * level, ' ') << " children : [";
   }
   if (p.exec_child != NULL) {
-    export2js_recurse(*p.exec_child, level + 1);
+    export2js_recurse(*p.exec_child, level + 1, o);
   }
   for (unsigned int i = 0; i < p.children.size(); i++) {
-    export2js_recurse(*p.children[i], level);
+    export2js_recurse(*p.children[i], level, o);
   }
   if (p.type == FB_PROC_EXEC_STARTED) {
     if (level == 0) {
-      cout << "]};" << endl;
+      o << "]};" << endl;
     } else {
-      cout << "]},";
+      o << "]},";
     }
   }
 }
 
-void ProcessTree::export2js()
+void ProcessTree::export2js(ostream& o)
 {
-  cout << "root = ";
-  export2js_recurse(*root, 0);
+  o << "root = ";
+  export2js_recurse(*root, 0, o);
 }
 
-void ProcessTree::export2js(ExecedProcess &p, unsigned int level)
+void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
 {
   unsigned int indent = 2 * level;
-  cout << "name :\"" << p.args[0] << "\"," << endl;
-  cout << string(indent + 1, ' ') << "id :" << p.fb_pid << "," << endl;
-  cout << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
-  cout << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
+  o << "name :\"" << p.args[0] << "\"," << endl;
+  o << string(indent + 1, ' ') << "id :" << p.fb_pid << "," << endl;
+  o << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
+  o << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
   if (p.state == FB_PROC_FINISHED) {
-    cout << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
+    o << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
   }
 }
 

@@ -18,8 +18,8 @@ namespace firebuild
 class ProcessTree
 {
  private:
-  void export2js_recurse(Process &p, unsigned int level);
-  void export2js(ExecedProcess &p, unsigned int level);
+  void export2js_recurse(Process &p, unsigned int level, ostream& o);
+  void export2js(ExecedProcess &p, unsigned int level, ostream& o);
 
  public:
   ExecedProcess *root = NULL;
@@ -33,7 +33,7 @@ class ProcessTree
   void insert (ForkedProcess &p, const int sock);
   void exit (Process &p, const int sock);
   void sum_rusage_recurse(Process &p);
-  void export2js ();
+  void export2js (ostream& o);
 };
 
 }

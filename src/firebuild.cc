@@ -498,7 +498,7 @@ int main(int argc, char* argv[]) {
 
     // show process tree if needed
     if (debug_level >= 1) {
-      proc_tree.export2js();
+      proc_tree.export2js(cout);
     }
   }
 
