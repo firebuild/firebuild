@@ -30,6 +30,7 @@ void ProcessTree::insert (ExecedProcess &p, const int sock)
     try {
       p.exec_parent = pid2proc.at(p.pid);
       p.exec_parent->exec_child = &p;
+      p.exec_parent->state = FB_PROC_EXECED;
     } catch (const std::out_of_range& oor) {
       // root's exec_parent is firebuild which is not in the tree.
       // If any other parent is missing, FireBuild missed process
@@ -122,10 +123,25 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
   unsigned int indent = 2 * level;
   o << "name :\"" << p.args[0] << "\"," << endl;
   o << string(indent + 1, ' ') << "id :" << p.fb_pid << "," << endl;
-  o << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
-  o << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
-  if (p.state == FB_PROC_FINISHED) {
+  o << string(indent + 1, ' ') << "pid :" << p.pid << "," << endl;
+  o << string(indent + 1, ' ') << "ppid :" << p.ppid << "," << endl;
+  o << string(indent + 1, ' ') << "cwd :\"" << p.cwd << "\"," << endl;
+  o << string(indent + 1, ' ') << "state : " << p.state << "," << endl;
+  switch (p.state) {
+  case FB_PROC_FINISHED: {
     o << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
+    // break; is missing intentionally
+  }
+  case FB_PROC_EXECED: {
+    o << string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << endl;
+    o << string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << endl;
+    o << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
+    o << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
+    // break; is missing intentionally
+  }
+  case FB_PROC_RUNNING: {
+    // something went wrong
+  }
   }
 }
 
