@@ -8,3 +8,5 @@ FireBuild TODO items
   LD_LIBRARY_PATH still has to be checked this case.
 - add man page including detailed documentation for --insert-trace-markers
   usage
+- export process tree to a self contained html file including style sheets and
+  D3.js

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<!-- Based on D3.js example at http://mbostock.github.io/d3/talk/20111018/tree.html -->
+<html><head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <link type="text/css" rel="stylesheet" href="tree_style.css"/>
+    <script type="text/javascript" src="d3.v3.js"></script>
+    <script type="text/javascript" src="process_tree.js"></script>
+    <style type="text/css">
+
+
+.node circle {
+  cursor: pointer;
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.node text {
+  font-size: 11px;
+}
+
+path.link {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1.5px;
+}
+
+    </style>
+  </head>
+  <body>
+    <div id="body">
+      <div id="footer">
+        process tree
+        <div class="hint">click or option-click to expand or collapse</div>
+      </div>
+    </div>
+    <script type="text/javascript">
+
+var m = [20, 120, 20, 120],
+    w = 200 - m[1] - m[3],
+    h = 400 - m[0] - m[2],
+    i = 0;
+
+var tree = d3.layout.tree().nodeSize([50, 100]);
+root.bb = [0, 0, 0, 0];
+root.bb0 = root.bb;
+
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
+
+var vis = d3.select("#body").append("svg:svg")
+    .attr("id", "svg_tree")
+    .attr("width", "100%")
+    .attr("height", "100%")
+    .attr("width", w + m[1] + m[3])
+    .attr("height", h + m[0] + m[2])
+  .append("svg:g")
+    .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
+
+root.x0 = 0;
+root.y0 = 0;
+
+function aggr_time(prev, d) {
+    if (d.state == 0 ) {
+        // process is still in a buggy, running state
+        console.log(d);
+        d.aggr_time = 0;
+    } else {
+        d.aggr_time =  d.sum_utime_m + d.sum_stime_m;
+    }
+    if (d.children) {
+        d.aggr_time += d.children.reduce(aggr_time, 0);
+    }
+    return(prev + d.aggr_time);
+}
+
+aggr_time(0,root);
+
+function toggleAll(d) {
+    if (d.children) {
+        d.children.forEach(toggleAll);
+        toggle(d);
+    }
+}
+
+function hide_low_CPU(d) {
+  if (((d.aggr_time) < root.cpu_limit) || d.children.length > root.branch_limit) {
+    toggleAll(d);
+  } else {
+    d.children.forEach(hide_low_CPU);
+  }
+}
+
+root.cpu_limit = 0.1 * root.aggr_time;
+root.branch_limit = 20 ;
+hide_low_CPU(root);
+console.log(root.aggr_time);
+update(root);
+
+// calculate visible bounding box [min(x,) min(y), max(x), max(y)]
+// and place it to root.bb (old value gets backed up as .bb0)
+function bounding_box_root() {
+  root.bb0 = root.bb;
+  root.bb = [0, 0, 0, 0];
+    function bounding_box(d) {
+      if (d.children) {
+        d.children.forEach(bounding_box);
+      }
+      root.bb = [Math.min(root.bb[0], d.x),
+        Math.min(root.bb[1], d.y),
+        Math.max(root.bb[2], d.x),
+        Math.max(root.bb[3], d.y)];
+    }
+  bounding_box(root);
+}
+
+function shrink_svg_bb() {
+  var svg_tree = d3.select("#svg_tree");
+  if (root.shrink_w) {
+    svg_tree.attr("width",  root.new_w);
+    root.shrink_w = false;
+  }
+  if (root.shrink_h) {
+    svg_tree.attr("height", root.new_h);
+    root.shrink_h = false;
+  }
+}
+
+function update(source) {
+  var duration = d3.event && d3.event.altKey ? 5000 : 500;
+
+  // Compute the new tree layout.
+  var nodes = tree.nodes(root).reverse();
+  bounding_box_root();
+
+  var svg_tree = d3.select("#svg_tree");
+  root.new_w = root.bb[3] - root.bb[1] + m[1] + m[3];
+  root.new_h = root.bb[2] - root.bb[0] + m[2] + m[0];
+  root.shrink_w = false;
+  root.shrink_h = false;
+
+  // expand bounding box now and defer shrinking for later
+  if (root.new_w >= (root.bb0[3] - root.bb0[1] + m[1] + m[3])) {
+    svg_tree.attr("width",  root.new_w);
+  } else {
+    root.shrink_w = true;
+  }
+  if (root.new_h >= (root.bb0[2] - root.bb0[0] + m[2] + m[0])) {
+    svg_tree.attr("height", root.new_h);
+  } else {
+    root.shrink_h = true;
+  }
+
+  // Normalize vertically
+  nodes.forEach(function(d) { d.x -= root.bb[0];});
+  // Center horizontally
+//  nodes.forEach(function(d) { d.y -= ];});
+  bounding_box_root();
+
+  // Update the nodes…
+  var node = vis.selectAll("g.node")
+      .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter any new nodes at the parent's previous position.
+  var nodeEnter = node.enter().append("svg:g")
+      .attr("class", "node")
+      .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
+      .on("click", function(d) { toggle(d); update(d); });
+
+  nodeEnter.append("svg:circle")
+      .attr("r", 1e-6)
+        .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
+
+  nodeEnter.append("svg:text")
+      .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
+      .attr("dy", ".35em")
+      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+      .text(function(d) { return d.name; })
+      .style("fill-opacity", 1e-6);
+
+  // Transition nodes to their new position.
+  var nodeUpdate = node.transition()
+      .duration(duration)
+        .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
+  nodeUpdate.select("circle")
+      .attr("r", 4.5)
+        .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
+
+  nodeUpdate.select("text")
+      .style("fill-opacity", 1);
+
+  // Transition exiting nodes to the parent's new position.
+  var nodeExit = node.exit().transition()
+      .duration(duration)
+      .each("end",shrink_svg_bb)
+      .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
+      .remove();
+
+  nodeExit.select("circle")
+      .attr("r", 1e-6);
+
+  nodeExit.select("text")
+      .style("fill-opacity", 1e-6);
+
+  // Update the links…
+  var link = vis.selectAll("path.link")
+      .data(tree.links(nodes), function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  link.enter().insert("svg:path", "g")
+      .attr("class", "link")
+      .attr("d", function(d) {
+        var o = {x: source.x0, y: source.y0};
+        return diagonal({source: o, target: o});
+      })
+    .transition()
+      .duration(duration)
+      .attr("d", diagonal);
+
+  // Transition links to their new position.
+  link.transition()
+      .duration(duration)
+      .attr("d", diagonal);
+
+  // Transition exiting nodes to the parent's new position.
+  link.exit().transition()
+      .duration(duration)
+      .attr("d", function(d) {
+        var o = {x: source.x, y: source.y};
+        return diagonal({source: o, target: o});
+      })
+      .remove();
+
+  // Stash the old positions for transition.
+  nodes.forEach(function(d) {
+    d.x0 = d.x;
+    d.y0 = d.y;
+  });
+}
+
+// Toggle children.
+function toggle(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
+  }
+}
+
+    </script>
+  </body>
+</html>
