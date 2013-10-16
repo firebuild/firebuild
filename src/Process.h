@@ -46,6 +46,7 @@ public:
   Process * exec_child = NULL;
 
   Process (int pid, int ppid, process_type type);
+  virtual ~Process(){};
   bool operator == (Process const & p) const;
   void update_rusage (long int utime_m, long int stime_m);
   void sum_rusage(long int *sum_utime_m, long int *sum_stime_m);
