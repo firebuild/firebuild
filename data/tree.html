@@ -16,6 +16,7 @@
 }
 
 .node text {
+  cursor: pointer;
   font-size: 11px;
 }
 
@@ -39,9 +40,13 @@ path.link {
 var m = [20, 120, 20, 120],
     w = 200 - m[1] - m[3],
     h = 400 - m[0] - m[2],
+    // process box width and height
+    procw = 70, proch = 40,
+    // space between process boxes width and height
+    spacew = 30, spaceh = 10
     i = 0;
 
-var tree = d3.layout.tree().nodeSize([50, 100]);
+var tree = d3.layout.tree().nodeSize([proch + spaceh, procw + spacew]);
 root.bb = [0, 0, 0, 0];
 root.bb0 = root.bb;
 
@@ -126,6 +131,14 @@ function shrink_svg_bb() {
   }
 }
 
+function leaf(d) {
+  return ! ((d._children && (d._children.length != 0)) || (d.children && (d.children.length != 0)))
+}
+
+function details(d) {
+  // TODO
+}
+
 function update(source) {
   var duration = d3.event && d3.event.altKey ? 5000 : 500;
 
@@ -165,18 +178,49 @@ function update(source) {
   var nodeEnter = node.enter().append("svg:g")
       .attr("class", "node")
       .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
-      .on("click", function(d) { toggle(d); update(d); });
+      .on("click", details);
 
-  nodeEnter.append("svg:circle")
-      .attr("r", 1e-6)
+  nodeEnter.append("svg:rect")
+      .attr("x", - procw)
+      .attr("y", - proch / 2)
+      .attr("width", procw)
+      .attr("height", proch)
+      .attr("rx", 5).attr("ry", 5)
         .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
 
+  nodeEnter.filter(function (d) {return ! leaf(d);})
+      .append("svg:circle")
+      .attr("r", 1e-6)
+      .on("click", function(d) { toggle(d); update(d); })
+        .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; })
+      .append("svg:title")
+      .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
+
   nodeEnter.append("svg:text")
-      .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
+      .attr("x", - procw / 2)
+      .attr("y", 7.5 - proch / 2)
+      .attr("font-weight", "bold")
       .attr("dy", ".35em")
-      .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
-      .text(function(d) { return d.name; })
-      .style("fill-opacity", 1e-6);
+      .attr("text-anchor", "middle")
+      .text(function(d) { return d.name;})
+      .append("svg:title")
+      .text("Show details");
+
+  nodeEnter.append("svg:text")
+      .attr("x", - procw / 2)
+      .attr("dy", ".35em")
+      .attr("text-anchor", "middle")
+      .text(function(d) { return (100 * d.aggr_time / root.aggr_time).toFixed(2) + "%"; })
+      .append("svg:title")
+      .text("Show details");
+  nodeEnter.append("svg:text")
+      .attr("x", - procw / 2)
+      .attr("y", proch / 2 - 7.5)
+      .attr("dy", ".35em")
+      .attr("text-anchor", "middle")
+      .text(function(d) { return "(" + (100 * (d.sum_utime_m + d.sum_stime_m) / root.aggr_time).toFixed(2) + ")%"; })
+      .append("svg:title")
+      .text("Show details");
 
   // Transition nodes to their new position.
   var nodeUpdate = node.transition()
@@ -186,6 +230,12 @@ function update(source) {
   nodeUpdate.select("circle")
       .attr("r", 4.5)
         .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
+
+  nodeUpdate.select("title")
+      .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
+
+  nodeUpdate.select("rect")
+      .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
 
   nodeUpdate.select("text")
       .style("fill-opacity", 1);
@@ -211,7 +261,7 @@ function update(source) {
   link.enter().insert("svg:path", "g")
       .attr("class", "link")
       .attr("d", function(d) {
-        var o = {x: source.x0, y: source.y0};
+        var o = {x: source.x0, y: source.y0 + procw};
         return diagonal({source: o, target: o});
       })
     .transition()
@@ -221,13 +271,16 @@ function update(source) {
   // Transition links to their new position.
   link.transition()
       .duration(duration)
-      .attr("d", diagonal);
+      .attr("d", function(ends) {
+        var t = {x: ends.target.x, y: ends.target.y - procw};
+        return diagonal({source: ends.source , target: t});
+      });
 
   // Transition exiting nodes to the parent's new position.
   link.exit().transition()
       .duration(duration)
       .attr("d", function(d) {
-        var o = {x: source.x, y: source.y};
+        var o = {x: source.x, y: source.y + procw};
         return diagonal({source: o, target: o});
       })
       .remove();
