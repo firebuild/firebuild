@@ -135,8 +135,82 @@ function leaf(d) {
   return ! ((d._children && (d._children.length != 0)) || (d.children && (d.children.length != 0)))
 }
 
+function print_time(ms) {
+  if (ms > 1000) {
+    return (ms/1000).toFixed(2) + 's';
+  } else {
+    return ms + 'ms';
+  }
+}
+
+function print_string(s) {
+  if (-1 == s.indexOf(' ')) {
+    return s;
+  } else {
+    // TODO escaping is far from being perfect
+    return '"' + s.replace(/"/g,'\\"') + '"';
+  }
+}
+
+function print_string_array(a) {
+  return a.reduce(function(p, c) {return p + ((p == '')?'':' ') + print_string(c)}, '');
+}
+
 function details(d) {
-  // TODO
+  if (typeof window.innerHeight != 'undefined') {
+    viewportheight = window.innerHeight;
+  } else {
+    viewportheight = document.documentElement.clientHeight;
+  }
+  if ((viewportheight > document.body.parentNode.scrollHeight) && (viewportheight > document.body.parentNode.clientHeight)) {
+    blanket_height = viewportheight;
+  } else {
+    if (document.body.parentNode.clientHeight > document.body.parentNode.scrollHeight) {
+      blanket_height = document.body.parentNode.clientHeight;
+    } else {
+      blanket_height = document.body.parentNode.scrollHeight;
+    }
+  }
+  if (typeof window.innerWidth != 'undefined') {
+    viewportwidth = window.innerWidth;
+  } else {
+    viewportwidth = document.documentElement.clientWidth;
+  }
+  if ((viewportwidth > document.body.parentNode.scrollWidth) && (viewportwidth > document.body.parentNode.clientWidth)) {
+    blanket_width = viewportwidth;
+  } else {
+    if (document.body.parentNode.clientWidth > document.body.parentNode.scrollWidth) {
+      blanket_width = document.body.parentNode.clientWidth;
+    } else {
+      blanket_width = document.body.parentNode.scrollWidth;
+    }
+  }
+  blanket = document.getElementById('blanket');
+  blanket.style.height = blanket_height + 'px';
+  blanket.style.width = blanket_width + 'px';
+  blanket.style.display = 'block';
+
+  document.getElementById('detailed_name').innerHTML = d.name;
+  document.getElementById('detailed_cwd').innerHTML = d.cwd;
+  document.getElementById('detailed_args').innerHTML = print_string_array(d.args);
+  document.getElementById('detailed_env').innerHTML = print_string_array(d.env).replace(/ /g, "<br/>");
+  document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs).replace(/ /g, "<br/>");
+  document.getElementById('detailed_executable').innerHTML = d.exe;
+  document.getElementById('detailed_pid').innerHTML = d.pid;
+  document.getElementById('detailed_ppid').innerHTML = d.ppid;
+  document.getElementById('detailed_exit_status').innerHTML = d.exit_status;
+  document.getElementById('detailed_sum_utime_m').innerHTML = print_time(d.sum_utime_m);
+  document.getElementById('detailed_sum_stime_m').innerHTML = print_time(d.sum_stime_m);
+
+  var pop_up_div = document.getElementById('pop_up_div');
+  pop_up_div.style.display = 'block';
+  pop_up_div.style.left = (document.body.scrollLeft + (viewportwidth - pop_up_div.offsetWidth) / 2) + 'px';
+  pop_up_div.style.top = (document.body.scrollTop + 100) + 'px';
+}
+
+function hide_details() {
+  document.getElementById('blanket').style.display = 'none';
+  document.getElementById('pop_up_div').style.display = 'none';
 }
 
 function update(source) {
@@ -177,8 +251,7 @@ function update(source) {
   // Enter any new nodes at the parent's previous position.
   var nodeEnter = node.enter().append("svg:g")
       .attr("class", "node")
-      .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
-      .on("click", details);
+      .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; });
 
   nodeEnter.append("svg:rect")
       .attr("x", - procw)
@@ -186,6 +259,7 @@ function update(source) {
       .attr("width", procw)
       .attr("height", proch)
       .attr("rx", 5).attr("ry", 5)
+      .on("click", details)
         .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
 
   nodeEnter.filter(function (d) {return ! leaf(d);})
@@ -202,6 +276,7 @@ function update(source) {
       .attr("font-weight", "bold")
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
+      .on("click", details)
       .text(function(d) { return d.name;})
       .append("svg:title")
       .text("Show details");
@@ -210,6 +285,7 @@ function update(source) {
       .attr("x", - procw / 2)
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
+      .on("click", details)
       .text(function(d) { return (100 * d.aggr_time / root.aggr_time).toFixed(2) + "%"; })
       .append("svg:title")
       .text("Show details");
@@ -218,6 +294,7 @@ function update(source) {
       .attr("y", proch / 2 - 7.5)
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
+      .on("click", details)
       .text(function(d) { return "(" + (100 * (d.sum_utime_m + d.sum_stime_m) / root.aggr_time).toFixed(2) + ")%"; })
       .append("svg:title")
       .text("Show details");
@@ -304,5 +381,54 @@ function toggle(d) {
 }
 
     </script>
+    <div id="pop_up_div" style="display:none">
+      <div style="text-align:right; margin: 3px;margin-top: 1px;">
+        <a href="#" onclick="hide_details()" ><span class="Unicode" title="Close details">✖</span></a>
+      </div>
+      <div style="text-align: center;">
+        <span id="detailed_name" style="font-weight:bold; font-size:large;"></span>
+      </div>
+      <div style="margin: 10px;">
+        <table>
+          <tr>
+            <td colspan="2"><span class="detail_name">Arguments:</span> <span id="detailed_args"/></td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Working dir.:</span> <span id="detailed_cwd"/></td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Executable binary:</span> <span id="detailed_executable"> </span></td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Environment variables:</span></td>
+          </tr>
+          <tr>
+            <td id="detailed_env" colspan="2"></td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Used shared libraries:</span></td>
+          </tr>
+          <tr>
+            <td id="detailed_libs" colspan="2"></td>
+          </tr>
+          <tr>
+            <td>
+              <span class="detail_name">User CPU time:</span> <span id="detailed_sum_utime_m"> </span>
+            </td>
+            <td>
+              <span class="detail_name">System CPU time:</span> <span id="detailed_sum_stime_m"> </span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2">
+              <span class="detail_name">PID:</span> <span id="detailed_pid"> </span>
+              <span class="detail_name">parent's PID:</span> <span id="detailed_ppid"> </span>
+              <span class="detail_name">exit code:</span> <span id="detailed_exit_status"> </span>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div id="blanket" style="display:none" onclick="hide_details()"></div>
   </body>
 </html>

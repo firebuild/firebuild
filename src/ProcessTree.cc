@@ -1,11 +1,35 @@
 #include <stdexcept>
 #include <iostream>
+#include <sstream>
 
 #include "ProcessTree.h"
 
 using namespace std;
 namespace firebuild {
   
+/**
+ * Escape string for JavaScript
+ * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
+ * TODO: use JSONCpp instead to handle all cases
+ */
+static std::string escapeJsonString(const std::string& input) {
+  std::ostringstream ss;
+  for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
+    switch (*iter) {
+    case '\\': ss << "\\\\"; break;
+    case '"': ss << "\\\""; break;
+    case '/': ss << "\\/"; break;
+    case '\b': ss << "\\b"; break;
+    case '\f': ss << "\\f"; break;
+    case '\n': ss << "\\n"; break;
+    case '\r': ss << "\\r"; break;
+    case '\t': ss << "\\t"; break;
+    default: ss << *iter; break;
+    }
+  }
+  return ss.str();
+}
+
 ProcessTree::~ProcessTree()
 {
   // clean up all processes
@@ -120,13 +144,33 @@ void ProcessTree::export2js(ostream& o)
 
 void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
 {
+  // TODO: escape all strings properly
   unsigned int indent = 2 * level;
   o << "name :\"" << p.args[0] << "\"," << endl;
   o << string(indent + 1, ' ') << "id :" << p.fb_pid << "," << endl;
   o << string(indent + 1, ' ') << "pid :" << p.pid << "," << endl;
   o << string(indent + 1, ' ') << "ppid :" << p.ppid << "," << endl;
   o << string(indent + 1, ' ') << "cwd :\"" << p.cwd << "\"," << endl;
+  o << string(indent + 1, ' ') << "exe :\"" << p.executable << "\"," << endl;
   o << string(indent + 1, ' ') << "state : " << p.state << "," << endl;
+  o << string(indent + 1, ' ') << "args : " << "[";
+  for (unsigned int i = 1; i < p.args.size(); i++) {
+    o << "\"" << escapeJsonString(p.args[i]) <<"\", ";
+  }
+  o << "]," << endl;
+
+  o << string(indent + 1, ' ') << "env : " << "[";
+  for (auto it = p.env_vars.begin(); it != p.env_vars.end(); ++it) {
+    o << "\"" << escapeJsonString(*it) << "\",";
+  }
+  o << "]," << endl;
+
+  o << string(indent + 1, ' ') << "libs : " << "[";
+  for (auto it = p.libs.begin(); it != p.libs.end(); ++it) {
+    o << "\"" << *it << "\",";
+  }
+  o << "]," << endl;
+
   switch (p.state) {
   case FB_PROC_FINISHED: {
     o << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
