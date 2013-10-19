@@ -13,6 +13,8 @@ namespace firebuild
   
 class ExecedProcess : public Process
 {
+ private:
+  void propagate_exit_status (int status);
  public:
   Process *exec_parent = NULL;
   long int sum_utime_m = 0; /**< Sum of user time in milliseconds for all forked

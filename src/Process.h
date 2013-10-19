@@ -50,7 +50,7 @@ public:
   bool operator == (Process const & p) const;
   void update_rusage (long int utime_m, long int stime_m);
   void sum_rusage(long int *sum_utime_m, long int *sum_stime_m);
-  void exit_result (int status, long int utime_m, long int stime_m);
+  virtual void exit_result (int status, long int utime_m, long int stime_m);
 };
 
 inline bool Process::operator == (Process const & p) const

@@ -173,7 +173,7 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
 
   switch (p.state) {
   case FB_PROC_FINISHED: {
-    o << string(indent + 1, ' ') << "exit_status : " << p.stime_m << "," << endl;
+    o << string(indent + 1, ' ') << "exit_status : " << p.exit_status << "," << endl;
     // break; is missing intentionally
   }
   case FB_PROC_EXECED: {
