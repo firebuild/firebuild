@@ -2,12 +2,131 @@
 <!-- Based on D3.js example at http://mbostock.github.io/d3/talk/20111018/tree.html -->
 <html><head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <link type="text/css" rel="stylesheet" href="tree_style.css"/>
     <script type="text/javascript" src="d3.v3.js"></script>
     <script type="text/javascript" src="process_tree.js"></script>
     <style type="text/css">
 
+body {
+  background: #f2f2f2;
+  overflow: auto;
+  margin: 0;
+  font-size: 14px;
+  font-family: "Helvetica Neue", Helvetica;
+}
 
+#chart, #header, #footer {
+  position: absolute;
+  top: 0;
+}
+
+#header, #footer {
+  z-index: 1;
+  display: block;
+  font-size: 36px;
+  font-weight: 300;
+  text-shadow: 0 1px 0 #fff;
+}
+
+#header.inverted, #footer.inverted {
+  color: #fff;
+  text-shadow: 0 1px 4px #000;
+}
+
+#header {
+  top: 80px;
+  left: 140px;
+  width: 1000px;
+}
+
+#footer {
+  top: 680px;
+  right: 140px;
+  text-align: right;
+}
+
+rect {
+  fill: none;
+  pointer-events: all;
+  cursor: pointer;
+  stroke: #000000;
+  stroke-width:1px;
+  stroke-linecap:butt;
+  stroke-linejoin:round
+}
+
+pre {
+  font-size: 18px;
+}
+
+line {
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+.string, .regexp {
+  color: #f39;
+}
+
+.keyword {
+  color: #00c;
+}
+
+.comment {
+  color: #777;
+  font-style: oblique;
+}
+
+.number {
+  color: #369;
+}
+
+.class, .special {
+  color: #1181B8;
+}
+
+a:link, a:visited {
+  color: #000;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #666;
+}
+
+.hint {
+  position: absolute;
+  right: 0;
+  width: 1280px;
+  font-size: 12px;
+  color: #999;
+}
+
+/* from http://webdesignandsuch.com/how-to-create-a-popup-with-css-and-javascript/ */
+#blanket {
+    background-color:#111;
+    opacity: 0.65;
+    *background:none;
+    position:absolute;
+    z-index: 9001;
+    top:0px;
+    left:0px;
+    width:100%;
+}
+
+#pop_up_div {
+    position: absolute;
+    background:white;
+    margin:0 auto;
+    min-width:400px;
+    min-height:400px;
+    border:1px solid #000;
+    border-radius:10px;
+    z-index: 9002;
+}
+
+.detail_name {
+    font-weight: bold;
+}
 .node circle {
   cursor: pointer;
   fill: #fff;
