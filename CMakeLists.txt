@@ -5,7 +5,8 @@ cmake_minimum_required(VERSION 2.8)
 include(CheckCCompilerFlag)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
-
+# TODO set to install dir
+set(DATADIR "${CMAKE_SOURCE_DIR}/data" CACHE STRING "FireBuild's architecture-independent files' location")
 set(TENTATIVE_C_FLAGS
   -W
   -Wall
@@ -32,4 +33,5 @@ foreach(FLAG ${TENTATIVE_C_FLAGS})
 endforeach()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++0x")
+add_definitions(-DFIREBUILD_DATADIR="${DATADIR}")
 add_subdirectory(src)

@@ -2,6 +2,7 @@
 #include "fb-messages.pb.h"
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <cerrno>
 #include <cstdio>
 #include <unistd.h>
@@ -11,6 +12,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <libconfig.h++>
@@ -25,12 +27,17 @@ using namespace firebuild::msg;
 
 static char global_cfg[] = "/etc/firebuildrc";
 
+static char datadir[] = FIREBUILD_DATADIR;
+
 static char *fb_conn_string;
 static int sigchld_fds[2];
 static int child_pid, child_ret = 1;
 static io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
+static bool generate_report = false;
+static bool report_split = false;
+static char *report_file = (char*)"firebuild-build-report.html";
 static ProcessTree proc_tree;
 
 /** global configuration */
@@ -44,6 +51,9 @@ static void usage()
   cout << "Mandatory arguments to long options are mandatory for short options too." << endl;
   cout << "   -c --config-file=FILE     use FILE as configuration file" << endl;
   cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << endl;
+  cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << endl;
+  cout << "                             the report's filename can be specified " << endl;
+  cout << "                             (firebuild-build-report.html by default). " << endl;
   cout << "   -h --help                 show this help" << endl;
   cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << endl;
   cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << endl;
@@ -262,12 +272,61 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
   return true;
 }
 
+static void write_report(char *html_filename, bool split, string datadir){
+  const char d3_filename[] = "d3.v3.min.js";
+  const char tree_filename[] = "firebuild-process-tree.js";
+  const char html_orig_filename[] = "build-report.html";
+  std::ifstream d3(datadir + "/" + d3_filename);
+  std::ifstream src(datadir + "/" + html_orig_filename);
+
+  if (split) {
+    string dir = dirname(html_filename);
+    fstream tree;
+    // copy common files
+    {
+      std::ofstream  dst(html_filename,   std::ios::binary);
+      dst << src.rdbuf();
+    }
+    {
+      std::ofstream  dst(dir + "/" + d3_filename,   std::ios::binary);
+      dst << d3.rdbuf();
+    }
+    // export tree
+    tree.open ( dir + "/" + tree_filename, std::fstream::out);
+    proc_tree.export2js(tree);
+    tree.close();
+  } else {
+    std::ofstream dst(html_filename);
+    while (src.good() && dst.good()) {
+      string line;
+      getline(src, line);
+      if (NULL != strstr(line.c_str(), d3_filename)) {
+        dst << "<script type=\"text/javascript\">" << endl;
+        dst << d3.rdbuf();
+        dst << "    </script>" << endl;
+      } else if (NULL != strstr(line.c_str(), tree_filename)) {
+        dst << "    <script type=\"text/javascript\">" << endl;
+        proc_tree.export2js(dst);
+        dst << "    </script>" << endl;
+      } else {
+        dst << line << endl;
+      }
+    }
+  }
+  d3.close();
+  src.close();
+}
 
 int main(int argc, char* argv[]) {
 
   char **env_exec, *config_file = NULL;
   int i, c;
   string tempdir;
+
+  if (getenv("FIREBUILD_SPLIT_REPORT")) {
+    // this is only for development purposes, this is why it is not documented
+    report_split = true;
+  }
 
   // parse options
   setenv("POSIXLY_CORRECT", "1", true);
@@ -276,12 +335,13 @@ int main(int argc, char* argv[]) {
     static struct option long_options[] = {
       {"config-file",  required_argument, 0,  'c' },
       {"debug-level",  required_argument, 0,  'd' },
+      {"generate-report",  optional_argument, 0,  'r' },
       {"help",         no_argument,       0,  'h' },
       {"insert-trace-markers", no_argument, 0,'i' },
       {0,         0,                 0,  0 }
     };
 
-    c = getopt_long(argc, argv, "c:d:hi",
+    c = getopt_long(argc, argv, "c:d:r::hi",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -306,6 +366,13 @@ int main(int argc, char* argv[]) {
 
     case 'i':
       insert_trace_markers = true;
+      break;
+
+    case 'r':
+      generate_report = true;
+      if (optarg != NULL) {
+        report_file = optarg;
+      }
       break;
 
     default:
@@ -497,8 +564,8 @@ int main(int argc, char* argv[]) {
     proc_tree.sum_rusage_recurse(*proc_tree.root);
 
     // show process tree if needed
-    if (debug_level >= 1) {
-      proc_tree.export2js(cout);
+    if (generate_report) {
+      write_report(report_file, report_split, datadir);
     }
   }
 
