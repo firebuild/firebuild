@@ -42,6 +42,8 @@ public:
   set<string> libs; ///< DSO-s loaded by process, forked processes list new only
   long int utime_m; ///< user time in milliseconds as reported by getrusage()
   long int stime_m; ///< system time in milliseconds as reported by getrusage()
+  long int aggr_time = 0; /**< Sum of user and system time in milliseconds for
+                           * all forked and exec()-ed children */
   vector<Process*> children; ///< children of the process
   Process * exec_child = NULL;
 

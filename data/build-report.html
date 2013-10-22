@@ -149,10 +149,12 @@ path.link {
   </head>
   <body>
     <div id="body">
+      <div id="proc-tree"></div>
       <div id="footer">
         process tree
         <div class="hint">click or option-click to expand or collapse</div>
       </div>
+      <embed src="firebuild-profile.svg" type="image/svg+xml"/>
     </div>
     <script type="text/javascript">
 
@@ -172,7 +174,7 @@ root.bb0 = root.bb;
 var diagonal = d3.svg.diagonal()
     .projection(function(d) { return [d.y, d.x]; });
 
-var vis = d3.select("#body").append("svg:svg")
+var vis = d3.select("#proc-tree").append("svg:svg")
     .attr("id", "svg_tree")
     .attr("width", "100%")
     .attr("height", "100%")
@@ -183,22 +185,6 @@ var vis = d3.select("#body").append("svg:svg")
 
 root.x0 = 0;
 root.y0 = 0;
-
-function aggr_time(prev, d) {
-    if (d.state == 0 ) {
-        // process is still in a buggy, running state
-        console.log(d);
-        d.aggr_time = 0;
-    } else {
-        d.aggr_time =  d.sum_utime_m + d.sum_stime_m;
-    }
-    if (d.children) {
-        d.aggr_time += d.children.reduce(aggr_time, 0);
-    }
-    return(prev + d.aggr_time);
-}
-
-aggr_time(0,root);
 
 function toggleAll(d) {
     if (d.children) {
@@ -218,7 +204,6 @@ function hide_low_CPU(d) {
 root.cpu_limit = 0.1 * root.aggr_time;
 root.branch_limit = 20 ;
 hide_low_CPU(root);
-console.log(root.aggr_time);
 update(root);
 
 // calculate visible bounding box [min(x,) min(y), max(x), max(y)]

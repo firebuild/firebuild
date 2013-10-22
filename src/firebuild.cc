@@ -272,15 +272,37 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
   return true;
 }
 
+/**
+ * Write report to specified file
+ *
+ * @param html_filename report file to be written
+ * @param split split report to separate files
+ * @param datadir report template's location
+ * TODO error handling
+ */
 static void write_report(char *html_filename, bool split, string datadir){
+  const char dot_filename[] = "firebuild-profile.dot";
+  const char svg_filename[] = "firebuild-profile.svg";
   const char d3_filename[] = "d3.v3.min.js";
   const char tree_filename[] = "firebuild-process-tree.js";
   const char html_orig_filename[] = "build-report.html";
+  const string dot_cmd = "dot";
   std::ifstream d3(datadir + "/" + d3_filename);
   std::ifstream src(datadir + "/" + html_orig_filename);
+  string dir = dirname(html_filename);
+
+  // export profile
+  {
+    fstream dot;
+    dot.open (dir + "/" + dot_filename, std::fstream::out);
+    proc_tree.export_profile2dot(dot);
+    dot.close();
+  }
+
+  system((dot_cmd + " -Tsvg -o" + dir + "/" + svg_filename + " " + dir
+          + "/" + dot_filename).c_str());
 
   if (split) {
-    string dir = dirname(html_filename);
     fstream tree;
     // copy common files
     {

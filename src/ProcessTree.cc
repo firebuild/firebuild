@@ -1,12 +1,14 @@
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
+#include <math.h>
 
 #include "ProcessTree.h"
 
 using namespace std;
 namespace firebuild {
   
+
 /**
  * Escape string for JavaScript
  * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
@@ -92,23 +94,27 @@ void ProcessTree::exit (Process &p, const int sock)
   sock2proc.erase(sock);
 }
 
-void ProcessTree::sum_rusage_recurse(Process &p)
+long int ProcessTree::sum_rusage_recurse(Process &p)
 {
+  p.aggr_time = p.utime_m + p.stime_m;
   if (p.type == FB_PROC_EXEC_STARTED) {
     ExecedProcess *e = (ExecedProcess*)&p;
     e->sum_rusage(&e->sum_utime_m,
-                 &e->sum_stime_m);
+                  &e->sum_stime_m);
     if (e->exec_parent) {
       e->sum_utime_m -= e->exec_parent->utime_m;
       e->sum_stime_m -= e->exec_parent->stime_m;
+      e->aggr_time -= e->exec_parent->utime_m;
+      e->aggr_time -= e->exec_parent->stime_m;
     }
   }
   if (p.exec_child != NULL) {
-    sum_rusage_recurse(*p.exec_child);
+    p.aggr_time += sum_rusage_recurse(*p.exec_child);
   }
   for (unsigned int i = 0; i < p.children.size(); i++) {
-    sum_rusage_recurse(*p.children[i]);
+    p.aggr_time += sum_rusage_recurse(*p.children[i]);
   }
+  return p.aggr_time;
 }
 
 void ProcessTree::export2js_recurse(Process &p, unsigned int level, ostream& o)
@@ -179,6 +185,7 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
   case FB_PROC_EXECED: {
     o << string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << endl;
     o << string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << endl;
+    o << string(indent + 1, ' ') << "aggr_time : " << p.aggr_time << "," << endl;
     o << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
     o << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
     // break; is missing intentionally
@@ -189,5 +196,125 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
   }
 }
 
+void ProcessTree::profile_collect_cmds(Process &p, unordered_map<string, pair<long int, int>> &cmds, set<string> &ancestors)
+{
+  if (p.exec_child != NULL) {
+    ExecedProcess *ec = (ExecedProcess*)(p.exec_child);
+    if ((0 == ancestors.count(ec->args[0])) && (-1 != cmds[ec->args[0]].first)) {
+      cmds[ec->args[0]].first += p.exec_child->aggr_time;
+    } else {
+      cmds[ec->args[0]].first = -1;
+    }
+    cmds[ec->args[0]].second += 1;
+  }
+  for (unsigned int i = 0; i < p.children.size(); i++) {
+    profile_collect_cmds(*p.children[i], cmds, ancestors);
+  }
+
+}
+
+void ProcessTree::build_profile(Process &p, set<string> &ancestors)
+{
+  bool first_visited = false;
+  if (p.type == FB_PROC_EXEC_STARTED) {
+    ExecedProcess *e = (ExecedProcess*)&p;
+    auto &cmd_prof = cmd_profs[e->args[0]];
+    if (0 == ancestors.count(e->args[0])) {
+      cmd_prof.aggr_time += e->aggr_time;
+      ancestors.insert(e->args[0]);
+      first_visited = true;
+    }
+    cmd_prof.cmd_time += e->sum_utime_m +  e->sum_stime_m;
+    profile_collect_cmds(p, cmd_prof.subcmds, ancestors);
+}
+  if (p.exec_child != NULL) {
+    build_profile(*p.exec_child, ancestors);
+  }
+  for (unsigned int i = 0; i < p.children.size(); i++) {
+    build_profile(*(p.children[i]), ancestors);
+  }
+
+  if (first_visited) {
+    ancestors.erase(((ExecedProcess*)&p)->args[0]);
+  }
+}
+
+
+/**
+ * Convert HSL color to HSV color
+ *
+ * From http://ariya.blogspot.hu/2008/07/converting-between-hsl-and-hsv.html
+ */
+static void hsl_to_hsv(const double hh, const double ss, const double ll,
+                       double *h, double *s, double *v)
+{
+  double ss_tmp;
+  *h = hh;
+  ss_tmp = ss * ((ll <= 0.5) ? ll : 1 - ll);
+  *v = ll + ss_tmp;
+  *s = (2 * ss_tmp) / (ll + ss_tmp);
+}
+
+/**
+ * Ratio to HSL color string
+ * @param r 0.0 .. 1.0
+ */
+static string rat_to_hsv_str(double r) {
+  const double hsl_min[] = {2.0/3.0, 0.80, 0.25}; // blue
+  const double hsl_max[] = {0.0, 1.0, 0.5}; // red
+  double hsl[3];
+  double hsv[3];
+
+  hsl[0] = hsl_min[0] + r * (hsl_max[0] - hsl_min[0]);
+  hsl[1] = hsl_min[1] + r * (hsl_max[1] - hsl_min[1]);
+  hsl[2] = hsl_min[2] + r * (hsl_max[2] - hsl_min[2]);
+  hsl_to_hsv(hsl[0], hsl[1], hsl[2], &(hsv[0]), &(hsv[1]), &(hsv[2]));
+
+  return to_string(hsv[0]) + ", " + to_string(hsv[1]) + ", " + to_string(hsv[2]);
+}
+
+static double percent_of (double val, double of)
+{
+  return round(val * 10000 / of) / 100;
+}
+
+void ProcessTree::export_profile2dot(ostream &o)
+{
+  set<string> cmd_chain;
+  double min_penwidth = 1, max_penwidth = 8;
+  // build profile
+  build_profile(*root, cmd_chain);
+
+  // print it
+  o << "digraph {" << endl;
+  o << "graph [dpi=55, ranksep=0.25, rankdir=LR, bgcolor=transparent, fontname=Helvetica, fontsize=12.0, nodesep=0.125];" << endl;
+  o << "node [fontname=Helvetica, style=filled, height=0, width=0, shape=box, fontcolor=white];" << endl;
+  o << "edge [fontname=Helvetica]" << endl;
+
+  for (auto it = cmd_profs.begin(); it != cmd_profs.end(); ++it) {
+    o << string(4, ' ') << "\"" << it->first << "\" [label=\"";
+    o << it->first << "\\n";
+    o << percent_of(it->second.aggr_time, root->aggr_time) << "%\\n(";
+    o << percent_of(it->second.cmd_time, root->aggr_time);
+    o << "%)\", color=\"" << rat_to_hsv_str((double)it->second.aggr_time / root->aggr_time) << "\"];" << endl;
+    for (auto it2 = it->second.subcmds.begin(); it2 != it->second.subcmds.end(); ++it2) {
+      o << string(4, ' ') << "\"" << it->first << "\" -> \""<< it2->first << "\" [label=\"" ;
+      if (-1 != it2->second.first) {
+        o << percent_of(it2->second.first, root->aggr_time) << "%\\n";
+      }
+      o << it2->second.second << "×\", color=\"";
+      o << rat_to_hsv_str((double)it2->second.first / root->aggr_time) <<"\",";
+      o << " penwidth=\"";
+      o << ((-1 != it2->second.first)?
+            (min_penwidth
+             + (((double)it2->second.first / root->aggr_time)
+                * (max_penwidth - min_penwidth)))
+            :(min_penwidth));
+      o << "\"];" << endl;
+    }
+  }
+
+  o << "}" << endl;
+}
 }
 
