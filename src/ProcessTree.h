@@ -16,10 +16,16 @@ using namespace std;
 namespace firebuild 
 {
 
+  struct subcmd_prof {
+    long int sum_aggr_time;
+    long int count;
+    bool recursed;
+  };
+
   struct cmd_prof {
     long int aggr_time;
     long int cmd_time;
-    unordered_map<string, pair<long int, int>> subcmds; /**<  {time_m, count}*/
+    unordered_map<string, subcmd_prof> subcmds; /**<  {time_m, count}*/
   };
 
 class ProcessTree
@@ -33,7 +39,9 @@ class ProcessTree
   unordered_map<string, cmd_prof> cmd_profs;
   void export2js_recurse(Process &p, unsigned int level, ostream& o);
   void export2js(ExecedProcess &p, unsigned int level, ostream& o);
-  void profile_collect_cmds(Process &p, unordered_map<string, pair<long int, int>> &cmds, set<string> &ancestors);
+  void profile_collect_cmds(Process &p,
+                            unordered_map<string, subcmd_prof> &cmds,
+                            set<string> &ancestors);
   void build_profile(Process &p, set<string> &ancestors);
 
  public:

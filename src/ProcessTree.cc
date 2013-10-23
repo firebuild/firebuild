@@ -196,16 +196,20 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
   }
 }
 
-void ProcessTree::profile_collect_cmds(Process &p, unordered_map<string, pair<long int, int>> &cmds, set<string> &ancestors)
+void ProcessTree::profile_collect_cmds(Process &p,
+                                       unordered_map<string, subcmd_prof> &cmds,
+                                       set<string> &ancestors)
 {
   if (p.exec_child != NULL) {
     ExecedProcess *ec = (ExecedProcess*)(p.exec_child);
-    if ((0 == ancestors.count(ec->args[0])) && (-1 != cmds[ec->args[0]].first)) {
-      cmds[ec->args[0]].first += p.exec_child->aggr_time;
+    if (0 == ancestors.count(ec->args[0])) {
+      cmds[ec->args[0]].sum_aggr_time += p.exec_child->aggr_time;
     } else {
-      cmds[ec->args[0]].first = -1;
+      if (!cmds[ec->args[0]].recursed) {
+        cmds[ec->args[0]].recursed = true;
+      }
     }
-    cmds[ec->args[0]].second += 1;
+    cmds[ec->args[0]].count += 1;
   }
   for (unsigned int i = 0; i < p.children.size(); i++) {
     profile_collect_cmds(*p.children[i], cmds, ancestors);
@@ -299,17 +303,15 @@ void ProcessTree::export_profile2dot(ostream &o)
     o << "%)\", color=\"" << rat_to_hsv_str((double)it->second.aggr_time / root->aggr_time) << "\"];" << endl;
     for (auto it2 = it->second.subcmds.begin(); it2 != it->second.subcmds.end(); ++it2) {
       o << string(4, ' ') << "\"" << it->first << "\" -> \""<< it2->first << "\" [label=\"" ;
-      if (-1 != it2->second.first) {
-        o << percent_of(it2->second.first, root->aggr_time) << "%\\n";
+      if (!it2->second.recursed) {
+        o << percent_of(it2->second.sum_aggr_time, root->aggr_time) << "%\\n";
       }
-      o << it2->second.second << "×\", color=\"";
-      o << rat_to_hsv_str((double)it2->second.first / root->aggr_time) <<"\",";
-      o << " penwidth=\"";
-      o << ((-1 != it2->second.first)?
-            (min_penwidth
-             + (((double)it2->second.first / root->aggr_time)
-                * (max_penwidth - min_penwidth)))
-            :(min_penwidth));
+      o << it2->second.count << "×\", color=\"";
+      o << rat_to_hsv_str((double)it2->second.sum_aggr_time / root->aggr_time);
+      o << "\"," << " penwidth=\"";
+      o << (min_penwidth  + (((double)it2->second.sum_aggr_time
+                              / root->aggr_time)
+                             * (max_penwidth - min_penwidth)));
       o << "\"];" << endl;
     }
   }
