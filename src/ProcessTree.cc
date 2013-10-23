@@ -296,11 +296,11 @@ void ProcessTree::export_profile2dot(ostream &o)
   o << "edge [fontname=Helvetica]" << endl;
 
   for (auto it = cmd_profs.begin(); it != cmd_profs.end(); ++it) {
-    o << string(4, ' ') << "\"" << it->first << "\" [label=\"";
-    o << it->first << "\\n";
-    o << percent_of(it->second.aggr_time, root->aggr_time) << "%\\n(";
+    o << string(4, ' ') << "\"" << it->first << "\" [label=<<B>";
+    o << it->first << "</B><BR/>";
+    o << percent_of(it->second.aggr_time, root->aggr_time) << "%<BR/>(";
     o << percent_of(it->second.cmd_time, root->aggr_time);
-    o << "%)\", color=\"" << rat_to_hsv_str((double)it->second.aggr_time / root->aggr_time) << "\"];" << endl;
+    o << "%)>, color=\"" << rat_to_hsv_str((double)it->second.aggr_time / root->aggr_time) << "\"];" << endl;
     for (auto it2 = it->second.subcmds.begin(); it2 != it->second.subcmds.end(); ++it2) {
       o << string(4, ' ') << "\"" << it->first << "\" -> \""<< it2->first << "\" [label=\"" ;
       if (!it2->second.recursed) {
