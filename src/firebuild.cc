@@ -36,7 +36,6 @@ static io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
-static bool report_split = false;
 static char *report_file = (char*)"firebuild-build-report.html";
 static ProcessTree proc_tree;
 
@@ -276,11 +275,10 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
  * Write report to specified file
  *
  * @param html_filename report file to be written
- * @param split split report to separate files
  * @param datadir report template's location
  * TODO error handling
  */
-static void write_report(char *html_filename, bool split, string datadir){
+static void write_report(char *html_filename, string datadir){
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
   const char d3_filename[] = "d3.v3.min.js";
@@ -302,37 +300,24 @@ static void write_report(char *html_filename, bool split, string datadir){
   system((dot_cmd + " -Tsvg -o" + dir + "/" + svg_filename + " " + dir
           + "/" + dot_filename).c_str());
 
-  if (split) {
-    fstream tree;
-    // copy common files
-    {
-      std::ofstream  dst(html_filename,   std::ios::binary);
-      dst << src.rdbuf();
-    }
-    {
-      std::ofstream  dst(dir + "/" + d3_filename,   std::ios::binary);
+  std::ofstream dst(html_filename);
+  while (src.good() && dst.good()) {
+    string line;
+    getline(src, line);
+    if (NULL != strstr(line.c_str(), d3_filename)) {
+      dst << "<script type=\"text/javascript\">" << endl;
       dst << d3.rdbuf();
-    }
-    // export tree
-    tree.open ( dir + "/" + tree_filename, std::fstream::out);
-    proc_tree.export2js(tree);
-    tree.close();
-  } else {
-    std::ofstream dst(html_filename);
-    while (src.good() && dst.good()) {
-      string line;
-      getline(src, line);
-      if (NULL != strstr(line.c_str(), d3_filename)) {
-        dst << "<script type=\"text/javascript\">" << endl;
-        dst << d3.rdbuf();
-        dst << "    </script>" << endl;
-      } else if (NULL != strstr(line.c_str(), tree_filename)) {
-        dst << "    <script type=\"text/javascript\">" << endl;
-        proc_tree.export2js(dst);
-        dst << "    </script>" << endl;
-      } else {
-        dst << line << endl;
-      }
+      dst << "    </script>" << endl;
+    } else if (NULL != strstr(line.c_str(), tree_filename)) {
+      dst << "    <script type=\"text/javascript\">" << endl;
+      proc_tree.export2js(dst);
+      dst << "    </script>" << endl;
+    } else if (NULL != strstr(line.c_str(), svg_filename)) {
+      std::ifstream svg(dir + "/" + svg_filename);
+      dst << svg.rdbuf();
+      svg.close();
+    } else {
+      dst << line << endl;
     }
   }
   d3.close();
@@ -344,11 +329,6 @@ int main(int argc, char* argv[]) {
   char **env_exec, *config_file = NULL;
   int i, c;
   string tempdir;
-
-  if (getenv("FIREBUILD_SPLIT_REPORT")) {
-    // this is only for development purposes, this is why it is not documented
-    report_split = true;
-  }
 
   // parse options
   setenv("POSIXLY_CORRECT", "1", true);
@@ -587,7 +567,7 @@ int main(int argc, char* argv[]) {
 
     // show process tree if needed
     if (generate_report) {
-      write_report(report_file, report_split, datadir);
+      write_report(report_file, datadir);
     }
   }
 

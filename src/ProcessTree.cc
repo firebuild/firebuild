@@ -291,9 +291,10 @@ void ProcessTree::export_profile2dot(ostream &o)
 
   // print it
   o << "digraph {" << endl;
-  o << "graph [dpi=55, ranksep=0.25, rankdir=LR, bgcolor=transparent, fontname=Helvetica, fontsize=12.0, nodesep=0.125];" << endl;
-  o << "node [fontname=Helvetica, style=filled, height=0, width=0, shape=box, fontcolor=white];" << endl;
-  o << "edge [fontname=Helvetica]" << endl;
+  o << "graph [dpi=63, ranksep=0.25, rankdir=LR, bgcolor=transparent,";
+  o << " fontname=Helvetica, fontsize=12, nodesep=0.125];" << endl;
+  o << "node [fontname=Helvetica, fontsize=12, style=filled, height=0, width=0, shape=box, fontcolor=white];" << endl;
+  o << "edge [fontname=Helvetica, fontsize=12]" << endl;
 
   for (auto it = cmd_profs.begin(); it != cmd_profs.end(); ++it) {
     o << string(4, ' ') << "\"" << it->first << "\" [label=<<B>";
