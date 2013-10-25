@@ -286,8 +286,11 @@ void ProcessTree::export_profile2dot(ostream &o)
 {
   set<string> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
+  long int build_time;
+
   // build profile
   build_profile(*root, cmd_chain);
+  build_time = root->aggr_time;
 
   // print it
   o << "digraph {" << endl;
@@ -299,19 +302,18 @@ void ProcessTree::export_profile2dot(ostream &o)
   for (auto it = cmd_profs.begin(); it != cmd_profs.end(); ++it) {
     o << string(4, ' ') << "\"" << it->first << "\" [label=<<B>";
     o << it->first << "</B><BR/>";
-    o << percent_of(it->second.aggr_time, root->aggr_time) << "%<BR/>(";
-    o << percent_of(it->second.cmd_time, root->aggr_time);
-    o << "%)>, color=\"" << rat_to_hsv_str((double)it->second.aggr_time / root->aggr_time) << "\"];" << endl;
+    o << percent_of(it->second.aggr_time, build_time) << "%<BR/>(";
+    o << percent_of(it->second.cmd_time, build_time);
+    o << "%)>, color=\"" << rat_to_hsv_str((double)it->second.aggr_time / build_time) << "\"];" << endl;
     for (auto it2 = it->second.subcmds.begin(); it2 != it->second.subcmds.end(); ++it2) {
       o << string(4, ' ') << "\"" << it->first << "\" -> \""<< it2->first << "\" [label=\"" ;
       if (!it2->second.recursed) {
-        o << percent_of(it2->second.sum_aggr_time, root->aggr_time) << "%\\n";
+        o << percent_of(it2->second.sum_aggr_time, build_time) << "%\\n";
       }
       o << it2->second.count << "×\", color=\"";
-      o << rat_to_hsv_str((double)it2->second.sum_aggr_time / root->aggr_time);
+      o << rat_to_hsv_str((double)it2->second.sum_aggr_time / build_time);
       o << "\"," << " penwidth=\"";
-      o << (min_penwidth  + (((double)it2->second.sum_aggr_time
-                              / root->aggr_time)
+      o << (min_penwidth  + (((double)it2->second.sum_aggr_time / build_time)
                              * (max_penwidth - min_penwidth)));
       o << "\"];" << endl;
     }
