@@ -2,8 +2,8 @@
  * Interceptor library definitions
  */
 
-#ifndef _INTERCEPT_H
-#define _INTERCEPT_H
+#ifndef FIREBUILD_INTERCEPT_H
+#define FIREBUILD_INTERCEPT_H
 
 #include <dlfcn.h>
 #include <pthread.h>

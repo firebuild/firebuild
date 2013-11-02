@@ -1,6 +1,6 @@
 
-#ifndef FB_EXECED_PROCESS_H
-#define FB_EXECED_PROCESS_H
+#ifndef FIREBUILD_EXECED_PROCESS_H
+#define FIREBUILD_EXECED_PROCESS_H
 
 #include "Process.h"
 

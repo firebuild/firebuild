@@ -1,6 +1,6 @@
 
-#ifndef FB_PROCESS_TREE_H
-#define FB_PROCESS_TREE_H
+#ifndef FIREBUILD_PROCESS_TREE_H
+#define FIREBUILD_PROCESS_TREE_H
 
 #include <set>
 #include <unordered_map>

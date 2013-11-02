@@ -1,6 +1,6 @@
 
-#ifndef FB_PROCESS_H
-#define FB_PROCESS_H
+#ifndef FIREBUILD_PROCESS_H
+#define FIREBUILD_PROCESS_H
 
 #include <string>
 #include <vector>

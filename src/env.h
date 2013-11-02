@@ -1,5 +1,5 @@
-#ifndef _FIREBUILD_ENV_H
-#define _FIREBUILD_ENV_H
+#ifndef FIREBUILD_ENV_H
+#define FIREBUILD_ENV_H
 
 #ifdef  __cplusplus
 extern "C" {

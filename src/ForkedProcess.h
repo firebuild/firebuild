@@ -1,6 +1,6 @@
 
-#ifndef FB_FORKED_PROCESS_H
-#define FB_FORKED_PROCESS_H
+#ifndef FIREBUILD_FORKED_PROCESS_H
+#define FIREBUILD_FORKED_PROCESS_H
 
 #include "Process.h"
 
