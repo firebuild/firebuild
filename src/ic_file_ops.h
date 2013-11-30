@@ -94,16 +94,6 @@ IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
 IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
            (fd, file, oflag, mode))
 
-#define IC_CREATE(name)                             \
-  IC(int, name, (const char *file, mode_t mode), {	\
-      ret = orig_fn(file, mode);                    \
-      intercept_creat(file, mode, ret);             \
-      clear_file_state(ret);                        \
-    })
-
-IC_CREATE(creat)
-IC_CREATE(creat64)
-
 /* libc internal */
 IC(int, __libc_start_main, (int (*main) (int, char **, char **),
                             int argc, char **ubp_av,

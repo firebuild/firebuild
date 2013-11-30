@@ -244,7 +244,6 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
     ::firebuild::Process *proc = proc_tree.pid2proc.at(ic_msg.execvfailed().pid());
     proc_tree.sock2proc[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
-  } else if (ic_msg.has_creat()) {
   } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||

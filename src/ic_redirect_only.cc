@@ -3,6 +3,10 @@
 #include <unistd.h>
 #include <cstdarg>
 #include <cstdlib>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #ifdef  __cplusplus
 extern "C" {
@@ -64,6 +68,22 @@ IC_EXECLXX (p, e)
 extern pid_t vfork (void)
 {
   return fork();
+}
+
+/**
+ * creat calling equivalent open
+ */
+extern int creat(const char *pathname, mode_t mode)
+{
+  return open(pathname, (O_CREAT|O_WRONLY|O_TRUNC), mode);
+}
+
+/**
+ * creat64 calling equivalent open64
+ */
+extern int creat64(const char *pathname, mode_t mode)
+{
+  return open64(pathname, (O_CREAT|O_WRONLY|O_TRUNC), mode);
 }
 
 #pragma GCC visibility pop

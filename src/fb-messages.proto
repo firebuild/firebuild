@@ -166,17 +166,6 @@ message OpenFileResp {
     optional bool collect_state = 1;
 }
 
-message Creat {
-    // file path
-    optional string    file = 2;
-    // mode, decoding is left for FireBuild supervisor
-    optional int32 mode = 4;
-    // return value, the file descriptor if != -1
-    optional int32 ret = 5;
-    // error no., when ret = -1
-    optional int32 error_no = 6;
-}
-
 message GetCwd {
     // result directory
     optional string    ret = 1;
@@ -696,7 +685,6 @@ message SupervisorMsg {
 message InterceptorMsg {
     optional ShortCutProcessQuery scproc_query = 1;
     optional Open open = 2;
-    optional Creat creat = 3;
     optional Close close = 4;
     optional Process proc = 5;
     optional GenericCall gen_call = 6;
