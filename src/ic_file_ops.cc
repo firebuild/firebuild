@@ -172,6 +172,8 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd, int, arg)
 IC2_SIMPLE_2P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd)
 /* Intercept open variants */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
+/* Intercept open variants creating the file*/
+IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode, bool, created)
 /* Intercept creat */
 IC2_SIMPLE_2P(int, IC2_WITH_RET, Creat, creat, const char *, file, int, mode)
 /* Intercept getcwd */

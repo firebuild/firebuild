@@ -50,34 +50,49 @@ IC(int, fcntl, (int fd, int cmd, ...), {
  * Intercept open variants with varible length arg list.
  * mode is filled based on presence of O_CREAT flag
  */
-#define IC_OPEN_VA(ret_type, name, parameters, body)	\
-  IC(ret_type, name, parameters,                        \
+#define IC_OPEN_VA(ret_type, name, pars, o_pars)        \
+  IC(ret_type, name, pars,                              \
      {                                                  \
        mode_t mode = 0;                                 \
+       bool created = false;                            \
        if (oflag & O_CREAT) {                           \
+         int err_saved = errno;                         \
+         int tmp_fd;                                    \
          va_list ap;                                    \
          va_start(ap, oflag);                           \
          mode = va_arg(ap, mode_t);                     \
          va_end(ap);                                    \
+         oflag &= ~O_CREAT;                             \
+         if (-1 == (tmp_fd = orig_fn o_pars)) {         \
+           if (errno == ENOENT) {                       \
+             created = true;                            \
+           }                                            \
+         } else {                                       \
+           ic_orig_close(tmp_fd);                       \
+         }                                              \
+         oflag |= O_CREAT;                              \
+         errno = err_saved;                             \
        }                                                \
                                                         \
-       body;                                            \
-       intercept_open(file, oflag, mode, ret);          \
+       ret = orig_fn o_pars;                            \
+       if (!created) {                                  \
+         intercept_open(file, oflag, mode, ret);        \
+       } else {                                         \
+         intercept_open(file, oflag, mode, ret, true);  \
+       }                                                \
        clear_file_state(ret);                           \
      })
 
 
-IC_OPEN_VA(int, open, (const char *file, int oflag, ...),
-           {ret = orig_fn(file, oflag, mode);})
+IC_OPEN_VA(int, open, (const char *file, int oflag, ...), (file, oflag, mode))
 
-IC_OPEN_VA(int, open64, (const char *file, int oflag, ...),
-           {ret = orig_fn(file, oflag, mode);})
+IC_OPEN_VA(int, open64, (const char *file, int oflag, ...), (file, oflag, mode))
 
 IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
-           {ret = orig_fn(fd, file, oflag, mode);})
+           (fd, file, oflag, mode))
 
 IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
-           {ret = orig_fn(fd, file, oflag, mode);})
+           (fd, file, oflag, mode))
 
 #define IC_CREATE(name)                             \
   IC(int, name, (const char *file, mode_t mode), {	\
