@@ -18,6 +18,7 @@
 #include <libconfig.h++>
 #include "firebuild_common.h"
 #include "ProcessTree.h"
+#include "ProcessPBAdaptor.h"
 
 using namespace std;
 using namespace google::protobuf;
@@ -211,6 +212,18 @@ init_signal_handlers(void)
 }
 
 /**
+ * ACK a message from the supervised process
+ * @param conn connection file descriptor to send the ACK on
+ */
+void
+ack_msg (const int conn)
+{
+    SupervisorMsg sv_msg;
+    sv_msg.set_ack(true);
+    fb_send_msg(sv_msg, conn);
+}
+
+/**
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
  * @return fd_conn can be kept open
@@ -244,6 +257,9 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
     ::firebuild::Process *proc = proc_tree.pid2proc.at(ic_msg.execvfailed().pid());
     proc_tree.sock2proc[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
+    ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
+    ProcessPBAdaptor::msg(*proc, ic_msg.open());
+    ack_msg(fd_conn);
   } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
@@ -261,9 +277,7 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
       proc->update_rusage(ic_msg.execv().utime_m(),
                           ic_msg.execv().stime_m());
     }
-    SupervisorMsg sv_msg;
-    sv_msg.set_ack(true);
-    fb_send_msg(sv_msg, fd_conn);
+    ack_msg(fd_conn);
   } else if (ic_msg.has_gen_call()) {
   }
 

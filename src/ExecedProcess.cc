@@ -5,7 +5,7 @@ using namespace std;
 namespace firebuild {
 
 ExecedProcess::ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq) 
-  : Process(scpq.pid(), scpq.ppid(), FB_PROC_EXEC_STARTED)
+    : Process(scpq.pid(), scpq.ppid(), FB_PROC_EXEC_STARTED)
 {
 
   cwd = scpq.cwd();

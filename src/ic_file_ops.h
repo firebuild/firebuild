@@ -55,7 +55,7 @@ IC(int, fcntl, (int fd, int cmd, ...), {
      {                                                  \
        mode_t mode = 0;                                 \
        bool created = false;                            \
-       if (oflag & O_CREAT) {                           \
+       if ((oflag & O_CREAT) && !(oflag & O_EXCL)) {    \
          int err_saved = errno;                         \
          int tmp_fd;                                    \
          va_list ap;                                    \
@@ -78,7 +78,7 @@ IC(int, fcntl, (int fd, int cmd, ...), {
        if (!created) {                                  \
          intercept_open(file, oflag, mode, ret);        \
        } else {                                         \
-         intercept_open(file, oflag, mode, ret, true);  \
+         intercept_open(file, oflag, mode, true, ret);  \
        }                                                \
        clear_file_state(ret);                           \
      })

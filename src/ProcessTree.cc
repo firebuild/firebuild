@@ -18,15 +18,15 @@ static std::string escapeJsonString(const std::string& input) {
   std::ostringstream ss;
   for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
     switch (*iter) {
-    case '\\': ss << "\\\\"; break;
-    case '"': ss << "\\\""; break;
-    case '/': ss << "\\/"; break;
-    case '\b': ss << "\\b"; break;
-    case '\f': ss << "\\f"; break;
-    case '\n': ss << "\\n"; break;
-    case '\r': ss << "\\r"; break;
-    case '\t': ss << "\\t"; break;
-    default: ss << *iter; break;
+      case '\\': ss << "\\\\"; break;
+      case '"': ss << "\\\""; break;
+      case '/': ss << "\\/"; break;
+      case '\b': ss << "\\b"; break;
+      case '\f': ss << "\\f"; break;
+      case '\n': ss << "\\n"; break;
+      case '\r': ss << "\\r"; break;
+      case '\t': ss << "\\t"; break;
+      default: ss << *iter; break;
     }
   }
   return ss.str();
@@ -177,22 +177,47 @@ void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
   }
   o << "]," << endl;
 
+  o << string(indent + 1, ' ') << "fcreated : " << "[";
+  for (auto it = p.file_usages.begin(); it != p.file_usages.end(); ++it) {
+    if (it->second->created) {
+      o << "\"" << it->first << "\",";
+    }
+  }
+  o << "]," << endl;
+
+  // TODO replace write/read flag checks with more accurate tests
+  o << string(indent + 1, ' ') << "fmodified : " << "[";
+  for (auto it = p.file_usages.begin(); it != p.file_usages.end(); ++it) {
+    if ((!it->second->created) && (it->second->open_flags & (O_WRONLY | O_RDWR))) {
+      o << "\"" << it->first << "\",";
+    }
+  }
+  o << "]," << endl;
+
+  o << string(indent + 1, ' ') << "fread : " << "[";
+  for (auto it = p.file_usages.begin(); it != p.file_usages.end(); ++it) {
+    if (it->second->open_flags & (O_RDONLY | O_RDWR)) {
+      o << "\"" << it->first << "\",";
+    }
+  }
+  o << "]," << endl;
+
   switch (p.state) {
-  case FB_PROC_FINISHED: {
-    o << string(indent + 1, ' ') << "exit_status : " << p.exit_status << "," << endl;
-    // break; is missing intentionally
-  }
-  case FB_PROC_EXECED: {
-    o << string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << endl;
-    o << string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << endl;
-    o << string(indent + 1, ' ') << "aggr_time : " << p.aggr_time << "," << endl;
-    o << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
-    o << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
-    // break; is missing intentionally
-  }
-  case FB_PROC_RUNNING: {
-    // something went wrong
-  }
+    case FB_PROC_FINISHED: {
+      o << string(indent + 1, ' ') << "exit_status : " << p.exit_status << "," << endl;
+      // break; is missing intentionally
+    }
+    case FB_PROC_EXECED: {
+      o << string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << endl;
+      o << string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << endl;
+      o << string(indent + 1, ' ') << "aggr_time : " << p.aggr_time << "," << endl;
+      o << string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << endl;
+      o << string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << endl;
+      // break; is missing intentionally
+    }
+    case FB_PROC_RUNNING: {
+      // something went wrong
+    }
   }
 }
 
@@ -230,7 +255,7 @@ void ProcessTree::build_profile(Process &p, set<string> &ancestors)
     }
     cmd_prof.cmd_time += e->sum_utime_m +  e->sum_stime_m;
     profile_collect_cmds(p, cmd_prof.subcmds, ancestors);
-}
+  }
   if (p.exec_child != NULL) {
     build_profile(*p.exec_child, ancestors);
   }

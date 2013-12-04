@@ -25,6 +25,8 @@ class ExecedProcess : public Process
   vector<string> args;
   set<string> env_vars;
   string executable;
+  /** Process can be shortcut by FireBuild. */
+  bool shortcuttable = true;
   ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);
   void exit_result (int status, long int utime_m, long int stime_m);
 };

@@ -1,6 +1,7 @@
 
 find_package(Protobuf REQUIRED)
 find_package(LibConfig REQUIRED)
+find_package(OpenSSL REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS fb-messages.proto)
@@ -22,6 +23,10 @@ add_executable(firebuild
   ExecedProcess.cc
   ForkedProcess.cc
   ProcessTree.cc
+  ProcessPBAdaptor.cc
+  SHA256Hash.cc
+  File.cc
+  FileDB.cc
   ${PROTO_SRCS}
   ${PROTO_HDRS})
-target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY})
+target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${OPENSSL_LIBRARIES})

@@ -101,13 +101,13 @@ message Fcntl {
 
 message Open {
     // file path
-    optional string    file = 2;
+    required string    file = 2;
     // flags, decoding is left for FireBuild supervisor
-    optional int32 flags = 3;
+    required int32 flags = 3;
     // mode, decoding is left for FireBuild supervisor
-    optional int32 mode = 4;
+    required int32 mode = 4;
     // return value, the file descriptor if != -1
-    optional int32 ret = 5;
+    required int32 ret = 5;
     // error no., when ret = -1
     optional int32 error_no = 6;
     // file did not exis before opening but it was created
