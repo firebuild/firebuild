@@ -1,6 +1,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
+#include <limits>
 #include <math.h>
 
 #include "ProcessTree.h"
@@ -288,9 +289,10 @@ static void hsl_to_hsv(const double hh, const double ss, const double ll,
  * Ratio to HSL color string
  * @param r 0.0 .. 1.0
  */
-static string rat_to_hsv_str(double r) {
+static string pct_to_hsv_str(const double p) {
   const double hsl_min[] = {2.0/3.0, 0.80, 0.25}; // blue
   const double hsl_max[] = {0.0, 1.0, 0.5}; // red
+  const double r = p / 100;
   double hsl[3];
   double hsv[3];
 
@@ -304,7 +306,9 @@ static string rat_to_hsv_str(double r) {
 
 static double percent_of (double val, double of)
 {
-  return round(val * 10000 / of) / 100;
+  return (((of < numeric_limits<double>::epsilon()) &&
+           (of > -numeric_limits<double>::epsilon()))?(0.0):
+          (round(val * 10000 / of) / 100));
 }
 
 void ProcessTree::export_profile2dot(ostream &o)
@@ -329,16 +333,16 @@ void ProcessTree::export_profile2dot(ostream &o)
     o << it->first << "</B><BR/>";
     o << percent_of(it->second.aggr_time, build_time) << "%<BR/>(";
     o << percent_of(it->second.cmd_time, build_time);
-    o << "%)>, color=\"" << rat_to_hsv_str((double)it->second.aggr_time / build_time) << "\"];" << endl;
+    o << "%)>, color=\"" << pct_to_hsv_str(percent_of(it->second.aggr_time, build_time)) << "\"];" << endl;
     for (auto it2 = it->second.subcmds.begin(); it2 != it->second.subcmds.end(); ++it2) {
       o << string(4, ' ') << "\"" << it->first << "\" -> \""<< it2->first << "\" [label=\"" ;
       if (!it2->second.recursed) {
         o << percent_of(it2->second.sum_aggr_time, build_time) << "%\\n";
       }
       o << it2->second.count << "×\", color=\"";
-      o << rat_to_hsv_str((double)it2->second.sum_aggr_time / build_time);
+      o << pct_to_hsv_str(percent_of(it2->second.sum_aggr_time, build_time));
       o << "\"," << " penwidth=\"";
-      o << (min_penwidth  + (((double)it2->second.sum_aggr_time / build_time)
+      o << (min_penwidth  + ((percent_of(it2->second.sum_aggr_time, build_time) / 100)
                              * (max_penwidth - min_penwidth)));
       o << "\"];" << endl;
     }
