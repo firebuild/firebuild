@@ -10,10 +10,11 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process (int pid, int ppid, process_type type)
-    : type(type), can_shortcut(true), pid(pid), ppid(ppid)
+    : type(type), state(FB_PROC_RUNNING), can_shortcut(true),
+      fb_pid(fb_pid_counter++), pid(pid), ppid(ppid), exit_status(-1),
+      libs(), file_usages(), fds(), utime_m(0), stime_m(0), aggr_time(0),
+      children(), exec_child(NULL)
 {
-  fb_pid = fb_pid_counter++;
-  state = FB_PROC_RUNNING;
 }
 
 void Process::update_rusage (long int utime_m, long int stime_m)
