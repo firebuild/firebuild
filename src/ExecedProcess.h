@@ -14,7 +14,7 @@ namespace firebuild
 class ExecedProcess : public Process
 {
  private:
-  void propagate_exit_status (int status);
+  void propagate_exit_status (const int status);
  public:
   Process *exec_parent = NULL;
   long int sum_utime_m = 0; /**< Sum of user time in milliseconds for all forked
@@ -28,7 +28,7 @@ class ExecedProcess : public Process
   /** Process can be shortcut by FireBuild. */
   bool shortcuttable = true;
   ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);
-  void exit_result (int status, long int utime_m, long int stime_m);
+  void exit_result (const int status, const long int utime_m, const long int stime_m);
 };
 
 

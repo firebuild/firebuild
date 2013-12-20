@@ -131,7 +131,7 @@ extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 extern void fb_error(const char* msg);
 
 /** Send debug message to supervisor id debug level is at least lvl */
-extern void fb_debug(int lvl, const char* msg);
+extern void fb_debug(const int lvl, const char* const msg);
 
 /**
  * Stored PID

@@ -9,7 +9,7 @@
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
  */
-extern ssize_t fb_send_msg (google::protobuf::MessageLite &pb_msg, int fd)
+extern ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const int fd)
 {
   ssize_t ret;
   char *buf = NULL;
@@ -32,7 +32,7 @@ extern ssize_t fb_send_msg (google::protobuf::MessageLite &pb_msg, int fd)
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
  */
-extern ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, int fd)
+extern ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, const int fd)
 {
   ssize_t ret;
   char *buf = NULL;

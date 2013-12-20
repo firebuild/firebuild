@@ -118,7 +118,7 @@ long int ProcessTree::sum_rusage_recurse(Process &p)
   return p.aggr_time;
 }
 
-void ProcessTree::export2js_recurse(Process &p, unsigned int level, ostream& o)
+void ProcessTree::export2js_recurse(Process &p, const unsigned int level, ostream& o)
 {
   if (p.type == FB_PROC_EXEC_STARTED) {
     if (level > 0) {
@@ -149,7 +149,7 @@ void ProcessTree::export2js(ostream& o)
   export2js_recurse(*root, 0, o);
 }
 
-void ProcessTree::export2js(ExecedProcess &p, unsigned int level, ostream& o)
+void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, ostream& o)
 {
   // TODO: escape all strings properly
   unsigned int indent = 2 * level;
@@ -276,7 +276,7 @@ void ProcessTree::build_profile(Process &p, set<string> &ancestors)
  * From http://ariya.blogspot.hu/2008/07/converting-between-hsl-and-hsv.html
  */
 static void hsl_to_hsv(const double hh, const double ss, const double ll,
-                       double *h, double *s, double *v)
+                       double *const h, double * const s, double * const v)
 {
   double ss_tmp;
   *h = hh;
@@ -304,7 +304,7 @@ static string pct_to_hsv_str(const double p) {
   return to_string(hsv[0]) + ", " + to_string(hsv[1]) + ", " + to_string(hsv[2]);
 }
 
-static double percent_of (double val, double of)
+static double percent_of (const double val, const double of)
 {
   return (((of < numeric_limits<double>::epsilon()) &&
            (of > -numeric_limits<double>::epsilon()))?(0.0):

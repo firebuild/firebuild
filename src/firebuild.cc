@@ -37,7 +37,7 @@ static io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
-static char *report_file = (char*)"firebuild-build-report.html";
+static string report_file = "firebuild-build-report.html";
 static ProcessTree proc_tree;
 
 /** global configuration */
@@ -66,14 +66,15 @@ static void usage()
 
 /** Parse configuration file */
 static void
-parse_cfg_file(char *cfg_file)
+parse_cfg_file(const char * const custom_cfg_file)
 {
+  const char * cfg_file = custom_cfg_file;
   if (cfg_file == NULL) {
     char * homedir = getenv("HOME");
     int cfg_fd;
     if ((homedir != NULL ) && (-1 != (cfg_fd = open(string(homedir + string("/.firebuildrc")).c_str(), O_RDONLY)))) {
       // fall back to private config file
-      cfg_file = const_cast<char*>(string(homedir + string("/.firebuildrc")).c_str());
+      cfg_file = string(homedir + string("/.firebuildrc")).c_str();
       close(cfg_fd);
     } else {
       cfg_fd = open(global_cfg, O_RDONLY);
@@ -174,7 +175,7 @@ static char** get_sanitized_env()
  * It send a 0 to the special file descriptor select is listening on, too.
  */
 static void
-sigchld_handler (int /*sig */)
+sigchld_handler (const int /*sig */)
 {
   char buf[] = {0};
   int status = 0;
@@ -228,7 +229,7 @@ ack_msg (const int conn)
  * @param fb_conn file desctiptor of the connection
  * @return fd_conn can be kept open
  */
-bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
+bool proc_ic_msg(const InterceptorMsg &ic_msg, const int fd_conn) {
   if (ic_msg.has_scproc_query()) {
     SupervisorMsg sv_msg;
     ShortCutProcessResp *scproc_resp;
@@ -291,7 +292,7 @@ bool proc_ic_msg(InterceptorMsg &ic_msg, int fd_conn) {
  * @param datadir report template's location
  * TODO error handling
  */
-static void write_report(char *html_filename, string datadir){
+static void write_report(const string &html_filename, const string &datadir){
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
   const char d3_filename[] = "d3.v3.min.js";
@@ -300,7 +301,10 @@ static void write_report(char *html_filename, string datadir){
   const string dot_cmd = "dot";
   std::ifstream d3(datadir + "/" + d3_filename);
   std::ifstream src(datadir + "/" + html_orig_filename);
-  string dir = dirname(html_filename);
+  // dirname may modify its parameter thus we provide a writable char string
+  char * html_filename_tmp = new char [html_filename.size()+1] ;
+  strcpy(html_filename_tmp, html_filename.c_str());
+  string dir = dirname(html_filename_tmp);
 
   // export profile
   {
@@ -337,7 +341,7 @@ static void write_report(char *html_filename, string datadir){
   src.close();
 }
 
-int main(int argc, char* argv[]) {
+int main(const int argc, char *argv[]) {
 
   char **env_exec, *config_file = NULL;
   int i, c;
@@ -605,13 +609,13 @@ int main(int argc, char* argv[]) {
 }
 
 /** wrapper for write() retrying on recoverable errors*/
-ssize_t fb_write_buf(int fd, const void *buf, const size_t count)
+ssize_t fb_write_buf(const int fd, const void * buf, const size_t count)
 {
   FB_IO_OP_BUF(write, fd, buf, count, {});
 }
 
 /** wrapper for read() retrying on recoverable errors*/
-ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
+ssize_t fb_read_buf(const int fd, void *buf, const size_t count)
 {
   FB_IO_OP_BUF(read, fd, buf, count, {});
 }

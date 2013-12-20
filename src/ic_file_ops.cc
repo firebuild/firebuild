@@ -192,8 +192,8 @@ IC2_SIMPLE_3P(int, IC2_NO_RET, ReadLinkAt, readlinkat, int, dirfd, const char *,
 
 /** Frontend for intercept_readlink and intercept_readlinkat */
 static void
-intercept_readlink_helper(int fd, const char *path, const char *buf,
-                          ssize_t len, ssize_t ret)
+intercept_readlink_helper(const int fd, const char *path, const char * const buf,
+                          const ssize_t len, const ssize_t ret)
 {
   char *ret_path;
   if ((ret >= 0) && (abs(ret) <= len)) {
@@ -232,7 +232,7 @@ IC2_SIMPLE_2P(VOIDPT, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, f
 
 /* Intercept pipe variants */
 static void
-intercept_pipe2 (int pipefd[2], int flags, int ret)
+intercept_pipe2 (const int pipefd[2], const int flags, const int ret)
 {
   InterceptorMsg ic_msg;
   Pipe2 *m;
@@ -252,7 +252,8 @@ intercept_pipe2 (int pipefd[2], int flags, int ret)
 
 
 static void
-intercept_execve (bool with_p, const char *file, int fd, char *const argv[], char *const envp[])
+intercept_execve (const bool with_p, const char * const file, const int fd,
+                  const char *const argv[], const char *const envp[])
 {
   InterceptorMsg ic_msg;
   SupervisorMsg sv_msg;
@@ -349,7 +350,7 @@ IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
 
 
 static void
-intercept_read (const int fd, ssize_t ret)
+intercept_read (const int fd, const ssize_t ret)
 {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
@@ -378,7 +379,7 @@ intercept_read (const int fd, ssize_t ret)
 
 
 static void
-intercept_write (const int fd, ssize_t ret)
+intercept_write (const int fd, const ssize_t ret)
 {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {

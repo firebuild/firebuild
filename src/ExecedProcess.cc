@@ -28,7 +28,7 @@ ExecedProcess::ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq)
   }
 }
 
-void ExecedProcess::propagate_exit_status (int status)
+void ExecedProcess::propagate_exit_status (const int status)
 {
   if (exec_parent) {
     exec_parent->exit_status = status;
@@ -39,7 +39,7 @@ void ExecedProcess::propagate_exit_status (int status)
   }
 }
 
-void ExecedProcess::exit_result (int status, long int utime_m, long int stime_m)
+void ExecedProcess::exit_result (const int status, const long int utime_m, const long int stime_m)
 {
   // store results for this process
   Process::exit_result(status, utime_m, stime_m);

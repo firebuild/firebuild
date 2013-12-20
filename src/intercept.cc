@@ -319,14 +319,14 @@ static void fb_ic_cleanup()
 
 
 /** wrapper for write() retrying on recoverable errors*/
-ssize_t fb_write_buf(int fd, const void *buf, const size_t count)
+ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count)
 {
   pthread_mutex_lock(&ic_global_lock);
   FB_IO_OP_BUF(ic_orig_write, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
 }
 
 /** wrapper for write() retrying on recoverable errors*/
-ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
+ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count)
 {
   pthread_mutex_lock(&ic_global_lock);
   FB_IO_OP_BUF(ic_orig_read, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
@@ -334,7 +334,7 @@ ssize_t fb_read_buf(int fd, const void *buf, const size_t count)
 
 /** Add shared library's name to the file list */
 int
-shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data)
+shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data)
 {
   FileList *fl = (FileList*)data;
   //unused
@@ -348,7 +348,7 @@ shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data)
 }
 
 /** Send error message to supervisor */
-extern void fb_error(const char* msg)
+extern void fb_error(const char* const msg)
 {
   InterceptorMsg ic_msg;
   FBError *err;
@@ -358,7 +358,7 @@ extern void fb_error(const char* msg)
 }
 
 /** Send debug message to supervisor id debug level is at least lvl */
-extern void fb_debug(int lvl, const char* msg)
+extern void fb_debug(const int lvl, const char* const msg)
 {
   if (debug_level >= lvl) {
     InterceptorMsg ic_msg;
@@ -381,7 +381,7 @@ extern "C" {
  * see man rtld-audit(7) for details
  */
 unsigned int
-la_version(unsigned int version)
+la_version(const unsigned int version)
 {
   return version;
 }
@@ -391,7 +391,7 @@ la_version(unsigned int version)
  * library
  */
 char *
-la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
+la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 {
   InterceptorMsg ic_msg;
   LAObjSearch *los = ic_msg.mutable_la_objsearch();
@@ -412,7 +412,7 @@ la_objsearch(const char *name, uintptr_t *cookie, unsigned int flag)
  * Send path to supervisor whenever the dynamic linker loads a shared library
  */
 unsigned int
-la_objopen(struct link_map *map, Lmid_t lmid, uintptr_t *cookie)
+la_objopen(struct link_map *map, const Lmid_t lmid, uintptr_t *cookie)
 {
   InterceptorMsg ic_msg;
   LAObjOpen *los = ic_msg.mutable_la_objopen();
