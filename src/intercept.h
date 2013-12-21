@@ -8,6 +8,8 @@
 #include <dlfcn.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <sys/socket.h>
+
 #include <vector>
 
 #include "firebuild_common.h"

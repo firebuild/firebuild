@@ -1,4 +1,5 @@
 
+#include "SHA256Hash.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -6,7 +7,6 @@
 #include <unistd.h>
 
 
-#include "SHA256Hash.h"
 
 static const int hash_bufsize = 4096;
 

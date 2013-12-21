@@ -1,8 +1,9 @@
+#include <math.h>
+
 #include <stdexcept>
 #include <iostream>
 #include <sstream>
 #include <limits>
-#include <math.h>
 
 #include "ProcessTree.h"
 

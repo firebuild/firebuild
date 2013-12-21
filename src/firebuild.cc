@@ -1,10 +1,4 @@
 
-#include "fb-messages.pb.h"
-#include <string>
-#include <iostream>
-#include <fstream>
-#include <cerrno>
-#include <cstdio>
 #include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
@@ -13,12 +7,21 @@
 #include <sys/un.h>
 #include <fcntl.h>
 #include <libgen.h>
+
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <cerrno>
+#include <cstdio>
+
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <libconfig.h++>
+
 #include "firebuild_common.h"
 #include "ProcessTree.h"
 #include "ProcessPBAdaptor.h"
+#include "fb-messages.pb.h"
 
 using namespace std;
 using namespace google::protobuf;

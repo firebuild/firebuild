@@ -1,8 +1,11 @@
 
 #include "firebuild_common.h"
-#include <google/protobuf/message_lite.h>
-#include <cstdlib>
+
 #include <netinet/in.h>
+
+#include <cstdlib>
+
+#include <google/protobuf/message_lite.h>
 
 /**
  * Send protobuf message via file descriptor

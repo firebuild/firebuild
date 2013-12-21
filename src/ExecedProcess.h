@@ -3,7 +3,6 @@
 #define FIREBUILD_EXECED_PROCESS_H
 
 #include "Process.h"
-
 #include "fb-messages.pb.h"
 
 using namespace std;

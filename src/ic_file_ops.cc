@@ -1,11 +1,7 @@
 /* from fcntl.h */
 
 #include <fcntl.h>
-#include <cstdarg>
-#include <cstdio>
 #include <mntent.h>
-#include <cwchar>
-#include <cassert>
 #include <errno.h>
 #include <unistd.h>
 #include <iostream>
@@ -18,6 +14,11 @@
 #include <dirent.h>
 #include <link.h>
 #include <sys/resource.h>
+
+#include <cassert>
+#include <cstdarg>
+#include <cstdio>
+#include <cwchar>
 
 #include "intercept.h"
 #include "fb-messages.pb.h"

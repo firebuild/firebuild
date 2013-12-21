@@ -1,17 +1,16 @@
 
-#include <cassert>
-#include <cstdarg>
-#include <cstdlib>
+#include "intercept.h"
+
 #include <unistd.h>
 #include <errno.h>
-#include <dlfcn.h>
 #include <link.h>
-#include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/resource.h>
 
+#include <cassert>
+#include <cstdarg>
+#include <cstdlib>
 
-#include "intercept.h"
 #include "env.h"
 #include "fb-messages.pb.h"
 #include "firebuild_common.h"
