@@ -1,8 +1,10 @@
 
-#ifndef FIREBUILD_COMMON_H
-#define FIREBUILD_COMMON_H
+#ifndef FIREBUILD_FIREBUILD_COMMON_H
+#define FIREBUILD_FIREBUILD_COMMON_H
 
 #include <google/protobuf/message_lite.h>
+
+namespace firebuild {
 
 ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const int fd);
 ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, const int fd);
@@ -47,5 +49,7 @@ ssize_t fb_read_buf(const int fd, void * buf, const size_t count);
     mp_cleanup_block;                                                   \
     return mp_count;                                                    \
   }
+
+} //namespace firebuild
 
 #endif

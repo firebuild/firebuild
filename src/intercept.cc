@@ -15,7 +15,7 @@
 #include "fb-messages.pb.h"
 #include "firebuild_common.h"
 
-using namespace firebuild::msg;
+namespace firebuild {
 
 #ifdef  __cplusplus
 extern "C" {
@@ -179,10 +179,10 @@ static void fb_ic_init()
   char **argv, **env, **cursor, *cwd_ret;
   char cwd_buf[CWD_BUFSIZE];
   pid_t pid, ppid;
-  ShortCutProcessQuery *proc;
-  ShortCutProcessResp * resp;
-  InterceptorMsg ic_msg;
-  SupervisorMsg sv_msg;
+  msg::ShortCutProcessQuery *proc;
+  msg::ShortCutProcessResp * resp;
+  msg::InterceptorMsg ic_msg;
+  msg::SupervisorMsg sv_msg;
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -240,7 +240,7 @@ static void fb_ic_init()
 
   // list loaded shared libs
   {
-    FileList *fl = proc->mutable_libs();
+    msg::FileList *fl = proc->mutable_libs();
     dl_iterate_phdr(shared_libs_cb, fl);
 
   }
@@ -265,6 +265,8 @@ static void fb_ic_init()
   intercept_on = false;
 }
 
+extern "C" {
+
 /**
  * Collect information about process the earliest possible, right
  * when interceptor library loads or when the first interceped call happens
@@ -275,15 +277,16 @@ void fb_ic_load()
     fb_ic_init();
   }
 }
+
 void
 handle_exit (const int status, void*)
 {
   if (!fb_exit_handled) {
     // TODO atomic set
     fb_exit_handled = true;
-    InterceptorMsg ic_msg;
-    SupervisorMsg sv_msg;
-    Exit *m;
+    msg::InterceptorMsg ic_msg;
+    msg::SupervisorMsg sv_msg;
+    msg::Exit *m;
     struct rusage ru;
     ssize_t len;
 
@@ -293,7 +296,7 @@ handle_exit (const int status, void*)
     m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
     m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
     {
-      FileList *fl = m->mutable_libs();
+      msg::FileList *fl = m->mutable_libs();
       dl_iterate_phdr(shared_libs_cb, fl);
 
     }
@@ -306,7 +309,7 @@ handle_exit (const int status, void*)
   }
 }
 
-
+}
 
 static void fb_ic_cleanup()
 {
@@ -330,26 +333,11 @@ ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count)
   FB_IO_OP_BUF(ic_orig_read, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
 }
 
-/** Add shared library's name to the file list */
-int
-shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data)
-{
-  FileList *fl = (FileList*)data;
-  //unused
-  (void)size;
-
-  if (info->dlpi_name[0] != '\0') {
-    fl->add_file(info->dlpi_name);
-  }
-
-  return 0;
-}
-
 /** Send error message to supervisor */
 extern void fb_error(const char* const msg)
 {
-  InterceptorMsg ic_msg;
-  FBError *err;
+  msg::InterceptorMsg ic_msg;
+  msg::FBError *err;
   err = ic_msg.mutable_fb_error();
   err->set_msg(msg);
   fb_send_msg(ic_msg, fb_sv_conn);
@@ -359,12 +347,29 @@ extern void fb_error(const char* const msg)
 extern void fb_debug(const int lvl, const char* const msg)
 {
   if (debug_level >= lvl) {
-    InterceptorMsg ic_msg;
-    FBDebug *dbg;
+    msg::InterceptorMsg ic_msg;
+    msg::FBDebug *dbg;
     dbg = ic_msg.mutable_fb_debug();
     dbg->set_msg(msg);
     fb_send_msg(ic_msg, fb_sv_conn);
   }
+}
+
+} // namespace firebuild
+
+/** Add shared library's name to the file list */
+int
+shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data)
+{
+  firebuild::msg::FileList *fl = (firebuild::msg::FileList*)data;
+  //unused
+  (void)size;
+
+  if (info->dlpi_name[0] != '\0') {
+    fl->add_file(info->dlpi_name);
+  }
+
+  return 0;
 }
 
 /* make auditing functions visible */
@@ -391,8 +396,8 @@ la_version(const unsigned int version)
 char *
 la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 {
-  InterceptorMsg ic_msg;
-  LAObjSearch *los = ic_msg.mutable_la_objsearch();
+  firebuild::msg::InterceptorMsg ic_msg;
+  firebuild::msg::LAObjSearch *los = ic_msg.mutable_la_objsearch();
 
   // unused
   (void)cookie;
@@ -401,7 +406,7 @@ la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 
   los->set_name(name);
   los->set_flag(flag);
-  fb_send_msg(ic_msg, fb_sv_conn);
+  firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
 
   return const_cast<char*>(name);
 }
@@ -412,8 +417,8 @@ la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 unsigned int
 la_objopen(struct link_map *map, const Lmid_t lmid, uintptr_t *cookie)
 {
-  InterceptorMsg ic_msg;
-  LAObjOpen *los = ic_msg.mutable_la_objopen();
+  firebuild::msg::InterceptorMsg ic_msg;
+  firebuild::msg::LAObjOpen *los = ic_msg.mutable_la_objopen();
 
   // unused
   (void)lmid;
@@ -422,7 +427,7 @@ la_objopen(struct link_map *map, const Lmid_t lmid, uintptr_t *cookie)
   fb_ic_load();
 
   los->set_name(map->l_name);
-  fb_send_msg(ic_msg, fb_sv_conn);
+  firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
 
   return LA_FLG_BINDTO | LA_FLG_BINDFROM;
 }
@@ -433,3 +438,4 @@ la_objopen(struct link_map *map, const Lmid_t lmid, uintptr_t *cookie)
 #endif
 
 #pragma GCC visibility pop
+

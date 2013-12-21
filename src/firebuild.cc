@@ -23,10 +23,7 @@
 #include "ProcessPBAdaptor.h"
 #include "fb-messages.pb.h"
 
-using namespace google::protobuf;
-using namespace libconfig;
-using namespace firebuild;
-using namespace firebuild::msg;
+namespace {
 
 static char global_cfg[] = "/etc/firebuildrc";
 
@@ -35,35 +32,35 @@ static char datadir[] = FIREBUILD_DATADIR;
 static char *fb_conn_string;
 static int sigchld_fds[2];
 static int child_pid, child_ret = 1;
-static io::FileOutputStream * error_fos;
+static google::protobuf::io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
 static std::string report_file = "firebuild-build-report.html";
-static ProcessTree proc_tree;
+static firebuild::ProcessTree proc_tree;
 
 /** global configuration */
 libconfig::Config cfg;
 
 static void usage()
 {
-  cout << "Usage: firebuild [OPTIONS] <BUILD COMMAND>" << std::endl;
-  cout << "Execute BUILD COMMAND with FireBuild™ instrumentation" << std::endl;
-  cout << "" << std::endl;
-  cout << "Mandatory arguments to long options are mandatory for short options too." << std::endl;
-  cout << "   -c --config-file=FILE     use FILE as configuration file" << std::endl;
-  cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << std::endl;
-  cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << std::endl;
-  cout << "                             the report's filename can be specified " << std::endl;
-  cout << "                             (firebuild-build-report.html by default). " << std::endl;
-  cout << "   -h --help                 show this help" << std::endl;
-  cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << std::endl;
-  cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << std::endl;
-  cout << "                             to let users find unintercepted calls using" << std::endl;
-  cout << "                             strace or ltrace" << std::endl;
-  cout << "Exit status:" << std::endl;
-  cout << " exit status of the BUILD COMMAND" << std::endl;
-  cout << " 1  in case of failure" << std::endl;
+  std::cout << "Usage: firebuild [OPTIONS] <BUILD COMMAND>" << std::endl;
+  std::cout << "Execute BUILD COMMAND with FireBuild™ instrumentation" << std::endl;
+  std::cout << "" << std::endl;
+  std::cout << "Mandatory arguments to long options are mandatory for short options too." << std::endl;
+  std::cout << "   -c --config-file=FILE     use FILE as configuration file" << std::endl;
+  std::cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << std::endl;
+  std::cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << std::endl;
+  std::cout << "                             the report's filename can be specified " << std::endl;
+  std::cout << "                             (firebuild-build-report.html by default). " << std::endl;
+  std::cout << "   -h --help                 show this help" << std::endl;
+  std::cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << std::endl;
+  std::cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << std::endl;
+  std::cout << "                             to let users find unintercepted calls using" << std::endl;
+  std::cout << "                             strace or ltrace" << std::endl;
+  std::cout << "Exit status:" << std::endl;
+  std::cout << " exit status of the BUILD COMMAND" << std::endl;
+  std::cout << " 1  in case of failure" << std::endl;
 }
 
 /** Parse configuration file */
@@ -74,9 +71,9 @@ parse_cfg_file(const char * const custom_cfg_file)
   if (cfg_file == NULL) {
     char * homedir = getenv("HOME");
     int cfg_fd;
-    if ((homedir != NULL ) && (-1 != (cfg_fd = open(string(homedir + std::string("/.firebuildrc")).c_str(), O_RDONLY)))) {
+    if ((homedir != NULL ) && (-1 != (cfg_fd = open(std::string(homedir + std::string("/.firebuildrc")).c_str(), O_RDONLY)))) {
       // fall back to private config file
-      cfg_file = std::string(homedir + string("/.firebuildrc")).c_str();
+      cfg_file = std::string(homedir + std::string("/.firebuildrc")).c_str();
       close(cfg_fd);
     } else {
       cfg_fd = open(global_cfg, O_RDONLY);
@@ -91,12 +88,12 @@ parse_cfg_file(const char * const custom_cfg_file)
     {
       cfg.readFile(cfg_file);
     }
-  catch(const FileIOException &fioex)
+  catch(const libconfig::FileIOException &fioex)
     {
       std::cerr << "Could not read configuration file " << cfg_file << std::endl;
       exit(EXIT_FAILURE);
     }
-  catch(const ParseException &pex)
+  catch(const libconfig::ParseException &pex)
     {
       std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
                 << " - " << pex.getError() << std::endl;
@@ -116,41 +113,41 @@ static char** get_sanitized_env()
   std::vector<std::string> env_v;
   char ** ret_env;
   std::vector<std::string>::iterator it;
-  const Setting& root = cfg.getRoot();
-  const Setting& pass_through = root["env_vars"]["pass_through"];
-  const Setting& preset = root["env_vars"]["preset"];
+  const libconfig::Setting& root = cfg.getRoot();
+  const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
+  const libconfig::Setting& preset = root["env_vars"]["preset"];
   int count = pass_through.getLength();
 
   if (debug_level >= 1) {
-    cout << "Passing through environment variables:" << std::endl;
+    std::cout << "Passing through environment variables:" << std::endl;
   }
   for (i = 0; i < count ; i++) {
     char * got_env = getenv(pass_through[i].c_str());
     if (NULL  != got_env) {
-      env_v.push_back(pass_through[i].c_str() + std::string("=") + string(got_env));
+      env_v.push_back(pass_through[i].c_str() + std::string("=") + std::string(got_env));
       if (debug_level >= 1) {
-        cout << " " << env_v.back() << std::endl;
+        std::cout << " " << env_v.back() << std::endl;
       }
     }
   }
   if (debug_level >= 1) {
-    cout << std::endl;
-    cout << "Setting preset environment variables:" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Setting preset environment variables:" << std::endl;
   }
   count = preset.getLength();
   for (i = 0; i < count; i++) {
     env_v.push_back(preset[i]);
     if (debug_level >= 1) {
-      cout << " " << env_v.back() << std::endl;
+      std::cout << " " << env_v.back() << std::endl;
     }
   }
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   if (debug_level >= 1) {
-    cout << " " << env_v.back() << std::endl;
+    std::cout << " " << env_v.back() << std::endl;
   }
 
   if (debug_level >= 1) {
-    cout << std::endl;
+    std::cout << std::endl;
   }
 
   if (insert_trace_markers) {
@@ -221,9 +218,9 @@ init_signal_handlers(void)
 void
 ack_msg (const int conn)
 {
-    SupervisorMsg sv_msg;
-    sv_msg.set_ack(true);
-    fb_send_msg(sv_msg, conn);
+  firebuild::msg::SupervisorMsg sv_msg;
+  sv_msg.set_ack(true);
+  firebuild::fb_send_msg(sv_msg, conn);
 }
 
 /**
@@ -231,10 +228,10 @@ ack_msg (const int conn)
  * @param fb_conn file desctiptor of the connection
  * @return fd_conn can be kept open
  */
-bool proc_ic_msg(const InterceptorMsg &ic_msg, const int fd_conn) {
+bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn) {
   if (ic_msg.has_scproc_query()) {
-    SupervisorMsg sv_msg;
-    ShortCutProcessResp *scproc_resp;
+    firebuild::msg::SupervisorMsg sv_msg;
+    firebuild::msg::ShortCutProcessResp *scproc_resp;
     ::firebuild::ExecedProcess* proc;
     scproc_resp = sv_msg.mutable_scproc_resp();
     /* record new process */
@@ -250,7 +247,7 @@ bool proc_ic_msg(const InterceptorMsg &ic_msg, const int fd_conn) {
         scproc_resp->set_debug_level(debug_level);
       }
     }
-    fb_send_msg(sv_msg, fd_conn);
+    firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
     ::firebuild::ForkedProcess* proc;
     /* record new process */
@@ -261,7 +258,7 @@ bool proc_ic_msg(const InterceptorMsg &ic_msg, const int fd_conn) {
     proc_tree.sock2proc[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
     ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
-    ProcessPBAdaptor::msg(*proc, ic_msg.open());
+    ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
     ack_msg(fd_conn);
   } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
@@ -294,7 +291,7 @@ bool proc_ic_msg(const InterceptorMsg &ic_msg, const int fd_conn) {
  * @param datadir report template's location
  * TODO error handling
  */
-static void write_report(const std::string &html_filename, const string &datadir){
+static void write_report(const std::string &html_filename, const std::string &datadir){
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
   const char d3_filename[] = "d3.v3.min.js";
@@ -310,7 +307,7 @@ static void write_report(const std::string &html_filename, const string &datadir
 
   // export profile
   {
-    fstream dot;
+    std::fstream dot;
     dot.open (dir + "/" + dot_filename, std::fstream::out);
     proc_tree.export_profile2dot(dot);
     dot.close();
@@ -342,6 +339,8 @@ static void write_report(const std::string &html_filename, const string &datadir
   d3.close();
   src.close();
 }
+
+} // namespace
 
 int main(const int argc, char *argv[]) {
 
@@ -412,7 +411,7 @@ int main(const int argc, char *argv[]) {
   // compatible with the version of the headers we compiled against.
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  error_fos = new io::FileOutputStream(STDERR_FILENO);
+  error_fos = new google::protobuf::io::FileOutputStream(STDERR_FILENO);
   {
     fb_conn_string = tempnam(NULL, "firebuild");
   }
@@ -475,8 +474,8 @@ int main(const int argc, char *argv[]) {
       fd_set master;    // master file descriptor list
       fd_set read_fds;  // temp file descriptor list for select()
 
-      InterceptorMsg ic_msg;
-      SupervisorMsg sv_msg;
+      firebuild::msg::InterceptorMsg ic_msg;
+      firebuild::msg::SupervisorMsg sv_msg;
 
       bool child_exited = false;
 
@@ -546,7 +545,7 @@ int main(const int argc, char *argv[]) {
               // handle data from a client
               ssize_t nbytes;
 
-              if ((nbytes = fb_recv_msg(ic_msg, i)) <= 0) {
+              if ((nbytes = firebuild::fb_recv_msg(ic_msg, i)) <= 0) {
                 // got error or connection closed by client
                 if (nbytes == 0) {
                   // connection closed
@@ -561,8 +560,8 @@ int main(const int argc, char *argv[]) {
                 FD_CLR(i, &master); // remove from master set
               } else {
                 if (debug_level >= 2) {
-                  cerr << "fd " << i << ": ";
-                  TextFormat::Print(ic_msg, error_fos);
+                  std::cerr << "fd " << i << ": ";
+                  google::protobuf::TextFormat::Print(ic_msg, error_fos);
                   error_fos->Flush();
                 }
                 if (!proc_ic_msg(ic_msg, i)) {
@@ -578,7 +577,7 @@ int main(const int argc, char *argv[]) {
   }
 
   if (!proc_tree.root) {
-    cerr << "ERROR: Could not collect any information about the build process" << std::endl;
+    std::cerr << "ERROR: Could not collect any information about the build process" << std::endl;
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree
@@ -610,6 +609,9 @@ int main(const int argc, char *argv[]) {
   exit(child_ret);
 }
 
+
+namespace firebuild {
+
 /** wrapper for write() retrying on recoverable errors*/
 ssize_t fb_write_buf(const int fd, const void * buf, const size_t count)
 {
@@ -621,3 +623,5 @@ ssize_t fb_read_buf(const int fd, void *buf, const size_t count)
 {
   FB_IO_OP_BUF(read, fd, buf, count, {});
 }
+
+} // namespace firebuild

@@ -23,7 +23,7 @@
 #include "intercept.h"
 #include "fb-messages.pb.h"
 
-using namespace firebuild::msg;
+namespace firebuild {
 
 typedef char* CHARS;
 typedef void* VOIDPT;
@@ -43,6 +43,7 @@ typedef void* VOIDPT;
   static void                                                       \
   intercept_##ics_pmname ics_pars                                   \
   {                                                                 \
+    using namespace msg;                                 \
     InterceptorMsg ic_msg;                                          \
     ics_pmtype *m;                                                  \
     int saved_errno = errno;                                        \
@@ -234,8 +235,8 @@ IC2_SIMPLE_2P(VOIDPT, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, f
 static void
 intercept_pipe2 (const int pipefd[2], const int flags, const int ret)
 {
-  InterceptorMsg ic_msg;
-  Pipe2 *m;
+  msg::InterceptorMsg ic_msg;
+  msg::Pipe2 *m;
   int saved_errno = errno;
 
   m = ic_msg.mutable_pipe2();
@@ -255,9 +256,9 @@ static void
 intercept_execve (const bool with_p, const char * const file, const int fd,
                   const char *const argv[], const char *const envp[])
 {
-  InterceptorMsg ic_msg;
-  SupervisorMsg sv_msg;
-  ExecV *m;
+  msg::InterceptorMsg ic_msg;
+  msg::SupervisorMsg sv_msg;
+  msg::ExecV *m;
   int i;
   char * tmp_path;
   struct rusage ru;
@@ -362,8 +363,8 @@ intercept_read (const int fd, const ssize_t ret)
     fd_states[fd].read = true;
     pthread_mutex_unlock(&ic_fd_states_lock);
     int saved_errno = errno;
-    InterceptorMsg ic_msg;
-    Read *m;
+    msg::InterceptorMsg ic_msg;
+    msg::Read *m;
 
     m = ic_msg.mutable_read();
     if (ret == -1) {
@@ -391,8 +392,8 @@ intercept_write (const int fd, const ssize_t ret)
     fd_states[fd].written = true;
     pthread_mutex_unlock(&ic_fd_states_lock);
     int saved_errno = errno;
-    InterceptorMsg ic_msg;
-    Write *m;
+    msg::InterceptorMsg ic_msg;
+    msg::Write *m;
 
     m = ic_msg.mutable_write();
     if (ret == -1) {
@@ -450,12 +451,12 @@ intercept_exit (const int status)
 static pid_t
 intercept_fork (const pid_t ret)
 {
-  InterceptorMsg ic_msg;
+  msg::InterceptorMsg ic_msg;
   pid_t pid;
 
   if (ret == 0) {
     // child
-    ForkChild *m;
+    msg::ForkChild *m;
     reset_fn_infos();
     ic_pid = pid = ic_orig_getpid();
     // unlock global interceptor lock if it is locked
@@ -471,7 +472,7 @@ intercept_fork (const pid_t ret)
     fb_send_msg(ic_msg, fb_sv_conn);
   } else {
     // parent
-    ForkParent *m;
+    msg::ForkParent *m;
     m = ic_msg.mutable_fork_parent();
     m->set_pid(ic_pid);
     m->set_child_pid(ret);
@@ -517,3 +518,5 @@ extern "C" {
 #endif
 
 #pragma GCC visibility pop
+
+} //namespace firebuild

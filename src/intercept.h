@@ -35,8 +35,8 @@
   IC(ret_type, name, parameters,                        \
      {                                                  \
        if (!ic_fn[IC_FN_IDX_##name].called) {           \
-         InterceptorMsg ic_msg;                         \
-         GenericCall *m;                                \
+         msg::InterceptorMsg ic_msg;                    \
+         msg::GenericCall *m;                           \
          m = ic_msg.mutable_gen_call();                 \
          m->set_call(#name);                            \
          fb_send_msg(ic_msg, fb_sv_conn);               \
@@ -49,8 +49,8 @@
   IC_VOID(ret_type, name, parameters,                       \
           {                                                 \
             if (!ic_fn[IC_FN_IDX_##name].called) {          \
-              InterceptorMsg ic_msg;                        \
-              GenericCall *m;                               \
+              msg::InterceptorMsg ic_msg;                   \
+              msg::GenericCall *m;                          \
               m = ic_msg.mutable_gen_call();                \
               m->set_call(#name);                           \
               fb_send_msg(ic_msg, fb_sv_conn);              \
@@ -72,6 +72,7 @@ enum {
 };
 #undef IC_VOID
 
+namespace firebuild {
 /* create ic_orig_... version of intercepted function */
 #define IC_VOID(ret_type, name, parameters, _body)	\
   extern ret_type (*ic_orig_##name) parameters;
@@ -126,9 +127,6 @@ extern void insert_begin_marker();
 /** Insert end marker strace, ltrace, etc. */
 extern void insert_end_marker();
 
-/** Add shared library's name to the file list */
-extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
-
 /** Send error message to supervisor */
 extern void fb_error(const char* msg);
 
@@ -144,9 +142,14 @@ extern int ic_pid;
 /** Per thread variable which we turn on inside call interception */
 extern __thread bool intercept_on;
 
+} //namespace firebuild
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
+
+/** Add shared library's name to the file list */
+extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 
 extern void fb_ic_load() __attribute__ ((constructor));
 extern void handle_exit (const int status, void*);

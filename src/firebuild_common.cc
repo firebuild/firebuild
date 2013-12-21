@@ -7,6 +7,8 @@
 
 #include <google/protobuf/message_lite.h>
 
+namespace firebuild {
+
 /**
  * Send protobuf message via file descriptor
  *
@@ -61,3 +63,5 @@ extern ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, const int fd)
   free(buf);
   return ret;
 }
+
+} // namespace firebuild
