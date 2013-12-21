@@ -53,7 +53,7 @@ namespace firebuild
     void insert (ExecedProcess &p, const int sock);
     void insert (ForkedProcess &p, const int sock);
     void exit (Process &p, const int sock);
-    long int sum_rusage_recurse(Process &p);
+    static long int sum_rusage_recurse(Process &p);
     void export2js (std::ostream& o);
     void export_profile2dot (std::ostream& o);
   };
