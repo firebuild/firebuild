@@ -4,7 +4,6 @@
 #include "File.h"
 #include "FileDB.h"
 
-using namespace std;
 namespace firebuild {
   
 static int fb_pid_counter;
@@ -38,7 +37,7 @@ void Process::sum_rusage(long int * const sum_utime_m, long int *const sum_stime
     children[i]->sum_rusage(sum_utime_m, sum_stime_m);
   }
 }
-int Process::open_file(const string name, const int flags, const mode_t mode,
+int Process::open_file(const std::string name, const int flags, const mode_t mode,
                        const int fd, const bool c, const int error)
 {
   const bool created = (((flags & O_EXCL) && (fd != -1)) || c ||

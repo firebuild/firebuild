@@ -4,8 +4,6 @@
 #include "fb-messages.pb.h"
 #include "Process.h"
 
-using namespace std;
-
 namespace firebuild 
 {
   /**

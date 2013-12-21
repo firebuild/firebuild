@@ -6,8 +6,6 @@
 
 #include "fb-messages.pb.h"
 
-using namespace std;
-
 namespace firebuild 
 {
   

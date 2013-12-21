@@ -1,7 +1,6 @@
 
 #include "ForkedProcess.h"
 
-using namespace std;
 namespace firebuild {
   
 

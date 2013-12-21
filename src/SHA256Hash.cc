@@ -6,8 +6,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-
-
 static const int hash_bufsize = 4096;
 
 namespace firebuild 

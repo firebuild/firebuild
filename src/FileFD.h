@@ -7,8 +7,6 @@
 
 #include "File.h"
 
-using namespace std;
-
 namespace firebuild 
 {
 #ifdef __GNUC__
@@ -36,7 +34,7 @@ namespace firebuild
     bool written : 1;
     /** file descriptor is open (valid) */
     bool open : 1;
-    string filename;
+    std::string filename;
     FileFD (int fd, int flags, fd_origin o)
         : fd(fd), curr_flags(flags), origin(o)
     {
@@ -45,7 +43,7 @@ namespace firebuild
       }
     };
     /** Constructor for fds obtained through opening files. */
-    FileFD (const string &f, int fd, int flags)
+    FileFD (const std::string &f, int fd, int flags)
         :fd(fd), curr_flags(flags), origin(FD_ORIGIN_FILE_OPEN), read(false), written(false),
         open(true), filename(f) {};
     FileFD () : FileFD (-1, 0, FD_ORIGIN_INTERNAL) {};

@@ -23,7 +23,6 @@
 #include "ProcessPBAdaptor.h"
 #include "fb-messages.pb.h"
 
-using namespace std;
 using namespace google::protobuf;
 using namespace libconfig;
 using namespace firebuild;
@@ -40,7 +39,7 @@ static io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
-static string report_file = "firebuild-build-report.html";
+static std::string report_file = "firebuild-build-report.html";
 static ProcessTree proc_tree;
 
 /** global configuration */
@@ -48,23 +47,23 @@ libconfig::Config cfg;
 
 static void usage()
 {
-  cout << "Usage: firebuild [OPTIONS] <BUILD COMMAND>" << endl;
-  cout << "Execute BUILD COMMAND with FireBuild™ instrumentation" << endl;
-  cout << "" << endl;
-  cout << "Mandatory arguments to long options are mandatory for short options too." << endl;
-  cout << "   -c --config-file=FILE     use FILE as configuration file" << endl;
-  cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << endl;
-  cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << endl;
-  cout << "                             the report's filename can be specified " << endl;
-  cout << "                             (firebuild-build-report.html by default). " << endl;
-  cout << "   -h --help                 show this help" << endl;
-  cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << endl;
-  cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << endl;
-  cout << "                             to let users find unintercepted calls using" << endl;
-  cout << "                             strace or ltrace" << endl;
-  cout << "Exit status:" << endl;
-  cout << " exit status of the BUILD COMMAND" << endl;
-  cout << " 1  in case of failure" << endl;
+  cout << "Usage: firebuild [OPTIONS] <BUILD COMMAND>" << std::endl;
+  cout << "Execute BUILD COMMAND with FireBuild™ instrumentation" << std::endl;
+  cout << "" << std::endl;
+  cout << "Mandatory arguments to long options are mandatory for short options too." << std::endl;
+  cout << "   -c --config-file=FILE     use FILE as configuration file" << std::endl;
+  cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << std::endl;
+  cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << std::endl;
+  cout << "                             the report's filename can be specified " << std::endl;
+  cout << "                             (firebuild-build-report.html by default). " << std::endl;
+  cout << "   -h --help                 show this help" << std::endl;
+  cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << std::endl;
+  cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << std::endl;
+  cout << "                             to let users find unintercepted calls using" << std::endl;
+  cout << "                             strace or ltrace" << std::endl;
+  cout << "Exit status:" << std::endl;
+  cout << " exit status of the BUILD COMMAND" << std::endl;
+  cout << " 1  in case of failure" << std::endl;
 }
 
 /** Parse configuration file */
@@ -75,9 +74,9 @@ parse_cfg_file(const char * const custom_cfg_file)
   if (cfg_file == NULL) {
     char * homedir = getenv("HOME");
     int cfg_fd;
-    if ((homedir != NULL ) && (-1 != (cfg_fd = open(string(homedir + string("/.firebuildrc")).c_str(), O_RDONLY)))) {
+    if ((homedir != NULL ) && (-1 != (cfg_fd = open(string(homedir + std::string("/.firebuildrc")).c_str(), O_RDONLY)))) {
       // fall back to private config file
-      cfg_file = string(homedir + string("/.firebuildrc")).c_str();
+      cfg_file = std::string(homedir + string("/.firebuildrc")).c_str();
       close(cfg_fd);
     } else {
       cfg_fd = open(global_cfg, O_RDONLY);
@@ -114,44 +113,44 @@ parse_cfg_file(const char * const custom_cfg_file)
 static char** get_sanitized_env()
 {
   int i;
-  vector<string> env_v;
+  std::vector<std::string> env_v;
   char ** ret_env;
-  vector<string>::iterator it;
+  std::vector<std::string>::iterator it;
   const Setting& root = cfg.getRoot();
   const Setting& pass_through = root["env_vars"]["pass_through"];
   const Setting& preset = root["env_vars"]["preset"];
   int count = pass_through.getLength();
 
   if (debug_level >= 1) {
-    cout << "Passing through environment variables:" << endl;
+    cout << "Passing through environment variables:" << std::endl;
   }
   for (i = 0; i < count ; i++) {
     char * got_env = getenv(pass_through[i].c_str());
     if (NULL  != got_env) {
-      env_v.push_back(pass_through[i].c_str() + string("=") + string(got_env));
+      env_v.push_back(pass_through[i].c_str() + std::string("=") + string(got_env));
       if (debug_level >= 1) {
-        cout << " " << env_v.back() << endl;
+        cout << " " << env_v.back() << std::endl;
       }
     }
   }
   if (debug_level >= 1) {
-    cout << endl;
-    cout << "Setting preset environment variables:" << endl;
+    cout << std::endl;
+    cout << "Setting preset environment variables:" << std::endl;
   }
   count = preset.getLength();
   for (i = 0; i < count; i++) {
     env_v.push_back(preset[i]);
     if (debug_level >= 1) {
-      cout << " " << env_v.back() << endl;
+      cout << " " << env_v.back() << std::endl;
     }
   }
-  env_v.push_back("FB_SOCKET=" + string(fb_conn_string));
+  env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   if (debug_level >= 1) {
-    cout << " " << env_v.back() << endl;
+    cout << " " << env_v.back() << std::endl;
   }
 
   if (debug_level >= 1) {
-    cout << endl;
+    cout << std::endl;
   }
 
   if (insert_trace_markers) {
@@ -295,19 +294,19 @@ bool proc_ic_msg(const InterceptorMsg &ic_msg, const int fd_conn) {
  * @param datadir report template's location
  * TODO error handling
  */
-static void write_report(const string &html_filename, const string &datadir){
+static void write_report(const std::string &html_filename, const string &datadir){
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
   const char d3_filename[] = "d3.v3.min.js";
   const char tree_filename[] = "firebuild-process-tree.js";
   const char html_orig_filename[] = "build-report.html";
-  const string dot_cmd = "dot";
+  const std::string dot_cmd = "dot";
   std::ifstream d3(datadir + "/" + d3_filename);
   std::ifstream src(datadir + "/" + html_orig_filename);
-  // dirname may modify its parameter thus we provide a writable char string
+  // dirname may modify its parameter thus we provide a writable char std::string
   char * html_filename_tmp = new char [html_filename.size()+1] ;
   strcpy(html_filename_tmp, html_filename.c_str());
-  string dir = dirname(html_filename_tmp);
+  std::string dir = dirname(html_filename_tmp);
 
   // export profile
   {
@@ -322,22 +321,22 @@ static void write_report(const string &html_filename, const string &datadir){
 
   std::ofstream dst(html_filename);
   while (src.good() && dst.good()) {
-    string line;
+    std::string line;
     getline(src, line);
     if (NULL != strstr(line.c_str(), d3_filename)) {
-      dst << "<script type=\"text/javascript\">" << endl;
+      dst << "<script type=\"text/javascript\">" << std::endl;
       dst << d3.rdbuf();
-      dst << "    </script>" << endl;
+      dst << "    </script>" << std::endl;
     } else if (NULL != strstr(line.c_str(), tree_filename)) {
-      dst << "    <script type=\"text/javascript\">" << endl;
+      dst << "    <script type=\"text/javascript\">" << std::endl;
       proc_tree.export2js(dst);
-      dst << "    </script>" << endl;
+      dst << "    </script>" << std::endl;
     } else if (NULL != strstr(line.c_str(), svg_filename)) {
       std::ifstream svg(dir + "/" + svg_filename);
       dst << svg.rdbuf();
       svg.close();
     } else {
-      dst << line << endl;
+      dst << line << std::endl;
     }
   }
   d3.close();
@@ -348,7 +347,7 @@ int main(const int argc, char *argv[]) {
 
   char **env_exec, *config_file = NULL;
   int i, c;
-  string tempdir;
+  std::string tempdir;
 
   // parse options
   setenv("POSIXLY_CORRECT", "1", true);
@@ -579,7 +578,7 @@ int main(const int argc, char *argv[]) {
   }
 
   if (!proc_tree.root) {
-    cerr << "ERROR: Could not collect any information about the build process" << endl;
+    cerr << "ERROR: Could not collect any information about the build process" << std::endl;
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree

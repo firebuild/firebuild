@@ -8,22 +8,20 @@
 
 #include "SHA256Hash.h"
 
-using namespace std;
-
 namespace firebuild 
 {
 
 class File
 {
  private:
-  vector<timespec> mtimes;
+  std::vector<timespec> mtimes;
   int update_hash();
  public:
-  string path;
+  std::string path;
   bool exists;
   SHA256Hash hash;
 
-  File (const string path);
+  File (const std::string path);
   int update();
   int is_changed();
 };

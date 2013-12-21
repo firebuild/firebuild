@@ -10,8 +10,6 @@
 #include "FileFD.h"
 #include "FileUsage.h"
 
-using namespace std;
-
 namespace firebuild 
 {
 
@@ -44,14 +42,14 @@ public:
   int pid;          ///< UNIX pid
   int ppid;         ///< UNIX ppid
   int exit_status;  ///< exit status, valid if state = FB_PROC_FINISHED
-  set<string> libs; ///< DSO-s loaded by process, forked processes list new only
-  unordered_map<string, FileUsage*> file_usages; ///< Usage per path
-  vector<FileFD> fds; ///< Active file descriptors
+  std::set<std::string> libs; ///< DSO-s loaded by process, forked processes list new only
+  std::unordered_map<std::string, FileUsage*> file_usages; ///< Usage per path
+  std::vector<FileFD> fds; ///< Active file descriptors
   long int utime_m; ///< user time in milliseconds as reported by getrusage()
   long int stime_m; ///< system time in milliseconds as reported by getrusage()
   long int aggr_time = 0; /**< Sum of user and system time in milliseconds for
                            * all forked and exec()-ed children */
-  vector<Process*> children; ///< children of the process
+  std::vector<Process*> children; ///< children of the process
   Process * exec_child = NULL;
 
   Process (int pid, int ppid, process_type type);
@@ -60,7 +58,7 @@ public:
   void update_rusage (long int utime_m, long int stime_m);
   void sum_rusage(long int *sum_utime_m, long int *sum_stime_m);
   virtual void exit_result (int status, long int utime_m, long int stime_m);
-  int open_file(const string name, const int flags, const mode_t mode,
+  int open_file(const std::string name, const int flags, const mode_t mode,
                 const int fd, const bool created = false, const int error = 0);
 };
 

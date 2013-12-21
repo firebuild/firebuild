@@ -5,8 +5,6 @@
 
 #include "SHA256Hash.h"
 
-using namespace std;
-
 namespace firebuild 
 {
 

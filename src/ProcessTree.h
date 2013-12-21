@@ -11,8 +11,6 @@
 #include "ExecedProcess.h"
 #include "ForkedProcess.h"
 
-using namespace std;
-
 namespace firebuild 
 {
 
@@ -25,7 +23,7 @@ namespace firebuild
   struct cmd_prof {
     long int aggr_time;
     long int cmd_time;
-    unordered_map<string, subcmd_prof> subcmds; /**<  {time_m, count}*/
+    std::unordered_map<std::string, subcmd_prof> subcmds; /**<  {time_m, count}*/
   };
 
   class ProcessTree
@@ -36,19 +34,19 @@ namespace firebuild
      * For each command (C) we store the cumulated CPU time in milliseconds
      * (system + user time), and count the invocations of each other command
      * by C. */
-    unordered_map<string, cmd_prof> cmd_profs;
-    void export2js_recurse(Process &p, const unsigned int level, ostream& o);
-    void export2js(ExecedProcess &p, const unsigned int level, ostream& o);
+    std::unordered_map<std::string, cmd_prof> cmd_profs;
+    void export2js_recurse(Process &p, const unsigned int level, std::ostream& o);
+    void export2js(ExecedProcess &p, const unsigned int level, std::ostream& o);
     void profile_collect_cmds(Process &p,
-                              unordered_map<string, subcmd_prof> &cmds,
-                              set<string> &ancestors);
-    void build_profile(Process &p, set<string> &ancestors);
+                              std::unordered_map<std::string, subcmd_prof> &cmds,
+                              std::set<std::string> &ancestors);
+    void build_profile(Process &p, std::set<std::string> &ancestors);
 
  public:
     ExecedProcess *root = NULL;
-    unordered_map<int, Process*> sock2proc;
-    unordered_map<int, Process*> fb_pid2proc;
-    unordered_map<int, Process*> pid2proc;
+    std::unordered_map<int, Process*> sock2proc;
+    std::unordered_map<int, Process*> fb_pid2proc;
+    std::unordered_map<int, Process*> pid2proc;
     ~ProcessTree();
 
     void insert (Process &p, const int sock);
@@ -56,8 +54,8 @@ namespace firebuild
     void insert (ForkedProcess &p, const int sock);
     void exit (Process &p, const int sock);
     long int sum_rusage_recurse(Process &p);
-    void export2js (ostream& o);
-    void export_profile2dot (ostream& o);
+    void export2js (std::ostream& o);
+    void export_profile2dot (std::ostream& o);
   };
 
 }

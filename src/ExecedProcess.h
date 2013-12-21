@@ -5,8 +5,6 @@
 #include "Process.h"
 #include "fb-messages.pb.h"
 
-using namespace std;
-
 namespace firebuild 
 {
   
@@ -20,10 +18,10 @@ class ExecedProcess : public Process
                                but not exec()-ed children */
   long int sum_stime_m = 0; /**< Sum of system time in milliseconds for all
                                forked but not exec()-ed children */
-  string cwd;
-  vector<string> args;
-  set<string> env_vars;
-  string executable;
+  std::string cwd;
+  std::vector<std::string> args;
+  std::set<std::string> env_vars;
+  std::string executable;
   /** Process can be shortcut by FireBuild. */
   bool shortcuttable = true;
   ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);

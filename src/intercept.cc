@@ -15,7 +15,6 @@
 #include "fb-messages.pb.h"
 #include "firebuild_common.h"
 
-using namespace std;
 using namespace firebuild::msg;
 
 #ifdef  __cplusplus

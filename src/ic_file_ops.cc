@@ -23,7 +23,6 @@
 #include "intercept.h"
 #include "fb-messages.pb.h"
 
-using namespace std;
 using namespace firebuild::msg;
 
 typedef char* CHARS;
@@ -356,7 +355,7 @@ intercept_read (const int fd, const ssize_t ret)
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
     fd_states.at(fd);
-  } catch (exception& e) {
+  } catch (std::exception& e) {
     fd_states.resize(fd + 1);
   }
   if (fd_states[fd].read == false) {
@@ -385,7 +384,7 @@ intercept_write (const int fd, const ssize_t ret)
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
     fd_states.at(fd);
-  } catch (exception& e) {
+  } catch (std::exception& e) {
     fd_states.resize(fd + 1);
   }
   if (fd_states[fd].written == false) {
@@ -413,7 +412,7 @@ clear_file_state(const int fd) {
     pthread_mutex_lock(&ic_fd_states_lock);
     try {
       fd_states.at(fd);
-    } catch (exception& e) {
+    } catch (std::exception& e) {
       fd_states.resize(fd + 1);
     }
     fd_states[fd].read = false;
@@ -428,7 +427,7 @@ copy_file_state(const int to_fd, const int from_fd) {
     pthread_mutex_lock(&ic_fd_states_lock);
     try {
       fd_states.at(to_fd);
-    } catch (exception& e) {
+    } catch (std::exception& e) {
       fd_states.resize(to_fd + 1);
     }
     fd_states[to_fd] = fd_states[from_fd];

@@ -1,7 +1,6 @@
 
 #include "ExecedProcess.h"
 
-using namespace std;
 namespace firebuild {
 
 ExecedProcess::ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq) 

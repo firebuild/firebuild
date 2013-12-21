@@ -6,10 +6,9 @@
 
 #include <cstring>
 
-using namespace std;
 namespace firebuild {
 
-File::File (const string p)
+File::File (const std::string p)
     :mtimes(), path(p), exists(false), hash() {
 }
 

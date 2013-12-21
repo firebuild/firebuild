@@ -6,11 +6,9 @@
 
 #include "File.h"
 
-using namespace std;
-
 namespace firebuild 
 {
-  class FileDB: public unordered_map<string, File*>
+  class FileDB: public std::unordered_map<std::string, File*>
 {
  public:
   static FileDB* getInstance()

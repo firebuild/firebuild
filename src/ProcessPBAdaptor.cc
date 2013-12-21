@@ -1,7 +1,6 @@
 
 #include "ProcessPBAdaptor.h"
 
-using namespace std;
 namespace firebuild {
 int ProcessPBAdaptor::msg(Process &p, const msg::Open &o)
 {

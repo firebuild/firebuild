@@ -1,7 +1,6 @@
 
 #include "FileDB.h"
 
-using namespace std;
 namespace firebuild {
 
 FileDB::~FileDB()
