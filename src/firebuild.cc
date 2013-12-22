@@ -301,9 +301,10 @@ static void write_report(const std::string &html_filename, const std::string &da
   std::ifstream d3(datadir + "/" + d3_filename);
   std::ifstream src(datadir + "/" + html_orig_filename);
   // dirname may modify its parameter thus we provide a writable char std::string
-  char * html_filename_tmp = new char [html_filename.size()+1] ;
+  char *html_filename_tmp = new char [html_filename.size() + 1] ;
   strcpy(html_filename_tmp, html_filename.c_str());
   std::string dir = dirname(html_filename_tmp);
+  delete[] html_filename_tmp;
 
   // export profile
   {
