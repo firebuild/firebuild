@@ -19,7 +19,7 @@ namespace firebuild
   }
  private:
   FileDB() {};
-  FileDB(FileDB const&);         // Don't Implement
+  explicit FileDB(FileDB const&);         // Don't Implement
   void operator=(FileDB const&); // Don't implement
   ~FileDB();
 };

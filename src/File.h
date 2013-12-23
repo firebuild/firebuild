@@ -21,7 +21,7 @@ class File
   bool exists;
   SHA256Hash hash;
 
-  File (const std::string path);
+  explicit File (const std::string path);
   int update();
   int is_changed();
 };

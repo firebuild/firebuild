@@ -24,7 +24,7 @@ class ExecedProcess : public Process
   std::string executable;
   /** Process can be shortcut by FireBuild. */
   bool shortcuttable = true;
-  ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);
+  explicit ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);
   void exit_result (const int status, const long int utime_m, const long int stime_m);
 };
 

@@ -13,7 +13,7 @@ class ForkedProcess : public Process
 {
  public:
   Process *fork_parent = NULL;
-  ForkedProcess (firebuild::msg::ForkChild const & fc);
+  explicit ForkedProcess (firebuild::msg::ForkChild const & fc);
 };
 
 
