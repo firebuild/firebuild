@@ -93,7 +93,7 @@ typedef struct {
 } fd_state;
 
 /** file fd states */
-extern std::vector<fd_state> fd_states;
+extern std::vector<fd_state> *fd_states;
 
 /** Global lock for manipulating fd states */
 extern pthread_mutex_t ic_fd_states_lock;

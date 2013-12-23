@@ -350,12 +350,12 @@ intercept_read (const int fd, const ssize_t ret)
 {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
-    fd_states.at(fd);
+    fd_states->at(fd);
   } catch (std::exception& e) {
-    fd_states.resize(fd + 1);
+    fd_states->resize(fd + 1);
   }
-  if (fd_states[fd].read == false) {
-    fd_states[fd].read = true;
+  if ((*fd_states)[fd].read == false) {
+    (*fd_states)[fd].read = true;
     pthread_mutex_unlock(&ic_fd_states_lock);
     int saved_errno = errno;
     msg::InterceptorMsg ic_msg;
@@ -378,12 +378,12 @@ intercept_write (const int fd, const ssize_t ret)
 {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
-    fd_states.at(fd);
+    fd_states->at(fd);
   } catch (std::exception& e) {
-    fd_states.resize(fd + 1);
+    fd_states->resize(fd + 1);
   }
-  if (fd_states[fd].written == false) {
-    fd_states[fd].written = true;
+  if ((*fd_states)[fd].written == false) {
+    (*fd_states)[fd].written = true;
     pthread_mutex_unlock(&ic_fd_states_lock);
     int saved_errno = errno;
     msg::InterceptorMsg ic_msg;
@@ -405,12 +405,12 @@ clear_file_state(const int fd) {
   if (fd >= 0) {
     pthread_mutex_lock(&ic_fd_states_lock);
     try {
-      fd_states.at(fd);
+      fd_states->at(fd);
     } catch (std::exception& e) {
-      fd_states.resize(fd + 1);
+      fd_states->resize(fd + 1);
     }
-    fd_states[fd].read = false;
-    fd_states[fd].written = false;
+    (*fd_states)[fd].read = false;
+    (*fd_states)[fd].written = false;
     pthread_mutex_unlock(&ic_fd_states_lock);
   }
 }
@@ -420,11 +420,11 @@ copy_file_state(const int to_fd, const int from_fd) {
   if ((to_fd >= 0) && (from_fd >= 0)) {
     pthread_mutex_lock(&ic_fd_states_lock);
     try {
-      fd_states.at(to_fd);
+      fd_states->at(to_fd);
     } catch (std::exception& e) {
-      fd_states.resize(to_fd + 1);
+      fd_states->resize(to_fd + 1);
     }
-    fd_states[to_fd] = fd_states[from_fd];
+    (*fd_states)[to_fd] = (*fd_states)[from_fd];
     pthread_mutex_unlock(&ic_fd_states_lock);
   }
 }

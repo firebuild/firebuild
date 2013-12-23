@@ -36,11 +36,11 @@ static google::protobuf::io::FileOutputStream * error_fos;
 static int debug_level = 0;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
-static std::string report_file = "firebuild-build-report.html";
-static firebuild::ProcessTree proc_tree;
+static char *report_file = (char*)"firebuild-build-report.html";
+static firebuild::ProcessTree *proc_tree;
 
 /** global configuration */
-libconfig::Config cfg;
+libconfig::Config * cfg;
 
 static void usage()
 {
@@ -86,7 +86,7 @@ parse_cfg_file(const char * const custom_cfg_file)
   }
   try
     {
-      cfg.readFile(cfg_file);
+      cfg->readFile(cfg_file);
     }
   catch(const libconfig::FileIOException &fioex)
     {
@@ -109,7 +109,7 @@ parse_cfg_file(const char * const custom_cfg_file)
  */
 static char** get_sanitized_env()
 {
-  const libconfig::Setting& root = cfg.getRoot();
+  const libconfig::Setting& root = cfg->getRoot();
 
   if (debug_level >= 1) {
     std::cout << "Passing through environment variables:" << std::endl;
@@ -230,7 +230,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     auto scproc_resp = sv_msg.mutable_scproc_resp();
     /* record new process */
     auto proc = new ::firebuild::ExecedProcess(ic_msg.scproc_query());
-    proc_tree.insert(*proc, fd_conn);
+    proc_tree->insert(*proc, fd_conn);
     // TODO look up stored result
     if (false /* can shortcut*/) {
       scproc_resp->set_shortcut(true);
@@ -246,12 +246,12 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     ::firebuild::ForkedProcess* proc;
     /* record new process */
     proc = new ::firebuild::ForkedProcess (ic_msg.fork_child());
-    proc_tree.insert(*proc, fd_conn);
+    proc_tree->insert(*proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
-    auto *proc = proc_tree.pid2proc.at(ic_msg.execvfailed().pid());
-    proc_tree.sock2proc[fd_conn] = proc;
+    auto *proc = proc_tree->pid2proc.at(ic_msg.execvfailed().pid());
+    proc_tree->sock2proc[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
-    ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
+    ::firebuild::Process *proc = proc_tree->sock2proc.at(fd_conn);
     ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
     ack_msg(fd_conn);
   } else if (ic_msg.has_close()) {
@@ -261,13 +261,13 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
     if (ic_msg.has_exit()) {
-      ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
+      ::firebuild::Process *proc = proc_tree->sock2proc.at(fd_conn);
       proc->exit_result(ic_msg.exit().exit_status(),
                         ic_msg.exit().utime_m(),
                         ic_msg.exit().stime_m());
-      proc_tree.exit(*proc, fd_conn);
+      proc_tree->exit(*proc, fd_conn);
     } else if (ic_msg.has_execv()) {
-      ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
+      ::firebuild::Process *proc = proc_tree->sock2proc.at(fd_conn);
       proc->update_rusage(ic_msg.execv().utime_m(),
                           ic_msg.execv().stime_m());
     }
@@ -305,7 +305,7 @@ static void write_report(const std::string &html_filename, const std::string &da
   {
     std::fstream dot;
     dot.open (dir + "/" + dot_filename, std::fstream::out);
-    proc_tree.export_profile2dot(dot);
+    proc_tree->export_profile2dot(dot);
     dot.close();
   }
 
@@ -322,7 +322,7 @@ static void write_report(const std::string &html_filename, const std::string &da
       dst << "    </script>" << std::endl;
     } else if (NULL != strstr(line.c_str(), tree_filename)) {
       dst << "    <script type=\"text/javascript\">" << std::endl;
-      proc_tree.export2js(dst);
+      proc_tree->export2js(dst);
       dst << "    </script>" << std::endl;
     } else if (NULL != strstr(line.c_str(), svg_filename)) {
       std::ifstream svg(dir + "/" + svg_filename);
@@ -342,6 +342,11 @@ int main(const int argc, char *argv[]) {
 
   char *config_file = NULL;
   int i, c;
+
+  // init global data
+  cfg = new libconfig::Config();
+  proc_tree = new firebuild::ProcessTree;
+
 
   // parse options
   setenv("POSIXLY_CORRECT", "1", true);
@@ -569,12 +574,12 @@ int main(const int argc, char *argv[]) {
     }
   }
 
-  if (!proc_tree.root) {
+  if (!proc_tree->root) {
     std::cerr << "ERROR: Could not collect any information about the build process" << std::endl;
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree
-    proc_tree.sum_rusage_recurse(*proc_tree.root);
+    proc_tree->sum_rusage_recurse(*proc_tree->root);
 
     // show process tree if needed
     if (generate_report) {

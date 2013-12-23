@@ -31,7 +31,7 @@ static void fb_ic_cleanup() __attribute__ ((destructor));
 ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
 /** file fd states */
-std::vector<fd_state> fd_states;
+std::vector<fd_state> *fd_states;
 
 /** Global lock for manipulating fd states */
 pthread_mutex_t ic_fd_states_lock;
@@ -180,6 +180,9 @@ static void fb_ic_init()
   msg::ShortCutProcessResp * resp;
   msg::InterceptorMsg ic_msg;
   msg::SupervisorMsg sv_msg;
+  
+  // init global variables
+  fd_states = new std::vector<fd_state>();
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
