@@ -345,7 +345,7 @@ int main(const int argc, char *argv[]) {
 
   // init global data
   cfg = new libconfig::Config();
-  proc_tree = new firebuild::ProcessTree;
+  proc_tree = new firebuild::ProcessTree();
 
 
   // parse options

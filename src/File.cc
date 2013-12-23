@@ -9,7 +9,7 @@
 namespace firebuild {
 
 File::File (const std::string p)
-    :mtimes(), path(p), exists(false), hash() {
+    :path(p), exists(false), hash(), mtimes() {
 }
 
 

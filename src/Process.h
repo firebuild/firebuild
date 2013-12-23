@@ -9,6 +9,7 @@
 
 #include "FileFD.h"
 #include "FileUsage.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
@@ -44,7 +45,7 @@ public:
   int exit_status;  ///< exit status, valid if state = FB_PROC_FINISHED
   std::set<std::string> libs; ///< DSO-s loaded by process, forked processes list new only
   std::unordered_map<std::string, FileUsage*> file_usages; ///< Usage per path
-  std::vector<FileFD> fds; ///< Active file descriptors
+  std::vector<FileFD*> fds; ///< Active file descriptors
   long int utime_m; ///< user time in milliseconds as reported by getrusage()
   long int stime_m; ///< system time in milliseconds as reported by getrusage()
   long int aggr_time = 0; /**< Sum of user and system time in milliseconds for
@@ -60,6 +61,8 @@ public:
   virtual void exit_result (int status, long int utime_m, long int stime_m);
   int open_file(const std::string name, const int flags, const mode_t mode,
                 const int fd, const bool created = false, const int error = 0);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Process);
 };
 
 inline bool Process::operator == (Process const & p) const

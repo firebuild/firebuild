@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include "SHA256Hash.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
@@ -33,6 +34,8 @@ class FileUsage
   FileUsage (int flags, mode_t mode, bool c, bool d)
       :open_flags(flags), mode(mode), created(c), deleted(d), read(false),
       written(false), unknown_err(0), initial_hash(), final_hash() {};
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FileUsage);
 };
 
 }

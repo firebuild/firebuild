@@ -7,15 +7,13 @@
 #include <vector>
 
 #include "SHA256Hash.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
 
 class File
 {
- private:
-  std::vector<timespec> mtimes;
-  int update_hash();
  public:
   std::string path;
   bool exists;
@@ -24,6 +22,10 @@ class File
   explicit File (const std::string path);
   int update();
   int is_changed();
+ private:
+  std::vector<timespec> mtimes;
+  int update_hash();
+  DISALLOW_COPY_AND_ASSIGN(File);
 };
 
 }

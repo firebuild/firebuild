@@ -6,6 +6,7 @@
 #include <string>
 
 #include "File.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
@@ -47,6 +48,8 @@ namespace firebuild
         :fd(fd), curr_flags(flags), origin(FD_ORIGIN_FILE_OPEN), read(false), written(false),
         open(true), filename(f) {};
     FileFD () : FileFD (-1, 0, FD_ORIGIN_INTERNAL) {};
+ private:
+  DISALLOW_COPY_AND_ASSIGN(FileFD);
   };
 }
 #endif

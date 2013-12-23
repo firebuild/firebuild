@@ -3,6 +3,7 @@
 
 #include "fb-messages.pb.h"
 #include "Process.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
@@ -18,6 +19,8 @@ namespace firebuild
 {
  public:
   static int msg(Process &p, const msg::Open &o);
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
 };
 
 }

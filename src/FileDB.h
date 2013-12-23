@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "File.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
@@ -19,8 +20,7 @@ namespace firebuild
   }
  private:
   FileDB() {};
-  explicit FileDB(FileDB const&);         // Don't Implement
-  void operator=(FileDB const&); // Don't implement
+  DISALLOW_COPY_AND_ASSIGN(FileDB);
   ~FileDB();
 };
 

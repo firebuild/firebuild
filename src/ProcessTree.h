@@ -10,6 +10,7 @@
 #include "Process.h"
 #include "ExecedProcess.h"
 #include "ForkedProcess.h"
+#include "cxx_lang_utils.h"
 
 namespace firebuild 
 {
@@ -28,6 +29,24 @@ namespace firebuild
 
   class ProcessTree
   {
+ public:
+    ExecedProcess *root = NULL;
+    std::unordered_map<int, Process*> sock2proc;
+    std::unordered_map<int, Process*> fb_pid2proc;
+    std::unordered_map<int, Process*> pid2proc;
+ ProcessTree()
+     : sock2proc(), fb_pid2proc(), pid2proc(), cmd_profs()
+    {};
+    ~ProcessTree();
+
+    void insert (Process &p, const int sock);
+    void insert (ExecedProcess &p, const int sock);
+    void insert (ForkedProcess &p, const int sock);
+    void exit (Process &p, const int sock);
+    static long int sum_rusage_recurse(Process &p);
+    void export2js (std::ostream& o);
+    void export_profile2dot (std::ostream& o);
+
  private:
     /**
      * Profile is aggregated by command name (argv[0]).
@@ -42,20 +61,7 @@ namespace firebuild
                               std::set<std::string> &ancestors);
     void build_profile(Process &p, std::set<std::string> &ancestors);
 
- public:
-    ExecedProcess *root = NULL;
-    std::unordered_map<int, Process*> sock2proc;
-    std::unordered_map<int, Process*> fb_pid2proc;
-    std::unordered_map<int, Process*> pid2proc;
-    ~ProcessTree();
-
-    void insert (Process &p, const int sock);
-    void insert (ExecedProcess &p, const int sock);
-    void insert (ForkedProcess &p, const int sock);
-    void exit (Process &p, const int sock);
-    static long int sum_rusage_recurse(Process &p);
-    void export2js (std::ostream& o);
-    void export_profile2dot (std::ostream& o);
+    DISALLOW_COPY_AND_ASSIGN(ProcessTree);
   };
 
 }

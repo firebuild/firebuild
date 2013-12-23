@@ -89,7 +89,7 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
       fds.resize(fd+1);
     }
 
-    fds[fd] = FileFD(name, fd, flags);
+    fds[fd] = new FileFD(name, fd, flags);
   }
   return 0;
 }
@@ -98,6 +98,10 @@ Process::~Process()
 {
   for (auto it = this->file_usages.begin(); it != this->file_usages.end(); ++it) {
     delete(it->second);
+  }
+
+  for (auto it = this->fds.begin(); it != this->fds.end(); ++it) {
+    delete(*it);
   }
 
 }
