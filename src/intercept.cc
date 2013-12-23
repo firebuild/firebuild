@@ -86,7 +86,7 @@ void insert_begin_marker()
     if (ic_orig_open) {
       ic_orig_open("/firebuild-intercept-begin", 0);
     } else {
-      int (*orig_open) (const char*, int, ...) = (int(*)(const char*, int, ...))dlsym(RTLD_NEXT, "open");
+      auto orig_open = (int(*)(const char*, int, ...))dlsym(RTLD_NEXT, "open");
       assert(orig_open);
       orig_open("/firebuild-intercept-begin", 0);
     }
@@ -110,8 +110,7 @@ void insert_end_marker()
 void
 reset_fn_infos ()
 {
-  int i;
-  for (i = 0; i < IC_FN_IDX_MAX ; i++) {
+  for (int i = 0; i < IC_FN_IDX_MAX ; i++) {
     ic_fn[i].called = false;
   }
 }
@@ -149,9 +148,6 @@ set_orig_fns ()
 void
 init_supervisor_conn () {
 
-  struct sockaddr_un remote;
-  size_t len;
-
   if (fb_conn_string == NULL) {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
   }
@@ -161,11 +157,12 @@ init_supervisor_conn () {
     assert(fb_sv_conn != -1);
   }
 
+  struct sockaddr_un remote;
   remote.sun_family = AF_UNIX;
   assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
-  len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+  auto len = strlen(remote.sun_path) + sizeof(remote.sun_family);
   if (ic_orig_connect(fb_sv_conn, (struct sockaddr *)&remote, len) == -1) {
     assert(0 && "connection to supervisor failed");
   }
@@ -282,26 +279,25 @@ void
 handle_exit (const int status, void*)
 {
   if (!fb_exit_handled) {
-    // TODO atomic set
+    // TODO atomic set?
     fb_exit_handled = true;
-    msg::InterceptorMsg ic_msg;
-    msg::SupervisorMsg sv_msg;
-    msg::Exit *m;
-    struct rusage ru;
-    ssize_t len;
 
-    m = ic_msg.mutable_exit();
+    msg::InterceptorMsg ic_msg;
+    auto m = ic_msg.mutable_exit();
     m->set_exit_status(status);
+
+    struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
     m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
     m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
     {
-      msg::FileList *fl = m->mutable_libs();
+      auto *fl = m->mutable_libs();
       dl_iterate_phdr(shared_libs_cb, fl);
 
     }
     fb_send_msg(ic_msg, fb_sv_conn);
-    len = fb_recv_msg(sv_msg, fb_sv_conn);
+    msg::SupervisorMsg sv_msg;
+    auto len = fb_recv_msg(sv_msg, fb_sv_conn);
     if ((len > 0) && (!sv_msg.ack())) {
       // something unexpected happened ...
       assert(0 && "Supervisor did not ack exit");
@@ -337,8 +333,7 @@ ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count)
 extern void fb_error(const char* const msg)
 {
   msg::InterceptorMsg ic_msg;
-  msg::FBError *err;
-  err = ic_msg.mutable_fb_error();
+  auto err = ic_msg.mutable_fb_error();
   err->set_msg(msg);
   fb_send_msg(ic_msg, fb_sv_conn);
 }
@@ -348,8 +343,7 @@ extern void fb_debug(const int lvl, const char* const msg)
 {
   if (debug_level >= lvl) {
     msg::InterceptorMsg ic_msg;
-    msg::FBDebug *dbg;
-    dbg = ic_msg.mutable_fb_debug();
+    auto dbg = ic_msg.mutable_fb_debug();
     dbg->set_msg(msg);
     fb_send_msg(ic_msg, fb_sv_conn);
   }
@@ -361,7 +355,7 @@ extern void fb_debug(const int lvl, const char* const msg)
 int
 shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data)
 {
-  firebuild::msg::FileList *fl = (firebuild::msg::FileList*)data;
+  auto *fl = (firebuild::msg::FileList*)data;
   //unused
   (void)size;
 
@@ -396,14 +390,13 @@ la_version(const unsigned int version)
 char *
 la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 {
-  firebuild::msg::InterceptorMsg ic_msg;
-  firebuild::msg::LAObjSearch *los = ic_msg.mutable_la_objsearch();
-
   // unused
   (void)cookie;
 
   fb_ic_load();
 
+  firebuild::msg::InterceptorMsg ic_msg;
+  auto *los = ic_msg.mutable_la_objsearch();
   los->set_name(name);
   los->set_flag(flag);
   firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
@@ -417,15 +410,14 @@ la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 unsigned int
 la_objopen(struct link_map *map, const Lmid_t lmid, uintptr_t *cookie)
 {
-  firebuild::msg::InterceptorMsg ic_msg;
-  firebuild::msg::LAObjOpen *los = ic_msg.mutable_la_objopen();
-
   // unused
   (void)lmid;
   (void)cookie;
 
   fb_ic_load();
 
+  firebuild::msg::InterceptorMsg ic_msg;
+  auto *los = ic_msg.mutable_la_objopen();
   los->set_name(map->l_name);
   firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
 

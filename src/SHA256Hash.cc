@@ -13,17 +13,14 @@ namespace firebuild
 
 int SHA256Hash::update(const std::string from_path) {
   int fd;
-  struct stat64 st;
-  char buf[hash_bufsize];
-  ssize_t bytes_read;
-  SHA256_CTX sha256;
-  SHA256_Init(&sha256);
 
   fd = open(from_path.c_str(), O_RDONLY);
   if(-1 == fd) {
     perror("open");
     return -1;
   }
+
+  struct stat64 st;
   if (-1 == fstat64(fd, &st)) {
     perror("fstat");
     return -1;
@@ -33,6 +30,10 @@ int SHA256Hash::update(const std::string from_path) {
     return -1;
   }
 
+  char buf[hash_bufsize];
+  ssize_t bytes_read;
+  SHA256_CTX sha256;
+  SHA256_Init(&sha256);
   while (0 != (bytes_read = read(fd, buf, hash_bufsize))){
       if (-1 == bytes_read) {
         if (errno == EINTR) {

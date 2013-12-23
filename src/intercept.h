@@ -36,8 +36,7 @@
      {                                                  \
        if (!ic_fn[IC_FN_IDX_##name].called) {           \
          msg::InterceptorMsg ic_msg;                    \
-         msg::GenericCall *m;                           \
-         m = ic_msg.mutable_gen_call();                 \
+         auto m = ic_msg.mutable_gen_call();            \
          m->set_call(#name);                            \
          fb_send_msg(ic_msg, fb_sv_conn);               \
          ic_fn[IC_FN_IDX_##name].called = true;         \
@@ -45,16 +44,15 @@
        body;                                            \
      })
 
-#define IC_GENERIC_VOID(ret_type, name, parameters, body)	\
+#define IC_GENERIC_VOID(ret_type, name, parameters, body)   \
   IC_VOID(ret_type, name, parameters,                       \
           {                                                 \
             if (!ic_fn[IC_FN_IDX_##name].called) {          \
               msg::InterceptorMsg ic_msg;                   \
-              msg::GenericCall *m;                          \
-              m = ic_msg.mutable_gen_call();                \
+              auto m = ic_msg.mutable_gen_call();           \
               m->set_call(#name);                           \
               fb_send_msg(ic_msg, fb_sv_conn);              \
-              ic_fn[IC_FN_IDX_##name].called = true;		\
+              ic_fn[IC_FN_IDX_##name].called = true;        \
             }                                               \
             body;                                           \
           })

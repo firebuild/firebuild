@@ -18,17 +18,14 @@ int File::update_hash () {
 }
 
 int File::update() {
-  unsigned int i = 0;
-  int ret;
-  char *dir, *tmp_path;
-  struct stat s;
-
   if (-1 == this->update_hash()) {
     return -1;
   }
 
-  tmp_path = strdup(path.c_str());
-  if (-1 == (ret = lstat(tmp_path, &s))) {
+  unsigned int i = 0;
+  struct stat s;
+  char *tmp_path = strdup(path.c_str());
+  if (-1 == lstat(tmp_path, &s)) {
     perror("lstat");
     return -1;
   } else {
@@ -39,11 +36,12 @@ int File::update() {
   }
   // dirname may modify path and return dir pointing to a statically
   // allocated buffer. This is how we ended up having this complicated code
+  char *dir;
   while (true) {
     i++;
     dir = dirname(tmp_path);
     /* XXX lstat is intercepted */
-    if (-1 == (ret = lstat(dir, &s))) {
+    if (-1 == lstat(dir, &s)) {
       perror("lstat");
       free(tmp_path);
       return -1;
@@ -75,13 +73,11 @@ int File::update() {
 #endif
 
 int File::is_changed () {
-  int i = 0, ret;
-  char *dir, *tmp_path;
+  int i = 0;
+  char *tmp_path = strdup(path.c_str());
   struct stat s;
 
-  tmp_path = strdup(path.c_str());
-
-  if (-1 == (ret = lstat(tmp_path, &s))) {
+  if (-1 == lstat(tmp_path, &s)) {
     perror("lstat");
     return -1;
   } else {
@@ -92,10 +88,11 @@ int File::is_changed () {
   }
   // dirname may modify path and return dir pointing to a statically
   // allocated buffer. This is how we ended up having this complicated code
+  char *dir;
   while (true) {
     i++;
     dir = dirname(tmp_path);
-    if (-1 == (ret = lstat(dir, &s))) {
+    if (-1 == lstat(dir, &s)) {
       perror("lstat");
       free(tmp_path);
       return -1;

@@ -20,8 +20,6 @@ extern "C" {
   extern int execl##with_p##with_e(const char *path,  const char *arg, ...) \
   {                                                                     \
     va_list ap;                                                         \
-    char **envp;                                                        \
-    int ret;                                                            \
     const bool call_ = false, call_e = true; /* tricky consts, TRUE means we get and pass env */ \
     unsigned int argc = 0, argc_size = 16;                              \
     char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*))); \
@@ -36,11 +34,13 @@ extern "C" {
         argv = static_cast<char **>(realloc(argv, argc_size * sizeof(char*))); \
       }                                                                 \
     }                                                                   \
+    char **envp;                                                        \
     if (call_##with_e) {                                                \
       envp = static_cast<char **>(va_arg(ap, char**));                  \
     }                                                                   \
     va_end(ap);                                                         \
                                                                         \
+    int ret;                                                            \
     if (call_##with_e == true) {                                        \
       ret = execv##with_p##e(path, argv, envp);                         \
     } else {                                                            \

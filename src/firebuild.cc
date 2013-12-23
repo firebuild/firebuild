@@ -109,19 +109,15 @@ parse_cfg_file(const char * const custom_cfg_file)
  */
 static char** get_sanitized_env()
 {
-  int i;
-  std::vector<std::string> env_v;
-  char ** ret_env;
-  std::vector<std::string>::iterator it;
   const libconfig::Setting& root = cfg.getRoot();
-  const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
-  const libconfig::Setting& preset = root["env_vars"]["preset"];
-  int count = pass_through.getLength();
 
   if (debug_level >= 1) {
     std::cout << "Passing through environment variables:" << std::endl;
   }
-  for (i = 0; i < count ; i++) {
+
+  const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
+  std::vector<std::string> env_v;
+  for (int i = 0; i < pass_through.getLength(); i++) {
     char * got_env = getenv(pass_through[i].c_str());
     if (NULL  != got_env) {
       env_v.push_back(pass_through[i].c_str() + std::string("=") + std::string(got_env));
@@ -134,8 +130,8 @@ static char** get_sanitized_env()
     std::cout << std::endl;
     std::cout << "Setting preset environment variables:" << std::endl;
   }
-  count = preset.getLength();
-  for (i = 0; i < count; i++) {
+  const libconfig::Setting& preset = root["env_vars"]["preset"];
+  for (int i = 0; i < preset.getLength(); i++) {
     env_v.push_back(preset[i]);
     if (debug_level >= 1) {
       std::cout << " " << env_v.back() << std::endl;
@@ -154,10 +150,10 @@ static char** get_sanitized_env()
     env_v.push_back("FB_INSERT_TRACE_MARKERS=1");
   }
 
-  ret_env = static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
+  char ** ret_env = static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
 
-  it = env_v.begin();
-  i = 0;
+  auto it = env_v.begin();
+  int i = 0;
   while (it != env_v.end()) {
     ret_env[i] = strdup(it->c_str());
     it++;
@@ -231,11 +227,9 @@ ack_msg (const int conn)
 bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn) {
   if (ic_msg.has_scproc_query()) {
     firebuild::msg::SupervisorMsg sv_msg;
-    firebuild::msg::ShortCutProcessResp *scproc_resp;
-    ::firebuild::ExecedProcess* proc;
-    scproc_resp = sv_msg.mutable_scproc_resp();
+    auto scproc_resp = sv_msg.mutable_scproc_resp();
     /* record new process */
-    proc = new ::firebuild::ExecedProcess (ic_msg.scproc_query());
+    auto proc = new ::firebuild::ExecedProcess(ic_msg.scproc_query());
     proc_tree.insert(*proc, fd_conn);
     // TODO look up stored result
     if (false /* can shortcut*/) {
@@ -254,7 +248,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     proc = new ::firebuild::ForkedProcess (ic_msg.fork_child());
     proc_tree.insert(*proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
-    ::firebuild::Process *proc = proc_tree.pid2proc.at(ic_msg.execvfailed().pid());
+    auto *proc = proc_tree.pid2proc.at(ic_msg.execvfailed().pid());
     proc_tree.sock2proc[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
     ::firebuild::Process *proc = proc_tree.sock2proc.at(fd_conn);
@@ -300,6 +294,7 @@ static void write_report(const std::string &html_filename, const std::string &da
   const std::string dot_cmd = "dot";
   std::ifstream d3(datadir + "/" + d3_filename);
   std::ifstream src(datadir + "/" + html_orig_filename);
+
   // dirname may modify its parameter thus we provide a writable char std::string
   char *html_filename_tmp = new char [html_filename.size() + 1] ;
   strcpy(html_filename_tmp, html_filename.c_str());
@@ -345,9 +340,8 @@ static void write_report(const std::string &html_filename, const std::string &da
 
 int main(const int argc, char *argv[]) {
 
-  char **env_exec, *config_file = NULL;
+  char *config_file = NULL;
   int i, c;
-  std::string tempdir;
 
   // parse options
   setenv("POSIXLY_CORRECT", "1", true);
@@ -416,7 +410,7 @@ int main(const int argc, char *argv[]) {
   {
     fb_conn_string = tempnam(NULL, "firebuild");
   }
-  env_exec = get_sanitized_env();
+  auto env_exec = get_sanitized_env();
 
   init_signal_handlers();
 
@@ -427,19 +421,17 @@ int main(const int argc, char *argv[]) {
 
   // run command and handle interceptor messages
   {
-    struct sockaddr_un local;
-    int len;
     int listener;     // listening socket descriptor
-
     if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
       perror("socket");
       exit(EXIT_FAILURE);
     }
 
+    struct sockaddr_un local;
     local.sun_family = AF_UNIX;
     strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path));
     unlink(local.sun_path);
-    len = strlen(local.sun_path) + sizeof(local.sun_family);
+    auto len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(listener, (struct sockaddr *)&local, len) == -1) {
       perror("bind");
       exit(EXIT_FAILURE);
@@ -469,7 +461,6 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     } else {
       // supervisor process
-      int newfd;        // newly accept()ed socket descriptor
       int fdmax;        // maximum file descriptor number
 
       fd_set master;    // master file descriptor list
@@ -514,9 +505,10 @@ int main(const int argc, char *argv[]) {
               struct sockaddr_un remote;
               socklen_t addrlen = sizeof(remote);
 
-              newfd = accept(listener,
-                             (struct sockaddr *)&remote,
-                             &addrlen);
+              // newly accept()ed socket descriptor
+              int newfd = accept(listener,
+                                 (struct sockaddr *)&remote,
+                                 &addrlen);
               if (newfd == -1) {
                 perror("accept");
               } else {

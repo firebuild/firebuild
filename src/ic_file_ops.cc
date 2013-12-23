@@ -43,12 +43,10 @@ typedef void* VOIDPT;
   static void                                                       \
   intercept_##ics_pmname ics_pars                                   \
   {                                                                 \
-    using namespace msg;                                 \
-    InterceptorMsg ic_msg;                                          \
-    ics_pmtype *m;                                                  \
+    msg::InterceptorMsg ic_msg;                                     \
     int saved_errno = errno;                                        \
                                                                     \
-    m = ic_msg.mutable_##ics_pmname();                              \
+    auto m = ic_msg.mutable_##ics_pmname();                         \
     ics_body;                                                       \
     IC2_MSG_##ics_with_rettype;                                     \
     if (ret == IC2_ERR_VAL_##ics_rettype) {                         \
@@ -236,10 +234,9 @@ static void
 intercept_pipe2 (const int pipefd[2], const int flags, const int ret)
 {
   msg::InterceptorMsg ic_msg;
-  msg::Pipe2 *m;
   int saved_errno = errno;
 
-  m = ic_msg.mutable_pipe2();
+  auto m = ic_msg.mutable_pipe2();
   m->set_pipefd0(pipefd[0]);
   m->set_pipefd0(pipefd[1]);
   m->set_flags(flags);
@@ -258,12 +255,9 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
 {
   msg::InterceptorMsg ic_msg;
   msg::SupervisorMsg sv_msg;
-  msg::ExecV *m;
-  int i;
-  char * tmp_path;
   struct rusage ru;
 
-  m = ic_msg.mutable_execv();
+  auto m = ic_msg.mutable_execv();
   if (with_p) {
     m->set_with_p(with_p);
   }
@@ -272,29 +266,30 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
   } else {
     m->set_fd(fd);
   }
-  for (i = 0; argv[i] != NULL; i++) {
+  for (int i = 0; argv[i] != NULL; i++) {
     m->add_arg(argv[i]);
   }
-  for (i = 0; envp[i] != NULL; i++) {
+  for (int i = 0; envp[i] != NULL; i++) {
     m->add_env(envp[i]);
   }
   if (fd == -1){
+    char * tmp_path;
     if ((tmp_path = getenv("PATH"))) {
       m->set_path(tmp_path);
     } else {
       /* we have to fall back as described in man execvp */
-      char *cs_path, cwd_buf[CWD_BUFSIZE];
+      char cwd_buf[CWD_BUFSIZE];
       size_t n = ic_orig_confstr(_CS_PATH, NULL, 0);
-      cs_path = (char *)malloc(n);
+      char *cs_path = new char [n];
       assert (cs_path != NULL);
       ic_orig_confstr(_CS_PATH, cs_path, n);
       ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
       n = snprintf(NULL, 0, "%s:%s", cwd_buf, cs_path);
-      tmp_path = (char*)malloc(n + 1);
+      tmp_path = new char[n + 1];
       snprintf(tmp_path, n+1, "%s:%s", cwd_buf, cs_path);
       m->set_path(tmp_path);
-      free(tmp_path);
-      free(cs_path);
+      delete[] tmp_path;
+      delete[] cs_path;
     }
   }
 
@@ -334,7 +329,7 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
 #define IC2_WAIT_ACK {                          \
-    SupervisorMsg sv_msg;                       \
+    msg::SupervisorMsg sv_msg;                  \
     fb_recv_msg(sv_msg, fb_sv_conn);            \
     if (!sv_msg.ack()) {                        \
       /* something unexpected happened ... */   \
@@ -364,9 +359,8 @@ intercept_read (const int fd, const ssize_t ret)
     pthread_mutex_unlock(&ic_fd_states_lock);
     int saved_errno = errno;
     msg::InterceptorMsg ic_msg;
-    msg::Read *m;
 
-    m = ic_msg.mutable_read();
+    auto m = ic_msg.mutable_read();
     if (ret == -1) {
       m->set_error_no(saved_errno);
     }
@@ -393,9 +387,8 @@ intercept_write (const int fd, const ssize_t ret)
     pthread_mutex_unlock(&ic_fd_states_lock);
     int saved_errno = errno;
     msg::InterceptorMsg ic_msg;
-    msg::Write *m;
 
-    m = ic_msg.mutable_write();
+    auto m = ic_msg.mutable_write();
     if (ret == -1) {
       m->set_error_no(saved_errno);
     }
@@ -456,7 +449,6 @@ intercept_fork (const pid_t ret)
 
   if (ret == 0) {
     // child
-    msg::ForkChild *m;
     reset_fn_infos();
     ic_pid = pid = ic_orig_getpid();
     // unlock global interceptor lock if it is locked
@@ -466,14 +458,13 @@ intercept_fork (const pid_t ret)
     ic_orig_close(fb_sv_conn);
     fb_sv_conn = -1;
     init_supervisor_conn();
-    m = ic_msg.mutable_fork_child();
+    auto m = ic_msg.mutable_fork_child();
     m->set_pid(pid);
     m->set_ppid(ic_orig_getppid());
     fb_send_msg(ic_msg, fb_sv_conn);
   } else {
     // parent
-    msg::ForkParent *m;
-    m = ic_msg.mutable_fork_parent();
+    auto m = ic_msg.mutable_fork_parent();
     m->set_pid(ic_pid);
     m->set_child_pid(ret);
     fb_send_msg(ic_msg, fb_sv_conn);
@@ -494,12 +485,9 @@ intercept_fork (const pid_t ret)
  */
 extern int firebuild_fake_main(int argc, char **argv, char **env)
 {
-  int ret;
-  int (*orig_main) (int, char**, char**);
-  char ** orig_argv;
-  orig_main = (int (*) (int, char**, char**))(argv[0]);
-  orig_argv = (char**)(argv[1]);
-  ret = orig_main(argc, orig_argv, env);
+  auto orig_main = (int (*) (int, char**, char**))(argv[0]);
+  auto orig_argv = (char**)(argv[1]);
+  auto ret = orig_main(argc, orig_argv, env);
   handle_exit(ret, NULL);
   return ret;
 }

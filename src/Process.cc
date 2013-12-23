@@ -43,7 +43,6 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
   const bool created = (((flags & O_EXCL) && (fd != -1)) || c ||
                         ((fd == -1) && (error == ENOENT)));
   FileUsage *fu;
-  File *f;
   
   if (file_usages.count(name) > 0) {
     // the process already used this file
@@ -68,8 +67,9 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
     }
   }
 
+  File *f;
   {
-    FileDB *fdb = FileDB::getInstance();
+    auto *fdb = FileDB::getInstance();
     if (fdb->count(name) > 0) {
       // the build process already used this file
       f = (*fdb)[name];
