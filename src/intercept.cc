@@ -173,14 +173,6 @@ init_supervisor_conn () {
  */
 static void fb_ic_init()
 {
-  char **argv, **env, **cursor, *cwd_ret;
-  char cwd_buf[CWD_BUFSIZE];
-  pid_t pid, ppid;
-  msg::ShortCutProcessQuery *proc;
-  msg::ShortCutProcessResp * resp;
-  msg::InterceptorMsg ic_msg;
-  msg::SupervisorMsg sv_msg;
-  
   // init global variables
   fd_states = new std::vector<fd_state>();
 
@@ -200,23 +192,29 @@ static void fb_ic_init()
 
   on_exit(handle_exit, NULL);
 
+  char **argv, **env;
   get_argv_env(&argv, &env);
+
+  pid_t pid, ppid;
   ic_pid = pid = ic_orig_getpid();
   ppid = ic_orig_getppid();
-  cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
+
+  char cwd_buf[CWD_BUFSIZE];
+  auto cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
   assert(cwd_ret != NULL);
 
-  proc = ic_msg.mutable_scproc_query();
+  msg::InterceptorMsg ic_msg;
+  auto proc = ic_msg.mutable_scproc_query();
 
   proc->set_pid(pid);
   proc->set_ppid(ppid);
   proc->set_cwd(cwd_buf);
 
-  for (cursor = argv; *cursor != NULL; cursor++) {
+  for (auto cursor = argv; *cursor != NULL; cursor++) {
     proc->add_arg(*cursor);
   }
 
-  for (cursor = env; *cursor != NULL; cursor++) {
+  for (auto cursor = env; *cursor != NULL; cursor++) {
     proc->add_env_var(*cursor);
   }
 
@@ -244,10 +242,13 @@ static void fb_ic_init()
     dl_iterate_phdr(shared_libs_cb, fl);
 
   }
+
   fb_send_msg(ic_msg, fb_sv_conn);
+
+  msg::SupervisorMsg sv_msg;
   fb_recv_msg(sv_msg, fb_sv_conn);
 
-  resp = sv_msg.mutable_scproc_resp();
+  auto resp = sv_msg.mutable_scproc_resp();
   // we may return immediately if supervisor decides that way
   if (resp->shortcut()) {
     if (resp->has_exit_status()) {
