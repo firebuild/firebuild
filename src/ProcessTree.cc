@@ -36,28 +36,28 @@ static std::string escapeJsonString(const std::string& input) {
 ProcessTree::~ProcessTree()
 {
   // clean up all processes
-  for (auto it = fb_pid2proc.begin(); it != fb_pid2proc.end(); ++it) {
+  for (auto it = fb_pid2proc_.begin(); it != fb_pid2proc_.end(); ++it) {
     delete(it->second);
   }
 }
 
 void ProcessTree::insert (Process &p, const int sock)
 {
-  sock2proc[sock] = &p;
-  fb_pid2proc[p.fb_pid] = &p;
-  pid2proc[p.pid] = &p;
+  sock2proc_[sock] = &p;
+  fb_pid2proc_[p.fb_pid()] = &p;
+  pid2proc_[p.pid()] = &p;
 }
 
 void ProcessTree::insert (ExecedProcess &p, const int sock)
 {
-  if (root == NULL) {
-    root = &p;
+  if (root_ == NULL) {
+    root_ = &p;
   } else {
     // add as exec child of parent
     try {
-      p.exec_parent = pid2proc.at(p.pid);
-      p.exec_parent->exec_child = &p;
-      p.exec_parent->state = FB_PROC_EXECED;
+      p.set_exec_parent(pid2proc_.at(p.pid()));
+      p.exec_parent()->set_exec_child(&p);
+      p.exec_parent()->set_state(FB_PROC_EXECED);
     } catch (const std::out_of_range& oor) {
       // root's exec_parent is firebuild which is not in the tree.
       // If any other parent is missing, FireBuild missed process
@@ -74,10 +74,10 @@ void ProcessTree::insert (ForkedProcess &p, const int sock)
 
   // add as fork child of parent
   try {
-    p.fork_parent = pid2proc.at(p.ppid);
-    p.fork_parent->children.push_back(&p);
+    p.set_fork_parent(pid2proc_.at(p.ppid()));
+    p.fork_parent()->children().push_back(&p);
   } catch (const std::out_of_range& oor) {
-    if (!(*root == p) && (root->pid != p.pid)) {
+    if (!(*root_ == p) && (root_->pid() != p.pid())) {
       // root's fork_parent is firebuild which is not in the tree.
       // If any other parent is missing, FireBuild missed process
       // that can happen due to the missing process(es) being statically built
@@ -92,35 +92,42 @@ void ProcessTree::exit (Process &p, const int sock)
 {
   (void)p;
   // TODO maybe this is not needed
-  sock2proc.erase(sock);
+  sock2proc_.erase(sock);
 }
 
 long int ProcessTree::sum_rusage_recurse(Process &p)
 {
-  p.aggr_time = p.utime_m + p.stime_m;
-  if (p.type == FB_PROC_EXEC_STARTED) {
-    ExecedProcess *e = (ExecedProcess*)&p;
-    e->sum_rusage(&e->sum_utime_m,
-                  &e->sum_stime_m);
-    if (e->exec_parent) {
-      e->sum_utime_m -= e->exec_parent->utime_m;
-      e->sum_stime_m -= e->exec_parent->stime_m;
-      e->aggr_time -= e->exec_parent->utime_m;
-      e->aggr_time -= e->exec_parent->stime_m;
+  long int aggr_time = p.utime_m() + p.stime_m();
+  if (p.type() == FB_PROC_EXEC_STARTED) {
+    auto *e = (ExecedProcess*)&p;
+    long int sum_utime_m = 0;
+    long int sum_stime_m = 0;
+    e->sum_rusage(&sum_utime_m,
+                  &sum_stime_m);
+    if (e->exec_parent()) {
+      e->set_sum_utime_m(sum_utime_m - e->exec_parent()->utime_m());
+      e->set_sum_stime_m(sum_stime_m - e->exec_parent()->stime_m());
+
+      aggr_time -= e->exec_parent()->utime_m();
+      aggr_time -= e->exec_parent()->stime_m();
+    } else {
+      e->set_sum_utime_m(sum_utime_m);
+      e->set_sum_stime_m(sum_stime_m);
     }
   }
-  if (p.exec_child != NULL) {
-    p.aggr_time += sum_rusage_recurse(*p.exec_child);
+  if (p.exec_child() != NULL) {
+    aggr_time += sum_rusage_recurse(*p.exec_child());
   }
-  for (unsigned int i = 0; i < p.children.size(); i++) {
-    p.aggr_time += sum_rusage_recurse(*p.children[i]);
+  for (unsigned int i = 0; i < p.children().size(); i++) {
+    aggr_time += sum_rusage_recurse(*(p.children()[i]));
   }
-  return p.aggr_time;
+  p.set_aggr_time(aggr_time);
+  return aggr_time;
 }
 
 void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::ostream& o)
 {
-  if (p.type == FB_PROC_EXEC_STARTED) {
+  if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level > 0) {
       o << std::endl;
     }
@@ -128,13 +135,13 @@ void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::o
     export2js((ExecedProcess&)p, level, o);
     o << std::string(2 * level, ' ') << " children : [";
   }
-  if (p.exec_child != NULL) {
-    export2js_recurse(*p.exec_child, level + 1, o);
+  if (p.exec_child() != NULL) {
+    export2js_recurse(*p.exec_child(), level + 1, o);
   }
-  for (unsigned int i = 0; i < p.children.size(); i++) {
-    export2js_recurse(*p.children[i], level, o);
+  for (unsigned int i = 0; i < p.children().size(); i++) {
+    export2js_recurse(*p.children()[i], level, o);
   }
-  if (p.type == FB_PROC_EXEC_STARTED) {
+  if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level == 0) {
       o << "]};" << std::endl;
     } else {
@@ -146,41 +153,41 @@ void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::o
 void ProcessTree::export2js(std::ostream& o)
 {
   o << "root = ";
-  export2js_recurse(*root, 0, o);
+  export2js_recurse(*root_, 0, o);
 }
 
 void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ostream& o)
 {
   // TODO: escape all std::strings properly
   unsigned int indent = 2 * level;
-  o << "name :\"" << p.args[0] << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "id :" << p.fb_pid << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "pid :" << p.pid << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "ppid :" << p.ppid << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "cwd :\"" << p.cwd << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "exe :\"" << p.executable << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "state : " << p.state << "," << std::endl;
+  o << "name :\"" << p.args()[0] << "\"," << std::endl;
+  o << std::string(indent + 1, ' ') << "id :" << p.fb_pid() << "," << std::endl;
+  o << std::string(indent + 1, ' ') << "pid :" << p.pid() << "," << std::endl;
+  o << std::string(indent + 1, ' ') << "ppid :" << p.ppid() << "," << std::endl;
+  o << std::string(indent + 1, ' ') << "cwd :\"" << p.cwd() << "\"," << std::endl;
+  o << std::string(indent + 1, ' ') << "exe :\"" << p.executable() << "\"," << std::endl;
+  o << std::string(indent + 1, ' ') << "state : " << p.state() << "," << std::endl;
   o << std::string(indent + 1, ' ') << "args : " << "[";
-  for (unsigned int i = 1; i < p.args.size(); i++) {
-    o << "\"" << escapeJsonString(p.args[i]) <<"\", ";
+  for (unsigned int i = 1; i < p.args().size(); i++) {
+    o << "\"" << escapeJsonString(p.args()[i]) <<"\", ";
   }
   o << "]," << std::endl;
 
   o << std::string(indent + 1, ' ') << "env : " << "[";
-  for (auto it = p.env_vars.begin(); it != p.env_vars.end(); ++it) {
+  for (auto it = p.env_vars().begin(); it != p.env_vars().end(); ++it) {
     o << "\"" << escapeJsonString(*it) << "\",";
   }
   o << "]," << std::endl;
 
   o << std::string(indent + 1, ' ') << "libs : " << "[";
-  for (auto it = p.libs.begin(); it != p.libs.end(); ++it) {
+  for (auto it = p.libs().begin(); it != p.libs().end(); ++it) {
     o << "\"" << *it << "\",";
   }
   o << "]," << std::endl;
 
   o << std::string(indent + 1, ' ') << "fcreated : " << "[";
-  for (auto it = p.file_usages.begin(); it != p.file_usages.end(); ++it) {
-    if (it->second->created) {
+  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+    if (it->second->created()) {
       o << "\"" << it->first << "\",";
     }
   }
@@ -188,32 +195,32 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
 
   // TODO replace write/read flag checks with more accurate tests
   o << std::string(indent + 1, ' ') << "fmodified : " << "[";
-  for (auto it = p.file_usages.begin(); it != p.file_usages.end(); ++it) {
-    if ((!it->second->created) && (it->second->open_flags & (O_WRONLY | O_RDWR))) {
+  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+    if ((!it->second->created()) && (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
       o << "\"" << it->first << "\",";
     }
   }
   o << "]," << std::endl;
 
   o << std::string(indent + 1, ' ') << "fread : " << "[";
-  for (auto it = p.file_usages.begin(); it != p.file_usages.end(); ++it) {
-    if (it->second->open_flags & (O_RDONLY | O_RDWR)) {
+  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+    if (it->second->open_flags() & (O_RDONLY | O_RDWR)) {
       o << "\"" << it->first << "\",";
     }
   }
   o << "]," << std::endl;
 
-  switch (p.state) {
+  switch (p.state()) {
     case FB_PROC_FINISHED: {
-      o << std::string(indent + 1, ' ') << "exit_status : " << p.exit_status << "," << std::endl;
+      o << std::string(indent + 1, ' ') << "exit_status : " << p.exit_status() << "," << std::endl;
       // break; is missing intentionally
     }
     case FB_PROC_EXECED: {
-      o << std::string(indent + 1, ' ') << "utime_m : " << p.utime_m << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "stime_m : " << p.stime_m << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "aggr_time : " << p.aggr_time << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m << "," << std::endl;
+      o << std::string(indent + 1, ' ') << "utime_m : " << p.utime_m() << "," << std::endl;
+      o << std::string(indent + 1, ' ') << "stime_m : " << p.stime_m() << "," << std::endl;
+      o << std::string(indent + 1, ' ') << "aggr_time : " << p.aggr_time() << "," << std::endl;
+      o << std::string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m() << "," << std::endl;
+      o << std::string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m() << "," << std::endl;
       // break; is missing intentionally
     }
     case FB_PROC_RUNNING: {
@@ -226,19 +233,19 @@ void ProcessTree::profile_collect_cmds(Process &p,
                                        std::unordered_map<std::string, subcmd_prof> &cmds,
                                        std::set<std::string> &ancestors)
 {
-  if (p.exec_child != NULL) {
-    ExecedProcess *ec = (ExecedProcess*)(p.exec_child);
-    if (0 == ancestors.count(ec->args[0])) {
-      cmds[ec->args[0]].sum_aggr_time += p.exec_child->aggr_time;
+  if (p.exec_child() != NULL) {
+    ExecedProcess *ec = (ExecedProcess*)(p.exec_child());
+    if (0 == ancestors.count(ec->args()[0])) {
+      cmds[ec->args()[0]].sum_aggr_time += p.exec_child()->aggr_time();
     } else {
-      if (!cmds[ec->args[0]].recursed) {
-        cmds[ec->args[0]].recursed = true;
+      if (!cmds[ec->args()[0]].recursed) {
+        cmds[ec->args()[0]].recursed = true;
       }
     }
-    cmds[ec->args[0]].count += 1;
+    cmds[ec->args()[0]].count += 1;
   }
-  for (unsigned int i = 0; i < p.children.size(); i++) {
-    profile_collect_cmds(*p.children[i], cmds, ancestors);
+  for (unsigned int i = 0; i < p.children().size(); i++) {
+    profile_collect_cmds(*p.children()[i], cmds, ancestors);
   }
 
 }
@@ -246,26 +253,26 @@ void ProcessTree::profile_collect_cmds(Process &p,
 void ProcessTree::build_profile(Process &p, std::set<std::string> &ancestors)
 {
   bool first_visited = false;
-  if (p.type == FB_PROC_EXEC_STARTED) {
+  if (p.type() == FB_PROC_EXEC_STARTED) {
     ExecedProcess *e = (ExecedProcess*)&p;
-    auto &cmd_prof = cmd_profs[e->args[0]];
-    if (0 == ancestors.count(e->args[0])) {
-      cmd_prof.aggr_time += e->aggr_time;
-      ancestors.insert(e->args[0]);
+    auto &cmd_prof = cmd_profs_[e->args()[0]];
+    if (0 == ancestors.count(e->args()[0])) {
+      cmd_prof.aggr_time += e->aggr_time();
+      ancestors.insert(e->args()[0]);
       first_visited = true;
     }
-    cmd_prof.cmd_time += e->sum_utime_m +  e->sum_stime_m;
+    cmd_prof.cmd_time += e->sum_utime_m() +  e->sum_stime_m();
     profile_collect_cmds(p, cmd_prof.subcmds, ancestors);
   }
-  if (p.exec_child != NULL) {
-    build_profile(*p.exec_child, ancestors);
+  if (p.exec_child() != NULL) {
+    build_profile(*p.exec_child(), ancestors);
   }
-  for (unsigned int i = 0; i < p.children.size(); i++) {
-    build_profile(*(p.children[i]), ancestors);
+  for (unsigned int i = 0; i < p.children().size(); i++) {
+    build_profile(*(p.children()[i]), ancestors);
   }
 
   if (first_visited) {
-    ancestors.erase(((ExecedProcess*)&p)->args[0]);
+    ancestors.erase(((ExecedProcess*)&p)->args()[0]);
   }
 }
 
@@ -318,8 +325,8 @@ void ProcessTree::export_profile2dot(std::ostream &o)
   long int build_time;
 
   // build profile
-  build_profile(*root, cmd_chain);
-  build_time = root->aggr_time;
+  build_profile(*root_, cmd_chain);
+  build_time = root_->aggr_time();
 
   // print it
   o << "digraph {" << std::endl;
@@ -328,7 +335,7 @@ void ProcessTree::export_profile2dot(std::ostream &o)
   o << "node [fontname=Helvetica, fontsize=12, style=filled, height=0, width=0, shape=box, fontcolor=white];" << std::endl;
   o << "edge [fontname=Helvetica, fontsize=12]" << std::endl;
 
-  for (auto it = cmd_profs.begin(); it != cmd_profs.end(); ++it) {
+  for (auto it = cmd_profs_.begin(); it != cmd_profs_.end(); ++it) {
     o << std::string(4, ' ') << "\"" << it->first << "\" [label=<<B>";
     o << it->first << "</B><BR/>";
     o << percent_of(it->second.aggr_time, build_time) << "%<BR/>(";

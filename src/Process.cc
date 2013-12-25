@@ -9,32 +9,32 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process (const int pid, const int ppid, const process_type type)
-    : type(type), state(FB_PROC_RUNNING), can_shortcut(true),
-      fb_pid(fb_pid_counter++), pid(pid), ppid(ppid), exit_status(-1),
-      libs(), file_usages(), fds(), utime_m(0), stime_m(0), aggr_time(0),
-      children(), exec_child(NULL)
+    : type_(type), state_(FB_PROC_RUNNING), can_shortcut_(true),
+      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1),
+      libs_(), file_usages_(), fds_(), utime_m_(0), stime_m_(0), aggr_time_(0),
+      children_(), exec_child_(NULL)
 {
 }
 
 void Process::update_rusage (const long int utime_m, const long int stime_m)
 {
-  this->utime_m = utime_m;
-  this->stime_m = stime_m;
+  utime_m_ = utime_m;
+  stime_m_ = stime_m;
 }
 
 void Process::exit_result (const int status, const long int utime_m, const long int stime_m)
 {
-  state = FB_PROC_FINISHED;
-  exit_status = status;
+  state_ = FB_PROC_FINISHED;
+  exit_status_ = status;
   update_rusage(utime_m, stime_m);
 }
 
 void Process::sum_rusage(long int * const sum_utime_m, long int *const sum_stime_m)
 {
-  (*sum_utime_m) += utime_m;
-  (*sum_stime_m) += stime_m;
-  for (unsigned int i = 0; i < children.size(); i++) {
-    children[i]->sum_rusage(sum_utime_m, sum_stime_m);
+  (*sum_utime_m) += utime_m_;
+  (*sum_stime_m) += stime_m_;
+  for (unsigned int i = 0; i < children_.size(); i++) {
+    children_[i]->sum_rusage(sum_utime_m, sum_stime_m);
   }
 }
 int Process::open_file(const std::string name, const int flags, const mode_t mode,
@@ -44,12 +44,12 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
                         ((fd == -1) && (error == ENOENT)));
   FileUsage *fu;
   
-  if (file_usages.count(name) > 0) {
+  if (file_usages_.count(name) > 0) {
     // the process already used this file
-    fu = file_usages[name];
+    fu = file_usages_[name];
   } else {
     fu = new FileUsage(flags, mode, created, false);
-    file_usages[name] = fu;
+    file_usages_[name] = fu;
   }
 
   // record unhandled errors
@@ -58,10 +58,10 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
       case ENOENT:
         break;
       default:
-        if (0 == fu->unknown_err) {
-          fu->unknown_err = error;
-          if (this->can_shortcut) {
-            this->can_shortcut = false;
+        if (0 == fu->unknown_err()) {
+          fu->set_unknown_err(error);
+          if (can_shortcut_) {
+            can_shortcut_ = false;
           }
         }
     }
@@ -81,26 +81,26 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
 
   f->update();
   if (!created) {
-    fu->initial_hash = f->hash;
+    fu->set_initial_hash(f->hash());
   }
 
   if (fd != -1) {
-    if (fds.size() <= static_cast<unsigned int>(fd)) {
-      fds.resize(fd+1);
+    if (fds_.size() <= static_cast<unsigned int>(fd)) {
+      fds_.resize(fd+1);
     }
 
-    fds[fd] = new FileFD(name, fd, flags);
+    fds_[fd] = new FileFD(name, fd, flags);
   }
   return 0;
 }
 
 Process::~Process()
 {
-  for (auto it = this->file_usages.begin(); it != this->file_usages.end(); ++it) {
+  for (auto it = this->file_usages_.begin(); it != this->file_usages_.end(); ++it) {
     delete(it->second);
   }
 
-  for (auto it = this->fds.begin(); it != this->fds.end(); ++it) {
+  for (auto it = this->fds_.begin(); it != this->fds_.end(); ++it) {
     delete(*it);
   }
 

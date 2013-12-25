@@ -9,5 +9,4 @@
   TypeName(const TypeName&);               \
   void operator=(const TypeName&)
 
-
 #endif

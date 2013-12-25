@@ -248,10 +248,10 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     proc = new ::firebuild::ForkedProcess (ic_msg.fork_child());
     proc_tree->insert(*proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
-    auto *proc = proc_tree->pid2proc.at(ic_msg.execvfailed().pid());
-    proc_tree->sock2proc[fd_conn] = proc;
+    auto *proc = proc_tree->pid2proc().at(ic_msg.execvfailed().pid());
+    proc_tree->sock2proc()[fd_conn] = proc;
   } else if (ic_msg.has_open()) {
-    ::firebuild::Process *proc = proc_tree->sock2proc.at(fd_conn);
+    ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
     ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
     ack_msg(fd_conn);
   } else if (ic_msg.has_close()) {
@@ -261,13 +261,13 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
     if (ic_msg.has_exit()) {
-      ::firebuild::Process *proc = proc_tree->sock2proc.at(fd_conn);
+      ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
       proc->exit_result(ic_msg.exit().exit_status(),
                         ic_msg.exit().utime_m(),
                         ic_msg.exit().stime_m());
       proc_tree->exit(*proc, fd_conn);
     } else if (ic_msg.has_execv()) {
-      ::firebuild::Process *proc = proc_tree->sock2proc.at(fd_conn);
+      ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
       proc->update_rusage(ic_msg.execv().utime_m(),
                           ic_msg.execv().stime_m());
     }
@@ -574,12 +574,12 @@ int main(const int argc, char *argv[]) {
     }
   }
 
-  if (!proc_tree->root) {
+  if (!proc_tree->root()) {
     std::cerr << "ERROR: Could not collect any information about the build process" << std::endl;
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree
-    proc_tree->sum_rusage_recurse(*proc_tree->root);
+    proc_tree->sum_rusage_recurse(*proc_tree->root());
 
     // show process tree if needed
     if (generate_report) {

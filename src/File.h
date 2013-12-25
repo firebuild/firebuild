@@ -15,15 +15,17 @@ namespace firebuild
 class File
 {
  public:
-  std::string path;
-  bool exists;
-  SHA256Hash hash;
-
   explicit File (const std::string path);
   int update();
   int is_changed();
+  std::string& path() {return path_;};
+  SHA256Hash& hash() {return hash_;};
+
  private:
-  std::vector<timespec> mtimes;
+  std::vector<timespec> mtimes_;
+  std::string path_;
+  bool exists_;
+  SHA256Hash hash_;
   int update_hash();
   DISALLOW_COPY_AND_ASSIGN(File);
 };

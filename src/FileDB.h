@@ -14,9 +14,9 @@ namespace firebuild
  public:
   static FileDB* getInstance()
   {
-    static FileDB    instance;   // Guaranteed to be destroyed.
+    static FileDB    instance_;   // Guaranteed to be destroyed.
     // Instantiated on first use.
-    return &instance;
+    return &instance_;
   }
  private:
   FileDB() {};

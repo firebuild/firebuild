@@ -25,30 +25,30 @@ namespace firebuild
 #endif
 
 
-  class FileFD
+class FileFD
+{
+public:
+  FileFD (int fd, int flags, fd_origin o)
+      : fd_(fd), curr_flags_(flags), origin_(o)
   {
- public:
-    int fd;
-    int curr_flags;
-    fd_origin origin:2;
-    bool read : 1;
-    bool written : 1;
-    /** file descriptor is open (valid) */
-    bool open : 1;
-    std::string filename;
-    FileFD (int fd, int flags, fd_origin o)
-        : fd(fd), curr_flags(flags), origin(o)
-    {
-      if (fd >= 0) {
-        open = true;
-      }
-    };
-    /** Constructor for fds obtained through opening files. */
-    FileFD (const std::string &f, int fd, int flags)
-        :fd(fd), curr_flags(flags), origin(FD_ORIGIN_FILE_OPEN), read(false), written(false),
-        open(true), filename(f) {};
-    FileFD () : FileFD (-1, 0, FD_ORIGIN_INTERNAL) {};
- private:
+    if (fd_ >= 0) {
+      open_ = true;
+    }
+  };
+  /** Constructor for fds obtained through opening files. */
+  FileFD (const std::string &f, int fd, int flags)
+      :fd_(fd), curr_flags_(flags), origin_(FD_ORIGIN_FILE_OPEN), read_(false), written_(false),
+      open_(true), filename_(f) {};
+  FileFD () : FileFD (-1, 0, FD_ORIGIN_INTERNAL) {};
+private:
+  int fd_;
+  int curr_flags_;
+  fd_origin origin_:2;
+  bool read_ : 1;
+  bool written_ : 1;
+  /** file descriptor is open (valid) */
+  bool open_ : 1;
+  std::string filename_;
   DISALLOW_COPY_AND_ASSIGN(FileFD);
   };
 }
