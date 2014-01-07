@@ -48,7 +48,7 @@ public:
   int exit_status() {return exit_status_;};
   void set_exit_status(const int e) {exit_status_ = e;};
   std::set<std::string>& libs() {return libs_;};
-  std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages();};
+  std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;};
   long int utime_m() {return utime_m_;}
   void set_utime_m(long int t) {utime_m_ = t;}
   long int stime_m() {return stime_m_;}
