@@ -169,10 +169,6 @@ IC2_SIMPLE_2P(int, IC2_NO_RET, LockF, lockf, int, fd, int, cmd)
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd, int, arg)
 /* Intercept fcntl without arg */
 IC2_SIMPLE_2P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd)
-/* Intercept open variants */
-IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
-/* Intercept open variants creating the file*/
-IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode, bool, created)
 /* Intercept getcwd */
 IC2_SIMPLE_0P(CHARS, IC2_WITH_RET, GetCwd, getcwd)
 /* Intercept sysconf */
@@ -336,6 +332,11 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
       assert(0);                                \
     }                                           \
   }
+
+/* Intercept open variants */
+IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
+/* Intercept open variants creating the file*/
+IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode, bool, created)
 
 /* Intercept opendir */
 IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, OpenDir, opendir, const char *, name)
