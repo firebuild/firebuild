@@ -164,6 +164,7 @@ init_supervisor_conn () {
 
   auto len = strlen(remote.sun_path) + sizeof(remote.sun_family);
   if (ic_orig_connect(fb_sv_conn, (struct sockaddr *)&remote, len) == -1) {
+    perror("connect");
     assert(0 && "connection to supervisor failed");
   }
 }

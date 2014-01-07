@@ -298,7 +298,7 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
   fb_recv_msg(sv_msg, fb_sv_conn);
   if (!sv_msg.ack()) {
     // something unexpected happened ...
-    assert(0);
+    assert(0 && "Interceptor has not received ACK from firebuild");
   }
 
 }
@@ -324,13 +324,12 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
-#define IC2_WAIT_ACK {                          \
-    msg::SupervisorMsg sv_msg;                  \
-    fb_recv_msg(sv_msg, fb_sv_conn);            \
-    if (!sv_msg.ack()) {                        \
-      /* something unexpected happened ... */   \
-      assert(0);                                \
-    }                                           \
+#define IC2_WAIT_ACK {                                                  \
+    msg::SupervisorMsg sv_msg;                                          \
+    if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) || !sv_msg.ack()) {     \
+      /* something unexpected happened ... */                           \
+      assert(0 && "Interceptor has not received ACK from firebuild");   \
+    }                                                                   \
   }
 
 /* Intercept open variants */
