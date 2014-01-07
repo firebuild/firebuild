@@ -49,7 +49,7 @@ extern ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, const int fd)
   auto buf = new char[msg_size];
   /* read serialized msg */
   if (-1 == ((ret = fb_read_buf(fd, buf, msg_size)))) {
-    free(buf);
+    delete[] buf;
     return ret;
   }
 
