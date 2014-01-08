@@ -58,8 +58,8 @@ namespace firebuild
      * (system + user time), and count the invocations of each other command
      * by C. */
     std::unordered_map<std::string, cmd_prof> cmd_profs_;
-    void export2js_recurse(Process &p, const unsigned int level, std::ostream& o);
-    void export2js(ExecedProcess &p, const unsigned int level, std::ostream& o);
+    void export2js_recurse(Process &p, const unsigned int level, std::ostream& o, unsigned int *nodeid);
+    void export2js(ExecedProcess &p, const unsigned int level, std::ostream& o, unsigned int *nodeid);
     void profile_collect_cmds(Process &p,
                               std::unordered_map<std::string, subcmd_prof> &cmds,
                               std::set<std::string> &ancestors);

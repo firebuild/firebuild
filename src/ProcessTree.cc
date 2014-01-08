@@ -125,21 +125,21 @@ long int ProcessTree::sum_rusage_recurse(Process &p)
   return aggr_time;
 }
 
-void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::ostream& o)
+void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::ostream& o, unsigned int *nodeid)
 {
   if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level > 0) {
       o << std::endl;
     }
     o << std::string(2 * level, ' ') << "{";
-    export2js((ExecedProcess&)p, level, o);
+    export2js((ExecedProcess&)p, level, o, nodeid);
     o << std::string(2 * level, ' ') << " children : [";
   }
   if (p.exec_child() != NULL) {
-    export2js_recurse(*p.exec_child(), level + 1, o);
+    export2js_recurse(*p.exec_child(), level + 1, o, nodeid);
   }
   for (unsigned int i = 0; i < p.children().size(); i++) {
-    export2js_recurse(*p.children()[i], level, o);
+    export2js_recurse(*p.children()[i], level, o, nodeid);
   }
   if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level == 0) {
@@ -153,15 +153,16 @@ void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::o
 void ProcessTree::export2js(std::ostream& o)
 {
   o << "root = ";
-  export2js_recurse(*root_, 0, o);
+  unsigned int nodeid = 0;
+  export2js_recurse(*root_, 0, o, &nodeid);
 }
 
-void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ostream& o)
+void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ostream& o, unsigned int * nodeid)
 {
   // TODO: escape all std::strings properly
   unsigned int indent = 2 * level;
   o << "name :\"" << p.args()[0] << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "id :" << p.fb_pid() << "," << std::endl;
+  o << std::string(indent + 1, ' ') << "id:" << (*nodeid)++ << "," << std::endl;
   o << std::string(indent + 1, ' ') << "pid :" << p.pid() << "," << std::endl;
   o << std::string(indent + 1, ' ') << "ppid :" << p.ppid() << "," << std::endl;
   o << std::string(indent + 1, ' ') << "cwd :\"" << p.cwd() << "\"," << std::endl;
