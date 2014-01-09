@@ -19,6 +19,7 @@ namespace firebuild
 {
  public:
   static int msg(Process &p, const msg::Open &o);
+  static int msg(Process &p, const msg::Close &c);
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
 };

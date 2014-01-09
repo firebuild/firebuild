@@ -94,6 +94,32 @@ int Process::open_file(const std::string name, const int flags, const mode_t mod
   return 0;
 }
 
+int Process::close_file(const int fd, const int error)
+{
+  if ((EIO == error) ||
+      ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd)))) {
+    // IO error and closing an unknown fd succesfully prevents shortcutting
+    // TODO debug
+    this->can_shortcut_ = false;
+    return -1;
+  } else {
+    if (fds_[fd]->open() == true) {
+      fds_[fd]->set_open(false);
+      if (fds_[fd]->last_err() != error) {
+        fds_[fd]->set_last_err(error);
+      }
+      return 0;
+    } else if((fds_[fd]->last_err() == EINTR) && (error == 0)) {
+      // previous close got interrupted but the current one succeeded
+      return 0;
+    } else {
+      // already closed, it may be an error
+      // TODO debug
+      return 0;
+    }
+  }
+}
+
 Process::~Process()
 {
   for (auto it = this->file_usages_.begin(); it != this->file_usages_.end(); ++it) {

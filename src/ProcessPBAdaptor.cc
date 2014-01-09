@@ -9,4 +9,10 @@ int ProcessPBAdaptor::msg(Process &p, const msg::Open &o)
   return p.open_file(o.file(), o.flags(), o.mode(), o.ret(), c, error);
 }
 
+int ProcessPBAdaptor::msg(Process &p, const msg::Close &c)
+{
+  const int error = (c.has_error_no())?c.error_no():0;
+  return p.close_file(c.fd(), error);
+}
+
 }

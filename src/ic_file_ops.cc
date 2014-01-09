@@ -36,7 +36,7 @@ typedef void* VOIDPT;
 #define IC2_ERR_VAL_CHARS NULL
 #define IC2_ERR_VAL_VOIDPT NULL
 
-#define IC2_WAIT_ACK
+#define IC2_WAIT_ACK while (0) {}
 
 #define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,   \
                       ics_pmname, ics_pars, ics_body)               \
@@ -139,8 +139,6 @@ IC2_SIMPLE_3P(int, IC2_NO_RET, UnLinkAt, unlinkat, int, dirfd, const char *, pat
 IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 /* Intercept fchdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, FChDir, fchdir, const int, dir)
-/* Intercept close */
-IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept fcloseall */
 IC2_SIMPLE_0P(int, IC2_NO_RET, FCloseAll, fcloseall)
 /* Intercept rmdir */
@@ -324,7 +322,7 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
-#define IC2_WAIT_ACK {                                                  \
+#define IC2_WAIT_ACK if (!fb_exit_handled) while (0) {                  \
     msg::SupervisorMsg sv_msg;                                          \
     if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) || !sv_msg.ack()) {     \
       /* something unexpected happened ... */                           \
@@ -336,7 +334,8 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
 /* Intercept open variants creating the file*/
 IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode, bool, created)
-
+/* Intercept close */
+IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept opendir */
 IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, OpenDir, opendir, const char *, name)
 /* Intercept fdopendir */

@@ -13,6 +13,7 @@
 #include <fstream>
 #include <cerrno>
 #include <cstdio>
+#include <stdexcept>
 
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -250,28 +251,37 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->pid2proc().at(ic_msg.execvfailed().pid());
     proc_tree->sock2proc()[fd_conn] = proc;
-  } else if (ic_msg.has_open()) {
-    ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
-    ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
-    ack_msg(fd_conn);
-  } else if (ic_msg.has_close()) {
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
              ic_msg.has_execv() ||
+             ic_msg.has_open() ||
+             ic_msg.has_close() ||
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
-    if (ic_msg.has_exit()) {
+    try {
       ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
-      proc->exit_result(ic_msg.exit().exit_status(),
-                        ic_msg.exit().utime_m(),
-                        ic_msg.exit().stime_m());
-      proc_tree->exit(*proc, fd_conn);
-    } else if (ic_msg.has_execv()) {
-      ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
-      proc->update_rusage(ic_msg.execv().utime_m(),
-                          ic_msg.execv().stime_m());
+      if (ic_msg.has_exit()) {
+        proc->exit_result(ic_msg.exit().exit_status(),
+                          ic_msg.exit().utime_m(),
+                          ic_msg.exit().stime_m());
+        proc_tree->exit(*proc, fd_conn);
+      } else if (ic_msg.has_execv()) {
+        proc->update_rusage(ic_msg.execv().utime_m(),
+                            ic_msg.execv().stime_m());
+      } else if (ic_msg.has_open()) {
+        ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
+        ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
+      } else if (ic_msg.has_close()) {
+        ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
+        ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.close());
+      }
+      ack_msg(fd_conn);
+    } catch (std::out_of_range) {
+      if (debug_level >= 1) {
+        std::cout << "Ignoring message on fd: "<< fd_conn <<
+            ", process probably exited already." << std::endl;
+      }
     }
-    ack_msg(fd_conn);
   } else if (ic_msg.has_gen_call()) {
   }
 

@@ -63,6 +63,12 @@ public:
   virtual void exit_result (int status, long int utime_m, long int stime_m);
   int open_file(const std::string name, const int flags, const mode_t mode,
                 const int fd, const bool created = false, const int error = 0);
+  /**
+   * Handle file closure in in monitored process
+   * @param fd file descriptor to close
+   * @param error error code of close()
+   */
+  int close_file(const int fd, const int error = 0);
 
 private:
   const process_type type_ : 2;

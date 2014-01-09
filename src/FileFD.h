@@ -36,9 +36,14 @@ public:
       :fd_(fd), curr_flags_(flags), origin_(FD_ORIGIN_FILE_OPEN), read_(false), written_(false),
       open_(true), filename_(f) {};
   FileFD () : FileFD (-1, 0, FD_ORIGIN_INTERNAL) {};
+  int last_err() {return last_err_;}
+  void set_last_err (int err) {last_err_ = err;};
+  bool open() {return open_;}
+  void set_open (bool o) {open_ = o;};
 private:
   int fd_;
   int curr_flags_;
+  int last_err_ = 0;
   fd_origin origin_:2;
   bool read_ : 1;
   bool written_ : 1;
