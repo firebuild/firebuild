@@ -322,7 +322,7 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
-#define IC2_WAIT_ACK if (!fb_exit_handled) while (0) {                  \
+#define IC2_WAIT_ACK while (0) {                                        \
     msg::SupervisorMsg sv_msg;                                          \
     if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) || !sv_msg.ack()) {     \
       /* something unexpected happened ... */                           \

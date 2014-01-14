@@ -269,19 +269,17 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
         proc->update_rusage(ic_msg.execv().utime_m(),
                             ic_msg.execv().stime_m());
       } else if (ic_msg.has_open()) {
-        ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
         ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
       } else if (ic_msg.has_close()) {
-        ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
         ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.close());
       }
-      ack_msg(fd_conn);
     } catch (std::out_of_range) {
       if (debug_level >= 1) {
         std::cout << "Ignoring message on fd: "<< fd_conn <<
             ", process probably exited already." << std::endl;
       }
     }
+    ack_msg(fd_conn);
   } else if (ic_msg.has_gen_call()) {
   }
 
