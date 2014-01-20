@@ -265,7 +265,8 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
         ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.close());
       }
     } catch (std::out_of_range) {
-      firebuild::fb_debug(1, "Ignoring message on fd: " + fd_conn +
+      firebuild::fb_debug(1, "Ignoring message on fd: " +
+                          std::to_string(fd_conn) +
                           std::string(", process probably exited already."));
     }
     ack_msg(fd_conn);
@@ -545,14 +546,15 @@ int main(const int argc, char *argv[]) {
                 if (nbytes == 0) {
                   // connection closed
                   // TODO handle process exit
-                  firebuild::fb_debug(2, "socket " + i + std::string(" hung up"));
+                  firebuild::fb_debug(2, "socket " + std::to_string(i) +
+                                      std::string(" hung up"));
                 } else {
                   perror("recv");
                 }
                 close(i); // bye!
                 FD_CLR(i, &master); // remove from master set
               } else {
-                firebuild::fb_debug(2, "fd " + i + std::string(": "));
+                firebuild::fb_debug(2, "fd " + std::to_string(i) + std::string(": "));
                 google::protobuf::TextFormat::Print(ic_msg, error_fos);
                 error_fos->Flush();
 
