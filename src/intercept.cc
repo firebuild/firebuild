@@ -158,12 +158,12 @@ init_supervisor_conn () {
   }
 
   struct sockaddr_un remote;
+  memset(&remote, 0, sizeof(remote));
   remote.sun_family = AF_UNIX;
   assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
-  auto len = strlen(remote.sun_path) + sizeof(remote.sun_family);
-  if (ic_orig_connect(fb_sv_conn, (struct sockaddr *)&remote, len) == -1) {
+  if (ic_orig_connect(fb_sv_conn, (struct sockaddr *)&remote, sizeof(remote)) == -1) {
     perror("connect");
     assert(0 && "connection to supervisor failed");
   }
