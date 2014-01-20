@@ -102,6 +102,9 @@ int Process::close_file(const int fd, const int error)
     // TODO debug
     this->can_shortcut_ = false;
     return -1;
+  } else if (EBADF == error) {
+    // Process closed an fd unknown to it. Who cares?
+    return 0;
   } else {
     if (fds_[fd]->open() == true) {
       fds_[fd]->set_open(false);
