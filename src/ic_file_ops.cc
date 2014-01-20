@@ -43,6 +43,11 @@ typedef void* VOIDPT;
   static void                                                       \
   intercept_##ics_pmname ics_pars                                   \
   {                                                                 \
+    if (fb_exec_called) {                                           \
+      /* No message is sent during exec to prevent sending many */  \
+      /* automatic close()-s. */                                    \
+      return;                                                       \
+    }                                                               \
     msg::InterceptorMsg ic_msg;                                     \
     int saved_errno = errno;                                        \
                                                                     \
@@ -298,10 +303,16 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
     // something unexpected happened ...
     assert(0 && "Interceptor has not received ACK from firebuild");
   }
-
+  fb_exec_called = true;
 }
 /* Intercept failed (f)execv*() */
 IC2_SIMPLE_1P(int, IC2_NO_RET, ExecVFailed, execvfailed, int, pid)
+
+static void intercept_execvfailed2(int pid, int ret)
+{
+  fb_exec_called = false;
+  intercept_execvfailed(pid, ret);
+}
 
 /* Intercept gethostname */
 IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name, size_t, len)
@@ -325,6 +336,7 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 #define IC2_WAIT_ACK while (0) {                                        \
     msg::SupervisorMsg sv_msg;                                          \
     if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) || !sv_msg.ack()) {     \
+                                                                        \
       /* something unexpected happened ... */                           \
       assert(0 && "Interceptor has not received ACK from firebuild");   \
     }                                                                   \
