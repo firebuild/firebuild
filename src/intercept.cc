@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstdarg>
 #include <cstdlib>
+#include <string>
 
 #include "env.h"
 #include "fb-messages.pb.h"
@@ -335,7 +336,7 @@ ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count)
 }
 
 /** Send error message to supervisor */
-extern void fb_error(const char* const msg)
+extern void fb_error(const std::string &msg)
 {
   msg::InterceptorMsg ic_msg;
   auto err = ic_msg.mutable_fb_error();
@@ -343,8 +344,8 @@ extern void fb_error(const char* const msg)
   fb_send_msg(ic_msg, fb_sv_conn);
 }
 
-/** Send debug message to supervisor id debug level is at least lvl */
-extern void fb_debug(const int lvl, const char* const msg)
+/** Send debug message to supervisor if debug level is at least lvl */
+extern void fb_debug(const int lvl, const std::string &msg)
 {
   if (debug_level >= lvl) {
     msg::InterceptorMsg ic_msg;

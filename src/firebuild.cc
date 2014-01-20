@@ -112,9 +112,7 @@ static char** get_sanitized_env()
 {
   const libconfig::Setting& root = cfg->getRoot();
 
-  if (debug_level >= 1) {
-    std::cout << "Passing through environment variables:" << std::endl;
-  }
+  firebuild::fb_debug(1, "Passing through environment variables:");
 
   const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
   std::vector<std::string> env_v;
@@ -122,30 +120,21 @@ static char** get_sanitized_env()
     char * got_env = getenv(pass_through[i].c_str());
     if (NULL  != got_env) {
       env_v.push_back(pass_through[i].c_str() + std::string("=") + std::string(got_env));
-      if (debug_level >= 1) {
-        std::cout << " " << env_v.back() << std::endl;
-      }
+      firebuild::fb_debug(1, " " + env_v.back());
     }
   }
-  if (debug_level >= 1) {
-    std::cout << std::endl;
-    std::cout << "Setting preset environment variables:" << std::endl;
-  }
+  firebuild::fb_debug(1, "");
+
+  firebuild::fb_debug(1, "Setting preset environment variables:");
   const libconfig::Setting& preset = root["env_vars"]["preset"];
   for (int i = 0; i < preset.getLength(); i++) {
     env_v.push_back(preset[i]);
-    if (debug_level >= 1) {
-      std::cout << " " << env_v.back() << std::endl;
-    }
+    firebuild::fb_debug(1, " " + env_v.back());
   }
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
-  if (debug_level >= 1) {
-    std::cout << " " << env_v.back() << std::endl;
-  }
+  firebuild::fb_debug(1, " " + env_v.back());
 
-  if (debug_level >= 1) {
-    std::cout << std::endl;
-  }
+  firebuild::fb_debug(1, "");
 
   if (insert_trace_markers) {
     env_v.push_back("FB_INSERT_TRACE_MARKERS=1");
@@ -226,6 +215,7 @@ ack_msg (const int conn)
  * @return fd_conn can be kept open
  */
 bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn) {
+  bool ret = true;
   if (ic_msg.has_scproc_query()) {
     firebuild::msg::SupervisorMsg sv_msg;
     auto scproc_resp = sv_msg.mutable_scproc_resp();
@@ -265,6 +255,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
                           ic_msg.exit().utime_m(),
                           ic_msg.exit().stime_m());
         proc_tree->exit(*proc, fd_conn);
+        ret = false;
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_m(),
                             ic_msg.execv().stime_m());
@@ -274,16 +265,14 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
         ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.close());
       }
     } catch (std::out_of_range) {
-      if (debug_level >= 1) {
-        std::cout << "Ignoring message on fd: "<< fd_conn <<
-            ", process probably exited already." << std::endl;
-      }
+      firebuild::fb_debug(1, "Ignoring message on fd: " + fd_conn +
+                          std::string(", process probably exited already."));
     }
     ack_msg(fd_conn);
   } else if (ic_msg.has_gen_call()) {
   }
 
-  return true;
+  return ret;
 }
 
 /**
@@ -510,9 +499,9 @@ int main(const int argc, char *argv[]) {
           }
         }
 
-        // run through the existing connections looking for data to read
         for(i = 0; i <= fdmax; i++) {
           if (FD_ISSET(i, &read_fds)) { // we got one!!
+            //fd_handled = true;
             if (i == listener) {
               // handle new connections
               struct sockaddr_un remote;
@@ -556,21 +545,19 @@ int main(const int argc, char *argv[]) {
                 if (nbytes == 0) {
                   // connection closed
                   // TODO handle process exit
-                  if (debug_level >= 2) {
-                    printf("socket %d hung up\n", i);
-                  }
+                  firebuild::fb_debug(2, "socket " + i + std::string(" hung up"));
                 } else {
                   perror("recv");
                 }
                 close(i); // bye!
                 FD_CLR(i, &master); // remove from master set
               } else {
-                if (debug_level >= 2) {
-                  std::cerr << "fd " << i << ": ";
-                  google::protobuf::TextFormat::Print(ic_msg, error_fos);
-                  error_fos->Flush();
-                }
+                firebuild::fb_debug(2, "fd " + i + std::string(": "));
+                google::protobuf::TextFormat::Print(ic_msg, error_fos);
+                error_fos->Flush();
+
                 if (!proc_ic_msg(ic_msg, i)) {
+                  fsync(i);
                   close(i); // bye!
                   FD_CLR(i, &master); // remove from master set
                 }
@@ -628,6 +615,20 @@ ssize_t fb_write_buf(const int fd, const void * buf, const size_t count)
 ssize_t fb_read_buf(const int fd, void *buf, const size_t count)
 {
   FB_IO_OP_BUF(recv, fd, buf, count, 0, {});
+}
+
+/** Print error message */
+extern void fb_error(const std::string &msg)
+{
+  std::cerr << msg << std::endl;
+}
+
+/** Print debug message if debug level is at least lvl */
+extern void fb_debug(const int lvl, const std::string &msg)
+{
+  if (debug_level >= lvl) {
+    std::cerr << msg << std::endl;
+  }
 }
 
 } // namespace firebuild
