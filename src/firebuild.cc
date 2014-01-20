@@ -621,13 +621,13 @@ namespace firebuild {
 /** wrapper for write() retrying on recoverable errors*/
 ssize_t fb_write_buf(const int fd, const void * buf, const size_t count)
 {
-  FB_IO_OP_BUF(write, fd, buf, count, {});
+  FB_IO_OP_BUF(send, fd, buf, count, MSG_NOSIGNAL, {});
 }
 
 /** wrapper for read() retrying on recoverable errors*/
 ssize_t fb_read_buf(const int fd, void *buf, const size_t count)
 {
-  FB_IO_OP_BUF(read, fd, buf, count, {});
+  FB_IO_OP_BUF(recv, fd, buf, count, 0, {});
 }
 
 } // namespace firebuild

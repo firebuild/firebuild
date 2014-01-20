@@ -320,18 +320,18 @@ static void fb_ic_cleanup()
 }
 
 
-/** wrapper for write() retrying on recoverable errors*/
+/** wrapper for send() retrying on recoverable errors*/
 ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count)
 {
   pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_write, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0,{pthread_mutex_unlock(&ic_global_lock);});
 }
 
-/** wrapper for write() retrying on recoverable errors*/
+/** wrapper for recv() retrying on recoverable errors*/
 ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count)
 {
   pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_read, fd, buf, count, {pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {pthread_mutex_unlock(&ic_global_lock);});
 }
 
 /** Send error message to supervisor */
