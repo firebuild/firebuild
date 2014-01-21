@@ -13,6 +13,7 @@
 #include <string>
 
 #include "env.h"
+#include "Debug.h"
 #include "fb-messages.pb.h"
 #include "firebuild_common.h"
 
@@ -350,14 +351,12 @@ extern void fb_error(const std::string &msg)
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
-extern void fb_debug(const int lvl, const std::string &msg)
+void fb_debug(const std::string &msg)
 {
-  if (debug_level >= lvl) {
-    msg::InterceptorMsg ic_msg;
-    auto dbg = ic_msg.mutable_fb_debug();
-    dbg->set_msg(msg);
-    fb_send_msg(ic_msg, fb_sv_conn);
-  }
+  msg::InterceptorMsg ic_msg;
+  auto dbg = ic_msg.mutable_fb_debug();
+  dbg->set_msg(msg);
+  fb_send_msg(ic_msg, fb_sv_conn);
 }
 
 } // namespace firebuild

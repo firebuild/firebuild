@@ -50,14 +50,6 @@ ssize_t fb_read_buf(const int fd, void * buf, const size_t count);
     return mp_count;                                                    \
   }
 
-/** Send error message to supervisor or print error message in supervisor*/
-void fb_error(const std::string &msg);
-
-/** Send debug message to supervisor or printe debug message in supervisor
- * if debug level is at least lvl
- */
-void fb_debug(const int lvl, const std::string &msg);
-
 } //namespace firebuild
 
 #endif
