@@ -18,8 +18,10 @@ int SHA256Hash::update(const std::string from_path) {
 
   fd = open(from_path.c_str(), O_RDONLY);
   if(-1 == fd) {
-    fb_error("File " + from_path);
-    perror("open");
+    if (debug_level >= 3) {
+      FB_DEBUG(3, "File " + from_path);
+      perror("open");
+    }
     return -1;
   }
 
