@@ -302,6 +302,8 @@ function details(d) {
   document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated).replace(/ /g, "<br/>");
   document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified).replace(/ /g, "<br/>");
   document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread).replace(/ /g, "<br/>");
+  document.getElementById('detailed_wds').innerHTML = print_string_array(d.wds).replace(/ /g, "<br/>");
+  document.getElementById('detailed_failed_wds').innerHTML = print_string_array(d.failed_wds).replace(/ /g, "<br/>");
   document.getElementById('detailed_executable').innerHTML = d.exe;
   document.getElementById('detailed_pid').innerHTML = d.pid;
   document.getElementById('detailed_ppid').innerHTML = d.ppid;
@@ -529,6 +531,16 @@ function toggle(d) {
           <tr>
             <td colspan="2"><span class="detail_name">Files read:</span><br/>
               <span id="detailed_fread"></span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Used working directories:</span><br/>
+              <span id="detailed_wds"></span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Failed to use working directories:</span><br/>
+              <span id="detailed_failed_wds"></span>
             </td>
           </tr>
           <tr>

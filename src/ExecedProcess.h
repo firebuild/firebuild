@@ -21,18 +21,39 @@ class ExecedProcess : public Process
   void set_sum_stime_m(long int t) {sum_stime_m_ = t;}
   std::string& cwd() {return cwd_;};
   //  void set_cwd(std::string &c) {cwd_ = c;};
+  std::set<std::string>& wds() {return wds_;};
+  std::set<std::string>& failed_wds() {return failed_wds_;};
   std::vector<std::string>& args() {return args_;}
   std::set<std::string>& env_vars() {return env_vars_;}
   std::string& executable() {return executable_;};
   void exit_result (const int status, const long int utime_m, const long int stime_m);
   void export2js(const unsigned int level, std::ostream& o);
+  /**
+   * Fail to change to a working directory
+   */
+  void fail_wd(const std::string &d)
+  {
+    failed_wds_.insert(d);
+  }
+  /**
+   * Record visited working directory
+   */
+  void add_wd(const std::string &d)
+  {
+    wds_.insert(d);
+  }
+
  private:
   Process *exec_parent_ = NULL;
   long int sum_utime_m_ = 0; /**< Sum of user time in milliseconds for all forked
                                but not exec()-ed children */
   long int sum_stime_m_ = 0; /**< Sum of system time in milliseconds for all
                                forked but not exec()-ed children */
-  std::string cwd_;
+  std::string cwd_; /**< Directory the process exec()-started in */
+  std::set<std::string> wds_; /**< Working directories visited by the process
+                               * and all fork()-children */
+  std::set<std::string> failed_wds_; /** < Working directories the process and
+                                      * all fork()-children failed to chdir() to */
   std::vector<std::string> args_;
   std::set<std::string> env_vars_;
   std::string executable_;

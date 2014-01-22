@@ -15,4 +15,15 @@ int ProcessPBAdaptor::msg(Process &p, const msg::Close &c)
   return p.close_file(c.fd(), error);
 }
 
+int ProcessPBAdaptor::msg(Process &p, const msg::ChDir &c)
+{
+  const int error = (c.has_error_no())?c.error_no():0;
+  if (0 == error) {
+    p.set_wd(c.dir());
+  } else {
+    p.fail_wd(c.dir());
+  }
+  return 0;
+}
+
 }

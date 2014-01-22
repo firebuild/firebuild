@@ -140,8 +140,6 @@ typedef void* VOIDPT;
 IC2_SIMPLE_1P(int, IC2_NO_RET, UnLink, unlink, const char *, path)
 /* Intercept unlinkat */
 IC2_SIMPLE_3P(int, IC2_NO_RET, UnLinkAt, unlinkat, int, dirfd, const char *, pathname, int, flags)
-/* Intercept chdir */
-IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 /* Intercept fchdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, FChDir, fchdir, const int, dir)
 /* Intercept fcloseall */
@@ -352,6 +350,8 @@ IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, OpenDir, opendir, const char *, name)
 /* Intercept fdopendir */
 IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
+/* Intercept chdir */
+IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 
 #undef IC2_WAIT_ACK
 

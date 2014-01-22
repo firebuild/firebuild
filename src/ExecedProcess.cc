@@ -4,9 +4,9 @@
 namespace firebuild {
 
 ExecedProcess::ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq) 
-    : Process(scpq.pid(), scpq.ppid(), FB_PROC_EXEC_STARTED),
+    : Process(scpq.pid(), scpq.ppid(), FB_PROC_EXEC_STARTED, scpq.cwd()),
       exec_parent_(NULL), sum_utime_m_(0), sum_stime_m_(0), cwd_(scpq.cwd()),
-      args_(), env_vars_(), executable_(scpq.executable())
+      wds_(), failed_wds_(), args_(), env_vars_(), executable_(scpq.executable())
 {
 
   for (int i = 0; i < scpq.arg_size(); i++) {

@@ -36,7 +36,7 @@ typedef enum {FB_PROC_EXEC_STARTED, ///< current process image is loaded by exec
  class Process
 {
 public:
-  Process (int pid, int ppid, process_type type);
+  Process (int pid, int ppid, process_type type, const std::string &wd);
   virtual ~Process();
   bool operator == (Process const & p) const;
   process_type type() {return type_;};
@@ -47,6 +47,8 @@ public:
   int ppid() {return ppid_;}
   int exit_status() {return exit_status_;};
   void set_exit_status(const int e) {exit_status_ = e;};
+  std::string& wd() {return wd_;};
+  void set_wd(const std::string &d);
   std::set<std::string>& libs() {return libs_;};
   std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;};
   long int utime_m() {return utime_m_;}
@@ -70,6 +72,16 @@ public:
    */
   int close_file(const int fd, const int error = 0);
 
+  /**
+   * Fail to change to a working directory
+   */
+  virtual void fail_wd(const std::string &d) = 0;
+
+  /**
+   * Record visited working directory
+   */
+  virtual void add_wd(const std::string &d) = 0;
+
 private:
   const process_type type_ : 2;
   process_state state_ :2;
@@ -78,6 +90,7 @@ private:
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
   int exit_status_;  ///< exit status, valid if state = FB_PROC_FINISHED
+  std::string wd_;  ///< Current working directory
   std::set<std::string> libs_; ///< DSO-s loaded by process, forked processes list new only
   std::unordered_map<std::string, FileUsage*> file_usages_; ///< Usage per path
   std::vector<FileFD*> fds_; ///< Active file descriptors

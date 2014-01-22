@@ -73,16 +73,8 @@ void ProcessTree::insert (ForkedProcess &p, const int sock)
 {
 
   // add as fork child of parent
-  try {
-    p.set_fork_parent(pid2proc_.at(p.ppid()));
+  if (p.fork_parent()) {
     p.fork_parent()->children().push_back(&p);
-  } catch (const std::out_of_range& oor) {
-    if (!(*root_ == p) && (root_->pid() != p.pid())) {
-      // root's fork_parent is firebuild which is not in the tree.
-      // If any other parent is missing, FireBuild missed process
-      // that can happen due to the missing process(es) being statically built
-      std::cerr << "TODO handle: Process without known parent\n";
-    }
   }
 
   this->insert((Process&)p, sock);
@@ -182,6 +174,18 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
 
   o << std::string(indent + 1, ' ') << "libs : " << "[";
   for (auto it = p.libs().begin(); it != p.libs().end(); ++it) {
+    o << "\"" << *it << "\",";
+  }
+  o << "]," << std::endl;
+
+  o << std::string(indent + 1, ' ') << "wds : " << "[";
+  for (auto it = p.wds().begin(); it != p.wds().end(); ++it) {
+    o << "\"" << *it << "\",";
+  }
+  o << "]," << std::endl;
+
+  o << std::string(indent + 1, ' ') << "failed_wds : " << "[";
+  for (auto it = p.failed_wds().begin(); it != p.failed_wds().end(); ++it) {
     o << "\"" << *it << "\",";
   }
   o << "]," << std::endl;

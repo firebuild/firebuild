@@ -234,9 +234,17 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     }
     firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
+    ::firebuild::Process *pproc = NULL;
+    try {
+      pproc = proc_tree->pid2proc().at(ic_msg.fork_child().ppid());
+    } catch (const std::out_of_range& oor) {
+      // If parent is missing, FireBuild missed process
+      // that can happen due to the missing process(es) being statically built
+      std::cerr << "TODO handle: Process without known parent\n";
+    }
+      /* record new process */
     ::firebuild::ForkedProcess* proc;
-    /* record new process */
-    proc = new ::firebuild::ForkedProcess (ic_msg.fork_child());
+    proc = new ::firebuild::ForkedProcess (ic_msg.fork_child(), pproc);
     proc_tree->insert(*proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->pid2proc().at(ic_msg.execvfailed().pid());
@@ -246,6 +254,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
              ic_msg.has_execv() ||
              ic_msg.has_open() ||
              ic_msg.has_close() ||
+             ic_msg.has_chdir() ||
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
     try {
@@ -263,6 +272,8 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
         ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
       } else if (ic_msg.has_close()) {
         ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.close());
+      } else if (ic_msg.has_chdir()) {
+        ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.chdir());
       }
     } catch (std::out_of_range) {
       FB_DEBUG(1, "Ignoring message on fd: " + std::to_string(fd_conn) +
