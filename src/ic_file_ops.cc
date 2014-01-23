@@ -448,7 +448,7 @@ intercept_exit (const int status)
 
   // exit handlers may call intercepted functions
   intercept_on = false;
-  insert_end_marker();
+  insert_end_marker(__func__);
 }
 
 /* make intercepted functions visible */

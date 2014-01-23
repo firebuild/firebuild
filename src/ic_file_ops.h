@@ -103,7 +103,7 @@ IC(int, __libc_start_main, (int (*main) (int, char **, char **),
      main_and_argv[0] = (char *)main;
      main_and_argv[1] = (char *)ubp_av;
      intercept_on = false;
-     insert_end_marker();
+     insert_end_marker(__func__);
      ret = orig_fn(firebuild_fake_main, argc, main_and_argv, init, fini, rtld_fini, stack_end);
    })
 

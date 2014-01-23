@@ -21,7 +21,7 @@
   IC_VOID(ret_type, name, parameters,           \
           { ret_type ret;                       \
             body;                               \
-            insert_end_marker();                \
+            insert_end_marker(__func__);        \
             intercept_on = false;               \
             return ret;                         \
           })
@@ -125,10 +125,10 @@ extern bool fb_exit_handled;
 extern bool fb_exec_called;
 
 /** Insert begin marker strace, ltrace, etc. */
-extern void insert_begin_marker();
+extern void insert_begin_marker(const std::string&);
 
 /** Insert end marker strace, ltrace, etc. */
-extern void insert_end_marker();
+extern void insert_end_marker(const std::string&);
 
 /** Send error message to supervisor */
 extern void fb_error(const char* msg);
@@ -181,11 +181,11 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
     }                                                                   \
     assert(intercept_on == false);                                      \
     intercept_on = true;                                                \
-    insert_begin_marker();                                              \
+    insert_begin_marker(__func__);                                      \
     fb_ic_load();                                                       \
     {                                                                   \
       body; /* this is where interceptor function body goes */          \
     }                                                                   \
-    insert_end_marker();                                                \
+    insert_end_marker(__func__);                                        \
     intercept_on = false;                                               \
   }

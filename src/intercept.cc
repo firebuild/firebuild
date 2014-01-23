@@ -86,27 +86,27 @@ int debug_level = 0;
 static bool insert_trace_markers = false;
 
 /** Insert interception begin marker */
-void insert_begin_marker()
+void insert_begin_marker(const std::string &m)
 {
   if (insert_trace_markers) {
     int saved_errno = errno;
     if (ic_orig_open) {
-      ic_orig_open("/firebuild-intercept-begin", 0);
+      ic_orig_open(("/firebuild-intercept-begin-" + m).c_str(), 0);
     } else {
       auto orig_open = (int(*)(const char*, int, ...))dlsym(RTLD_NEXT, "open");
       assert(orig_open);
-      orig_open("/firebuild-intercept-begin", 0);
+      orig_open(("/firebuild-intercept-begin-" + m).c_str(), 0);
     }
     errno = saved_errno;
   }
 }
 
 /** Insert interception end marker */
-void insert_end_marker()
+void insert_end_marker(const std::string& m)
 {
   if (insert_trace_markers) {
     int saved_errno = errno;
-    ic_orig_open("/firebuild-intercept-end", 0);
+    ic_orig_open(("/firebuild-intercept-end-" + m).c_str(), 0);
     errno = saved_errno;
   }
 }
@@ -190,7 +190,7 @@ static void fb_ic_init()
   reset_fn_infos();
 
   intercept_on = true;
-  insert_begin_marker();
+  insert_begin_marker(__func__);
 
   if(NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
     insert_trace_markers = true;
@@ -270,7 +270,7 @@ static void fb_ic_init()
     }
   }
   ic_init_done = true;
-  insert_end_marker();
+  insert_end_marker(__func__);
   intercept_on = false;
 }
 
