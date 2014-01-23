@@ -49,8 +49,8 @@ public:
   void set_exit_status(const int e) {exit_status_ = e;};
   std::string& wd() {return wd_;};
   void set_wd(const std::string &d);
-  std::set<std::string>& libs() {return libs_;};
-  std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;};
+  virtual std::set<std::string>& libs() = 0;
+  virtual std::unordered_map<std::string, FileUsage*>& file_usages() = 0;
   long int utime_m() {return utime_m_;}
   void set_utime_m(long int t) {utime_m_ = t;}
   long int stime_m() {return stime_m_;}
@@ -91,8 +91,6 @@ private:
   int ppid_;         ///< UNIX ppid
   int exit_status_;  ///< exit status, valid if state = FB_PROC_FINISHED
   std::string wd_;  ///< Current working directory
-  std::set<std::string> libs_; ///< DSO-s loaded by process, forked processes list new only
-  std::unordered_map<std::string, FileUsage*> file_usages_; ///< Usage per path
   std::vector<FileFD*> fds_; ///< Active file descriptors
   long int utime_m_; ///< user time in milliseconds as reported by getrusage()
   long int stime_m_; ///< system time in milliseconds as reported by getrusage()

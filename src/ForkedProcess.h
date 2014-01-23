@@ -32,6 +32,15 @@ class ForkedProcess : public Process
     assert(fork_parent_ != NULL);
     fork_parent_->add_wd(d);
   }
+  std::set<std::string>& libs()
+  {
+    assert(fork_parent_ != NULL);
+    return fork_parent_->libs();
+  };
+  std::unordered_map<std::string, FileUsage*>& file_usages() {
+    assert(fork_parent_ != NULL);
+    return fork_parent_->file_usages();
+  };
 
  private:
   Process *fork_parent_;

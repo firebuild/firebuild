@@ -13,6 +13,7 @@ class ExecedProcess : public Process
 {
  public:
   explicit ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);
+  virtual ~ExecedProcess();
   void set_exec_parent(Process *p) {exec_parent_ = p;};
   Process* exec_parent() {return exec_parent_;};
   long int sum_utime_m() {return sum_utime_m_;}
@@ -26,6 +27,8 @@ class ExecedProcess : public Process
   std::vector<std::string>& args() {return args_;}
   std::set<std::string>& env_vars() {return env_vars_;}
   std::string& executable() {return executable_;};
+  std::set<std::string>& libs() {return libs_;};
+  std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;};
   void exit_result (const int status, const long int utime_m, const long int stime_m);
   void export2js(const unsigned int level, std::ostream& o);
   /**
@@ -57,6 +60,8 @@ class ExecedProcess : public Process
   std::vector<std::string> args_;
   std::set<std::string> env_vars_;
   std::string executable_;
+  std::set<std::string> libs_; ///< DSO-s loaded by process and forked children (transitively)
+  std::unordered_map<std::string, FileUsage*> file_usages_; ///< File usage per path for p and f. c. (t.)
   void propagate_exit_status (const int status);
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };

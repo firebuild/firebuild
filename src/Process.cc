@@ -12,7 +12,7 @@ static int fb_pid_counter;
 Process::Process (const int pid, const int ppid, const process_type type, const std::string &wd)
     : type_(type), state_(FB_PROC_RUNNING), can_shortcut_(true),
       fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd),
-      libs_(), file_usages_(), fds_(), utime_m_(0), stime_m_(0), aggr_time_(0),
+      fds_(), utime_m_(0), stime_m_(0), aggr_time_(0),
       children_(), exec_child_(NULL)
 {
 }
@@ -48,12 +48,12 @@ int Process::open_file(const std::string ar_name, const int flags, const mode_t 
       (wd_ + "/" + ar_name);
 
   FileUsage *fu;
-  if (file_usages_.count(name) > 0) {
+  if (file_usages().count(name) > 0) {
     // the process already used this file
-    fu = file_usages_[name];
+    fu = file_usages()[name];
   } else {
     fu = new FileUsage(flags, mode, created, false);
-    file_usages_[name] = fu;
+    file_usages()[name] = fu;
   }
 
   // record unhandled errors
@@ -138,10 +138,6 @@ void Process::set_wd(const std::string &ar_d)
 
 Process::~Process()
 {
-  for (auto it = this->file_usages_.begin(); it != this->file_usages_.end(); ++it) {
-    delete(it->second);
-  }
-
   for (auto it = this->fds_.begin(); it != this->fds_.end(); ++it) {
     delete(*it);
   }
