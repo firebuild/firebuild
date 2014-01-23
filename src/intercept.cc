@@ -291,9 +291,6 @@ void
 handle_exit (const int status, void*)
 {
   if (!fb_exit_handled) {
-    // TODO atomic set?
-    fb_exit_handled = true;
-
     msg::InterceptorMsg ic_msg;
     auto m = ic_msg.mutable_exit();
     m->set_exit_status(status);
@@ -314,6 +311,9 @@ handle_exit (const int status, void*)
       // something unexpected happened ...
       assert(0 && "Supervisor did not ack exit");
     }
+
+    // TODO atomic set?
+    fb_exit_handled = true;
   }
 }
 

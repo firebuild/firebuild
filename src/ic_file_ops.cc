@@ -43,7 +43,7 @@ typedef void* VOIDPT;
   static void                                                       \
   intercept_##ics_pmname ics_pars                                   \
   {                                                                 \
-    if (fb_exec_called) {                                           \
+    if (fb_exec_called || fb_exit_handled) {                        \
       /* No message is sent during exec to prevent sending many */  \
       /* automatic close()-s. */                                    \
       return;                                                       \
