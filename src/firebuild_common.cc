@@ -16,13 +16,16 @@ namespace firebuild {
  */
 extern ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const int fd)
 {
-  int offset = 0, msg_size = pb_msg.ByteSize();
-  char *buf = new char[sizeof(uint32_t) + msg_size];
+  int offset = 0;
+  uint32_t msg_size = pb_msg.ByteSize(), msg_size_n = htonl(msg_size);
+  char *buf = new char[sizeof(msg_size) + msg_size];
+  for (size_t i = 0; i < sizeof(msg_size_n); i++) {
+    buf[i] = reinterpret_cast<char*>(&msg_size_n)[i];
+  }
 
-  *(uint32_t*)(buf) = htonl(static_cast<uint32_t>(msg_size));
   offset += sizeof(uint32_t);
 
-  pb_msg.SerializeWithCachedSizesToArray((uint8_t*)(&buf[offset]));
+  pb_msg.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t*>(&buf[offset]));
   auto ret = fb_write_buf(fd, buf, msg_size + offset);
 
   delete[] buf;
