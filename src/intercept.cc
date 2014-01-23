@@ -85,6 +85,9 @@ int debug_level = 0;
 /** Insert marker open()-s for strace, ltrace, etc. */
 static bool insert_trace_markers = false;
 
+/** Next ACK id*/
+static int ack_id = 0;
+
 /** Insert interception begin marker */
 void insert_begin_marker(const std::string &m)
 {
@@ -132,6 +135,12 @@ get_orig_fn (const char* name)
 {
   void * const function = dlsym(RTLD_NEXT, name);
   return function;
+}
+
+/** Get next unique ACK id */
+int get_next_ack_id()
+{
+  return (ack_id++);
 }
 
 /**
@@ -304,10 +313,12 @@ handle_exit (const int status, void*)
       dl_iterate_phdr(shared_libs_cb, fl);
 
     }
+    int ack_num = get_next_ack_id();
+    ic_msg.set_ack_num(ack_num);
     fb_send_msg(ic_msg, fb_sv_conn);
     msg::SupervisorMsg sv_msg;
     auto len = fb_recv_msg(sv_msg, fb_sv_conn);
-    if ((len > 0) && (!sv_msg.ack())) {
+    if ((len > 0) && (sv_msg.ack_num() != ack_num)) {
       // something unexpected happened ...
       assert(0 && "Supervisor did not ack exit");
     }

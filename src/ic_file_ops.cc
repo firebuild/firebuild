@@ -36,7 +36,7 @@ typedef void* VOIDPT;
 #define IC2_ERR_VAL_CHARS NULL
 #define IC2_ERR_VAL_VOIDPT NULL
 
-#define IC2_WAIT_ACK while (0) {}
+#define IC2_WAIT_ACK false
 
 #define IC2_SIMPLE_NP(ics_rettype, ics_with_rettype,  ics_pmtype,   \
                       ics_pmname, ics_pars, ics_body)               \
@@ -49,7 +49,11 @@ typedef void* VOIDPT;
       return;                                                       \
     }                                                               \
     msg::InterceptorMsg ic_msg;                                     \
-    int saved_errno = errno;                                        \
+    int ack_num, saved_errno = errno;                                \
+    if (IC2_WAIT_ACK) {                                             \
+      ack_num = get_next_ack_id();                                  \
+      ic_msg.set_ack_num(ack_num);                                  \
+    }                                                               \
                                                                     \
     auto m = ic_msg.mutable_##ics_pmname();                         \
     ics_body;                                                       \
@@ -58,7 +62,14 @@ typedef void* VOIDPT;
       m->set_error_no(saved_errno);                                 \
     }                                                               \
     fb_send_msg(ic_msg, fb_sv_conn);                                \
-    IC2_WAIT_ACK;                                                   \
+    if (IC2_WAIT_ACK) {                                             \
+      msg::SupervisorMsg sv_msg;                                    \
+      if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) ||                \
+          (sv_msg.ack_num() != ack_num)) {                          \
+        /* something unexpected happened ... */                     \
+        /*    assert(sv_msg.ack_num() != ack_num)); */              \
+      }                                                             \
+    }                                                               \
     errno = saved_errno;                                            \
   }
 
@@ -295,11 +306,13 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
   m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
   m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
 
+  int ack_num = get_next_ack_id();
+  ic_msg.set_ack_num(ack_num);
   fb_send_msg(ic_msg, fb_sv_conn);
   fb_recv_msg(sv_msg, fb_sv_conn);
-  if (!sv_msg.ack()) {
+  if (sv_msg.ack_num() != ack_num) {
     // something unexpected happened ...
-    assert(0 && "Interceptor has not received ACK from firebuild");
+    assert(0 &&"Interceptor has not received proper ACK from firebuild");
   }
   fb_exec_called = true;
 }
@@ -331,14 +344,7 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const
 
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
-#define IC2_WAIT_ACK while (0) {                                        \
-    msg::SupervisorMsg sv_msg;                                          \
-    if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) || !sv_msg.ack()) {     \
-                                                                        \
-      /* something unexpected happened ... */                           \
-      assert(0 && "Interceptor has not received ACK from firebuild");   \
-    }                                                                   \
-  }
+#define IC2_WAIT_ACK true
 
 /* Intercept open variants */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)

@@ -202,10 +202,10 @@ init_signal_handlers(void)
  * @param conn connection file descriptor to send the ACK on
  */
 void
-ack_msg (const int conn)
+ack_msg (const int conn, const int ack_num)
 {
   firebuild::msg::SupervisorMsg sv_msg;
-  sv_msg.set_ack(true);
+  sv_msg.set_ack_num(ack_num);
   firebuild::fb_send_msg(sv_msg, conn);
 }
 
@@ -279,7 +279,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
       FB_DEBUG(1, "Ignoring message on fd: " + std::to_string(fd_conn) +
                std::string(", process probably exited already."));
     }
-    ack_msg(fd_conn);
+    ack_msg(fd_conn, ic_msg.ack_num());
   } else if (ic_msg.has_gen_call()) {
   }
 

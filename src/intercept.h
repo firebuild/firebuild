@@ -110,6 +110,9 @@ extern void init_supervisor_conn ();
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
+/** Get next unique ACK id */
+extern int get_next_ack_id();
+
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
