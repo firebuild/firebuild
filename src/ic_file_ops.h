@@ -112,9 +112,14 @@ IC(int, __libc_start_main, (int (*main) (int, char **, char **),
 /* unistd.h */
 
 IC(int, close, (int fd), {
-    ret = orig_fn(fd);
+    if (fd != fb_sv_conn) {
+      ret = orig_fn(fd);
+    } else {
+      /* we just skip closing our connection */
+      ret = 0;
+    }
     intercept_close(fd, ret);
-    clear_file_state(ret);
+    clear_file_state(fd);
   })
 
 IC(int, access, (const char *name, int type),
