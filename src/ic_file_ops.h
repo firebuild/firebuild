@@ -54,14 +54,14 @@ IC(int, fcntl, (int fd, int cmd, ...), {
   IC(ret_type, name, pars,                              \
      {                                                  \
        mode_t mode = 0;                                 \
+       va_list ap;                                      \
+       va_start(ap, oflag);                             \
+       mode = va_arg(ap, mode_t);                       \
+       va_end(ap);                                      \
        bool created = false;                            \
        if ((oflag & O_CREAT) && !(oflag & O_EXCL)) {    \
          int err_saved = errno;                         \
          int tmp_fd;                                    \
-         va_list ap;                                    \
-         va_start(ap, oflag);                           \
-         mode = va_arg(ap, mode_t);                     \
-         va_end(ap);                                    \
          oflag &= ~O_CREAT;                             \
          if (-1 == (tmp_fd = orig_fn o_pars)) {         \
            if (errno == ENOENT) {                       \
