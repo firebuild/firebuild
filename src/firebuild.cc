@@ -50,7 +50,7 @@ static void usage()
   std::cout << "" << std::endl;
   std::cout << "Mandatory arguments to long options are mandatory for short options too." << std::endl;
   std::cout << "   -c --config-file=FILE     use FILE as configuration file" << std::endl;
-  std::cout << "   -d --debug-level=N        set debugging level to N (0-3, default is 0)" << std::endl;
+  std::cout << "   -d --debug-level=N        set debugging level to N (0-4, default is 0)" << std::endl;
   std::cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << std::endl;
   std::cout << "                             the report's filename can be specified " << std::endl;
   std::cout << "                             (firebuild-build-report.html by default). " << std::endl;
@@ -206,7 +206,9 @@ ack_msg (const int conn, const int ack_num)
 {
   firebuild::msg::SupervisorMsg sv_msg;
   sv_msg.set_ack_num(ack_num);
+  FB_DEBUG(4, "sending ACK no. " + std::to_string(ack_num));
   firebuild::fb_send_msg(sv_msg, conn);
+  FB_DEBUG(4, "ACK sent");
 }
 
 /**
@@ -381,7 +383,7 @@ int main(const int argc, char *argv[]) {
 
     case 'd':
       firebuild::debug_level = atoi(optarg);
-      if ((firebuild::debug_level < 0) || (firebuild::debug_level > 3)) {
+      if ((firebuild::debug_level < 0) || (firebuild::debug_level > 4)) {
         usage();
         exit(EXIT_FAILURE);
       }
