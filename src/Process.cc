@@ -105,7 +105,8 @@ int Process::open_file(const std::string ar_name, const int flags, const mode_t 
 int Process::close_file(const int fd, const int error)
 {
   if ((EIO == error) ||
-      ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd)))) {
+      ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) ||
+      (NULL == fds_[fd])) {
     // IO error and closing an unknown fd succesfully prevents shortcutting
     // TODO debug
     this->can_shortcut_ = false;
