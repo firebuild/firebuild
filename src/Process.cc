@@ -12,9 +12,13 @@ static int fb_pid_counter;
 Process::Process (const int pid, const int ppid, const process_type type, const std::string &wd)
     : type_(type), state_(FB_PROC_RUNNING), can_shortcut_(true),
       fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd),
-      fds_(), utime_m_(0), stime_m_(0), aggr_time_(0),
+      fds_({NULL, NULL, NULL}), utime_m_(0), stime_m_(0), aggr_time_(0),
       children_(), exec_child_(NULL)
 {
+  // TODO inherit fds properly
+  fds_[0] = new FileFD(0, 0, (fd_origin)FD_ORIGIN_INHERITED);
+  fds_[1] = new FileFD(1, 0, FD_ORIGIN_INHERITED);
+  fds_[2] = new FileFD(2, 0, FD_ORIGIN_INHERITED);
 }
 
 void Process::update_rusage (const long int utime_m, const long int stime_m)
