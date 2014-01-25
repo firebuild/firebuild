@@ -24,7 +24,7 @@ set(TENTATIVE_C_CXX_FLAGS
   -Warray-bounds
   -fvisibility=hidden
   -Woverflow
-  -Wlogical-op
+#  -Wlogical-op clang does not like that
   -Wredundant-decls)
 
 foreach(FLAG ${TENTATIVE_C_CXX_FLAGS})
