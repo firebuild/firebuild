@@ -27,16 +27,22 @@
 
 namespace firebuild {
 
-typedef char* CHARS;
-typedef void* VOIDPT;
-
 #define IC2_MSG_IC2_WITH_RET  m->set_ret(ret)
 #define IC2_MSG_IC2_NO_RET
 
-#define IC2_ERR_VAL_int -1
-#define IC2_ERR_VAL_long -1
-#define IC2_ERR_VAL_CHARS NULL
-#define IC2_ERR_VAL_VOIDPT NULL
+
+#define IC2_ERR_VAL(type, value)                \
+  static inline bool error_value(type v)        \
+  {                                             \
+    return (v == (value));                      \
+  }
+
+IC2_ERR_VAL(int, -1)
+IC2_ERR_VAL(long, -1)
+IC2_ERR_VAL(char*, NULL)
+IC2_ERR_VAL(void*, NULL)
+
+
 
 #define IC2_WAIT_ACK false
 
@@ -60,7 +66,7 @@ typedef void* VOIDPT;
     auto m = ic_msg.mutable_##ics_pmname();                         \
     ics_body;                                                       \
     IC2_MSG_##ics_with_rettype;                                     \
-    if (ret == IC2_ERR_VAL_##ics_rettype) {                         \
+    if (error_value(ret)) {                                         \
       m->set_error_no(saved_errno);                                 \
     }                                                               \
     fb_send_msg(ic_msg, fb_sv_conn);                                \
@@ -184,7 +190,7 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd, int, arg)
 /* Intercept fcntl without arg */
 IC2_SIMPLE_2P(int, IC2_WITH_RET, Fcntl, fcntl, int, fd, int, cmd)
 /* Intercept getcwd */
-IC2_SIMPLE_0P(CHARS, IC2_WITH_RET, GetCwd, getcwd)
+IC2_SIMPLE_0P(char*, IC2_WITH_RET, GetCwd, getcwd)
 /* Intercept sysconf */
 IC2_SIMPLE_1P(long, IC2_WITH_RET, Sysconf, sysconf, int, name)
 /* Intercept syscall */
@@ -237,7 +243,7 @@ IC2_SIMPLE_3P(int, IC2_NO_RET, UTime, utime, int, at, const char *, file, bool, 
 IC2_SIMPLE_1P(int, IC2_NO_RET, FUTime, futime, int, fd)
 
 /* Intercept dlopen */
-IC2_SIMPLE_2P(VOIDPT, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, flag)
+IC2_SIMPLE_2P(void*, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, flag)
 
 /* Intercept pipe variants */
 static void
@@ -355,9 +361,9 @@ IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flag
 /* Intercept close */
 IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept opendir */
-IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, OpenDir, opendir, const char *, name)
+IC2_SIMPLE_1P(void*, IC2_NO_RET, OpenDir, opendir, const char *, name)
 /* Intercept fdopendir */
-IC2_SIMPLE_1P(VOIDPT, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
+IC2_SIMPLE_1P(void*, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
 /* Intercept chdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 
