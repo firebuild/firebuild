@@ -302,6 +302,7 @@ function details(d) {
   document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated).replace(/ /g, "<br/>");
   document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified).replace(/ /g, "<br/>");
   document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread).replace(/ /g, "<br/>");
+  document.getElementById('detailed_fnotf').innerHTML = print_string_array(d.fnotf).replace(/ /g, "<br/>");
   document.getElementById('detailed_wds').innerHTML = print_string_array(d.wds).replace(/ /g, "<br/>");
   document.getElementById('detailed_failed_wds').innerHTML = print_string_array(d.failed_wds).replace(/ /g, "<br/>");
   document.getElementById('detailed_executable').innerHTML = d.exe;
@@ -531,6 +532,11 @@ function toggle(d) {
           <tr>
             <td colspan="2"><span class="detail_name">Files read:</span><br/>
               <span id="detailed_fread"></span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Files failed to open:</span><br/>
+              <span id="detailed_fnotf"></span>
             </td>
           </tr>
           <tr>

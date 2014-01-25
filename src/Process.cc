@@ -46,8 +46,8 @@ void Process::sum_rusage(long int * const sum_utime_m, long int *const sum_stime
 int Process::open_file(const std::string &ar_name, const int flags, const mode_t mode,
                        const int fd, const bool c, const int error)
 {
-  const bool created = (((flags & O_EXCL) && (fd != -1)) || c ||
-                        ((fd == -1) && (error == ENOENT)));
+  const bool created = ((flags & O_EXCL) && (fd != -1)) || c;
+  const bool open_failed = (fd == -1);
   const std::string name = (platform::path_is_absolute(ar_name))?(ar_name):
       (wd_ + "/" + ar_name);
 
@@ -56,7 +56,7 @@ int Process::open_file(const std::string &ar_name, const int flags, const mode_t
     // the process already used this file
     fu = file_usages()[name];
   } else {
-    fu = new FileUsage(flags, mode, created, false);
+    fu = new FileUsage(flags, mode, created, false, open_failed, error);
     file_usages()[name] = fu;
   }
 

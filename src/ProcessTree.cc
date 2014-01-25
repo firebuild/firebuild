@@ -215,6 +215,14 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
   }
   o << "]," << std::endl;
 
+  o << std::string(indent + 1, ' ') << "fnotf : " << "[";
+  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+    if (it->second->open_failed()) {
+      o << "\"" << it->first << "\",";
+    }
+  }
+  o << "]," << std::endl;
+
   switch (p.state()) {
     case FB_PROC_FINISHED: {
       o << std::string(indent + 1, ' ') << "exit_status : " << p.exit_status() << "," << std::endl;
