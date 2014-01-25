@@ -13,7 +13,7 @@ static const int hash_bufsize = 4096;
 namespace firebuild 
 {
 
-int SHA256Hash::update(const std::string from_path) {
+int SHA256Hash::update(const std::string &from_path) {
   int fd;
 
   fd = open(from_path.c_str(), O_RDONLY);

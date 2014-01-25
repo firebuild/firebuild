@@ -8,7 +8,7 @@
 
 namespace firebuild {
 
-File::File (const std::string p)
+File::File (const std::string &p)
     :mtimes_(), path_(p), exists_(false), hash_() {
 }
 

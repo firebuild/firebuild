@@ -19,7 +19,7 @@ class FileUsage
   bool created() {return created_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
-  void set_initial_hash(SHA256Hash h) {initial_hash_ = h;}
+  void set_initial_hash(const SHA256Hash &h) {initial_hash_ = h;}
  private:
   /** Flags used when opening the file */
   int open_flags_;

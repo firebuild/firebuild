@@ -15,7 +15,7 @@ namespace firebuild
 class File
 {
  public:
-  explicit File (const std::string path);
+  explicit File (const std::string &path);
   int update();
   int is_changed();
   std::string& path() {return path_;};

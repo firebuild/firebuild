@@ -63,7 +63,7 @@ public:
   void update_rusage (long int utime_m, long int stime_m);
   void sum_rusage(long int *sum_utime_m, long int *sum_stime_m);
   virtual void exit_result (int status, long int utime_m, long int stime_m);
-  int open_file(const std::string name, const int flags, const mode_t mode,
+  int open_file(const std::string &name, const int flags, const mode_t mode,
                 const int fd, const bool created = false, const int error = 0);
   /**
    * Handle file closure in in monitored process

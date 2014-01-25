@@ -14,7 +14,7 @@ namespace firebuild
      :arr()
     {};
     unsigned char arr[SHA256_DIGEST_LENGTH] = {};
-    int update(const std::string from_file);
+    int update(const std::string &from_file);
   };
 }
 #endif

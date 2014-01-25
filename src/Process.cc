@@ -43,7 +43,7 @@ void Process::sum_rusage(long int * const sum_utime_m, long int *const sum_stime
   }
 }
 
-int Process::open_file(const std::string ar_name, const int flags, const mode_t mode,
+int Process::open_file(const std::string &ar_name, const int flags, const mode_t mode,
                        const int fd, const bool c, const int error)
 {
   const bool created = (((flags & O_EXCL) && (fd != -1)) || c ||
