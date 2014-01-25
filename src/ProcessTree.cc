@@ -190,8 +190,14 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
   }
   o << "]," << std::endl;
 
-  o << std::string(indent + 1, ' ') << "fcreated : " << "[";
+  // sort files before printing
+  std::map<std::string, FileUsage*> ordered_file_usages;
   for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+    ordered_file_usages[it->first] =  it->second;
+  }
+
+  o << std::string(indent + 1, ' ') << "fcreated : " << "[";
+  for (auto it = ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if (it->second->created()) {
       o << "\"" << it->first << "\",";
     }
@@ -200,7 +206,7 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
 
   // TODO replace write/read flag checks with more accurate tests
   o << std::string(indent + 1, ' ') << "fmodified : " << "[";
-  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if ((!it->second->created()) && (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
       o << "\"" << it->first << "\",";
     }
@@ -208,7 +214,7 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
   o << "]," << std::endl;
 
   o << std::string(indent + 1, ' ') << "fread : " << "[";
-  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if (it->second->open_flags() & (O_RDONLY | O_RDWR)) {
       o << "\"" << it->first << "\",";
     }
@@ -216,7 +222,7 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
   o << "]," << std::endl;
 
   o << std::string(indent + 1, ' ') << "fnotf : " << "[";
-  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
+  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if (it->second->open_failed()) {
       o << "\"" << it->first << "\",";
     }
