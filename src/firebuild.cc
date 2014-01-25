@@ -225,15 +225,19 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     auto proc = new ::firebuild::ExecedProcess(ic_msg.scproc_query());
     proc_tree->insert(*proc, fd_conn);
     // TODO look up stored result
-    if (false /* can shortcut*/) {
+#if 0
+    if ( /* can shortcut*/) {
       scproc_resp->set_shortcut(true);
       scproc_resp->set_exit_status(0);
     } else {
+#endif
       scproc_resp->set_shortcut(false);
       if (firebuild::debug_level != 0) {
         scproc_resp->set_debug_level(firebuild::debug_level);
       }
+#if 0
     }
+#endif
     firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
     ::firebuild::Process *pproc = NULL;
@@ -392,7 +396,7 @@ int main(const int argc, char *argv[]) {
     case 'h':
       usage();
       exit(EXIT_SUCCESS);
-      break;
+      // break;
 
     case 'i':
       insert_trace_markers = true;

@@ -20,8 +20,10 @@
 #include <cstdio>
 #include <cwchar>
 
+#include "Debug.h"
 #include "intercept.h"
 #include "fb-messages.pb.h"
+#include "platform.h"
 
 namespace firebuild {
 
@@ -502,8 +504,10 @@ intercept_fork (const pid_t ret)
  */
 extern int firebuild_fake_main(int argc, char **argv, char **env)
 {
-  auto orig_main = (int (*) (int, char**, char**))(argv[0]);
-  auto orig_argv = (char**)(argv[1]);
+  int (*orig_main) (int, char**, char**);
+  memcpy(&orig_main, &argv[0], sizeof(argv[0]));
+      char ** orig_argv;
+  memcpy(&orig_argv, &argv[1], sizeof(argv[1]));
   auto ret = orig_main(argc, orig_argv, env);
   handle_exit(ret, NULL);
   return ret;

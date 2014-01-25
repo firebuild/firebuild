@@ -133,12 +133,6 @@ extern void insert_begin_marker(const std::string&);
 /** Insert end marker strace, ltrace, etc. */
 extern void insert_end_marker(const std::string&);
 
-/** Send error message to supervisor */
-extern void fb_error(const char* msg);
-
-/** Send debug message to supervisor id debug level is at least lvl */
-extern void fb_debug(const int lvl, const char* const msg);
-
 /**
  * Stored PID
  * When getpid() returns a different value, we missed a fork() :-)

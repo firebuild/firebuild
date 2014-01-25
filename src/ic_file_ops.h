@@ -40,7 +40,7 @@ IC(int, fcntl, (int fd, int cmd, ...), {
       break;
     }
     default: {
-      fb_error("unknown fcntl() cmd: " + cmd);
+      firebuild::fb_error("unknown fcntl() cmd: " + std::to_string(cmd));
     }
     }
     va_end(ap);
