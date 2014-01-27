@@ -4,7 +4,6 @@
 
 #include <set>
 #include <unordered_map>
-#include <ostream>
 
 
 #include "Process.h"
@@ -40,8 +39,8 @@ namespace firebuild
     void insert (ForkedProcess &p, const int sock);
     void exit (Process &p, const int sock);
     static long int sum_rusage_recurse(Process &p);
-    void export2js (std::ostream& o);
-    void export_profile2dot (std::ostream& o);
+    void export2js (FILE* stream);
+    void export_profile2dot (FILE* stream);
     ExecedProcess* root() {return root_;}
     std::unordered_map<int, Process*>& sock2proc() {return sock2proc_;}
     std::unordered_map<int, Process*>& fb_pid2proc() {return fb_pid2proc_;}
@@ -58,8 +57,8 @@ namespace firebuild
      * (system + user time), and count the invocations of each other command
      * by C. */
     std::unordered_map<std::string, cmd_prof> cmd_profs_;
-    void export2js_recurse(Process &p, const unsigned int level, std::ostream& o, unsigned int *nodeid);
-    void export2js(ExecedProcess &p, const unsigned int level, std::ostream& o, unsigned int *nodeid);
+    void export2js_recurse(Process &p, const unsigned int level, FILE* stream, unsigned int *nodeid);
+    void export2js(ExecedProcess &p, const unsigned int level, FILE* stream, unsigned int *nodeid);
     void profile_collect_cmds(Process &p,
                               std::unordered_map<std::string, subcmd_prof> &cmds,
                               std::set<std::string> &ancestors);

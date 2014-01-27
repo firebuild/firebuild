@@ -10,7 +10,6 @@
 
 #include <string>
 #include <iostream>
-#include <fstream>
 #include <cerrno>
 #include <cstdio>
 #include <stdexcept>
@@ -292,6 +291,37 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
   return ret;
 }
 
+
+/**
+ * Copy whole file content from in_fd to out_fd retrying on temporary problems.
+ * @param out_fd file desctiptor to write content to
+ * @param in_fd file desctiptor to read content from
+ * @return bytes written, -1 on error
+ */
+inline ssize_t sendfile_full(int out_fd, int in_fd)
+{
+  char buf[4096];
+  ssize_t nread, ret = 0;
+
+  while (nread = read(in_fd, buf, sizeof buf), nread > 0){
+    char *out_ptr = buf;
+    ssize_t nwritten;
+
+    do {
+      nwritten = write(out_fd, out_ptr, nread);
+
+      if (nwritten >= 0)      {
+        nread -= nwritten;
+        out_ptr += nwritten;
+        ret += nwritten;
+      } else if (errno != EINTR)      {
+        return -1;
+      }
+    } while (nread > 0);
+  }
+  return ret;
+}
+
 /**
  * Write report to specified file
  *
@@ -306,8 +336,22 @@ static void write_report(const std::string &html_filename, const std::string &da
   const char tree_filename[] = "firebuild-process-tree.js";
   const char html_orig_filename[] = "build-report.html";
   const std::string dot_cmd = "dot";
-  std::ifstream d3(datadir + "/" + d3_filename);
-  std::ifstream src(datadir + "/" + html_orig_filename);
+
+  int d3 = open((datadir + "/" + d3_filename).c_str(), O_RDONLY);
+  if (-1 == d3) {
+    perror("open");
+    firebuild::fb_error("Opening file " + (datadir + "/" + d3_filename) + " failed.");
+    firebuild::fb_error("Can not write build report.");
+    return;
+  }
+
+  FILE* src_file = fopen((datadir + "/" + html_orig_filename).c_str(), "r");
+  if (NULL == src_file) {
+    perror("fopen");
+    firebuild::fb_error("Opening file " + (datadir + "/" + html_orig_filename) + " failed.");
+    firebuild::fb_error("Can not write build report.");
+    return;
+  }
 
   // dirname may modify its parameter thus we provide a writable char std::string
   char *html_filename_tmp = new char [html_filename.size() + 1] ;
@@ -317,37 +361,57 @@ static void write_report(const std::string &html_filename, const std::string &da
 
   // export profile
   {
-    std::fstream dot;
-    dot.open (dir + "/" + dot_filename, std::fstream::out);
+    FILE* dot = fopen((dir + "/" + dot_filename).c_str(), "w");
+    if (NULL == dot) {
+      perror("fopen");
+      firebuild::fb_error("Failed to open dot file for writing profile graph.");
+    }
     proc_tree->export_profile2dot(dot);
-    dot.close();
+    fclose(dot);
   }
 
   system((dot_cmd + " -Tsvg -o" + dir + "/" + svg_filename + " " + dir
           + "/" + dot_filename).c_str());
 
-  std::ofstream dst(html_filename);
-  while (src.good() && dst.good()) {
-    std::string line;
-    getline(src, line);
-    if (NULL != strstr(line.c_str(), d3_filename)) {
-      dst << "<script type=\"text/javascript\">" << std::endl;
-      dst << d3.rdbuf();
-      dst << "    </script>" << std::endl;
-    } else if (NULL != strstr(line.c_str(), tree_filename)) {
-      dst << "    <script type=\"text/javascript\">" << std::endl;
-      proc_tree->export2js(dst);
-      dst << "    </script>" << std::endl;
-    } else if (NULL != strstr(line.c_str(), svg_filename)) {
-      std::ifstream svg(dir + "/" + svg_filename);
-      dst << svg.rdbuf();
-      svg.close();
-    } else {
-      dst << line << std::endl;
+  FILE* dst_file = fopen(html_filename.c_str(), "w");
+  int ret = (NULL == dst_file)?-1:0;
+  while ((ret != -1)) {
+    char* line = NULL;
+    size_t zero = 0;
+    if (-1 == getline(&line, &zero, src_file)) {
+      // finished reading file
+      if (!feof(src_file)) {
+        perror("getline");
+        firebuild::fb_error("Reading from report template failed.");
+      }
+      free(line);
+      break;
     }
+    if (NULL != strstr(line, d3_filename)) {
+      fprintf(dst_file, "<script type=\"text/javascript\">\n");
+
+      fflush(dst_file);
+      ret = sendfile_full(fileno(dst_file), d3);
+      fsync(fileno(dst_file));
+      fprintf(dst_file, "    </script>\n");
+    } else if (NULL != strstr(line, tree_filename)) {
+      fprintf(dst_file, "<script type=\"text/javascript\">\n");
+      proc_tree->export2js(dst_file);
+      fprintf(dst_file, "    </script>\n");
+    } else if (NULL != strstr(line, svg_filename)) {
+      int svg = open((dir + "/" + svg_filename).c_str(), O_RDONLY);
+      fflush(dst_file);
+      ret = sendfile_full(fileno(dst_file), svg);
+      fsync(fileno(dst_file));
+      close(svg);
+    } else {
+      fprintf(dst_file, "%s",line);
+    }
+    free(line);
   }
-  d3.close();
-  src.close();
+  close(d3);
+  fclose(src_file);
+  fclose(dst_file);
 }
 
 } // namespace

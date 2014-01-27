@@ -1,11 +1,13 @@
+#include "ProcessTree.h"
+
 #include <math.h>
 
+#include <cstdio>
 #include <stdexcept>
-#include <iostream>
 #include <sstream>
 #include <limits>
 
-#include "ProcessTree.h"
+#include "Debug.h"
 
 namespace firebuild {
   
@@ -62,7 +64,7 @@ void ProcessTree::insert (ExecedProcess &p, const int sock)
       // root's exec_parent is firebuild which is not in the tree.
       // If any other parent is missing, FireBuild missed process
       // that can happen due to the missing process(es) being statically built
-      std::cerr << "TODO handle: Process without known exec parent\n";
+      fb_error("TODO handle: Process without known exec parent\n");
     }
   }
 
@@ -117,78 +119,81 @@ long int ProcessTree::sum_rusage_recurse(Process &p)
   return aggr_time;
 }
 
-void ProcessTree::export2js_recurse(Process &p, const unsigned int level, std::ostream& o, unsigned int *nodeid)
+void ProcessTree::export2js_recurse(Process &p, const unsigned int level, FILE* stream, unsigned int *nodeid)
 {
   if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level > 0) {
-      o << std::endl;
+      fprintf(stream,"\n");
     }
-    o << std::string(2 * level, ' ') << "{";
-    export2js((ExecedProcess&)p, level, o, nodeid);
-    o << std::string(2 * level, ' ') << " children : [";
+    fprintf(stream,"%s{", std::string(2 * level, ' ').c_str());
+
+    export2js((ExecedProcess&)p, level, stream, nodeid);
+    fprintf(stream,"%s children: [", std::string(2 * level, ' ').c_str());
   }
   if (p.exec_child() != NULL) {
-    export2js_recurse(*p.exec_child(), level + 1, o, nodeid);
+    export2js_recurse(*p.exec_child(), level + 1, stream, nodeid);
   }
   for (unsigned int i = 0; i < p.children().size(); i++) {
-    export2js_recurse(*p.children()[i], level, o, nodeid);
+    export2js_recurse(*p.children()[i], level, stream, nodeid);
   }
   if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level == 0) {
-      o << "]};" << std::endl;
+      fprintf(stream,"]};\n");
     } else {
-      o << "]},";
+      fprintf(stream,"]},\n");
     }
   }
 }
 
-void ProcessTree::export2js(std::ostream& o)
+void ProcessTree::export2js(FILE * stream)
 {
-  o << "root = ";
+  fprintf(stream, "root = ");
   unsigned int nodeid = 0;
-  export2js_recurse(*root_, 0, o, &nodeid);
+  export2js_recurse(*root_, 0, stream, &nodeid);
 }
 
-void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ostream& o, unsigned int * nodeid)
+void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, FILE* stream, unsigned int * nodeid)
 {
-  // TODO: escape all std::strings properly
-  unsigned int indent = 2 * level;
-  o << "name :\"" << p.args()[0] << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "id:" << (*nodeid)++ << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "pid :" << p.pid() << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "ppid :" << p.ppid() << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "cwd :\"" << p.cwd() << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "exe :\"" << p.executable() << "\"," << std::endl;
-  o << std::string(indent + 1, ' ') << "state : " << p.state() << "," << std::endl;
-  o << std::string(indent + 1, ' ') << "args : " << "[";
+  // TODO: escape all strings properly
+  auto indent_str = std::string(2 * level, ' ');
+  const char* indent = indent_str.c_str();
+
+  fprintf(stream, "name:\"%s\",\n", p.args()[0].c_str());
+  fprintf(stream, "%s id: %u,\n", indent, (*nodeid)++);
+  fprintf(stream, "%s pid: %u,\n", indent, p.pid());
+  fprintf(stream, "%s ppid: %u,\n", indent, p.ppid());
+  fprintf(stream, "%s cwd:\"%s\",\n", indent, p.cwd().c_str());
+  fprintf(stream, "%s exe:\"%s\",\n", indent, p.executable().c_str());
+  fprintf(stream, "%s state: %u,\n", indent, p.state());
+  fprintf(stream, "%s args: [", indent);
   for (unsigned int i = 1; i < p.args().size(); i++) {
-    o << "\"" << escapeJsonString(p.args()[i]) <<"\", ";
+    fprintf(stream, "\"%s\",", escapeJsonString(p.args()[i]).c_str());
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
-  o << std::string(indent + 1, ' ') << "env : " << "[";
+  fprintf(stream, "%s env: [", indent);
   for (auto it = p.env_vars().begin(); it != p.env_vars().end(); ++it) {
-    o << "\"" << escapeJsonString(*it) << "\",";
+    fprintf(stream, "\"%s\",", escapeJsonString(*it).c_str());
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
-  o << std::string(indent + 1, ' ') << "libs : " << "[";
+  fprintf(stream, "%s libs: [", indent);
   for (auto it = p.libs().begin(); it != p.libs().end(); ++it) {
-    o << "\"" << *it << "\",";
+    fprintf(stream, "\"%s\",", (*it).c_str());
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
-  o << std::string(indent + 1, ' ') << "wds : " << "[";
+  fprintf(stream, "%s wds: [", indent);
   for (auto it = p.wds().begin(); it != p.wds().end(); ++it) {
-    o << "\"" << *it << "\",";
+    fprintf(stream, "\"%s\",", (*it).c_str());
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
-  o << std::string(indent + 1, ' ') << "failed_wds : " << "[";
+  fprintf(stream, "%s failed_wds: [", indent);
   for (auto it = p.failed_wds().begin(); it != p.failed_wds().end(); ++it) {
-    o << "\"" << *it << "\",";
+    fprintf(stream, "\"%s\",", (*it).c_str());
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
   // sort files before printing
   std::map<std::string, FileUsage*> ordered_file_usages;
@@ -196,50 +201,50 @@ void ProcessTree::export2js(ExecedProcess &p, const unsigned int level, std::ost
     ordered_file_usages[it->first] =  it->second;
   }
 
-  o << std::string(indent + 1, ' ') << "fcreated : " << "[";
+  fprintf(stream, "%s fcreated: [", indent);
   for (auto it = ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if (it->second->created()) {
-      o << "\"" << it->first << "\",";
+      fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
   // TODO replace write/read flag checks with more accurate tests
-  o << std::string(indent + 1, ' ') << "fmodified : " << "[";
+  fprintf(stream, "%s fmodified: [", indent);
   for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if ((!it->second->created()) && (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
-      o << "\"" << it->first << "\",";
+      fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
-  o << std::string(indent + 1, ' ') << "fread : " << "[";
+  fprintf(stream, "%s fread: [", indent);
   for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if (it->second->open_flags() & (O_RDONLY | O_RDWR)) {
-      o << "\"" << it->first << "\",";
+      fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
-  o << std::string(indent + 1, ' ') << "fnotf : " << "[";
+  fprintf(stream, "%s fnotf: [", indent);
   for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
     if (it->second->open_failed()) {
-      o << "\"" << it->first << "\",";
+      fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
-  o << "]," << std::endl;
+  fprintf(stream, "],\n");
 
   switch (p.state()) {
     case FB_PROC_FINISHED: {
-      o << std::string(indent + 1, ' ') << "exit_status : " << p.exit_status() << "," << std::endl;
+      fprintf(stream, "%s exit_status: %u,\n", indent, p.exit_status());
       // break; is missing intentionally
     }
     case FB_PROC_EXECED: {
-      o << std::string(indent + 1, ' ') << "utime_m : " << p.utime_m() << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "stime_m : " << p.stime_m() << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "aggr_time : " << p.aggr_time() << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "sum_utime_m : " << p.sum_utime_m() << "," << std::endl;
-      o << std::string(indent + 1, ' ') << "sum_stime_m : " << p.sum_stime_m() << "," << std::endl;
+      fprintf(stream, "%s utime_m: %lu,\n", indent, p.utime_m());
+      fprintf(stream, "%s stime_m: %lu,\n", indent, p.stime_m());
+      fprintf(stream, "%s aggr_time: %lu,\n", indent, p.aggr_time());
+      fprintf(stream, "%s sum_utime_m: %lu,\n", indent, p.sum_utime_m());
+      fprintf(stream, "%s sum_stime_m: %lu,\n", indent, p.sum_stime_m());
       // break; is missing intentionally
     }
     case FB_PROC_RUNNING: {
@@ -334,10 +339,10 @@ static double percent_of (const double val, const double of)
 {
   return (((of < std::numeric_limits<double>::epsilon()) &&
            (of > -std::numeric_limits<double>::epsilon()))?(0.0):
-          (round(val * 10000 / of) / 100));
+          (round(val * 100 / of)));
 }
 
-void ProcessTree::export_profile2dot(std::ostream &o)
+void ProcessTree::export_profile2dot(FILE* stream)
 {
   std::set<std::string> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
@@ -348,33 +353,41 @@ void ProcessTree::export_profile2dot(std::ostream &o)
   build_time = root_->aggr_time();
 
   // print it
-  o << "digraph {" << std::endl;
-  o << "graph [dpi=63, ranksep=0.25, rankdir=LR, bgcolor=transparent,";
-  o << " fontname=Helvetica, fontsize=12, nodesep=0.125];" << std::endl;
-  o << "node [fontname=Helvetica, fontsize=12, style=filled, height=0, width=0, shape=box, fontcolor=white];" << std::endl;
-  o << "edge [fontname=Helvetica, fontsize=12]" << std::endl;
+  fprintf(stream, "digraph {\n");
+  fprintf(stream, "graph [dpi=63, ranksep=0.25, rankdir=LR, bgcolor=transparent,"
+          " fontname=Helvetica, fontsize=12, nodesep=0.125];\n"
+          "node [fontname=Helvetica, fontsize=12, style=filled, height=0,"
+          " width=0, shape=box, fontcolor=white];\n"
+          "edge [fontname=Helvetica, fontsize=12]\n");
 
   for (auto it = cmd_profs_.begin(); it != cmd_profs_.end(); ++it) {
-    o << std::string(4, ' ') << "\"" << it->first << "\" [label=<<B>";
-    o << it->first << "</B><BR/>";
-    o << percent_of(it->second.aggr_time, build_time) << "%<BR/>(";
-    o << percent_of(it->second.cmd_time, build_time);
-    o << "%)>, color=\"" << pct_to_hsv_str(percent_of(it->second.aggr_time, build_time)) << "\"];" << std::endl;
-    for (auto it2 = it->second.subcmds.begin(); it2 != it->second.subcmds.end(); ++it2) {
-      o << std::string(4, ' ') << "\"" << it->first << "\" -> \""<< it2->first << "\" [label=\"" ;
+    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", (it->first).c_str(),
+            (it->first).c_str());
+    fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
+            percent_of(it->second.aggr_time, build_time),
+            percent_of(it->second.cmd_time, build_time),
+            pct_to_hsv_str(percent_of(it->second.aggr_time,
+                                      build_time)).c_str());
+    for (auto it2 = it->second.subcmds.begin();
+         it2 != it->second.subcmds.end(); ++it2) {
+      fprintf(stream, "    \"%s\" -> \"%s\" [label=\"",
+              (it->first).c_str(), (it2->first).c_str());
       if (!it2->second.recursed) {
-        o << percent_of(it2->second.sum_aggr_time, build_time) << "%\\n";
+        fprintf(stream, "%.2lf%%\\n", percent_of(it2->second.sum_aggr_time,
+                                              build_time));
       }
-      o << it2->second.count << "×\", color=\"";
-      o << pct_to_hsv_str(percent_of(it2->second.sum_aggr_time, build_time));
-      o << "\"," << " penwidth=\"";
-      o << (min_penwidth  + ((percent_of(it2->second.sum_aggr_time, build_time) / 100)
-                             * (max_penwidth - min_penwidth)));
-      o << "\"];" << std::endl;
+      fprintf(stream, "×%lu\", color=\"%s\","
+              " penwidth=\"%lf\"];",
+              it2->second.count,
+              pct_to_hsv_str(percent_of(it2->second.sum_aggr_time,
+                                        build_time)).c_str(),
+              (min_penwidth  + ((percent_of(it2->second.sum_aggr_time,
+                                            build_time) / 100)
+                                * (max_penwidth - min_penwidth))));
     }
   }
 
-  o << "}" << std::endl;
+  fprintf(stream, "}\n");
 }
 }
 
