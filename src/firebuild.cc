@@ -44,23 +44,23 @@ libconfig::Config * cfg;
 
 static void usage()
 {
-  std::cout << "Usage: firebuild [OPTIONS] <BUILD COMMAND>" << std::endl;
-  std::cout << "Execute BUILD COMMAND with FireBuild™ instrumentation" << std::endl;
-  std::cout << "" << std::endl;
-  std::cout << "Mandatory arguments to long options are mandatory for short options too." << std::endl;
-  std::cout << "   -c --config-file=FILE     use FILE as configuration file" << std::endl;
-  std::cout << "   -d --debug-level=N        set debugging level to N (0-4, default is 0)" << std::endl;
-  std::cout << "   -r --generate-report[=HTML] generate a report on the build command execution." << std::endl;
-  std::cout << "                             the report's filename can be specified " << std::endl;
-  std::cout << "                             (firebuild-build-report.html by default). " << std::endl;
-  std::cout << "   -h --help                 show this help" << std::endl;
-  std::cout << "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)" << std::endl;
-  std::cout << "                             and open(\"/firebuild-intercept-end\", 0) calls" << std::endl;
-  std::cout << "                             to let users find unintercepted calls using" << std::endl;
-  std::cout << "                             strace or ltrace" << std::endl;
-  std::cout << "Exit status:" << std::endl;
-  std::cout << " exit status of the BUILD COMMAND" << std::endl;
-  std::cout << " 1  in case of failure" << std::endl;
+  printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
+         "Execute BUILD COMMAND with FireBuild™ instrumentation\n"
+         "\n"
+         "Mandatory arguments to long options are mandatory for short options too.\n"
+         "   -c --config-file=FILE     use FILE as configuration file\n"
+         "   -d --debug-level=N        set debugging level to N (0-4, default is 0)\n"
+         "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
+         "                             the report's filename can be specified \n"
+         "                             (firebuild-build-report.html by default). \n"
+         "   -h --help                 show this help\n"
+         "   -i --insert-trace-markers perform open(\"/firebuild-intercept-begin\", 0)\n"
+         "                             and open(\"/firebuild-intercept-end\", 0) calls\n"
+         "                             to let users find unintercepted calls using\n"
+         "                             strace or ltrace\n"
+         "Exit status:\n"
+         " exit status of the BUILD COMMAND\n"
+         " 1  in case of failure\n");
 }
 
 /** Parse configuration file */
