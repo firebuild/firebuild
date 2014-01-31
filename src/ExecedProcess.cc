@@ -3,29 +3,14 @@
 
 namespace firebuild {
 
-ExecedProcess::ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq) 
-    : Process(scpq.pid(), scpq.ppid(), FB_PROC_EXEC_STARTED, scpq.cwd()),
-      exec_parent_(NULL), sum_utime_m_(0), sum_stime_m_(0), cwd_(scpq.cwd()),
-      wds_(), failed_wds_(), args_(), env_vars_(), executable_(scpq.executable()),
+ExecedProcess::ExecedProcess (const int pid, const int ppid,
+                              const std::string &cwd,
+                              const std::string &executable)
+    : Process(pid, ppid, FB_PROC_EXEC_STARTED, cwd),
+      exec_parent_(NULL), sum_utime_m_(0), sum_stime_m_(0), cwd_(cwd),
+      wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_()
 {
-
-  for (int i = 0; i < scpq.arg_size(); i++) {
-    args_.push_back(scpq.arg(i));
-  }
-  for (int i = 0; i < scpq.env_var_size(); i++) {
-    const char *fb_socket = "FB_SOCKET="; 
-    if ( 0 == strncmp(scpq.env_var(i).c_str(), fb_socket, strlen(fb_socket))) {
-      // this is used internally by FireBuild and changes with every run
-      continue;
-    }
-    env_vars_.insert(scpq.env_var(i));
-  }
-  // TODO keep files in a separate container and refer to them instead of
-  // creating the same strings several times
-  for (int i = 0; i < scpq.libs().file_size(); i++) {
-    libs().insert(scpq.libs().file(i));
-  }
 }
 
 void ExecedProcess::propagate_exit_status (const int status)

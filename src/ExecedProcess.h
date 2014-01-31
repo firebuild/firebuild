@@ -3,7 +3,6 @@
 #define FIREBUILD_EXECED_PROCESS_H
 
 #include "Process.h"
-#include "fb-messages.pb.h"
 #include "cxx_lang_utils.h"
 
 namespace firebuild 
@@ -12,7 +11,8 @@ namespace firebuild
 class ExecedProcess : public Process
 {
  public:
-  explicit ExecedProcess (firebuild::msg::ShortCutProcessQuery const & scpq);
+  explicit ExecedProcess (const int pid, const int ppid, const std::string &cwd,
+                          const std::string &executable);
   virtual ~ExecedProcess();
   void set_exec_parent(Process *p) {exec_parent_ = p;};
   Process* exec_parent() {return exec_parent_;};

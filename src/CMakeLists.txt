@@ -22,6 +22,7 @@ add_executable(firebuild
   Process.cc
   ExecedProcess.cc
   ForkedProcess.cc
+  ProcessFactory.cc
   ProcessTree.cc
   ProcessPBAdaptor.cc
   SHA256Hash.cc

@@ -1,0 +1,32 @@
+#ifndef FIREBUILD_PROCESSFACTORY_H
+#define FIREBUILD_PROCESSFACTORY_H
+
+#include "fb-messages.pb.h"
+#include "ExecedProcess.h"
+#include "ForkedProcess.h"
+#include "ProcessTree.h"
+#include "cxx_lang_utils.h"
+
+namespace firebuild
+{
+
+/**
+ * Converts ProtoBuf messages from monitored processes to new Process
+ * instances. It is an implementation of the GoF Factory pattern.
+ * The class itself is never instantiated, but groups a set of
+ * static functions which accept a ProcessTree reference and an incoming ProtoBuf
+ * message to the process from.
+ */
+class ProcessFactory
+{
+ public:
+  static ForkedProcess* getForkedProcess(const msg::ForkChild &fc,
+                                         Process * const fork_parent);
+  static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq);
+
+private:
+  DISALLOW_COPY_AND_ASSIGN(ProcessFactory);
+};
+
+}
+#endif

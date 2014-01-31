@@ -20,6 +20,7 @@
 
 #include "firebuild_common.h"
 #include "Debug.h"
+#include "ProcessFactory.h"
 #include "ProcessTree.h"
 #include "ProcessPBAdaptor.h"
 #include "fb-messages.pb.h"
@@ -221,7 +222,8 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     firebuild::msg::SupervisorMsg sv_msg;
     auto scproc_resp = sv_msg.mutable_scproc_resp();
     /* record new process */
-    auto proc = new ::firebuild::ExecedProcess(ic_msg.scproc_query());
+    auto proc =
+        firebuild::ProcessFactory::getExecedProcess(ic_msg.scproc_query());
     proc_tree->insert(*proc, fd_conn);
     // TODO look up stored result
 #if 0
@@ -248,8 +250,8 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
       std::cerr << "TODO handle: Process without known parent\n";
     }
       /* record new process */
-    ::firebuild::ForkedProcess* proc;
-    proc = new ::firebuild::ForkedProcess (ic_msg.fork_child(), pproc);
+    auto proc =
+        firebuild::ProcessFactory::getForkedProcess(ic_msg.fork_child(), pproc);
     proc_tree->insert(*proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->pid2proc().at(ic_msg.execvfailed().pid());

@@ -2,6 +2,7 @@
 #ifndef FIREBUILD_PROCESS_TREE_H
 #define FIREBUILD_PROCESS_TREE_H
 
+#include <map>
 #include <set>
 #include <unordered_map>
 
