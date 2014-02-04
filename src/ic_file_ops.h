@@ -617,7 +617,12 @@ IC(int, fcloseall, (void),{
 
 
 IC(void*, dlopen, (const char *filename, int flag), {
-    ret = orig_fn(filename, flag); intercept_dlopen(filename, flag, ret);})
+    // dlopen may cause new intercepted calls
+    intercept_on = false;
+    ret = orig_fn(filename, flag);
+    intercept_on = true;
+    intercept_dlopen(filename, flag, ret);
+  })
 
 // dirent.h
 IC(DIR *, opendir, (const char *name), {
