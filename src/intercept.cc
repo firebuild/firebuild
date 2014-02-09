@@ -263,7 +263,7 @@ static void fb_ic_init()
   fb_send_msg(ic_msg, fb_sv_conn);
 
   msg::SupervisorMsg sv_msg;
-  fb_recv_msg(sv_msg, fb_sv_conn);
+  fb_recv_msg(&sv_msg, fb_sv_conn);
 
   auto resp = sv_msg.mutable_scproc_resp();
   // we may return immediately if supervisor decides that way
@@ -317,7 +317,7 @@ handle_exit (const int status, void*)
     ic_msg.set_ack_num(ack_num);
     fb_send_msg(ic_msg, fb_sv_conn);
     msg::SupervisorMsg sv_msg;
-    auto len = fb_recv_msg(sv_msg, fb_sv_conn);
+    auto len = fb_recv_msg(&sv_msg, fb_sv_conn);
     if ((len > 0) && (sv_msg.ack_num() != ack_num)) {
       // something unexpected happened ...
       assert(0 && "Supervisor did not ack exit");

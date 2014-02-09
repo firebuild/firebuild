@@ -9,17 +9,15 @@
 #include "SHA256Hash.h"
 #include "cxx_lang_utils.h"
 
-namespace firebuild 
-{
+namespace firebuild {
 
-class File
-{
+class File {
  public:
-  explicit File (const std::string &path);
+  explicit File(const std::string &path);
   int update();
   int is_changed();
-  std::string& path() {return path_;};
-  SHA256Hash& hash() {return hash_;};
+  std::string& path() {return path_;}
+  SHA256Hash& hash() {return hash_;}
 
  private:
   std::vector<timespec> mtimes_;
@@ -30,5 +28,5 @@ class File
   DISALLOW_COPY_AND_ASSIGN(File);
 };
 
-}
+}  // namespace firebuild
 #endif

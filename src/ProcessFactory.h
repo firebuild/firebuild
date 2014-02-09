@@ -7,8 +7,7 @@
 #include "ProcessTree.h"
 #include "cxx_lang_utils.h"
 
-namespace firebuild
-{
+namespace firebuild {
 
 /**
  * Converts ProtoBuf messages from monitored processes to new Process
@@ -17,16 +16,15 @@ namespace firebuild
  * static functions which accept a ProcessTree reference and an incoming ProtoBuf
  * message to the process from.
  */
-class ProcessFactory
-{
+class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(const msg::ForkChild &fc,
                                          Process * const fork_parent);
   static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq);
 
-private:
+ private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);
 };
 
-}
+}  // namespace firebuild
 #endif

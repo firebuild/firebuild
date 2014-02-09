@@ -6,21 +6,21 @@
 #include "SHA256Hash.h"
 #include "cxx_lang_utils.h"
 
-namespace firebuild 
-{
+namespace firebuild {
 
-class FileUsage
-{
+class FileUsage {
  public:
-  FileUsage (int flags, mode_t mode, bool c, bool d, bool open_failed, int err)
+  FileUsage(int flags, mode_t mode, bool c, bool d, bool open_failed, int err)
       :open_flags_(flags), mode_(mode), created_(c), deleted_(d), read_(false),
-      written_(false), open_failed_(open_failed), err_(err), unknown_err_(0), initial_hash_(), final_hash_() {};
+      written_(false), open_failed_(open_failed), err_(err), unknown_err_(0),
+      initial_hash_(), final_hash_() {}
   int open_flags() {return open_flags_;}
   bool created() {return created_;}
   bool open_failed() {return open_failed_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
   void set_initial_hash(const SHA256Hash &h) {initial_hash_ = h;}
+
  private:
   /** Flags used when opening the file */
   int open_flags_;
@@ -48,5 +48,5 @@ class FileUsage
   DISALLOW_COPY_AND_ASSIGN(FileUsage);
 };
 
-}
+}  // namespace firebuild
 #endif

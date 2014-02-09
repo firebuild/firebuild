@@ -5,16 +5,16 @@
 
 #include <string>
 
-namespace firebuild 
-{
-  class SHA256Hash
-  {
+namespace firebuild {
+
+class SHA256Hash {
  public:
- SHA256Hash()
-     :arr()
-    {};
-    unsigned char arr[SHA256_DIGEST_LENGTH] = {};
-    int update(const std::string &from_file);
-  };
-}
+  SHA256Hash()
+      :arr()
+  {}
+  unsigned char arr[SHA256_DIGEST_LENGTH] = {};
+  int update(const std::string &from_file);
+};
+
+}  // namespace firebuild
 #endif

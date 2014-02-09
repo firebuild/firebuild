@@ -38,7 +38,7 @@ extern ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const i
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
  */
-extern ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, const int fd)
+extern ssize_t fb_recv_msg (google::protobuf::MessageLite *pb_msg, const int fd)
 {
   uint32_t msg_size;
 
@@ -56,7 +56,7 @@ extern ssize_t fb_recv_msg (google::protobuf::MessageLite &pb_msg, const int fd)
     return ret;
   }
 
-  pb_msg.ParseFromArray(buf, msg_size);
+  pb_msg->ParseFromArray(buf, msg_size);
 
   delete[] buf;
   return ret;

@@ -72,7 +72,7 @@ IC2_ERR_VAL(void*, NULL)
     fb_send_msg(ic_msg, fb_sv_conn);                                \
     if (IC2_WAIT_ACK) {                                             \
       msg::SupervisorMsg sv_msg;                                    \
-      if (( 0 >= fb_recv_msg(sv_msg, fb_sv_conn)) ||                \
+      if (( 0 >= fb_recv_msg(&sv_msg, fb_sv_conn)) ||                \
           (sv_msg.ack_num() != ack_num)) {                          \
         /* something unexpected happened ... */                     \
         /*    assert(sv_msg.ack_num() != ack_num)); */              \
@@ -317,7 +317,7 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
   int ack_num = get_next_ack_id();
   ic_msg.set_ack_num(ack_num);
   fb_send_msg(ic_msg, fb_sv_conn);
-  fb_recv_msg(sv_msg, fb_sv_conn);
+  fb_recv_msg(&sv_msg, fb_sv_conn);
   if (sv_msg.ack_num() != ack_num) {
     // something unexpected happened ...
     assert(0 &&"Interceptor has not received proper ACK from firebuild");

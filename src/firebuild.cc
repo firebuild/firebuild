@@ -224,7 +224,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
     /* record new process */
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(ic_msg.scproc_query());
-    proc_tree->insert(*proc, fd_conn);
+    proc_tree->insert(proc, fd_conn);
     // TODO look up stored result
 #if 0
     if ( /* can shortcut*/) {
@@ -252,7 +252,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
       /* record new process */
     auto proc =
         firebuild::ProcessFactory::getForkedProcess(ic_msg.fork_child(), pproc);
-    proc_tree->insert(*proc, fd_conn);
+    proc_tree->insert(proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->pid2proc().at(ic_msg.execvfailed().pid());
     proc_tree->sock2proc()[fd_conn] = proc;
@@ -270,17 +270,17 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
         proc->exit_result(ic_msg.exit().exit_status(),
                           ic_msg.exit().utime_m(),
                           ic_msg.exit().stime_m());
-        proc_tree->exit(*proc, fd_conn);
+        proc_tree->exit(proc, fd_conn);
         ret = false;
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_m(),
                             ic_msg.execv().stime_m());
       } else if (ic_msg.has_open()) {
-        ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.open());
+        ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.open());
       } else if (ic_msg.has_close()) {
-        ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.close());
+        ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.close());
       } else if (ic_msg.has_chdir()) {
-        ::firebuild::ProcessPBAdaptor::msg(*proc, ic_msg.chdir());
+        ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.chdir());
       }
     } catch (std::out_of_range) {
       FB_DEBUG(1, "Ignoring message on fd: " + std::to_string(fd_conn) +
@@ -623,7 +623,7 @@ int main(const int argc, char *argv[]) {
               // handle data from a client
               ssize_t nbytes;
 
-              if ((nbytes = firebuild::fb_recv_msg(ic_msg, i)) <= 0) {
+              if ((nbytes = firebuild::fb_recv_msg(&ic_msg, i)) <= 0) {
                 // got error or connection closed by client
                 if (nbytes == 0) {
                   // connection closed
@@ -659,7 +659,7 @@ int main(const int argc, char *argv[]) {
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree
-    proc_tree->sum_rusage_recurse(*proc_tree->root());
+    proc_tree->sum_rusage_recurse(proc_tree->root());
 
     // show process tree if needed
     if (generate_report) {

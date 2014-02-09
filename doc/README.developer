@@ -10,10 +10,11 @@ awk 'BEGINFILE {SKIP=0}
      {if (FNR == 1) {SKIP=1; next;}
       if (SKIP == 0 ) { print FILENAME ": " $0;} else {next;}}'  /tmp/ls.trace
 
+The source code follows Google C++ Style Guide (more or less :-))
+
 Emacs code indentation style:
-(setq-default indent-tabs-mode nil)
-(setq default-tab-width 4)
-(add-hook 'c-mode-common-hook
-          (lambda()
-            (c-set-offset 'inextern-lang 0)))
+(require 'google-c-style)
+(add-hook 'c-mode-common-hook 'google-set-c-style)
+(add-hook 'c-mode-common-hook 'google-make-newline-indent)
+
 

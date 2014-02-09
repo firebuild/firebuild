@@ -6,33 +6,26 @@
 
 #define FB_MISSING(thing) assert(0 && "Missing" && thing)
 
-namespace firebuild
-{
+namespace firebuild {
 
 #ifdef __clang__
 extern "C" {
-
-extern void* __builtin_apply_args()
-{
+extern void* __builtin_apply_args() {
   FB_MISSING(__func__);
   return NULL;
 }
 
-extern void* __builtin_apply(void (*)(...), void *, size_t)
-{
+extern void* __builtin_apply(void (*)(...), void *, size_t) {
   FB_MISSING(__func__);
   return NULL;
 }
-
 }
 
 #endif
 
-namespace platform
-{
+namespace platform {
 
-bool path_is_absolute (const std::string &p)
-{
+bool path_is_absolute(const std::string &p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
 #else
@@ -44,6 +37,6 @@ bool path_is_absolute (const std::string &p)
 #endif
 }
 
-}
-}
+}  // namespace platform
+}  // namespace firebuild
 #endif

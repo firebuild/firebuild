@@ -17,7 +17,7 @@
 /**
  * Intercept call
  */
-#define IC(ret_type, name, parameters, body)	\
+#define IC(ret_type, name, parameters, body)    \
   IC_VOID(ret_type, name, parameters,           \
           { ret_type ret;                       \
             body;                               \
@@ -31,7 +31,7 @@
 /**
  * Just send the intercepted function's name
  */
-#define IC_GENERIC(ret_type, name, parameters, body)	\
+#define IC_GENERIC(ret_type, name, parameters, body)    \
   IC(ret_type, name, parameters,                        \
      {                                                  \
        if (!ic_fn[IC_FN_IDX_##name].called) {           \
@@ -59,7 +59,7 @@
 
 
 /* create global array indexed by intercepted function's id */
-#define IC_VOID(_ret_type, name, _parameters, _body)	\
+#define IC_VOID(_ret_type, name, _parameters, _body)    \
   IC_FN_IDX_##name,
 
 /* we need to include every file using IC() macro to create index for all
@@ -72,8 +72,8 @@ enum {
 
 namespace firebuild {
 /* create ic_orig_... version of intercepted function */
-#define IC_VOID(ret_type, name, parameters, _body)	\
-  extern ret_type (*ic_orig_##name) parameters;
+#define IC_VOID(ret_type, name, parameters, _body)      \
+  extern ret_type(*ic_orig_##name)parameters;
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
@@ -102,10 +102,10 @@ extern pthread_mutex_t ic_fd_states_lock;
 #define CWD_BUFSIZE 4096
 
 /** Reset globally maintained information about intercepted funtions */
-extern void reset_fn_infos ();
+extern void reset_fn_infos();
 
 /**  Set up supervisor connection */
-extern void init_supervisor_conn ();
+extern void init_supervisor_conn();
 
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
@@ -142,7 +142,7 @@ extern int ic_pid;
 /** Per thread variable which we turn on inside call interception */
 extern __thread bool intercept_on;
 
-} //namespace firebuild
+}  // namespace firebuild
 
 #ifdef  __cplusplus
 extern "C" {
@@ -151,12 +151,12 @@ extern "C" {
 /** Add shared library's name to the file list */
 extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 
-extern void fb_ic_load() __attribute__ ((constructor));
-extern void handle_exit (const int status, void*);
-extern int __libc_start_main (int (*main) (int, char **, char **),
-                              int argc, char **ubp_av,
-                              void (*init) (void), void (*fini) (void),
-                              void (*rtld_fini) (void), void (* stack_end));
+extern void fb_ic_load() __attribute__((constructor));
+extern void handle_exit(const int status, void*);
+extern int __libc_start_main(int (*main)(int, char **, char **),
+                             int argc, char **ubp_av,
+                             void (*init)(void), void (*fini)(void),
+                             void (*rtld_fini)(void), void (* stack_end));
 
 #ifdef  __cplusplus
 }
@@ -166,11 +166,11 @@ extern int __libc_start_main (int (*main) (int, char **, char **),
  * Intercept call returning void
  */
 #define IC_VOID(ret_type, name, parameters, body)                       \
-  extern ret_type (name) parameters                                     \
+  extern ret_type(name)parameters                                       \
   {                                                                     \
     /* local name for original intercepted function */                  \
-    ret_type (* orig_fn)parameters = ic_orig_##name;                    \
-    /* If we are called before the constructor we have to look up */	\
+    ret_type(* orig_fn)parameters = ic_orig_##name;                     \
+    /* If we are called before the constructor we have to look up */    \
     /* function for ourself. This happens once per process run. */      \
     if (!orig_fn) {                                                     \
       orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);         \

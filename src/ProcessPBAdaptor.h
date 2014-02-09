@@ -5,8 +5,7 @@
 #include "Process.h"
 #include "cxx_lang_utils.h"
 
-namespace firebuild 
-{
+namespace firebuild  {
   /**
    * Converts ProtoBuf messages from monitored processes to calls to Process
    * instances.
@@ -15,15 +14,15 @@ namespace firebuild
    * static functions which accept a Process reference and an incoming ProtoBuf
    * message for the process.
    */
-  class ProcessPBAdaptor
-{
+class ProcessPBAdaptor {
  public:
-  static int msg(Process &p, const msg::Open &o);
-  static int msg(Process &p, const msg::Close &c);
-  static int msg(Process &p, const msg::ChDir &c);
+  static int msg(Process *p, const msg::Open &o);
+  static int msg(Process *p, const msg::Close &c);
+  static int msg(Process *p, const msg::ChDir &c);
+
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
 };
 
-}
+}  // namespace firebuild
 #endif
