@@ -1,4 +1,5 @@
-/* Exported functions calling other functions directly without dlsym lookup tricks */
+/* Exported functions calling other functions directly without dlsym lookup
+ * tricks */
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -20,7 +21,8 @@ extern "C" {
   extern int execl##with_p##with_e(const char *path,  const char *arg, ...) \
   {                                                                     \
     va_list ap;                                                         \
-    const bool call_ = false, call_e = true; /* tricky consts, TRUE means we get and pass env */ \
+    /* tricky consts, TRUE means we get and pass env */                 \
+    const bool call_ = false, call_e = true;                            \
     unsigned int argc = 0, argc_size = 16;                              \
     char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*))); \
     va_start(ap, arg);                                                  \
@@ -46,7 +48,7 @@ extern "C" {
     } else {                                                            \
       ret = execv##with_p(path, argv);                                  \
     }                                                                   \
-    free (argv);                                                        \
+    free(argv);                                                         \
     return ret;                                                         \
   }                                                                     \
 
@@ -54,10 +56,10 @@ extern "C" {
 #pragma GCC visibility push(default)
 
 
-IC_EXECLXX ( , )
-IC_EXECLXX ( , e)
-IC_EXECLXX (p, )
-IC_EXECLXX (p, e)
+IC_EXECLXX(, )
+IC_EXECLXX(, e)
+IC_EXECLXX(p, )
+IC_EXECLXX(p, e)
 
 /**
  * vfork simply calling fork
@@ -65,24 +67,21 @@ IC_EXECLXX (p, e)
  * vfork interception would be a bit complicated to implement properly
  * and most of the programs will work properly with fork
  */
-extern pid_t vfork (void)
-{
+extern pid_t vfork(void) {
   return fork();
 }
 
 /**
  * creat calling equivalent open
  */
-extern int creat(const char *pathname, mode_t mode)
-{
+extern int creat(const char *pathname, mode_t mode) {
   return open(pathname, (O_CREAT|O_WRONLY|O_TRUNC), mode);
 }
 
 /**
  * creat64 calling equivalent open64
  */
-extern int creat64(const char *pathname, mode_t mode)
-{
+extern int creat64(const char *pathname, mode_t mode) {
   return open64(pathname, (O_CREAT|O_WRONLY|O_TRUNC), mode);
 }
 

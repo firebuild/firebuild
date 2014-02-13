@@ -4,7 +4,6 @@
 #include <mntent.h>
 #include <errno.h>
 #include <unistd.h>
-#include <iostream>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -158,7 +157,8 @@ IC2_ERR_VAL(void*, NULL)
 /* Intercept unlink */
 IC2_SIMPLE_1P(int, IC2_NO_RET, UnLink, unlink, const char *, path)
 /* Intercept unlinkat */
-IC2_SIMPLE_3P(int, IC2_NO_RET, UnLinkAt, unlinkat, int, dirfd, const char *, pathname, int, flags)
+IC2_SIMPLE_3P(int, IC2_NO_RET, UnLinkAt, unlinkat, int, dirfd,
+              const char *, pathname, int, flags)
 /* Intercept fchdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, FChDir, fchdir, const int, dir)
 /* Intercept fcloseall */
@@ -166,23 +166,30 @@ IC2_SIMPLE_0P(int, IC2_NO_RET, FCloseAll, fcloseall)
 /* Intercept rmdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, RmDir, rmdir, const char *, dir)
 /* Intercept chown */
-IC2_SIMPLE_3P(int, IC2_NO_RET, Chown, chown, const char *, path, uid_t, owner, gid_t, group)
+IC2_SIMPLE_3P(int, IC2_NO_RET, Chown, chown, const char *, path, uid_t, owner,
+              gid_t, group)
 /* Intercept fchown */
-IC2_SIMPLE_3P(int, IC2_NO_RET, FChown, fchown, int, fd, uid_t, owner, gid_t, group)
+IC2_SIMPLE_3P(int, IC2_NO_RET, FChown, fchown, int, fd, uid_t, owner,
+              gid_t, group)
 /* Intercept fchownat */
-IC2_SIMPLE_5P(int, IC2_NO_RET, FChownAt, fchownat, int, dirfd, const char *, path, uid_t,
-              owner, gid_t, group, int, flags)
+IC2_SIMPLE_5P(int, IC2_NO_RET, FChownAt, fchownat, int, dirfd,
+              const char *, path, uid_t, owner, gid_t, group, int, flags)
 /* Intercept lchown */
-IC2_SIMPLE_3P(int, IC2_NO_RET, LChown, lchown, const char *, path, uid_t, owner, gid_t, group)
+IC2_SIMPLE_3P(int, IC2_NO_RET, LChown, lchown, const char *, path, uid_t, owner,
+              gid_t, group)
 /* Intercept link */
-IC2_SIMPLE_2P(int, IC2_NO_RET, Link, link, const char *, oldpath, const char *, newpath)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Link, link, const char *, oldpath,
+              const char *, newpath)
 /* Intercept linkat */
-IC2_SIMPLE_5P(int, IC2_NO_RET, LinkAt, linkat, int, olddirfd, const char *, oldpath, int,
-              newdirfd, const char *, newpath, int, flags)
+IC2_SIMPLE_5P(int, IC2_NO_RET, LinkAt, linkat, int, olddirfd,
+              const char *, oldpath, int, newdirfd, const char *, newpath,
+              int, flags)
 /* Intercept symlink */
-IC2_SIMPLE_2P(int, IC2_NO_RET, Symlink, symlink, const char *, oldpath, const char *, newpath)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Symlink, symlink, const char *, oldpath,
+              const char *, newpath)
 /* Intercept symlinkat */
-IC2_SIMPLE_3P(int, IC2_NO_RET, SymlinkAt, symlinkat, const char *, oldpath, int, newdirfd, const char *, newpath)
+IC2_SIMPLE_3P(int, IC2_NO_RET, SymlinkAt, symlinkat, const char *, oldpath,
+              int, newdirfd, const char *, newpath)
 /* Intercept lockf (without offset)*/
 IC2_SIMPLE_2P(int, IC2_NO_RET, LockF, lockf, int, fd, int, cmd)
 /* Intercept fcntl with arg */
@@ -201,22 +208,23 @@ IC2_SIMPLE_1P(int, IC2_WITH_RET, Dup, dup, int, oldfd)
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Dup3, dup3, int, oldfd, int, newfd, int, flags)
 
 /* Intercept readlink */
-IC2_SIMPLE_2P(int, IC2_NO_RET, ReadLink, readlink, const char *, path, const char *, ret_path)
+IC2_SIMPLE_2P(int, IC2_NO_RET, ReadLink, readlink, const char *, path,
+              const char *, ret_path)
 /* Intercept readlinkat */
-IC2_SIMPLE_3P(int, IC2_NO_RET, ReadLinkAt, readlinkat, int, dirfd, const char *, path, const char *, ret_path)
+IC2_SIMPLE_3P(int, IC2_NO_RET, ReadLinkAt, readlinkat, int, dirfd,
+              const char *, path, const char *, ret_path)
 
 /** Frontend for intercept_readlink and intercept_readlinkat */
-static void
-intercept_readlink_helper(const int fd, const char *path, const char * const buf,
-                          const ssize_t len, const ssize_t ret)
-{
+static void intercept_readlink_helper(const int fd, const char *path,
+                                      const char * const buf,
+                                      const ssize_t len, const ssize_t ret) {
   char *ret_path;
   if ((ret >= 0) && (abs(ret) <= len)) {
     ret_path = strndup(buf, ret);
   } else {
     ret_path = strdup("");
   }
-  if (fd != -1 ) {
+  if (fd != -1) {
     intercept_readlink(path, ret_path, ret);
   } else {
     intercept_readlinkat(fd, path, ret_path, ret);
@@ -227,28 +235,34 @@ intercept_readlink_helper(const int fd, const char *path, const char * const buf
 /* Intercept remove */
 IC2_SIMPLE_1P(int, IC2_NO_RET, Remove, remove, const char *, filename)
 /* Intercept rename */
-IC2_SIMPLE_2P(int, IC2_NO_RET, Rename, rename, const char *, oldpath, const char *, newpath)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Rename, rename, const char *, oldpath,
+              const char *, newpath)
 /* Intercept renameat */
-IC2_SIMPLE_4P(int, IC2_NO_RET, RenameAt, renameat, int, oldfd, const char *, oldpath, int, newfd, const char *, newpath)
+IC2_SIMPLE_4P(int, IC2_NO_RET, RenameAt, renameat, int, oldfd,
+              const char *, oldpath, int, newfd, const char *, newpath)
 
 /* Intercept access */
-IC2_SIMPLE_2P(int, IC2_NO_RET, Access, access, const char *, pathname, int, mode)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Access, access, const char *, pathname,
+              int, mode)
 /* Intercept eaccess */
-IC2_SIMPLE_2P(int, IC2_NO_RET, EAccess, eaccess, const char *, pathname, int, mode)
+IC2_SIMPLE_2P(int, IC2_NO_RET, EAccess, eaccess, const char *, pathname,
+              int, mode)
 /* Intercept faccessat */
-IC2_SIMPLE_4P(int, IC2_NO_RET, FAccessAt, faccessat, int, dirfd, const char *, pathname, int, mode, int, flags)
+IC2_SIMPLE_4P(int, IC2_NO_RET, FAccessAt, faccessat, int, dirfd,
+              const char *, pathname, int, mode, int, flags)
 /* Intercept (l)utime(s) */
-IC2_SIMPLE_3P(int, IC2_NO_RET, UTime, utime, int, at, const char *, file, bool, link)
+IC2_SIMPLE_3P(int, IC2_NO_RET, UTime, utime, int, at, const char *, file,
+              bool, link)
 /* Intercept futimes */
 IC2_SIMPLE_1P(int, IC2_NO_RET, FUTime, futime, int, fd)
 
 /* Intercept dlopen */
-IC2_SIMPLE_2P(void*, IC2_NO_RET, DLOpen, dlopen, const char *, filename, int, flag)
+IC2_SIMPLE_2P(void*, IC2_NO_RET, DLOpen, dlopen, const char *, filename,
+              int, flag)
 
 /* Intercept pipe variants */
-static void
-intercept_pipe2 (const int pipefd[2], const int flags, const int ret)
-{
+static void intercept_pipe2(const int pipefd[2], const int flags,
+                            const int ret) {
   msg::InterceptorMsg ic_msg;
   int saved_errno = errno;
 
@@ -265,10 +279,9 @@ intercept_pipe2 (const int pipefd[2], const int flags, const int ret)
 }
 
 
-static void
-intercept_execve (const bool with_p, const char * const file, const int fd,
-                  const char *const argv[], const char *const envp[])
-{
+static void intercept_execve(const bool with_p, const char * const file,
+                             const int fd, const char *const argv[],
+                             const char *const envp[]) {
   msg::InterceptorMsg ic_msg;
   msg::SupervisorMsg sv_msg;
   struct rusage ru;
@@ -288,7 +301,7 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
   for (int i = 0; envp[i] != NULL; i++) {
     m->add_env(envp[i]);
   }
-  if (fd == -1){
+  if (fd == -1) {
     char * tmp_path;
     if ((tmp_path = getenv("PATH"))) {
       m->set_path(tmp_path);
@@ -296,8 +309,8 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
       /* we have to fall back as described in man execvp */
       char cwd_buf[CWD_BUFSIZE];
       size_t n = ic_orig_confstr(_CS_PATH, NULL, 0);
-      char *cs_path = new char [n];
-      assert (cs_path != NULL);
+      char *cs_path = new char[n];
+      assert(cs_path != NULL);
       ic_orig_confstr(_CS_PATH, cs_path, n);
       ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
       n = snprintf(NULL, 0, "%s:%s", cwd_buf, cs_path);
@@ -327,37 +340,44 @@ intercept_execve (const bool with_p, const char * const file, const int fd,
 /* Intercept failed (f)execv*() */
 IC2_SIMPLE_1P(int, IC2_NO_RET, ExecVFailed, execvfailed, int, pid)
 
-static void intercept_execvfailed2(int pid, int ret)
-{
+static void intercept_execvfailed2(int pid, int ret) {
   fb_exec_called = false;
   intercept_execvfailed(pid, ret);
 }
 
 /* Intercept gethostname */
-IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name, size_t, len)
+IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name,
+              size_t, len)
 /* Intercept getdomainname */
-IC2_SIMPLE_2P(int, IC2_NO_RET, GetDomainname, getdomainname, const char *, name, size_t, len)
+IC2_SIMPLE_2P(int, IC2_NO_RET, GetDomainname, getdomainname, const char *, name,
+              size_t, len)
 /* Intercept truncate(64) */
-IC2_SIMPLE_2P(int, IC2_NO_RET, Truncate, truncate, const char *, path, off64_t, len)
+IC2_SIMPLE_2P(int, IC2_NO_RET, Truncate, truncate, const char *, path,
+              off64_t, len)
 /* Intercept ftruncate(64) */
 IC2_SIMPLE_2P(int, IC2_NO_RET, FTruncate, ftruncate, int, fd, off64_t, len)
 /* Intercept pathconf */
-IC2_SIMPLE_2P(long, IC2_WITH_RET, PathConf, pathconf, const char *, path, int, name)
+IC2_SIMPLE_2P(long, IC2_WITH_RET, PathConf, pathconf, const char *, path,
+              int, name)
 /* Intercept fpathconf */
 IC2_SIMPLE_2P(long, IC2_WITH_RET, FPathConf, fpathconf, int, fd, int, name)
 /* Intercept fopen */
-IC2_SIMPLE_2P(int, IC2_WITH_RET, FOpen, fopen, const char *, filename, const char *, modes)
+IC2_SIMPLE_2P(int, IC2_WITH_RET, FOpen, fopen, const char *, filename,
+              const char *, modes)
 /* Intercept freopen */
-IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename, const char *, modes, int, fd)
+IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename,
+              const char *, modes, int, fd)
 
 // macro generated interceptor functions below require ACK from supervisor
 #undef IC2_WAIT_ACK
 #define IC2_WAIT_ACK true
 
 /* Intercept open variants */
-IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode)
+IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file,
+              const int, flags, const int, mode)
 /* Intercept open variants creating the file*/
-IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file, const int, flags, const int, mode, bool, created)
+IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file,
+              const int, flags, const int, mode, bool, created)
 /* Intercept close */
 IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept opendir */
@@ -370,9 +390,7 @@ IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 #undef IC2_WAIT_ACK
 
 
-static void
-intercept_read (const int fd, const ssize_t ret)
-{
+static void intercept_read(const int fd, const ssize_t ret) {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
     fd_states->at(fd);
@@ -398,9 +416,7 @@ intercept_read (const int fd, const ssize_t ret)
 }
 
 
-static void
-intercept_write (const int fd, const ssize_t ret)
-{
+static void intercept_write(const int fd, const ssize_t ret) {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
     fd_states->at(fd);
@@ -425,8 +441,7 @@ intercept_write (const int fd, const ssize_t ret)
   pthread_mutex_unlock(&ic_fd_states_lock);
 }
 
-static void
-clear_file_state(const int fd) {
+static void clear_file_state(const int fd) {
   if (fd >= 0) {
     pthread_mutex_lock(&ic_fd_states_lock);
     try {
@@ -440,8 +455,7 @@ clear_file_state(const int fd) {
   }
 }
 
-static void
-copy_file_state(const int to_fd, const int from_fd) {
+static void copy_file_state(const int to_fd, const int from_fd) {
   if ((to_fd >= 0) && (from_fd >= 0)) {
     pthread_mutex_lock(&ic_fd_states_lock);
     try {
@@ -455,9 +469,7 @@ copy_file_state(const int to_fd, const int from_fd) {
 }
 
 
-static void
-intercept_exit (const int status)
-{
+static void intercept_exit(const int status) {
   handle_exit(status, NULL);
 
   // exit handlers may call intercepted functions
@@ -466,9 +478,7 @@ intercept_exit (const int status)
 }
 
 /* make intercepted functions visible */
-static pid_t
-intercept_fork (const pid_t ret)
-{
+static pid_t intercept_fork(const pid_t ret) {
   msg::InterceptorMsg ic_msg;
   pid_t pid;
 
@@ -508,9 +518,8 @@ intercept_fork (const pid_t ret)
  * it has not been sent already. Most of the time this part of the code will not
  * run thanks to programs exit()-ing from main.
  */
-extern int firebuild_fake_main(int argc, char **argv, char **env)
-{
-  int (*orig_main) (int, char**, char**);
+extern int firebuild_fake_main(int argc, char **argv, char **env) {
+  int (*orig_main)(int, char**, char**);
   memcpy(&orig_main, &argv[0], sizeof(argv[0]));
       char ** orig_argv;
   memcpy(&orig_argv, &argv[1], sizeof(argv[1]));
@@ -534,4 +543,4 @@ extern "C" {
 
 #pragma GCC visibility pop
 
-} //namespace firebuild
+}  // namespace firebuild

@@ -37,14 +37,13 @@ static int child_pid, child_ret = 1;
 static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
-static char *report_file = (char*)"firebuild-build-report.html";
+static char *report_file = const_cast<char*>("firebuild-build-report.html");
 static firebuild::ProcessTree *proc_tree;
 
 /** global configuration */
 libconfig::Config * cfg;
 
-static void usage()
-{
+static void usage() {
   printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
          "Execute BUILD COMMAND with FireBuild™ instrumentation\n"
          "\n"
@@ -65,14 +64,15 @@ static void usage()
 }
 
 /** Parse configuration file */
-static void
-parse_cfg_file(const char * const custom_cfg_file)
-{
+static void parse_cfg_file(const char * const custom_cfg_file) {
   const char * cfg_file = custom_cfg_file;
   if (cfg_file == NULL) {
     char * homedir = getenv("HOME");
     int cfg_fd;
-    if ((homedir != NULL ) && (-1 != (cfg_fd = open(std::string(homedir + std::string("/.firebuildrc")).c_str(), O_RDONLY)))) {
+    if ((homedir != NULL ) &&
+        (-1 != (cfg_fd = open(std::string(homedir +
+                                          std::string("/.firebuildrc")).c_str(),
+                              O_RDONLY)))) {
       // fall back to private config file
       cfg_file = std::string(homedir + std::string("/.firebuildrc")).c_str();
       close(cfg_fd);
@@ -85,21 +85,18 @@ parse_cfg_file(const char * const custom_cfg_file)
       }
     }
   }
-  try
-    {
-      cfg->readFile(cfg_file);
-    }
-  catch(const libconfig::FileIOException &fioex)
-    {
-      std::cerr << "Could not read configuration file " << cfg_file << std::endl;
-      exit(EXIT_FAILURE);
-    }
-  catch(const libconfig::ParseException &pex)
-    {
-      std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-                << " - " << pex.getError() << std::endl;
-      exit(EXIT_FAILURE);
-    }
+  try {
+    cfg->readFile(cfg_file);
+  }
+  catch(const libconfig::FileIOException &fioex) {
+    std::cerr << "Could not read configuration file " << cfg_file << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  catch(const libconfig::ParseException &pex) {
+    std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+              << " - " << pex.getError() << std::endl;
+    exit(EXIT_FAILURE);
+  }
 }
 
 /**
@@ -108,8 +105,7 @@ parse_cfg_file(const char * const custom_cfg_file)
  *
  * TODO: detect duplicates
  */
-static char** get_sanitized_env()
-{
+static char** get_sanitized_env() {
   const libconfig::Setting& root = cfg->getRoot();
 
   FB_DEBUG(1, "Passing through environment variables:");
@@ -119,7 +115,9 @@ static char** get_sanitized_env()
   for (int i = 0; i < pass_through.getLength(); i++) {
     char * got_env = getenv(pass_through[i].c_str());
     if (NULL  != got_env) {
-      env_v.push_back(pass_through[i].c_str() + std::string("=") + std::string(got_env));
+      env_v.push_back(pass_through[i].c_str() +
+                      std::string("=") +
+                      std::string(got_env));
       FB_DEBUG(1, " " + env_v.back());
     }
   }
@@ -140,7 +138,8 @@ static char** get_sanitized_env()
     env_v.push_back("FB_INSERT_TRACE_MARKERS=1");
   }
 
-  char ** ret_env = static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
+  char ** ret_env =
+      static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
 
   auto it = env_v.begin();
   int i = 0;
@@ -159,16 +158,14 @@ static char** get_sanitized_env()
  *
  * It send a 0 to the special file descriptor select is listening on, too.
  */
-static void
-sigchld_handler (const int /*sig */)
-{
+static void sigchld_handler(const int /*sig */) {
   char buf[] = {0};
   int status = 0;
 
   waitpid(child_pid, &status, WNOHANG);
   if (WIFEXITED(status)) {
     child_ret = WEXITSTATUS(status);
-    setvbuf(fdopen(sigchld_fds[1],"w"), NULL, _IONBF, 0);
+    setvbuf(fdopen(sigchld_fds[1], "w"), NULL, _IONBF, 0);
     write(sigchld_fds[1], buf, sizeof(buf));
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "Child process has been killed by signal %d",
@@ -180,9 +177,7 @@ sigchld_handler (const int /*sig */)
 /**
  * Initialize signal handlers
  */
-static void
-init_signal_handlers(void)
-{
+static void init_signal_handlers(void) {
   struct sigaction sa;
 
   sa.sa_handler = sigchld_handler;
@@ -201,9 +196,7 @@ init_signal_handlers(void)
  * ACK a message from the supervised process
  * @param conn connection file descriptor to send the ACK on
  */
-void
-ack_msg (const int conn, const int ack_num)
-{
+void ack_msg(const int conn, const int ack_num) {
   firebuild::msg::SupervisorMsg sv_msg;
   sv_msg.set_ack_num(ack_num);
   FB_DEBUG(4, "sending ACK no. " + std::to_string(ack_num));
@@ -216,7 +209,8 @@ ack_msg (const int conn, const int ack_num)
  * @param fb_conn file desctiptor of the connection
  * @return fd_conn can be kept open
  */
-bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn) {
+bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
+                 const int fd_conn) {
   bool ret = true;
   if (ic_msg.has_scproc_query()) {
     firebuild::msg::SupervisorMsg sv_msg;
@@ -300,12 +294,11 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg, const int fd_conn
  * @param in_fd file desctiptor to read content from
  * @return bytes written, -1 on error
  */
-inline ssize_t sendfile_full(int out_fd, int in_fd)
-{
+inline ssize_t sendfile_full(int out_fd, int in_fd) {
   char buf[4096];
   ssize_t nread, ret = 0;
 
-  while (nread = read(in_fd, buf, sizeof buf), nread > 0){
+  while (nread = read(in_fd, buf, sizeof buf), nread > 0) {
     char *out_ptr = buf;
     ssize_t nwritten;
 
@@ -331,7 +324,8 @@ inline ssize_t sendfile_full(int out_fd, int in_fd)
  * @param datadir report template's location
  * TODO error handling
  */
-static void write_report(const std::string &html_filename, const std::string &datadir){
+static void write_report(const std::string &html_filename,
+                         const std::string &datadir) {
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
   const char d3_filename[] = "d3.v3.min.js";
@@ -342,7 +336,8 @@ static void write_report(const std::string &html_filename, const std::string &da
   int d3 = open((datadir + "/" + d3_filename).c_str(), O_RDONLY);
   if (-1 == d3) {
     perror("open");
-    firebuild::fb_error("Opening file " + (datadir + "/" + d3_filename) + " failed.");
+    firebuild::fb_error("Opening file " + (datadir + "/" + d3_filename) +
+                        " failed.");
     firebuild::fb_error("Can not write build report.");
     return;
   }
@@ -350,14 +345,15 @@ static void write_report(const std::string &html_filename, const std::string &da
   FILE* src_file = fopen((datadir + "/" + html_orig_filename).c_str(), "r");
   if (NULL == src_file) {
     perror("fopen");
-    firebuild::fb_error("Opening file " + (datadir + "/" + html_orig_filename) + " failed.");
+    firebuild::fb_error("Opening file " + (datadir + "/" + html_orig_filename) +
+                        " failed.");
     firebuild::fb_error("Can not write build report.");
     return;
   }
 
-  // dirname may modify its parameter thus we provide a writable char std::string
-  char *html_filename_tmp = new char [html_filename.size() + 1] ;
-  strcpy(html_filename_tmp, html_filename.c_str());
+  // dirname may modify its parameter thus we provide a writable char string
+  char *html_filename_tmp = new char[html_filename.size() + 1];
+  strncpy(html_filename_tmp, html_filename.c_str(), sizeof(html_filename_tmp));
   std::string dir = dirname(html_filename_tmp);
   delete[] html_filename_tmp;
 
@@ -407,7 +403,7 @@ static void write_report(const std::string &html_filename, const std::string &da
       fsync(fileno(dst_file));
       close(svg);
     } else {
-      fprintf(dst_file, "%s",line);
+      fprintf(dst_file, "%s", line);
     }
     free(line);
   }
@@ -416,10 +412,9 @@ static void write_report(const std::string &html_filename, const std::string &da
   fclose(dst_file);
 }
 
-} // namespace
+}  // namespace
 
 int main(const int argc, char *argv[]) {
-
   char *config_file = NULL;
   int i, c;
 
@@ -433,12 +428,12 @@ int main(const int argc, char *argv[]) {
   while (1) {
     int option_index = 0;
     static struct option long_options[] = {
-      {"config-file",  required_argument, 0,  'c' },
-      {"debug-level",  required_argument, 0,  'd' },
-      {"generate-report",  optional_argument, 0,  'r' },
-      {"help",         no_argument,       0,  'h' },
-      {"insert-trace-markers", no_argument, 0,'i' },
-      {0,         0,                 0,  0 }
+      {"config-file",          required_argument, 0, 'c' },
+      {"debug-level",          required_argument, 0, 'd' },
+      {"generate-report",      optional_argument, 0, 'r' },
+      {"help",                 no_argument,       0, 'h' },
+      {"insert-trace-markers", no_argument,       0, 'i' },
+      {0,                                0,       0,  0  }
     };
 
     c = getopt_long(argc, argv, "c:d:r::hi",
@@ -561,18 +556,19 @@ int main(const int argc, char *argv[]) {
       FD_ZERO(&master);    // clear the master and temp sets
       FD_ZERO(&read_fds);
 
-      // add the listener and and fd listening for child's deeath to the master set
+      // add the listener and and fd listening for child's deeath to the
+      // master set
       FD_SET(listener, &master);
       FD_SET(sigchld_fds[0], &master);
 
       // keep track of the biggest file descriptor
-      fdmax = listener; // so far, it's this one
+      fdmax = listener;  // so far, it's this one
       // main loop for processing interceptor messages
-      for(;;) {
+      for (;;) {
         if (child_exited) {
           break;
         }
-        read_fds = master; // copy it
+        read_fds = master;  // copy it
         if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
           if (errno != EINTR) {
             perror("select");
@@ -582,9 +578,9 @@ int main(const int argc, char *argv[]) {
           }
         }
 
-        for(i = 0; i <= fdmax; i++) {
-          if (FD_ISSET(i, &read_fds)) { // we got one!!
-            //fd_handled = true;
+        for (i = 0; i <= fdmax; i++) {
+          if (FD_ISSET(i, &read_fds)) {  // we got one!!
+            // fd_handled = true;
             if (i == listener) {
               // handle new connections
               struct sockaddr_un remote;
@@ -603,11 +599,12 @@ int main(const int argc, char *argv[]) {
                 if (euid != creds.uid) {
                   // someone else started using the socket
                   fprintf(stderr,
-                          "Unauthorized connection from pid %d, uid %d, gid %d\n",
+                          "Unauthorized connection from pid %d, uid %d, gid %d"
+                          "\n",
                           creds.pid, creds.uid, creds.gid);
                   close(newfd);
                 } else {
-                  FD_SET(newfd, &master); // add to master set
+                  FD_SET(newfd, &master);  // add to master set
                   if (newfd > fdmax) {    // keep track of the max
                     fdmax = newfd;
                   }
@@ -633,8 +630,8 @@ int main(const int argc, char *argv[]) {
                 } else {
                   perror("recv");
                 }
-                close(i); // bye!
-                FD_CLR(i, &master); // remove from master set
+                close(i);  // bye!
+                FD_CLR(i, &master);  // remove from master set
               } else {
                 if (firebuild::debug_level >= 2) {
                   FB_DEBUG(2, "fd " + std::to_string(i) + std::string(": "));
@@ -643,8 +640,8 @@ int main(const int argc, char *argv[]) {
                 }
                 if (!proc_ic_msg(ic_msg, i)) {
                   fsync(i);
-                  close(i); // bye!
-                  FD_CLR(i, &master); // remove from master set
+                  close(i);  // bye!
+                  FD_CLR(i, &master);  // remove from master set
                 }
               }
             }
@@ -655,7 +652,8 @@ int main(const int argc, char *argv[]) {
   }
 
   if (!proc_tree->root()) {
-    std::cerr << "ERROR: Could not collect any information about the build process" << std::endl;
+    fprintf(stderr, "ERROR: Could not collect any information about the build "
+            "process\n");
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree
@@ -691,29 +689,25 @@ int main(const int argc, char *argv[]) {
 namespace firebuild {
 
 /** wrapper for write() retrying on recoverable errors*/
-ssize_t fb_write_buf(const int fd, const void * buf, const size_t count)
-{
+ssize_t fb_write_buf(const int fd, const void * buf, const size_t count) {
   FB_IO_OP_BUF(send, fd, buf, count, MSG_NOSIGNAL, {});
 }
 
 /** wrapper for read() retrying on recoverable errors*/
-ssize_t fb_read_buf(const int fd, void *buf, const size_t count)
-{
+ssize_t fb_read_buf(const int fd, void *buf, const size_t count) {
   FB_IO_OP_BUF(recv, fd, buf, count, 0, {});
 }
 
 /** Print error message */
-extern void fb_error(const std::string &msg)
-{
+extern void fb_error(const std::string &msg) {
   std::cerr << "FireBuild error: " << msg << std::endl;
 }
 
 /** Print debug message if debug level is at least lvl */
-extern void fb_debug(const std::string &msg)
-{
+extern void fb_debug(const std::string &msg) {
   std::cerr << msg << std::endl;
 }
 
 int debug_level = 0;
 
-} // namespace firebuild
+}  // namespace firebuild

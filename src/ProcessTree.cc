@@ -10,7 +10,6 @@
 #include "Debug.h"
 
 namespace firebuild {
-  
 
 /**
  * Escape std::string for JavaScript
@@ -35,23 +34,20 @@ static std::string escapeJsonString(const std::string& input) {
   return ss.str();
 }
 
-ProcessTree::~ProcessTree()
-{
+ProcessTree::~ProcessTree() {
   // clean up all processes
   for (auto it = fb_pid2proc_.begin(); it != fb_pid2proc_.end(); ++it) {
     delete(it->second);
   }
 }
 
-void ProcessTree::insert (Process *p, const int sock)
-{
+void ProcessTree::insert(Process *p, const int sock) {
   sock2proc_[sock] = p;
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
 }
 
-void ProcessTree::insert (ExecedProcess *p, const int sock)
-{
+void ProcessTree::insert(ExecedProcess *p, const int sock) {
   if (root_ == NULL) {
     root_ = p;
   } else {
@@ -71,9 +67,7 @@ void ProcessTree::insert (ExecedProcess *p, const int sock)
   this->insert(dynamic_cast<Process*>(p), sock);
 }
 
-void ProcessTree::insert (ForkedProcess *p, const int sock)
-{
-
+void ProcessTree::insert(ForkedProcess *p, const int sock) {
   // add as fork child of parent
   if (p->fork_parent()) {
     p->fork_parent()->children().push_back(p);
@@ -82,15 +76,13 @@ void ProcessTree::insert (ForkedProcess *p, const int sock)
   this->insert(dynamic_cast<Process*>(p), sock);
 }
 
-void ProcessTree::exit (Process *p, const int sock)
-{
+void ProcessTree::exit(Process *p, const int sock) {
   (void)p;
   // TODO maybe this is not needed
   sock2proc_.erase(sock);
 }
 
-long int ProcessTree::sum_rusage_recurse(Process *p)
-{
+long int ProcessTree::sum_rusage_recurse(Process *p) {
   long int aggr_time = p->utime_m() + p->stime_m();
   if (p->type() == FB_PROC_EXEC_STARTED) {
     auto e = dynamic_cast<ExecedProcess*>(p);
@@ -119,16 +111,16 @@ long int ProcessTree::sum_rusage_recurse(Process *p)
   return aggr_time;
 }
 
-void ProcessTree::export2js_recurse(const Process &p, const unsigned int level, FILE* stream, unsigned int *nodeid)
-{
+void ProcessTree::export2js_recurse(const Process &p, const unsigned int level,
+                                    FILE* stream, unsigned int *nodeid) {
   if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level > 0) {
-      fprintf(stream,"\n");
+      fprintf(stream, "\n");
     }
-    fprintf(stream,"%s{", std::string(2 * level, ' ').c_str());
+    fprintf(stream, "%s{", std::string(2 * level, ' ').c_str());
 
     export2js((ExecedProcess&)p, level, stream, nodeid);
-    fprintf(stream,"%s children: [", std::string(2 * level, ' ').c_str());
+    fprintf(stream, "%s children: [", std::string(2 * level, ' ').c_str());
   }
   if (p.exec_child() != NULL) {
     export2js_recurse(*p.exec_child(), level + 1, stream, nodeid);
@@ -138,22 +130,21 @@ void ProcessTree::export2js_recurse(const Process &p, const unsigned int level, 
   }
   if (p.type() == FB_PROC_EXEC_STARTED) {
     if (level == 0) {
-      fprintf(stream,"]};\n");
+      fprintf(stream, "]};\n");
     } else {
-      fprintf(stream,"]},\n");
+      fprintf(stream, "]},\n");
     }
   }
 }
 
-void ProcessTree::export2js(FILE * stream)
-{
+void ProcessTree::export2js(FILE * stream) {
   fprintf(stream, "root = ");
   unsigned int nodeid = 0;
   export2js_recurse(*root_, 0, stream, &nodeid);
 }
 
-void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level, FILE* stream, unsigned int * nodeid)
-{
+void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level,
+                            FILE* stream, unsigned int * nodeid) {
   // TODO: escape all strings properly
   auto indent_str = std::string(2 * level, ' ');
   const char* indent = indent_str.c_str();
@@ -202,7 +193,8 @@ void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level, FI
   }
 
   fprintf(stream, "%s fcreated: [", indent);
-  for (auto it = ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
+  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
+       ++it) {
     if (it->second->created()) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
     }
@@ -211,15 +203,18 @@ void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level, FI
 
   // TODO replace write/read flag checks with more accurate tests
   fprintf(stream, "%s fmodified: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
-    if ((!it->second->created()) && (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
+  for (auto it =ordered_file_usages.begin(); it != ordered_file_usages.end();
+       ++it) {
+    if ((!it->second->created()) &&
+        (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fread: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
+  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end();
+       ++it) {
     if (it->second->open_flags() & (O_RDONLY | O_RDWR)) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
     }
@@ -227,7 +222,8 @@ void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level, FI
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fnotf: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end(); ++it) {
+  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end();
+       ++it) {
     if (it->second->open_failed()) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
     }
@@ -255,10 +251,9 @@ void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level, FI
 
 void ProcessTree::profile_collect_cmds(const Process &p,
                                        std::unordered_map<std::string, subcmd_prof> *cmds,
-                                       std::set<std::string> *ancestors)
-{
+                                       std::set<std::string> *ancestors) {
   if (p.exec_child() != NULL) {
-    ExecedProcess *ec = (ExecedProcess*)(p.exec_child());
+    ExecedProcess *ec = dynamic_cast<ExecedProcess*>(p.exec_child());
     if (0 == ancestors->count(ec->args()[0])) {
       (*cmds)[ec->args()[0]].sum_aggr_time += p.exec_child()->aggr_time();
     } else {
@@ -271,14 +266,13 @@ void ProcessTree::profile_collect_cmds(const Process &p,
   for (unsigned int i = 0; i < p.children().size(); i++) {
     profile_collect_cmds(*p.children()[i], cmds, ancestors);
   }
-
 }
 
-void ProcessTree::build_profile(const Process &p, std::set<std::string> *ancestors)
-{
+void ProcessTree::build_profile(const Process &p,
+                                std::set<std::string> *ancestors) {
   bool first_visited = false;
   if (p.type() == FB_PROC_EXEC_STARTED) {
-    ExecedProcess *e = (ExecedProcess*)&p;
+    auto *e = dynamic_cast<const ExecedProcess*>(&p);
     auto &cmd_prof = cmd_profs_[e->args()[0]];
     if (0 == ancestors->count(e->args()[0])) {
       cmd_prof.aggr_time += e->aggr_time();
@@ -296,7 +290,7 @@ void ProcessTree::build_profile(const Process &p, std::set<std::string> *ancesto
   }
 
   if (first_visited) {
-    ancestors->erase(((ExecedProcess*)&p)->args()[0]);
+    ancestors->erase(dynamic_cast<const ExecedProcess*>(&p)->args()[0]);
   }
 }
 
@@ -307,8 +301,7 @@ void ProcessTree::build_profile(const Process &p, std::set<std::string> *ancesto
  * From http://ariya.blogspot.hu/2008/07/converting-between-hsl-and-hsv.html
  */
 static void hsl_to_hsv(const double hh, const double ss, const double ll,
-                       double *const h, double * const s, double * const v)
-{
+                       double *const h, double * const s, double * const v) {
   double ss_tmp;
   *h = hh;
   ss_tmp = ss * ((ll <= 0.5) ? ll : 1 - ll);
@@ -321,8 +314,8 @@ static void hsl_to_hsv(const double hh, const double ss, const double ll,
  * @param r 0.0 .. 1.0
  */
 static std::string pct_to_hsv_str(const double p) {
-  const double hsl_min[] = {2.0/3.0, 0.80, 0.25}; // blue
-  const double hsl_max[] = {0.0, 1.0, 0.5}; // red
+  const double hsl_min[] = {2.0/3.0, 0.80, 0.25};  // blue
+  const double hsl_max[] = {0.0, 1.0, 0.5};        // red
   const double r = p / 100;
   double hsl[3];
   double hsv[3];
@@ -332,18 +325,17 @@ static std::string pct_to_hsv_str(const double p) {
   hsl[2] = hsl_min[2] + r * (hsl_max[2] - hsl_min[2]);
   hsl_to_hsv(hsl[0], hsl[1], hsl[2], &(hsv[0]), &(hsv[1]), &(hsv[2]));
 
-  return std::to_string(hsv[0]) + ", " + std::to_string(hsv[1]) + ", " + std::to_string(hsv[2]);
+  return (std::to_string(hsv[0]) + ", " + std::to_string(hsv[1]) + ", " +
+          std::to_string(hsv[2]));
 }
 
-static double percent_of (const double val, const double of)
-{
+static double percent_of(const double val, const double of) {
   return (((of < std::numeric_limits<double>::epsilon()) &&
            (of > -std::numeric_limits<double>::epsilon()))?(0.0):
           (round(val * 100 / of)));
 }
 
-void ProcessTree::export_profile2dot(FILE* stream)
-{
+void ProcessTree::export_profile2dot(FILE* stream) {
   std::set<std::string> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
   long int build_time;
@@ -354,8 +346,9 @@ void ProcessTree::export_profile2dot(FILE* stream)
 
   // print it
   fprintf(stream, "digraph {\n");
-  fprintf(stream, "graph [dpi=63, ranksep=0.25, rankdir=LR, bgcolor=transparent,"
-          " fontname=Helvetica, fontsize=12, nodesep=0.125];\n"
+  fprintf(stream, "graph [dpi=63, ranksep=0.25, rankdir=LR, "
+          "bgcolor=transparent, fontname=Helvetica, fontsize=12, "
+          "nodesep=0.125];\n"
           "node [fontname=Helvetica, fontsize=12, style=filled, height=0,"
           " width=0, shape=box, fontcolor=white];\n"
           "edge [fontname=Helvetica, fontsize=12]\n");
@@ -389,5 +382,5 @@ void ProcessTree::export_profile2dot(FILE* stream)
 
   fprintf(stream, "}\n");
 }
-}
 
+}  // namespace firebuild

@@ -51,7 +51,8 @@ class Process {
   std::string& wd() {return wd_;}
   void set_wd(const std::string &d);
   virtual std::set<std::string>& libs() = 0;
-  virtual const std::unordered_map<std::string, FileUsage*>& file_usages() const = 0;
+  virtual const std::unordered_map<std::string, FileUsage*>&
+      file_usages() const = 0;
   virtual std::unordered_map<std::string, FileUsage*>& file_usages() = 0;
   long int utime_m() const {return utime_m_;}
   void set_utime_m(long int t) {utime_m_ = t;}

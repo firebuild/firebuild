@@ -8,16 +8,15 @@
 
 #include <Debug.h>
 
-static const int hash_bufsize = 4096;
+static const int kHashBufsize = 4096;
 
-namespace firebuild 
-{
+namespace firebuild  {
 
 int SHA256Hash::update(const std::string &from_path) {
   int fd;
 
   fd = open(from_path.c_str(), O_RDONLY);
-  if(-1 == fd) {
+  if (-1 == fd) {
     if (debug_level >= 3) {
       FB_DEBUG(3, "File " + from_path);
       perror("open");
@@ -38,11 +37,11 @@ int SHA256Hash::update(const std::string &from_path) {
     return -1;
   }
 
-  char buf[hash_bufsize];
+  char buf[kHashBufsize];
   ssize_t bytes_read;
   SHA256_CTX sha256;
   SHA256_Init(&sha256);
-  while (0 != (bytes_read = read(fd, buf, hash_bufsize))){
+  while (0 != (bytes_read = read(fd, buf, kHashBufsize))) {
       if (-1 == bytes_read) {
         if (errno == EINTR) {
           continue;
@@ -59,4 +58,4 @@ int SHA256Hash::update(const std::string &from_path) {
   return true;
 }
 
-}
+}  // namespace firebuild

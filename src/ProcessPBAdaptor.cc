@@ -23,4 +23,4 @@ int ProcessPBAdaptor::msg(Process *p, const msg::ChDir &c) {
   return 0;
 }
 
-}
+}  // namespace firebuild

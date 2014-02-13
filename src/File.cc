@@ -8,12 +8,12 @@
 
 namespace firebuild {
 
-File::File (const std::string &p)
+File::File(const std::string &p)
     :mtimes_(), path_(p), exists_(false), hash_() {
 }
 
 
-int File::update_hash () {
+int File::update_hash() {
   return hash_.update(path_);
 }
 
@@ -50,7 +50,7 @@ int File::update() {
         mtimes_.resize(i+1);
       }
       mtimes_[i] = s.st_mtim;
-      if ((0 == strcmp(".", dir)) || (0 == strcmp("/",dir))) {
+      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir))) {
         break;
       } else {
         char * next_path = strdup(dir);
@@ -66,13 +66,12 @@ int File::update() {
 }
 
 #ifndef timespeccmp
-#define timespeccmp(a, b, CMP)                  \
-  (((a)->tv_sec == (b)->tv_sec) ?               \
-   ((a)->tv_nsec CMP (b)->tv_nsec) :            \
-   ((a)->tv_sec CMP (b)->tv_sec))
+#define timespeccmp(a, b, CMP)                                          \
+  (((a)->tv_sec == (b)->tv_sec)?((a)->tv_nsec CMP(b)->tv_nsec):         \
+   ((a)->tv_sec CMP(b)->tv_sec))
 #endif
 
-int File::is_changed () {
+int File::is_changed() {
   int i = 0;
   char *tmp_path = strdup(path_.c_str());
   struct stat s;
@@ -101,7 +100,7 @@ int File::is_changed () {
         free(tmp_path);
         return 1;
       }
-      if ((0 == strcmp(".", dir)) || (0 == strcmp("/",dir))) {
+      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir))) {
         break;
       } else {
         char * next_path = strdup(dir);
@@ -116,4 +115,4 @@ int File::is_changed () {
   return 0;
 }
 
-}
+}  // namespace firebuild

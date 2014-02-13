@@ -23,7 +23,7 @@ namespace firebuild {
 extern "C" {
 #endif
 
-static void fb_ic_cleanup() __attribute__ ((destructor));
+static void fb_ic_cleanup() __attribute__((destructor));
 
 #ifdef  __cplusplus
 }
@@ -42,7 +42,7 @@ pthread_mutex_t ic_fd_states_lock;
 #undef IC_VOID
 /* create ic_orig_... version of intercepted function */
 #define IC_VOID(ret_type, name, parameters, _body)  \
-  ret_type (*ic_orig_##name) parameters = NULL;
+  ret_type(*ic_orig_##name) parameters = NULL;
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
@@ -89,8 +89,7 @@ static bool insert_trace_markers = false;
 static int ack_id = 0;
 
 /** Insert interception begin marker */
-void insert_begin_marker(const std::string &m)
-{
+void insert_begin_marker(const std::string &m) {
   if (insert_trace_markers) {
     int saved_errno = errno;
     if (ic_orig_open) {
@@ -105,8 +104,7 @@ void insert_begin_marker(const std::string &m)
 }
 
 /** Insert interception end marker */
-void insert_end_marker(const std::string& m)
-{
+void insert_end_marker(const std::string& m) {
   if (insert_trace_markers) {
     int saved_errno = errno;
     ic_orig_open(("/firebuild-intercept-end-" + m).c_str(), 0);
@@ -117,9 +115,7 @@ void insert_end_marker(const std::string& m)
 /**
  * Reset globally maintained information about intercepted funtions
  */
-void
-reset_fn_infos ()
-{
+void reset_fn_infos() {
   for (int i = 0; i < IC_FN_IDX_MAX ; i++) {
     ic_fn[i].called = false;
   }
@@ -130,28 +126,23 @@ reset_fn_infos ()
  * library. In our case this is a function we intercept.
  * @param[in] name function's name
  */
-static void *
-get_orig_fn (const char* name)
-{
+static void * get_orig_fn(const char* name) {
   void * const function = dlsym(RTLD_NEXT, name);
   return function;
 }
 
 /** Get next unique ACK id */
-int get_next_ack_id()
-{
+int get_next_ack_id() {
   return (ack_id++);
 }
 
 /**
  * Get pointers to all the functions we intercept but we also want to use
  */
-static void
-set_orig_fns ()
-{
+static void set_orig_fns() {
   /* lookup ic_orig_... version of intercepted function */
 #define IC_VOID(ret_type, name, parameters, _body)              \
-  ic_orig_##name = (ret_type (*)parameters)get_orig_fn(#name);
+  ic_orig_##name = (ret_type(*)parameters)get_orig_fn(#name);
 
   /* we need to include every file using IC() macro to create ic_orig_... version
    * for all functions */
@@ -161,14 +152,13 @@ set_orig_fns ()
 }
 
 /**  Set up supervisor connection */
-void
-init_supervisor_conn () {
-
+void init_supervisor_conn() {
   if (fb_conn_string == NULL) {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
   }
 
-  if ((fb_sv_conn = ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1) {
+  if (-1 == (fb_sv_conn =
+             ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0))) {
     assert(fb_sv_conn > STDERR_FILENO);
     assert(fb_sv_conn != -1);
   }
@@ -179,7 +169,8 @@ init_supervisor_conn () {
   assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
-  if (ic_orig_connect(fb_sv_conn, (struct sockaddr *)&remote, sizeof(remote)) == -1) {
+  if (-1 == ic_orig_connect(fb_sv_conn,
+                            (struct sockaddr *)&remote, sizeof(remote))) {
     perror("connect");
     assert(0 && "connection to supervisor failed");
   }
@@ -188,8 +179,7 @@ init_supervisor_conn () {
 /**
  * Initialize interceptor's data structures and sync with supervisor
  */
-static void fb_ic_init()
-{
+static void fb_ic_init() {
   // init global variables
   fd_states = new std::vector<fd_state>();
 
@@ -201,7 +191,7 @@ static void fb_ic_init()
   intercept_on = true;
   insert_begin_marker(__func__);
 
-  if(NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
+  if (NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
     insert_trace_markers = true;
   }
 
@@ -257,7 +247,6 @@ static void fb_ic_init()
   {
     msg::FileList *fl = proc->mutable_libs();
     dl_iterate_phdr(shared_libs_cb, fl);
-
   }
 
   fb_send_msg(ic_msg, fb_sv_conn);
@@ -284,21 +273,17 @@ static void fb_ic_init()
 }
 
 extern "C" {
-
 /**
  * Collect information about process the earliest possible, right
  * when interceptor library loads or when the first interceped call happens
  */
-void fb_ic_load()
-{
+void fb_ic_load() {
   if (!ic_init_done) {
     fb_ic_init();
   }
 }
 
-void
-handle_exit (const int status, void*)
-{
+void handle_exit(const int status, void*) {
   if (!fb_exit_handled) {
     msg::InterceptorMsg ic_msg;
     auto m = ic_msg.mutable_exit();
@@ -311,7 +296,6 @@ handle_exit (const int status, void*)
     {
       auto *fl = m->mutable_libs();
       dl_iterate_phdr(shared_libs_cb, fl);
-
     }
     int ack_num = get_next_ack_id();
     ic_msg.set_ack_num(ack_num);
@@ -327,11 +311,9 @@ handle_exit (const int status, void*)
     fb_exit_handled = true;
   }
 }
-
 }
 
-static void fb_ic_cleanup()
-{
+static void fb_ic_cleanup() {
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
   ic_orig_close(fb_sv_conn);
@@ -339,22 +321,21 @@ static void fb_ic_cleanup()
 
 
 /** wrapper for send() retrying on recoverable errors*/
-ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count)
-{
+ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count) {
   pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0,{pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0, {
+      pthread_mutex_unlock(&ic_global_lock);});
 }
 
 /** wrapper for recv() retrying on recoverable errors*/
-ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count)
-{
+ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count) {
   pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {
+      pthread_mutex_unlock(&ic_global_lock);});
 }
 
 /** Send error message to supervisor */
-extern void fb_error(const std::string &msg)
-{
+extern void fb_error(const std::string &msg) {
   msg::InterceptorMsg ic_msg;
   auto err = ic_msg.mutable_fb_error();
   err->set_msg(msg);
@@ -362,22 +343,19 @@ extern void fb_error(const std::string &msg)
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
-void fb_debug(const std::string &msg)
-{
+void fb_debug(const std::string &msg) {
   msg::InterceptorMsg ic_msg;
   auto dbg = ic_msg.mutable_fb_debug();
   dbg->set_msg(msg);
   fb_send_msg(ic_msg, fb_sv_conn);
 }
 
-} // namespace firebuild
+}  // namespace firebuild
 
 /** Add shared library's name to the file list */
-int
-shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data)
-{
+int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   auto *fl = (firebuild::msg::FileList*)data;
-  //unused
+  // unused
   (void)size;
 
   if (info->dlpi_name[0] != '\0') {
@@ -398,9 +376,7 @@ extern "C" {
  * Dynamic linker auditing function
  * see man rtld-audit(7) for details
  */
-unsigned int
-la_version(const unsigned int version)
-{
+unsigned int la_version(const unsigned int version) {
   return version;
 }
 
@@ -408,9 +384,8 @@ la_version(const unsigned int version)
  * Send path to supervisor whenever the dynamic linker wants to load a shared
  * library
  */
-char *
-la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
-{
+char * la_objsearch(const char *name, uintptr_t *cookie,
+                    const unsigned int flag) {
   // unused
   (void)cookie;
 
@@ -428,9 +403,8 @@ la_objsearch(const char *name, uintptr_t *cookie, const unsigned int flag)
 /**
  * Send path to supervisor whenever the dynamic linker loads a shared library
  */
-unsigned int
-la_objopen(struct link_map *map, const Lmid_t lmid, uintptr_t *cookie)
-{
+unsigned int la_objopen(struct link_map *map, const Lmid_t lmid,
+                        uintptr_t *cookie) {
   // unused
   (void)lmid;
   (void)cookie;

@@ -14,8 +14,8 @@ namespace firebuild {
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
  */
-extern ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const int fd)
-{
+extern ssize_t fb_send_msg(const google::protobuf::MessageLite &pb_msg,
+                           const int fd) {
   int offset = 0;
   uint32_t msg_size = pb_msg.ByteSize(), msg_size_n = htonl(msg_size);
   char *buf = new char[sizeof(msg_size) + msg_size];
@@ -25,7 +25,8 @@ extern ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const i
 
   offset += sizeof(uint32_t);
 
-  pb_msg.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t*>(&buf[offset]));
+  pb_msg.SerializeWithCachedSizesToArray(
+      reinterpret_cast<uint8_t*>(&buf[offset]));
   auto ret = fb_write_buf(fd, buf, msg_size + offset);
 
   delete[] buf;
@@ -38,8 +39,7 @@ extern ssize_t fb_send_msg (const google::protobuf::MessageLite &pb_msg, const i
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
  */
-extern ssize_t fb_recv_msg (google::protobuf::MessageLite *pb_msg, const int fd)
-{
+extern ssize_t fb_recv_msg(google::protobuf::MessageLite *pb_msg, const int fd) {
   uint32_t msg_size;
 
   /* read serialized length */
@@ -62,4 +62,4 @@ extern ssize_t fb_recv_msg (google::protobuf::MessageLite *pb_msg, const int fd)
   return ret;
 }
 
-} // namespace firebuild
+}  // namespace firebuild

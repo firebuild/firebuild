@@ -4,16 +4,16 @@
 namespace firebuild {
 
 ForkedProcess* ProcessFactory::getForkedProcess(const msg::ForkChild &fc,
-                                                       Process * const fork_parent)
-{
+                                                Process * const fork_parent) {
   auto f = new ForkedProcess(fc.pid(), fc.ppid(), fork_parent);
   return f;
 
 }
 
-ExecedProcess* ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq)
-{
-  auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(), scpq.executable());
+ExecedProcess*
+ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq) {
+  auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),
+                             scpq.executable());
 
   for (int i = 0; i < scpq.arg_size(); i++) {
     e->args().push_back(scpq.arg(i));
@@ -34,4 +34,4 @@ ExecedProcess* ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery 
   return e;
 }
 
-}
+}  // namespace firebuild

@@ -6,36 +6,35 @@
 #include "platform.h"
 
 namespace firebuild {
-  
+
 static int fb_pid_counter;
 
-Process::Process (const int pid, const int ppid, const process_type type, const std::string &wd)
+Process::Process(const int pid, const int ppid, const process_type type,
+                 const std::string &wd)
     : type_(type), state_(FB_PROC_RUNNING), can_shortcut_(true),
-      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd),
-      fds_({NULL, NULL, NULL}), utime_m_(0), stime_m_(0), aggr_time_(0),
-      children_(), exec_child_(NULL)
-{
+      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1),
+      wd_(wd), fds_({NULL, NULL, NULL}), utime_m_(0), stime_m_(0),
+      aggr_time_(0), children_(), exec_child_(NULL) {
   // TODO inherit fds properly
   fds_[0] = new FileFD(0, 0, (fd_origin)FD_ORIGIN_INHERITED);
   fds_[1] = new FileFD(1, 0, FD_ORIGIN_INHERITED);
   fds_[2] = new FileFD(2, 0, FD_ORIGIN_INHERITED);
 }
 
-void Process::update_rusage (const long int utime_m, const long int stime_m)
-{
+void Process::update_rusage(const long int utime_m, const long int stime_m) {
   utime_m_ = utime_m;
   stime_m_ = stime_m;
 }
 
-void Process::exit_result (const int status, const long int utime_m, const long int stime_m)
-{
+void Process::exit_result(const int status, const long int utime_m,
+                          const long int stime_m) {
   state_ = FB_PROC_FINISHED;
   exit_status_ = status;
   update_rusage(utime_m, stime_m);
 }
 
-void Process::sum_rusage(long int * const sum_utime_m, long int *const sum_stime_m)
-{
+void Process::sum_rusage(long int * const sum_utime_m,
+                         long int *const sum_stime_m) {
   (*sum_utime_m) += utime_m_;
   (*sum_stime_m) += stime_m_;
   for (unsigned int i = 0; i < children_.size(); i++) {
@@ -43,9 +42,9 @@ void Process::sum_rusage(long int * const sum_utime_m, long int *const sum_stime
   }
 }
 
-int Process::open_file(const std::string &ar_name, const int flags, const mode_t mode,
-                       const int fd, const bool c, const int error)
-{
+int Process::open_file(const std::string &ar_name, const int flags,
+                       const mode_t mode, const int fd, const bool c,
+                       const int error) {
   const bool created = ((flags & O_EXCL) && (fd != -1)) || c;
   const bool open_failed = (fd == -1);
   const std::string name = (platform::path_is_absolute(ar_name))?(ar_name):
@@ -102,8 +101,7 @@ int Process::open_file(const std::string &ar_name, const int flags, const mode_t
   return 0;
 }
 
-int Process::close_file(const int fd, const int error)
-{
+int Process::close_file(const int fd, const int error) {
   if ((EIO == error) ||
       ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) ||
       (NULL == fds_[fd])) {
@@ -132,8 +130,7 @@ int Process::close_file(const int fd, const int error)
   }
 }
 
-void Process::set_wd(const std::string &ar_d)
-{
+void Process::set_wd(const std::string &ar_d) {
   const std::string d = (platform::path_is_absolute(ar_d))?(ar_d):
       (wd_ + "/" + ar_d);
   wd_ = d;
@@ -141,12 +138,10 @@ void Process::set_wd(const std::string &ar_d)
   add_wd(d);
 }
 
-Process::~Process()
-{
+Process::~Process() {
   for (auto it = this->fds_.begin(); it != this->fds_.end(); ++it) {
     delete(*it);
   }
-
 }
 
-}
+}  // namespace firebuild
