@@ -1,3 +1,6 @@
+/* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
+/* This file is an unpublished work. All rights reserved. */
+
 /**
  * This file is included several ways with different definitions for the
  * IC() macro.
