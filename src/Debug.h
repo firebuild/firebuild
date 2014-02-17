@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_DEBUG_H
-#define FIREBUILD_DEBUG_H
+#ifndef FIREBUILD_DEBUG_H_
+#define FIREBUILD_DEBUG_H_
 
 #include <string>
 
@@ -24,4 +24,4 @@ void fb_debug(const std::string &msg);
 extern int debug_level;
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_DEBUG_H_

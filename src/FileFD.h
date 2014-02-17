@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_FILEFD_H
-#define FIREBUILD_FILEFD_H
+#ifndef FIREBUILD_FILEFD_H_
+#define FIREBUILD_FILEFD_H_
 
 #include <fcntl.h>
 
@@ -56,4 +56,4 @@ class FileFD {
 };
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_FILEFD_H_

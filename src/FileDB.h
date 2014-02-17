@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_FILEDB_H
-#define FIREBUILD_FILEDB_H
+#ifndef FIREBUILD_FILEDB_H_
+#define FIREBUILD_FILEDB_H_
 
 #include <string>
 #include <unordered_map>
@@ -26,4 +26,4 @@ class FileDB: public std::unordered_map<std::string, File*> {
 };
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_FILEDB_H_

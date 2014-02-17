@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_FORKED_PROCESS_H
-#define FIREBUILD_FORKED_PROCESS_H
+#ifndef FIREBUILD_FORKEDPROCESS_H_
+#define FIREBUILD_FORKEDPROCESS_H_
 
 #include <cassert>
 #include <set>
@@ -52,4 +52,4 @@ class ForkedProcess : public Process {
 
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_FORKEDPROCESS_H_

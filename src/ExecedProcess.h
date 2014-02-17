@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_EXECED_PROCESS_H
-#define FIREBUILD_EXECED_PROCESS_H
+#ifndef FIREBUILD_EXECEDPROCESS_H_
+#define FIREBUILD_EXECEDPROCESS_H_
 
 #include <set>
 #include <string>
@@ -88,4 +88,4 @@ class ExecedProcess : public Process {
 
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_EXECEDPROCESS_H_

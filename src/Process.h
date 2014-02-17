@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_PROCESS_H
-#define FIREBUILD_PROCESS_H
+#ifndef FIREBUILD_PROCESS_H_
+#define FIREBUILD_PROCESS_H_
 
 #include <set>
 #include <string>
@@ -115,4 +115,4 @@ inline bool Process::operator == (Process const & p) const {
 }
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_PROCESS_H_

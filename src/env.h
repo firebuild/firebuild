@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_ENV_H
-#define FIREBUILD_ENV_H
+#ifndef FIREBUILD_ENV_H_
+#define FIREBUILD_ENV_H_
 
 #ifdef  __cplusplus
 extern "C" {
@@ -17,4 +17,4 @@ void get_argv_env(char *** argv, char ***env);
 }
 #endif
 
-#endif
+#endif  // FIREBUILD_ENV_H_

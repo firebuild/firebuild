@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_PROCESSFACTORY_H
-#define FIREBUILD_PROCESSFACTORY_H
+#ifndef FIREBUILD_PROCESSFACTORY_H_
+#define FIREBUILD_PROCESSFACTORY_H_
 
 #include "fb-messages.pb.h"
 #include "ExecedProcess.h"
@@ -30,4 +30,4 @@ class ProcessFactory {
 };
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_PROCESSFACTORY_H_

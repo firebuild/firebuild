@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_CXX_LANG_UTILS_H
-#define FIREBUILD_CXX_LANG_UTILS_H
+#ifndef FIREBUILD_CXX_LANG_UTILS_H__
+#define FIREBUILD_CXX_LANG_UTILS_H__
 
 // From http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
 // A macro to disallow the copy constructor and operator= functions
@@ -12,4 +12,4 @@
   TypeName(const TypeName&);               \
   void operator=(const TypeName&)
 
-#endif
+#endif  // FIREBUILD_CXX_LANG_UTILS_H__

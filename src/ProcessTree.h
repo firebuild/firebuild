@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_PROCESS_TREE_H
-#define FIREBUILD_PROCESS_TREE_H
+#ifndef FIREBUILD_PROCESSTREE_H_
+#define FIREBUILD_PROCESSTREE_H_
 
 #include <map>
 #include <set>
@@ -74,4 +74,4 @@ class ProcessTree {
 };
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_PROCESSTREE_H_

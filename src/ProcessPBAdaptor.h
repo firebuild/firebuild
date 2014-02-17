@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_PROCESSPBADAPTOR_H
-#define FIREBUILD_PROCESSPBADAPTOR_H
+#ifndef FIREBUILD_PROCESSPBADAPTOR_H_
+#define FIREBUILD_PROCESSPBADAPTOR_H_
 
 #include "fb-messages.pb.h"
 #include "Process.h"
@@ -28,4 +28,4 @@ class ProcessPBAdaptor {
 };
 
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_PROCESSPBADAPTOR_H_

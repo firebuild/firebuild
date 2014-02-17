@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_PLATFORM_H
-#define FIREBUILD_PLATFORM_H
+#ifndef FIREBUILD_PLATFORM_H_
+#define FIREBUILD_PLATFORM_H_
 
 #include <cassert>
 #include <string>
@@ -42,4 +42,4 @@ bool path_is_absolute(const std::string &p) {
 
 }  // namespace platform
 }  // namespace firebuild
-#endif
+#endif  // FIREBUILD_PLATFORM_H_

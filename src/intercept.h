@@ -5,8 +5,8 @@
  * Interceptor library definitions
  */
 
-#ifndef FIREBUILD_INTERCEPT_H
-#define FIREBUILD_INTERCEPT_H
+#ifndef FIREBUILD_INTERCEPT_H_
+#define FIREBUILD_INTERCEPT_H_
 
 #include <dlfcn.h>
 #include <pthread.h>
@@ -29,8 +29,6 @@
             intercept_on = false;               \
             return ret;                         \
           })
-
-#endif
 
 /**
  * Just send the intercepted function's name
@@ -190,3 +188,5 @@ extern int __libc_start_main(int (*main)(int, char **, char **),
     insert_end_marker(__func__);                                        \
     intercept_on = false;                                               \
   }
+
+#endif  // FIREBUILD_INTERCEPT_H_
