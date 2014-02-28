@@ -61,10 +61,6 @@ class ProcessTree {
    * (system + user time), and count the invocations of each other command
    * by C. */
   std::unordered_map<std::string, cmd_prof> cmd_profs_;
-  void export2js_recurse(const Process &p, const unsigned int level,
-                         FILE* stream, unsigned int *nodeid);
-  void export2js(const ExecedProcess &p, const unsigned int level,
-                 FILE* stream, unsigned int *nodeid);
   void profile_collect_cmds(const Process &p,
                             std::unordered_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);

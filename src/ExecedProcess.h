@@ -60,6 +60,13 @@ class ExecedProcess : public Process {
     wds_.insert(d);
   }
 
+  virtual long int sum_rusage_recurse();
+
+  void export2js(const unsigned int level, FILE* stream,
+                 unsigned int * nodeid);
+  void export2js_recurse(const unsigned int level, FILE* stream,
+                         unsigned int *nodeid);
+
  private:
   Process *exec_parent_ = NULL;
   /// Sum of user time in milliseconds for all forked but not exec()-ed children
@@ -81,7 +88,7 @@ class ExecedProcess : public Process {
   std::set<std::string> libs_;
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<std::string, FileUsage*> file_usages_;
-  void propagate_exit_status(const int status);
+  virtual void propagate_exit_status(const int status);
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 

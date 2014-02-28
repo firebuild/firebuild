@@ -660,7 +660,7 @@ int main(const int argc, char *argv[]) {
     child_ret = EXIT_FAILURE;
   } else {
     // postprocess process tree
-    proc_tree->sum_rusage_recurse(proc_tree->root());
+    proc_tree->root()->sum_rusage_recurse();
 
     // show process tree if needed
     if (generate_report) {

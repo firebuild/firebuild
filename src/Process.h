@@ -89,6 +89,14 @@ class Process {
    */
   virtual void add_wd(const std::string &d) = 0;
 
+  /** Propagate exit status upward through exec()-ed processes */
+  virtual void propagate_exit_status(const int status) = 0;
+
+  virtual long int sum_rusage_recurse();
+
+  virtual void export2js_recurse(const unsigned int level, FILE* stream,
+                                 unsigned int *nodeid);
+
  private:
   const process_type type_ : 2;
   process_state state_ :2;

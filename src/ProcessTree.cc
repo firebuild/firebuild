@@ -7,35 +7,11 @@
 
 #include <cstdio>
 #include <stdexcept>
-#include <sstream>
 #include <limits>
 
 #include "Debug.h"
 
 namespace firebuild {
-
-/**
- * Escape std::string for JavaScript
- * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
- * TODO: use JSONCpp instead to handle all cases
- */
-static std::string escapeJsonString(const std::string& input) {
-  std::ostringstream ss;
-  for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
-    switch (*iter) {
-      case '\\': ss << "\\\\"; break;
-      case '"': ss << "\\\""; break;
-      case '/': ss << "\\/"; break;
-      case '\b': ss << "\\b"; break;
-      case '\f': ss << "\\f"; break;
-      case '\n': ss << "\\n"; break;
-      case '\r': ss << "\\r"; break;
-      case '\t': ss << "\\t"; break;
-      default: ss << *iter; break;
-    }
-  }
-  return ss.str();
-}
 
 ProcessTree::~ProcessTree() {
   // clean up all processes
@@ -85,171 +61,10 @@ void ProcessTree::exit(Process *p, const int sock) {
   sock2proc_.erase(sock);
 }
 
-long int ProcessTree::sum_rusage_recurse(Process *p) {
-  long int aggr_time = p->utime_m() + p->stime_m();
-  if (p->type() == FB_PROC_EXEC_STARTED) {
-    auto e = dynamic_cast<ExecedProcess*>(p);
-    long int sum_utime_m = 0;
-    long int sum_stime_m = 0;
-    e->sum_rusage(&sum_utime_m,
-                  &sum_stime_m);
-    if (e->exec_parent()) {
-      e->set_sum_utime_m(sum_utime_m - e->exec_parent()->utime_m());
-      e->set_sum_stime_m(sum_stime_m - e->exec_parent()->stime_m());
-
-      aggr_time -= e->exec_parent()->utime_m();
-      aggr_time -= e->exec_parent()->stime_m();
-    } else {
-      e->set_sum_utime_m(sum_utime_m);
-      e->set_sum_stime_m(sum_stime_m);
-    }
-  }
-  if (p->exec_child() != NULL) {
-    aggr_time += sum_rusage_recurse(p->exec_child());
-  }
-  for (unsigned int i = 0; i < p->children().size(); i++) {
-    aggr_time += sum_rusage_recurse(p->children()[i]);
-  }
-  p->set_aggr_time(aggr_time);
-  return aggr_time;
-}
-
-void ProcessTree::export2js_recurse(const Process &p, const unsigned int level,
-                                    FILE* stream, unsigned int *nodeid) {
-  if (p.type() == FB_PROC_EXEC_STARTED) {
-    if (level > 0) {
-      fprintf(stream, "\n");
-    }
-    fprintf(stream, "%s{", std::string(2 * level, ' ').c_str());
-
-    export2js((ExecedProcess&)p, level, stream, nodeid);
-    fprintf(stream, "%s children: [", std::string(2 * level, ' ').c_str());
-  }
-  if (p.exec_child() != NULL) {
-    export2js_recurse(*p.exec_child(), level + 1, stream, nodeid);
-  }
-  for (unsigned int i = 0; i < p.children().size(); i++) {
-    export2js_recurse(*p.children()[i], level, stream, nodeid);
-  }
-  if (p.type() == FB_PROC_EXEC_STARTED) {
-    if (level == 0) {
-      fprintf(stream, "]};\n");
-    } else {
-      fprintf(stream, "]},\n");
-    }
-  }
-}
-
 void ProcessTree::export2js(FILE * stream) {
   fprintf(stream, "root = ");
   unsigned int nodeid = 0;
-  export2js_recurse(*root_, 0, stream, &nodeid);
-}
-
-void ProcessTree::export2js(const ExecedProcess &p, const unsigned int level,
-                            FILE* stream, unsigned int * nodeid) {
-  // TODO: escape all strings properly
-  auto indent_str = std::string(2 * level, ' ');
-  const char* indent = indent_str.c_str();
-
-  fprintf(stream, "name:\"%s\",\n", p.args()[0].c_str());
-  fprintf(stream, "%s id: %u,\n", indent, (*nodeid)++);
-  fprintf(stream, "%s pid: %u,\n", indent, p.pid());
-  fprintf(stream, "%s ppid: %u,\n", indent, p.ppid());
-  fprintf(stream, "%s cwd:\"%s\",\n", indent, p.cwd().c_str());
-  fprintf(stream, "%s exe:\"%s\",\n", indent, p.executable().c_str());
-  fprintf(stream, "%s state: %u,\n", indent, p.state());
-  fprintf(stream, "%s args: [", indent);
-  for (unsigned int i = 1; i < p.args().size(); i++) {
-    fprintf(stream, "\"%s\",", escapeJsonString(p.args()[i]).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s env: [", indent);
-  for (auto it = p.env_vars().begin(); it != p.env_vars().end(); ++it) {
-    fprintf(stream, "\"%s\",", escapeJsonString(*it).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s libs: [", indent);
-  for (auto it = p.libs().begin(); it != p.libs().end(); ++it) {
-    fprintf(stream, "\"%s\",", (*it).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s wds: [", indent);
-  for (auto it = p.wds().begin(); it != p.wds().end(); ++it) {
-    fprintf(stream, "\"%s\",", (*it).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s failed_wds: [", indent);
-  for (auto it = p.failed_wds().begin(); it != p.failed_wds().end(); ++it) {
-    fprintf(stream, "\"%s\",", (*it).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  // sort files before printing
-  std::map<std::string, FileUsage*> ordered_file_usages;
-  for (auto it = p.file_usages().begin(); it != p.file_usages().end(); ++it) {
-    ordered_file_usages[it->first] =  it->second;
-  }
-
-  fprintf(stream, "%s fcreated: [", indent);
-  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
-       ++it) {
-    if (it->second->created()) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  // TODO replace write/read flag checks with more accurate tests
-  fprintf(stream, "%s fmodified: [", indent);
-  for (auto it =ordered_file_usages.begin(); it != ordered_file_usages.end();
-       ++it) {
-    if ((!it->second->created()) &&
-        (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s fread: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end();
-       ++it) {
-    if (it->second->open_flags() & (O_RDONLY | O_RDWR)) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s fnotf: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end();
-       ++it) {
-    if (it->second->open_failed()) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  switch (p.state()) {
-    case FB_PROC_FINISHED: {
-      fprintf(stream, "%s exit_status: %u,\n", indent, p.exit_status());
-      // break; is missing intentionally
-    }
-    case FB_PROC_EXECED: {
-      fprintf(stream, "%s utime_m: %lu,\n", indent, p.utime_m());
-      fprintf(stream, "%s stime_m: %lu,\n", indent, p.stime_m());
-      fprintf(stream, "%s aggr_time: %lu,\n", indent, p.aggr_time());
-      fprintf(stream, "%s sum_utime_m: %lu,\n", indent, p.sum_utime_m());
-      fprintf(stream, "%s sum_stime_m: %lu,\n", indent, p.sum_stime_m());
-      // break; is missing intentionally
-    }
-    case FB_PROC_RUNNING: {
-      // something went wrong
-    }
-  }
+  root_->export2js_recurse(0, stream, &nodeid);
 }
 
 void ProcessTree::profile_collect_cmds(const Process &p,
