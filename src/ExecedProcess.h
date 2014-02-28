@@ -27,7 +27,6 @@ class ExecedProcess : public Process {
   void set_sum_stime_m(long int t) {sum_stime_m_ = t;}
   const std::string& cwd() const {return cwd_;}
   std::string& cwd() {return cwd_;}
-  //  void set_cwd(std::string &c) {cwd_ = c;}
   const std::set<std::string>& wds() const {return wds_;}
   std::set<std::string>& wds() {return wds_;}
   const std::set<std::string>& failed_wds() const {return wds_;}
