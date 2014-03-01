@@ -4,11 +4,11 @@
 #ifndef FIREBUILD_PROCESSFACTORY_H_
 #define FIREBUILD_PROCESSFACTORY_H_
 
-#include "fb-messages.pb.h"
-#include "ExecedProcess.h"
-#include "ForkedProcess.h"
-#include "ProcessTree.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/fb-messages.pb.h"
+#include "firebuild/ExecedProcess.h"
+#include "firebuild/ForkedProcess.h"
+#include "firebuild/ProcessTree.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
 

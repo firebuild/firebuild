@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "intercept.h"
+#include "firebuild/intercept.h"
 
 #include <unistd.h>
 #include <errno.h>
@@ -15,10 +15,10 @@
 #include <cstdlib>
 #include <string>
 
-#include "env.h"
-#include "Debug.h"
-#include "fb-messages.pb.h"
-#include "firebuild_common.h"
+#include "firebuild/env.h"
+#include "firebuild/Debug.h"
+#include "firebuild/fb-messages.pb.h"
+#include "firebuild/firebuild_common.h"
 
 namespace firebuild {
 

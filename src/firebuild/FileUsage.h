@@ -6,8 +6,8 @@
 
 #include <sys/stat.h>
 
-#include "SHA256Hash.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/SHA256Hash.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
 

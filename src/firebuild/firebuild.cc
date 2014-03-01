@@ -21,12 +21,12 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <libconfig.h++>
 
-#include "firebuild_common.h"
-#include "Debug.h"
-#include "ProcessFactory.h"
-#include "ProcessTree.h"
-#include "ProcessPBAdaptor.h"
-#include "fb-messages.pb.h"
+#include "firebuild/firebuild_common.h"
+#include "firebuild/Debug.h"
+#include "firebuild/ProcessFactory.h"
+#include "firebuild/ProcessTree.h"
+#include "firebuild/ProcessPBAdaptor.h"
+#include "firebuild/fb-messages.pb.h"
 
 namespace {
 

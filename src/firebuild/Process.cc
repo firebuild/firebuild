@@ -2,11 +2,11 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "Process.h"
+#include "firebuild/Process.h"
 
-#include "File.h"
-#include "FileDB.h"
-#include "platform.h"
+#include "firebuild/File.h"
+#include "firebuild/FileDB.h"
+#include "firebuild/platform.h"
 
 namespace firebuild {
 

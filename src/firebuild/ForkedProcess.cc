@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "ForkedProcess.h"
+#include "firebuild/ForkedProcess.h"
 
 namespace firebuild {
 

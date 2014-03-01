@@ -2,14 +2,14 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "SHA256Hash.h"
+#include "firebuild/SHA256Hash.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <Debug.h>
+#include "firebuild/Debug.h"
 
 static const int kHashBufsize = 4096;
 

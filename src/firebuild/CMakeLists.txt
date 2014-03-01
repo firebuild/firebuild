@@ -1,0 +1,32 @@
+
+find_package(Protobuf REQUIRED)
+find_package(LibConfig REQUIRED)
+find_package(OpenSSL REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIRS})
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS msg/fb-messages.proto)
+
+add_library(fbintercept MODULE
+  firebuild_common.cc
+  intercept.cc
+  env.c
+  ic_file_ops.cc
+  ic_redirect_only.cc
+  ${PROTO_SRCS})
+
+target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES})
+
+add_executable(firebuild
+  firebuild.cc
+  firebuild_common.cc
+  Process.cc
+  ExecedProcess.cc
+  ForkedProcess.cc
+  ProcessFactory.cc
+  ProcessTree.cc
+  ProcessPBAdaptor.cc
+  SHA256Hash.cc
+  File.cc
+  FileDB.cc
+  ${PROTO_SRCS}
+  ${PROTO_HDRS})
+target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${OPENSSL_LIBRARIES})

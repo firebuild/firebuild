@@ -22,10 +22,10 @@
 #include <cstdio>
 #include <cwchar>
 
-#include "Debug.h"
-#include "intercept.h"
-#include "fb-messages.pb.h"
-#include "platform.h"
+#include "firebuild/Debug.h"
+#include "firebuild/intercept.h"
+#include "firebuild/fb-messages.pb.h"
+#include "firebuild/platform.h"
 
 namespace firebuild {
 
@@ -538,7 +538,7 @@ extern int firebuild_fake_main(int argc, char **argv, char **env) {
 extern "C" {
 #endif
 
-#include "ic_file_ops.h"
+#include "firebuild/ic_file_ops.h"
 
 #ifdef  __cplusplus
 }

@@ -9,8 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "Process.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/Process.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
 

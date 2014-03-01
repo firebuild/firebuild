@@ -11,10 +11,10 @@
 #include <unordered_map>
 
 
-#include "Process.h"
-#include "ExecedProcess.h"
-#include "ForkedProcess.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/Process.h"
+#include "firebuild/ExecedProcess.h"
+#include "firebuild/ForkedProcess.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
 

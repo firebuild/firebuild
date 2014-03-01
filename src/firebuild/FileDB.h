@@ -7,8 +7,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "File.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/File.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
 

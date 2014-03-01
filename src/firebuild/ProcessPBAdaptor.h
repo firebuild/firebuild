@@ -4,9 +4,9 @@
 #ifndef FIREBUILD_PROCESSPBADAPTOR_H_
 #define FIREBUILD_PROCESSPBADAPTOR_H_
 
-#include "fb-messages.pb.h"
-#include "Process.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/fb-messages.pb.h"
+#include "firebuild/Process.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild  {
   /**

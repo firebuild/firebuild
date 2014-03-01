@@ -10,9 +10,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "FileFD.h"
-#include "FileUsage.h"
-#include "cxx_lang_utils.h"
+#include "firebuild/FileFD.h"
+#include "firebuild/FileUsage.h"
+#include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
 

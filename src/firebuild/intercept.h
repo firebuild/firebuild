@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "firebuild_common.h"
+#include "firebuild/firebuild_common.h"
 
 /**
  * Intercept call
@@ -67,7 +67,7 @@
 /* we need to include every file using IC() macro to create index for all
  * functions */
 enum {
-#include "ic_file_ops.h"
+#include "firebuild/ic_file_ops.h"
   IC_FN_IDX_MAX
 };
 #undef IC_VOID
@@ -79,7 +79,7 @@ namespace firebuild {
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
-#include "ic_file_ops.h"
+#include "firebuild/ic_file_ops.h"
 #undef IC_VOID
 
 typedef struct {
