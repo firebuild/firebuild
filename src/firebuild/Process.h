@@ -50,19 +50,19 @@ class Process {
   virtual const std::unordered_map<std::string, FileUsage*>&
       file_usages() const = 0;
   virtual std::unordered_map<std::string, FileUsage*>& file_usages() = 0;
-  long int utime_m() const {return utime_m_;}
-  void set_utime_m(long int t) {utime_m_ = t;}
-  long int stime_m() const {return stime_m_;}
-  void set_stime_m(long int t) {stime_m_ = t;}
-  long int aggr_time() const {return aggr_time_;}
-  void set_aggr_time(long int t) {aggr_time_ = t;}
+  int64_t utime_m() const {return utime_m_;}
+  void set_utime_m(int64_t t) {utime_m_ = t;}
+  int64_t stime_m() const {return stime_m_;}
+  void set_stime_m(int64_t t) {stime_m_ = t;}
+  int64_t aggr_time() const {return aggr_time_;}
+  void set_aggr_time(int64_t t) {aggr_time_ = t;}
   void set_exec_child(Process *p) {exec_child_ = p;}
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
   const std::vector<Process*>& children() const {return children_;}
-  void update_rusage(long int utime_m, long int stime_m);
-  void sum_rusage(long int *sum_utime_m, long int *sum_stime_m);
-  virtual void exit_result(int status, long int utime_m, long int stime_m);
+  void update_rusage(int64_t utime_m, int64_t stime_m);
+  void sum_rusage(int64_t *sum_utime_m, int64_t *sum_stime_m);
+  virtual void exit_result(int status, int64_t utime_m, int64_t stime_m);
   int open_file(const std::string &name, const int flags, const mode_t mode,
                 const int fd, const bool created = false, const int error = 0);
   /**
@@ -85,7 +85,7 @@ class Process {
   /** Propagate exit status upward through exec()-ed processes */
   virtual void propagate_exit_status(const int status) = 0;
 
-  virtual long int sum_rusage_recurse();
+  virtual int64_t sum_rusage_recurse();
 
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
@@ -99,12 +99,12 @@ class Process {
   int exit_status_;  ///< exit status, valid if state = FB_PROC_FINISHED
   std::string wd_;  ///< Current working directory
   std::vector<FileFD*> fds_;  ///< Active file descriptors
-  long int utime_m_;  ///< user time in milliseconds as reported by getrusage()
+  int64_t utime_m_;  ///< user time in milliseconds as reported by getrusage()
   /// system time in milliseconds as reported by getrusage()
-  long int stime_m_;
+  int64_t stime_m_;
   /** Sum of user and system time in milliseconds for all forked and exec()-ed
       children */
-  long int aggr_time_ = 0;
+  int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
   Process * exec_child_;
   DISALLOW_COPY_AND_ASSIGN(Process);

@@ -23,20 +23,20 @@ Process::Process(const int pid, const int ppid, const std::string &wd)
   fds_[2] = new FileFD(2, 0, FD_ORIGIN_INHERITED);
 }
 
-void Process::update_rusage(const long int utime_m, const long int stime_m) {
+void Process::update_rusage(const int64_t utime_m, const long int stime_m) {
   utime_m_ = utime_m;
   stime_m_ = stime_m;
 }
 
-void Process::exit_result(const int status, const long int utime_m,
-                          const long int stime_m) {
+void Process::exit_result(const int status, const int64_t utime_m,
+                          const int64_t stime_m) {
   state_ = FB_PROC_FINISHED;
   exit_status_ = status;
   update_rusage(utime_m, stime_m);
 }
 
-void Process::sum_rusage(long int * const sum_utime_m,
-                         long int *const sum_stime_m) {
+void Process::sum_rusage(int64_t * const sum_utime_m,
+                         int64_t *const sum_stime_m) {
   (*sum_utime_m) += utime_m_;
   (*sum_stime_m) += stime_m_;
   for (unsigned int i = 0; i < children_.size(); i++) {
@@ -140,7 +140,7 @@ void Process::set_wd(const std::string &ar_d) {
   add_wd(d);
 }
 
-long int Process::sum_rusage_recurse() {
+int64_t Process::sum_rusage_recurse() {
   if (exec_child_ != NULL) {
     aggr_time_ += exec_child_->sum_rusage_recurse();
   }

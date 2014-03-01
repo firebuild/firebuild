@@ -22,10 +22,10 @@ class ExecedProcess : public Process {
   virtual bool exec_started() const {return true;};
   void set_exec_parent(Process *p) {exec_parent_ = p;}
   Process* exec_parent() {return exec_parent_;}
-  long int sum_utime_m() const {return sum_utime_m_;}
-  void set_sum_utime_m(long int t) {sum_utime_m_ = t;}
-  long int sum_stime_m() const {return sum_stime_m_;}
-  void set_sum_stime_m(long int t) {sum_stime_m_ = t;}
+  int64_t sum_utime_m() const {return sum_utime_m_;}
+  void set_sum_utime_m(int64_t t) {sum_utime_m_ = t;}
+  int64_t sum_stime_m() const {return sum_stime_m_;}
+  void set_sum_stime_m(int64_t t) {sum_stime_m_ = t;}
   const std::string& cwd() const {return cwd_;}
   std::string& cwd() {return cwd_;}
   const std::set<std::string>& wds() const {return wds_;}
@@ -46,8 +46,8 @@ class ExecedProcess : public Process {
   std::unordered_map<std::string, FileUsage*>& file_usages() {
     return const_cast<std::unordered_map<std::string, FileUsage*>&>(static_cast<const ExecedProcess*>(this)->file_usages());
   }
-  void exit_result(const int status, const long int utime_m,
-                   const long int stime_m);
+  void exit_result(const int status, const int64_t utime_m,
+                   const int64_t stime_m);
   /**
    * Fail to change to a working directory
    */
@@ -61,7 +61,7 @@ class ExecedProcess : public Process {
     wds_.insert(d);
   }
 
-  virtual long int sum_rusage_recurse();
+  virtual int64_t sum_rusage_recurse();
 
   void export2js(const unsigned int level, FILE* stream,
                  unsigned int * nodeid);
@@ -71,10 +71,10 @@ class ExecedProcess : public Process {
  private:
   Process *exec_parent_ = NULL;
   /// Sum of user time in milliseconds for all forked but not exec()-ed children
-  long int sum_utime_m_ = 0;
+  int64_t sum_utime_m_ = 0;
   /// Sum of system time in milliseconds for all forked but not exec()-ed
   /// children
-  long int sum_stime_m_ = 0;
+  int64_t sum_stime_m_ = 0;
   /// Directory the process exec()-started in
   std::string cwd_;
   /// Working directories visited by the process and all fork()-children

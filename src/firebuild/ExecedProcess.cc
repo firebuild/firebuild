@@ -49,8 +49,8 @@ void ExecedProcess::propagate_exit_status(const int status) {
   }
 }
 
-void ExecedProcess::exit_result(const int status, const long int utime_m,
-                                const long int stime_m) {
+void ExecedProcess::exit_result(const int status, const int64_t utime_m,
+                                const int64_t stime_m) {
   // store results for this process
   Process::exit_result(status, utime_m, stime_m);
   set_state(FB_PROC_FINISHED);
@@ -58,8 +58,8 @@ void ExecedProcess::exit_result(const int status, const long int utime_m,
   propagate_exit_status(status);
 }
 
-long int ExecedProcess::sum_rusage_recurse() {
-  long int aggr_time = utime_m() + stime_m();
+int64_t ExecedProcess::sum_rusage_recurse() {
+  int64_t aggr_time = utime_m() + stime_m();
   sum_utime_m_ = 0;
   sum_stime_m_ = 0;
   sum_rusage(&sum_utime_m_, &sum_stime_m_);

@@ -19,14 +19,14 @@
 namespace firebuild {
 
 struct subcmd_prof {
-  long int sum_aggr_time;
-  long int count;
+  int64_t sum_aggr_time;
+  int64_t count;
   bool recursed;
 };
 
 struct cmd_prof {
-  long int aggr_time;
-  long int cmd_time;
+  int64_t aggr_time;
+  int64_t cmd_time;
   /**  {time_m, count} */
   std::unordered_map<std::string, subcmd_prof> subcmds;
 };
@@ -42,7 +42,7 @@ class ProcessTree {
   void insert(ExecedProcess *p, const int sock);
   void insert(ForkedProcess *p, const int sock);
   void exit(Process *p, const int sock);
-  static long int sum_rusage_recurse(Process *p);
+  static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
   ExecedProcess* root() {return root_;}

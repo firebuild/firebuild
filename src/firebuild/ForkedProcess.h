@@ -44,7 +44,7 @@ class ForkedProcess : public Process {
   std::unordered_map<std::string, FileUsage*>& file_usages() {
     return const_cast<std::unordered_map<std::string, FileUsage*>&>(static_cast<const ForkedProcess*>(this)->file_usages());
   }
-  long int sum_rusage_recurse() {
+  int64_t sum_rusage_recurse() {
     set_aggr_time(utime_m() + stime_m());
     return Process::sum_rusage_recurse();
   }

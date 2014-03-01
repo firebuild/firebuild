@@ -156,7 +156,7 @@ static double percent_of(const double val, const double of) {
 void ProcessTree::export_profile2dot(FILE* stream) {
   std::set<std::string> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
-  long int build_time;
+  int64_t build_time;
 
   // build profile
   build_profile(*root_, &cmd_chain);
