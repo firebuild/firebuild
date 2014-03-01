@@ -1,0 +1,14 @@
+*~
+*.lock
+*.DS_Store
+*.swp
+*.out
+*.o
+*.so
+.gitignore
+CMakeCache.txt
+CMakeFiles/
+build/
+src/firebuild/fb-messages.pb.cc
+src/firebuild/fb-messages.pb.h
+src/firebuild/firebuild
