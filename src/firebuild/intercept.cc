@@ -49,7 +49,7 @@ pthread_mutex_t ic_fd_states_lock;
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
-#include "ic_file_ops.h"
+#include "firebuild/ic_file_ops.h"
 
 #undef IC_VOID
 
@@ -149,7 +149,7 @@ static void set_orig_fns() {
 
   /* we need to include every file using IC() macro to create ic_orig_... version
    * for all functions */
-#include "ic_file_ops.h"
+#include "firebuild/ic_file_ops.h"
 
 #undef IC_VOID
 }
@@ -310,7 +310,7 @@ void handle_exit(const int status, void*) {
       assert(0 && "Supervisor did not ack exit");
     }
 
-    // TODO atomic set?
+    // TODO(rbalint) atomic set?
     fb_exit_handled = true;
   }
 }

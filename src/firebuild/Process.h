@@ -36,7 +36,7 @@ class Process {
   Process(int pid, int ppid, const std::string &wd);
   virtual ~Process();
   bool operator == (Process const & p) const;
-  virtual bool exec_started() const {return false;};
+  virtual bool exec_started() const {return false;}
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
   int fb_pid() {return fb_pid_;}

@@ -139,7 +139,7 @@ IC(int, faccessat, (int fd, const char *file, int type, int flag), {
 // ignored: lseek lseek64
 // those don't let new information enter the process
 
-// TODO finish to handle stdio
+// TODO(rbalint) finish to handle stdio
 IC(ssize_t, read, (int fd, void *buf, size_t nbytes), {
     ret = orig_fn(fd, buf, nbytes); intercept_read(fd, ret);})
 IC(ssize_t, write, (int fd, const void *buf, size_t n), {
@@ -152,7 +152,7 @@ IC(ssize_t, pread64, (int fd, void *buf, size_t nbytes, off_t offset), {
     ret = orig_fn(fd, buf, nbytes, offset); intercept_read(fd, ret);})
 IC(ssize_t, pwrite64, (int fd, const void *buf, size_t n, off_t offset), {
     ret = orig_fn(fd, buf, n, offset); intercept_write(fd, ret);})
-// TODO intercept to handle communication between forked children and parent
+// TODO(rbalint) intercept to handle communication between forked children and parent
 IC(int, pipe, (int pipedes[2]), {
     ret = orig_fn(pipedes);
     intercept_pipe2(pipedes, 0, ret);
@@ -164,7 +164,7 @@ IC(int, pipe2, (int pipedes[2], int flags), {
     clear_file_state(pipedes[0]);
     clear_file_state(pipedes[1]); })
 
-// TODO those may affect output if the process measures time that way
+// TODO(rbalint) those may affect output if the process measures time that way
 // usually the calls can be ignored
 IC_GENERIC(unsigned int, alarm, (unsigned int seconds), {
     ret = orig_fn(seconds);})
@@ -177,7 +177,7 @@ IC_GENERIC(int, usleep, (useconds_t useconds), {
 IC_GENERIC(int, pause, (void), {
     ret = orig_fn();})
 
-// TODO finish
+// TODO(rbalint) finish
 IC(int, chown, (const char *file, uid_t owner, gid_t group), {
     ret = orig_fn(file, owner, group);
     intercept_chown(file, owner, group, ret); })
@@ -364,7 +364,7 @@ IC_GENERIC(int, ttyname_r, (int fd, char *buf, size_t buflen), {
 
 /* ignore: isatty ttyslot */
 
-/* TODO !!! */
+/* TODO(rbalint) !!! */
 IC(int, link, (const char *from, const char *to), {
     ret = orig_fn(from, to); intercept_link(from, to, ret);})
 IC(int, linkat, (int fromfd, const char *from, int tofd,
@@ -493,7 +493,7 @@ IC_GENERIC(char*, ctermid, (char *s), {
     ret = orig_fn(s);})
 
 
-// TODO intercept fns
+// TODO(rbalint) intercept fns
 IC_GENERIC(int, stat, (const char *file, struct stat *buf), {
     ret = orig_fn(file, buf); /*intercept_stat(file, buf, ret);*/})
 IC_GENERIC(int, fstat, (int fd, struct stat *buf), {
@@ -573,7 +573,7 @@ IC_GENERIC(int, xmknodat, (int ver, int fd, const char *path,
                            mode_t mode, dev_t *dev), {
              ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
 
-// TODO finish stdio.h
+// TODO(rbalint) finish stdio.h
 IC(int, remove, (const char *filename), {
     ret = orig_fn(filename); intercept_remove(filename, ret);})
 IC(int, rename, (const char *oldpath, const char *newpath), {

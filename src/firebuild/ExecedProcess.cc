@@ -93,7 +93,7 @@ void ExecedProcess::export2js_recurse(const unsigned int level, FILE* stream,
 
 void ExecedProcess::export2js(const unsigned int level,
                               FILE* stream, unsigned int * nodeid) {
-  // TODO: escape all strings properly
+  // TODO(rbalint): escape all strings properly
   auto indent_str = std::string(2 * level, ' ');
   const char* indent = indent_str.c_str();
 
@@ -149,7 +149,7 @@ void ExecedProcess::export2js(const unsigned int level,
   }
   fprintf(stream, "],\n");
 
-  // TODO replace write/read flag checks with more accurate tests
+  // TODO(rbalint) replace write/read flag checks with more accurate tests
   fprintf(stream, "%s fmodified: [", indent);
   for (auto it =ordered_file_usages.begin(); it != ordered_file_usages.end();
        ++it) {

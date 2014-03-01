@@ -5,10 +5,10 @@
 #include "firebuild/firebuild_common.h"
 
 #include <netinet/in.h>
+#include <google/protobuf/message_lite.h>
 
 #include <cstdlib>
 
-#include <google/protobuf/message_lite.h>
 
 namespace firebuild {
 
@@ -42,7 +42,8 @@ extern ssize_t fb_send_msg(const google::protobuf::MessageLite &pb_msg,
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
  */
-extern ssize_t fb_recv_msg(google::protobuf::MessageLite *pb_msg, const int fd) {
+extern ssize_t fb_recv_msg(google::protobuf::MessageLite *pb_msg,
+                           const int fd) {
   uint32_t msg_size;
 
   /* read serialized length */

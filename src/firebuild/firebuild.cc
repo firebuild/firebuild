@@ -222,7 +222,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(ic_msg.scproc_query());
     proc_tree->insert(proc, fd_conn);
-    // TODO look up stored result
+    // TODO(rbalint) look up stored result
 #if 0
     if ( /* can shortcut*/) {
       scproc_resp->set_shortcut(true);
@@ -244,7 +244,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     } catch (const std::out_of_range& oor) {
       // If parent is missing, FireBuild missed process
       // that can happen due to the missing process(es) being statically built
-      std::cerr << "TODO handle: Process without known parent\n";
+      std::cerr << "TODO(rbalint) handle: Process without known parent\n";
     }
       /* record new process */
     auto proc =
@@ -325,7 +325,7 @@ inline ssize_t sendfile_full(int out_fd, int in_fd) {
  *
  * @param html_filename report file to be written
  * @param datadir report template's location
- * TODO error handling
+ * TODO(rbalint) error handling
  */
 static void write_report(const std::string &html_filename,
                          const std::string &datadir) {
@@ -612,7 +612,7 @@ int main(const int argc, char *argv[]) {
                     fdmax = newfd;
                   }
                 }
-                // TODO debug
+                // TODO(rbalint) debug
               }
             } else if (i == sigchld_fds[0]) {
               // Our child has exited.
@@ -627,7 +627,7 @@ int main(const int argc, char *argv[]) {
                 // got error or connection closed by client
                 if (nbytes == 0) {
                   // connection closed
-                  // TODO handle process exit
+                  // TODO(rbalint) handle process exit
                   FB_DEBUG(2, "socket " + std::to_string(i) +
                            std::string(" hung up"));
                 } else {

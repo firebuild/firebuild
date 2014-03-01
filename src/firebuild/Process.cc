@@ -17,13 +17,13 @@ Process::Process(const int pid, const int ppid, const std::string &wd)
       fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1),
       wd_(wd), fds_({NULL, NULL, NULL}), utime_m_(0), stime_m_(0),
       aggr_time_(0), children_(), exec_child_(NULL) {
-  // TODO inherit fds properly
+  // TODO(rbalint) inherit fds properly
   fds_[0] = new FileFD(0, 0, (fd_origin)FD_ORIGIN_INHERITED);
   fds_[1] = new FileFD(1, 0, FD_ORIGIN_INHERITED);
   fds_[2] = new FileFD(2, 0, FD_ORIGIN_INHERITED);
 }
 
-void Process::update_rusage(const int64_t utime_m, const long int stime_m) {
+void Process::update_rusage(const int64_t utime_m, const int64_t stime_m) {
   utime_m_ = utime_m;
   stime_m_ = stime_m;
 }
@@ -108,7 +108,7 @@ int Process::close_file(const int fd, const int error) {
       ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) ||
       (NULL == fds_[fd])) {
     // IO error and closing an unknown fd succesfully prevents shortcutting
-    // TODO debug
+    // TODO(rbalint) debug
     this->can_shortcut_ = false;
     return -1;
   } else if (EBADF == error) {
@@ -121,12 +121,12 @@ int Process::close_file(const int fd, const int error) {
         fds_[fd]->set_last_err(error);
       }
       return 0;
-    } else if((fds_[fd]->last_err() == EINTR) && (error == 0)) {
+    } else if ((fds_[fd]->last_err() == EINTR) && (error == 0)) {
       // previous close got interrupted but the current one succeeded
       return 0;
     } else {
       // already closed, it may be an error
-      // TODO debug
+      // TODO(rbalint) debug
       return 0;
     }
   }

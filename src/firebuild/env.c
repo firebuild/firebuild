@@ -25,5 +25,5 @@ void get_argv_env(char *** argv, char ***env)
   *env = __environ;
 }
 
-// TODO for valgrind
+// TODO(rbalint) for valgrind
 // void free_arc_argv_env()

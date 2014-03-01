@@ -19,7 +19,7 @@ class ExecedProcess : public Process {
   explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
                           const std::string &executable);
   virtual ~ExecedProcess();
-  virtual bool exec_started() const {return true;};
+  virtual bool exec_started() const {return true;}
   void set_exec_parent(Process *p) {exec_parent_ = p;}
   Process* exec_parent() {return exec_parent_;}
   int64_t sum_utime_m() const {return sum_utime_m_;}
@@ -44,7 +44,8 @@ class ExecedProcess : public Process {
     return file_usages_;
   }
   std::unordered_map<std::string, FileUsage*>& file_usages() {
-    return const_cast<std::unordered_map<std::string, FileUsage*>&>(static_cast<const ExecedProcess*>(this)->file_usages());
+    return const_cast<std::unordered_map<std::string, FileUsage*>&>
+        (static_cast<const ExecedProcess*>(this)->file_usages());
   }
   void exit_result(const int status, const int64_t utime_m,
                    const int64_t stime_m);

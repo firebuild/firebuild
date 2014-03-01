@@ -39,7 +39,7 @@ void ProcessTree::insert(ExecedProcess *p, const int sock) {
       // root's exec_parent is firebuild which is not in the tree.
       // If any other parent is missing, FireBuild missed process
       // that can happen due to the missing process(es) being statically built
-      fb_error("TODO handle: Process without known exec parent\n");
+      fb_error("TODO(rbalint) handle: Process without known exec parent\n");
     }
   }
 
@@ -57,7 +57,7 @@ void ProcessTree::insert(ForkedProcess *p, const int sock) {
 
 void ProcessTree::exit(Process *p, const int sock) {
   (void)p;
-  // TODO maybe this is not needed
+  // TODO(rbalint) maybe this is not needed
   sock2proc_.erase(sock);
 }
 
@@ -67,9 +67,10 @@ void ProcessTree::export2js(FILE * stream) {
   root_->export2js_recurse(0, stream, &nodeid);
 }
 
-void ProcessTree::profile_collect_cmds(const Process &p,
-                                       std::unordered_map<std::string, subcmd_prof> *cmds,
-                                       std::set<std::string> *ancestors) {
+void ProcessTree::
+profile_collect_cmds(const Process &p,
+                     std::unordered_map<std::string, subcmd_prof> *cmds,
+                     std::set<std::string> *ancestors) {
   if (p.exec_child() != NULL) {
     ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());
     if (0 == ancestors->count(ec->args()[0])) {

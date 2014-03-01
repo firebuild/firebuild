@@ -35,7 +35,7 @@ int SHA256Hash::update(const std::string &from_path) {
     return -1;
   } else if (!S_ISREG(st.st_mode)) {
     // Only regular files' hash can be collected
-    // TODO debug
+    // TODO(rbalint) debug
     close(fd);
     return -1;
   }

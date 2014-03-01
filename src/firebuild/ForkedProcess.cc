@@ -9,8 +9,7 @@ namespace firebuild {
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* fork_parent)
     : Process(pid, ppid, (fork_parent)?fork_parent->wd():""),
-      fork_parent_(fork_parent)
-{
+      fork_parent_(fork_parent) {
 }
 
 }  // namespace firebuild
