@@ -71,7 +71,7 @@ void ProcessTree::profile_collect_cmds(const Process &p,
                                        std::unordered_map<std::string, subcmd_prof> *cmds,
                                        std::set<std::string> *ancestors) {
   if (p.exec_child() != NULL) {
-    ExecedProcess *ec = dynamic_cast<ExecedProcess*>(p.exec_child());
+    ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());
     if (0 == ancestors->count(ec->args()[0])) {
       (*cmds)[ec->args()[0]].sum_aggr_time += p.exec_child()->aggr_time();
     } else {
@@ -89,8 +89,8 @@ void ProcessTree::profile_collect_cmds(const Process &p,
 void ProcessTree::build_profile(const Process &p,
                                 std::set<std::string> *ancestors) {
   bool first_visited = false;
-  if (p.type() == FB_PROC_EXEC_STARTED) {
-    auto *e = dynamic_cast<const ExecedProcess*>(&p);
+  if (p.exec_started()) {
+    auto *e = static_cast<const ExecedProcess*>(&p);
     auto &cmd_prof = cmd_profs_[e->args()[0]];
     if (0 == ancestors->count(e->args()[0])) {
       cmd_prof.aggr_time += e->aggr_time();
@@ -108,7 +108,7 @@ void ProcessTree::build_profile(const Process &p,
   }
 
   if (first_visited) {
-    ancestors->erase(dynamic_cast<const ExecedProcess*>(&p)->args()[0]);
+    ancestors->erase(static_cast<const ExecedProcess*>(&p)->args()[0]);
   }
 }
 

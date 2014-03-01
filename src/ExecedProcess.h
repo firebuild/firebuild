@@ -19,6 +19,7 @@ class ExecedProcess : public Process {
   explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
                           const std::string &executable);
   virtual ~ExecedProcess();
+  virtual bool exec_started() const {return true;};
   void set_exec_parent(Process *p) {exec_parent_ = p;}
   Process* exec_parent() {return exec_parent_;}
   long int sum_utime_m() const {return sum_utime_m_;}

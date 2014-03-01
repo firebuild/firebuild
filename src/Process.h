@@ -21,13 +21,6 @@ typedef enum {FB_PROC_RUNNING,   ///< process is running
               FB_PROC_FINISHED,  ///< process exited cleanly
 } process_state;
 
-typedef enum {
-  /// current process image is loaded by exec()
-  FB_PROC_EXEC_STARTED,
-  /// process is forked off from an other process
-  FB_PROC_FORK_STARTED
-} process_type;
-
 /**
  * Firebuild's model of a UNIX (TODO: Windows) process' period of life.
  * Generally it represents the period starting with a successful exec() or fork()
@@ -40,10 +33,10 @@ typedef enum {
  */
 class Process {
  public:
-  Process(int pid, int ppid, process_type type, const std::string &wd);
+  Process(int pid, int ppid, const std::string &wd);
   virtual ~Process();
   bool operator == (Process const & p) const;
-  process_type type() const {return type_;}
+  virtual bool exec_started() const {return false;};
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
   int fb_pid() {return fb_pid_;}
@@ -98,7 +91,6 @@ class Process {
                                  unsigned int *nodeid);
 
  private:
-  const process_type type_ : 2;
   process_state state_ :2;
   bool can_shortcut_:1;
   int fb_pid_;       ///< internal FireBuild id for the process

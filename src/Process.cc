@@ -12,9 +12,8 @@ namespace firebuild {
 
 static int fb_pid_counter;
 
-Process::Process(const int pid, const int ppid, const process_type type,
-                 const std::string &wd)
-    : type_(type), state_(FB_PROC_RUNNING), can_shortcut_(true),
+Process::Process(const int pid, const int ppid, const std::string &wd)
+    : state_(FB_PROC_RUNNING), can_shortcut_(true),
       fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1),
       wd_(wd), fds_({NULL, NULL, NULL}), utime_m_(0), stime_m_(0),
       aggr_time_(0), children_(), exec_child_(NULL) {
