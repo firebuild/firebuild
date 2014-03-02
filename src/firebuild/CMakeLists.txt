@@ -13,7 +13,7 @@ add_library(fbintercept MODULE
   ic_redirect_only.cc
   ${PROTO_SRCS})
 
-target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES})
+target_link_libraries(fbintercept ${PROTOBUF_LIBRARIES} dl)
 
 add_executable(firebuild
   firebuild.cc
