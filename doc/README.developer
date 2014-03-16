@@ -1,5 +1,5 @@
 Generate (almost usable) default wrappers from header:
- grep '^ *extern' /usr/include/unistd.h | sed 's/extern \([^ ]*\)/IC_GENERIC(\1/;s/^\([^ ]*\) \*/\1* /;s/ \([^ ]*\) (/, \1, (/;s/).*/),\n           {ret = orig_fn(XXX);})/'
+ grep '^ *extern' /usr/include/unistd.h | sed 's/extern \([^ ]*\)/IC_GENERIC(\1/;s/^\([^ ]*\) \*/\1* /;s/ \([^ ]*\) (/, \1, (/;s/).*/), {\n    ret = orig_fn(XXX);})/'
 
 Test wether FireBuild intercepts all syscalls:
 firebuild -i strace  -o/tmp/ls.trace ls
