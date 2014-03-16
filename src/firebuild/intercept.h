@@ -30,6 +30,16 @@
             return ret;                         \
           })
 
+/** Intercept generic call with var args, called, ret is set */
+#define IC_VA(ret_type, name, parameters, body)                 \
+  IC(ret_type, name, parameters, {                              \
+      void *args = __builtin_apply_args();                      \
+      void * const result =                                     \
+          __builtin_apply((void (*)(...))orig_fn, args, 100);   \
+      ret = *reinterpret_cast<ret_type*>(result);               \
+      body;                                                     \
+    })
+
 /**
  * Just send the intercepted function's name
  */

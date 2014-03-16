@@ -6,14 +6,8 @@
  * IC() macro.
  */
 
-IC(int, fcntl, (int fd, int cmd, ...), {
+IC_VA(int, fcntl, (int fd, int cmd, ...), {
     va_list ap;
-    void *args = __builtin_apply_args();
-    void * const result = __builtin_apply((void (*)(...))orig_fn, args,
-                                          100);
-
-    ret = *reinterpret_cast<int*>(result);
-
     va_start(ap, cmd);
     switch (cmd) {
       case F_DUPFD:
@@ -489,9 +483,6 @@ IC(int, lockf64, (int fd, int cmd, off64_t len), {
 
 /* ignored: fdatasync crypt encrypt swab */
 
-IC_GENERIC(char*, ctermid, (char *s), {
-    ret = orig_fn(s);})
-
 
 // TODO(rbalint) intercept fns
 IC_GENERIC(int, stat, (const char *file, struct stat *buf), {
@@ -573,7 +564,7 @@ IC_GENERIC(int, xmknodat, (int ver, int fd, const char *path,
                            mode_t mode, dev_t *dev), {
              ret = orig_fn(ver, fd, path, mode, dev); /*intercept_();*/})
 
-// TODO(rbalint) finish stdio.h
+// stdio.h
 IC(int, remove, (const char *filename), {
     ret = orig_fn(filename); intercept_remove(filename, ret);})
 IC(int, rename, (const char *oldpath, const char *newpath), {
@@ -582,7 +573,19 @@ IC(int, renameat, (int oldfd, const char *oldpath, int newfd,
                    const char *newpath), {
      ret = orig_fn(oldfd, oldpath, newfd, newpath);
      intercept_renameat(oldfd, oldpath, newfd, newpath, ret);})
-
+IC_GENERIC(FILE*, tmpfile, (void), {
+    ret = orig_fn();})
+IC_GENERIC(FILE*, tmpfile64, (void), {
+    ret = orig_fn();})
+// ignore: tmpnam tmpnam_r tempnam
+IC(int, fclose, (FILE *stream), {
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_close(stream_fileno, (ret == EOF)?-1:ret);})
+// ignore: fflush fflush_unlocked
+IC(int, fcloseall, (void), {
+    ret = orig_fn();
+    intercept_fcloseall((ret == EOF)?-1:ret);})
 IC(FILE*, fopen, (const char *filename, const char *modes), {
     ret = orig_fn(filename, modes);
     intercept_fopen(filename, modes, (ret)?fileno(ret):(-1));})
@@ -598,58 +601,63 @@ IC(FILE*, freopen64, (const char *filename, const char *modes, FILE *stream), {
     ret = orig_fn(filename, modes, stream);
     intercept_freopen(filename, modes, stream_fileno, (ret)?fileno(ret):(-1));})
 
-// ignore fdopen, since it does not open new file
-IC(int, fclose, (FILE *stream), {
-    int stream_fileno = (stream)?fileno(stream):-1;
-    ret = orig_fn(stream);
-    intercept_close(stream_fileno, (ret == EOF)?-1:ret);})
-IC(int, fcloseall, (void), {
-    ret = orig_fn();
-    intercept_fcloseall((ret == EOF)?-1:ret);})
+// ignore: fdopen fopencookie fmemopen open_memstream setbuf setbuffer
+// setlinebuf setvbuf
 
+IC_VA(int, fprintf, (FILE * stream, const char * format, ...), {
+    (void)format;
+    int fd = fileno(stream);
+    (void)fd;
+    /* TODO(rbalint) check result and std fds */ })
+IC_VA(int, printf, (const char * format, ...), {
+    (void)format;
+    /* TODO(rbalint) check result and std out */ })
+// ignore: sprintf
+IC_GENERIC(int, vfprintf, (FILE * stream, const char * format, _G_va_list arg), {
+    int fd = fileno(stream);
+    (void)fd;
+    ret = orig_fn(stream, format, arg);
+    /* TODO(rbalint) check result and std out */ })
+IC_VA(int, vprintf, (const char * format, _G_va_list arg), {
+    ret = orig_fn(format, arg);
+    /* TODO(rbalint) check result and std out */ })
+// ignore: vsprintf snprintf vsnprintf vasprintf asprintf
+IC_VA(int, vdprintf, (int fd, const char * fmt, _G_va_list arg), {
+    ret = orig_fn(fd, fmt, arg);
+    /* TODO(rbalint) check result and std fds */ })
+IC_VA(int, dprintf, (int fd, const char * fmt, ...), {
+    (void)fd;
+    (void)fmt;
+    /* TODO(rbalint) check result and std fds */ })
 
-IC(void*, dlopen, (const char *filename, int flag), {
-    // dlopen may cause new intercepted calls
-    intercept_on = false;
-    ret = orig_fn(filename, flag);
-    intercept_on = true;
-    intercept_dlopen(filename, flag, ret);
-  })
+// generate ISO C99 or POSIX compliant variant
+#define IC_VA_WITH_C99(ret_type, name, parameters, body)           \
+  IC_VA(ret_type, name, parameters, body)                          \
+  IC_VA(ret_type, __isoc99_##name, parameters, body)
+#define IC_WITH_C99(ret_type, name, parameters, body)           \
+  IC(ret_type, name, parameters, body)                          \
+  IC(ret_type, __isoc99_##name, parameters, body)
 
-// dirent.h
-IC(DIR *, opendir, (const char *name), {
-    ret = orig_fn(name); intercept_opendir(name, ret);})
-IC(DIR *, fdopendir, (int fd), {
-    ret = orig_fn(fd); intercept_fdopendir(fd, ret);})
-IC_GENERIC(int, closedir, (DIR *dirp), {
-    ret = orig_fn(dirp);})
-IC_GENERIC(struct dirent *, readdir, (DIR *dirp), {
-    ret = orig_fn(dirp);})
-IC_GENERIC(struct dirent64 *, readdir64, (DIR *dirp), {
-    ret = orig_fn(dirp);})
-IC_GENERIC(int, readdir_r, (DIR *dirp, struct dirent *entry,
-                            struct dirent **result), {
-             ret = orig_fn(dirp, entry, result);})
-IC_GENERIC(int, readdir64_r, (DIR *dirp, struct dirent64 *entry,
-                              struct dirent64 **result), {
-             ret = orig_fn(dirp, entry, result);})
-IC_GENERIC_VOID(void, rewinddir, (DIR *dirp), {
-    orig_fn(dirp);})
-IC_GENERIC_VOID(void, seekdir, (DIR *dirp, long int pos), {
-    orig_fn(dirp, pos);})
-IC_GENERIC(long int, telldir, (DIR *dirp), {
-    ret = orig_fn(dirp);})
-IC_GENERIC(int, dirfd, (DIR *dirp), {
-    ret = orig_fn(dirp);})
-// ignore scandir scandir64 alphasort
-IC_GENERIC(ssize_t, getdirentries, (int fd, char *buf, size_t nbytes,
-                                    off_t *basep), {
-             ret = orig_fn(fd, buf, nbytes, basep);})
-IC_GENERIC(ssize_t, getdirentries64, (int fd, char *buf, size_t nbytes,
-                                      off64_t *basep), {
-             ret =  orig_fn(fd, buf, nbytes, basep);})
-// ignore versionsort versionsort64
-
+IC_VA_WITH_C99(int, fscanf, (FILE * stream, const char * format, ...), {
+    int fd = fileno(stream);
+    (void)format;
+    (void)fd;
+    /* TODO(rbalint) check result and std fds */ })
+IC_VA_WITH_C99(int, scanf, (const char * format, ...), {
+    (void)format;
+    /* TODO(rbalint) check result and std in */ })
+// ignore: sscanf
+// ignore: sscanf
+IC_WITH_C99(int, vfscanf, (FILE * stream, const char * format,
+                           _G_va_list arg), {
+    int fd = fileno(stream);
+    (void)fd;
+    ret = orig_fn(stream, format, arg);
+    /* TODO(rbalint) check result and std fds */ })
+IC_VA_WITH_C99(int, vscanf, (const char * format, _G_va_list arg), {
+    ret = orig_fn(format, arg);
+    /* TODO(rbalint) check result and std in */ })
+// ignore: vsscanf
 
 /**
  * generate two intercepted functions, one for name and one for
@@ -711,6 +719,7 @@ IC_WITH_UNLOCKED(char*, fgets, (char *s, int n, FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(s, n, stream);
     intercept_read(stream_fileno, ret?strlen(ret):-1);})
+// TODO(rbalint) _IO_getc and friends?
 IC_WITH_UNLOCKED(int, getc, (FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(stream);
@@ -725,10 +734,84 @@ IC_WITH_UNLOCKED(int, getchar, (void), {
 IC_WITH_UNLOCKED(wint_t, getwchar, (void), {
     ret = orig_fn();
     intercept_read(STDOUT_FILENO, (ret == WEOF)?-1:2);})
-/* should be never used, see man gets*/
+/* should be never used, see man gets */
 IC(char*, gets, (char *s), {
     ret = orig_fn(s);
     intercept_read(STDOUT_FILENO, ret?strlen(ret):-1);})
+IC_GENERIC(int, getw, (FILE *stream), {
+    ret = orig_fn(stream);})
+IC_GENERIC(int, putw, (int w, FILE *stream), {
+    ret = orig_fn(w, stream);})
+IC_GENERIC(_IO_ssize_t, getdelim, (char ** lineptr, size_t * n, int delimiter,
+                                   FILE * stream), {
+    ret = orig_fn(lineptr, n, delimiter, stream);
+    /* TODO(rbalint) check result and std fds */ })
+IC_GENERIC(_IO_ssize_t, __getdelim, (char ** lineptr, size_t * n, int delimiter,
+                                     FILE * stream), {
+    ret = orig_fn(lineptr, n, delimiter, stream);
+    /* TODO(rbalint) check result and std fds */ })
+IC_GENERIC(_IO_ssize_t, getline, (char ** lineptr, size_t * n, FILE * stream), {
+    ret = orig_fn(lineptr, n, stream);
+    /* TODO(rbalint) check result and std fds */ })
+/* TODO(rbalint)  invalidate shortcut */
+IC_GENERIC(int, ungetc, (int c, FILE * stream), {
+    ret = orig_fn(c, stream);})
+// ignore fseek ftell rewind fseeko ftello fseeko64 ftello64 fgetpos fsetpos
+// fgetpos64 fsetpos64 clearerr feof ferror clearerr_unlocked feof_unlocked
+// ferror_unlocked perror fileno fileno_unlocked
+
+// TODO(rbalint) popen pclose? Are they be intercepted by the lower level
+// exec() and pipe()?
+
+IC_GENERIC(char *, ctermid, (char *s), {
+    ret = orig_fn(s);})
+IC_GENERIC(char *, cuserid, (char *s), {
+    ret = orig_fn(s);})
+// ignore flockfile ftrylockfile funlockfile
+
+// dlfcn.h
+IC(void*, dlopen, (const char *filename, int flag), {
+    // dlopen may cause new intercepted calls
+    intercept_on = false;
+    ret = orig_fn(filename, flag);
+    intercept_on = true;
+    intercept_dlopen(filename, flag, ret);
+  })
+
+// dirent.h
+IC(DIR *, opendir, (const char *name), {
+    ret = orig_fn(name); intercept_opendir(name, ret);})
+IC(DIR *, fdopendir, (int fd), {
+    ret = orig_fn(fd); intercept_fdopendir(fd, ret);})
+IC_GENERIC(int, closedir, (DIR *dirp), {
+    ret = orig_fn(dirp);})
+IC_GENERIC(struct dirent *, readdir, (DIR *dirp), {
+    ret = orig_fn(dirp);})
+IC_GENERIC(struct dirent64 *, readdir64, (DIR *dirp), {
+    ret = orig_fn(dirp);})
+IC_GENERIC(int, readdir_r, (DIR *dirp, struct dirent *entry,
+                            struct dirent **result), {
+             ret = orig_fn(dirp, entry, result);})
+IC_GENERIC(int, readdir64_r, (DIR *dirp, struct dirent64 *entry,
+                              struct dirent64 **result), {
+             ret = orig_fn(dirp, entry, result);})
+IC_GENERIC_VOID(void, rewinddir, (DIR *dirp), {
+    orig_fn(dirp);})
+IC_GENERIC_VOID(void, seekdir, (DIR *dirp, long int pos), {
+    orig_fn(dirp, pos);})
+IC_GENERIC(long int, telldir, (DIR *dirp), {
+    ret = orig_fn(dirp);})
+IC_GENERIC(int, dirfd, (DIR *dirp), {
+    ret = orig_fn(dirp);})
+// ignore scandir scandir64 alphasort
+IC_GENERIC(ssize_t, getdirentries, (int fd, char *buf, size_t nbytes,
+                                    off_t *basep), {
+             ret = orig_fn(fd, buf, nbytes, basep);})
+IC_GENERIC(ssize_t, getdirentries64, (int fd, char *buf, size_t nbytes,
+                                      off64_t *basep), {
+             ret =  orig_fn(fd, buf, nbytes, basep);})
+// ignore versionsort versionsort64
+
 
 
 // socket.h
@@ -894,3 +977,12 @@ IC_GENERIC(int, ioctl, (int fd, unsigned long int request, ...), {
     va_end(ap);
     ret = orig_fn(fd, request, argp);})
 
+// sys/timex.h
+IC_GENERIC(int, adjtimex, (struct timex *ntx), {
+    ret = orig_fn(ntx);})
+IC_GENERIC(int, ntp_gettime, (struct ntptimeval *ntv), {
+    ret = orig_fn(ntv);})
+IC_GENERIC(int, ntp_gettimex, (struct ntptimeval *ntv), {
+    ret = orig_fn(ntv);})
+IC_GENERIC(int, ntp_adjtime, (struct timex *tntx), {
+    ret = orig_fn(tntx);})
