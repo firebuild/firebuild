@@ -606,27 +606,28 @@ IC(FILE*, freopen64, (const char *filename, const char *modes, FILE *stream), {
 
 IC_VA(int, fprintf, (FILE * stream, const char * format, ...), {
     (void)format;
-    int fd = fileno(stream);
-    (void)fd;
+    intercept_fwrite(stream, ret);
     /* TODO(rbalint) check result and std fds */ })
 IC_VA(int, printf, (const char * format, ...), {
     (void)format;
-    /* TODO(rbalint) check result and std out */ })
+    intercept_write(STDOUT_FILENO, ret);
+    /* TODO(rbalint) check result and store std out */ })
 // ignore: sprintf
-IC_GENERIC(int, vfprintf, (FILE * stream, const char * format, _G_va_list arg), {
-    int fd = fileno(stream);
-    (void)fd;
+IC(int, vfprintf, (FILE * stream, const char * format, _G_va_list arg), {
     ret = orig_fn(stream, format, arg);
+    intercept_fwrite(stream, ret);
     /* TODO(rbalint) check result and std out */ })
-IC_VA(int, vprintf, (const char * format, _G_va_list arg), {
+IC(int, vprintf, (const char * format, _G_va_list arg), {
     ret = orig_fn(format, arg);
+    intercept_write(STDOUT_FILENO, ret);
     /* TODO(rbalint) check result and std out */ })
 // ignore: vsprintf snprintf vsnprintf vasprintf asprintf
-IC_VA(int, vdprintf, (int fd, const char * fmt, _G_va_list arg), {
+IC(int, vdprintf, (int fd, const char * fmt, _G_va_list arg), {
     ret = orig_fn(fd, fmt, arg);
+    intercept_write(fd, ret);
     /* TODO(rbalint) check result and std fds */ })
 IC_VA(int, dprintf, (int fd, const char * fmt, ...), {
-    (void)fd;
+    intercept_write(fd, ret);
     (void)fmt;
     /* TODO(rbalint) check result and std fds */ })
 
@@ -639,23 +640,23 @@ IC_VA(int, dprintf, (int fd, const char * fmt, ...), {
   IC(ret_type, __isoc99_##name, parameters, body)
 
 IC_VA_WITH_C99(int, fscanf, (FILE * stream, const char * format, ...), {
-    int fd = fileno(stream);
     (void)format;
-    (void)fd;
+    intercept_fread(stream, ret);
     /* TODO(rbalint) check result and std fds */ })
 IC_VA_WITH_C99(int, scanf, (const char * format, ...), {
     (void)format;
+    intercept_fread(stdin, ret);
     /* TODO(rbalint) check result and std in */ })
 // ignore: sscanf
 // ignore: sscanf
 IC_WITH_C99(int, vfscanf, (FILE * stream, const char * format,
                            _G_va_list arg), {
-    int fd = fileno(stream);
-    (void)fd;
     ret = orig_fn(stream, format, arg);
+    intercept_fread(stream, ret);
     /* TODO(rbalint) check result and std fds */ })
-IC_VA_WITH_C99(int, vscanf, (const char * format, _G_va_list arg), {
+IC_WITH_C99(int, vscanf, (const char * format, _G_va_list arg), {
     ret = orig_fn(format, arg);
+    intercept_fread(stdin, ret);
     /* TODO(rbalint) check result and std in */ })
 // ignore: vsscanf
 
@@ -668,31 +669,26 @@ IC_VA_WITH_C99(int, vscanf, (const char * format, _G_va_list arg), {
 
 IC_WITH_UNLOCKED(size_t, fread, (void *ptr, size_t size, size_t nmemb,
                                  FILE *stream), {
-                   int stream_fileno = (stream)?fileno(stream):-1;
                    ret = orig_fn(ptr, size, nmemb, stream);
-                   intercept_read(stream_fileno, (ret < nmemb)?-1:ret);})
+                   intercept_fread(stream, ret);})
 IC_WITH_UNLOCKED(size_t, fwrite, (const void *ptr, size_t size, size_t nmemb,
                                   FILE *stream), {
-                   int stream_fileno = (stream)?fileno(stream):-1;
                    ret = orig_fn(ptr, size, nmemb, stream);
-                   intercept_write(stream_fileno, (ret < nmemb)?-1:ret);})
+                   intercept_fwrite(stream, ret);})
 
 IC_WITH_UNLOCKED(int, fputc, (int c, FILE *stream), {
-    int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
-    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+    intercept_fwrite(stream, ret);})
 IC_WITH_UNLOCKED(wint_t, fputwc, (wchar_t c, FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
     intercept_write(stream_fileno, (ret == WEOF)?-1:ret);})
 IC_WITH_UNLOCKED(int, fputs, (const char *s, FILE *stream), {
-    int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(s, stream);
-    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+    intercept_fwrite(stream, ret);})
 IC_WITH_UNLOCKED(int, putc, (int c, FILE *stream), {
-    int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
-    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+    intercept_fwrite(stream, ret);})
 IC_WITH_UNLOCKED(wint_t, putwc, (wchar_t c, FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(c, stream);
@@ -738,20 +734,27 @@ IC_WITH_UNLOCKED(wint_t, getwchar, (void), {
 IC(char*, gets, (char *s), {
     ret = orig_fn(s);
     intercept_read(STDOUT_FILENO, ret?strlen(ret):-1);})
-IC_GENERIC(int, getw, (FILE *stream), {
-    ret = orig_fn(stream);})
-IC_GENERIC(int, putw, (int w, FILE *stream), {
-    ret = orig_fn(w, stream);})
-IC_GENERIC(_IO_ssize_t, getdelim, (char ** lineptr, size_t * n, int delimiter,
-                                   FILE * stream), {
-    ret = orig_fn(lineptr, n, delimiter, stream);
-    /* TODO(rbalint) check result and std fds */ })
-IC_GENERIC(_IO_ssize_t, __getdelim, (char ** lineptr, size_t * n, int delimiter,
-                                     FILE * stream), {
-    ret = orig_fn(lineptr, n, delimiter, stream);
-    /* TODO(rbalint) check result and std fds */ })
-IC_GENERIC(_IO_ssize_t, getline, (char ** lineptr, size_t * n, FILE * stream), {
+IC(int, getw, (FILE *stream), {
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(stream);
+    intercept_read(stream_fileno, (ret == EOF)?-1:1);})
+IC(int, putw, (int w, FILE *stream), {
+    int stream_fileno = (stream)?fileno(stream):-1;
+    ret = orig_fn(w, stream);
+    intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
+IC(_IO_ssize_t, getdelim, (char ** lineptr, size_t * n, int delimiter,
+                           FILE * stream), {
+     ret = orig_fn(lineptr, n, delimiter, stream);
+     intercept_fread(stream, (ret == EOF)?-1:1);
+     /* TODO(rbalint) check result and std fds */ })
+IC(_IO_ssize_t, __getdelim, (char ** lineptr, size_t * n, int delimiter,
+                             FILE * stream), {
+     ret = orig_fn(lineptr, n, delimiter, stream);
+     intercept_fread(stream, (ret == EOF)?-1:1);
+     /* TODO(rbalint) check result and std fds */ })
+IC(_IO_ssize_t, getline, (char ** lineptr, size_t * n, FILE * stream), {
     ret = orig_fn(lineptr, n, stream);
+    intercept_fread(stream, (ret == EOF)?-1:1);
     /* TODO(rbalint) check result and std fds */ })
 /* TODO(rbalint)  invalidate shortcut */
 IC_GENERIC(int, ungetc, (int c, FILE * stream), {

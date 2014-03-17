@@ -392,7 +392,11 @@ IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 
 #undef IC2_WAIT_ACK
 
-
+/**
+ * Intercept read-like calls.
+ * @param fd file descriptor the intercepted call read
+ * @param ret return value of the intercepted call
+ */
 static void intercept_read(const int fd, const ssize_t ret) {
   pthread_mutex_lock(&ic_fd_states_lock);
   try {
@@ -407,7 +411,7 @@ static void intercept_read(const int fd, const ssize_t ret) {
     msg::InterceptorMsg ic_msg;
 
     auto m = ic_msg.mutable_read();
-    if (ret == -1) {
+    if (ret < 0) {
       m->set_error_no(saved_errno);
     }
     m->set_fd(fd);
@@ -418,6 +422,17 @@ static void intercept_read(const int fd, const ssize_t ret) {
   pthread_mutex_unlock(&ic_fd_states_lock);
 }
 
+/**
+ * Convert fread-like call's parameter and return value to read-like and
+ * intercept the call.
+ * Fread() returns EOF (-1) for both errors and EOF. In case of no error
+ * we pass 0 to intercept_read() to match read()'s behaviour.
+ * We also should not crash on NULL streams.
+ */
+static void intercept_fread(FILE *stream, const ssize_t ret) {
+  intercept_read(stream?fileno(stream):-1,
+                 ((EOF == ret) && (0 == ferror(stream)))?0:ret);
+}
 
 static void intercept_write(const int fd, const ssize_t ret) {
   pthread_mutex_lock(&ic_fd_states_lock);
@@ -433,7 +448,7 @@ static void intercept_write(const int fd, const ssize_t ret) {
     msg::InterceptorMsg ic_msg;
 
     auto m = ic_msg.mutable_write();
-    if (ret == -1) {
+    if (ret < 0) {
       m->set_error_no(saved_errno);
     }
     m->set_fd(fd);
@@ -442,6 +457,10 @@ static void intercept_write(const int fd, const ssize_t ret) {
     errno = saved_errno;
   }
   pthread_mutex_unlock(&ic_fd_states_lock);
+}
+
+static void intercept_fwrite(FILE *stream, const ssize_t ret) {
+  intercept_write((stream)?fileno(stream):-1, ret);
 }
 
 static void clear_file_state(const int fd) {
