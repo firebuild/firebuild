@@ -155,26 +155,29 @@ void ExecedProcess::export2js(const unsigned int level,
 
   // TODO(rbalint) replace write/read flag checks with more accurate tests
   fprintf(stream, "%s fmodified: [", indent);
-  for (auto it =ordered_file_usages.begin(); it != ordered_file_usages.end();
+  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
        ++it) {
     if ((!it->second->created()) &&
-        (it->second->open_flags() & (O_WRONLY | O_RDWR))) {
+        (((it->second->open_flags() & O_ACCMODE) == O_WRONLY) ||
+         ((it->second->open_flags() & O_ACCMODE) == O_RDWR))) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fread: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end();
+  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
        ++it) {
-    if (it->second->open_flags() & (O_RDONLY | O_RDWR)) {
+    if (!it->second->open_failed() &&
+        (((it->second->open_flags() & O_ACCMODE) == O_RDONLY) ||
+         ((it->second->open_flags() & O_ACCMODE) == O_RDWR))) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fnotf: [", indent);
-  for (auto it =ordered_file_usages.begin(); it !=ordered_file_usages.end();
+  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
        ++it) {
     if (it->second->open_failed()) {
       fprintf(stream, "\"%s\",", (it->first).c_str());
