@@ -13,10 +13,9 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const std::string &wd)
-    : state_(FB_PROC_RUNNING), can_shortcut_(true),
-      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exit_status_(-1),
-      wd_(wd), fds_({NULL, NULL, NULL}), utime_m_(0), stime_m_(0),
-      aggr_time_(0), children_(), exec_child_(NULL) {
+    : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
+      ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
+      utime_m_(0), stime_m_(0), aggr_time_(0), children_(), exec_child_(NULL) {
   // TODO(rbalint) inherit fds properly
   fds_[0] = new FileFD(0, 0, (fd_origin)FD_ORIGIN_INHERITED);
   fds_[1] = new FileFD(1, 0, FD_ORIGIN_INHERITED);
@@ -69,9 +68,7 @@ int Process::open_file(const std::string &ar_name, const int flags,
       default:
         if (0 == fu->unknown_err()) {
           fu->set_unknown_err(error);
-          if (can_shortcut_) {
-            can_shortcut_ = false;
-          }
+          disable_shortcutting();
         }
     }
   }
@@ -109,7 +106,7 @@ int Process::close_file(const int fd, const int error) {
       (NULL == fds_[fd])) {
     // IO error and closing an unknown fd succesfully prevents shortcutting
     // TODO(rbalint) debug
-    this->can_shortcut_ = false;
+    disable_shortcutting();
     return -1;
   } else if (EBADF == error) {
     // Process closed an fd unknown to it. Who cares?

@@ -70,6 +70,7 @@ class ExecedProcess : public Process {
                          unsigned int *nodeid);
 
  private:
+  bool can_shortcut_:1;
   Process *exec_parent_ = NULL;
   /// Sum of user time in milliseconds for all forked but not exec()-ed children
   int64_t sum_utime_m_ = 0;
@@ -91,6 +92,16 @@ class ExecedProcess : public Process {
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<std::string, FileUsage*> file_usages_;
   virtual void propagate_exit_status(const int status);
+  virtual void disable_shortcutting() {
+    if (true == can_shortcut_) {
+      can_shortcut_ = false;
+      if (exec_parent_) {
+        exec_parent_->disable_shortcutting();
+      }
+    }
+  }
+  virtual bool can_shortcut() const {return can_shortcut_;}
+  virtual bool can_shortcut() {return can_shortcut_;}
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 

@@ -85,6 +85,15 @@ class Process {
   /** Propagate exit status upward through exec()-ed processes */
   virtual void propagate_exit_status(const int status) = 0;
 
+  /**
+   * Process and parents (transitively) can't be short-cut because it performed
+   * calls preventing that.
+   */
+  virtual void disable_shortcutting() = 0;
+  /** Returns if the process can be short-cut */
+  virtual bool can_shortcut() const = 0;
+  virtual bool can_shortcut() = 0;
+
   virtual int64_t sum_rusage_recurse();
 
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
@@ -92,7 +101,6 @@ class Process {
 
  private:
   process_state state_ :2;
-  bool can_shortcut_:1;
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid

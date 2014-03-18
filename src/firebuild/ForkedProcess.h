@@ -53,6 +53,9 @@ class ForkedProcess : public Process {
  private:
   Process *fork_parent_;
   virtual void propagate_exit_status(const int) {}
+  virtual void disable_shortcutting() {fork_parent_->disable_shortcutting();}
+  virtual bool can_shortcut() const {return false;}
+  virtual bool can_shortcut() {return false;}
   DISALLOW_COPY_AND_ASSIGN(ForkedProcess);
 };
 
