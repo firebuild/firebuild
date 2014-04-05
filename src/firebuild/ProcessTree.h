@@ -9,7 +9,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
-
+#include <stdexcept>
 
 #include "firebuild/Process.h"
 #include "firebuild/ExecedProcess.h"
@@ -40,7 +40,6 @@ class ProcessTree {
 
   void insert(Process *p, const int sock);
   void insert(ExecedProcess *p, const int sock);
-  void insert(ForkedProcess *p, const int sock);
   void exit(Process *p, const int sock);
   static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
@@ -48,7 +47,13 @@ class ProcessTree {
   ExecedProcess* root() {return root_;}
   std::unordered_map<int, Process*>& sock2proc() {return sock2proc_;}
   std::unordered_map<int, Process*>& fb_pid2proc() {return fb_pid2proc_;}
-  std::unordered_map<int, Process*>& pid2proc() {return pid2proc_;}
+  Process* pid2proc(int pid) {
+    try {
+      return pid2proc_.at(pid);
+    } catch (const std::out_of_range& oor) {
+      return NULL;
+    }
+  }
 
  private:
   ExecedProcess *root_ = NULL;

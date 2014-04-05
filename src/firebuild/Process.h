@@ -33,7 +33,8 @@ typedef enum {FB_PROC_RUNNING,   ///< process is running
  */
 class Process {
  public:
-  Process(int pid, int ppid, const std::string &wd);
+  Process(int pid, int ppid, const std::string &wd,
+          Process* parent);
   virtual ~Process();
   bool operator == (Process const & p) const;
   virtual bool exec_started() const {return false;}

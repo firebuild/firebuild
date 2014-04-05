@@ -17,7 +17,7 @@ namespace firebuild {
 class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
-                          const std::string &executable);
+                         const std::string &executable, Process * exec_parent);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   void set_exec_parent(Process *p) {exec_parent_ = p;}

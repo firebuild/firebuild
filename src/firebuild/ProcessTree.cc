@@ -29,27 +29,11 @@ void ProcessTree::insert(Process *p, const int sock) {
 void ProcessTree::insert(ExecedProcess *p, const int sock) {
   if (root_ == NULL) {
     root_ = p;
-  } else {
-    // add as exec child of parent
-    try {
-      p->set_exec_parent(pid2proc_.at(p->pid()));
-      p->exec_parent()->set_exec_child(p);
-      p->exec_parent()->set_state(FB_PROC_EXECED);
-    } catch (const std::out_of_range& oor) {
-      // root's exec_parent is firebuild which is not in the tree.
-      // If any other parent is missing, FireBuild missed process
-      // that can happen due to the missing process(es) being statically built
-      fb_error("TODO(rbalint) handle: Process without known exec parent\n");
-    }
-  }
-
-  this->insert(dynamic_cast<Process*>(p), sock);
-}
-
-void ProcessTree::insert(ForkedProcess *p, const int sock) {
-  // add as fork child of parent
-  if (p->fork_parent()) {
-    p->fork_parent()->children().push_back(p);
+  } else if (NULL == p->exec_parent()) {
+    // root's exec_parent is firebuild which is not in the tree.
+    // If any other parent is missing, FireBuild missed process
+    // that can happen due to the missing process(es) being statically built
+    fb_error("TODO(rbalint) handle: Process without known exec parent\n");
   }
 
   this->insert(dynamic_cast<Process*>(p), sock);

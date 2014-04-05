@@ -12,11 +12,13 @@ namespace firebuild {
 
 static int fb_pid_counter;
 
-Process::Process(const int pid, const int ppid, const std::string &wd)
+Process::Process(const int pid, const int ppid, const std::string &wd,
+                 Process * parent)
     : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
       ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
       utime_m_(0), stime_m_(0), aggr_time_(0), children_(), exec_child_(NULL) {
   // TODO(rbalint) inherit fds properly
+  (void)parent;
   fds_[0] = new FileFD(0, 0, (fd_origin)FD_ORIGIN_INHERITED);
   fds_[1] = new FileFD(1, 0, FD_ORIGIN_INHERITED);
   fds_[2] = new FileFD(2, 0, FD_ORIGIN_INHERITED);

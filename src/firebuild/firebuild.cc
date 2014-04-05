@@ -220,7 +220,9 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto scproc_resp = sv_msg.mutable_scproc_resp();
     /* record new process */
     auto proc =
-        firebuild::ProcessFactory::getExecedProcess(ic_msg.scproc_query());
+        firebuild::ProcessFactory::getExecedProcess(
+            ic_msg.scproc_query(),
+            proc_tree->pid2proc(ic_msg.scproc_query().pid()));
     proc_tree->insert(proc, fd_conn);
     // TODO(rbalint) look up stored result
 #if 0
@@ -239,19 +241,13 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
     ::firebuild::Process *pproc = NULL;
-    try {
-      pproc = proc_tree->pid2proc().at(ic_msg.fork_child().ppid());
-    } catch (const std::out_of_range& oor) {
-      // If parent is missing, FireBuild missed process
-      // that can happen due to the missing process(es) being statically built
-      std::cerr << "TODO(rbalint) handle: Process without known parent\n";
-    }
-      /* record new process */
+    pproc = proc_tree->pid2proc(ic_msg.fork_child().ppid());
+    /* record new process */
     auto proc =
         firebuild::ProcessFactory::getForkedProcess(ic_msg.fork_child(), pproc);
     proc_tree->insert(proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
-    auto *proc = proc_tree->pid2proc().at(ic_msg.execvfailed().pid());
+    auto *proc = proc_tree->pid2proc(ic_msg.execvfailed().pid());
     proc_tree->sock2proc()[fd_conn] = proc;
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||

@@ -23,7 +23,8 @@ class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(const msg::ForkChild &fc,
                                          Process * const fork_parent);
-  static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq);
+  static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq,
+                                         Process * parent);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);

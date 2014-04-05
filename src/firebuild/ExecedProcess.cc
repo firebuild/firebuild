@@ -34,11 +34,17 @@ static std::string escapeJsonString(const std::string& input) {
 
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
-                             const std::string &executable)
-    : Process(pid, ppid, cwd), can_shortcut_(true),
-      exec_parent_(NULL), sum_utime_m_(0), sum_stime_m_(0), cwd_(cwd),
+                             const std::string &executable,
+                             Process * exec_parent)
+    : Process(pid, ppid, cwd, exec_parent), can_shortcut_(true),
+      exec_parent_(exec_parent), sum_utime_m_(0), sum_stime_m_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_() {
+  if (NULL != exec_parent) {
+    // add as exec child of parent
+    exec_parent->set_exec_child(this);
+    exec_parent->set_state(FB_PROC_EXECED);
+  }
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {

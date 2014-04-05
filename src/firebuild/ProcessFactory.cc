@@ -13,9 +13,9 @@ ForkedProcess* ProcessFactory::getForkedProcess(const msg::ForkChild &fc,
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq) {
+ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent) {
   auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),
-                             scpq.executable());
+                             scpq.executable(), parent);
 
   for (int i = 0; i < scpq.arg_size(); i++) {
     e->args().push_back(scpq.arg(i));
