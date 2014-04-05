@@ -356,7 +356,7 @@ static void write_report(const std::string &html_filename,
 
   // dirname may modify its parameter thus we provide a writable char string
   char *html_filename_tmp = new char[html_filename.size() + 1];
-  strncpy(html_filename_tmp, html_filename.c_str(), sizeof(html_filename_tmp));
+  strncpy(html_filename_tmp, html_filename.c_str(), html_filename.size() + 1);
   std::string dir = dirname(html_filename_tmp);
   delete[] html_filename_tmp;
 

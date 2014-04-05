@@ -90,9 +90,14 @@ int Process::open_file(const std::string &ar_name, const int flags,
     fu->set_initial_hash(f->hash());
   }
 
-  if (fd != -1) {
+  if (fd > 0) {
     if (fds_.size() <= static_cast<unsigned int>(fd)) {
-      fds_.resize(fd+1);
+      auto size_orig = fds_.size();
+      fds_.reserve(fd + 1);
+      // fill new elements with default value
+      for (auto i = size_orig; i < static_cast<unsigned int>(fd); i++) {
+        fds_.push_back(NULL);
+      }
     }
 
     fds_[fd] = new FileFD(name, fd, flags);
@@ -102,8 +107,7 @@ int Process::open_file(const std::string &ar_name, const int flags,
 
 int Process::close_file(const int fd, const int error) {
   if ((EIO == error) ||
-      ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) ||
-      (NULL == fds_[fd])) {
+      ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd)))) {
     // IO error and closing an unknown fd succesfully prevents shortcutting
     // TODO(rbalint) debug
     disable_shortcutting();
@@ -111,6 +115,10 @@ int Process::close_file(const int fd, const int error) {
   } else if (EBADF == error) {
     // Process closed an fd unknown to it. Who cares?
     return 0;
+  } else if ((fds_.size() <= static_cast<unsigned int>(fd)) ||
+             (NULL == fds_[fd])) {
+    disable_shortcutting();
+    return -1;
   } else {
     if (fds_[fd]->open() == true) {
       fds_[fd]->set_open(false);
