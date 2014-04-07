@@ -270,9 +270,11 @@ static void intercept_pipe2(const int pipefd[2], const int flags,
   int saved_errno = errno;
 
   auto m = ic_msg.mutable_pipe2();
-  m->set_pipefd0(pipefd[0]);
-  m->set_pipefd1(pipefd[1]);
-  m->set_flags(flags);
+  m->set_fd0(pipefd[0]);
+  m->set_fd1(pipefd[1]);
+  if (flags != 0) {
+    m->set_flags(flags);
+  }
   if (ret == -1) {
     m->set_error_no(saved_errno);
   }

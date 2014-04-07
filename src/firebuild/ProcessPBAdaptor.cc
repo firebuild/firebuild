@@ -16,6 +16,23 @@ int ProcessPBAdaptor::msg(Process *p, const msg::Close &c) {
   return p->close_file(c.fd(), error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const msg::Pipe2 &pipe) {
+  const int error = (pipe.has_error_no())?pipe.error_no():0;
+  const int flags = (pipe.has_flags())?pipe.flags():0;
+  return p->create_pipe(pipe.fd0(), pipe.fd1(), flags, error);
+}
+
+int ProcessPBAdaptor::msg(Process *p, const msg::Dup3 &d) {
+  const int error = (d.has_error_no())?d.error_no():0;
+  const int flags = (d.has_flags())?d.flags():0;
+  return p->dup3(d.oldfd(), d.newfd(), flags, error);
+}
+
+int ProcessPBAdaptor::msg(Process *p, const msg::Dup &d) {
+  const int error = (d.has_error_no())?d.error_no():0;
+  return p->dup3(d.oldfd(), d.ret(), 0, error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const msg::ChDir &c) {
   const int error = (c.has_error_no())?c.error_no():0;
   if (0 == error) {

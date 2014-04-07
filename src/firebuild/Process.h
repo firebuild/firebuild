@@ -5,6 +5,7 @@
 #ifndef FIREBUILD_PROCESS_H_
 #define FIREBUILD_PROCESS_H_
 
+#include <list>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -74,6 +75,29 @@ class Process {
   int close_file(const int fd, const int error = 0);
 
   /**
+   * Handle pipe() in in monitored process
+   * @param fd1 file descfriptor to read
+   * @param fd2 file descfriptor to write
+   * @param flags flags passed in pipe2()
+   * @param error error code
+   * @return 0 on success, -1 on failure
+   */
+  int create_pipe(const int fd1, const int fd2, const int flags,
+                  const int error = 0);
+
+  /**
+   * Duplicate a oldfd to fd2 with dup(), dup2() or dup3() see dup(2) for details
+   *
+   * @param oldfd old fd
+   * @parem newfd new fd
+   * @param flags extra flags for new fd passed to dup3()
+   * @param error error code
+   * @return 0 on success, -1 on failure
+   */
+  int dup3(const int oldfd, const int newfd, const int flags,
+           const int error = 0);
+
+  /**
    * Fail to change to a working directory
    */
   virtual void fail_wd(const std::string &d) = 0;
@@ -108,6 +132,7 @@ class Process {
   int exit_status_;  ///< exit status, valid if state = FB_PROC_FINISHED
   std::string wd_;  ///< Current working directory
   std::vector<FileFD*> fds_;  ///< Active file descriptors
+  std::list<FileFD*> closed_fds_;  ///< Closed file descriptors
   int64_t utime_m_;  ///< user time in milliseconds as reported by getrusage()
   /// system time in milliseconds as reported by getrusage()
   int64_t stime_m_;
@@ -116,6 +141,8 @@ class Process {
   int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
   Process * exec_child_;
+  /** Add add ffd FileFD* to open fds */
+  void add_filefd(const int fd, FileFD * ffd);
   DISALLOW_COPY_AND_ASSIGN(Process);
 };
 

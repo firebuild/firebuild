@@ -429,9 +429,9 @@ message FUTime {
 // pipe2() with flags = 0 is equivalent to pipe()
 message Pipe2 {
     // pipe fd[0]
-    optional int32 pipefd0 = 1;
+    required int32 fd0 = 1;
     // pipe fd[1]
-    optional int32 pipefd1 = 2;
+    required int32 fd1 = 2;
     // flags
     optional int32 flags = 3;
     // error no., when ret = -1
@@ -440,18 +440,18 @@ message Pipe2 {
 
 message Dup {
     // old file fd
-    optional int32 oldfd = 1;
+    required int32 oldfd = 1;
     // new fd
-    optional int32 ret = 2;
+    required int32 ret = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
 }
 
 message Dup3 {
     // old file fd
-    optional int32 oldfd = 1;
+    required int32 oldfd = 1;
     // new file fd
-    optional int32 newfd = 2;
+    required int32 newfd = 2;
     // flags
     optional int32 flags = 3;
     // new fd returned
