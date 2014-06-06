@@ -19,16 +19,16 @@
 namespace firebuild {
 
 struct subcmd_prof {
-  int64_t sum_aggr_time;
-  int64_t count;
-  bool recursed;
+  int64_t sum_aggr_time = 0;
+  int64_t count = 0;
+  bool recursed = false;
 };
 
 struct cmd_prof {
-  int64_t aggr_time;
-  int64_t cmd_time;
+  int64_t aggr_time = 0;
+  int64_t cmd_time = 0;
   /**  {time_m, count} */
-  std::unordered_map<std::string, subcmd_prof> subcmds;
+  std::unordered_map<std::string, subcmd_prof> subcmds = {};
 };
 
 class ProcessTree {

@@ -24,6 +24,7 @@ set(TENTATIVE_C_CXX_FLAGS
   -Warray-bounds
   -fvisibility=hidden
   -Woverflow
+  -Weffc++
 #  -Wlogical-op clang does not like that
   -Wredundant-decls)
 
