@@ -36,6 +36,7 @@ static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_conn_string;
 static int sigchld_fds[2];
+static FILE * sigchld_stream;
 static int child_pid, child_ret = 1;
 static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
@@ -164,7 +165,6 @@ static void sigchld_handler(const int /*sig */) {
   waitpid(child_pid, &status, WNOHANG);
   if (WIFEXITED(status)) {
     child_ret = WEXITSTATUS(status);
-    setvbuf(fdopen(sigchld_fds[1], "w"), NULL, _IONBF, 0);
     write(sigchld_fds[1], buf, sizeof(buf));
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "Child process has been killed by signal %d",
@@ -187,6 +187,20 @@ static void init_signal_handlers(void) {
 
   if (sigaction(SIGCHLD, &sa, NULL) == -1) {
     perror("Could not set up signal handler for SIGCHLD.");
+    exit(EXIT_FAILURE);
+  }
+  if (pipe(sigchld_fds) == -1) {
+    perror("pipe");
+    exit(EXIT_FAILURE);
+  }
+
+  if (NULL == ((sigchld_stream = fdopen(sigchld_fds[1], "w")))) {
+    perror("fdopen");
+    exit(EXIT_FAILURE);
+  }
+
+  if (0 != setvbuf(sigchld_stream, NULL, _IONBF, 0)) {
+    perror("setvbuf");
     exit(EXIT_FAILURE);
   }
 }
@@ -489,11 +503,6 @@ int main(const int argc, char *argv[]) {
 
   init_signal_handlers();
 
-  if (pipe(sigchld_fds) == -1) {
-    perror("pipe");
-    exit(EXIT_FAILURE);
-  }
-
   // run command and handle interceptor messages
   {
     int listener;     // listening socket descriptor
@@ -672,7 +681,10 @@ int main(const int argc, char *argv[]) {
   }
 
   delete(error_fos);
+  fclose(sigchld_stream);
   free(fb_conn_string);
+  delete(proc_tree);
+  delete(cfg);
 
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
