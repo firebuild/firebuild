@@ -20,10 +20,14 @@ ProcessTree::~ProcessTree() {
   }
 }
 
-void ProcessTree::insert(Process *p, const int sock) {
+void ProcessTree::insert_process(Process *p, const int sock) {
   sock2proc_[sock] = p;
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
+}
+
+void ProcessTree::insert(Process *p, const int sock) {
+  insert_process(p, sock);
 }
 
 void ProcessTree::insert(ExecedProcess *p, const int sock) {
@@ -36,7 +40,7 @@ void ProcessTree::insert(ExecedProcess *p, const int sock) {
     fb_error("TODO(rbalint) handle: Process without known exec parent\n");
   }
 
-  this->insert(dynamic_cast<Process*>(p), sock);
+  insert_process(p, sock);
 }
 
 void ProcessTree::exit(Process *p, const int sock) {

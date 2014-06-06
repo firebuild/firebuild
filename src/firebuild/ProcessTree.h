@@ -66,6 +66,7 @@ class ProcessTree {
    * (system + user time), and count the invocations of each other command
    * by C. */
   std::unordered_map<std::string, cmd_prof> cmd_profs_;
+  void insert_process(Process *p, const int sock);
   void profile_collect_cmds(const Process &p,
                             std::unordered_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);
