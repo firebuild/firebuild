@@ -68,8 +68,11 @@ static void usage() {
 
 /** Parse configuration file */
 static void parse_cfg_file(const char * const custom_cfg_file) {
-  const char * cfg_file = custom_cfg_file;
-  if (cfg_file == NULL) {
+  // we fall back to global configuration file
+  std::string cfg_file(global_cfg);
+  if (custom_cfg_file != NULL) {
+    cfg_file = std::string(custom_cfg_file);
+  } else {
     char * homedir = getenv("HOME");
     int cfg_fd;
     if ((homedir != NULL ) &&
@@ -77,19 +80,12 @@ static void parse_cfg_file(const char * const custom_cfg_file) {
                                           std::string("/.firebuildrc")).c_str(),
                               O_RDONLY)))) {
       // fall back to private config file
-      cfg_file = std::string(homedir + std::string("/.firebuildrc")).c_str();
+      cfg_file = std::string(homedir + std::string("/.firebuildrc"));
       close(cfg_fd);
-    } else {
-      cfg_fd = open(global_cfg, O_RDONLY);
-      if (cfg_fd != -1) {
-        // fall back to global config file
-        cfg_file = global_cfg;
-        close(cfg_fd);
-      }
     }
   }
   try {
-    cfg->readFile(cfg_file);
+    cfg->readFile(cfg_file.c_str());
   }
   catch(const libconfig::FileIOException &fioex) {
     std::cerr << "Could not read configuration file " << cfg_file << std::endl;
