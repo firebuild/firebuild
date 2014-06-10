@@ -118,78 +118,74 @@ void ExecedProcess::export2js(const unsigned int level,
     fprintf(stream, "%s cant_sc_reason: \"%s\",\n", indent, cant_shortcut_reason_.c_str());
   }
   fprintf(stream, "%s args: [", indent);
-  for (unsigned int i = 1; i < args().size(); i++) {
-    fprintf(stream, "\"%s\",", escapeJsonString(args()[i]).c_str());
+  for (auto arg : args()) {
+    fprintf(stream, "\"%s\",", escapeJsonString(arg).c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s env: [", indent);
-  for (auto it = env_vars().begin(); it != env_vars().end(); ++it) {
-    fprintf(stream, "\"%s\",", escapeJsonString(*it).c_str());
+  for (auto env : env_vars()) {
+    fprintf(stream, "\"%s\",", escapeJsonString(env).c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s libs: [", indent);
-  for (auto it = libs().begin(); it != libs().end(); ++it) {
-    fprintf(stream, "\"%s\",", (*it).c_str());
+  for (auto lib : libs()) {
+    fprintf(stream, "\"%s\",", lib.c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s wds: [", indent);
-  for (auto it = wds().begin(); it != wds().end(); ++it) {
-    fprintf(stream, "\"%s\",", (*it).c_str());
+  for (auto wd : wds()) {
+    fprintf(stream, "\"%s\",", wd.c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s failed_wds: [", indent);
-  for (auto it = failed_wds().begin(); it != failed_wds().end(); ++it) {
-    fprintf(stream, "\"%s\",", (*it).c_str());
+  for (auto f_wd : failed_wds()) {
+    fprintf(stream, "\"%s\",", f_wd.c_str());
   }
   fprintf(stream, "],\n");
 
   // sort files before printing
   std::map<std::string, FileUsage*> ordered_file_usages;
-  for (auto it = file_usages().begin(); it != file_usages().end(); ++it) {
-    ordered_file_usages[it->first] =  it->second;
+  for (auto pair : file_usages()) {
+    ordered_file_usages[pair.first] =  pair.second;
   }
 
   fprintf(stream, "%s fcreated: [", indent);
-  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
-       ++it) {
-    if (it->second->created()) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
+  for (auto pair : ordered_file_usages) {
+    if (pair.second->created()) {
+      fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
   fprintf(stream, "],\n");
 
   // TODO(rbalint) replace write/read flag checks with more accurate tests
   fprintf(stream, "%s fmodified: [", indent);
-  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
-       ++it) {
-    if ((!it->second->created()) &&
-        (((it->second->open_flags() & O_ACCMODE) == O_WRONLY) ||
-         ((it->second->open_flags() & O_ACCMODE) == O_RDWR))) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
+  for (auto pair : ordered_file_usages) {
+    if ((!pair.second->created()) &&
+        (((pair.second->open_flags() & O_ACCMODE) == O_WRONLY) ||
+         ((pair.second->open_flags() & O_ACCMODE) == O_RDWR))) {
+      fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fread: [", indent);
-  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
-       ++it) {
-    if (!it->second->open_failed() &&
-        (((it->second->open_flags() & O_ACCMODE) == O_RDONLY) ||
-         ((it->second->open_flags() & O_ACCMODE) == O_RDWR))) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
+  for (auto pair : ordered_file_usages) {
+    if (!pair.second->open_failed() &&
+        (((pair.second->open_flags() & O_ACCMODE) == O_RDONLY) ||
+         ((pair.second->open_flags() & O_ACCMODE) == O_RDWR))) {
+      fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fnotf: [", indent);
-  for (auto it = ordered_file_usages.begin(); it != ordered_file_usages.end();
-       ++it) {
-    if (it->second->open_failed()) {
-      fprintf(stream, "\"%s\",", (it->first).c_str());
+  for (auto pair : ordered_file_usages) {
+    if (pair.second->open_failed()) {
+      fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
   fprintf(stream, "],\n");
@@ -214,10 +210,8 @@ void ExecedProcess::export2js(const unsigned int level,
 }
 
 ExecedProcess::~ExecedProcess() {
-  for (auto it = this->file_usages_.begin();
-       it != this->file_usages_.end();
-       ++it) {
-    delete(it->second);
+  for (auto pair : file_usages()) {
+    delete(pair.second);
   }
 }
 

@@ -15,8 +15,8 @@ namespace firebuild {
 
 ProcessTree::~ProcessTree() {
   // clean up all processes
-  for (auto it = fb_pid2proc_.begin(); it != fb_pid2proc_.end(); ++it) {
-    delete(it->second);
+  for (auto pair : fb_pid2proc_) {
+    delete(pair.second);
   }
 }
 
@@ -70,8 +70,8 @@ profile_collect_cmds(const Process &p,
     }
     (*cmds)[ec->args()[0]].count += 1;
   }
-  for (unsigned int i = 0; i < p.children().size(); i++) {
-    profile_collect_cmds(*p.children()[i], cmds, ancestors);
+  for (auto child : p.children()) {
+    profile_collect_cmds(*child, cmds, ancestors);
   }
 }
 
@@ -92,8 +92,8 @@ void ProcessTree::build_profile(const Process &p,
   if (p.exec_child() != NULL) {
     build_profile(*p.exec_child(), ancestors);
   }
-  for (unsigned int i = 0; i < p.children().size(); i++) {
-    build_profile(*(p.children()[i]), ancestors);
+  for (auto child : p.children()) {
+    build_profile(*child, ancestors);
   }
 
   if (first_visited) {
@@ -160,28 +160,27 @@ void ProcessTree::export_profile2dot(FILE* stream) {
           " width=0, shape=box, fontcolor=white];\n"
           "edge [fontname=Helvetica, fontsize=12]\n");
 
-  for (auto it = cmd_profs_.begin(); it != cmd_profs_.end(); ++it) {
-    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", (it->first).c_str(),
-            (it->first).c_str());
+  for (auto pair : cmd_profs_) {
+    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", (pair.first).c_str(),
+            (pair.first).c_str());
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
-            percent_of(it->second.aggr_time, build_time),
-            percent_of(it->second.cmd_time, build_time),
-            pct_to_hsv_str(percent_of(it->second.aggr_time,
+            percent_of(pair.second.aggr_time, build_time),
+            percent_of(pair.second.cmd_time, build_time),
+            pct_to_hsv_str(percent_of(pair.second.aggr_time,
                                       build_time)).c_str());
-    for (auto it2 = it->second.subcmds.begin();
-         it2 != it->second.subcmds.end(); ++it2) {
+    for (auto pair2 : pair.second.subcmds) {
       fprintf(stream, "    \"%s\" -> \"%s\" [label=\"",
-              (it->first).c_str(), (it2->first).c_str());
-      if (!it2->second.recursed) {
-        fprintf(stream, "%.2lf%%\\n", percent_of(it2->second.sum_aggr_time,
+              (pair.first).c_str(), (pair2.first).c_str());
+      if (!pair2.second.recursed) {
+        fprintf(stream, "%.2lf%%\\n", percent_of(pair2.second.sum_aggr_time,
                                               build_time));
       }
       fprintf(stream, "×%lu\", color=\"%s\","
               " penwidth=\"%lf\"];",
-              it2->second.count,
-              pct_to_hsv_str(percent_of(it2->second.sum_aggr_time,
+              pair2.second.count,
+              pct_to_hsv_str(percent_of(pair2.second.sum_aggr_time,
                                         build_time)).c_str(),
-              (min_penwidth  + ((percent_of(it2->second.sum_aggr_time,
+              (min_penwidth  + ((percent_of(pair2.second.sum_aggr_time,
                                             build_time) / 100)
                                 * (max_penwidth - min_penwidth))));
     }

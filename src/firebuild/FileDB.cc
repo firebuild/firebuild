@@ -7,8 +7,8 @@
 namespace firebuild {
 
 FileDB::~FileDB() {
-  for (auto it = db_.begin(); it != db_.end(); ++it) {
-    delete(it->second);
+  for (auto pair : db_) {
+    delete(pair.second);
   }
 }
 

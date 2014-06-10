@@ -248,8 +248,8 @@ int64_t Process::sum_rusage_recurse() {
   if (exec_child_ != NULL) {
     aggr_time_ += exec_child_->sum_rusage_recurse();
   }
-  for (unsigned int i = 0; i < children_.size(); i++) {
-    aggr_time_ += children_[i]->sum_rusage_recurse();
+  for (auto child : children_) {
+    aggr_time_ += child->sum_rusage_recurse();
   }
   return aggr_time_;
 }
@@ -259,19 +259,19 @@ void Process::export2js_recurse(const unsigned int level, FILE* stream,
   if (exec_child() != NULL) {
     exec_child_->export2js_recurse(level + 1, stream, nodeid);
   }
-  for (unsigned int i = 0; i < children().size(); i++) {
-    children_[i]->export2js_recurse(level, stream, nodeid);
+  for (auto child : children_) {
+    child->export2js_recurse(level, stream, nodeid);
   }
 }
 
 
 Process::~Process() {
-  for (auto it = this->fds_.begin(); it != this->fds_.end(); ++it) {
-    delete(*it);
+  for (auto fd : fds_) {
+    delete(fd);
   }
 
-  for (auto it = closed_fds_.begin(); it != closed_fds_.end(); ++it) {
-    delete(*it);
+  for (auto fd : closed_fds_) {
+    delete(fd);
   }
 }
 
