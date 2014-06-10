@@ -114,6 +114,9 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "%s cwd:\"%s\",\n", indent, cwd().c_str());
   fprintf(stream, "%s exe:\"%s\",\n", indent, executable().c_str());
   fprintf(stream, "%s state: %u,\n", indent, state());
+  if (!can_shortcut_) {
+    fprintf(stream, "%s cant_sc_reason: \"%s\",\n", indent, cant_shortcut_reason_.c_str());
+  }
   fprintf(stream, "%s args: [", indent);
   for (unsigned int i = 1; i < args().size(); i++) {
     fprintf(stream, "\"%s\",", escapeJsonString(args()[i]).c_str());

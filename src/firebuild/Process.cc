@@ -97,7 +97,8 @@ int Process::open_file(const std::string &ar_name, const int flags,
       default:
         if (0 == fu->unknown_err()) {
           fu->set_unknown_err(error);
-          disable_shortcutting();
+          disable_shortcutting("Unknown error (" + std::to_string(error) + ") opening file " +
+                               name);
         }
     }
   }
@@ -126,18 +127,25 @@ int Process::open_file(const std::string &ar_name, const int flags,
 }
 
 int Process::close_file(const int fd, const int error) {
-  if ((EIO == error) ||
-      ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd)))) {
-    // IO error and closing an unknown fd succesfully prevents shortcutting
-    // TODO(rbalint) debug
-    disable_shortcutting();
+  if (EIO == error) {
+    // IO prevents shortcutting
+    disable_shortcutting("IO error closing fd " + fd);
+    return -1;
+  } else if ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) {
+    // closing an unknown fd succesfully prevents shortcutting
+    disable_shortcutting("Process closed and unknown fd (" +
+                         std::to_string(fd) + ") successfully, which means "
+                         "interception missed at least one open()");
     return -1;
   } else if (EBADF == error) {
     // Process closed an fd unknown to it. Who cares?
     return 0;
   } else if ((fds_.size() <= static_cast<unsigned int>(fd)) ||
              (NULL == fds_[fd])) {
-    disable_shortcutting();
+    // closing an unknown fd with not EBADF prevents shortcutting
+    disable_shortcutting("Process closed and unknown fd (" +
+                         std::to_string(fd) + ") successfully, which means "
+                         "interception missed at least one open()");
     return -1;
   } else {
     if (fds_[fd]->open() == true) {
@@ -176,12 +184,18 @@ int Process::create_pipe(const int fd1, const int fd2, const int flags,
   }
 
   // validate fd-s
-  if (((fds_.size() > static_cast<unsigned int>(fd1)) && (NULL != fds_[fd1])) ||
-      ((fds_.size() > static_cast<unsigned int>(fd2)) && (NULL != fds_[fd2]))) {
+  if (((fds_.size() > static_cast<unsigned int>(fd1)) && (NULL != fds_[fd1]))) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting();
-    FB_DEBUG(3, "pipe() in intercepted process created a file descriptor"
-             " already open. FireBuild probably missed a close().");
+    disable_shortcutting("Process created an fd (" + std::to_string(fd1) +
+                         ") which is known to be open, which means interception "
+                         "missed at least one close()");
+    return -1;
+  }
+  if (((fds_.size() > static_cast<unsigned int>(fd2)) && (NULL != fds_[fd2]))) {
+    // we already have this fd, probably missed a close()
+    disable_shortcutting("Process created an fd (" + std::to_string(fd2) +
+                         ") which is known to be open, which means interception "
+                         "missed at least one close()");
     return -1;
   }
 
@@ -209,9 +223,9 @@ int Process::dup3(const int oldfd, const int newfd, const int flags,
   // validate fd-s
   if ((fds_.size() <= static_cast<unsigned int>(oldfd)) || (NULL == fds_[oldfd])) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting();
-    FB_DEBUG(3, "pipe() in intercepted process created a file descriptor"
-             " already open. FireBuild probably missed a close().");
+    disable_shortcutting("Process created and fd (" + std::to_string(oldfd) +
+                         ") which is known to be open, which means interception"
+                         " missed at least one close()");
     return -1;
   }
   if ((fds_.size() > static_cast<unsigned int>(newfd)) && (NULL != fds_[newfd])) {

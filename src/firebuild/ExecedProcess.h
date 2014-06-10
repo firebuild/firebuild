@@ -5,12 +5,14 @@
 #ifndef FIREBUILD_EXECEDPROCESS_H_
 #define FIREBUILD_EXECEDPROCESS_H_
 
+#include <cassert>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "firebuild/Process.h"
 #include "firebuild/cxx_lang_utils.h"
+#include "firebuild/Debug.h"
 
 namespace firebuild {
 
@@ -62,6 +64,30 @@ class ExecedProcess : public Process {
     wds_.insert(d);
   }
 
+  virtual void propagate_exit_status(const int status);
+  virtual void disable_shortcutting(const std::string &reason) {
+    if (true == can_shortcut_) {
+      can_shortcut_ = false;
+      assert(cant_shortcut_reason_ == "");
+      cant_shortcut_reason_ = reason;
+      assert(cant_shortcut_proc_ == NULL);
+      cant_shortcut_proc_ = this;
+      FB_DEBUG(1, "Command \"" + executable_ + "\" can't be short-cut due to: " + reason);
+      if (exec_parent_) {
+        exec_parent_->propagate_disable_shortcutting(reason, *this);
+      }
+    }
+  }
+  virtual void propagate_disable_shortcutting(const std::string &reason, const Process &p) {
+    if (true == can_shortcut_) {
+      can_shortcut_ = false;
+      assert(cant_shortcut_proc_ == NULL);
+      cant_shortcut_proc_ = const_cast<Process*>(&p);
+      if (exec_parent_) {
+        exec_parent_->propagate_disable_shortcutting(reason, p);
+      }
+    }
+  }
   virtual int64_t sum_rusage_recurse();
 
   void export2js(const unsigned int level, FILE* stream,
@@ -91,15 +117,10 @@ class ExecedProcess : public Process {
   std::set<std::string> libs_;
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<std::string, FileUsage*> file_usages_;
-  virtual void propagate_exit_status(const int status);
-  virtual void disable_shortcutting() {
-    if (true == can_shortcut_) {
-      can_shortcut_ = false;
-      if (exec_parent_) {
-        exec_parent_->disable_shortcutting();
-      }
-    }
-  }
+  /// Reason for this process can't be short-cut
+  std::string cant_shortcut_reason_ = "";
+  /// Process the event preventing short-cutting happened in
+  Process *cant_shortcut_proc_ = NULL;
   virtual bool can_shortcut() const {return can_shortcut_;}
   virtual bool can_shortcut() {return can_shortcut_;}
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);

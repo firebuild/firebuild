@@ -113,8 +113,16 @@ class Process {
   /**
    * Process and parents (transitively) can't be short-cut because it performed
    * calls preventing that.
+   * @param reason reason for can't being short-cut
    */
-  virtual void disable_shortcutting() = 0;
+  virtual void disable_shortcutting(const std::string &reason) = 0;
+  /**
+   * Process and parents (transitively) can't be short-cut because it performed
+   * calls preventing that.
+   * @param reason reason for can't being short-cut
+   * @param p process the event preventing shortcutting happened in
+   */
+  virtual void propagate_disable_shortcutting(const std::string& reason, const Process &p) = 0;
   /** Returns if the process can be short-cut */
   virtual bool can_shortcut() const = 0;
   virtual bool can_shortcut() = 0;
