@@ -62,6 +62,7 @@ class Process {
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
   const std::vector<Process*>& children() const {return children_;}
+  virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_m, int64_t stime_m);
   void sum_rusage(int64_t *sum_utime_m, int64_t *sum_stime_m);
   virtual void exit_result(int status, int64_t utime_m, int64_t stime_m);

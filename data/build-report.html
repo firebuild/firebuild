@@ -299,6 +299,9 @@ function details(d) {
   document.getElementById('detailed_args').innerHTML = print_string_array(d.args);
   document.getElementById('detailed_env').innerHTML = print_string_array(d.env).replace(/ /g, "<br/>");
   document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs).replace(/ /g, "<br/>");
+  if (d.cant_sc_reason) {
+    document.getElementById('cant_shortcut').innerHTML = d.cant_sc_reason + ((d.cant_sc_fb_pid)?' in a <a href="#" onclick="jump_details(' + d.cant_sc_fb_pid + ');">child process</a>':"");
+  }
   document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated).replace(/ /g, "<br/>");
   document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified).replace(/ /g, "<br/>");
   document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread).replace(/ /g, "<br/>");
@@ -321,6 +324,11 @@ function details(d) {
 function hide_details() {
   document.getElementById('blanket').style.display = 'none';
   document.getElementById('pop_up_div').style.display = 'none';
+}
+
+function jump_details(fb_pid) {
+  var nodes = tree.nodes(root);
+  nodes.forEach(function(d) {if (d.fb_pid == fb_pid) {hide_details(); details(d);}});
 }
 
 function update(source) {
@@ -517,6 +525,11 @@ function toggle(d) {
           <tr>
             <td colspan="2"><span class="detail_name">Used shared libraries:</span><br/>
               <span id="detailed_libs"></span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Event preventing short-cutting:</span>
+              <span id="cant_shortcut">none</span>
             </td>
           </tr>
           <tr>

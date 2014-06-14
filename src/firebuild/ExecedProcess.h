@@ -49,6 +49,7 @@ class ExecedProcess : public Process {
     return const_cast<std::unordered_map<std::string, FileUsage*>&>
         (static_cast<const ExecedProcess*>(this)->file_usages());
   }
+  Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
   void exit_result(const int status, const int64_t utime_m,
                    const int64_t stime_m);
   /**
