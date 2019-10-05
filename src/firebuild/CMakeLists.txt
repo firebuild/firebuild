@@ -5,7 +5,7 @@ find_package(OpenSSL REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS msg/fb-messages.proto)
 
-set_source_files_properties(${PROTO_SRCS} PROPERTIES COMPILE_FLAGS -Wno-effc++)
+set_source_files_properties(${PROTO_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-effc++ -Wno-unused-parameter")
 
 add_library(fbintercept MODULE
   firebuild_common.cc
