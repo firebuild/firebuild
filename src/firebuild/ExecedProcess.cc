@@ -197,7 +197,7 @@ void ExecedProcess::export2js(const unsigned int level,
   switch (state()) {
     case FB_PROC_FINISHED: {
       fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
-      // break; is missing intentionally
+      __attribute__((fallthrough));
     }
     case FB_PROC_EXECED: {
       fprintf(stream, "%s utime_m: %lu,\n", indent, utime_m());
@@ -205,7 +205,7 @@ void ExecedProcess::export2js(const unsigned int level,
       fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_time());
       fprintf(stream, "%s sum_utime_m: %lu,\n", indent, sum_utime_m());
       fprintf(stream, "%s sum_stime_m: %lu,\n", indent, sum_stime_m());
-      // break; is missing intentionally
+      __attribute__((fallthrough));
     }
     case FB_PROC_RUNNING: {
       // something went wrong
