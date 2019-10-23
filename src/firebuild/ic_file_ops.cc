@@ -349,6 +349,26 @@ static void intercept_execvfailed2(int pid, int ret) {
   fb_exec_called = false;
   intercept_execvfailed(pid, ret);
 }
+/* Intercept beginning of system(3) */
+static void intercept_system(const char * cmd) {
+  if (cmd) {
+    msg::InterceptorMsg ic_msg;
+    msg::SupervisorMsg sv_msg;
+    auto m = ic_msg.mutable_system();
+    m->set_cmd(cmd);
+    int ack_num = get_next_ack_id();
+    ic_msg.set_ack_num(ack_num);
+    fb_send_msg(ic_msg, fb_sv_conn);
+    /* waiting for ACK to make sure the system() call is registered before
+       the child shows up with the new pid at the supervisor lookig for a
+       parent */
+    fb_recv_msg(&sv_msg, fb_sv_conn);
+    if (sv_msg.ack_num() != ack_num) {
+      // something unexpected happened ...
+      assert(0 &&"Interceptor has not received proper ACK from firebuild");
+    }
+  }
+}
 
 /* Intercept gethostname */
 IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name,
@@ -391,6 +411,9 @@ IC2_SIMPLE_1P(void*, IC2_NO_RET, OpenDir, opendir, const char *, name)
 IC2_SIMPLE_1P(void*, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
 /* Intercept chdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
+
+/* Intercept ret of system(3) */
+IC2_SIMPLE_1P(int, IC2_WITH_RET, SystemRet, system_ret, const char *, cmd)
 
 #undef IC2_WAIT_ACK
 

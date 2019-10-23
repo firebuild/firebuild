@@ -229,10 +229,14 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     firebuild::msg::SupervisorMsg sv_msg;
     auto scproc_resp = sv_msg.mutable_scproc_resp();
     /* record new process */
+    auto parent = proc_tree->pid2proc(ic_msg.scproc_query().pid());
+    if (!parent && ic_msg.scproc_query().arg_size() > 2) {
+      auto scq = ic_msg.scproc_query();
+      parent = proc_tree->find_exec_parent(scq.pid(), scq.ppid(), scq.arg(2));
+    }
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
-            ic_msg.scproc_query(),
-            proc_tree->pid2proc(ic_msg.scproc_query().pid()));
+            ic_msg.scproc_query(), parent);
     proc_tree->insert(proc, fd_conn);
     // TODO(rbalint) look up stored result
 #if 0
@@ -262,6 +266,8 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
              ic_msg.has_execv() ||
+             ic_msg.has_system() ||
+             ic_msg.has_system_ret() ||
              ic_msg.has_open() ||
              ic_msg.has_close() ||
              ic_msg.has_chdir() ||
@@ -275,6 +281,13 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                           ic_msg.exit().stime_m());
         proc_tree->exit(proc, fd_conn);
         ret = false;
+      } else if (ic_msg.has_system()) {
+        proc->add_running_system_cmd(ic_msg.system().cmd());
+      } else if (ic_msg.has_system_ret()) {
+        if (!proc->remove_running_system_cmd(ic_msg.system_ret().cmd())) {
+          firebuild::fb_error("system(\"" + ic_msg.system_ret().cmd()
+                              + "\") exited but the call was not registered ");
+        }
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_m(),
                             ic_msg.execv().stime_m());

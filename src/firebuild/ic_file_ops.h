@@ -265,6 +265,11 @@ IC(int, execvpe, (const char *file, char *const argv[],
      init_supervisor_conn();
      intercept_execvfailed2(ic_pid, ret);})
 
+IC(int, system, (const char *cmd), {
+    intercept_system(cmd);
+    ret = orig_fn(cmd);
+    intercept_system_ret(cmd, ret);})
+
 /* ignore: nice */
 
 IC_VOID(void, exit, (int status), {

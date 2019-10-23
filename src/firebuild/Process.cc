@@ -20,7 +20,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
     : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
       ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
       closed_fds_({}), utime_m_(0), stime_m_(0), aggr_time_(0), children_(),
-      exec_child_(NULL) {
+      running_system_cmds_(), exec_child_(NULL) {
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
       if (parent->fds_.at(i)) {
@@ -242,6 +242,15 @@ void Process::set_wd(const std::string &ar_d) {
   wd_ = d;
 
   add_wd(d);
+}
+
+bool Process::remove_running_system_cmd(const std::string &cmd) {
+  auto it = running_system_cmds_.find(cmd);
+  if (it != running_system_cmds_.end()) {
+    running_system_cmds_.erase(it);
+    return true;
+  }
+  return false;
 }
 
 int64_t Process::sum_rusage_recurse() {

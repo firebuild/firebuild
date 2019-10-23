@@ -495,6 +495,22 @@ message ExecVFailed {
     required int32 error_no = 5;
 }
 
+// system(3)
+message System {
+    // command, only SystemRet is sent when command was NULL
+    required string cmd = 1;
+    // return value is sent in SystemRet
+}
+
+message SystemRet {
+    // command, not present when it was NULL
+    optional string cmd = 1;
+    // return value
+    required int64 ret = 2;
+    // error no., when ret = -1
+    optional int32 error_no = 3;
+}
+
 message Process {
     // process id
     optional int64 pid = 23;
@@ -748,4 +764,6 @@ message InterceptorMsg {
     optional FDOpenDir fdopendir = 59;
     optional Fcntl fcntl = 60;
     optional SysCall syscall = 61;
+    optional System system = 62;
+    optional SystemRet system_ret = 63;
 }

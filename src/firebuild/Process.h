@@ -62,6 +62,10 @@ class Process {
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
   const std::vector<Process*>& children() const {return children_;}
+  void add_running_system_cmd(const std::string &cmd) {running_system_cmds_.insert(cmd);}
+  bool remove_running_system_cmd(const std::string &cmd);
+  bool has_running_system_cmd(const std::string &cmd) {
+    return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
   virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_m, int64_t stime_m);
   void sum_rusage(int64_t *sum_utime_m, int64_t *sum_stime_m);
@@ -149,6 +153,8 @@ class Process {
       children */
   int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
+  /// commands of system(3) calls which did finish yet
+  std::multiset<std::string> running_system_cmds_;
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */
   void add_filefd(const int fd, FileFD * ffd);

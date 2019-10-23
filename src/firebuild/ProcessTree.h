@@ -54,6 +54,16 @@ class ProcessTree {
       return NULL;
     }
   }
+  Process* find_exec_parent(int pid, int ppid, const std::string &cmd) {
+    auto exec_parent = pid2proc(pid);
+    if (!exec_parent) {
+      exec_parent = pid2proc(ppid);
+      if (!exec_parent || !exec_parent->has_running_system_cmd(cmd)) {
+        return NULL;
+      }
+    }
+    return exec_parent;
+  }
 
  private:
   ExecedProcess *root_ = NULL;
