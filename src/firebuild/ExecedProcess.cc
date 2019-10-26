@@ -73,7 +73,7 @@ int64_t ExecedProcess::sum_rusage_recurse() {
   sum_utime_m_ = 0;
   sum_stime_m_ = 0;
   sum_rusage(&sum_utime_m_, &sum_stime_m_);
-  if (exec_parent_) {
+  if (exec_parent_ && exec_parent_->pid() == pid()) {
     sum_utime_m_ -= exec_parent_->utime_m();
     sum_stime_m_ -= exec_parent_->stime_m();
     aggr_time -= exec_parent_->utime_m();
