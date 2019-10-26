@@ -112,12 +112,12 @@ IC(int, __libc_start_main, (int (*main)(int, char **, char **),
 IC(int, close, (int fd), {
     if (fd != fb_sv_conn) {
       ret = orig_fn(fd);
+      intercept_close(fd, ret);
+      clear_file_state(fd);
     } else {
       /* we just skip closing our connection */
       ret = 0;
     }
-    intercept_close(fd, ret);
-    clear_file_state(fd);
   })
 
 IC(int, access, (const char *name, int type), {
@@ -586,7 +586,8 @@ IC_GENERIC(FILE*, tmpfile64, (void), {
 IC(int, fclose, (FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(stream);
-    intercept_close(stream_fileno, (ret == EOF)?-1:ret);})
+    if (stream_fileno != fb_sv_conn) {
+      intercept_close(stream_fileno, (ret == EOF)?-1:ret);}})
 // ignore: fflush fflush_unlocked
 IC(int, fcloseall, (void), {
     ret = orig_fn();
