@@ -120,22 +120,6 @@ message Open {
     optional bool created = 7;
 }
 
-message FOpen {
-    // file path
-    optional string    filename = 1;
-    // modes, decoding is left for FireBuild supervisor
-    optional string modes = 2;
-    // return value, the file descriptor if != -1
-    optional int32 ret = 3;
-    // error no., when ret = -1
-    optional int32 error_no = 4;
-    // file did not exis before opening but it was created
-    // It is set explicitly only when it is impossble to know if the file
-    // existed before the call or not, like in the case of opening successfully
-    // with O_CREAT
-    optional bool created = 7;
-}
-
 message OpenDir {
     // path
     optional string    name = 1;
@@ -750,7 +734,6 @@ message InterceptorMsg {
     optional Rename rename = 45;
     optional RenameAt renameat = 46;
     optional DLOpen dlopen = 47;
-    optional FOpen fopen = 48;
     optional FReOpen freopen = 49;
     optional FCloseAll fcloseall = 50;
     optional LAObjSearch la_objsearch = 51;

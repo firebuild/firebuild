@@ -92,6 +92,20 @@ IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
 IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
            (fd, file, oflag, mode))
 
+#define IC_FOPEN(name)                                                  \
+  IC(FILE*, name, (const char *pathname, const char *mode),             \
+     {                                                                  \
+       int oflag = intercept_fopen_mode_to_open_flags_helper(mode);     \
+       ret = orig_fn(pathname, mode);                                   \
+       intercept_open(pathname, oflag, 0, ret?fileno(ret):-1);          \
+       if (ret) {                                                       \
+         clear_file_state(fileno(ret));                                 \
+       }                                                                \
+     })
+
+IC_FOPEN(fopen)
+IC_FOPEN(fopen64)
+
 /* libc internal */
 IC(int, __libc_start_main, (int (*main)(int, char **, char **),
                             int argc, char **ubp_av,
@@ -592,12 +606,6 @@ IC(int, fclose, (FILE *stream), {
 IC(int, fcloseall, (void), {
     ret = orig_fn();
     intercept_fcloseall((ret == EOF)?-1:ret);})
-IC(FILE*, fopen, (const char *filename, const char *modes), {
-    ret = orig_fn(filename, modes);
-    intercept_fopen(filename, modes, (ret)?fileno(ret):(-1));})
-IC(FILE*, fopen64, (const char *filename, const char *modes), {
-    ret = orig_fn(filename, modes);
-    intercept_fopen(filename, modes, (ret)?fileno(ret):(-1));})
 IC(FILE*, freopen, (const char *filename, const char *modes, FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(filename, modes, stream);

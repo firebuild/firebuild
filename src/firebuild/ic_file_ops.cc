@@ -386,9 +386,90 @@ IC2_SIMPLE_2P(long, IC2_WITH_RET, PathConf, pathconf, const char *, path,
               int, name)
 /* Intercept fpathconf */
 IC2_SIMPLE_2P(long, IC2_WITH_RET, FPathConf, fpathconf, int, fd, int, name)
-/* Intercept fopen */
-IC2_SIMPLE_2P(int, IC2_WITH_RET, FOpen, fopen, const char *, filename,
-              const char *, modes)
+
+
+static int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
+  int flags;
+  const char * p = mode;
+  /* invalid mode , NULL will crash fopen() anyway */
+  if (p == NULL) {
+    return -1;
+  }
+
+  /* open() flags */
+  switch (*p) {
+    case 'r': {
+      p++;
+      if (*p != '+') {
+        flags = O_RDONLY;
+      } else {
+        p++;
+        flags = O_RDWR;
+      }
+      break;
+    }
+    case 'w': {
+      p++;
+      if (*p != '+') {
+        flags = O_WRONLY | O_CREAT | O_TRUNC;
+      } else {
+        p++;
+        flags = O_RDWR | O_CREAT | O_TRUNC;
+      }
+      break;
+    }
+    case 'a': {
+      p++;
+      if (*p != '+') {
+        flags = O_WRONLY | O_CREAT | O_APPEND;
+      } else {
+        p++;
+        flags = O_RDWR | O_CREAT | O_APPEND;
+      }
+      break;
+    }
+    default:
+      /* would cause EINVAL in open()*/
+      return -1;
+  }
+
+  /* glibc extensions */
+  while (*p != '\0') {
+    switch (*p) {
+      case 'b':
+        __attribute__((fallthrough));
+      case 'c': {
+        /* ignore, not interesting from interception POV */
+        p++;
+        continue;
+      }
+      case 'e': {
+        flags |= O_CLOEXEC;
+        break;
+      }
+      case 'm': {
+        /* ignore, not interesting from interception POV */
+        p++;
+        continue;
+      }
+      case 'x': {
+        flags |= O_EXCL;
+        break;
+      }
+      case ',': {
+        /* ,ccs=string is not interesting from intercepion POV */
+        return flags;
+      }
+      default:
+        /* */
+        break;
+    }
+    p++;
+  }
+
+  return flags;
+}
+
 /* Intercept freopen */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename,
               const char *, modes, int, fd)
