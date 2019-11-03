@@ -24,7 +24,6 @@ int SHA256Hash::update(const std::string &from_path) {
       FB_DEBUG(3, "File " + from_path);
       perror("open");
     }
-    close(fd);
     return -1;
   }
 
