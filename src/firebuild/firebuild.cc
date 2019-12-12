@@ -298,7 +298,7 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       } else if (ic_msg.has_chdir()) {
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.chdir());
       }
-    } catch (std::out_of_range) {
+    } catch (std::out_of_range&) {
       FB_DEBUG(1, "Ignoring message on fd: " + std::to_string(fd_conn) +
                std::string(", process probably exited already."));
     }
