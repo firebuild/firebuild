@@ -4,6 +4,8 @@
 // Protocol Buffer definitions for FireBuild
 // Copyright (c) 2013 Balint Reczey.  All rights reserved.
 
+syntax = "proto2";
+
 package firebuild.msg;
 
 // Message for storing and retrieving the content of a file
