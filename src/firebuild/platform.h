@@ -34,7 +34,7 @@ bool path_is_absolute(const std::string &p) {
 #else
   if ((p.length() >= 1) && (p.at(0) == '/')) {
     return true;
-    } else {
+  } else {
     return false;
   }
 #endif

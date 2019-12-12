@@ -116,7 +116,7 @@ void insert_end_marker(const std::string& m) {
 }
 
 /**
- * Reset globally maintained information about intercepted funtions
+ * Reset globally maintained information about intercepted functions
  */
 void reset_fn_infos() {
   for (int i = 0; i < IC_FN_IDX_MAX ; i++) {
