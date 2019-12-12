@@ -627,16 +627,34 @@ IC_VA(int, printf, (const char * format, ...), {
     intercept_write(STDOUT_FILENO, ret);
     /* TODO(rbalint) check result and store std out */ })
 // ignore: sprintf
-IC(int, vfprintf, (FILE * stream, const char * format, _G_va_list arg), {
+IC(int, vfprintf, (FILE * stream, const char * format,
+#if __GLIBC_PREREQ (2, 28)
+                   va_list arg
+#else
+                   _G_va_list arg
+#endif
+                                 ), {
     ret = orig_fn(stream, format, arg);
     intercept_fwrite(stream, ret);
     /* TODO(rbalint) check result and std out */ })
-IC(int, vprintf, (const char * format, _G_va_list arg), {
+IC(int, vprintf, (const char * format,
+#if __GLIBC_PREREQ (2, 28)
+                  va_list arg
+#else
+                  _G_va_list arg
+#endif
+                                ), {
     ret = orig_fn(format, arg);
     intercept_write(STDOUT_FILENO, ret);
     /* TODO(rbalint) check result and std out */ })
 // ignore: vsprintf snprintf vsnprintf vasprintf asprintf
-IC(int, vdprintf, (int fd, const char * fmt, _G_va_list arg), {
+IC(int, vdprintf, (int fd, const char * fmt,
+#if __GLIBC_PREREQ (2, 28)
+                   va_list arg
+#else
+                   _G_va_list arg
+#endif
+                                 ), {
     ret = orig_fn(fd, fmt, arg);
     intercept_write(fd, ret);
     /* TODO(rbalint) check result and std fds */ })
@@ -664,11 +682,22 @@ IC_VA_WITH_C99(int, scanf, (const char * format, ...), {
 // ignore: sscanf
 // ignore: sscanf
 IC_WITH_C99(int, vfscanf, (FILE * stream, const char * format,
-                           _G_va_list arg), {
+#if __GLIBC_PREREQ (2, 28)
+                           va_list arg
+#else
+                           _G_va_list arg
+#endif
+                                         ), {
     ret = orig_fn(stream, format, arg);
     intercept_fread(stream, ret);
     /* TODO(rbalint) check result and std fds */ })
-IC_WITH_C99(int, vscanf, (const char * format, _G_va_list arg), {
+IC_WITH_C99(int, vscanf, (const char * format,
+#if __GLIBC_PREREQ (2, 28)
+                          va_list arg
+#else
+                          _G_va_list arg
+#endif
+                                        ), {
     ret = orig_fn(format, arg);
     intercept_fread(stdin, ret);
     /* TODO(rbalint) check result and std in */ })
