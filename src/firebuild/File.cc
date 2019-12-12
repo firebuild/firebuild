@@ -53,7 +53,9 @@ int File::update() {
         mtimes_.resize(i+1);
       }
       mtimes_[i] = s.st_mtim;
-      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir))) {
+      // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
+      // "A pathname that begins with two successive slashes may be interpreted in an implementation-defined manner [...]"
+      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir)) || (0 == strcmp("//", dir))) {
         break;
       } else {
         char * next_path = strdup(dir);
@@ -103,7 +105,9 @@ int File::is_changed() {
         free(tmp_path);
         return 1;
       }
-      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir))) {
+      // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
+      // "A pathname that begins with two successive slashes may be interpreted in an implementation-defined manner [...]"
+      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir)) || (0 == strcmp("//", dir))) {
         break;
       } else {
         char * next_path = strdup(dir);
