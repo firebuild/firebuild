@@ -785,17 +785,35 @@ IC(int, putw, (int w, FILE *stream), {
     int stream_fileno = (stream)?fileno(stream):-1;
     ret = orig_fn(w, stream);
     intercept_write(stream_fileno, (ret == EOF)?-1:ret);})
-IC(_IO_ssize_t, getdelim, (char ** lineptr, size_t * n, int delimiter,
+IC(
+#if __GLIBC_PREREQ (2, 28)
+   ssize_t
+#else
+   _IO_ssize_t
+#endif
+              , getdelim, (char ** lineptr, size_t * n, int delimiter,
                            FILE * stream), {
      ret = orig_fn(lineptr, n, delimiter, stream);
      intercept_fread(stream, (ret == EOF)?-1:1);
      /* TODO(rbalint) check result and std fds */ })
-IC(_IO_ssize_t, __getdelim, (char ** lineptr, size_t * n, int delimiter,
+IC(
+#if __GLIBC_PREREQ (2, 28)
+   ssize_t
+#else
+   _IO_ssize_t
+#endif
+              , __getdelim, (char ** lineptr, size_t * n, int delimiter,
                              FILE * stream), {
      ret = orig_fn(lineptr, n, delimiter, stream);
      intercept_fread(stream, (ret == EOF)?-1:1);
      /* TODO(rbalint) check result and std fds */ })
-IC(_IO_ssize_t, getline, (char ** lineptr, size_t * n, FILE * stream), {
+IC(
+#if __GLIBC_PREREQ (2, 28)
+   ssize_t
+#else
+   _IO_ssize_t
+#endif
+              , getline, (char ** lineptr, size_t * n, FILE * stream), {
     ret = orig_fn(lineptr, n, stream);
     intercept_fread(stream, (ret == EOF)?-1:1);
     /* TODO(rbalint) check result and std fds */ })
