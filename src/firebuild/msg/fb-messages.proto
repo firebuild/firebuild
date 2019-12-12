@@ -106,7 +106,7 @@ message Fcntl {
 
 message Open {
     // file path
-    required bytes file = 2;
+    optional bytes file = 2;
     // flags, decoding is left for FireBuild supervisor
     required int32 flags = 3;
     // mode, decoding is left for FireBuild supervisor
