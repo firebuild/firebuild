@@ -485,7 +485,7 @@ IC(int, ftruncate64, (int fd, off64_t length), {
 
 IC(long int, syscall, (long int sysno, ...), {
     void *args = __builtin_apply_args();
-    void const * const result = __builtin_apply((void (*)(...))orig_fn,
+    void const * const result = __builtin_apply((void (*)(...))(void *)orig_fn,
                                                 args, 100);
     ret = *(long int *)result;
     intercept_syscall(sysno, ret);})
