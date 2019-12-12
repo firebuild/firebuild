@@ -24,7 +24,7 @@ message File {
     //repeated AltHash alt_hash = 2;
 
     // file path, absolute or relative
-    optional string path = 3;
+    optional bytes path = 3;
 
     // last modification time
     optional int64 mtime = 4;
@@ -37,13 +37,13 @@ message File {
 }
 
 message Dir {
-    required string path = 1;
-    repeated string entry = 2;
+    required bytes path = 1;
+    repeated bytes entry = 2;
 }
 
 message EnvVar {
-    required string name = 1;
-    required string value = 2;
+    required bytes name = 1;
+    required bytes value = 2;
 }
 
 
@@ -54,13 +54,13 @@ message ShortCutProcessQuery {
     // parent pid
     optional int64 ppid = 2;
     // working dir process started in
-    optional string cwd = 3;
+    optional bytes cwd = 3;
     // only argv, sending argc would be redundant
-    repeated string arg = 4;
+    repeated bytes arg = 4;
     // environment variables in unprocessed NAME=value form
-    repeated string env_var = 5;
+    repeated bytes env_var = 5;
     // full path of the binary
-    optional string executable = 6;
+    optional bytes executable = 6;
     // loaded shared libraries in the beginning
     optional FileList libs = 7;
 }
@@ -77,7 +77,7 @@ message ShortCutProcessResp {
 // are reported once per process to supervisor
 message GenericCall {
     // function name
-    required string call = 1;
+    required bytes call = 1;
 }
 
 // FireBuild error
@@ -106,7 +106,7 @@ message Fcntl {
 
 message Open {
     // file path
-    required string    file = 2;
+    required bytes file = 2;
     // flags, decoding is left for FireBuild supervisor
     required int32 flags = 3;
     // mode, decoding is left for FireBuild supervisor
@@ -124,7 +124,7 @@ message Open {
 
 message OpenDir {
     // path
-    optional string    name = 1;
+    optional bytes name = 1;
     // error no., when ret = -1
     optional int32 error_no = 2;
 }
@@ -138,9 +138,9 @@ message FDOpenDir {
 
 message FReOpen {
     // file path
-    optional string    filename = 1;
+    optional bytes filename = 1;
     // modes, decoding is left for FireBuild supervisor
-    optional string modes = 2;
+    optional bytes modes = 2;
     // file descriptor associated to the stream to be reopened
     optional int32 fd = 3;
     // return value, the file descriptor if != -1
@@ -157,14 +157,14 @@ message OpenFileResp {
 
 message GetCwd {
     // result directory
-    optional string    ret = 1;
+    optional bytes ret = 1;
     // error no., when ret = NULL
     optional int32 error_no = 2;
 }
 
 message ChDir {
     // directory path
-    optional string    dir = 1;
+    optional bytes dir = 1;
     // error no., when ret = -1
     optional int32 error_no = 2;
 }
@@ -178,16 +178,16 @@ message FChDir {
 
 message UnLink {
     // path name
-    optional string path = 1;
+    optional bytes path = 1;
     // error no., when ret = -1
     optional int32 error_no = 2;
 }
 
 message ReadLink {
     // path name
-    optional string path = 1;
+    optional bytes path = 1;
     // returned path
-    optional string ret_path = 2;
+    optional bytes ret_path = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
 }
@@ -196,25 +196,25 @@ message ReadLinkAt {
     // dir file descriptor
     optional int64 dirfd = 1;
     // path name
-    optional string path = 2;
+    optional bytes path = 2;
     // returned path
-    optional string ret_path = 3;
+    optional bytes ret_path = 3;
     // error no., when ret = -1
     optional int32 error_no = 4;
 }
 
 message Remove {
     // path to file
-    optional string filename = 1;
+    optional bytes filename = 1;
     // error no., when ret = -1
     optional int32 error_no = 2;
 }
 
 message Rename {
     // path to old file
-    optional string oldpath = 1;
+    optional bytes oldpath = 1;
     // path to new file
-    optional string newpath = 2;
+    optional bytes newpath = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
 }
@@ -223,18 +223,18 @@ message RenameAt {
     // old dir file descriptor
     optional int32 oldfd = 1;
     // path to old file
-    optional string oldpath = 2;
+    optional bytes oldpath = 2;
     // new dir file descriptor
     optional int32 newfd = 3;
     // path to new file
-    optional string newpath = 4;
+    optional bytes newpath = 4;
     // error no., when ret = -1
     optional int32 error_no = 5;
 }
 
 message Access {
     // path to file
-    optional string pathname = 1;
+    optional bytes pathname = 1;
     // acess mode
     optional int32 mode = 2;
     // error no., when ret = -1
@@ -243,7 +243,7 @@ message Access {
 
 message EAccess {
     // path to file
-    optional string pathname = 1;
+    optional bytes pathname = 1;
     // access mode
     optional int32 mode = 2;
     // error no., when ret = -1
@@ -254,7 +254,7 @@ message FAccessAt {
     // dir file descriptor
     optional int64 dirfd = 1;
     // path to file
-    optional string pathname = 2;
+    optional bytes pathname = 2;
     // access mode
     optional int32 mode = 3;
     // flags
@@ -265,7 +265,7 @@ message FAccessAt {
 
 message RmDir {
     // dir path
-    optional string dir = 1;
+    optional bytes dir = 1;
     // error no., when ret = -1
     optional int32 error_no = 2;
 }
@@ -284,7 +284,7 @@ message FCloseAll {
 
 message Chown {
     // file path
-    optional string path = 1;
+    optional bytes path = 1;
     // uid
     optional int32 owner = 2;
     // gid
@@ -308,7 +308,7 @@ message FChownAt {
     // dir file descriptor
     optional int64 dirfd = 1;
     // file path
-    optional string path = 2;
+    optional bytes path = 2;
     // uid
     optional int32 owner = 3;
     // gid
@@ -321,7 +321,7 @@ message FChownAt {
 
 message LChown {
     // file path
-    optional string path = 1;
+    optional bytes path = 1;
     // uid
     optional int32 owner = 2;
     // gid
@@ -334,7 +334,7 @@ message UnLinkAt {
     // dir fd
     optional int32 dirfd = 1;
     // path name
-    optional string pathname = 2;
+    optional bytes pathname = 2;
     // flags
     optional int32 flags = 3;
     // error qno., when ret = -1
@@ -343,9 +343,9 @@ message UnLinkAt {
 
 message Link {
     // old file path
-    optional string oldpath = 1;
+    optional bytes oldpath = 1;
     // new file path
-    optional string newpath = 2;
+    optional bytes newpath = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
 }
@@ -354,11 +354,11 @@ message LinkAt {
     // old dir fd
     optional int32 olddirfd = 1;
     // old file path
-    optional string oldpath = 2;
+    optional bytes oldpath = 2;
     // new dir fd
     optional int32 newdirfd = 3;
     // new file path
-    optional string newpath = 4;
+    optional bytes newpath = 4;
     // flags
     optional int32 flags = 5;
     // error no., when ret = -1
@@ -367,20 +367,20 @@ message LinkAt {
 
 message Symlink {
     // old file path
-    optional string oldpath = 1;
+    optional bytes oldpath = 1;
     // new file path
-    optional string newpath = 2;
+    optional bytes newpath = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
 }
 
 message SymlinkAt {
     // old file path
-    optional string oldpath = 1;
+    optional bytes oldpath = 1;
     // new dir fd
     optional int32 newdirfd = 2;
     // new file path
-    optional string newpath = 3;
+    optional bytes newpath = 3;
     // error no., when ret = -1
     optional int32 error_no = 4;
 }
@@ -396,7 +396,7 @@ message LockF {
 
 message UTime {
     // file name
-    optional string file = 1;
+    optional bytes file = 1;
     // it was actually lutime(), so don't follow symlink
     optional bool link = 2;
     // ..at(), like utimensat
@@ -448,7 +448,7 @@ message Dup3 {
 
 message DLOpen {
     // file path
-    optional string    filename = 1;
+    optional bytes filename = 1;
     // flag, decoding is left for FireBuild supervisor
     optional int32 flag = 2;
     // error no., when ret = -1
@@ -457,17 +457,17 @@ message DLOpen {
 
 message ExecV {
     // file to execute
-    optional string file = 1;
+    optional bytes file = 1;
     // file fd to execute, in case of fexecve()
     optional int32 fd = 2;
     // argv[]
-    repeated string arg = 3;
+    repeated bytes arg = 3;
     // envp[] in case of execve()/execvpe() it is passed as parameter
-    repeated string env = 4;
+    repeated bytes env = 4;
     // true, in case of execvp()/execvpe()
     optional bool with_p = 5;
     // PATH , or confstr(_CS_PATH), if PATH is not set
-    optional string path = 6;
+    optional bytes path = 6;
     // user CPU time in milliseconds
     required int64 utime_m = 7;
     // system CPU time in milliseconds
@@ -484,13 +484,13 @@ message ExecVFailed {
 // system(3)
 message System {
     // command, only SystemRet is sent when command was NULL
-    required string cmd = 1;
+    required bytes cmd = 1;
     // return value is sent in SystemRet
 }
 
 message SystemRet {
     // command, not present when it was NULL
-    optional string cmd = 1;
+    optional bytes cmd = 1;
     // return value
     required int64 ret = 2;
     // error no., when ret = -1
@@ -506,9 +506,9 @@ message Process {
     required File executable = 6;
 
     // command parameters, starting with name of the command
-    repeated string command = 8;
+    repeated bytes command = 8;
 
-    required string exec_dir = 7;
+    required bytes exec_dir = 7;
 
     // exit status of the process
     optional int32 exit_status = 4;
@@ -561,7 +561,7 @@ message SysCall {
 
 message GetHostname {
     // name
-    optional string name = 1;
+    optional bytes name = 1;
     // value
     optional int64 len = 2;
     // error no., when ret = -1
@@ -570,7 +570,7 @@ message GetHostname {
 
 message GetDomainname {
     // name
-    optional string name = 1;
+    optional bytes name = 1;
     // value
     optional int64 len = 2;
     // error no., when ret = -1
@@ -579,7 +579,7 @@ message GetDomainname {
 
 message Truncate {
     // name
-    optional string path = 1;
+    optional bytes path = 1;
     // lenght
     optional int64 len = 2;
     // error no., when ret = -1
@@ -597,7 +597,7 @@ message FTruncate {
 
 message PathConf {
     // path name
-    optional string path = 1;
+    optional bytes path = 1;
     // option name
     optional int32 name = 2;
     // option value
@@ -632,7 +632,7 @@ message Write {
 }
 
 message FileList {
-    repeated string file = 1;
+    repeated bytes file = 1;
 }
 
 message DLClose {
@@ -668,14 +668,14 @@ message ForkParent {
 
 message LAObjSearch {
     // file name
-    required string name = 1;
+    required bytes name = 1;
     // search flag
     required int32 flag = 2;
 }
 
 message LAObjOpen {
     // file name
-    required string name = 1;
+    required bytes name = 1;
 }
 
 // wrapper for messages supervisor can send
