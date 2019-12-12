@@ -44,17 +44,17 @@ int SHA256Hash::update(const std::string &from_path) {
   SHA256_CTX sha256;
   SHA256_Init(&sha256);
   while (0 != (bytes_read = read(fd, buf, kHashBufsize))) {
-      if (-1 == bytes_read) {
-        if (errno == EINTR) {
-          continue;
-        } else {
-          perror("read");
-          close(fd);
-          return -1;
-        }
+    if (-1 == bytes_read) {
+      if (errno == EINTR) {
+        continue;
+      } else {
+        perror("read");
+        close(fd);
+        return -1;
       }
-      SHA256_Update(&sha256, buf, bytes_read);
     }
+    SHA256_Update(&sha256, buf, bytes_read);
+  }
   SHA256_Final(arr, &sha256);
   close(fd);
   return true;

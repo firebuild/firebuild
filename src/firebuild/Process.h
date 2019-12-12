@@ -153,7 +153,7 @@ class Process {
       children */
   int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
-  /// commands of system(3) calls which did finish yet
+  /// commands of system(3) calls which did not finish yet
   std::multiset<std::string> running_system_cmds_;
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */

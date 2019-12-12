@@ -47,7 +47,7 @@ message EnvVar {
 }
 
 
-// interceptor library queries FireBuild supervisor if it can shotcut execution of the process
+// interceptor library queries FireBuild supervisor if it can shortcut execution of the process
 message ShortCutProcessQuery {
     // process id
     optional int64 pid = 1;

@@ -113,7 +113,7 @@ extern pthread_mutex_t ic_fd_states_lock;
 /** buffer size for getcwd */
 #define CWD_BUFSIZE 4096
 
-/** Reset globally maintained information about intercepted funtions */
+/** Reset globally maintained information about intercepted functions */
 extern void reset_fn_infos();
 
 /**  Set up supervisor connection */
