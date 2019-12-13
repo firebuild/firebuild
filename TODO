@@ -10,4 +10,3 @@ FireBuild TODO items
   usage
 - export process tree to a self contained html file including style sheets and
   D3.js
-- replace tempnam usage with using mkdtemp

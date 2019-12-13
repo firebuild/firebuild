@@ -34,6 +34,7 @@ static char global_cfg[] = "/etc/firebuildrc";
 
 static char datadir[] = FIREBUILD_DATADIR;
 
+static char *fb_tmp_dir;
 static char *fb_conn_string;
 static int sigchld_fds[2];
 static FILE * sigchld_stream;
@@ -434,6 +435,27 @@ static void write_report(const std::string &html_filename,
   fclose(dst_file);
 }
 
+/**
+ * Get the system temporary directory to use.
+ *
+ * TMPDIR is used if it's nonempty.
+ * Note that relative path is accepted and used correctly by the
+ * firebuild process itself, although the build command it launches
+ * might not support it. It's highly recommended to use absolute path.
+ *
+ * If TMPDIR is unset or empty, use the default "/tmp".
+ *
+ * @return the system temporary directory to use
+ */
+static const char *get_tmpdir() {
+  const char *tmpdir = getenv("TMPDIR");
+  if (tmpdir != NULL && tmpdir[0] != '\0') {
+    return tmpdir;
+  } else {
+    return "/tmp";
+  }
+}
+
 }  // namespace
 
 int main(const int argc, char *argv[]) {
@@ -510,7 +532,14 @@ int main(const int argc, char *argv[]) {
 
   error_fos = new google::protobuf::io::FileOutputStream(STDERR_FILENO);
   {
-    fb_conn_string = tempnam(NULL, "firebuild");
+    char *pattern;
+    asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir());
+    fb_tmp_dir = mkdtemp(pattern);
+    if (fb_tmp_dir == NULL) {
+      perror("mkdtemp");
+      exit(EXIT_FAILURE);
+    }
+    asprintf(&fb_conn_string, "%s/socket", fb_tmp_dir);
   }
   auto env_exec = get_sanitized_env();
 
@@ -691,11 +720,13 @@ int main(const int argc, char *argv[]) {
     free(env_exec);
 
     unlink(fb_conn_string);
+    rmdir(fb_tmp_dir);
   }
 
   delete(error_fos);
   fclose(sigchld_stream);
   free(fb_conn_string);
+  free(fb_tmp_dir);
   delete(proc_tree);
   delete(cfg);
 
