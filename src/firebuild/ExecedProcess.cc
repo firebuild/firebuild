@@ -59,7 +59,6 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_m,
                                 const int64_t stime_m) {
   // store results for this process
   Process::exit_result(status, utime_m, stime_m);
-  set_state(FB_PROC_FINISHED);
   // propagate to parents exec()-ed this FireBuild process
   propagate_exit_status(status);
   // store data for shortcutting
@@ -196,7 +195,8 @@ void ExecedProcess::export2js(const unsigned int level,
 
   switch (state()) {
     case FB_PROC_FINISHED: {
-      fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
+      if (exit_status() != -1)
+        fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
       __attribute__((fallthrough));
     }
     case FB_PROC_EXECED: {
