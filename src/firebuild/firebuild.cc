@@ -221,11 +221,9 @@ void ack_msg(const int conn, const int ack_num) {
 /**
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
- * @return fd_conn can be kept open
  */
-bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
+void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                  const int fd_conn) {
-  bool ret = true;
   if (ic_msg.has_scproc_query()) {
     firebuild::msg::SupervisorMsg sv_msg;
     auto scproc_resp = sv_msg.mutable_scproc_resp();
@@ -280,8 +278,6 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         proc->exit_result(ic_msg.exit().exit_status(),
                           ic_msg.exit().utime_m(),
                           ic_msg.exit().stime_m());
-        proc_tree->exit(proc, fd_conn);
-        ret = false;
       } else if (ic_msg.has_system()) {
         proc->add_running_system_cmd(ic_msg.system().cmd());
       } else if (ic_msg.has_system_ret()) {
@@ -306,8 +302,6 @@ bool proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     ack_msg(fd_conn, ic_msg.ack_num());
   } else if (ic_msg.has_gen_call()) {
   }
-
-  return ret;
 }
 
 
@@ -670,12 +664,12 @@ int main(const int argc, char *argv[]) {
                 // got error or connection closed by client
                 if (nbytes == 0) {
                   // connection closed
-                  // TODO(rbalint) handle process exit
                   FB_DEBUG(2, "socket " + std::to_string(i) +
                            std::string(" hung up"));
                 } else {
                   perror("recv");
                 }
+                proc_tree->finished(i);
                 close(i);  // bye!
                 FD_CLR(i, &master);  // remove from master set
               } else {
@@ -684,11 +678,7 @@ int main(const int argc, char *argv[]) {
                   google::protobuf::TextFormat::Print(ic_msg, error_fos);
                   error_fos->Flush();
                 }
-                if (!proc_ic_msg(ic_msg, i)) {
-                  fsync(i);
-                  close(i);  // bye!
-                  FD_CLR(i, &master);  // remove from master set
-                }
+                proc_ic_msg(ic_msg, i);
               }
             }
           }

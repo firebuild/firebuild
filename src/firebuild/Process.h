@@ -19,7 +19,7 @@ namespace firebuild {
 
 typedef enum {FB_PROC_RUNNING,   ///< process is running
               FB_PROC_EXECED,    ///< process finished running by exec()
-              FB_PROC_FINISHED,  ///< process exited cleanly
+              FB_PROC_FINISHED,  ///< process exited without exec() (exit, or crash on signal)
 } process_state;
 
 /**
@@ -142,7 +142,7 @@ class Process {
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
-  int exit_status_;  ///< exit status, valid if state = FB_PROC_FINISHED
+  int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   std::string wd_;  ///< Current working directory
   std::vector<FileFD*> fds_;  ///< Active file descriptors
   std::list<FileFD*> closed_fds_;  ///< Closed file descriptors

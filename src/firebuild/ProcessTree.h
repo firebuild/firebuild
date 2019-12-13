@@ -40,7 +40,7 @@ class ProcessTree {
 
   void insert(Process *p, const int sock);
   void insert(ExecedProcess *p, const int sock);
-  void exit(Process *p, const int sock);
+  void finished(const int sock);
   static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);

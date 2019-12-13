@@ -45,8 +45,14 @@ void Process::update_rusage(const int64_t utime_m, const int64_t stime_m) {
 
 void Process::exit_result(const int status, const int64_t utime_m,
                           const int64_t stime_m) {
-  state_ = FB_PROC_FINISHED;
-  exit_status_ = status;
+  /* The kernel only lets the low 8 bits of the exit status go through.
+   * From the exit()/_exit() side, the remaining bits are lost (they are
+   * still there in on_exit() handlers).
+   * From wait()/waitpid() side, additional bits are used to denote exiting
+   * via signal.
+   * We use -1 if there's no exit status available (the process is still
+   * running, or exited due to an unhandled signal). */
+  exit_status_ = status & 0xff;
   update_rusage(utime_m, stime_m);
 }
 
