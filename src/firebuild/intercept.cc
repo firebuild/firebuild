@@ -91,26 +91,38 @@ static bool insert_trace_markers = false;
 /** Next ACK id*/
 static int ack_id = 0;
 
-/** Insert interception begin marker */
-void insert_begin_marker(const std::string &m) {
+/** Insert debug message */
+void insert_debug_msg(const std::string &m) {
   if (insert_trace_markers) {
     int saved_errno = errno;
+    const std::string tpl = "/FIREBUILD   ###   ";
     if (ic_orig_open) {
-      ic_orig_open(("/firebuild-intercept-begin-" + m).c_str(), 0);
+      ic_orig_open((tpl + m).c_str(), 0);
     } else {
       auto orig_open = (int(*)(const char*, int, ...))dlsym(RTLD_NEXT, "open");
       assert(orig_open);
-      orig_open(("/firebuild-intercept-begin-" + m).c_str(), 0);
+      orig_open((tpl + m).c_str(), 0);
     }
     errno = saved_errno;
   }
 }
 
-/** Insert interception end marker */
-void insert_end_marker(const std::string& m) {
+/** Insert interception begin marker */
+void insert_begin_marker(const std::string &m) {
   if (insert_trace_markers) {
+    // TODO(egmont) Can string concatenation tamper with errno? Let's play safe.
     int saved_errno = errno;
-    ic_orig_open(("/firebuild-intercept-end-" + m).c_str(), 0);
+    insert_debug_msg("intercept-begin: " + m);
+    errno = saved_errno;
+  }
+}
+
+/** Insert interception end marker */
+void insert_end_marker(const std::string &m) {
+  if (insert_trace_markers) {
+    // TODO(egmont) Can string concatenation tamper with errno? Let's play safe.
+    int saved_errno = errno;
+    insert_debug_msg("intercept-end: " + m);
     errno = saved_errno;
   }
 }

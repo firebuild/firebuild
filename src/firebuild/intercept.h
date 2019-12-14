@@ -139,6 +139,9 @@ extern bool fb_exit_handled;
  */
 extern bool fb_exec_called;
 
+/** Insert debug message */
+extern void insert_debug_msg(const std::string&);
+
 /** Insert begin marker strace, ltrace, etc. */
 extern void insert_begin_marker(const std::string&);
 
