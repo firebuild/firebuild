@@ -631,12 +631,20 @@ static void copy_file_state(const int to_fd, const int from_fd) {
 }
 
 
-static void intercept_exit(const int status) {
-  handle_exit(status, NULL);
-
+/* This is the handler of exit() which will call the atexit/on_exit
+ * handlers, including ours which will notify the server. */
+static void intercept_exit() {
   // exit handlers may call intercepted functions
   intercept_on = false;
-  insert_end_marker(__func__);
+
+  // FIXME this is at the wrong place
+  insert_end_marker("exit");
+}
+
+/* This is the handler of _exit(), _Exit_() and exit_group() which
+ * exit immediately, without invoking the atexit/on_exit handlers. */
+static void intercept_underscore_exit(const int status) {
+  handle_exit(status, NULL);
 }
 
 /* make intercepted functions visible */
