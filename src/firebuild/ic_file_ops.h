@@ -289,21 +289,23 @@ IC(int, system, (const char *cmd), {
 IC_VOID(void, exit, (int status), {
     intercept_exit(status);
     orig_fn(status);
-    while (true) continue;
+    assert(0 && "exit must not return");
   })
 
 IC_VOID(void, _exit, (int status), {
     intercept_exit(status);
     orig_fn(status);
-    while (true) continue;})
+    assert(0 && "_exit must not return");
+  })
 IC_VOID(void, _Exit, (int status), {
     intercept_exit(status);
     orig_fn(status);
-    while (true) continue;})
+    assert(0 && "_Exit must not return");
+  })
 IC_VOID(void, quick_exit, (int status), {
     intercept_exit(status);
     orig_fn(status);
-    while (true) continue;
+    assert(0 && "quick_exit must not return");
   })
 
 IC(long int, pathconf, (const char *path, int name), {
