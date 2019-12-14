@@ -299,32 +299,34 @@ void fb_ic_load() {
 }
 
 void handle_exit(const int status, void*) {
-  if (!fb_exit_handled) {
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_exit();
-    m->set_exit_status(status);
+  /* On rare occasions (e.g. two threads attempting to exit at the same
+   * time) this method is called multiple times. The server can safely
+   * handle it. */
 
-    struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
-    m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
-    m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
-    {
-      auto *fl = m->mutable_libs();
-      dl_iterate_phdr(shared_libs_cb, fl);
-    }
-    int ack_num = get_next_ack_id();
-    ic_msg.set_ack_num(ack_num);
-    fb_send_msg(ic_msg, fb_sv_conn);
-    msg::SupervisorMsg sv_msg;
-    auto len = fb_recv_msg(&sv_msg, fb_sv_conn);
-    if ((len > 0) && (sv_msg.ack_num() != ack_num)) {
-      // something unexpected happened ...
-      assert(0 && "Supervisor did not ack exit");
-    }
+  msg::InterceptorMsg ic_msg;
+  auto m = ic_msg.mutable_exit();
+  m->set_exit_status(status);
 
-    // TODO(rbalint) atomic set?
-    fb_exit_handled = true;
+  struct rusage ru;
+  getrusage(RUSAGE_SELF, &ru);
+  m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
+  m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
+  {
+    auto *fl = m->mutable_libs();
+    dl_iterate_phdr(shared_libs_cb, fl);
   }
+  int ack_num = get_next_ack_id();
+  ic_msg.set_ack_num(ack_num);
+  fb_send_msg(ic_msg, fb_sv_conn);
+  msg::SupervisorMsg sv_msg;
+  auto len = fb_recv_msg(&sv_msg, fb_sv_conn);
+  if ((len > 0) && (sv_msg.ack_num() != ack_num)) {
+    // something unexpected happened ...
+    assert(0 && "Supervisor did not ack exit");
+  }
+
+  // TODO(egmont) remove this variable
+  fb_exit_handled = true;
 }
 }
 
