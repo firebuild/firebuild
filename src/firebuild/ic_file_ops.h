@@ -111,13 +111,15 @@ IC(int, __libc_start_main, (int (*main)(int, char **, char **),
                             int argc, char **ubp_av,
                             void (*init)(void), void (*fini) (void),
                             void (*rtld_fini)(void), void (* stack_end)), {
-     char * main_and_argv[2];
-     main_and_argv[0] = reinterpret_cast<char *>(main);
-     main_and_argv[1] = reinterpret_cast<char *>(ubp_av);
-     intercept_on = false;
-     insert_end_marker(__func__);
-     ret = orig_fn(firebuild_fake_main, argc, main_and_argv, init, fini,
-                   rtld_fini, stack_end);})
+    char * main_and_argv[2];
+    main_and_argv[0] = reinterpret_cast<char *>(main);
+    main_and_argv[1] = reinterpret_cast<char *>(ubp_av);
+    intercept_on = false;
+    insert_end_marker(__func__);
+    orig_fn(firebuild_fake_main, argc, main_and_argv, init, fini,
+            rtld_fini, stack_end);
+    assert(0 && "fake_main must not return");
+  })
 
 /*  covered in unistd.h: lockf lockf64 */
 
