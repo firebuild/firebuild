@@ -679,22 +679,21 @@ static pid_t intercept_fork(const pid_t ret) {
 
 /**
  * Wrapper for main function
- * The point of having it is the existence of main() function in programs
- * in which such programs exit from main() using return instead of
- * exit().
- * Exiting main() with return does not trigger exit handlers installed using
- * on_exit() thus makes FireBuild unable to gather exit status.
- * This wrapper sends the return value of main to the supervisor if
- * it has not been sent already. Most of the time this part of the code will not
- * run thanks to programs exit()-ing from main.
+ *
+ * This thin wrapper is mainly left here for easier debugging.
+ *
+ * argv is semantically misused, it contains 2 items: orig_main and
+ * orig_argv. See also IC(..., __libc_start_main, ...).
  */
 extern int firebuild_fake_main(int argc, char **argv, char **env) {
   int (*orig_main)(int, char**, char**);
   memcpy(&orig_main, &argv[0], sizeof(argv[0]));
-      char ** orig_argv;
+  char ** orig_argv;
   memcpy(&orig_argv, &argv[1], sizeof(argv[1]));
+
+  insert_debug_msg("orig_main-begin");
   auto ret = orig_main(argc, orig_argv, env);
-  handle_exit(ret, NULL);
+  insert_debug_msg("orig_main-end");
   return ret;
 }
 
