@@ -212,7 +212,7 @@ static void fb_ic_init() {
 
   init_supervisor_conn();
 
-  on_exit(handle_exit, NULL);
+  on_exit(on_exit_handler, NULL);
 
   char **argv, **env;
   get_argv_env(&argv, &env);
@@ -298,7 +298,13 @@ void fb_ic_load() {
   }
 }
 
-void handle_exit(const int status, void*) {
+void on_exit_handler(const int status, void *) {
+  insert_debug_msg("our_on_exit_handler-begin");
+  handle_exit(status);
+  insert_debug_msg("our_on_exit_handler-end");
+}
+
+void handle_exit(const int status) {
   /* On rare occasions (e.g. two threads attempting to exit at the same
    * time) this method is called multiple times. The server can safely
    * handle it. */

@@ -644,7 +644,7 @@ static void intercept_exit() {
 /* This is the handler of _exit(), _Exit_() and exit_group() which
  * exit immediately, without invoking the atexit/on_exit handlers. */
 static void intercept_underscore_exit(const int status) {
-  handle_exit(status, NULL);
+  handle_exit(status);
 }
 
 /* make intercepted functions visible */
