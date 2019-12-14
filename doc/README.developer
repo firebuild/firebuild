@@ -4,8 +4,8 @@ Generate (almost usable) default wrappers from header:
 Test wether FireBuild intercepts all syscalls:
 firebuild -i strace  -o/tmp/ls.trace ls
 awk 'BEGINFILE {SKIP=0}
-     /firebuild-intercept-begin/ {SKIP=1; next}
-     /firebuild-intercept-end/ {SKIP=0; next}
+     /FIREBUILD.*intercept-begin/ {SKIP=1; next}
+     /FIREBUILD.*intercept-end/ {SKIP=0; next}
      /execve\(/ {SKIP=0; print FILENAME ": " $0; next}
      {if (FNR == 1) {SKIP=1; next;}
       if (SKIP == 0 ) { print FILENAME ": " $0;} else {next;}}'  /tmp/ls.trace
