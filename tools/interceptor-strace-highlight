@@ -1,0 +1,50 @@
+#!/usr/bin/awk -f
+
+# Colorizer for strace logs with interceptor trace marks.
+#
+# Please don't carry attributes (colors etc.) across newlines,
+# "less -R" doesn't support that.
+#
+# FIXME: Make the regexps more robust to eliminate false positives,
+# e.g. when a string parameter happens to contain "fork(" or such.
+
+{
+  if ($1 ~ /^[0-9]+$/) {
+    pid = $1  # the real PID from "strace -f"
+  } else {
+    pid = 0   # a single fake PID for "strace" / "strace -ff"
+  }
+}
+
+/FIREBUILD.*intercept-begin/ {
+  print "\x1b[36m" $0 "\x1b[m"  # cyan
+  pid_is_intercepted[pid] = 1
+  next
+}
+
+/FIREBUILD.*intercept-end/ {
+  print "\x1b[36m" $0 "\x1b[m"  # cyan
+  pid_is_intercepted[pid] = 0
+  next
+}
+
+/FIREBUILD/ {
+  print "\x1b[35m" $0 "\x1b[m"  # magenta
+  next
+}
+
+/execve\(/ {
+  pid_is_intercepted[pid] = 0
+}
+
+/fork\(/ || /clone\(/ {
+  pid_is_intercepted[$NF] = pid_is_intercepted[pid]
+}
+
+pid_is_intercepted[pid] == 1 {
+  print "\x1b[91m" $0 "\x1b[m"  # bright red
+}
+
+pid_is_intercepted[pid] != 1 {
+  print $0                      # default
+}
