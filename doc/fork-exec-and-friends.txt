@@ -1,0 +1,285 @@
+How Firebuild handles fork, exec, posix_spawn, system, popen...
+===============================================================
+
+
+Foreword
+--------
+
+For convenience, in this document:
+ - fork() stands for fork(), vfork(), clone();
+ - exec() stands for the [f]exec*() family;
+ - posix_spawn() stands for posix_spawn[p]();
+ - wait() stands for the wait*() family.
+
+In this document we're not touching the topic of PIDs wrapping around
+and getting reissued, for simplicity we assume this doesn't happen.
+There'll be another document on how we deal with this.
+
+
+Process, ProcessTree
+--------------------
+
+Firebuild's notion of Process isn't the same as the Unix notion. Our
+notion is:
+
+A fork() leaves the parent Process intact, and creates another Process
+(a ForkedProcess). The child Process's parent() is the Process that
+called this fork(), obviously.
+
+A successful exec() terminates the invoking Process, and creates a new
+Process (an ExecedProcess) whose parent() is the just-terminated Process
+that called this exec().
+
+These Processes are organized into a ProcessTree, linking upwards via
+parent() and the convenience exec_point() and parent_exec_point() helper
+methods, and downwards via children() and exec_child().
+
+
+Building up ProcessTree
+-----------------------
+
+We have to robustly identify which child process belongs to which
+previous fork(), posix_spawn(), system() or popen() call.
+
+We have to do it reliably, without race conditions even if the program
+is multithreaded, even if it makes more of such calls at or around the
+same time, even if there are file operations or environment manipulation
+around or in between them.
+
+The supervisor needs to keep track of the file descriptors being opened
+and used by each process. This has to be inherited correctly by the new
+children.
+
+We don't want to block the execution of the parent until the child
+process signs in to the supervisor. This could lead to degraded
+performance, and the child may not appear at all (if it's a
+posix_spawn()ed statically linked binary). Also, we can't put a mutex
+around a system() call in a multithreaded environment, that would block
+all the other threads that do anything conflicting, such as a file
+operation.
+
+Therefore the supervisor needs to record the state of file descriptors
+when the fork()/posix_spawn()/system()/popen() call is made, stash it
+somewhere, and let the parent process continue. Later when a child
+appears, we need to locate the correct stashed set of file descriptors
+that belongs to exactly this child.
+
+This is easy to do with fork() and posix_spawn(), but really complicated
+with system() and popen(). We'll go into the details later.
+
+
+Runaway processes
+-----------------
+
+A runaway process is a fork()'s child (or any exec descendant thereof)
+which outlives the parent of the same fork().
+
+Firebuild doesn't support runaway processes. That is, it expects the
+fork parent to always wait() for the child.
+
+FIXME It's unclear at the moment whether we should support if a fork()
+parent exec()s and that ExecedChild wait()s for the ForkedChild.
+Probably this shouldn't count as a runaway process and we should support
+it, although probably hardly any apps do this.
+
+
+Fixing the environment
+----------------------
+
+FIXME This is not yet implemented, but we design the architecture to fit
+this requirement.
+
+Any time a new ExecedProcess is created (i.e. exec(), posix_spawn(),
+popen(), system()), we need to ensure that the environment variables are
+set up correctly for us. That is, a process cannot accidentally stop
+Firebuild from working, e.g. because it sets up a brand new environment
+containing only what it needs, thus dropping our essential environment
+variables.
+
+In particular: FB_SOCKET has to be preserved, and LD_PRELOAD has to
+contain the interceptor library as its last entry.
+
+Fixing up the environment is quite problematic at popen() and system()
+since they can't take custom environment variables, and the global ones
+can't be modified in a thread-safe way. We'll discuss the solution
+below.
+
+
+fork()
+------
+
+Before forking, the interceptor _could_ send a message that a fork is
+about to happen, but it doesn't.
+
+After forking, the parent sends a ForkParent message, and the child
+sends a ForkChild message. They are ack'ed only when both messages have
+arrived (in any order). FIXME this is likely to change soon, as per the
+"Building up ProcessTree" section above, to a model more similar to the
+one required by system() and posix() as discussed below.
+
+
+exec()
+------
+
+The interceptor sends an ExecV message, meaning an exec is about to
+happen.
+
+Upon success, the old Process closes the connection to the supervisor
+due to CLOEXEC, and normally the new Process will build up a brand new
+connection, that's how the supervisor knows it was a success.
+
+Upon failure, the old Process sends an ExecVFailed (a.k.a. "I'm still
+here") message to the supervisor. In the supervisor these two messages
+should just be forgotten, nothing happened.
+
+Yet another possibility: exec*() succeeds, but the new process doesn't
+sign in to the server. This can happen if that's a statically linked
+binary, or setuid/setgid, or LD_PRELOAD has been tampered with. I guess
+the supervisor should know that this is the case because the old
+process's socket gets closed - correct??? How to handle these processes?
+FIXME go into the details how we deal with them.
+
+Fixing the environment variables requires that the intercepted exec*()
+methods all map to an exec*e() which take the environment explicitly.
+This is not a problem.
+
+
+posix_spawn()
+-------------
+
+Essentially the combination of fork() and exec() above, no more
+complications arise. Intercepting follows the pattern described above at
+these two methods.
+
+
+system() and popen()
+--------------------
+
+These two methods are really hard to handle, for the following reasons:
+ - the parent process doesn't know the PID, so cannot tell it to the
+   supervisor;
+ - they can only operate with the global environment, cannot take a
+   custom one;
+ - system() doesn't give back control to the parent until the child
+   terminates.
+
+On the other hand, luckily both of these methods call "sh -c ..." where
+"sh" is known to be a Bourne compatible shell, instead of an unknown
+(potentially even statically linked) binary.
+
+We ruled out the idea of re-implementing these libc calls using
+fork+exec or posix_spawn. There are just too many details in these
+methods, like signal handling, atfork handlers etc. that would be a
+nightmare to maintain exactly like in libc, and we want the intercepted
+processes to reliably do exactly the same as if they weren't
+intercepted.
+
+Let's focus on the first two problems first. One of them needs to handle
+custom environment, the other needs to pass a custom identifier for
+which custom environment support would be a handy solution. So let's
+figure out how to add support for custom environment variables.
+
+The only parameter we can play with is the command. The design goes
+through two intermediate hops until finally the desired command is
+launched.
+
+  hop 1
+  -----
+
+  The "command" parameter, as passed to system() or popen(), is modified
+  like this:
+
+    FB_CHILD_ID=12345; export FB_CHILD_ID; [...] hop2 command_escaped
+
+  This sets a unique identifier which the intercepted parent process
+  also tells to the supervisor, allowing to identify the soon-to-appear
+  child. Similarly, it might easily fix up FB_SOCKET, LD_PRELOAD etc.
+  This is followed by invoking hop 2 with the given command, properly
+  escaped for shell syntax obviously.
+
+  Let's not forget that if the calling process tampered with LD_PRELOAD,
+  this hop might not be intercepted. Otherwise it is intercepted by our
+  library. This dual possible behavior is bad, and we want the
+  supervisor to see the process tree as if these technical hops weren't
+  there. To solve this, the interceptor checks if the command is a "sh
+  -c FB_CHILD_ID=..." and in that case stays out of the way (doesn't
+  even connect to the supervisor).
+
+  hop 2
+  -----
+
+  hop 2 is almost not necessary; there are a few details that make it
+  desireable and clean to have:
+
+   - Without hop 2, hop 1 would have to call "exec /bin/sh -c
+     command_escaped". While system() and popen() place "sh" in argv[0],
+     this would place "/bin/sh" there, and we don't want such tiny
+     differences to leak to the intercepted processes. Alternatively,
+     "exec sh -c command_escaped" would depend on "sh" to be found under
+     "/bin" first, which is risky. Bash supports "exec -a", but this is
+     not POSIX and not supported by dash and presumably other Bourne
+     shell clones.
+
+   - Without hop 2, FB_CHILD_ID would either be carried on to all
+     descendants, or our library's initialization would need to remove
+     it from the environment.
+
+  So here's what hop 2 does. Remember that this one is always
+  intercepted by us. However, the interceptor can recognize this process
+  by the executable name or by FB_CHILD_ID's presence, and act
+  differently accordingly.
+
+  First, it connects to the supervisor, and tells it the PID belonging
+  to FB_CHILD_ID. The supervisor creates the intermediate ForkedProcess,
+  with the properly located set of stashed file descriptors, and marks
+  it as exec_pending. (Alternatively, the supervisor can do this later,
+  when the real shell process signs in, it doesn't really matter.)
+
+  Then hop 2 removes FB_CHILD_ID from the environment.
+
+  Finally, it does an execl("/bin/sh", "sh", "-c", "...") to invoke the
+  desired binary, which will see nothing from these preceding hops. This
+  shell will be intercepted by us just like any other process, it
+  doesn't need to do anything special from now on, it cannot even tell
+  if it was system()/popen()'ed or created by other means.
+
+This architecture handles popen() calls fully reliably, and system()
+calls almost fully reliably. See the next section for the missing bit
+with system().
+
+
+system() and mutexing
+---------------------
+
+All the other relevant methods, i.e. fork(), exec(), posix_spawn() and
+popen() return pretty soon, and thus the entire block of code around
+them can be mutexed.
+
+With system() it's not the case, placing it inside a mutex could block
+other threads for the entire duration of the child process.
+
+The entire preparation: notifying the supervisor about FB_CHILD_ID,
+which then stashes its belief about the file descriptors, and creating
+the wrapped command for hop 1 can be done inside a mutex. However, we
+need to release that mutex before actually calling the original system()
+with the modified command. This opens up a race condition: What if
+another thread suddenly opens or closes a file, making the supervisor's
+stashed version of the file descriptors out of date?
+
+Can we, perhaps for a while, ignore this race and say that we only
+support system() in single threaded apps?
+
+An obvious solution to this problem could be if each file operation
+first asked permission from the supervisor, and the supervisor would
+only allow it if there's no pending system() child to appear. This would
+be slow, though.
+
+A faster solution is to extend the previous idea with a guarding
+boolean. Introduce a "system_child_may_be_pending" boolean inside the
+interceptor. A system() call sets this flag. Any file operation checks
+this (inside the mutex) and if it's false then it can just proceed. If,
+however, this flag is true then the intercepted process first asks for
+the supervisor's permission to execute the call. The supervisor acks
+this if, or as soon as, there are no pending system() children to
+appear, which won't take long. Once this ack arrives, the caller can
+clear the boolean and move on with the actual file operation.
