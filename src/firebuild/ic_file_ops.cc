@@ -404,6 +404,57 @@ static void intercept_system(const char * cmd) {
   }
 }
 
+/* Intercept beginning of popen(3) */
+static void intercept_popen(const char * cmd, const char * type) {
+  if (cmd) {
+    msg::InterceptorMsg ic_msg;
+    msg::SupervisorMsg sv_msg;
+    auto m = ic_msg.mutable_popen();
+    m->set_cmd(cmd);
+    m->set_type(type);
+    int ack_num = get_next_ack_id();
+    ic_msg.set_ack_num(ack_num);
+    fb_send_msg(ic_msg, fb_sv_conn);
+    /* waiting for ACK to make sure the popen() call is registered before
+       the child shows up with the new pid at the supervisor lookig for a
+       parent */
+    fb_recv_msg(&sv_msg, fb_sv_conn);
+    if (sv_msg.ack_num() != ack_num) {
+      // something unexpected happened ...
+      assert(0 &&"Interceptor has not received proper ACK from firebuild");
+    }
+  }
+}
+
+/* Intercept beginning of posix_spawn[p](3) */
+static void intercept_posix_spawn(const char * file, bool is_spawnp,
+                                  const char *const argv[], const char *const envp[]) {
+  if (file) {
+    msg::InterceptorMsg ic_msg;
+    msg::SupervisorMsg sv_msg;
+    auto m = ic_msg.mutable_posix_spawn();
+    m->set_file(file);
+    m->set_is_spawnp(is_spawnp);
+    for (int i = 0; argv[i] != NULL; i++) {
+      m->add_arg(argv[i]);
+    }
+    for (int i = 0; envp[i] != NULL; i++) {
+      m->add_env(envp[i]);
+    }
+    int ack_num = get_next_ack_id();
+    ic_msg.set_ack_num(ack_num);
+    fb_send_msg(ic_msg, fb_sv_conn);
+    /* waiting for ACK to make sure the posix_spawn[p]() call is registered before
+       the child shows up with the new pid at the supervisor lookig for a
+       parent */
+    fb_recv_msg(&sv_msg, fb_sv_conn);
+    if (sv_msg.ack_num() != ack_num) {
+      // something unexpected happened ...
+      assert(0 &&"Interceptor has not received proper ACK from firebuild");
+    }
+  }
+}
+
 /* Intercept gethostname */
 IC2_SIMPLE_2P(int, IC2_NO_RET, GetHostname, gethostname, const char *, name,
               size_t, len)
@@ -529,6 +580,39 @@ IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 
 /* Intercept ret of system(3) */
 IC2_SIMPLE_1P(int, IC2_WITH_RET, SystemRet, system_ret, const char *, cmd)
+
+/* Intercept success of popen(3) */
+IC2_SIMPLE_2P(FILE*, IC2_NO_RET, PopenParent, popen_parent, int, fd, const char *, type)
+
+/* Intercept failure of popen(3) */
+IC2_SIMPLE_1P(FILE*, IC2_NO_RET, PopenFailed, popen_failed, const char *, cmd)
+
+/* Intercept success of posix_spawn[p](3) */
+IC2_SIMPLE_1P(int, IC2_NO_RET, PosixSpawnParent, posix_spawn_parent, pid_t, pid)
+
+/* Intercept failure of posix_spawn[p](3) */
+//IC2_SIMPLE_1P(int, IC2_NO_RET, PosixSpawnFailed, posix_spawn_failed, const char **, arg)
+static void intercept_posix_spawn_failed(char *const argv[], int ret) {
+  (void)ret;
+  msg::InterceptorMsg ic_msg;
+  msg::SupervisorMsg sv_msg;
+  auto m = ic_msg.mutable_posix_spawn();
+  for (int i = 0; argv[i] != NULL; i++) {
+    m->add_arg(argv[i]);
+  }
+  int ack_num = get_next_ack_id();
+  ic_msg.set_ack_num(ack_num);
+  fb_send_msg(ic_msg, fb_sv_conn);
+  /* waiting for ACK to make sure the posix_spawn[p]() call is registered before
+     the child shows up with the new pid at the supervisor lookig for a
+     parent */
+  fb_recv_msg(&sv_msg, fb_sv_conn);
+  if (sv_msg.ack_num() != ack_num) {
+    // something unexpected happened ...
+    assert(0 &&"Interceptor has not received proper ACK from firebuild");
+  }
+}
+
 
 #undef IC2_WAIT_ACK
 

@@ -9,6 +9,7 @@
 #include <link.h>
 #include <sys/un.h>
 #include <sys/resource.h>
+#include <spawn.h>
 
 #include <cassert>
 #include <cstdarg>

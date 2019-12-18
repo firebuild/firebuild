@@ -45,7 +45,7 @@ void ProcessTree::insert(ExecedProcess *p, const int sock) {
 
 void ProcessTree::finished(const int sock) {
   Process *p = sock2proc_[sock];
-  p->set_state(FB_PROC_FINISHED);
+  p->finish();
   sock2proc_.erase(sock);
 }
 

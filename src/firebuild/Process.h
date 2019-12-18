@@ -10,9 +10,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 #include "firebuild/FileFD.h"
 #include "firebuild/FileUsage.h"
+#include "firebuild/ExecedProcessParameters.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
@@ -66,6 +68,9 @@ class Process {
   bool remove_running_system_cmd(const std::string &cmd);
   bool has_running_system_cmd(const std::string &cmd) {
     return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
+  void add_expected_child(const ExecedProcessParameters &ec) {expected_children_.push_back(ec);}
+  bool remove_expected_child(const ExecedProcessParameters &ec);
+  void finish();
   virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_m, int64_t stime_m);
   void sum_rusage(int64_t *sum_utime_m, int64_t *sum_stime_m);
@@ -155,6 +160,8 @@ class Process {
   std::vector<Process*> children_;  ///< children of the process
   /// commands of system(3) calls which did not finish yet
   std::multiset<std::string> running_system_cmds_;
+  /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
+  std::vector<ExecedProcessParameters> expected_children_;
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */
   void add_filefd(const int fd, FileFD * ffd);

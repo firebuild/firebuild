@@ -9,6 +9,7 @@
 #include "firebuild/File.h"
 #include "firebuild/FileDB.h"
 #include "firebuild/platform.h"
+#include "firebuild/ExecedProcessParameters.h"
 #include "firebuild/Debug.h"
 
 namespace firebuild {
@@ -20,7 +21,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
     : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
       ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
       closed_fds_({}), utime_m_(0), stime_m_(0), aggr_time_(0), children_(),
-      running_system_cmds_(), exec_child_(NULL) {
+      running_system_cmds_(), expected_children_(), exec_child_(NULL) {
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
       if (parent->fds_.at(i)) {
@@ -256,6 +257,27 @@ bool Process::remove_running_system_cmd(const std::string &cmd) {
     return true;
   }
   return false;
+}
+
+bool Process::remove_expected_child(const ExecedProcessParameters &ec) {
+  auto item = std::find(expected_children_.begin(), expected_children_.end(), ec);
+  if (item != expected_children_.end()) {
+    expected_children_.erase(item);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void Process::finish() {
+  if (firebuild::debug_level >= 1 && !expected_children_.empty()) {
+    FB_DEBUG(1, "Expected system()/popen()/posix_spawn() children that did not appear"
+             " (e.g. posix_spawn() failed in the pre-exec or exec step):");
+    for (const auto &ec : expected_children_) {
+      FB_DEBUG(1, "  " + to_string(ec));
+    }
+  }
+  set_state(FB_PROC_FINISHED);
 }
 
 int64_t Process::sum_rusage_recurse() {

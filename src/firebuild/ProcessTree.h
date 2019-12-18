@@ -54,11 +54,13 @@ class ProcessTree {
       return NULL;
     }
   }
-  Process* find_exec_parent(int pid, int ppid, const std::string &cmd) {
+  // FIXME(egmont) the method name is bad, it does not suggest that it has
+  // a side effect. Also I find the code hard to read.
+  Process* find_exec_parent(int pid, int ppid, const ::firebuild::ExecedProcessParameters &epp) {
     auto exec_parent = pid2proc(pid);
     if (!exec_parent) {
       exec_parent = pid2proc(ppid);
-      if (!exec_parent || !exec_parent->has_running_system_cmd(cmd)) {
+      if (!exec_parent || !exec_parent->remove_expected_child(epp)) {
         return NULL;
       }
     }
