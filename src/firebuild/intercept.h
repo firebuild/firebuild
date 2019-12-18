@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <sys/socket.h>
+#include <spawn.h>
 
 #include <string>
 #include <vector>

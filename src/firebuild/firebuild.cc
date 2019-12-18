@@ -230,7 +230,11 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto parent = proc_tree->pid2proc(ic_msg.scproc_query().pid());
     if (!parent && ic_msg.scproc_query().arg_size() > 2) {
       auto scq = ic_msg.scproc_query();
-      parent = proc_tree->find_exec_parent(scq.pid(), scq.ppid(), scq.arg(2));
+      ::firebuild::ExecedProcessParameters expected_child;
+      for (const auto &arg : ic_msg.scproc_query().arg()) {
+        expected_child.argv().push_back(arg);
+      }
+      parent = proc_tree->find_exec_parent(scq.pid(), scq.ppid(), expected_child);
     }
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
@@ -266,6 +270,12 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
              ic_msg.has_execv() ||
              ic_msg.has_system() ||
              ic_msg.has_system_ret() ||
+             ic_msg.has_popen() ||
+             ic_msg.has_popen_parent() ||
+             ic_msg.has_popen_failed() ||
+             ic_msg.has_posix_spawn() ||
+             ic_msg.has_posix_spawn_parent() ||
+             ic_msg.has_posix_spawn_failed() ||
              ic_msg.has_open() ||
              ic_msg.has_close() ||
              ic_msg.has_chdir() ||
@@ -279,10 +289,49 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                           ic_msg.exit().stime_m());
       } else if (ic_msg.has_system()) {
         proc->add_running_system_cmd(ic_msg.system().cmd());
+
+        // system(cmd) launches a child of argv = ["sh", "-c", cmd]
+        ::firebuild::ExecedProcessParameters expected_child;
+        // FIXME what if !has_cmd() ?
+        expected_child.set_sh_c_command(ic_msg.system().cmd());
+        proc->add_expected_child(expected_child);
       } else if (ic_msg.has_system_ret()) {
         if (!proc->remove_running_system_cmd(ic_msg.system_ret().cmd())) {
           firebuild::fb_error("system(\"" + ic_msg.system_ret().cmd()
                               + "\") exited but the call was not registered ");
+        }
+      } else if (ic_msg.has_popen()) {
+        // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
+        ::firebuild::ExecedProcessParameters expected_child;
+        // FIXME what if !has_cmd() ?
+        expected_child.set_sh_c_command(ic_msg.popen().cmd());
+        proc->add_expected_child(expected_child);
+      } else if (ic_msg.has_popen_parent()) {
+        // FIXME(egmont) Connect pipe's end with child
+      } else if (ic_msg.has_popen_failed()) {
+        ::firebuild::ExecedProcessParameters expected_child;
+        expected_child.set_sh_c_command(ic_msg.popen_failed().cmd());
+        // FIXME what if !has_cmd() ?
+        if (!proc->remove_expected_child(expected_child)) {
+          firebuild::fb_error("Failed to remove \"" + ic_msg.popen_failed().cmd()
+                              + "\" from expected_children after a failed popen");
+        }
+      } else if (ic_msg.has_posix_spawn()) {
+        ::firebuild::ExecedProcessParameters expected_child;
+        for (const auto &arg : ic_msg.posix_spawn().arg()) {
+          expected_child.argv().push_back(arg);
+        }
+        proc->add_expected_child(expected_child);
+      } else if (ic_msg.has_posix_spawn_parent()) {
+        // FIXME(egmont)
+      } else if (ic_msg.has_posix_spawn_failed()) {
+        ::firebuild::ExecedProcessParameters expected_child;
+        for (const auto &arg : ic_msg.posix_spawn_failed().arg()) {
+          expected_child.argv().push_back(arg);
+        }
+        if (!proc->remove_expected_child(expected_child)) {
+          firebuild::fb_error("Failed to remove " + to_string(expected_child)
+                              + " from expected_children after a failed posix_spawn[p]");
         }
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_m(),

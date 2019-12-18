@@ -497,6 +497,58 @@ message SystemRet {
     optional int32 error_no = 3;
 }
 
+// popen(3)
+message Popen {
+    // command
+    optional bytes cmd = 1;
+    // type
+    optional bytes type = 2;
+}
+
+message PopenParent {
+    // return value
+    required int32 fd = 1;
+    // type
+    optional bytes type = 2;
+    // unused
+    optional int32 error_no = 3;
+}
+
+message PopenFailed {
+    // command, to let the supervisor remove it from expected_children
+    optional bytes cmd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
+}
+
+// posix_spawn[p](3)
+message PosixSpawn {
+    // command
+    optional bytes file = 1;
+    // only argv, sending argc would be redundant
+    repeated bytes arg = 2;
+    // environment variables in unprocessed NAME=value form
+    repeated bytes env = 3;
+    // spawn or spawnp
+    required bool is_spawnp = 4;
+}
+
+message PosixSpawnParent {
+    // process id
+    required int64 pid = 1;
+    // child's process id
+    optional int64 child_pid = 2;
+    // unused
+    optional int32 error_no = 3;
+}
+
+message PosixSpawnFailed {
+    // command args, to let the supervisor remove it from expected_children
+    repeated bytes arg = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
+}
+
 message Process {
     // process id
     optional int64 pid = 23;
@@ -751,4 +803,10 @@ message InterceptorMsg {
     optional SysCall syscall = 61;
     optional System system = 62;
     optional SystemRet system_ret = 63;
+    optional Popen popen = 64;
+    optional PopenParent popen_parent = 65;
+    optional PopenFailed popen_failed = 66;
+    optional PosixSpawn posix_spawn = 67;
+    optional PosixSpawnParent posix_spawn_parent = 68;
+    optional PosixSpawnFailed posix_spawn_failed = 69;
 }

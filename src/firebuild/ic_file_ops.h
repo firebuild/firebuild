@@ -286,6 +286,41 @@ IC(int, system, (const char *cmd), {
     ret = orig_fn(cmd);
     intercept_system_ret(cmd, ret);})
 
+IC(FILE*, popen, (const char *cmd, const char *type), {
+    intercept_popen(cmd, type);
+    ret = orig_fn(cmd, type);
+    if (ret != NULL) {
+      intercept_popen_parent(fileno(ret), type, ret);
+    } else {
+      intercept_popen_failed(cmd, ret);
+    }
+  })
+
+IC(int, posix_spawn, (pid_t *pid, const char *path,
+                      const posix_spawn_file_actions_t *file_actions,
+                      const posix_spawnattr_t *attrp,
+                      char *const argv[], char *const envp[]), {
+    intercept_posix_spawn(path, false, argv, envp);
+    ret = orig_fn(pid, path, file_actions, attrp, argv, envp);
+    if (ret == 0) {
+      intercept_posix_spawn_parent(*pid, ret);
+    } else {
+      intercept_posix_spawn_failed(argv, ret);
+    }
+  })
+IC(int, posix_spawnp, (pid_t *pid, const char *file,
+                       const posix_spawn_file_actions_t *file_actions,
+                       const posix_spawnattr_t *attrp,
+                       char *const argv[], char *const envp[]), {
+    intercept_posix_spawn(file, true, argv, envp);
+    ret = orig_fn(pid, file, file_actions, attrp, argv, envp);
+    if (ret == 0) {
+      intercept_posix_spawn_parent(*pid, ret);
+    } else {
+      intercept_posix_spawn_failed(argv, ret);
+    }
+  })
+
 /* ignore: nice */
 
 IC_VOID(void, exit, (int status), {
@@ -827,9 +862,6 @@ IC_GENERIC(int, ungetc, (int c, FILE * stream), {
 // ignore fseek ftell rewind fseeko ftello fseeko64 ftello64 fgetpos fsetpos
 // fgetpos64 fsetpos64 clearerr feof ferror clearerr_unlocked feof_unlocked
 // ferror_unlocked perror fileno fileno_unlocked
-
-// TODO(rbalint) popen pclose? Are they be intercepted by the lower level
-// exec() and pipe()?
 
 IC_GENERIC(char *, ctermid, (char *s), {
     ret = orig_fn(s);})
