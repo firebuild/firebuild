@@ -1,23 +1,25 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_SHA256HASH_H_
-#define FIREBUILD_SHA256HASH_H_
+#ifndef FIREBUILD_HASH_H_
+#define FIREBUILD_HASH_H_
 
-#include <openssl/sha.h>
+#include <xxhash.h>
 
 #include <string>
 
 namespace firebuild {
 
-class SHA256Hash {
+class Hash {
  public:
-  SHA256Hash()
+  Hash()
       :arr()
   {}
-  unsigned char arr[SHA256_DIGEST_LENGTH] = {};
+  unsigned char arr[8] = {};
   bool update(const std::string &from_file);
 };
 
+std::string to_string(Hash const&);
+
 }  // namespace firebuild
-#endif  // FIREBUILD_SHA256HASH_H_
+#endif  // FIREBUILD_HASH_H_

@@ -6,7 +6,7 @@
 
 #include <sys/stat.h>
 
-#include "firebuild/SHA256Hash.h"
+#include "firebuild/Hash.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
@@ -22,7 +22,7 @@ class FileUsage {
   bool open_failed() {return open_failed_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
-  void set_initial_hash(const SHA256Hash &h) {initial_hash_ = h;}
+  void set_initial_hash(const Hash &h) {initial_hash_ = h;}
 
  private:
   /** Flags used when opening the file */
@@ -46,8 +46,8 @@ class FileUsage {
   /** An unhandled error occured during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
-  SHA256Hash initial_hash_;
-  SHA256Hash final_hash_;
+  Hash initial_hash_;
+  Hash final_hash_;
   DISALLOW_COPY_AND_ASSIGN(FileUsage);
 };
 

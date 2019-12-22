@@ -1,7 +1,6 @@
 
 find_package(Protobuf REQUIRED)
 find_package(LibConfig REQUIRED)
-find_package(OpenSSL REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS msg/fb-messages.proto)
 
@@ -26,9 +25,9 @@ add_executable(firebuild
   ProcessFactory.cc
   ProcessTree.cc
   ProcessPBAdaptor.cc
-  SHA256Hash.cc
+  Hash.cc
   File.cc
   FileDB.cc
   ${PROTO_SRCS}
   ${PROTO_HDRS})
-target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${OPENSSL_LIBRARIES})
+target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} xxhash)
