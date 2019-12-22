@@ -16,7 +16,7 @@ class SHA256Hash {
       :arr()
   {}
   unsigned char arr[SHA256_DIGEST_LENGTH] = {};
-  int update(const std::string &from_file);
+  bool update(const std::string &from_file);
 };
 
 }  // namespace firebuild

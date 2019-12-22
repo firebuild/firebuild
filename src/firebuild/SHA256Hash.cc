@@ -15,7 +15,7 @@ static const int kHashBufsize = 4096;
 
 namespace firebuild  {
 
-int SHA256Hash::update(const std::string &from_path) {
+bool SHA256Hash::update(const std::string &from_path) {
   int fd;
 
   fd = open(from_path.c_str(), O_RDONLY);
@@ -24,19 +24,19 @@ int SHA256Hash::update(const std::string &from_path) {
       FB_DEBUG(3, "File " + from_path);
       perror("open");
     }
-    return -1;
+    return false;
   }
 
   struct stat64 st;
   if (-1 == fstat64(fd, &st)) {
     perror("fstat");
     close(fd);
-    return -1;
+    return false;
   } else if (!S_ISREG(st.st_mode)) {
     // Only regular files' hash can be collected
     // TODO(rbalint) debug
     close(fd);
-    return -1;
+    return false;
   }
 
   char buf[kHashBufsize];
@@ -50,7 +50,7 @@ int SHA256Hash::update(const std::string &from_path) {
       } else {
         perror("read");
         close(fd);
-        return -1;
+        return false;
       }
     }
     SHA256_Update(&sha256, buf, bytes_read);
