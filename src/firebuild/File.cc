@@ -21,7 +21,7 @@ int File::update_hash() {
 }
 
 int File::update() {
-  if (-1 == this->update_hash()) {
+  if (!this->update_hash()) {
     return -1;
   }
 
