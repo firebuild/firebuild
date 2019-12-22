@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "firebuild/SHA256Hash.h"
+#include "firebuild/Hash.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
@@ -20,13 +20,13 @@ class File {
   int update();
   int is_changed();
   std::string& path() {return path_;}
-  SHA256Hash& hash() {return hash_;}
+  Hash& hash() {return hash_;}
 
  private:
   std::vector<timespec> mtimes_;
   std::string path_;
   bool exists_;
-  SHA256Hash hash_;
+  Hash hash_;
   int update_hash();
   DISALLOW_COPY_AND_ASSIGN(File);
 };
