@@ -138,7 +138,7 @@ int Process::close_file(const int fd, const int error) {
     return -1;
   } else if ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) {
     // closing an unknown fd succesfully prevents shortcutting
-    disable_shortcutting("Process closed and unknown fd (" +
+    disable_shortcutting("Process closed an unknown fd (" +
                          std::to_string(fd) + ") successfully, which means "
                          "interception missed at least one open()");
     return -1;
@@ -148,7 +148,7 @@ int Process::close_file(const int fd, const int error) {
   } else if ((fds_.size() <= static_cast<unsigned int>(fd)) ||
              (NULL == fds_[fd])) {
     // closing an unknown fd with not EBADF prevents shortcutting
-    disable_shortcutting("Process closed and unknown fd (" +
+    disable_shortcutting("Process closed an unknown fd (" +
                          std::to_string(fd) + ") successfully, which means "
                          "interception missed at least one open()");
     return -1;
@@ -205,7 +205,7 @@ int Process::create_pipe(const int fd1, const int fd2, const int flags,
   }
 
   add_filefd(fd1, new FileFD(fd1, flags | O_RDONLY, this));
-add_filefd(fd2, new FileFD(fd2, flags | O_WRONLY, this));
+  add_filefd(fd2, new FileFD(fd2, flags | O_WRONLY, this));
   return 0;
 }
 
