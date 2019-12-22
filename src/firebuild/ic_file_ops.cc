@@ -394,7 +394,7 @@ static void intercept_system(const char * cmd) {
     ic_msg.set_ack_num(ack_num);
     fb_send_msg(ic_msg, fb_sv_conn);
     /* waiting for ACK to make sure the system() call is registered before
-       the child shows up with the new pid at the supervisor lookig for a
+       the child shows up with the new pid at the supervisor looking for a
        parent */
     fb_recv_msg(&sv_msg, fb_sv_conn);
     if (sv_msg.ack_num() != ack_num) {
