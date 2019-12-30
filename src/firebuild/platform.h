@@ -28,7 +28,7 @@ extern void* __builtin_apply(void (*)(...), void *, size_t) {
 
 namespace platform {
 
-bool path_is_absolute(const std::string &p) {
+inline bool path_is_absolute(const std::string &p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
 #else
