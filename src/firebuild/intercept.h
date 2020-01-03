@@ -132,14 +132,6 @@ extern int fb_sv_conn;
 /** interceptor init has been run */
 extern bool ic_init_done;
 
-/** interceptor handled exit */
-extern bool fb_exit_handled;
-
-/** the appliation called exec[vpe] but we have not exited from unsuccesful
- * exec() yet
- */
-extern bool fb_exec_called;
-
 /** Insert debug message */
 extern void insert_debug_msg(const std::string&);
 

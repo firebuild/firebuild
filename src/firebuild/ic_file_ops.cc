@@ -70,11 +70,6 @@ IC2_TO_SET_ALL_BUT(const void*, NULL);
   static void                                                       \
   intercept_##ics_pmname ics_pars                                   \
   {                                                                 \
-    if (fb_exec_called || fb_exit_handled) {                        \
-      /* No message is sent during exec to prevent sending many */  \
-      /* automatic close()-s. */                                    \
-      return;                                                       \
-    }                                                               \
     msg::InterceptorMsg ic_msg;                                     \
     int ack_num, saved_errno = errno;                                \
     if (IC2_WAIT_ACK) {                                             \
@@ -374,15 +369,10 @@ static void intercept_execve(const bool with_p, const char * const file,
     // something unexpected happened ...
     assert(0 &&"Interceptor has not received proper ACK from firebuild");
   }
-  fb_exec_called = true;
 }
 /* Intercept failed (f)execv*() */
 IC2_SIMPLE_1P(int, IC2_NO_RET, ExecVFailed, execvfailed, int, pid)
 
-static void intercept_execvfailed2(int pid, int ret) {
-  fb_exec_called = false;
-  intercept_execvfailed(pid, ret);
-}
 /* Intercept beginning of system(3) */
 static void intercept_system(const char * cmd) {
   if (cmd) {

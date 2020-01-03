@@ -66,14 +66,6 @@ int fb_sv_conn = -1;
 /** interceptor init has been run */
 bool ic_init_done = false;
 
-/** interceptor handled exit */
-bool fb_exit_handled = false;
-
-/** the appliation called exec[vpe] but we have not exited from unsuccesful
- * exec() yet
- */
-bool fb_exec_called = false;
-
 /**
  * Stored PID
  * When getpid() returns a different value, we missed a fork() :-)
@@ -331,9 +323,6 @@ void handle_exit(const int status) {
     // something unexpected happened ...
     assert(0 && "Supervisor did not ack exit");
   }
-
-  // TODO(egmont) remove this variable
-  fb_exit_handled = true;
 }
 }
 

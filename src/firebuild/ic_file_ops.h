@@ -252,26 +252,26 @@ IC(int, execve, (const char *path, char *const argv[], char *const envp[]), {
     intercept_execve(false, path, -1, argv, envp);
     ret = orig_fn(path, argv, envp);
     init_supervisor_conn();
-    intercept_execvfailed2(ic_pid, ret);
+    intercept_execvfailed(ic_pid, ret);
   })
 IC(int, fexecve, (int fd, char *const argv[], char *const envp[]), {
     intercept_execve(false, NULL, fd, argv, environ);
     ret = orig_fn(fd, argv, envp);
     init_supervisor_conn();
-    intercept_execvfailed2(ic_pid, ret);
+    intercept_execvfailed(ic_pid, ret);
   })
 IC(int, execv, (const char *path, char *const argv[]), {
     intercept_execve(false, path, -1, argv, environ);
     ret = orig_fn(path, argv);
     init_supervisor_conn();
-    intercept_execvfailed2(ic_pid, ret);
+    intercept_execvfailed(ic_pid, ret);
   })
 
 IC(int, execvp, (const char *file, char *const argv[]), {
     intercept_execve(true, file, -1, argv, environ);
     ret = orig_fn(file, argv);
     init_supervisor_conn();
-    intercept_execvfailed2(ic_pid, ret);
+    intercept_execvfailed(ic_pid, ret);
   })
 
 IC(int, execvpe, (const char *file, char *const argv[],
@@ -279,7 +279,7 @@ IC(int, execvpe, (const char *file, char *const argv[],
      intercept_execve(true, file, -1, argv, envp);
      ret = orig_fn(file, argv, envp);
      init_supervisor_conn();
-     intercept_execvfailed2(ic_pid, ret);})
+     intercept_execvfailed(ic_pid, ret);})
 
 IC(int, system, (const char *cmd), {
     intercept_system(cmd);
