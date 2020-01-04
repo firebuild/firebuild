@@ -338,9 +338,11 @@ void handle_exit(const int status) {
 }
 
 static void fb_ic_cleanup() {
-  // Optional:  Delete all global objects allocated by libprotobuf.
-  google::protobuf::ShutdownProtobufLibrary();
-  ic_orig_close(fb_sv_conn);
+  /* Don't put anything here, unless you really know what you're doing!
+   * Our on_exit_handler, which reports the exit code and resource usage
+   * to the supervisor, is run _after_ this destructor, and still needs
+   * pretty much all the functionality that we have (including the
+   * communication channel and the protobuf stuff). */
 }
 
 
