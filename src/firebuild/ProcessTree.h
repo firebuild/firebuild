@@ -27,7 +27,7 @@ struct subcmd_prof {
 struct cmd_prof {
   int64_t aggr_time = 0;
   int64_t cmd_time = 0;
-  /**  {time_m, count} */
+  /**  {time_u, count} */
   std::unordered_map<std::string, subcmd_prof> subcmds = {};
 };
 
@@ -74,7 +74,7 @@ class ProcessTree {
   std::unordered_map<int, Process*> pid2proc_;
   /**
    * Profile is aggregated by command name (argv[0]).
-   * For each command (C) we store the cumulated CPU time in milliseconds
+   * For each command (C) we store the cumulated CPU time in microseconds
    * (system + user time), and count the invocations of each other command
    * by C. */
   std::unordered_map<std::string, cmd_prof> cmd_profs_;

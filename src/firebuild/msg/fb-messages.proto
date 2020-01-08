@@ -468,10 +468,10 @@ message ExecV {
     optional bool with_p = 5;
     // PATH , or confstr(_CS_PATH), if PATH is not set
     optional bytes path = 6;
-    // user CPU time in milliseconds
-    required int64 utime_m = 7;
-    // system CPU time in milliseconds
-    required int64 stime_m = 8;
+    // user CPU time in microseconds
+    required int64 utime_u = 7;
+    // system CPU time in microseconds
+    required int64 stime_u = 8;
 }
 
 message ExecVFailed {
@@ -694,10 +694,10 @@ message DLClose {
 message Exit {
     // exit status of the process
     required int32 exit_status = 1;
-    // user CPU time in milliseconds
-    required int64 utime_m = 2;
-    // system CPU time in milliseconds
-    required int64 stime_m = 3;
+    // user CPU time in microseconds
+    required int64 utime_u = 2;
+    // system CPU time in microseconds
+    required int64 stime_u = 3;
     // loaded shared libraries at exit
     optional FileList libs = 4;
 }

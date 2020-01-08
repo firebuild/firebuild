@@ -285,8 +285,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
       if (ic_msg.has_exit()) {
         proc->exit_result(ic_msg.exit().exit_status(),
-                          ic_msg.exit().utime_m(),
-                          ic_msg.exit().stime_m());
+                          ic_msg.exit().utime_u(),
+                          ic_msg.exit().stime_u());
       } else if (ic_msg.has_system()) {
         proc->add_running_system_cmd(ic_msg.system().cmd());
 
@@ -334,8 +334,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                               + " from expected_children after a failed posix_spawn[p]");
         }
       } else if (ic_msg.has_execv()) {
-        proc->update_rusage(ic_msg.execv().utime_m(),
-                            ic_msg.execv().stime_m());
+        proc->update_rusage(ic_msg.execv().utime_u(),
+                            ic_msg.execv().stime_u());
       } else if (ic_msg.has_open()) {
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.open());
       } else if (ic_msg.has_close()) {

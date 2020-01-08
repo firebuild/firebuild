@@ -24,10 +24,10 @@ class ExecedProcess : public Process {
   virtual bool exec_started() const {return true;}
   void set_exec_parent(Process *p) {exec_parent_ = p;}
   Process* exec_parent() {return exec_parent_;}
-  int64_t sum_utime_m() const {return sum_utime_m_;}
-  void set_sum_utime_m(int64_t t) {sum_utime_m_ = t;}
-  int64_t sum_stime_m() const {return sum_stime_m_;}
-  void set_sum_stime_m(int64_t t) {sum_stime_m_ = t;}
+  int64_t sum_utime_u() const {return sum_utime_u_;}
+  void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
+  int64_t sum_stime_u() const {return sum_stime_u_;}
+  void set_sum_stime_u(int64_t t) {sum_stime_u_ = t;}
   const std::string& cwd() const {return cwd_;}
   std::string& cwd() {return cwd_;}
   const std::set<std::string>& wds() const {return wds_;}
@@ -50,8 +50,8 @@ class ExecedProcess : public Process {
         (static_cast<const ExecedProcess*>(this)->file_usages());
   }
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
-  void exit_result(const int status, const int64_t utime_m,
-                   const int64_t stime_m);
+  void exit_result(const int status, const int64_t utime_u,
+                   const int64_t stime_u);
   /**
    * Fail to change to a working directory
    */
@@ -99,11 +99,11 @@ class ExecedProcess : public Process {
  private:
   bool can_shortcut_:1;
   Process *exec_parent_ = NULL;
-  /// Sum of user time in milliseconds for all forked but not exec()-ed children
-  int64_t sum_utime_m_ = 0;
-  /// Sum of system time in milliseconds for all forked but not exec()-ed
+  /// Sum of user time in microseconds for all forked but not exec()-ed children
+  int64_t sum_utime_u_ = 0;
+  /// Sum of system time in microseconds for all forked but not exec()-ed
   /// children
-  int64_t sum_stime_m_ = 0;
+  int64_t sum_stime_u_ = 0;
   /// Directory the process exec()-started in
   std::string cwd_;
   /// Working directories visited by the process and all fork()-children

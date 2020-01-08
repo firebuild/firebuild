@@ -358,8 +358,8 @@ static void intercept_execve(const bool with_p, const char * const file,
 
   // get CPU time used up to this exec()
   getrusage(RUSAGE_SELF, &ru);
-  m->set_utime_m(ru.ru_utime.tv_sec * 1000 + ru.ru_utime.tv_usec / 1000);
-  m->set_stime_m(ru.ru_stime.tv_sec * 1000 + ru.ru_stime.tv_usec / 1000);
+  m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
+  m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
   int ack_num = get_next_ack_id();
   ic_msg.set_ack_num(ack_num);

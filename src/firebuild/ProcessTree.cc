@@ -86,7 +86,7 @@ void ProcessTree::build_profile(const Process &p,
       ancestors->insert(e->args()[0]);
       first_visited = true;
     }
-    cmd_prof.cmd_time += e->sum_utime_m() +  e->sum_stime_m();
+    cmd_prof.cmd_time += e->sum_utime_u() +  e->sum_stime_u();
     profile_collect_cmds(p, &cmd_prof.subcmds, ancestors);
   }
   if (p.exec_child() != NULL) {
