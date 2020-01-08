@@ -139,7 +139,7 @@ static std::string pct_to_hsv_str(const double p) {
 static double percent_of(const double val, const double of) {
   return (((of < std::numeric_limits<double>::epsilon()) &&
            (of > -std::numeric_limits<double>::epsilon()))?(0.0):
-          (round(val * 100 / of)));
+          (val * 100 / of));
 }
 
 void ProcessTree::export_profile2dot(FILE* stream) {
