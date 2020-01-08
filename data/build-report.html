@@ -239,11 +239,13 @@ function leaf(d) {
   return ! ((d._children && (d._children.length != 0)) || (d.children && (d.children.length != 0)))
 }
 
-function print_time(ms) {
-  if (ms > 1000) {
-    return (ms/1000).toFixed(2) + 's';
+function print_time(us) {
+  if (us >= 1000000) {
+    return (us/1000000).toFixed(2) + 's';
+  } else if (us >= 1000) {
+    return (us/1000).toFixed(2) + 'ms';
   } else {
-    return ms + 'ms';
+    return us + 'µs';
   }
 }
 
@@ -312,8 +314,8 @@ function details(d) {
   document.getElementById('detailed_pid').innerHTML = d.pid;
   document.getElementById('detailed_ppid').innerHTML = d.ppid;
   document.getElementById('detailed_exit_status').innerHTML = d.exit_status;
-  document.getElementById('detailed_sum_utime_m').innerHTML = print_time(d.sum_utime_m);
-  document.getElementById('detailed_sum_stime_m').innerHTML = print_time(d.sum_stime_m);
+  document.getElementById('detailed_sum_utime').innerHTML = print_time(d.sum_utime_u);
+  document.getElementById('detailed_sum_stime').innerHTML = print_time(d.sum_stime_u);
 
   var pop_up_div = document.getElementById('pop_up_div');
   pop_up_div.style.display = 'block';
@@ -413,7 +415,7 @@ function update(source) {
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
       .on("click", details)
-      .text(function(d) { return "(" + (100 * (d.sum_utime_m + d.sum_stime_m) / root.aggr_time).toFixed(2) + ")%"; })
+      .text(function(d) { return "(" + (100 * (d.sum_utime_u + d.sum_stime_u) / root.aggr_time).toFixed(2) + ")%"; })
       .append("svg:title")
       .text("Show details");
 
@@ -564,10 +566,10 @@ function toggle(d) {
           </tr>
           <tr>
             <td>
-              <span class="detail_name">User CPU time:</span> <span id="detailed_sum_utime_m"> </span>
+              <span class="detail_name">User CPU time:</span> <span id="detailed_sum_utime"> </span>
             </td>
             <td>
-              <span class="detail_name">System CPU time:</span> <span id="detailed_sum_stime_m"> </span>
+              <span class="detail_name">System CPU time:</span> <span id="detailed_sum_stime"> </span>
             </td>
           </tr>
           <tr>

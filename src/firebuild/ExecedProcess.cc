@@ -37,7 +37,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &executable,
                              Process * exec_parent)
     : Process(pid, ppid, cwd, exec_parent), can_shortcut_(true),
-      exec_parent_(exec_parent), sum_utime_m_(0), sum_stime_m_(0), cwd_(cwd),
+      exec_parent_(exec_parent), sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_() {
   if (NULL != exec_parent) {
@@ -55,10 +55,10 @@ void ExecedProcess::propagate_exit_status(const int status) {
   }
 }
 
-void ExecedProcess::exit_result(const int status, const int64_t utime_m,
-                                const int64_t stime_m) {
+void ExecedProcess::exit_result(const int status, const int64_t utime_u,
+                                const int64_t stime_u) {
   // store results for this process
-  Process::exit_result(status, utime_m, stime_m);
+  Process::exit_result(status, utime_u, stime_u);
   // propagate to parents exec()-ed this FireBuild process
   propagate_exit_status(status);
   // store data for shortcutting
@@ -68,15 +68,15 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_m,
 }
 
 int64_t ExecedProcess::sum_rusage_recurse() {
-  int64_t aggr_time = utime_m() + stime_m();
-  sum_utime_m_ = 0;
-  sum_stime_m_ = 0;
-  sum_rusage(&sum_utime_m_, &sum_stime_m_);
+  int64_t aggr_time = utime_u() + stime_u();
+  sum_utime_u_ = 0;
+  sum_stime_u_ = 0;
+  sum_rusage(&sum_utime_u_, &sum_stime_u_);
   if (exec_parent_ && exec_parent_->pid() == pid()) {
-    sum_utime_m_ -= exec_parent_->utime_m();
-    sum_stime_m_ -= exec_parent_->stime_m();
-    aggr_time -= exec_parent_->utime_m();
-    aggr_time -= exec_parent_->stime_m();
+    sum_utime_u_ -= exec_parent_->utime_u();
+    sum_stime_u_ -= exec_parent_->stime_u();
+    aggr_time -= exec_parent_->utime_u();
+    aggr_time -= exec_parent_->stime_u();
   }
   set_aggr_time(aggr_time);
   return Process::sum_rusage_recurse();
@@ -200,11 +200,11 @@ void ExecedProcess::export2js(const unsigned int level,
       __attribute__((fallthrough));
     }
     case FB_PROC_EXECED: {
-      fprintf(stream, "%s utime_m: %lu,\n", indent, utime_m());
-      fprintf(stream, "%s stime_m: %lu,\n", indent, stime_m());
+      fprintf(stream, "%s utime_u: %lu,\n", indent, utime_u());
+      fprintf(stream, "%s stime_u: %lu,\n", indent, stime_u());
       fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_time());
-      fprintf(stream, "%s sum_utime_m: %lu,\n", indent, sum_utime_m());
-      fprintf(stream, "%s sum_stime_m: %lu,\n", indent, sum_stime_m());
+      fprintf(stream, "%s sum_utime_u: %lu,\n", indent, sum_utime_u());
+      fprintf(stream, "%s sum_stime_u: %lu,\n", indent, sum_stime_u());
       __attribute__((fallthrough));
     }
     case FB_PROC_RUNNING: {

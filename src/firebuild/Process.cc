@@ -20,7 +20,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
                  Process * parent)
     : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
       ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
-      closed_fds_({}), utime_m_(0), stime_m_(0), aggr_time_(0), children_(),
+      closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
       running_system_cmds_(), expected_children_(), exec_child_(NULL) {
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
@@ -39,13 +39,13 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
   }
 }
 
-void Process::update_rusage(const int64_t utime_m, const int64_t stime_m) {
-  utime_m_ = utime_m;
-  stime_m_ = stime_m;
+void Process::update_rusage(const int64_t utime_u, const int64_t stime_u) {
+  utime_u_ = utime_u;
+  stime_u_ = stime_u;
 }
 
-void Process::exit_result(const int status, const int64_t utime_m,
-                          const int64_t stime_m) {
+void Process::exit_result(const int status, const int64_t utime_u,
+                          const int64_t stime_u) {
   /* The kernel only lets the low 8 bits of the exit status go through.
    * From the exit()/_exit() side, the remaining bits are lost (they are
    * still there in on_exit() handlers).
@@ -54,15 +54,15 @@ void Process::exit_result(const int status, const int64_t utime_m,
    * We use -1 if there's no exit status available (the process is still
    * running, or exited due to an unhandled signal). */
   exit_status_ = status & 0xff;
-  update_rusage(utime_m, stime_m);
+  update_rusage(utime_u, stime_u);
 }
 
-void Process::sum_rusage(int64_t * const sum_utime_m,
-                         int64_t *const sum_stime_m) {
-  (*sum_utime_m) += utime_m_;
-  (*sum_stime_m) += stime_m_;
+void Process::sum_rusage(int64_t * const sum_utime_u,
+                         int64_t *const sum_stime_u) {
+  (*sum_utime_u) += utime_u_;
+  (*sum_stime_u) += stime_u_;
   for (unsigned int i = 0; i < children_.size(); i++) {
-    children_[i]->sum_rusage(sum_utime_m, sum_stime_m);
+    children_[i]->sum_rusage(sum_utime_u, sum_stime_u);
   }
 }
 

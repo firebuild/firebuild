@@ -54,10 +54,10 @@ class Process {
   virtual const std::unordered_map<std::string, FileUsage*>&
       file_usages() const = 0;
   virtual std::unordered_map<std::string, FileUsage*>& file_usages() = 0;
-  int64_t utime_m() const {return utime_m_;}
-  void set_utime_m(int64_t t) {utime_m_ = t;}
-  int64_t stime_m() const {return stime_m_;}
-  void set_stime_m(int64_t t) {stime_m_ = t;}
+  int64_t utime_u() const {return utime_u_;}
+  void set_utime_u(int64_t t) {utime_u_ = t;}
+  int64_t stime_u() const {return stime_u_;}
+  void set_stime_u(int64_t t) {stime_u_ = t;}
   int64_t aggr_time() const {return aggr_time_;}
   void set_aggr_time(int64_t t) {aggr_time_ = t;}
   void set_exec_child(Process *p) {exec_child_ = p;}
@@ -72,9 +72,9 @@ class Process {
   bool remove_expected_child(const ExecedProcessParameters &ec);
   void finish();
   virtual Process*  exec_proc() const = 0;
-  void update_rusage(int64_t utime_m, int64_t stime_m);
-  void sum_rusage(int64_t *sum_utime_m, int64_t *sum_stime_m);
-  virtual void exit_result(int status, int64_t utime_m, int64_t stime_m);
+  void update_rusage(int64_t utime_u, int64_t stime_u);
+  void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
+  virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
   int open_file(const std::string &name, const int flags, const mode_t mode,
                 const int fd, const bool created = false, const int error = 0);
   /**
@@ -151,10 +151,10 @@ class Process {
   std::string wd_;  ///< Current working directory
   std::vector<FileFD*> fds_;  ///< Active file descriptors
   std::list<FileFD*> closed_fds_;  ///< Closed file descriptors
-  int64_t utime_m_;  ///< user time in milliseconds as reported by getrusage()
-  /// system time in milliseconds as reported by getrusage()
-  int64_t stime_m_;
-  /** Sum of user and system time in milliseconds for all forked and exec()-ed
+  int64_t utime_u_;  ///< user time in microseconds as reported by getrusage()
+  /// system time in microseconds as reported by getrusage()
+  int64_t stime_u_;
+  /** Sum of user and system time in microseconds for all forked and exec()-ed
       children */
   int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
