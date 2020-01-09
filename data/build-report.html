@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <!-- Based on D3.js example at http://mbostock.github.io/d3/talk/20111018/tree.html -->
-<html><head>
+<html>
+  <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <script type="text/javascript" src="d3.v3.min.js"></script>
     <script type="text/javascript" src="firebuild-process-tree.js"></script>
@@ -49,9 +50,9 @@ rect {
   pointer-events: all;
   cursor: pointer;
   stroke: #000000;
-  stroke-width:1px;
-  stroke-linecap:butt;
-  stroke-linejoin:round
+  stroke-width: 1px;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
 }
 
 pre {
@@ -103,29 +104,29 @@ a:hover {
 
 /* from http://webdesignandsuch.com/how-to-create-a-popup-with-css-and-javascript/ */
 #blanket {
-    background-color:#111;
-    opacity: 0.65;
-    *background:none;
-    position:absolute;
-    z-index: 9001;
-    top:0px;
-    left:0px;
-    width:100%;
+  background-color: #111;
+  opacity: 0.65;
+  *background: none;
+  position: absolute;
+  z-index: 9001;
+  top: 0px;
+  left: 0px;
+  width: 100%;
 }
 
 #pop_up_div {
-    position: absolute;
-    background:white;
-    margin:0 auto;
-    min-width:400px;
-    min-height:400px;
-    border:1px solid #000;
-    border-radius:10px;
-    z-index: 9002;
+  position: absolute;
+  background: white;
+  margin:0 auto;
+  min-width: 400px;
+  min-height: 400px;
+  border: 1px solid #000;
+  border-radius: 10px;
+  z-index: 9002;
 }
 
 .detail_name {
-    font-weight: bold;
+  font-weight: bold;
 }
 .node circle {
   cursor: pointer;
@@ -180,17 +181,17 @@ var vis = d3.select("#proc-tree").append("svg:svg")
     .attr("height", "100%")
     .attr("width", w + m[1] + m[3])
     .attr("height", h + m[0] + m[2])
-  .append("svg:g")
+    .append("svg:g")
     .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
 root.x0 = 0;
 root.y0 = 0;
 
 function toggleAll(d) {
-    if (d.children) {
-        d.children.forEach(toggleAll);
-        toggle(d);
-    }
+  if (d.children) {
+    d.children.forEach(toggleAll);
+    toggle(d);
+  }
 }
 
 function hide_low_CPU(d) {
@@ -216,9 +217,9 @@ function bounding_box_root() {
         d.children.forEach(bounding_box);
       }
       root.bb = [Math.min(root.bb[0], d.x),
-        Math.min(root.bb[1], d.y),
-        Math.max(root.bb[2], d.x),
-        Math.max(root.bb[3], d.y)];
+          Math.min(root.bb[1], d.y),
+          Math.max(root.bb[2], d.x),
+          Math.max(root.bb[3], d.y)];
     }
   bounding_box(root);
 }
@@ -376,15 +377,16 @@ function update(source) {
       .attr("y", - proch / 2)
       .attr("width", procw)
       .attr("height", proch)
-      .attr("rx", 5).attr("ry", 5)
+      .attr("rx", 5)
+      .attr("ry", 5)
       .on("click", details)
-        .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
+      .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
 
   nodeEnter.filter(function (d) {return ! leaf(d);})
       .append("svg:circle")
       .attr("r", 1e-6)
       .on("click", function(d) { toggle(d); update(d); })
-        .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; })
+      .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; })
       .append("svg:title")
       .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
 
@@ -420,11 +422,11 @@ function update(source) {
   // Transition nodes to their new position.
   var nodeUpdate = node.transition()
       .duration(duration)
-        .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+      .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
 
   nodeUpdate.select("circle")
       .attr("r", 4.5)
-        .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
+      .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
 
   nodeUpdate.select("title")
       .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
@@ -459,7 +461,7 @@ function update(source) {
         var o = {x: source.x0, y: source.y0};
         return diagonal({source: o, target: o});
       })
-    .transition()
+      .transition()
       .duration(duration)
       .attr("d", diagonal);
 

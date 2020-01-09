@@ -138,7 +138,7 @@ int Process::close_file(const int fd, const int error) {
     disable_shortcutting("IO error closing fd " + fd);
     return -1;
   } else if ((error == 0) && (fds_.size() <= static_cast<unsigned int>(fd))) {
-    // closing an unknown fd succesfully prevents shortcutting
+    // closing an unknown fd successfully prevents shortcutting
     disable_shortcutting("Process closed an unknown fd (" +
                          std::to_string(fd) + ") successfully, which means "
                          "interception missed at least one open()");
