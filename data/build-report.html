@@ -3,7 +3,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <script type="text/javascript" src="d3.v3.min.js"></script>
+    <script type="text/javascript" src="d3.v5.min.js"></script>
     <script type="text/javascript" src="firebuild-process-tree.js"></script>
     <style type="text/css">
 
@@ -168,12 +168,18 @@ var m = [20, 120, 20, 120],
     spacew = 30, spaceh = 10
     i = 0;
 
-var tree = d3.layout.tree().nodeSize([proch + spaceh, procw + spacew]);
+var tree = d3.tree().nodeSize([proch + spaceh, procw + spacew]);
+var root = d3.hierarchy(data);
+
 root.bb = [0, 0, 0, 0];
 root.bb0 = root.bb;
 
-var diagonal = d3.svg.diagonal()
-    .projection(function(d) { return [d.y, d.x]; });
+function diagonal (d) {
+  return "M" + d.source.y + "," + d.source.x +
+      "C" + (d.source.y + d.target.y) / 2 + "," + d.source.x +
+      " " + (d.source.y + d.target.y) / 2 + "," + d.target.x +
+      " " + d.target.y + "," + d.target.x;
+}
 
 var vis = d3.select("#proc-tree").append("svg:svg")
     .attr("id", "svg_tree")
@@ -195,14 +201,16 @@ function toggleAll(d) {
 }
 
 function hide_low_CPU(d) {
-  if (((d.aggr_time) < root.cpu_limit) || d.children.length > root.branch_limit) {
+  if ((d.data.aggr_time < root.cpu_limit) || (d.children && d.children.length > root.branch_limit)) {
     toggleAll(d);
   } else {
-    d.children.forEach(hide_low_CPU);
+    if (d.children) {
+      d.children.forEach(hide_low_CPU);
+    }
   }
 }
 
-root.cpu_limit = 0.1 * root.aggr_time;
+root.cpu_limit = 0.1 * root.data.aggr_time;
 root.branch_limit = 20 ;
 hide_low_CPU(root);
 update(root);
@@ -237,7 +245,7 @@ function shrink_svg_bb() {
 }
 
 function leaf(d) {
-  return ! ((d._children && (d._children.length != 0)) || (d.children && (d.children.length != 0)))
+  return ! (d.data.children && (d.data.children.length != 0));
 }
 
 function print_time(us) {
@@ -330,15 +338,16 @@ function hide_details() {
 }
 
 function jump_details(fb_pid) {
-  var nodes = tree.nodes(root);
-  nodes.forEach(function(d) {if (d.fb_pid == fb_pid) {hide_details(); details(d);}});
+  var nodes = root.descendants();
+  nodes.forEach(function(d) { if (d.data.fb_pid == fb_pid) { hide_details(); details(d.data); } });
 }
 
 function update(source) {
   var duration = d3.event && d3.event.altKey ? 5000 : 500;
 
   // Compute the new tree layout.
-  var nodes = tree.nodes(root).reverse();
+  tree(root);
+  var nodes = root.descendants().reverse();
   bounding_box_root();
 
   var svg_tree = d3.select("#svg_tree");
@@ -367,7 +376,7 @@ function update(source) {
 
   // Update the nodes…
   var node = vis.selectAll("g.node")
-      .data(nodes, function(d) { return d.id; });
+      .data(nodes, function(d) { return d.data.id; });
 
   // Enter any new nodes at the parent's previous position.
   var nodeEnter = node.enter().append("svg:g")
@@ -381,7 +390,7 @@ function update(source) {
       .attr("height", proch)
       .attr("rx", 5)
       .attr("ry", 5)
-      .on("click", details)
+      .on("click", function (d) { details(d.data); })
       .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
 
   nodeEnter.filter(function (d) {return ! leaf(d);})
@@ -398,8 +407,8 @@ function update(source) {
       .attr("font-weight", "bold")
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
-      .on("click", details)
-      .text(function(d) { return d.name;})
+      .on("click", function (d) { details(d.data); })
+      .text(function(d) { return d.data.name; })
       .append("svg:title")
       .text("Show details");
 
@@ -407,8 +416,8 @@ function update(source) {
       .attr("x", - procw / 2)
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
-      .on("click", details)
-      .text(function(d) { return (100 * d.aggr_time / root.aggr_time).toFixed(2) + "%"; })
+      .on("click", function (d) { details(d.data); })
+      .text(function(d) { return (100 * d.data.aggr_time / root.data.aggr_time).toFixed(2) + "%"; })
       .append("svg:title")
       .text("Show details");
   nodeEnter.append("svg:text")
@@ -416,13 +425,13 @@ function update(source) {
       .attr("y", proch / 2 - 7.5)
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
-      .on("click", details)
-      .text(function(d) { return "(" + (100 * (d.sum_utime_u + d.sum_stime_u) / root.aggr_time).toFixed(2) + ")%"; })
+      .on("click", function (d) { details(d.data); })
+      .text(function(d) { return "(" + (100 * (d.data.sum_utime_u + d.data.sum_stime_u) / root.data.aggr_time).toFixed(2) + ")%"; })
       .append("svg:title")
       .text("Show details");
 
-  // Transition nodes to their new position.
-  var nodeUpdate = node.transition()
+  // Transition nodes (old and newly entered ones) to their new position.
+  var nodeUpdate = node.merge(nodeEnter).transition()
       .duration(duration)
       .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
 
@@ -442,7 +451,7 @@ function update(source) {
   // Transition exiting nodes to the parent's new position.
   var nodeExit = node.exit().transition()
       .duration(duration)
-      .each("end",shrink_svg_bb)
+      .on("end", shrink_svg_bb)
       .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
       .remove();
 
@@ -454,21 +463,18 @@ function update(source) {
 
   // Update the links…
   var link = vis.selectAll("path.link")
-      .data(tree.links(nodes), function(d) { return d.target.id; });
+      .data(root.links(), function(d) { return d.target.data.id; });
 
   // Enter any new links at the parent's previous position.
-  link.enter().insert("svg:path", "g")
+  var linkEnter = link.enter().insert("svg:path", "g")
       .attr("class", "link")
       .attr("d", function(d) {
         var o = {x: source.x0, y: source.y0};
         return diagonal({source: o, target: o});
-      })
-      .transition()
-      .duration(duration)
-      .attr("d", diagonal);
+      });
 
-  // Transition links to their new position.
-  link.transition()
+  // Transition links (old and newly entered ones) to their new position.
+  link.merge(linkEnter).transition()
       .duration(duration)
       .attr("d", function(ends) {
         var t = {x: ends.target.x, y: ends.target.y - procw};

@@ -393,7 +393,7 @@ static void write_report(const std::string &html_filename,
                          const std::string &datadir) {
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
-  const char d3_filename[] = "d3.v3.min.js";
+  const char d3_filename[] = "d3.v5.min.js";
   const char tree_filename[] = "firebuild-process-tree.js";
   const char html_orig_filename[] = "build-report.html";
   const std::string dot_cmd = "dot";

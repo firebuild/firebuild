@@ -50,7 +50,7 @@ void ProcessTree::finished(const int sock) {
 }
 
 void ProcessTree::export2js(FILE * stream) {
-  fprintf(stream, "root = ");
+  fprintf(stream, "data = ");
   unsigned int nodeid = 0;
   root_->export2js_recurse(0, stream, &nodeid);
 }
