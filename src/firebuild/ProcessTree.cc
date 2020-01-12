@@ -21,7 +21,9 @@ ProcessTree::~ProcessTree() {
 }
 
 void ProcessTree::insert_process(Process *p, const int sock) {
-  sock2proc_[sock] = p;
+  if (sock >= 0) {
+    sock2proc_[sock] = p;
+  }
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
 }

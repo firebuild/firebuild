@@ -224,21 +224,45 @@ void ack_msg(const int conn, const int ack_num) {
 void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                  const int fd_conn) {
   if (ic_msg.has_scproc_query()) {
+    auto scq = ic_msg.scproc_query();
     firebuild::msg::SupervisorMsg sv_msg;
     auto scproc_resp = sv_msg.mutable_scproc_resp();
-    /* record new process */
-    auto parent = proc_tree->pid2proc(ic_msg.scproc_query().pid());
-    if (!parent && ic_msg.scproc_query().arg_size() > 2) {
-      auto scq = ic_msg.scproc_query();
+
+    firebuild::Process *exec_parent = NULL;
+
+    /* Locate the parent in case of execve or alike. This includes the
+     * case when the outermost intercepted process starts up (no
+     * parent will be found) or when this outermost process does an
+     * exec (an exec parent will be found then). */
+    exec_parent = proc_tree->pid2proc(scq.pid());
+
+    /* Locate the parent in case of system/popen/posix_spawn, but not
+     * when the first intercepter process starts up. */
+    if (!exec_parent && scq.ppid() != getpid()) {
+      /* Locate the indirect parent who called system/popen/posix_spawn. */
+      ::firebuild::Process *unix_parent = proc_tree->pid2proc(scq.ppid());
+      assert(unix_parent != NULL);
+
+      /* Add a ForkedProcess for the forked child we never directly saw. */
+      exec_parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent);
+      exec_parent->set_state(firebuild::FB_PROC_FINISHED);
+      proc_tree->insert(exec_parent, -1);
+
+      /* Verify that the child was expected. */
       ::firebuild::ExecedProcessParameters expected_child;
       for (const auto &arg : ic_msg.scproc_query().arg()) {
         expected_child.argv().push_back(arg);
       }
-      parent = proc_tree->find_exec_parent(scq.pid(), scq.ppid(), expected_child);
+      if (!unix_parent->remove_expected_child(expected_child)) {
+        firebuild::fb_error("Unexpected system/popen/posix_spawn child appeared: " + to_string(expected_child));
+        // FIXME now what?
+      }
     }
+
+    /* Add the ExecedProcess. */
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
-            ic_msg.scproc_query(), parent);
+            ic_msg.scproc_query(), exec_parent);
     proc_tree->insert(proc, fd_conn);
     // TODO(rbalint) look up stored result
 #if 0
