@@ -4,7 +4,7 @@
 #ifndef FIREBUILD_PROCESSPBADAPTOR_H_
 #define FIREBUILD_PROCESSPBADAPTOR_H_
 
-#include "firebuild/fb-messages.pb.h"
+#include "fb-messages.pb.h"
 #include "firebuild/Process.h"
 #include "firebuild/cxx_lang_utils.h"
 

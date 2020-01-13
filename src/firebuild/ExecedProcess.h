@@ -12,7 +12,7 @@
 
 #include "firebuild/Process.h"
 #include "firebuild/cxx_lang_utils.h"
-#include "firebuild/Debug.h"
+#include "common/Debug.h"
 
 namespace firebuild {
 

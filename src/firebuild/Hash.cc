@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-#include "firebuild/Debug.h"
+#include "common/Debug.h"
 
 namespace firebuild  {
 

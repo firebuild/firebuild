@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "firebuild/intercept.h"
+#include "interceptor/intercept.h"
 
 #include <unistd.h>
 #include <errno.h>
@@ -16,10 +16,10 @@
 #include <cstdlib>
 #include <string>
 
-#include "firebuild/env.h"
-#include "firebuild/Debug.h"
-#include "firebuild/fb-messages.pb.h"
-#include "firebuild/firebuild_common.h"
+#include "interceptor/env.h"
+#include "common/Debug.h"
+#include "fb-messages.pb.h"
+#include "common/firebuild_common.h"
 
 namespace firebuild {
 
@@ -50,7 +50,7 @@ pthread_mutex_t ic_fd_states_lock;
 
 /* we need to include every file using IC() macro to create ic_orig_... version
  * for all functions */
-#include "firebuild/ic_file_ops.h"
+#include "interceptor/ic_file_ops.h"
 
 #undef IC_VOID
 
@@ -154,7 +154,7 @@ static void set_orig_fns() {
 
   /* we need to include every file using IC() macro to create ic_orig_... version
    * for all functions */
-#include "firebuild/ic_file_ops.h"
+#include "interceptor/ic_file_ops.h"
 
 #undef IC_VOID
 }
