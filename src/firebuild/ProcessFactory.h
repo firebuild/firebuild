@@ -4,7 +4,7 @@
 #ifndef FIREBUILD_PROCESSFACTORY_H_
 #define FIREBUILD_PROCESSFACTORY_H_
 
-#include "firebuild/fb-messages.pb.h"
+#include "fb-messages.pb.h"
 #include "firebuild/ExecedProcess.h"
 #include "firebuild/ForkedProcess.h"
 #include "firebuild/ProcessTree.h"

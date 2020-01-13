@@ -10,7 +10,7 @@
 #include "firebuild/FileDB.h"
 #include "firebuild/platform.h"
 #include "firebuild/ExecedProcessParameters.h"
-#include "firebuild/Debug.h"
+#include "common/Debug.h"
 
 namespace firebuild {
 
