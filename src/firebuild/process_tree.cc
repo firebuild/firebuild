@@ -1,7 +1,7 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#include "firebuild/ProcessTree.h"
+#include "firebuild/process_tree.h"
 
 #include <math.h>
 
@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <limits>
 
-#include "common/Debug.h"
+#include "common/debug.h"
 
 namespace firebuild {
 

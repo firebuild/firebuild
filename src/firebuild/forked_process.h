@@ -9,7 +9,7 @@
 #include <set>
 #include <string>
 
-#include "firebuild/Process.h"
+#include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {

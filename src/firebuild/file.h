@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "firebuild/Hash.h"
+#include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {

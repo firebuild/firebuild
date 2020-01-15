@@ -8,7 +8,7 @@
 
 #include <string>
 
-#include "firebuild/File.h"
+#include "firebuild/file.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {

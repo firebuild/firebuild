@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "firebuild/ProcessPBAdaptor.h"
+#include "firebuild/process_proto_adaptor.h"
 
 namespace firebuild {
 int ProcessPBAdaptor::msg(Process *p, const msg::Open &o) {

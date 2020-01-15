@@ -2,9 +2,9 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "firebuild/ForkedProcess.h"
+#include "firebuild/forked_process.h"
 
-#include "common/Debug.h"
+#include "common/debug.h"
 
 namespace firebuild {
 

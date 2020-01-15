@@ -11,9 +11,9 @@
 #include <unordered_map>
 #include <stdexcept>
 
-#include "firebuild/Process.h"
-#include "firebuild/ExecedProcess.h"
-#include "firebuild/ForkedProcess.h"
+#include "firebuild/process.h"
+#include "firebuild/execed_process.h"
+#include "firebuild/forked_process.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {

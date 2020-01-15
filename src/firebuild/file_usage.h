@@ -6,7 +6,7 @@
 
 #include <sys/stat.h>
 
-#include "firebuild/Hash.h"
+#include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {

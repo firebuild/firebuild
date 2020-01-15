@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
-#include "firebuild/Process.h"
+#include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
-#include "common/Debug.h"
+#include "common/debug.h"
 
 namespace firebuild {
 
