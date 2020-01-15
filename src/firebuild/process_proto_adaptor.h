@@ -5,7 +5,7 @@
 #define FIREBUILD_PROCESSPBADAPTOR_H_
 
 #include "fb-messages.pb.h"
-#include "firebuild/Process.h"
+#include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild  {

@@ -17,7 +17,7 @@
 #include <string>
 
 #include "interceptor/env.h"
-#include "common/Debug.h"
+#include "common/debug.h"
 #include "fb-messages.pb.h"
 #include "common/firebuild_common.h"
 

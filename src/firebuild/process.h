@@ -12,9 +12,9 @@
 #include <vector>
 #include <algorithm>
 
-#include "firebuild/FileFD.h"
-#include "firebuild/FileUsage.h"
-#include "firebuild/ExecedProcessParameters.h"
+#include "firebuild/file_fd.h"
+#include "firebuild/file_usage.h"
+#include "firebuild/execed_process_parameters.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {

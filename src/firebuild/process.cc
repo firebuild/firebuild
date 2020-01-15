@@ -2,15 +2,15 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "firebuild/Process.h"
+#include "firebuild/process.h"
 
 #include <unistd.h>
 
-#include "firebuild/File.h"
-#include "firebuild/FileDB.h"
+#include "firebuild/file.h"
+#include "firebuild/file_db.h"
 #include "firebuild/platform.h"
-#include "firebuild/ExecedProcessParameters.h"
-#include "common/Debug.h"
+#include "firebuild/execed_process_parameters.h"
+#include "common/debug.h"
 
 namespace firebuild {
 

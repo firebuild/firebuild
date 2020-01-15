@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "firebuild/Hash.h"
+#include "firebuild/hash.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-#include "common/Debug.h"
+#include "common/debug.h"
 
 namespace firebuild  {
 

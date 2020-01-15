@@ -22,10 +22,10 @@
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
-#include "common/Debug.h"
-#include "firebuild/ProcessFactory.h"
-#include "firebuild/ProcessTree.h"
-#include "firebuild/ProcessPBAdaptor.h"
+#include "common/debug.h"
+#include "firebuild/process_factory.h"
+#include "firebuild/process_tree.h"
+#include "firebuild/process_proto_adaptor.h"
 #include "fb-messages.pb.h"
 
 namespace {

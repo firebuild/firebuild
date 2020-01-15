@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include "firebuild/File.h"
+#include "firebuild/file.h"
 
 #include <libgen.h>
 #include <sys/stat.h>
