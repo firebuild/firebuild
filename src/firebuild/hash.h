@@ -16,7 +16,7 @@ class Hash {
       :arr()
   {}
   unsigned char arr[8] = {};
-  bool update(const std::string &from_file);
+  bool set(const std::string &from_file);
 };
 
 std::string to_string(Hash const&);
