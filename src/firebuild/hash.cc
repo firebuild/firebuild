@@ -14,7 +14,7 @@
 
 namespace firebuild  {
 
-bool Hash::update(const std::string &from_path) {
+bool Hash::set(const std::string &from_path) {
   int fd;
   void *map_addr;
 

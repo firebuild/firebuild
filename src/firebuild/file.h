@@ -27,7 +27,7 @@ class File {
   std::string path_;
   bool exists_;
   Hash hash_;
-  int update_hash();
+  int set_hash();
   DISALLOW_COPY_AND_ASSIGN(File);
 };
 

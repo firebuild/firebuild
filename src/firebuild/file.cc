@@ -16,12 +16,12 @@ File::File(const std::string &p)
 }
 
 
-int File::update_hash() {
-  return hash_.update(path_);
+int File::set_hash() {
+  return hash_.set(path_);
 }
 
 int File::update() {
-  if (!this->update_hash()) {
+  if (!this->set_hash()) {
     return -1;
   }
 
