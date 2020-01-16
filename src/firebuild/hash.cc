@@ -31,7 +31,7 @@ bool Hash::update(const std::string &from_path) {
   if (-1 == fstat64(fd, &st)) {
     perror("fstat");
     close(fd);
-    return -1;
+    return false;
   } else if (!S_ISREG(st.st_mode)) {
     // Only regular files' hash can be collected
     // TODO(rbalint) debug
