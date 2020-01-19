@@ -42,6 +42,9 @@ endforeach()
 add_definitions(-DFIREBUILD_DATADIR="${DATADIR}")
 add_subdirectory(src)
 
+enable_testing()
+add_subdirectory(test)
+
 # add a target to generate API documentation with Doxygen
 find_package(Doxygen)
 if(DOXYGEN_FOUND)

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+. test_helper.bash
+
+exec $FIREBUILD_PREFIX_CMD firebuild -c ../etc/firebuildrc "$@"
