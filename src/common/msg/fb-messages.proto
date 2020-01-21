@@ -10,14 +10,14 @@ package firebuild.msg;
 
 // Message for storing and retrieving the content of a file
 message FileContent {
-    required bytes sha1_hash = 1; // identifies the file content
+    required string hash = 1; // identifies the file content (hex string)
     required bytes content = 2; // fie content as raw bytes
 }
 
 // File state
 message File {
-    // identifies the file content, may be empty if file is not found
-    optional bytes sha1_hash = 1;
+    // identifies the file content (hex string), unset if file is not found
+    optional string hash = 1;
 
     // TODO add alternate hash values generated after preprocessing the file
     // with programs keeping the semantic content (e.g. removing white spaces)
@@ -552,8 +552,8 @@ message PosixSpawnFailed {
 message Process {
     // process id
     optional int64 pid = 23;
-    // SHA1 sum of process and children
-    optional bytes sha1_id = 24;
+    // Checksum (hex string) of process and children
+    optional string hash = 24;
     // program file
     required File executable = 6;
 
@@ -586,8 +586,8 @@ message Process {
 
     repeated EnvVar env_var = 19;
 
-    // child processes referenced by SHA1
-    repeated bytes child_sha1 = 5;
+    // child processes referenced by checksum (hex string)
+    repeated string child_hash = 5;
     // TODO
     // signals?
     //
