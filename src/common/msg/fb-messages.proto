@@ -475,8 +475,6 @@ message ExecV {
 }
 
 message ExecVFailed {
-    // process id
-    optional int64 pid = 1;
     // error no., when ret = -1
     required int32 error_no = 5;
 }

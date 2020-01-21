@@ -24,3 +24,8 @@
       result=$(./run-firebuild -- ./test_system)
       [ "$result" = "ok" ]
 }
+
+@test "exec()" {
+      result=$(./run-firebuild -- ./test_exec)
+      [ "$result" = "ok" ]
+}
