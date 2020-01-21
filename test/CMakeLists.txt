@@ -9,3 +9,4 @@ add_test(bats-integration ./integration.bats)
 add_custom_target(check ctest -V)
 
 add_test_binary(test_system)
+add_test_binary(test_exec)

@@ -293,8 +293,10 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         firebuild::ProcessFactory::getForkedProcess(ic_msg.fork_child(), pproc);
     proc_tree->insert(proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
-    auto *proc = proc_tree->pid2proc(ic_msg.execvfailed().pid());
-    proc_tree->sock2proc()[fd_conn] = proc;
+    auto *proc = proc_tree->sock2proc().at(fd_conn);
+    // FIXME(rbalint) check execv parameter and record what needs to be
+    // checked when shortcutting the process
+    proc = proc;
   } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
              ic_msg.has_execv() ||
@@ -370,6 +372,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_u(),
                             ic_msg.execv().stime_u());
+        // FIXME(rbalint) save execv parameters
       } else if (ic_msg.has_open()) {
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.open());
       } else if (ic_msg.has_close()) {
