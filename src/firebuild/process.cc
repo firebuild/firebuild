@@ -229,7 +229,7 @@ int Process::dup3(const int oldfd, const int newfd, const int flags,
   // validate fd-s
   if ((fds_.size() <= static_cast<unsigned int>(oldfd)) || (NULL == fds_[oldfd])) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting("Process created and fd (" + std::to_string(oldfd) +
+    disable_shortcutting("Process created an fd (" + std::to_string(oldfd) +
                          ") which is known to be open, which means interception"
                          " missed at least one close()");
     return -1;
