@@ -371,8 +371,11 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       FB_DEBUG(1, "Ignoring message on fd: " + std::to_string(fd_conn) +
                std::string(", process probably exited already."));
     }
-    ack_msg(fd_conn, ic_msg.ack_num());
   } else if (ic_msg.has_gen_call()) {
+  }
+
+  if (ic_msg.has_ack_num()) {
+    ack_msg(fd_conn, ic_msg.ack_num());
   }
 }
 
