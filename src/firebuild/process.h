@@ -86,8 +86,8 @@ class Process {
 
   /**
    * Handle pipe() in in monitored process
-   * @param fd1 file descfriptor to read
-   * @param fd2 file descfriptor to write
+   * @param fd1 file descriptor to read
+   * @param fd2 file descriptor to write
    * @param flags flags passed in pipe2()
    * @param error error code
    * @return 0 on success, -1 on failure
@@ -99,7 +99,7 @@ class Process {
    * Duplicate a oldfd to fd2 with dup(), dup2() or dup3() see dup(2) for details
    *
    * @param oldfd old fd
-   * @parem newfd new fd
+   * @param newfd new fd
    * @param flags extra flags for new fd passed to dup3()
    * @param error error code
    * @return 0 on success, -1 on failure
