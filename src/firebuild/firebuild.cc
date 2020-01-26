@@ -293,7 +293,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         firebuild::ProcessFactory::getForkedProcess(ic_msg.fork_child(), pproc);
     proc_tree->insert(proc, fd_conn);
   } else if (ic_msg.has_execvfailed()) {
-    auto *proc = proc_tree->sock2proc().at(fd_conn);
+    auto *proc = proc_tree->Sock2Proc(fd_conn);
     // FIXME(rbalint) check execv parameter and record what needs to be
     // checked when shortcutting the process
     proc = proc;
@@ -318,7 +318,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
     try {
-      ::firebuild::Process *proc = proc_tree->sock2proc().at(fd_conn);
+      ::firebuild::Process *proc = proc_tree->Sock2Proc(fd_conn);
       if (ic_msg.has_exit()) {
         proc->exit_result(ic_msg.exit().exit_status(),
                           ic_msg.exit().utime_u(),
