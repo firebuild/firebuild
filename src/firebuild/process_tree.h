@@ -45,8 +45,13 @@ class ProcessTree {
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
   ExecedProcess* root() {return root_;}
-  std::unordered_map<int, Process*>& sock2proc() {return sock2proc_;}
-  std::unordered_map<int, Process*>& fb_pid2proc() {return fb_pid2proc_;}
+  Process* Sock2Proc(int sock) {
+    try {
+      return sock2proc_.at(sock);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
   Process* pid2proc(int pid) {
     try {
       return pid2proc_.at(pid);
