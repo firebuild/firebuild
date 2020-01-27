@@ -10,35 +10,53 @@ IC_VA(int, fcntl, (int fd, int cmd, ...), {
     va_list ap;
     va_start(ap, cmd);
     switch (cmd) {
-      case F_DUPFD:
-      case F_DUPFD_CLOEXEC:
-      case F_SETFD:
+      /* Commands the supervisor doesn't need to know about. */
+      case F_GETFD:
+      case F_GETFL:
       case F_SETFL:
+      case F_GETLK:
+      case F_SETLK:
+      case F_SETLKW:
+      case F_OFD_GETLK:
+      case F_OFD_SETLK:
+      case F_OFD_SETLKW:
+      case F_GETOWN:
       case F_SETOWN:
+      case F_GETOWN_EX:
+      case F_SETOWN_EX:
+      case F_GETSIG:
       case F_SETSIG:
+      case F_GETLEASE:
       case F_SETLEASE:
       case F_NOTIFY:
-      case F_SETPIPE_SZ: {
+      case F_GETPIPE_SZ:
+      case F_SETPIPE_SZ:
+      case F_ADD_SEALS:
+      case F_GET_SEALS:
+      case F_GET_RW_HINT:
+      case F_SET_RW_HINT:
+      case F_GET_FILE_RW_HINT:
+      case F_SET_FILE_RW_HINT: {
+        break;
+      }
+
+      /* Commands taking an arg that the supervisor needs to know about. */
+      case F_DUPFD:
+      case F_DUPFD_CLOEXEC:
+      case F_SETFD: {
         int arg = va_arg(ap, int);
         intercept_fcntl(fd, cmd, arg, ret);
         break;
       }
-      case F_GETOWN: /* arg missing*/
-      case F_GETFD:
-      case F_GETFL:
-      case F_GETSIG:
-      case F_GETLEASE:
-      case F_GETPIPE_SZ:
-      case F_SETLK: /* struct flock * arg */
-      case F_SETLKW:
-      case F_GETLK:
-      case F_GETOWN_EX: /* struct f_owner_ex * arg */
-      case F_SETOWN_EX: {
+
+      /* Commands that don't take an arg (or the arg doesn't matter to
+       * the supervisor), but the supervisor needs to know about. This
+       * includes all the unrecognized commands. Let's spell out the
+       * recognized ones, rather than just catching them by "default",
+       * for better readability. */
+      default: {
         intercept_fcntl(fd, cmd, ret);
         break;
-      }
-      default: {
-        firebuild::fb_error("unknown fcntl() cmd: " + std::to_string(cmd));
       }
     }
     va_end(ap);
