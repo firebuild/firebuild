@@ -305,6 +305,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
              ic_msg.has_pipe2() ||
              ic_msg.has_dup3() ||
              ic_msg.has_dup() ||
+             ic_msg.has_fcntl() ||
              ic_msg.has_chdir() ||
              ic_msg.has_fdopendir() ||
              ic_msg.has_opendir()) {
@@ -373,6 +374,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.dup3());
       } else if (ic_msg.has_dup()) {
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.dup());
+      } else if (ic_msg.has_fcntl()) {
+        ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.fcntl());
       } else if (ic_msg.has_chdir()) {
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.chdir());
       }

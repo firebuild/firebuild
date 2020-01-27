@@ -75,6 +75,7 @@ class Process {
   void update_rusage(int64_t utime_u, int64_t stime_u);
   void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
+  std::vector<FileFD*> fds() {return fds_;}
 
   /**
    * Handle file opening in the monitored process
@@ -113,6 +114,17 @@ class Process {
    */
   int handle_dup3(const int oldfd, const int newfd, const int flags,
                   const int error = 0);
+  /**
+   * Handle fcntl() in the monitored process
+   *
+   * @param fd file descriptor
+   * @param cmd fcntl's cmd parameter
+   * @param arg fcntl's arg parameter
+   * @param ret fcntl's return value
+   * @return 0 on success, -1 on failure
+   */
+  int handle_fcntl(const int fd, const int cmd, const int arg,
+                   const int ret, const int error = 0);
 
   /**
    * Fail to change to a working directory
