@@ -266,6 +266,38 @@ IC(int, dup3, (int fd, int fd2, int flags), {
     }
   })
 
+IC(int, mkstemp, (char *pattern), {
+  ret = orig_fn(pattern);  // This updates pattern in-place
+  if (ret != -1) {
+    intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL, 0600, ret);
+  }
+})
+IC(int, mkostemp, (char *pattern, int flags), {
+  ret = orig_fn(pattern, flags);  // This updates pattern in-place
+  if (ret != -1) {
+    intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL|flags, 0600, ret);
+  }
+})
+IC(int, mkstemps, (char *pattern, int suffixlen), {
+  ret = orig_fn(pattern, suffixlen);  // This updates pattern in-place
+  if (ret != -1) {
+    intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL, 0600, ret);
+  }
+})
+IC(int, mkostemps, (char *pattern, int suffixlen, int flags), {
+  ret = orig_fn(pattern, suffixlen, flags);  // This updates pattern in-place
+  if (ret != -1) {
+    intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL|flags, 0600, ret);
+  }
+})
+IC(int, mkdtemp, (char *pattern), {
+  ret = orig_fn(pattern);  // This updates pattern in-place
+  if (ret != -1) {
+    // FIXME intercept_mkdir()?
+    intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL, 0700, ret);
+  }
+})
+
 IC(int, execve, (const char *path, char *const argv[], char *const envp[]), {
     intercept_execve(false, path, -1, argv, envp);
     ret = orig_fn(path, argv, envp);
