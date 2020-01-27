@@ -58,6 +58,14 @@ class FileFD {
   Process * process() {return process_;}
   bool open() {return open_;}
   void set_open(bool o) {open_ = o;}
+  bool cloexec() {return curr_flags_ & O_CLOEXEC;}
+  void set_cloexec(bool value) {
+    if (value) {
+      curr_flags_ |= O_CLOEXEC;
+    } else {
+      curr_flags_ &= ~O_CLOEXEC;
+    }
+  }
 
   /**
    * Create new fd inherited from this one

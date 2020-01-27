@@ -243,6 +243,30 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   return 0;
 }
 
+int Process::handle_fcntl(const int fd, const int cmd, const int arg,
+                          const int ret, const int error) {
+  switch (cmd) {
+    case F_DUPFD:
+      return handle_dup3(fd, ret, 0, error);
+    case F_DUPFD_CLOEXEC:
+      return handle_dup3(fd, ret, O_CLOEXEC, error);
+    case F_SETFD:
+      if (error == 0) {
+        if ((fds_.size() <= static_cast<unsigned int>(fd)) || (NULL == fds_[fd])) {
+          disable_shortcutting("Process successfully fcntl'ed on fd (" + std::to_string(fd) +
+                               ") which is known to be closed, which means interception"
+                               " missed at least one open()");
+          return -1;
+        }
+        fds_[fd]->set_cloexec(arg & FD_CLOEXEC);
+      }
+      return 0;
+    default:
+      disable_shortcutting("Process executed unsupported fcntl " + std::to_string(cmd));
+      return 0;
+  }
+}
+
 void Process::set_wd(const std::string &ar_d) {
   const std::string d = (platform::path_is_absolute(ar_d))?(ar_d):
       (wd_ + "/" + ar_d);

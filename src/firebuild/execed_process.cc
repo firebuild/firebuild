@@ -44,6 +44,16 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     // add as exec child of parent
     exec_parent->set_exec_child(this);
     exec_parent->set_state(FB_PROC_EXECED);
+
+    /* Process's constructor copied all the FDs, now let's close the
+     * ones that did not survive the exec. */
+    // FIXME don't copy them in the first place. */
+    for (unsigned int i = 0; i < fds().size(); i++) {
+      if (fds()[i]->cloexec()) {
+        delete fds()[i];
+        fds()[i] = NULL;
+      }
+    }
   }
 }
 

@@ -24,6 +24,7 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const msg::Pipe2 &pipe);
   static int msg(Process *p, const msg::Dup &d);
   static int msg(Process *p, const msg::Dup3 &d);
+  static int msg(Process *p, const msg::Fcntl &f);
   static int msg(Process *p, const msg::ChDir &c);
 
  private:

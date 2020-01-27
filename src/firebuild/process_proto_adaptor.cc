@@ -33,6 +33,11 @@ int ProcessPBAdaptor::msg(Process *p, const msg::Dup &d) {
   return p->handle_dup3(d.oldfd(), d.ret(), 0, error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const msg::Fcntl &f) {
+  const int error = (f.has_error_no())?f.error_no():0;
+  return p->handle_fcntl(f.fd(), f.cmd(), f.arg(), f.ret(), error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const msg::ChDir &c) {
   const int error = (c.has_error_no())?c.error_no():0;
   if (0 == error) {
