@@ -78,9 +78,9 @@ void Process::add_filefd(int fd, FileFD* ffd) {
   fds_[fd] = ffd;
 }
 
-int Process::open_file(const std::string &ar_name, const int flags,
-                       const mode_t mode, const int fd, const bool c,
-                       const int error) {
+int Process::handle_open(const std::string &ar_name, const int flags,
+                         const mode_t mode, const int fd, const bool c,
+                         const int error) {
   const bool created = ((flags & O_EXCL) && (fd != -1)) || c;
   const bool open_failed = (fd == -1);
   const std::string name = (platform::path_is_absolute(ar_name))?(ar_name):
@@ -132,7 +132,7 @@ int Process::open_file(const std::string &ar_name, const int flags,
   return 0;
 }
 
-int Process::close_file(const int fd, const int error) {
+int Process::handle_close(const int fd, const int error) {
   if (EIO == error) {
     // IO prevents shortcutting
     disable_shortcutting("IO error closing fd " + fd);
@@ -175,8 +175,8 @@ int Process::close_file(const int fd, const int error) {
   }
 }
 
-int Process::create_pipe(const int fd1, const int fd2, const int flags,
-                          const int error) {
+int Process::handle_pipe(const int fd1, const int fd2, const int flags,
+                         const int error) {
   switch (error) {
     case EFAULT:
     case EINVAL:
@@ -211,8 +211,8 @@ int Process::create_pipe(const int fd1, const int fd2, const int flags,
   return 0;
 }
 
-int Process::dup3(const int oldfd, const int newfd, const int flags,
-                  const int error) {
+int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
+                         const int error) {
   switch (error) {
     case EBADF:
     case EBUSY:
@@ -236,7 +236,7 @@ int Process::dup3(const int oldfd, const int newfd, const int flags,
     return -1;
   }
   if ((fds_.size() > static_cast<unsigned int>(newfd)) && (NULL != fds_[newfd])) {
-    close_file(newfd, 0);
+    handle_close(newfd, 0);
   }
 
   add_filefd(newfd, new FileFD(newfd, ((fds_[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP, fds_[oldfd], this));

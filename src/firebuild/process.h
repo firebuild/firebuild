@@ -75,37 +75,44 @@ class Process {
   void update_rusage(int64_t utime_u, int64_t stime_u);
   void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
-  int open_file(const std::string &name, const int flags, const mode_t mode,
-                const int fd, const bool created = false, const int error = 0);
+
   /**
-   * Handle file closure in in monitored process
+   * Handle file opening in the monitored process
+   * @param name relative or absolute file name
+   * @param flags flags of open()
+   * @param mode mode of open()
+   * @param fd the return value
+   * @param created whether the file was created
+   * @param error error code of open()
+   */
+  int handle_open(const std::string &name, const int flags, const mode_t mode,
+                  const int fd, const bool created = false, const int error = 0);
+  /**
+   * Handle file closure in the monitored process
    * @param fd file descriptor to close
    * @param error error code of close()
    */
-  int close_file(const int fd, const int error = 0);
-
+  int handle_close(const int fd, const int error = 0);
   /**
-   * Handle pipe() in in monitored process
+   * Handle pipe() in the monitored process
    * @param fd1 file descriptor to read
    * @param fd2 file descriptor to write
    * @param flags flags passed in pipe2()
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int create_pipe(const int fd1, const int fd2, const int flags,
+  int handle_pipe(const int fd1, const int fd2, const int flags,
                   const int error = 0);
-
   /**
-   * Duplicate a oldfd to fd2 with dup(), dup2() or dup3() see dup(2) for details
-   *
+   * Handle dup(), dup2() or dup3() in the monitored process
    * @param oldfd old fd
    * @param newfd new fd
    * @param flags extra flags for new fd passed to dup3()
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int dup3(const int oldfd, const int newfd, const int flags,
-           const int error = 0);
+  int handle_dup3(const int oldfd, const int newfd, const int flags,
+                  const int error = 0);
 
   /**
    * Fail to change to a working directory
