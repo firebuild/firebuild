@@ -5,6 +5,7 @@
 #define FIREBUILD_DEBUG_H_
 
 #include <string>
+#include <vector>
 
 namespace firebuild {
 
@@ -22,6 +23,14 @@ void fb_debug(const std::string &msg);
 
 /** current debugging level */
 extern int debug_level;
+
+std::string pretty_print_string(const std::string& str);
+
+std::string pretty_print_array(const std::vector<std::string>& arr,
+                               const std::string& sep = ", ");
+
+/** Get a human-readable timestamp according to local time. */
+std::string pretty_print_timestamp();
 
 }  // namespace firebuild
 #endif  // FIREBUILD_DEBUG_H_
