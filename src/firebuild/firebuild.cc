@@ -42,7 +42,7 @@ static int child_pid, child_ret = 1;
 static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
-static char *report_file = const_cast<char*>("firebuild-build-report.html");
+static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
 
 /** global configuration */

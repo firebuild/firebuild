@@ -83,7 +83,7 @@ class ExecedProcess : public Process {
     if (true == can_shortcut_) {
       can_shortcut_ = false;
       assert(cant_shortcut_proc_ == NULL);
-      cant_shortcut_proc_ = const_cast<Process*>(&p);
+      cant_shortcut_proc_ = &p;
       if (exec_parent_) {
         exec_parent_->propagate_disable_shortcutting(reason, p);
       }
@@ -121,7 +121,7 @@ class ExecedProcess : public Process {
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";
   /// Process the event preventing short-cutting happened in
-  Process *cant_shortcut_proc_ = NULL;
+  const Process *cant_shortcut_proc_ = NULL;
   virtual bool can_shortcut() const {return can_shortcut_;}
   virtual bool can_shortcut() {return can_shortcut_;}
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
