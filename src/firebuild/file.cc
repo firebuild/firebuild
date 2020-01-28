@@ -17,7 +17,7 @@ File::File(const std::string &p)
 
 
 int File::set_hash() {
-  return hash_.set(path_);
+  return hash_.set_from_file(path_, NULL);
 }
 
 int File::update() {
