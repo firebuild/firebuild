@@ -23,10 +23,16 @@
 
 #include "common/firebuild_common.h"
 #include "common/debug.h"
+#include "firebuild/cache.h"
+#include "firebuild/multi_cache.h"
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
 #include "fb-messages.pb.h"
+
+/* Globals */
+firebuild::Cache *cache;
+firebuild::MultiCache *multi_cache;
 
 namespace {
 
@@ -606,6 +612,10 @@ int main(const int argc, char *argv[]) {
   }
 
   parse_cfg_file(config_file);
+
+  // Initialize the cache
+  cache = new firebuild::Cache("");
+  multi_cache = new firebuild::MultiCache("");
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.

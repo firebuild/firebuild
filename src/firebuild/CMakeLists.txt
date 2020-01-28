@@ -12,5 +12,7 @@ add_executable(firebuild
   hash.cc
   file.cc
   file_db.cc
+  cache.cc
+  multi_cache.cc
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} xxhash)
