@@ -4,77 +4,197 @@
 
 #include "firebuild/hash.h"
 
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <sys/mman.h>
 
 #include "common/debug.h"
 
 namespace firebuild  {
 
-bool Hash::set(const std::string &from_path) {
-  int fd;
-  void *map_addr;
+/**
+ * Set the hash from the given buffer.
+ */
+void Hash::set_from_data(const void *data, ssize_t size) {
+  // xxhash's doc says:
+  // "Streaming functions [...] is slower than single-call functions, due to state management."
+  // Let's take the faster path.
+  XXH64_hash_t hash = XXH64(data, size, 0);
 
-  fd = open(from_path.c_str(), O_RDONLY);
+  // Convert from endian-specific representation to endian-independent byte array.
+  XXH64_canonicalFromHash((XXH64_canonical_t*)&arr_, hash);
+}
+
+/**
+ * Set the hash from the given protobuf's serialization.
+ */
+void Hash::set_from_protobuf(const google::protobuf::MessageLite &msg) {
+  uint32_t msg_size = msg.ByteSize();
+  uint8_t *buf = new uint8_t[msg_size];
+  msg.SerializeWithCachedSizesToArray(buf);
+  set_from_data((void *)buf, msg_size);
+  delete buf;
+}
+
+/**
+ * Set the hash from the given opened file descriptor.
+ * The file seek position (read/write offset) is irrelevant.
+ *
+ * If fd is a directory, its sorted listing is hashed.
+ *
+ * @param fd The file descriptor
+ * @param is_dir_out Optionally store here whether fd refers to a
+ * directory
+ * @return Whether succeeded
+ */
+bool Hash::set_from_fd(int fd, bool *is_dir_out) {
+  struct stat64 st;
+  if (-1 == fstat64(fd, &st)) {
+    perror("fstat");
+    return false;
+  }
+
+  if (S_ISREG(st.st_mode)) {
+    /* Compute the hash of a regular file. */
+    if (is_dir_out != NULL) {
+      *is_dir_out = false;
+    }
+
+    void *map_addr;
+    if (st.st_size > 0) {
+      map_addr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+      if (map_addr == MAP_FAILED) {
+        FB_DEBUG(1, "Cannot compute hash of regular file: mmap failed");
+        return false;
+      }
+    } else {
+      // Zero length files cannot be mmapped.
+      map_addr = NULL;
+    }
+
+    set_from_data(map_addr, st.st_size);
+
+    if (st.st_size > 0) {
+      munmap(map_addr, st.st_size);
+    }
+    return true;
+
+  } else if (S_ISDIR(st.st_mode)) {
+    /* Compute the hash of a directory. Its listing is sorted, and
+     * concatenated using '\0' as a terminator after each entry. Then
+     * this string is hashed. */
+    // FIXME place d_type in the string, too?
+    if (is_dir_out != NULL) {
+      *is_dir_out = true;
+    }
+
+    DIR *dir = fdopendir(fd);
+    if (dir == NULL) {
+      FB_DEBUG(1, "Cannot compute hash of directory: fdopendir failed");
+      return false;
+    }
+
+    std::vector<std::string> listing;
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+      listing.push_back(entry->d_name);
+    }
+    closedir(dir);
+
+    std::sort(listing.begin(), listing.end());
+
+    std::string concat;
+    for (const auto& entry : listing) {
+      concat += entry;
+      concat += '\0';
+    }
+    set_from_data(concat.c_str(), concat.size());
+    return true;
+
+  } else {
+    FB_DEBUG(1, "Cannot compute hash of special file");
+    return false;
+  }
+}
+
+/**
+ * Set the hash from the given file or directory.
+ *
+ * If a directory is specified, its sorted listing is hashed.
+ *
+ * @param filename The filename
+ * @param is_dir_out Optionally store here whether filename refers to a
+ * directory
+ * @return Whether succeeded
+ */
+bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
+  int fd;
+
+  fd = open(filename.c_str(), O_RDONLY);
   if (-1 == fd) {
     if (debug_level >= 3) {
-      FB_DEBUG(3, "File " + from_path);
+      FB_DEBUG(3, "File " + filename);
       perror("open");
     }
     return false;
   }
 
-  struct stat64 st;
-  if (-1 == fstat64(fd, &st)) {
-    perror("fstat");
-    close(fd);
-    return false;
-  } else if (!S_ISREG(st.st_mode)) {
-    // Only regular files' hash can be collected
-    // TODO(rbalint) debug
+  if (!set_from_fd(fd, is_dir_out)) {
     close(fd);
     return false;
   }
-
-  if (st.st_size > 0) {
-    map_addr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if (map_addr == MAP_FAILED) {
-      // TODO debug
-      close(fd);
-      return false;
-    }
-  } else {
-    // Zero length files cannot be mmapped.
-    map_addr = NULL;
-  }
-
-  // xxhash's doc says:
-  // "Streaming functions [...] is slower than single-call functions, due to state management."
-  // Let's take the faster path.
-  XXH64_hash_t hash = XXH64(map_addr, st.st_size, 0);
-
-  // Convert from endian-specific representation to endian-independent byte array.
-  XXH64_canonicalFromHash((XXH64_canonical_t*)&arr, hash);
 
   if (firebuild::debug_level >= 2) {
-    FB_DEBUG(2, "xxh64sum: " + from_path + " (" + std::to_string(st.st_size) + ") => " + to_string(*this) );
+    FB_DEBUG(2, "xxh64sum: " + filename + " => " + this->to_hex());
   }
 
-  if (st.st_size > 0) {
-    munmap(map_addr, st.st_size);
-  }
   close(fd);
   return true;
 }
 
-std::string to_string(Hash const &hash) {
+/**
+ * The inverse of to_hex(): Sets the binary hash value directly from the
+ * given hex string. No hash computation takes place.
+ *
+ * Returns true if succeeded, false if the input is not a hex string of
+ * exactly the required length.
+ */
+bool Hash::set_hash_from_hex(const std::string &hex) {
+  if (hex.size() != sizeof(arr_) * 2) {
+    return false;
+  }
+  if (strspn(hex.c_str(), "0123456789abcdefABCDEF") != sizeof(arr_) * 2) {
+    return false;
+  }
+
+  std::string part;
+  for (unsigned int i = 0; i < sizeof(arr_); i++) {
+    part = hex.substr(i * 2, 2);
+    arr_[i] = std::stoi(part, NULL, 16);
+  }
+  return true;
+}
+
+/**
+ * Get the raw binary representation, wrapped in std::string for
+ * convenience (e.g. easy placement in a protobuf).
+ */
+std::string Hash::to_binary() const {
+  return std::string(arr_, sizeof(arr_));
+}
+
+/**
+ * Get the lowercase hex representation.
+ */
+std::string Hash::to_hex() const {
   char hex[3];
-  std::string ret = "";
-  for (int i = 0; i < 8; i++) {
-    sprintf(hex, "%02x", hash.arr[i]);
+  std::string ret;
+  ret.reserve(sizeof(arr_) * 2);
+  for (unsigned int i = 0; i < sizeof(arr_); i++) {
+    sprintf(hex, "%02x", (unsigned char)(arr_[i]));
     ret += hex;
   }
   return ret;
