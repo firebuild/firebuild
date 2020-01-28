@@ -4,6 +4,8 @@
 
 #include "firebuild/execed_process_parameters.h"
 
+#include "common/debug.h"
+
 namespace firebuild {
 
 ExecedProcessParameters::ExecedProcessParameters() : argv_() { }
@@ -15,17 +17,7 @@ void ExecedProcessParameters::set_sh_c_command(const std::string &cmd) {
 }
 
 std::string to_string(ExecedProcessParameters const &pp) {
-  std::string res = "[";
-  bool add_sep = false;
-  for (const auto &arg : pp.argv()) {
-    if (add_sep) {
-      res += ", ";
-    }
-    res += "\"" + arg + "\"";  // FIXME backslash-escape the special chars
-    add_sep = true;
-  }
-  res += "]";
-  return res;
+  return pretty_print_array(pp.argv());
 }
 
 }  // namespace firebuild
