@@ -54,8 +54,9 @@ class ForkedProcess : public Process {
  private:
   Process *fork_parent_;
   virtual void propagate_exit_status(const int) {}
-  virtual void disable_shortcutting(const std::string &reason) {fork_parent_->propagate_disable_shortcutting(reason, *this);}
-  virtual void propagate_disable_shortcutting(const std::string &reason, const Process &p) {fork_parent_->propagate_disable_shortcutting(reason, p);}
+  virtual void disable_shortcutting(const std::string &reason, const Process *p) {
+    fork_parent_->disable_shortcutting(reason, p ? p : this);
+  }
   virtual bool can_shortcut() const {return false;}
   virtual bool can_shortcut() {return false;}
   DISALLOW_COPY_AND_ASSIGN(ForkedProcess);
