@@ -25,7 +25,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
       if (parent->fds_.at(i)) {
-        fds_.reserve(i + 1);
+        fds_.resize(i + 1);
         fds_[i] = parent->fds_.at(i)->inherit(this);
       }
     }
@@ -69,7 +69,7 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
 void Process::add_filefd(int fd, FileFD* ffd) {
   if (fds_.size() <= static_cast<unsigned int>(fd)) {
     auto size_orig = fds_.size();
-    fds_.reserve(fd + 1);
+    fds_.resize(fd + 1);
     // fill new elements with default value
     for (auto i = size_orig; i <= static_cast<unsigned int>(fd); i++) {
       fds_.push_back(NULL);
