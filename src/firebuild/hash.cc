@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
+
 #include "common/debug.h"
 
 namespace firebuild  {
