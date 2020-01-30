@@ -614,8 +614,29 @@ int main(const int argc, char *argv[]) {
   parse_cfg_file(config_file);
 
   // Initialize the cache
-  cache = new firebuild::Cache("");
-  multi_cache = new firebuild::MultiCache("");
+  std::string cache_dir;
+  const char *cache_dir_env = getenv("FIREBUILD_CACHE_DIR");
+  if (cache_dir_env == NULL || cache_dir_env[0] == '\0') {
+    const char *home_env = getenv("HOME");
+    cache_dir = std::string(home_env) + "/.fbcache";
+  } else {
+    cache_dir = std::string(cache_dir_env);
+  }
+
+  struct stat st;
+  if (stat(cache_dir.c_str(), &st) == 0) {
+    if (!S_ISDIR(st.st_mode)) {
+      firebuild::fb_error("cache dir exists but is not a directory");
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    if (mkdir(cache_dir.c_str(), 0700) != 0) {
+      perror("mkdir");
+      exit(EXIT_FAILURE);
+    }
+  }
+  cache = new firebuild::Cache(cache_dir + "/blobs");
+  multi_cache = new firebuild::MultiCache(cache_dir + "/pbs");
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.

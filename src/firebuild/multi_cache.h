@@ -28,6 +28,7 @@ class MultiCache {
   std::vector<Hash> list_subkeys(const Hash &key);
 
  private:
+  /* Including the "pbs" subdir. */
   std::string base_dir_;
 };
 
