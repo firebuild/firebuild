@@ -101,7 +101,7 @@ static std::string construct_cached_file_name(const std::string &base,
 }
 
 /**
- * A protobuf FastFieldValuePrinter that adds the hex hash to fields of
+ * A protobuf FieldValuePrinter that adds the hex hash to fields of
  * type "bytes" that happen to be exactly as long as our hashes, for
  * easier debugging. Other types are printed as usual.
  *
@@ -115,20 +115,21 @@ static std::string construct_cached_file_name(const std::string &base,
  * but then the exact message type we store would be hardwired to
  * MultiCache.
  */
-class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FastFieldValuePrinter {
-  void PrintBytes(const std::string& val,
-                  google::protobuf::TextFormat::BaseTextGenerator* generator) const override {
-    (void)val;
-    google::protobuf::TextFormat::FastFieldValuePrinter::PrintBytes(val, generator);
-
+class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldValuePrinter {
+ public:
+  std::string PrintBytes(const std::string& val) const override {
+    /* Call the base class to print as usual. */
+    std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintBytes(val);
+    /* Append the hex value if desirable. */
     if (val.size() == Hash::hash_size()) {
-      generator->PrintString("  # ");
+      ret += "  # ";
       char buf[3];
       for (unsigned int i = 0; i < Hash::hash_size(); i++) {
         sprintf(buf, "%02x", (unsigned char)(val[i]));
-        generator->PrintString(buf);
+        ret += buf;
       }
     }
+    return ret;
   }
 };
 
