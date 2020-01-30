@@ -23,6 +23,7 @@ class Cache {
                      const std::string &path_dst);
 
  private:
+  /* Including the "blobs" subdir. */
   std::string base_dir_;
 };
 

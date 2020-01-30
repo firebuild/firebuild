@@ -15,18 +15,9 @@
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
 
-#define BLOBS_SUBDIR "blobs"
-#define PROTOBUFS_SUBDIR "pbs"
-
 namespace firebuild {
 
 Cache::Cache(const std::string &base_dir) : base_dir_(base_dir) {
-  if (base_dir_.empty()) {
-    const char *homedir = getenv("HOME");
-    base_dir_ = std::string(homedir) + "/.fbcache";
-  }
-  mkdir(base_dir_.c_str(), 0700);
-  base_dir_ += "/blobs";
   mkdir(base_dir_.c_str(), 0700);
 }
 
