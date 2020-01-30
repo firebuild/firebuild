@@ -1,7 +1,17 @@
 #!/usr/bin/env bats
 
+@test "--help" {
+      result=$(./run-firebuild --help)
+      echo "$result" | grep -q "in case of failure"
+}
+
 @test "bash -c ls" {
       result=$(./run-firebuild -- bash -c "ls integration.bats")
+      [ "$result" = "integration.bats" ]
+}
+
+@test "debugging with trace markers and report generation" {
+      result=$(./run-firebuild -r -d 4 -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
       [ "$result" = "integration.bats" ]
 }
 
