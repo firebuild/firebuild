@@ -17,7 +17,6 @@
 #include <string>
 
 #include "interceptor/env.h"
-#include "common/debug.h"
 #include "fb-messages.pb.h"
 #include "common/firebuild_common.h"
 
@@ -265,11 +264,8 @@ static void fb_ic_init() {
   auto resp = sv_msg.mutable_scproc_resp();
   // we may return immediately if supervisor decides that way
   if (resp->shortcut()) {
-    if (resp->has_exit_status()) {
-      exit(resp->exit_status());
-    } else {
-      fb_error("Request to shortct process without exit status provided");
-    }
+    assert(resp->has_exit_status());
+    exit(resp->exit_status());
   } else {
     if (resp->has_debug_level()) {
       debug_level = resp->debug_level();

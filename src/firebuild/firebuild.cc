@@ -22,7 +22,7 @@
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
-#include "common/debug.h"
+#include "firebuild/debug.h"
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/process_factory.h"

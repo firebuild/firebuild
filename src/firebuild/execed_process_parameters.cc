@@ -4,7 +4,7 @@
 
 #include "firebuild/execed_process_parameters.h"
 
-#include "common/debug.h"
+#include "firebuild/debug.h"
 
 namespace firebuild {
 

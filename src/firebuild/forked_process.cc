@@ -4,7 +4,7 @@
 
 #include "firebuild/forked_process.h"
 
-#include "common/debug.h"
+#include "firebuild/debug.h"
 
 namespace firebuild {
 

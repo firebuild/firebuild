@@ -9,12 +9,11 @@
 
 namespace firebuild {
 
-/** Send error message to supervisor or print error message in supervisor */
+/** Print error message */
 void fb_error(const std::string &msg);
 
 /**
- * Send debug message to supervisor or print debug message in supervisor
- * if debug level is at least lvl
+ * Print debug message if debug level is at least lvl
  */
 #define FB_DEBUG(lvl, msg) if (lvl <= firebuild::debug_level) \
     firebuild::fb_debug(msg)

@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "common/debug.h"
+#include "firebuild/debug.h"
 #include "firebuild/hash.h"
 
 #define BLOBS_SUBDIR "blobs"
