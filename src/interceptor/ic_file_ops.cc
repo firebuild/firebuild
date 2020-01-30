@@ -22,7 +22,6 @@
 #include <cstdio>
 #include <cwchar>
 
-#include "common/debug.h"
 #include "interceptor/intercept.h"
 #include "fb-messages.pb.h"
 #include "firebuild/platform.h"

@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-#include "common/debug.h"
+#include "firebuild/debug.h"
 
 namespace firebuild  {
 

@@ -1,6 +1,7 @@
 find_package(LibConfig REQUIRED)
 
 add_executable(firebuild
+  debug.cc
   firebuild.cc
   process.cc
   execed_process.cc

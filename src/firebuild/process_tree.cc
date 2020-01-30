@@ -9,7 +9,7 @@
 #include <stdexcept>
 #include <limits>
 
-#include "common/debug.h"
+#include "firebuild/debug.h"
 
 namespace firebuild {
 

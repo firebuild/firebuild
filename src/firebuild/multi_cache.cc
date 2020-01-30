@@ -36,7 +36,7 @@
 
 #include <google/protobuf/text_format.h>
 
-#include "common/debug.h"
+#include "firebuild/debug.h"
 #include "firebuild/hash.h"
 
 #define BLOBS_SUBDIR "blobs"
