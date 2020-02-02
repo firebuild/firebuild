@@ -75,7 +75,13 @@ class Process {
   void update_rusage(int64_t utime_u, int64_t stime_u);
   void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
-  std::vector<FileFD*> fds() {return fds_;}
+  FileFD* fd(int f) {
+    try {
+      return fds_.at(f);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
 
   /**
    * Handle file opening in the monitored process
