@@ -36,7 +36,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
                              const std::string &executable,
                              Process * exec_parent)
-    : Process(pid, ppid, cwd, exec_parent), can_shortcut_(true),
+    : Process(pid, ppid, cwd, exec_parent, true), can_shortcut_(true),
       exec_parent_(exec_parent), sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_() {
@@ -44,16 +44,6 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     // add as exec child of parent
     exec_parent->set_exec_child(this);
     exec_parent->set_state(FB_PROC_EXECED);
-
-    /* Process's constructor copied all the FDs, now let's close the
-     * ones that did not survive the exec. */
-    // FIXME don't copy them in the first place. */
-    for (unsigned int i = 0; i < fds().size(); i++) {
-      if (fds()[i]->cloexec()) {
-        delete fds()[i];
-        fds()[i] = NULL;
-      }
-    }
   }
 }
 
