@@ -17,14 +17,14 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const std::string &wd,
-                 Process * parent)
+                 Process * parent, bool execed)
     : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
       ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
       running_system_cmds_(), expected_children_(), exec_child_(NULL) {
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
-      if (parent->fds_.at(i)) {
+      if (parent->fds_.at(i) && ! (execed && !parent->fds_[i]->cloexec())) {
         fds_.resize(i + 1);
         fds_[i] = parent->fds_.at(i)->inherit(this);
       }
