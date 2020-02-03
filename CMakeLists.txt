@@ -40,6 +40,8 @@ foreach(FLAG ${TENTATIVE_C_CXX_FLAGS})
 endforeach()
 
 if(COVERAGE)
+  # minimal (lines) coverage
+  set(MIN_COVERAGE "65")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fprofile-arcs -ftest-coverage")
   set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -g -fprofile-arcs -ftest-coverage")
 endif(COVERAGE)
@@ -62,7 +64,7 @@ endif(DOXYGEN_FOUND)
 
 if(COVERAGE)
   add_custom_target(coverage_info
-    sh -c "find . -name *.gcno | while read f ; do cp \$f $(dirname $f| xargs dirname | xargs dirname)/$(basename $f) ; done ; lcov -c -d . --no-external -o tmp.info && lcov -r tmp.info -o coverage.info '*fb-messages*' '*test_exec.c*' -o coverage.info && genhtml coverage.info"
+    sh -c "find . -name *.gcno | while read f ; do cp \$f $(dirname $f| xargs dirname | xargs dirname)/$(basename $f) ; done ; lcov -c -d . --no-external -o tmp.info && lcov -r tmp.info -o coverage.info '*fb-messages*' '*test_exec.c*' -o coverage.info && genhtml coverage.info && lcov  --summary coverage.info  2>&1 | grep '^  lines' | sed 's/  lines\\.*: \\([^%]*\\)%.*/\\1 >= ${MIN_COVERAGE}/' | bc | xargs test 1 -eq"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating coverage report with lcov" VERBATIM)
 endif(COVERAGE)
