@@ -24,7 +24,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
       running_system_cmds_(), expected_children_(), exec_child_(NULL) {
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
-      if (parent->fds_.at(i) && ! (execed && !parent->fds_[i]->cloexec())) {
+      if (parent->fds_.at(i) && ! (execed && parent->fds_[i]->cloexec())) {
         fds_.resize(i + 1);
         fds_[i] = parent->fds_.at(i)->inherit(this);
       }
