@@ -19,11 +19,9 @@ namespace firebuild {
 class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
-                         const std::string &executable, Process * exec_parent);
+                         const std::string &executable, Process * parent);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
-  void set_exec_parent(Process *p) {exec_parent_ = p;}
-  Process* exec_parent() {return exec_parent_;}
   int64_t sum_utime_u() const {return sum_utime_u_;}
   void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
   int64_t sum_stime_u() const {return sum_stime_u_;}
@@ -74,8 +72,8 @@ class ExecedProcess : public Process {
       assert(cant_shortcut_proc_ == NULL);
       cant_shortcut_proc_ = p ? p : this;
       FB_DEBUG(1, "Command \"" + executable_ + "\" can't be short-cut due to: " + reason);
-      if (exec_parent_) {
-        exec_parent_->disable_shortcutting(reason, cant_shortcut_proc_);
+      if (parent()) {
+        parent()->disable_shortcutting(reason, cant_shortcut_proc_);
       }
     }
   }
@@ -88,7 +86,6 @@ class ExecedProcess : public Process {
 
  private:
   bool can_shortcut_:1;
-  Process *exec_parent_ = NULL;
   /// Sum of user time in microseconds for all forked but not exec()-ed children
   int64_t sum_utime_u_ = 0;
   /// Sum of system time in microseconds for all forked but not exec()-ed

@@ -9,12 +9,11 @@
 namespace firebuild {
 
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
-                             Process* fork_parent)
-    : Process(pid, ppid, (fork_parent)?fork_parent->wd():"", fork_parent),
-      fork_parent_(fork_parent) {
+                             Process* parent)
+    : Process(pid, ppid, (parent)?parent->wd():"", parent) {
   // add as fork child of parent
-  if (fork_parent) {
-    fork_parent->children().push_back(this);
+  if (parent) {
+    parent->children().push_back(this);
   } else {
     fb_error("impossible: Process without known fork parent\n");
   }

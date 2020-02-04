@@ -35,8 +35,8 @@ void ProcessTree::insert(Process *p, const int sock) {
 void ProcessTree::insert(ExecedProcess *p, const int sock) {
   if (root_ == NULL) {
     root_ = p;
-  } else if (NULL == p->exec_parent()) {
-    // root's exec_parent is firebuild which is not in the tree.
+  } else if (NULL == p->parent()) {
+    // root's parent is firebuild which is not in the tree.
     // If any other parent is missing, FireBuild missed process
     // that can happen due to the missing process(es) being statically built
     fb_error("TODO(rbalint) handle: Process without known exec parent\n");

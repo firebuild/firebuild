@@ -18,7 +18,7 @@ static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const std::string &wd,
                  Process * parent, bool execed)
-    : state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
+    : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++), pid_(pid),
       ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
       running_system_cmds_(), expected_children_(), exec_child_(NULL) {
