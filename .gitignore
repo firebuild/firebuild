@@ -12,6 +12,7 @@ Doxyfile
 Makefile
 build/
 cmake_install.cmake
+data/d3.v5.min.js
 fb-messages.pb.cc
 fb-messages.pb.h
 src/firebuild/firebuild
