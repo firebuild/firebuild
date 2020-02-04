@@ -40,6 +40,9 @@ class Process {
           Process* parent, bool execed = false);
   virtual ~Process();
   bool operator == (Process const & p) const;
+  void set_parent(Process *p) {parent_ = p;}
+  Process* parent() {return parent_;}
+  const Process* parent() const {return parent_;}
   virtual bool exec_started() const {return false;}
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
@@ -163,6 +166,7 @@ class Process {
                                  unsigned int *nodeid);
 
  private:
+  Process *parent_;
   process_state state_ :2;
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid

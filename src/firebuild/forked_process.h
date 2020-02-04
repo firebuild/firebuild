@@ -16,46 +16,43 @@ namespace firebuild {
 
 class ForkedProcess : public Process {
  public:
-  explicit ForkedProcess(const int pid, const int ppid, Process* fork_parent);
-  void set_fork_parent(Process *p) {fork_parent_ = p;}
-  Process* fork_parent() {return fork_parent_;}
+  explicit ForkedProcess(const int pid, const int ppid, Process* parent);
   /**
    * Fail to change to a working directory
    */
   void fail_wd(const std::string &d) {
-    assert(fork_parent_ != NULL);
-    fork_parent_->fail_wd(d);
+    assert(parent() != NULL);
+    parent()->fail_wd(d);
   }
   /**
    * Record visited working directory
    */
   void add_wd(const std::string &d) {
-    assert(fork_parent_ != NULL);
-    fork_parent_->add_wd(d);
+    assert(parent() != NULL);
+    parent()->add_wd(d);
   }
   std::set<std::string>& libs() {
-    assert(fork_parent_ != NULL);
-    return fork_parent_->libs();
+    assert(parent() != NULL);
+    return parent()->libs();
   }
   const std::unordered_map<std::string, FileUsage*>& file_usages() const {
-    assert(fork_parent_ != NULL);
-    return fork_parent_->file_usages();
+    assert(parent() != NULL);
+    return parent()->file_usages();
   }
   std::unordered_map<std::string, FileUsage*>& file_usages() {
     return const_cast<std::unordered_map<std::string, FileUsage*>&>
         (static_cast<const ForkedProcess*>(this)->file_usages());
   }
-  Process* exec_proc() const {return fork_parent_->exec_proc();};
+  Process* exec_proc() const {return parent()->exec_proc();};
   int64_t sum_rusage_recurse() {
     set_aggr_time(utime_u() + stime_u());
     return Process::sum_rusage_recurse();
   }
 
  private:
-  Process *fork_parent_;
   virtual void propagate_exit_status(const int) {}
   virtual void disable_shortcutting(const std::string &reason, const Process *p) {
-    fork_parent_->disable_shortcutting(reason, p ? p : this);
+    parent()->disable_shortcutting(reason, p ? p : this);
   }
   virtual bool can_shortcut() const {return false;}
   virtual bool can_shortcut() {return false;}

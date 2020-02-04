@@ -22,7 +22,7 @@ namespace firebuild {
 class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(const msg::ForkChild &fc,
-                                         Process * const fork_parent);
+                                         Process * const parent);
   static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq,
                                          Process * parent);
 

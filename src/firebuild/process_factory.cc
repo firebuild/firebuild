@@ -7,8 +7,8 @@
 namespace firebuild {
 
 ForkedProcess* ProcessFactory::getForkedProcess(const msg::ForkChild &fc,
-                                                Process * const fork_parent) {
-  auto f = new ForkedProcess(fc.pid(), fc.ppid(), fork_parent);
+                                                Process * const parent) {
+  auto f = new ForkedProcess(fc.pid(), fc.ppid(), parent);
   return f;
 }
 

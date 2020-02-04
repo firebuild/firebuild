@@ -35,23 +35,23 @@ static std::string escapeJsonString(const std::string& input) {
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
                              const std::string &executable,
-                             Process * exec_parent)
-    : Process(pid, ppid, cwd, exec_parent, true), can_shortcut_(true),
-      exec_parent_(exec_parent), sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
+                             Process * parent)
+    : Process(pid, ppid, cwd, parent, true), can_shortcut_(true),
+      sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_() {
-  if (NULL != exec_parent) {
+  if (NULL != parent) {
     // add as exec child of parent
-    exec_parent->set_exec_child(this);
-    exec_parent->set_state(FB_PROC_EXECED);
+    parent->set_exec_child(this);
+    parent->set_state(FB_PROC_EXECED);
   }
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {
-  if (exec_parent_) {
-    exec_parent_->set_exit_status(status);
-    exec_parent_->set_state(FB_PROC_FINISHED);
-    exec_parent_->propagate_exit_status(status);
+  if (parent()) {
+    parent()->set_exit_status(status);
+    parent()->set_state(FB_PROC_FINISHED);
+    parent()->propagate_exit_status(status);
   }
 }
 
@@ -72,11 +72,11 @@ int64_t ExecedProcess::sum_rusage_recurse() {
   sum_utime_u_ = 0;
   sum_stime_u_ = 0;
   sum_rusage(&sum_utime_u_, &sum_stime_u_);
-  if (exec_parent_ && exec_parent_->pid() == pid()) {
-    sum_utime_u_ -= exec_parent_->utime_u();
-    sum_stime_u_ -= exec_parent_->stime_u();
-    aggr_time -= exec_parent_->utime_u();
-    aggr_time -= exec_parent_->stime_u();
+  if (parent() && parent()->pid() == pid()) {
+    sum_utime_u_ -= parent()->utime_u();
+    sum_stime_u_ -= parent()->stime_u();
+    aggr_time -= parent()->utime_u();
+    aggr_time -= parent()->stime_u();
   }
   set_aggr_time(aggr_time);
   return Process::sum_rusage_recurse();
