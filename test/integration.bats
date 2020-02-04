@@ -25,9 +25,9 @@
       [ "$result" = "$(seq 10000 | grep ^9)" ]
 }
 
-@test "2k parallel echo-s" {
-      result="$(./run-firebuild -- parallel -j 2000 echo -- $(seq 1 2000))"
-      [ "$(echo "$result" | sort)" = "$(seq 1 2000 | sort)" ]
+@test "1500 parallel sleeps" {
+      result=$(./run-firebuild -- bash -c 'for i in $(seq 1500); do sleep 2 & done;  wait < <(jobs -p)')
+      [ "$result" = "" ]
 }
 
 @test "system()" {
