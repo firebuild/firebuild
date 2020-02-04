@@ -1,3 +1,6 @@
+PROTOBUF_GENERATE_CPP(PROTO_CACHE_SRCS PROTO_CACHE_HDRS msg/fb-cache.proto)
+set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-fPIC -Wno-effc++ -Wno-unused-parameter")
+
 find_package(LibConfig REQUIRED)
 
 add_executable(firebuild
@@ -15,5 +18,7 @@ add_executable(firebuild
   file_db.cc
   cache.cc
   multi_cache.cc
+  ${PROTO_CACHE_SRCS}
+  ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} xxhash)

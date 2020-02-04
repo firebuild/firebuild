@@ -1,4 +1,4 @@
-set_source_files_properties(intercept.cc PROPERTIES OBJECT_DEPENDS ${PROTO_HDRS})
+set_source_files_properties(intercept.cc PROPERTIES OBJECT_DEPENDS ${PROTO_MESSAGES_HDRS})
 
 add_library(fbintercept MODULE
   intercept.cc
