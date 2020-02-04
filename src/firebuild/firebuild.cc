@@ -297,7 +297,6 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     // FIXME(rbalint) check execv parameter and record what needs to be
     // checked when shortcutting the process
     proc = proc;
-  } else if (ic_msg.has_proc()) {
   } else if (ic_msg.has_exit() ||
              ic_msg.has_execv() ||
              ic_msg.has_system() ||
