@@ -1,5 +1,5 @@
 PROTOBUF_GENERATE_CPP(PROTO_CACHE_SRCS PROTO_CACHE_HDRS msg/fb-cache.proto)
-set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-fPIC -Wno-effc++ -Wno-unused-parameter")
+set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-effc++ -Wno-unused-parameter")
 
 find_package(LibConfig REQUIRED)
 
