@@ -28,10 +28,11 @@
       [ -z "$(cat stderr)" ]
 }
 
-@test "1500 parallel sleeps" {
-      result=$(./run-firebuild -- bash -c 'for i in $(seq 1500); do sleep 2 & done;  wait < <(jobs -p)' 2>stderr)
+@test "parallel sleeps" {
+      # TODO (rbalint) firebuild needs to gracefully handle when it is out of file descriptors
+      result=$(./run-firebuild -- bash -c 'for i in $(seq 200); do sleep 2 & done;  wait < <(jobs -p)' 2>stderr)
       [ "$result" = "" ]
-      [ -z "$(grep -v 'accept: Too many open files' stderr)" ] # TODO (rbalint) firebuild can't accept enough sockets
+      [ -z "$(cat stderr)" ]
 }
 
 @test "system()" {
