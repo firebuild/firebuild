@@ -77,6 +77,7 @@ class FileFD {
   /**
    * Create new fd dup()-d from this one
    * @param fd fd number of result
+   * @param p process that called dup()
    */
   FileFD* dup(const int fd, Process * const p) {
     return new FileFD (fd, curr_flags_, FD_ORIGIN_INHERITED, this, p);

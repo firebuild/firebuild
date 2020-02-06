@@ -99,7 +99,7 @@ static std::string construct_cached_file_name(const std::string &base,
  * Uses advanced technologies, such as copy on write, if available.
  *
  * @param path The file to place in the cache
- * @param hash_out Optionally store the key (hash) here
+ * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
 bool Cache::store_file(const std::string &path,

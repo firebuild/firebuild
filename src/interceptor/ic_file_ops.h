@@ -125,6 +125,7 @@ IC_FOPEN(fopen)
 IC_FOPEN(fopen64)
 
 /* libc internal */
+/** @cond INTERNAL */
 IC(int, __libc_start_main, (int (*main)(int, char **, char **),
                             int argc, char **ubp_av,
                             void (*init)(void), void (*fini) (void),
@@ -138,6 +139,7 @@ IC(int, __libc_start_main, (int (*main)(int, char **, char **),
             rtld_fini, stack_end);
     assert(0 && "fake_main must not return");
   })
+/** @endcond */
 
 /*  covered in unistd.h: lockf lockf64 */
 

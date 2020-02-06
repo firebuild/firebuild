@@ -140,6 +140,7 @@ class Process {
    * @param cmd fcntl's cmd parameter
    * @param arg fcntl's arg parameter
    * @param ret fcntl's return value
+   * @param error errno set by fcntl
    * @return 0 on success, -1 on failure
    */
   int handle_fcntl(const int fd, const int cmd, const int arg,
