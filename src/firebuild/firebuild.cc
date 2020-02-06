@@ -26,6 +26,7 @@
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/debug.h"
+#include "firebuild/execed_process_cacher.h"
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
@@ -33,8 +34,9 @@
 #include "fb-messages.pb.h"
 
 /* Globals */
-firebuild::Cache *cache;
-firebuild::MultiCache *multi_cache;
+
+/* Like CCACHE_READONLY: Don't store new results in the cache. */
+bool firebuild_readonly = false;
 
 namespace {
 
@@ -70,6 +72,7 @@ static bool insert_trace_markers = false;
 static bool generate_report = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
+static firebuild::ExecedProcessCacher *cacher;
 
 /** global configuration */
 libconfig::Config * cfg;
@@ -329,7 +332,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     /* Add the ExecedProcess. */
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
-            ic_msg.scproc_query(), parent);
+            ic_msg.scproc_query(), parent, cacher);
     proc_tree->insert(proc, fd_conn);
 
     fingerprint_process(proc, ic_msg.scproc_query());
@@ -768,6 +771,9 @@ int main(const int argc, char *argv[]) {
 
   parse_cfg_file(config_file);
 
+  // Initialize globals
+  firebuild_readonly = (getenv("FIREBUILD_READONLY") != NULL);
+
   // Initialize the cache
   std::string cache_dir;
   const char *cache_dir_env = getenv("FIREBUILD_CACHE_DIR");
@@ -790,8 +796,9 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  cache = new firebuild::Cache(cache_dir + "/blobs");
-  multi_cache = new firebuild::MultiCache(cache_dir + "/pbs");
+  auto cache = new firebuild::Cache(cache_dir + "/blobs");
+  auto multi_cache = new firebuild::MultiCache(cache_dir + "/pbs");
+  cacher = new firebuild::ExecedProcessCacher(cache, multi_cache);
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.

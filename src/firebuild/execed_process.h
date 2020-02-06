@@ -17,10 +17,13 @@
 
 namespace firebuild {
 
+class ExecedProcessCacher;
+
 class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
-                         const std::string &executable, Process * parent);
+                         const std::string &executable, Process * parent,
+                         ExecedProcessCacher *cacher);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
@@ -44,6 +47,8 @@ class ExecedProcess : public Process {
   const std::set<std::string>& libs() const {return libs_;}
   std::set<std::string>& libs() {return libs_;}
   std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;}
+  const std::unordered_map<std::string, FileUsage*>& file_usages() const {return file_usages_;}
+  void do_finalize();
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
   void exit_result(const int status, const int64_t utime_u,
                    const int64_t stime_u);
@@ -111,12 +116,15 @@ class ExecedProcess : public Process {
   std::unordered_map<std::string, FileUsage*> file_usages_;
   /// Fingerprint of the process
   Hash fingerprint_;
+  void store_in_cache();
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";
   /// Process the event preventing short-cutting happened in
   const Process *cant_shortcut_proc_ = NULL;
   virtual bool can_shortcut() const {return can_shortcut_;}
   virtual bool can_shortcut() {return can_shortcut_;}
+  /// Helper object for storing in cache
+  ExecedProcessCacher *cacher_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 

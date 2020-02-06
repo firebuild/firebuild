@@ -119,10 +119,12 @@ message ProcessOutputs {
     // link, symlink
     // chown, chmod
     // etc.
+
+    required int32 exit_status = 3;
 }
 
 message ProcessInputsOutputs {
-    required ProcessInputs inputs = 1;
+    optional ProcessInputs inputs = 1;
     required ProcessOutputs outputs = 2;
 }
 
