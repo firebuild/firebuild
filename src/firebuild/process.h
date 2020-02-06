@@ -13,7 +13,6 @@
 #include <algorithm>
 
 #include "firebuild/file_fd.h"
-#include "firebuild/file_usage.h"
 #include "firebuild/execed_process_parameters.h"
 #include "firebuild/cxx_lang_utils.h"
 
@@ -94,9 +93,6 @@ class Process {
   std::string& wd() {return wd_;}
   void set_wd(const std::string &d);
   virtual std::set<std::string>& libs() = 0;
-  virtual const std::unordered_map<std::string, FileUsage*>&
-      file_usages() const = 0;
-  virtual std::unordered_map<std::string, FileUsage*>& file_usages() = 0;
   int64_t utime_u() const {return utime_u_;}
   void set_utime_u(int64_t t) {utime_u_ = t;}
   int64_t stime_u() const {return stime_u_;}

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "firebuild/file_usage.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
@@ -42,13 +43,7 @@ class ExecedProcess : public Process {
   std::string& executable() {return executable_;}
   const std::set<std::string>& libs() const {return libs_;}
   std::set<std::string>& libs() {return libs_;}
-  const std::unordered_map<std::string, FileUsage*>& file_usages() const {
-    return file_usages_;
-  }
-  std::unordered_map<std::string, FileUsage*>& file_usages() {
-    return const_cast<std::unordered_map<std::string, FileUsage*>&>
-        (static_cast<const ExecedProcess*>(this)->file_usages());
-  }
+  std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;}
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
   void exit_result(const int status, const int64_t utime_u,
                    const int64_t stime_u);

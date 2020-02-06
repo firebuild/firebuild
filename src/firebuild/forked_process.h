@@ -39,14 +39,6 @@ class ForkedProcess : public Process {
     assert(parent() != NULL);
     return parent()->libs();
   }
-  const std::unordered_map<std::string, FileUsage*>& file_usages() const {
-    assert(parent() != NULL);
-    return parent()->file_usages();
-  }
-  std::unordered_map<std::string, FileUsage*>& file_usages() {
-    return const_cast<std::unordered_map<std::string, FileUsage*>&>
-        (static_cast<const ForkedProcess*>(this)->file_usages());
-  }
   Process* exec_proc() const {return parent()->exec_proc();};
   int64_t sum_rusage_recurse() {
     set_aggr_time(utime_u() + stime_u());
