@@ -19,6 +19,8 @@
 
 namespace firebuild {
 
+class ExecedProcess;
+
 typedef enum {FB_PROC_RUNNING,   ///< process is running
               FB_PROC_EXECED,    ///< process finished running by exec()
               FB_PROC_FINISHED,  ///< process exited without exec() (exit, or crash on signal)
@@ -43,6 +45,14 @@ class Process {
   void set_parent(Process *p) {parent_ = p;}
   Process* parent() {return parent_;}
   const Process* parent() const {return parent_;}
+  /** The nearest ExecedProcess upwards in the tree, including "this".
+   *  Guaranteed to be non-NULL. */
+  virtual ExecedProcess* exec_point() = 0;
+  virtual const ExecedProcess* exec_point() const = 0;
+  /** The nearest ExecedProcess upwards in the tree, excluding "this".
+   *  Same as the parent's exec_point, with safe NULL handling. */
+  ExecedProcess* parent_exec_point() {return parent()?parent()->exec_point():NULL;}
+  const ExecedProcess* parent_exec_point() const {return parent()?parent()->exec_point():NULL;}
   virtual bool exec_started() const {return false;}
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}

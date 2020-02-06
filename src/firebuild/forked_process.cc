@@ -13,6 +13,7 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
     : Process(pid, ppid, (parent)?parent->wd():"", parent) {
   // add as fork child of parent
   if (parent) {
+    exec_point_ = parent->exec_point();
     parent->children().push_back(this);
   } else {
     fb_error("impossible: Process without known fork parent\n");

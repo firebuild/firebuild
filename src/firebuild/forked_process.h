@@ -14,9 +14,13 @@
 
 namespace firebuild {
 
+class ExecedProcess;
+
 class ForkedProcess : public Process {
  public:
   explicit ForkedProcess(const int pid, const int ppid, Process* parent);
+  ExecedProcess* exec_point() {return exec_point_;}
+  const ExecedProcess* exec_point() const {return exec_point_;}
   /**
    * Fail to change to a working directory
    */
@@ -50,6 +54,7 @@ class ForkedProcess : public Process {
   }
 
  private:
+  ExecedProcess *exec_point_ {};
   virtual void propagate_exit_status(const int) {}
   virtual void disable_shortcutting(const std::string &reason, const Process *p) {
     parent()->disable_shortcutting(reason, p ? p : this);
