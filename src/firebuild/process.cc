@@ -7,8 +7,8 @@
 #include <unistd.h>
 
 #include "firebuild/file.h"
-#include "firebuild/file_db.h"
 #include "firebuild/platform.h"
+#include "firebuild/execed_process.h"
 #include "firebuild/execed_process_parameters.h"
 #include "firebuild/debug.h"
 
@@ -85,45 +85,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
   const std::string name = (platform::path_is_absolute(ar_name))?(ar_name):
       (wd_ + "/" + ar_name);
 
-  FileUsage *fu;
-  if (file_usages().count(name) > 0) {
-    // the process already used this file
-    fu = file_usages()[name];
-  } else {
-    fu = new FileUsage(flags, mode, created, false, open_failed, error);
-    file_usages()[name] = fu;
-  }
-
-  // record unhandled errors
-  if (fd == -1) {
-    switch (error) {
-      case ENOENT:
-        break;
-      default:
-        if (0 == fu->unknown_err()) {
-          fu->set_unknown_err(error);
-          disable_shortcutting("Unknown error (" + std::to_string(error) + ") opening file " +
-                               name);
-        }
-    }
-  }
-
-  File *f;
-  {
-    auto *fdb = FileDB::getInstance();
-    if (fdb->count(name) > 0) {
-      // the build process already used this file
-      f = (*fdb)[name];
-    } else {
-      f = new File(name);
-      (*fdb)[name] = f;
-    }
-  }
-
-  f->update();
-  if (!created) {
-    fu->set_initial_hash(f->hash());
-  }
+  exec_point()->register_file_usage(name, flags, mode, created, open_failed, error);
 
   if (fd >= 0) {
     add_filefd(fd, new FileFD(name, fd, flags, this));
