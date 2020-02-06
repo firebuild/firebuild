@@ -12,13 +12,17 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
-        sudo apt-get -y install bats cmake graphviz lcov libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils valgrind
+        sudo apt-get -y install bats cmake doxygen graphviz lcov libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils valgrind
     - name: build-out-of-tree
       run: |
         mkdir build
         cd build
         cmake ..
         make
+    - name: doc
+      run: |
+        cd build
+        doxygen
     - name: build-in-tree
       run: |
         cmake .
