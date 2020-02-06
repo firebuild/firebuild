@@ -16,15 +16,15 @@ message FileContent {
 
 // File state
 message File {
+    // file path, absolute or relative
+    optional bytes path = 1;
+
     // checksum (binary) of the file content, unset if file is not found
-    optional bytes hash = 1;
+    optional bytes hash = 2;
 
     // TODO add alternate hash values generated after preprocessing the file
     // with programs keeping the semantic content (e.g. removing white spaces)
-    //repeated AltHash alt_hash = 2;
-
-    // file path, absolute or relative
-    optional bytes path = 3;
+    //repeated AltHash alt_hash = 3;
 
     // last modification time
     optional int64 mtime = 4;
@@ -34,6 +34,9 @@ message File {
 
     // TODO refine mode
     optional int32 mode = 6;
+
+    // The reason why the file could not be opened.
+    optional int32 error_no = 7;
 }
 
 message Dir {
@@ -46,45 +49,97 @@ message EnvVar {
     required bytes value = 2;
 }
 
-message Process {
-    // process id
-    optional int64 pid = 23;
-    // Checksum (binary) of process and children
-    optional bytes hash = 24;
-    // program file
-    required File executable = 6;
+// Properties of a process that are known when it starts up, and are
+// expected to be the same across identical launches. These take a key
+// part in deciding whether it can be shortcutted. This includes command
+// line flags, selected environment variables and such. Things that are
+// expected to change across runs, e.g. pid, ppid, $FB_SOCKET etc. are
+// not included here. Things that only become known while the process is
+// running, such as the files it reads, aren't included either.
+message ProcessDescription {
+    // Program file
+    required File executable = 1;
 
-    // command parameters, starting with name of the command
-    repeated bytes command = 8;
+    // Libraries loaded upon startup
+    repeated File libs = 2;
 
-    required bytes exec_dir = 7;
+    // Command parameters, starting with name of the command
+    repeated bytes arg = 3;
 
-    // exit status of the process
-    optional int32 exit_status = 4;
+    // Environment variables, filtered (to exclude e.g. $FB_SOCKET)
+    // and sorted to a deterministic order
+    repeated bytes env = 4;
+
+    // The initial working directory
+    required bytes cwd = 5;
 
     // special purpose file descriptors, not having file name
-    optional File stdin = 16;
-    optional File stdout = 17;
-    optional File stderr = 18;
+    //optional File stdin = 6;
+    //optional File stdout = 7;
+    //optional File stderr = 8;
 
-    // all files read by the process
-    repeated File file_read = 1;
+    // Other initially opened file descriptors?
+    // seek positions from fdinfo?
+}
 
-    // all files written by the process
-    repeated File file_written = 2;
+// Things that are read from the external world by the process while
+// it's running, but aren't known in advance that the process will need
+// them. In order to shortcut a process, there has to be a cached entry
+// that matches the current world.
+message ProcessInputs {
+    // Files that are opened for reading, with various results.
+    repeated File file_exist_with_hash = 1;
+    repeated bytes file_exist = 2;
+    repeated bytes file_notexist_or_empty = 3;
+    repeated bytes file_notexist = 4;
 
-    // files not found by the process
-    // if any of those files are present, the result may change
-    repeated File file_not_found = 3;
+    // Files and directories that are stat'ed, even if stat failed.
+    //repeated File file_stated = 5;
 
-    repeated File file_perm_denied = 20;
+    // TODO: Directories that are opendir'ed, even if opendir failed.
+    // FIXME: need to fingerprint the entire directory listing??
+    // repeated Dir dir_listed = 6;
 
-    repeated Dir dir_listed = 21;
+    // TODO: readlink and friends...
+}
 
-    repeated EnvVar env_var = 19;
+// Things that are modified in the external world by the process while
+// it's running.
+message ProcessOutputs {
+    // Files that are written to (or removed), only if opening them for
+    // writing succeeded.
+    repeated File file_with_hash = 1;
+    repeated bytes file_notexist = 2;
+
+    // Maybe special handling of files that are appended to?
+
+    // TODO:
+    // mkdir
+    // unlink, rmdir
+    // link, symlink
+    // chown, chmod
+    // etc.
+}
+
+message ProcessInputsOutputs {
+    required ProcessInputs inputs = 1;
+    required ProcessOutputs outputs = 2;
+}
+
+message Process {
+    // process id
+    optional int64 pid = 1;
+    // Checksum (binary) of process and children
+    optional bytes hash = 2;
+
+    required ProcessDescription descr = 3;
+    required ProcessInputsOutputs inputs_outputs = 4;
+
+    // exit status of the process
+    optional int32 exit_status = 5;
 
     // child processes referenced by checksum (binary)
-    repeated bytes child_hash = 5;
+    repeated bytes child_hash = 6;
     // TODO
     // signals?
     //
