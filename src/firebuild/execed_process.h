@@ -54,6 +54,8 @@ class ExecedProcess : public Process {
                    const int64_t stime_u);
   void set_fingerprint(const Hash& fingerprint) {fingerprint_ = fingerprint;}
   const Hash& fingerprint() const {return fingerprint_;}
+  void register_file_usage(const std::string &name, const int flags, const int mode,
+                           const bool created, const bool open_failed, const int error);
 
   /**
    * Fail to change to a working directory
@@ -69,7 +71,7 @@ class ExecedProcess : public Process {
   }
 
   virtual void propagate_exit_status(const int status);
-  virtual void disable_shortcutting(const std::string &reason, const Process *p) {
+  virtual void disable_shortcutting(const std::string &reason, const Process *p = NULL) {
     if (true == can_shortcut_) {
       can_shortcut_ = false;
       assert(cant_shortcut_reason_ == "");

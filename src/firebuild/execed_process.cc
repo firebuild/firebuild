@@ -7,6 +7,8 @@
 #include <map>
 #include <sstream>
 
+#include "firebuild/file_db.h"
+
 namespace firebuild {
 
 /**
@@ -66,6 +68,60 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
   // store data for shortcutting
   if (can_shortcut()) {
     // TODO(rbalint) store data
+  }
+}
+
+/* Take note that the given file was opened (or at least attempted to),
+ * and propagate it upwards. */
+void ExecedProcess::register_file_usage(const std::string &name,
+                                        const int flags,
+                                        const int mode,
+                                        const bool created,
+                                        const bool open_failed,
+                                        const int error) {
+  FileUsage *fu;
+  if (file_usages().count(name) > 0) {
+    // the process already used this file
+    fu = file_usages()[name];
+  } else {
+    fu = new FileUsage(flags, mode, created, false, open_failed, error);
+    file_usages()[name] = fu;
+  }
+
+  // record unhandled errors
+  if (error != 0) {
+    switch (error) {
+      case ENOENT:
+        break;
+      default:
+        if (0 == fu->unknown_err()) {
+          fu->set_unknown_err(error);
+          disable_shortcutting("Unknown error (" + std::to_string(error) + ") opening file " +
+                               name);
+        }
+    }
+  }
+
+  File *f;
+  {
+    auto *fdb = FileDB::getInstance();
+    if (fdb->count(name) > 0) {
+      // the build process already used this file
+      f = (*fdb)[name];
+    } else {
+      f = new File(name);
+      (*fdb)[name] = f;
+    }
+  }
+
+  f->update();
+  if (!created) {
+    fu->set_initial_hash(f->hash());
+  }
+
+  /* Propagate upwards. */
+  if (parent_exec_point()) {
+    parent_exec_point()->register_file_usage(name, flags, mode, created, open_failed, error);
   }
 }
 
