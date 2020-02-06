@@ -52,6 +52,9 @@ class ExecedProcess : public Process {
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
   void exit_result(const int status, const int64_t utime_u,
                    const int64_t stime_u);
+  void set_fingerprint(const Hash& fingerprint) {fingerprint_ = fingerprint;}
+  const Hash& fingerprint() const {return fingerprint_;}
+
   /**
    * Fail to change to a working directory
    */
@@ -107,6 +110,8 @@ class ExecedProcess : public Process {
   std::set<std::string> libs_;
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<std::string, FileUsage*> file_usages_;
+  /// Fingerprint of the process
+  Hash fingerprint_;
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";
   /// Process the event preventing short-cutting happened in
