@@ -29,6 +29,7 @@
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
+#include "firebuild/fb-cache.pb.h"
 #include "fb-messages.pb.h"
 
 /* Globals */
@@ -231,6 +232,26 @@ static void init_signal_handlers(void) {
   }
 }
 
+static void fingerprint_process(firebuild::ExecedProcess *proc,
+                                const firebuild::msg::ShortCutProcessQuery &scproc_query) {
+  firebuild::msg::ProcessDescription pd_msg;
+  pd_msg.set_cwd(scproc_query.cwd());
+  for (auto arg : scproc_query.arg()) {
+    pd_msg.add_arg(arg);
+  }
+
+  /* Already sorted by the interceptor */
+  for (auto env : scproc_query.env_var()) {
+    pd_msg.add_env(env);
+  }
+
+  // TODO add exe and libs checksums
+
+  firebuild::Hash hash;
+  hash.set_from_protobuf(pd_msg);
+  proc->set_fingerprint(hash);
+}
+
 /**
  * ACK a message from the supervised process
  * @param conn connection file descriptor to send the ACK on
@@ -290,6 +311,9 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         firebuild::ProcessFactory::getExecedProcess(
             ic_msg.scproc_query(), parent);
     proc_tree->insert(proc, fd_conn);
+
+    fingerprint_process(proc, ic_msg.scproc_query());
+
     // TODO(rbalint) look up stored result
 #if 0
     if ( /* can shortcut*/) {

@@ -11,6 +11,7 @@
 #include <sys/resource.h>
 #include <spawn.h>
 
+#include <algorithm>
 #include <cassert>
 #include <cstdarg>
 #include <cstdlib>
@@ -230,8 +231,12 @@ static void fb_ic_init() {
   }
 
   for (auto cursor = env; *cursor != NULL; cursor++) {
-    proc->add_env_var(*cursor);
+    if (strncmp(*cursor, "FB_SOCKET=", strlen("FB_SOCKET=")) != 0) {
+      proc->add_env_var(*cursor);
+    }
   }
+  std::sort(proc->mutable_env_var()->begin(),
+            proc->mutable_env_var()->end());
 
   // get full executable path
   // see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe

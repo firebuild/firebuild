@@ -39,7 +39,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     : Process(pid, ppid, cwd, parent, true), can_shortcut_(true),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_() {
+      libs_(), file_usages_(), fingerprint_() {
   if (NULL != parent) {
     // add as exec child of parent
     parent->set_exec_child(this);
