@@ -21,9 +21,39 @@ namespace firebuild {
 
 class ExecedProcess;
 
-typedef enum {FB_PROC_RUNNING,   ///< process is running
-              FB_PROC_EXECED,    ///< process finished running by exec()
-              FB_PROC_FINISHED,  ///< process exited without exec() (exit, or crash on signal)
+typedef enum {
+  /**
+   * Process is running.
+   */
+  FB_PROC_RUNNING,
+  /**
+   * Process successfully performed an exit() or alike, exec() or alike,
+   * or crashed on signal.
+   *
+   * In case of exec() it lives on with the same Unix PID, but that's a
+   * different Process in our model. Either exec_pending_ is set (the
+   * execed process haven't appeared yet) or exec_child_ is set
+   * (pointing to the execed process).
+   *
+   * In case of exit() or crash it might still be present as a Unix
+   * zombie process, we don't care about that. Neither exec_pending_ nor
+   * exec_child_ are set.
+   */
+  FB_PROC_TERMINATED,
+  /**
+   * The given process, and all its descendants have terminated. None of
+   * the process's parameters can change anymore. Whatever the process
+   * transitively performed is stored in the cache upon entering this
+   * state.
+   *
+   * We don't support runaway forked processes yet. So when the last
+   * process in an exec chain terminates, all processes in the exec
+   * chain enter this state.
+   *
+   * Once support for runaway processes is added, forked descendants
+   * will also have to be waited for before entering this state.
+   */
+  FB_PROC_FINALIZED,
 } process_state;
 
 /**
@@ -73,6 +103,8 @@ class Process {
   void set_stime_u(int64_t t) {stime_u_ = t;}
   int64_t aggr_time() const {return aggr_time_;}
   void set_aggr_time(int64_t t) {aggr_time_ = t;}
+  void set_exec_pending(bool val) {exec_pending_ = val;}
+  bool exec_pending() {return exec_pending_;}
   void set_exec_child(Process *p) {exec_child_ = p;}
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
@@ -83,6 +115,8 @@ class Process {
     return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
   void add_expected_child(const ExecedProcessParameters &ec) {expected_children_.push_back(ec);}
   bool remove_expected_child(const ExecedProcessParameters &ec);
+  virtual void do_finalize();
+  virtual void maybe_finalize();
   void finish();
   virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_u, int64_t stime_u);
@@ -197,6 +231,7 @@ class Process {
   std::multiset<std::string> running_system_cmds_;
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
   std::vector<ExecedProcessParameters> expected_children_;
+  bool exec_pending_ {false};
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */
   void add_filefd(const int fd, FileFD * ffd);

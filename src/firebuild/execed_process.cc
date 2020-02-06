@@ -42,15 +42,17 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       libs_(), file_usages_(), fingerprint_() {
   if (NULL != parent) {
     // add as exec child of parent
+    parent->set_exec_pending(false);
+    parent->set_state(FB_PROC_TERMINATED);
+    // clear a previous exit status, just in case an atexit handler performed the exec
+    parent->set_exit_status(-1);
     parent->set_exec_child(this);
-    parent->set_state(FB_PROC_EXECED);
   }
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {
   if (parent()) {
     parent()->set_exit_status(status);
-    parent()->set_state(FB_PROC_FINISHED);
     parent()->propagate_exit_status(status);
   }
 }
@@ -193,24 +195,17 @@ void ExecedProcess::export2js(const unsigned int level,
   }
   fprintf(stream, "],\n");
 
-  switch (state()) {
-    case FB_PROC_FINISHED: {
-      if (exit_status() != -1)
-        fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
-      __attribute__((fallthrough));
-    }
-    case FB_PROC_EXECED: {
-      fprintf(stream, "%s utime_u: %lu,\n", indent, utime_u());
-      fprintf(stream, "%s stime_u: %lu,\n", indent, stime_u());
-      fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_time());
-      fprintf(stream, "%s sum_utime_u: %lu,\n", indent, sum_utime_u());
-      fprintf(stream, "%s sum_stime_u: %lu,\n", indent, sum_stime_u());
-      __attribute__((fallthrough));
-    }
-    case FB_PROC_RUNNING: {
-      // something went wrong
-    }
+  if (state() != FB_PROC_FINALIZED) {
+    // something went wrong
   }
+  if (exit_status() != -1) {
+    fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
+  }
+  fprintf(stream, "%s utime_u: %lu,\n", indent, utime_u());
+  fprintf(stream, "%s stime_u: %lu,\n", indent, stime_u());
+  fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_time());
+  fprintf(stream, "%s sum_utime_u: %lu,\n", indent, sum_utime_u());
+  fprintf(stream, "%s sum_stime_u: %lu,\n", indent, sum_stime_u());
 }
 
 ExecedProcess::~ExecedProcess() {

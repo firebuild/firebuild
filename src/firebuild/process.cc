@@ -291,6 +291,37 @@ bool Process::remove_expected_child(const ExecedProcessParameters &ec) {
   }
 }
 
+/**
+ * Finalize the current process.
+ */
+void Process::do_finalize() {
+  assert(state() == FB_PROC_TERMINATED);
+  set_state(FB_PROC_FINALIZED);
+}
+
+/**
+ * Finalize the current process if possible, and if successful then
+ * bubble it up.
+ */
+void Process::maybe_finalize() {
+  if (state() != FB_PROC_TERMINATED) {
+    return;
+  }
+  if (exec_pending()) {
+    /* A child is yet to appear. We're not ready to finalize. */
+    return;
+  }
+  if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
+    /* The exec child is not yet finalized. We're not ready to finalize either. */
+    // TODO check for forked children in order to handle runaway processes
+    return;
+  }
+  do_finalize();
+  if (parent()) {
+    parent()->maybe_finalize();
+  }
+}
+
 void Process::finish() {
   if (FB_DEBUGGING(FB_DEBUG_PROC) && !expected_children_.empty()) {
     FB_DEBUG(FB_DEBUG_PROC, "Expected system()/popen()/posix_spawn() children that did not appear"
@@ -299,7 +330,8 @@ void Process::finish() {
       FB_DEBUG(FB_DEBUG_PROC, "  " + to_string(ec));
     }
   }
-  set_state(FB_PROC_FINISHED);
+  set_state(FB_PROC_TERMINATED);
+  maybe_finalize();
 }
 
 int64_t Process::sum_rusage_recurse() {
