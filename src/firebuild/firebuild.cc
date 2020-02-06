@@ -292,7 +292,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
 
       /* Add a ForkedProcess for the forked child we never directly saw. */
       parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent);
-      parent->set_state(firebuild::FB_PROC_FINISHED);
+      parent->set_state(firebuild::FB_PROC_TERMINATED);
+      // FIXME set exec_child_ ???
       proc_tree->insert(parent, -1);
 
       /* Verify that the child was expected. */
@@ -373,6 +374,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     // FIXME(rbalint) check execv parameter and record what needs to be
     // checked when shortcutting the process
     proc = proc;
+    proc->set_exec_pending(false);
   } else if (ic_msg.has_exit() ||
              ic_msg.has_execv() ||
              ic_msg.has_system() ||
@@ -448,6 +450,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         proc->update_rusage(ic_msg.execv().utime_u(),
                             ic_msg.execv().stime_u());
         // FIXME(rbalint) save execv parameters
+        proc->set_exec_pending(true);
       } else if (ic_msg.has_open()) {
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.open());
       } else if (ic_msg.has_close()) {
