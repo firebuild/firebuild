@@ -129,6 +129,7 @@ class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldVa
  *
  * @param key The key
  * @param msg The protobuf to store
+ * @param debug_header string prepended to debug lines
  * @param subkey_out Optionally store the subkey (hash of the protobuf) here
  * @return Whether succeeded
  */
