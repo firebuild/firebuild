@@ -71,58 +71,78 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
   }
 }
 
-/* Take note that the given file was opened (or at least attempted to),
- * and propagate it upwards. */
-void ExecedProcess::register_file_usage(const std::string &name,
+/**
+ * This is called on file operation methods, for all the ExecedProcess
+ * ancestors, excluding the exec_point where the file operation
+ * occurred. The method does the necessary administration, and bubbles
+ * it upwards to the root.
+ *
+ * In case of non-shortcutted processes, in the exec_point the method
+ * register_file_usage() performed the necessary administration before
+ * beginning to bubble up this event.
+ *
+ * In case of shortcutted processes, it's the shortcutting itself that
+ * performs the file operations, no administration is necessary there.
+ */
+void ExecedProcess::propagate_file_usage(const std::string &name,
+                                         const FileUsage &fu_change) {
+  FileUsage *fu;
+  if (file_usages().count(name) > 0) {
+    fu = file_usages()[name];
+  } else {
+    fu = new FileUsage();
+    file_usages()[name] = fu;
+  }
+  fu->merge(fu_change);
+  if (parent_exec_point()) {
+    parent_exec_point()->propagate_file_usage(name, fu_change);
+  }
+}
+
+/**
+ * This is called on the exec_point of a non-shortcutted process when an
+ * open() or similar call is intercepted. Converts the input into a
+ * FileUsage, stat'ing the file, computing its checksum if necessary.
+ * Registers the file operation, and bubbles it upwards to the root via
+ * propagate_file_usage().
+ */
+bool ExecedProcess::register_file_usage(const std::string &name,
                                         const int flags,
-                                        const int mode,
-                                        const bool created,
-                                        const bool open_failed,
                                         const int error) {
   FileUsage *fu;
   if (file_usages().count(name) > 0) {
-    // the process already used this file
+    /* The process already used this file. The initial state was already
+     * recorded. We create a new FileUsage object which represents the
+     * modifications to apply currently, which is at most the written_
+     * flag, and then we propagate this upwards to be applied.
+     */
     fu = file_usages()[name];
+    FileUsage *fu_change = new FileUsage();
+    if (!fu_change->update_from_open_params(name, flags, error, false)) {
+      /* Error */
+      return false;
+    }
+    fu->merge(*fu_change);
+    if (parent_exec_point()) {
+      parent_exec_point()->propagate_file_usage(name, *fu_change);
+    }
+    delete fu_change;
   } else {
-    fu = new FileUsage(flags, mode, created, false, open_failed, error);
+    /* The process opens this file for the first time. Compute whatever
+     * we need to know about its initial state. Use that same object to
+     * propagate the changes upwards. */
+    fu = new FileUsage();
+    if (!fu->update_from_open_params(name, flags, error, true)) {
+      /* Error */
+      delete fu;
+      return false;
+    }
     file_usages()[name] = fu;
-  }
-
-  // record unhandled errors
-  if (error != 0) {
-    switch (error) {
-      case ENOENT:
-        break;
-      default:
-        if (0 == fu->unknown_err()) {
-          fu->set_unknown_err(error);
-          disable_shortcutting("Unknown error (" + std::to_string(error) + ") opening file " +
-                               name);
-        }
+    if (parent_exec_point()) {
+      parent_exec_point()->propagate_file_usage(name, *fu);
     }
   }
-
-  File *f;
-  {
-    auto *fdb = FileDB::getInstance();
-    if (fdb->count(name) > 0) {
-      // the build process already used this file
-      f = (*fdb)[name];
-    } else {
-      f = new File(name);
-      (*fdb)[name] = f;
-    }
-  }
-
-  f->update();
-  if (!created) {
-    fu->set_initial_hash(f->hash());
-  }
-
-  /* Propagate upwards. */
-  if (parent_exec_point()) {
-    parent_exec_point()->register_file_usage(name, flags, mode, created, open_failed, error);
-  }
+  return true;
 }
 
 int64_t ExecedProcess::sum_rusage_recurse() {
@@ -216,18 +236,15 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fcreated: [", indent);
   for (auto pair : ordered_file_usages) {
-    if (pair.second->created()) {
+    if (pair.second->initial_state() != EXIST_WITH_HASH && pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
   fprintf(stream, "],\n");
 
-  // TODO(rbalint) replace write/read flag checks with more accurate tests
   fprintf(stream, "%s fmodified: [", indent);
   for (auto pair : ordered_file_usages) {
-    if ((!pair.second->created()) &&
-        (((pair.second->open_flags() & O_ACCMODE) == O_WRONLY) ||
-         ((pair.second->open_flags() & O_ACCMODE) == O_RDWR))) {
+    if (pair.second->initial_state() == EXIST_WITH_HASH && pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
@@ -235,9 +252,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fread: [", indent);
   for (auto pair : ordered_file_usages) {
-    if (!pair.second->open_failed() &&
-        (((pair.second->open_flags() & O_ACCMODE) == O_RDONLY) ||
-         ((pair.second->open_flags() & O_ACCMODE) == O_RDWR))) {
+    if (pair.second->initial_state() == EXIST_WITH_HASH && !pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
@@ -245,7 +260,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fnotf: [", indent);
   for (auto pair : ordered_file_usages) {
-    if (pair.second->open_failed()) {
+    if (pair.second->initial_state() != EXIST_WITH_HASH && !pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }

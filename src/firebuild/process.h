@@ -130,13 +130,12 @@ class Process {
    * Handle file opening in the monitored process
    * @param name relative or absolute file name
    * @param flags flags of open()
-   * @param mode mode of open()
    * @param fd the return value
-   * @param created whether the file was created
    * @param error error code of open()
    */
-  int handle_open(const std::string &name, const int flags, const mode_t mode,
-                  const int fd, const bool created = false, const int error = 0);
+  int handle_open(const std::string &name, const int flags,
+                  const int fd, const int error = 0);
+
   /**
    * Handle file closure in the monitored process
    * @param fd file descriptor to close

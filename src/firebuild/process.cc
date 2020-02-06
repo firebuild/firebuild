@@ -78,18 +78,16 @@ void Process::add_filefd(int fd, FileFD* ffd) {
 }
 
 int Process::handle_open(const std::string &ar_name, const int flags,
-                         const mode_t mode, const int fd, const bool c,
-                         const int error) {
-  const bool created = ((flags & O_EXCL) && (fd != -1)) || c;
-  const bool open_failed = (fd == -1);
+                         const int fd, const int error) {
   const std::string name = (platform::path_is_absolute(ar_name))?(ar_name):
-      (wd_ + "/" + ar_name);
-
-  exec_point()->register_file_usage(name, flags, mode, created, open_failed, error);
+      (wd() + "/" + ar_name);
 
   if (fd >= 0) {
     add_filefd(fd, new FileFD(name, fd, flags, this));
   }
+
+  exec_point()->register_file_usage(name, flags, error);
+
   return 0;
 }
 

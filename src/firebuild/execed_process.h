@@ -49,8 +49,10 @@ class ExecedProcess : public Process {
                    const int64_t stime_u);
   void set_fingerprint(const Hash& fingerprint) {fingerprint_ = fingerprint;}
   const Hash& fingerprint() const {return fingerprint_;}
-  void register_file_usage(const std::string &name, const int flags, const int mode,
-                           const bool created, const bool open_failed, const int error);
+
+  void propagate_file_usage(const std::string &name,
+                            const FileUsage &fu_change);
+  bool register_file_usage(const std::string &name, const int flags, const int error);
 
   /**
    * Fail to change to a working directory

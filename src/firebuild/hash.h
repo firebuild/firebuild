@@ -28,7 +28,7 @@ class Hash {
   void set_from_data(const void *data, ssize_t size);
   void set_from_protobuf(const google::protobuf::MessageLite &msg);
   bool set_from_fd(int fd, bool *is_dir_out);
-  bool set_from_file(const std::string &filename, bool *is_dir_out);
+  bool set_from_file(const std::string &filename, bool *is_dir_out = NULL);
 
   bool set_hash_from_hex(const std::string &hex);
   std::string to_binary() const;
