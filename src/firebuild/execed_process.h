@@ -22,6 +22,8 @@ class ExecedProcess : public Process {
                          const std::string &executable, Process * parent);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
+  ExecedProcess* exec_point() {return this;}
+  const ExecedProcess* exec_point() const {return this;}
   int64_t sum_utime_u() const {return sum_utime_u_;}
   void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
   int64_t sum_stime_u() const {return sum_stime_u_;}
