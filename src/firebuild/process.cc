@@ -68,12 +68,11 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
 
 void Process::add_filefd(int fd, FileFD* ffd) {
   if (fds_.size() <= static_cast<unsigned int>(fd)) {
-    auto size_orig = fds_.size();
-    fds_.resize(fd + 1);
-    // fill new elements with default value
-    for (auto i = size_orig; i <= static_cast<unsigned int>(fd); i++) {
-      fds_.push_back(NULL);
-    }
+    fds_.resize(fd + 1, nullptr);
+  }
+  if (fds_[fd] != nullptr) {
+    firebuild::fb_error("Fd " + std::to_string(fd) + " is already tracked as being open.");
+    delete(fds_[fd]);
   }
   fds_[fd] = ffd;
 }
