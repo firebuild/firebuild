@@ -626,12 +626,9 @@ message ForkChild {
     required int64 ppid = 2;
 }
 
-// process calling fork()
+// process that called fork()
 message ForkParent {
-    // process id
-    required int64 pid = 1;
-    // child's process id
-    required int64 child_pid = 2;
+    // the pid is already known in the supervisor
 }
 
 message LAObjSearch {
