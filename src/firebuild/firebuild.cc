@@ -41,7 +41,23 @@ static char global_cfg[] = "/etc/firebuildrc";
 static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
+/** The connection sockets are derived from the fb_conn_string by appending an integer. */
 static std::string fb_conn_string;
+
+/** Pool of listenter sockets
+ *
+ * The interceptor creates parallel connections from each intercepted process
+ * and the parallel connections require separate sockets.
+ *
+ * Each process need one socket for the supervisor connection,
+ * 2 for stdout and stderr, 2 for a potential pipe setting up stdio for the next
+ * exec()-ed process.
+ *
+ * When the interceptor creates more pipes it can't connect them to the
+ * supervisor and children of the process may not be shortcuttable.
+ */
+static int fb_listener_pool[5];
+
 static int sigchld_fds[2];
 static FILE * sigchld_stream;
 static int child_pid, child_ret = 1;
@@ -547,9 +563,64 @@ static const char *get_tmpdir() {
 
 }  // namespace
 
+
+/**
+ * Create connection sockets for the interceptor
+ */
+static void init_listeners() {
+  int i = 0;
+  for (auto &listener : fb_listener_pool) {
+    if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+      perror("socket");
+      exit(EXIT_FAILURE);
+    }
+
+    struct sockaddr_un local;
+    local.sun_family = AF_UNIX;
+    snprintf(local.sun_path, sizeof(local.sun_path), "%s%d", fb_conn_string.c_str(), i);
+
+    unlink(local.sun_path);
+    auto len = strlen(local.sun_path) + sizeof(local.sun_family);
+    if (bind(listener, (struct sockaddr *)&local, len) == -1) {
+      perror("bind");
+      exit(EXIT_FAILURE);
+    }
+
+    if (listen(listener, 500) == -1) {
+      perror("listen");
+      exit(EXIT_FAILURE);
+    }
+    i++;
+  }
+}
+
+/**
+ * Close all listeners
+ */
+static void close_listeners() {
+  for (auto const listener : fb_listener_pool) {
+    close(listener);
+  }
+}
+
+/**
+ * Is the fd a listener
+ *
+ * @param fd The fd to check
+ * @return true if the fd is a listener
+ */
+static bool is_listener(int const fd) {
+  for (auto const listener : fb_listener_pool) {
+    if (fd == listener) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
-  int i, c;
+  int c;
 
   // init global data
   cfg = new libconfig::Config();
@@ -653,153 +724,135 @@ int main(const int argc, char *argv[]) {
       perror("mkdtemp");
       exit(EXIT_FAILURE);
     }
-    fb_conn_string = std::string(fb_tmp_dir) + "/socket";
+    fb_conn_string = std::string(fb_tmp_dir) + "/socket.";
   }
   auto env_exec = get_sanitized_env();
 
   init_signal_handlers();
 
+  init_listeners();
+
   // run command and handle interceptor messages
-  {
-    int listener;     // listening socket descriptor
-    if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-      perror("socket");
-      exit(EXIT_FAILURE);
+  if ((child_pid = fork()) == 0) {
+    int i;
+    // intercepted process
+    char* argv_exec[argc - optind + 1];
+
+    // we don't need those
+    close(sigchld_fds[0]);
+    close(sigchld_fds[1]);
+    close_listeners();
+    // create and execute build command
+    for (i = 0; i < argc - optind ; i++) {
+      argv_exec[i] = argv[optind + i];
     }
+    argv_exec[i] = NULL;
 
-    struct sockaddr_un local;
-    local.sun_family = AF_UNIX;
-    strncpy(local.sun_path, fb_conn_string.c_str(), sizeof(local.sun_path));
-    unlink(local.sun_path);
-    auto len = strlen(local.sun_path) + sizeof(local.sun_family);
-    if (bind(listener, (struct sockaddr *)&local, len) == -1) {
-      perror("bind");
-      exit(EXIT_FAILURE);
-    }
+    execvpe(argv[optind], argv_exec, env_exec);
+    perror("Executing build command failed");
+    exit(EXIT_FAILURE);
+  } else {
+    // supervisor process
+    int fdmax = sigchld_fds[0];  // maximum file descriptor number
 
-    if (listen(listener, 500) == -1) {
-      perror("listen");
-      exit(EXIT_FAILURE);
-    }
+    fd_set master;    // master file descriptor list
+    fd_set read_fds;  // temp file descriptor list for select()
 
-    if ((child_pid = fork()) == 0) {
-      // intercepted process
-      char* argv_exec[argc - optind + 1];
+    firebuild::msg::InterceptorMsg ic_msg;
+    firebuild::msg::SupervisorMsg sv_msg;
 
-      // we don't need those
-      close(sigchld_fds[0]);
-      close(sigchld_fds[1]);
-      close(listener);
-      // create and execute build command
-      for (i = 0; i < argc - optind ; i++) {
-        argv_exec[i] = argv[optind + i];
-      }
-      argv_exec[i] = NULL;
+    bool child_exited = false;
 
-      execvpe(argv[optind], argv_exec, env_exec);
-      perror("Executing build command failed");
-      exit(EXIT_FAILURE);
-    } else {
-      // supervisor process
-      int fdmax;        // maximum file descriptor number
+    uid_t euid = geteuid();
 
-      fd_set master;    // master file descriptor list
-      fd_set read_fds;  // temp file descriptor list for select()
+    FD_ZERO(&master);    // clear the master and temp sets
+    FD_ZERO(&read_fds);
 
-      firebuild::msg::InterceptorMsg ic_msg;
-      firebuild::msg::SupervisorMsg sv_msg;
-
-      bool child_exited = false;
-
-      uid_t euid = geteuid();
-
-      FD_ZERO(&master);    // clear the master and temp sets
-      FD_ZERO(&read_fds);
-
-      // add the listener and and fd listening for child's deeath to the
-      // master set
+    // add the listener and and fd listening for child's death to the
+    // master set
+    for (auto const listener : fb_listener_pool) {
       FD_SET(listener, &master);
-      FD_SET(sigchld_fds[0], &master);
+      fdmax = (listener > fdmax)?listener:fdmax;
+    }
+    FD_SET(sigchld_fds[0], &master);
 
-      // keep track of the biggest file descriptor
-      fdmax = listener;  // so far, it's this one
-      // main loop for processing interceptor messages
-      for (;;) {
-        if (child_exited) {
+    // main loop for processing interceptor messages
+    for (;;) {
+      int i;
+      if (child_exited) {
+        break;
+      }
+      read_fds = master;  // copy it
+      if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
+        if (errno != EINTR) {
+          perror("select");
+          exit(1);
+        } else {
           break;
         }
-        read_fds = master;  // copy it
-        if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
-          if (errno != EINTR) {
-            perror("select");
-            exit(1);
-          } else {
-            break;
-          }
-        }
+      }
 
-        for (i = 0; i <= fdmax; i++) {
-          if (FD_ISSET(i, &read_fds)) {  // we got one!!
-            // fd_handled = true;
-            if (i == listener) {
-              // handle new connections
-              struct sockaddr_un remote;
-              socklen_t addrlen = sizeof(remote);
+      for (i = 0; i <= fdmax; i++) {
+        if (FD_ISSET(i, &read_fds)) {  // we got one!!
+          // fd_handled = true;
+          if (is_listener(i)) {
+            // handle new connections
+            struct sockaddr_un remote;
+            socklen_t addrlen = sizeof(remote);
 
-              // newly accept()ed socket descriptor
-              int newfd = accept(listener,
-                                 (struct sockaddr *)&remote,
-                                 &addrlen);
-              if (newfd == -1) {
-                perror("accept");
-              } else {
-                struct ucred creds;
-                socklen_t optlen = sizeof(creds);
-                getsockopt(newfd, SOL_SOCKET, SO_PEERCRED, &creds, &optlen);
-                if (euid != creds.uid) {
-                  // someone else started using the socket
-                  fprintf(stderr,
-                          "Unauthorized connection from pid %d, uid %d, gid %d"
-                          "\n",
-                          creds.pid, creds.uid, creds.gid);
-                  close(newfd);
-                } else {
-                  FD_SET(newfd, &master);  // add to master set
-                  if (newfd > fdmax) {    // keep track of the max
-                    fdmax = newfd;
-                  }
-                }
-                // TODO(rbalint) debug
-              }
-            } else if (i == sigchld_fds[0]) {
-              // Our child has exited.
-              // Process remaining messages, then we are done.
-              child_exited = true;
-              continue;
+            // newly accept()ed socket descriptor
+            int newfd = accept(i,
+                               (struct sockaddr *)&remote,
+                               &addrlen);
+            if (newfd == -1) {
+              perror("accept");
             } else {
-              // handle data from a client
-              ssize_t nbytes;
-
-              if ((nbytes = firebuild::fb_recv_msg(&ic_msg, i)) <= 0) {
-                // got error or connection closed by client
-                if (nbytes == 0) {
-                  // connection closed
-                  FB_DEBUG(2, "socket " + std::to_string(i) +
-                           std::string(" hung up"));
-                } else {
-                  perror("recv");
-                }
-                proc_tree->finished(i);
-                close(i);  // bye!
-                FD_CLR(i, &master);  // remove from master set
+              struct ucred creds;
+              socklen_t optlen = sizeof(creds);
+              getsockopt(newfd, SOL_SOCKET, SO_PEERCRED, &creds, &optlen);
+              if (euid != creds.uid) {
+                // someone else started using the socket
+                fprintf(stderr,
+                        "Unauthorized connection from pid %d, uid %d, gid %d"
+                        "\n",
+                        creds.pid, creds.uid, creds.gid);
+                close(newfd);
               } else {
-                if (firebuild::debug_level >= 2) {
-                  FB_DEBUG(2, "fd " + std::to_string(i) + std::string(": "));
-                  google::protobuf::TextFormat::Print(ic_msg, error_fos);
-                  error_fos->Flush();
+                FD_SET(newfd, &master);  // add to master set
+                if (newfd > fdmax) {    // keep track of the max
+                  fdmax = newfd;
                 }
-                proc_ic_msg(ic_msg, i);
               }
+              // TODO(rbalint) debug
+            }
+          } else if (i == sigchld_fds[0]) {
+            // Our child has exited.
+            // Process remaining messages, then we are done.
+            child_exited = true;
+            continue;
+          } else {
+            // handle data from a client
+            ssize_t nbytes;
+
+            if ((nbytes = firebuild::fb_recv_msg(&ic_msg, i)) <= 0) {
+              // got error or connection closed by client
+              if (nbytes == 0) {
+                // connection closed
+                FB_DEBUG(2, "socket " + std::to_string(i) +
+                         std::string(" hung up"));
+              } else {
+                perror("recv");
+              }
+              proc_tree->finished(i);
+              close(i);  // bye!
+              FD_CLR(i, &master);  // remove from master set
+            } else {
+              if (firebuild::debug_level >= 2) {
+                FB_DEBUG(2, "fd " + std::to_string(i) + std::string(": "));
+                google::protobuf::TextFormat::Print(ic_msg, error_fos);
+                error_fos->Flush();
+              }
+              proc_ic_msg(ic_msg, i);
             }
           }
         }
@@ -824,14 +877,17 @@ int main(const int argc, char *argv[]) {
   // clean up everything
   {
     char* env_str;
-    for (i = 0; NULL != (env_str = env_exec[i]); i++) {
+    for (int i = 0; NULL != (env_str = env_exec[i]); i++) {
       free(env_str);
     }
     free(env_exec);
-
-    unlink(fb_conn_string.c_str());
-    rmdir(fb_tmp_dir);
   }
+
+  close_listeners();
+  for (size_t i = 0; i < (sizeof(fb_listener_pool) / sizeof(fb_listener_pool[0])); i++) {
+    unlink((fb_conn_string + std::to_string(i)).c_str());
+  }
+  rmdir(fb_tmp_dir);
 
   delete(error_fos);
   fclose(sigchld_stream);

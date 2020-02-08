@@ -173,8 +173,9 @@ void init_supervisor_conn() {
   struct sockaddr_un remote;
   memset(&remote, 0, sizeof(remote));
   remote.sun_family = AF_UNIX;
-  assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
-  strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
+  assert(strlen(fb_conn_string) + 1 < sizeof(remote.sun_path));
+  /* always use the first socket from the pool for the first connection */
+  snprintf(remote.sun_path, sizeof(remote.sun_path), "%s%d", fb_conn_string, 0);
 
   if (-1 == ic_orig_connect(fb_sv_conn,
                             (struct sockaddr *)&remote, sizeof(remote))) {
