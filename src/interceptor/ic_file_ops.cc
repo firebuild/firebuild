@@ -28,8 +28,12 @@
 
 namespace firebuild {
 
-#define IC2_MSG_IC2_WITH_RET  m->set_ret(ret)
-#define IC2_MSG_IC2_NO_RET
+#define IC2_MSG_IC2_WITH_RET                                        \
+  m->set_ret(ret);                                                  \
+  if (error_value(ret)) {                                           \
+    m->set_error_no(saved_errno);                                   \
+  }
+#define IC2_MSG_IC2_NO_RET ret = ret; m = m; /* noops */
 
 
 #define IC2_ERR_VAL(type, value)                \
@@ -79,9 +83,6 @@ IC2_TO_SET_ALL_BUT(const void*, NULL);
     auto m = ic_msg.mutable_##ics_pmname();                         \
     ics_body;                                                       \
     IC2_MSG_##ics_with_rettype;                                     \
-    if (error_value(ret)) {                                         \
-      m->set_error_no(saved_errno);                                 \
-    }                                                               \
     fb_send_msg(ic_msg, fb_sv_conn);                                \
     if (IC2_WAIT_ACK) {                                             \
       msg::SupervisorMsg sv_msg;                                    \
