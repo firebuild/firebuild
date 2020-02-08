@@ -41,7 +41,7 @@ static char global_cfg[] = "/etc/firebuildrc";
 static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
-static char *fb_conn_string;
+static std::string fb_conn_string;
 static int sigchld_fds[2];
 static FILE * sigchld_stream;
 static int child_pid, child_ret = 1;
@@ -135,7 +135,7 @@ static char** get_sanitized_env() {
     env_v.push_back(preset[i]);
     FB_DEBUG(1, " " + env_v.back());
   }
-  env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
+  env_v.push_back("FB_SOCKET=" + fb_conn_string);
   FB_DEBUG(1, " " + env_v.back());
 
   FB_DEBUG(1, "");
@@ -653,7 +653,7 @@ int main(const int argc, char *argv[]) {
       perror("mkdtemp");
       exit(EXIT_FAILURE);
     }
-    asprintf(&fb_conn_string, "%s/socket", fb_tmp_dir);
+    fb_conn_string = std::string(fb_tmp_dir) + "/socket";
   }
   auto env_exec = get_sanitized_env();
 
@@ -669,7 +669,7 @@ int main(const int argc, char *argv[]) {
 
     struct sockaddr_un local;
     local.sun_family = AF_UNIX;
-    strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path));
+    strncpy(local.sun_path, fb_conn_string.c_str(), sizeof(local.sun_path));
     unlink(local.sun_path);
     auto len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(listener, (struct sockaddr *)&local, len) == -1) {
@@ -829,13 +829,12 @@ int main(const int argc, char *argv[]) {
     }
     free(env_exec);
 
-    unlink(fb_conn_string);
+    unlink(fb_conn_string.c_str());
     rmdir(fb_tmp_dir);
   }
 
   delete(error_fos);
   fclose(sigchld_stream);
-  free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
   delete(cfg);
