@@ -576,6 +576,11 @@ IC2_SIMPLE_2P(FILE*, IC2_NO_RET, PopenParent, popen_parent, int, fd, const char 
 /* Intercept failure of popen(3) */
 IC2_SIMPLE_1P(FILE*, IC2_NO_RET, PopenFailed, popen_failed, const char *, cmd)
 
+/** Process is about to fork */
+IC2_SIMPLE_0P(int, IC2_NO_RET, ForkParent, fork_parent)
+/** Fork child process */
+IC2_SIMPLE_2P(int, IC2_NO_RET, ForkChild, fork_child, int, pid, int, ppid)
+
 /* Intercept success of posix_spawn[p](3) */
 IC2_SIMPLE_1P(int, IC2_NO_RET, PosixSpawnParent, posix_spawn_parent, pid_t, pid)
 
@@ -736,16 +741,9 @@ static pid_t intercept_fork(const pid_t ret) {
     ic_orig_close(fb_sv_conn);
     fb_sv_conn = -1;
     init_supervisor_conn();
-    auto m = ic_msg.mutable_fork_child();
-    m->set_pid(pid);
-    m->set_ppid(ic_orig_getppid());
-    fb_send_msg(ic_msg, fb_sv_conn);
+    intercept_fork_child(pid, ic_orig_getppid(), ret);
   } else {
-    // parent
-    auto m = ic_msg.mutable_fork_parent();
-    m->set_pid(ic_pid);
-    m->set_child_pid(ret);
-    fb_send_msg(ic_msg, fb_sv_conn);
+    intercept_fork_parent(ret);
   }
   return ret;
 }
