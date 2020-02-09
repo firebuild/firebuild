@@ -86,10 +86,9 @@ IC2_TO_SET_ALL_BUT(const void*, NULL);
     fb_send_msg(ic_msg, fb_sv_conn);                                \
     if (IC2_WAIT_ACK) {                                             \
       msg::SupervisorMsg sv_msg;                                    \
-      if (( 0 >= fb_recv_msg(&sv_msg, fb_sv_conn)) ||                \
-          (sv_msg.ack_num() != ack_num)) {                          \
+      if ( 0 >= fb_recv_msg(&sv_msg, fb_sv_conn)) {                 \
         /* something unexpected happened ... */                     \
-        /*    assert(sv_msg.ack_num() != ack_num)); */              \
+        assert(sv_msg.ack_num() == ack_num);                        \
       }                                                             \
     }                                                               \
     errno = saved_errno;                                            \
