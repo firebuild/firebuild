@@ -302,12 +302,44 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
 #endif
     firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
-    ::firebuild::Process *pproc = NULL;
-    pproc = proc_tree->pid2proc(ic_msg.fork_child().ppid());
-    /* record new process */
-    auto proc =
-        firebuild::ProcessFactory::getForkedProcess(ic_msg.fork_child(), pproc);
-    proc_tree->insert(proc, fd_conn);
+    auto fork_child = ic_msg.fork_child();
+    auto ppid = fork_child.ppid();
+    auto pproc = proc_tree->pid2proc(ppid);
+    auto fork_parent = proc_tree->Pid2ForkParentSock(ppid);
+    /* The supervisor needs up to date information about the fork parent in the ProcessTree
+     * when the child Process is created. To ensure having up to date information all the
+     * messages must be processed from the fork parent up to ForkParent and only then can
+     * the child Process created in the ProcessTree and let the child process continue execution.
+     */
+    if (!fork_parent) {
+      /* queue fork_child data and delay processing messages on this socket */
+      proc_tree->QueueForkChild(fork_child.ppid(), fd_conn, fork_child.pid(), ic_msg.ack_num());
+    } else {
+      /* record new process */
+      auto proc =
+          firebuild::ProcessFactory::getForkedProcess(fork_child, pproc);
+      proc_tree->insert(proc, fd_conn);
+      ack_msg(fork_parent->sock, fork_parent->ack_num);
+      proc_tree->DropQueuedForkParent(ppid);
+      ack_msg(fd_conn, ic_msg.ack_num());
+    }
+    return;
+  } else if (ic_msg.has_fork_parent()) {
+    /* here pproc is the current process as it is the fork parent */
+    auto pproc = proc_tree->Sock2Proc(fd_conn);
+    auto fork_child_sock = proc_tree->PPid2ForkChildSock(pproc->pid());
+    if (!fork_child_sock) {
+      /* queue fork_parent data and delay processing messages on this socket */
+      proc_tree->QueueForkParent(pproc->pid(), fd_conn, ic_msg.ack_num());
+    } else {
+      /* record new process */
+      auto proc = firebuild::ProcessFactory::getForkedProcess(fork_child_sock->pid, pproc);
+      proc_tree->insert(proc, fork_child_sock->sock);
+      ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
+      proc_tree->DropQueuedForkChild(pproc->pid());
+      ack_msg(fd_conn, ic_msg.ack_num());
+    }
+    return;
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->Sock2Proc(fd_conn);
     // FIXME(rbalint) check execv parameter and record what needs to be
