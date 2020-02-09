@@ -27,6 +27,11 @@ jobs:
       run: |
         cmake .
         make
+    - name: rebuild self
+      run: |
+        cd test
+        ./run-firebuild make -C ../build clean
+        ./run-firebuild make -C ../build all
     - name: test
       # tests don't run with out of tree builds at the moment
       run: |
