@@ -436,6 +436,7 @@ message ExecV {
 }
 
 message ExecVFailed {
+    required int32 ret = 1;
     // error no., when ret = -1
     required int32 error_no = 5;
 }
