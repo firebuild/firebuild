@@ -12,6 +12,11 @@ ForkedProcess* ProcessFactory::getForkedProcess(const msg::ForkChild &fc,
   return f;
 }
 
+ForkedProcess* ProcessFactory::getForkedProcess(const int pid,
+                                                Process * const parent) {
+  return new ForkedProcess(pid, parent->pid(), parent);
+}
+
 ExecedProcess*
 ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent) {
   auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),

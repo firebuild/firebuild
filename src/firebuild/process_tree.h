@@ -31,10 +31,29 @@ struct cmd_prof {
   std::unordered_map<std::string, subcmd_prof> subcmds = {};
 };
 
+/** Connection of a waiting process that called fork() */
+struct fork_parent_sock {
+  /** Connection fork parent is waiting on */
+  int sock;
+  /** ACK number the process is waiting for */
+  int ack_num;
+};
+
+/** Connection of a waiting fork() child process*/
+struct fork_child_sock {
+  /** Connection fork child is waiting on */
+  int sock;
+  /** PID of fork child */
+  int pid;
+  /** ACK number the process is waiting for */
+  int ack_num;
+};
+
 class ProcessTree {
  public:
   ProcessTree()
-     : sock2proc_(), fb_pid2proc_(), pid2proc_(), cmd_profs_()
+      : sock2proc_(), fb_pid2proc_(), pid2proc_(), pid2fork_parent_sock_(),
+        ppid2fork_child_sock_(), cmd_profs_()
   {}
   ~ProcessTree();
 
@@ -59,12 +78,40 @@ class ProcessTree {
       return NULL;
     }
   }
+  void QueueForkParent(int pid, int sock, int ack_num) {
+    pid2fork_parent_sock_[pid] = {sock, ack_num};
+  }
+  void QueueForkChild(int ppid, int sock, int pid, int ack_num) {
+    ppid2fork_child_sock_[ppid] = {sock, pid, ack_num};
+  }
+  const fork_parent_sock* Pid2ForkParentSock(const int pid) {
+    try {
+      return &pid2fork_parent_sock_.at(pid);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
+  const fork_child_sock* PPid2ForkChildSock(const int ppid) {
+    try {
+      return &ppid2fork_child_sock_.at(ppid);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
+  void DropQueuedForkParent(const int pid) {
+    pid2fork_parent_sock_.erase(pid);
+  }
+  void DropQueuedForkChild(const int ppid) {
+    ppid2fork_child_sock_.erase(ppid);
+  }
 
  private:
   ExecedProcess *root_ = NULL;
   std::unordered_map<int, Process*> sock2proc_;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
+  std::unordered_map<int, fork_parent_sock> pid2fork_parent_sock_;
+  std::unordered_map<int, fork_child_sock> ppid2fork_child_sock_;
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds
