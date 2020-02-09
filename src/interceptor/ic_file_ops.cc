@@ -370,7 +370,7 @@ static void intercept_execve(const bool with_p, const char * const file,
   }
 }
 /* Intercept failed (f)execv*() */
-IC2_SIMPLE_0P(int, IC2_NO_RET, ExecVFailed, execvfailed)
+IC2_SIMPLE_0P(int, IC2_WITH_RET, ExecVFailed, execvfailed)
 
 /* Intercept beginning of system(3) */
 static void intercept_system(const char * cmd) {
