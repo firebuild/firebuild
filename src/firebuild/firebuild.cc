@@ -7,6 +7,7 @@
 #include <getopt.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -912,39 +913,46 @@ int main(const int argc, char *argv[]) {
             child_exited = true;
             continue;
           } else {
-            // handle data from a client
-            ssize_t nbytes;
+            int bytes_available;
+            do {
+              // handle data from a client
+              ssize_t nbytes;
+              bytes_available = 0;
 
-            if ((nbytes = firebuild::fb_recv_msg(&ic_msg, i)) <= 0) {
-              // got error or connection closed by client
-              if (nbytes == 0) {
-                // connection closed
-                FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(i) +
-                                        std::string(" hung up"));
+              if ((nbytes = firebuild::fb_recv_msg(&ic_msg, i)) <= 0) {
+                // got error or connection closed by client
+                if (nbytes == 0) {
+                  // connection closed
+                  FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(i) +
+                           std::string(" hung up"));
+                } else {
+                  perror("recv");
+                }
+                auto proc = proc_tree->Sock2Proc(i);
+                if (proc) {
+                  auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
+                  if (exec_child_sock) {
+                    auto exec_child = exec_child_sock->incomplete_child;
+                    exec_child->set_fds(proc->pass_on_fds());
+                    accept_exec_child(exec_child, exec_child_sock->sock, proc_tree);
+                    proc_tree->DropQueuedExecChild(proc->pid());
+                  }
+                }
+                proc_tree->finished(i);
+                close(i);  // bye!
+                FD_CLR(i, &master);  // remove from master set
               } else {
-                perror("recv");
-              }
-              auto proc = proc_tree->Sock2Proc(i);
-              if (proc) {
-                auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
-                if (exec_child_sock) {
-                  auto exec_child = exec_child_sock->incomplete_child;
-                  exec_child->set_fds(proc->pass_on_fds());
-                  accept_exec_child(exec_child, exec_child_sock->sock, proc_tree);
-                  proc_tree->DropQueuedExecChild(proc->pid());
+                if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+                  FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(i) + std::string(": "));
+                  google::protobuf::TextFormat::Print(ic_msg, error_fos);
+                  error_fos->Flush();
+                }
+                proc_ic_msg(ic_msg, i);
+                if (ioctl(i, FIONREAD, &bytes_available) == -1) {
+                  perror("ioctl(FIONREAD)");
                 }
               }
-              proc_tree->finished(i);
-              close(i);  // bye!
-              FD_CLR(i, &master);  // remove from master set
-            } else {
-              if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-                FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(i) + std::string(": "));
-                google::protobuf::TextFormat::Print(ic_msg, error_fos);
-                error_fos->Flush();
-              }
-              proc_ic_msg(ic_msg, i);
-            }
+            } while (bytes_available > 0);
           }
         }
       }
