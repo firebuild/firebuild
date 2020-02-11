@@ -10,3 +10,4 @@ add_custom_target(check ctest -V)
 
 add_test_binary(test_system)
 add_test_binary(test_exec)
+add_test_binary(close_fds_exec)
