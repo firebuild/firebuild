@@ -30,6 +30,7 @@ int File::update() {
   char *tmp_path = strdup(path_.c_str());
   if (-1 == lstat(tmp_path, &s)) {
     perror("lstat");
+    free(tmp_path);
     return -1;
   } else {
     if (mtimes_.size() <= i) {
@@ -83,6 +84,7 @@ int File::is_changed() {
 
   if (-1 == lstat(tmp_path, &s)) {
     perror("lstat");
+    free(tmp_path);
     return -1;
   } else {
     if (!timespeccmp(&mtimes_[i], &s.st_mtim, ==)) {
