@@ -292,11 +292,11 @@ IC(int, mkostemps, (char *pattern, int suffixlen, int flags), {
     intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL|flags, 0600, ret);
   }
 })
-IC(int, mkdtemp, (char *pattern), {
+IC(char*, mkdtemp, (char *pattern), {
   ret = orig_fn(pattern);  // This updates pattern in-place
-  if (ret != -1) {
-    // FIXME intercept_mkdir()?
-    intercept_open(pattern, O_RDWR|O_CREAT|O_EXCL, 0700, ret);
+  if (ret != NULL) {
+    // FIXME intercept_mkdtemp()
+    ret = ret;
   }
 })
 

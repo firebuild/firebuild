@@ -682,7 +682,7 @@ int main(const int argc, char *argv[]) {
       break;
 
     case 'd':
-      firebuild::debug_level = atoi(optarg);
+      firebuild::debug_level = optarg?atoi(optarg):-1;
       if ((firebuild::debug_level < 0) || (firebuild::debug_level > 4)) {
         usage();
         exit(EXIT_FAILURE);
