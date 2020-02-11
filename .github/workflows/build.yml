@@ -4,7 +4,6 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:
@@ -40,3 +39,16 @@ jobs:
         touch data/d3.v5.min.js
         cmake -DCOVERAGE=1
         make all check coverage_info
+  scan-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        sudo add-apt-repository -y -u ppa:rbalint/xxhash
+        sudo apt-get -y install clang-tools cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev
+    - name: scan-build
+      run: |
+        scan-build cmake .
+        scan-build --status-bugs make
