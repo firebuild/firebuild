@@ -38,7 +38,7 @@ void Hash::set_from_protobuf(const google::protobuf::MessageLite &msg) {
   uint8_t *buf = new uint8_t[msg_size];
   msg.SerializeWithCachedSizesToArray(buf);
   set_from_data((void *)buf, msg_size);
-  delete buf;
+  delete[] buf;
 }
 
 /**
