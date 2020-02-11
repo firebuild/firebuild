@@ -30,7 +30,7 @@ jobs:
       # tests don't run with out of tree builds at the moment
       run: |
         make check
-        env FIREBUILD_PREFIX_CMD="valgrind -q --leak-check=full --track-fds=yes" make check
+        test/close_fds_exec env FIREBUILD_PREFIX_CMD="valgrind -q --leak-check=full --track-fds=yes" make check
     - name: coverage
       # tests don't run with out of tree builds at the moment
       run: |
