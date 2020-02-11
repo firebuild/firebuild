@@ -579,7 +579,6 @@ static void init_listeners() {
     local.sun_family = AF_UNIX;
     snprintf(local.sun_path, sizeof(local.sun_path), "%s%d", fb_conn_string.c_str(), i);
 
-    unlink(local.sun_path);
     auto len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(listener, (struct sockaddr *)&local, len) == -1) {
       perror("bind");
