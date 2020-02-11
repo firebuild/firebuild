@@ -166,12 +166,12 @@ bool MultiCache::store_protobuf(const Hash &key,
       FB_DEBUG(2, "short write");
     }
     close(fd_dst);
-    delete buf;
+    delete[] buf;
     return false;
   }
   close(fd_dst);
 
-  delete buf;
+  delete[] buf;
 
   std::string path_dst = construct_cached_file_name(base_dir_, key, subkey, true);
   if (rename(tmpfile.c_str(), path_dst.c_str()) == -1) {
