@@ -60,6 +60,8 @@ static int fb_listener_pool[5];
 
 static int sigchld_fds[2];
 static FILE * sigchld_stream;
+
+static int inherited_fd = -1;
 static int child_pid, child_ret = 1;
 static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
@@ -653,6 +655,11 @@ int main(const int argc, char *argv[]) {
   char *config_file = NULL;
   int c;
 
+  // running under BATS fd 3 is inherited
+  if (fcntl(3, F_GETFD) != -1 || errno != EBADF) {
+    inherited_fd = 3;
+  }
+
   // init global data
   cfg = new libconfig::Config();
   proc_tree = new firebuild::ProcessTree();
@@ -916,18 +923,28 @@ int main(const int argc, char *argv[]) {
 
   close_listeners();
   for (size_t i = 0; i < (sizeof(fb_listener_pool) / sizeof(fb_listener_pool[0])); i++) {
+    close(fb_listener_pool[i]);
     unlink((fb_conn_string + std::to_string(i)).c_str());
   }
   rmdir(fb_tmp_dir);
 
   delete(error_fos);
   fclose(sigchld_stream);
+  close(sigchld_fds[0]);
   free(fb_tmp_dir);
   delete(proc_tree);
   delete(cfg);
 
   // Optional:  Delete all global objects allocated by libprotobuf.
   google::protobuf::ShutdownProtobufLibrary();
+
+  // keep Valgrind happy
+  fclose(stdin);
+  fclose(stdout);
+  fclose(stderr);
+  if (inherited_fd > -1) {
+    close(inherited_fd);
+  }
 
   exit(child_ret);
 }
