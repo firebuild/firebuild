@@ -63,8 +63,8 @@ if(DOXYGEN_FOUND)
 endif(DOXYGEN_FOUND)
 
 if(COVERAGE)
-  add_custom_target(coverage_info
-    sh -c "find . -name *.gcno | while read f ; do cp \$f $(dirname $f| xargs dirname | xargs dirname)/$(basename $f) ; done ; lcov -c -d . --no-external -o tmp.info && lcov -r tmp.info -o coverage.info '*.pb.*' '*test_exec.c*' -o coverage.info && genhtml coverage.info && lcov  --summary coverage.info  2>&1 | grep '^  lines' | sed 's/  lines\\.*: \\([^%]*\\)%.*/\\1 >= ${MIN_COVERAGE}/' | bc | xargs test 1 -eq"
+  add_custom_target(coverage-info
+    tools/calculate-coverage
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating coverage report with lcov" VERBATIM)
 endif(COVERAGE)
