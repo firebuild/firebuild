@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+
+find . -name '*.gcno' | grep CMakeFiles/ | while read f; do
+    cp $f $(dirname $f| xargs dirname | xargs dirname)/$(basename $f)
+done
+lcov -q -c -d . --no-external -o tmp.info
+lcov -q -r tmp.info -o coverage.info '*.pb.*' '*test_exec.c*' -o coverage.info && genhtml coverage.info
+lcov  --summary coverage.info  2>&1 | grep '^  lines' | sed 's/  lines.*: \([^%]*\)%.*/\1/'
