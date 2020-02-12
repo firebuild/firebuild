@@ -12,16 +12,39 @@ namespace firebuild {
 /** Print error message */
 void fb_error(const std::string &msg);
 
+/** Possible debug flags. Keep in sync with debug.cc! */
+enum {
+  /* Events with one process, e.g. shortcut, exit */
+  FB_DEBUG_PROC         = 1 << 0,
+  /* How processes are organized into ProcTree */
+  FB_DEBUG_PROCTREE     = 1 << 1,
+  /* Communication */
+  FB_DEBUG_COMM         = 1 << 2,
+  /* File system */
+  FB_DEBUG_FS           = 1 << 3,
+  /* Checksum computation */
+  FB_DEBUG_HASH         = 1 << 4,
+  /* Cache */
+  FB_DEBUG_CACHE        = 1 << 5,
+};
+
 /**
- * Print debug message if debug level is at least lvl
+ * Test if debugging this kind of events is enabled.
  */
-#define FB_DEBUG(lvl, msg) if (lvl <= firebuild::debug_level) \
+#define FB_DEBUGGING(flag) (firebuild::debug_flags & flag)
+
+/**
+ * Print debug message if the given debug flag is enabled.
+ */
+#define FB_DEBUG(flag, msg) if (FB_DEBUGGING(flag)) \
     firebuild::fb_debug(msg)
 
 void fb_debug(const std::string &msg);
 
-/** current debugging level */
-extern int debug_level;
+/** Current debugging flags */
+extern int32_t debug_flags;
+
+int32_t parse_debug_flags(const std::string& str);
 
 std::string pretty_print_string(const std::string& str);
 

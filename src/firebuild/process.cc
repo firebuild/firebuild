@@ -292,11 +292,11 @@ bool Process::remove_expected_child(const ExecedProcessParameters &ec) {
 }
 
 void Process::finish() {
-  if (firebuild::debug_level >= 1 && !expected_children_.empty()) {
-    FB_DEBUG(1, "Expected system()/popen()/posix_spawn() children that did not appear"
-             " (e.g. posix_spawn() failed in the pre-exec or exec step):");
+  if (FB_DEBUGGING(FB_DEBUG_PROC) && !expected_children_.empty()) {
+    FB_DEBUG(FB_DEBUG_PROC, "Expected system()/popen()/posix_spawn() children that did not appear"
+                            " (e.g. posix_spawn() failed in the pre-exec or exec step):");
     for (const auto &ec : expected_children_) {
-      FB_DEBUG(1, "  " + to_string(ec));
+      FB_DEBUG(FB_DEBUG_PROC, "  " + to_string(ec));
     }
   }
   set_state(FB_PROC_FINISHED);

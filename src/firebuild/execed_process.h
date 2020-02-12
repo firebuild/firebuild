@@ -73,7 +73,7 @@ class ExecedProcess : public Process {
       cant_shortcut_reason_ = reason;
       assert(cant_shortcut_proc_ == NULL);
       cant_shortcut_proc_ = p ? p : this;
-      FB_DEBUG(1, "Command \"" + executable_ + "\" can't be short-cut due to: " + reason);
+      FB_DEBUG(FB_DEBUG_PROC, "Command \"" + executable_ + "\" can't be short-cut due to: " + reason);
       if (parent()) {
         parent()->disable_shortcutting(reason, cant_shortcut_proc_);
       }

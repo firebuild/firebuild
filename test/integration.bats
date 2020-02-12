@@ -14,7 +14,7 @@ load test_helper
 }
 
 @test "debugging with trace markers and report generation" {
-      result=$(./run-firebuild -r -d 4 -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
+      result=$(./run-firebuild -r -d all -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
       [ "$result" = "integration.bats" ]
 }
 

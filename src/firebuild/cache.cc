@@ -38,7 +38,7 @@ static bool copy_file(int fd_src, int fd_dst) {
     perror("fstat");
     return false;
   } else if (!S_ISREG(st.st_mode)) {
-    FB_DEBUG(2, "not a regular file");
+    FB_DEBUG(FB_DEBUG_CACHE, "not a regular file");
     return false;
   }
 
@@ -104,7 +104,7 @@ static std::string construct_cached_file_name(const std::string &base,
  */
 bool Cache::store_file(const std::string &path,
                        Hash *key_out) {
-  FB_DEBUG(2, "Cache: storing blob " + path);
+  FB_DEBUG(FB_DEBUG_CACHE, "Cache: storing blob " + path);
 
   /* Copy the file to a temporary one under the cache */
   int fd_src = open(path.c_str(), O_RDONLY);
@@ -123,7 +123,7 @@ bool Cache::store_file(const std::string &path,
   }
 
   if (!copy_file(fd_src, fd_dst)) {
-    FB_DEBUG(2, "failed to copy file");
+    FB_DEBUG(FB_DEBUG_CACHE, "failed to copy file");
     close(fd_src);
     close(fd_dst);
     unlink(tmpfile.c_str());
@@ -135,7 +135,7 @@ bool Cache::store_file(const std::string &path,
    * corruption if someone is modifying the original file. */
   Hash key;
   if (!key.set_from_fd(fd_dst, NULL)) {
-    FB_DEBUG(2, "failed to compute hash");
+    FB_DEBUG(FB_DEBUG_CACHE, "failed to compute hash");
     close(fd_dst);
     unlink(tmpfile.c_str());
     return false;
@@ -149,8 +149,8 @@ bool Cache::store_file(const std::string &path,
     return false;
   }
 
-  if (firebuild::debug_level >= 1) {
-    FB_DEBUG(2, "  => " + key.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    FB_DEBUG(FB_DEBUG_CACHE, "  => " + key.to_hex());
 
     /* Place meta info in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
@@ -180,8 +180,8 @@ bool Cache::store_file(const std::string &path,
  */
 bool Cache::retrieve_file(const Hash &key,
                           const std::string &path_dst) {
-  if (firebuild::debug_level >= 2) {
-    FB_DEBUG(2, "Cache: retrieving blob " + key.to_hex() + " => " + path_dst);
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    FB_DEBUG(FB_DEBUG_CACHE, "Cache: retrieving blob " + key.to_hex() + " => " + path_dst);
   }
 
   std::string path_src = construct_cached_file_name(base_dir_, key, false);
@@ -200,7 +200,7 @@ bool Cache::retrieve_file(const Hash &key,
   }
 
   if (!copy_file(fd_src, fd_dst)) {
-    FB_DEBUG(2, "copying failed");
+    FB_DEBUG(FB_DEBUG_CACHE, "copying failed");
     close(fd_src);
     close(fd_dst);
     unlink(path_dst.c_str());

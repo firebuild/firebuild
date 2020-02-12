@@ -69,7 +69,7 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
     if (st.st_size > 0) {
       map_addr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
       if (map_addr == MAP_FAILED) {
-        FB_DEBUG(1, "Cannot compute hash of regular file: mmap failed");
+        FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of regular file: mmap failed");
         return false;
       }
     } else {
@@ -95,7 +95,7 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
 
     DIR *dir = fdopendir(fd);
     if (dir == NULL) {
-      FB_DEBUG(1, "Cannot compute hash of directory: fdopendir failed");
+      FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of directory: fdopendir failed");
       return false;
     }
 
@@ -117,7 +117,7 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
     return true;
 
   } else {
-    FB_DEBUG(1, "Cannot compute hash of special file");
+    FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of special file");
     return false;
   }
 }
@@ -137,8 +137,8 @@ bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
 
   fd = open(filename.c_str(), O_RDONLY);
   if (-1 == fd) {
-    if (debug_level >= 3) {
-      FB_DEBUG(3, "File " + filename);
+    if (FB_DEBUGGING(FB_DEBUG_HASH)) {
+      FB_DEBUG(FB_DEBUG_HASH, "File " + filename);
       perror("open");
     }
     return false;
@@ -149,8 +149,8 @@ bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
     return false;
   }
 
-  if (firebuild::debug_level >= 2) {
-    FB_DEBUG(2, "xxh64sum: " + filename + " => " + this->to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_HASH)) {
+    FB_DEBUG(FB_DEBUG_HASH, "xxh64sum: " + filename + " => " + this->to_hex());
   }
 
   close(fd);

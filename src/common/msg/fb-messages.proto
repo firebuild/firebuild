@@ -31,7 +31,7 @@ message ShortCutProcessResp {
     required bool shortcut = 1;
     optional int64 exit_status = 2;
     // makse sense only for shortcut = false
-    optional int32 debug_level = 3;
+    optional int32 debug_flags = 3;
 }
 
 // Those function calls are not handled specially in interceptor lib and

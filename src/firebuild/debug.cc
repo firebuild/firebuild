@@ -84,4 +84,86 @@ std::string pretty_print_timestamp() {
   return std::string(buf);
 }
 
+struct flag {
+  const char *name;
+  int32_t value;
+};
+
+/* Keep this in sync with debug.h! */
+static struct flag available_flags[] = {
+  { "proc",              FB_DEBUG_PROC },
+  { "proctree",          FB_DEBUG_PROCTREE },
+  { "communication",     FB_DEBUG_COMM },
+  { "comm",              FB_DEBUG_COMM },
+  { "filesystem",        FB_DEBUG_FS },
+  { "fs",                FB_DEBUG_FS },
+  { "hash",              FB_DEBUG_HASH },
+  { "cache",             FB_DEBUG_CACHE },
+  { NULL, 0 }
+};
+
+#define SEPARATORS ",:"
+
+/**
+ * Parse the debug flags similarly to GLib's g_parse_debug_string().
+ *
+ * Currently case-sensitive (i.e. all lowercase is expected).
+ */
+int32_t parse_debug_flags(const std::string& str) {
+  int32_t flags = 0;
+  bool all = false;
+  size_t pos = 0;
+
+  while (pos < str.length()) {
+    size_t start = str.find_first_not_of(SEPARATORS, pos);
+    if (start == std::string::npos) {
+      break;
+    }
+    size_t end = str.find_first_of(SEPARATORS, start);
+    if (end == std::string::npos) {
+      end = str.length();
+    }
+    std::string flag_str = str.substr(start, end - start);
+    pos = end;
+
+    bool found = false;
+    if (flag_str == "all") {
+      all = true;
+      found = true;
+    } else if (flag_str == "help") {
+      fprintf(stderr, "Firebuild: available debug flags are:");
+      int id = 0;
+      while (available_flags[id].name != NULL) {
+        if (id > 0 && available_flags[id].value == available_flags[id - 1].value) {
+          fprintf(stderr, " or ");
+        } else {
+          fprintf(stderr, "\n  ");
+        }
+        fprintf(stderr, "%s", available_flags[id].name);
+        id++;
+      }
+      fprintf(stderr, "\n  all\n");
+      exit(EXIT_SUCCESS);
+    } else {
+      int id = 0;
+      while (available_flags[id].name != NULL) {
+        if (flag_str == available_flags[id].name) {
+          flags |= available_flags[id].value;
+          found = true;
+          break;
+        }
+        id++;
+      }
+    }
+    if (!found) {
+      fprintf(stderr, "Firebuild: Unrecognized debug flag %s\n", flag_str.c_str());
+    }
+  }
+
+  if (all) {
+    flags ^= 0xFFFF;
+  }
+  return flags;
+}
+
 }  // namespace firebuild

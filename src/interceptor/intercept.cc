@@ -74,8 +74,8 @@ int ic_pid;
 /** Per thread variable which we turn on inside call interception */
 __thread bool intercept_on = false;
 
-/** debugging level */
-int debug_level = 0;
+/** debugging flags */
+int32_t debug_flags = 0;
 
 /** Insert marker open()-s for strace, ltrace, etc. */
 static bool insert_trace_markers = false;
@@ -268,8 +268,8 @@ static void fb_ic_init() {
     assert(resp->has_exit_status());
     exit(resp->exit_status());
   } else {
-    if (resp->has_debug_level()) {
-      debug_level = resp->debug_level();
+    if (resp->has_debug_flags()) {
+      debug_flags = resp->debug_flags();
     }
   }
   ic_init_done = true;
