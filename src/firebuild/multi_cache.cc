@@ -137,8 +137,8 @@ bool MultiCache::store_protobuf(const Hash &key,
                                 const google::protobuf::Message &msg,
                                 const std::string &debug_header,
                                 Hash *subkey_out) {
-  if (firebuild::debug_level >= 2) {
-    FB_DEBUG(2, "MultiCache: storing protobuf, key " + key.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    FB_DEBUG(FB_DEBUG_CACHE, "MultiCache: storing protobuf, key " + key.to_hex());
   }
 
   std::string tmpfile = base_dir_ + "/new.XXXXXX";
@@ -163,7 +163,7 @@ bool MultiCache::store_protobuf(const Hash &key,
     if (written == -1) {
       perror("write");
     } else {
-      FB_DEBUG(2, "short write");
+      FB_DEBUG(FB_DEBUG_CACHE, "short write");
     }
     close(fd_dst);
     delete[] buf;
@@ -184,8 +184,8 @@ bool MultiCache::store_protobuf(const Hash &key,
     *subkey_out = subkey;
   }
 
-  if (firebuild::debug_level >= 1) {
-    FB_DEBUG(2, "  value hash " + subkey.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    FB_DEBUG(FB_DEBUG_CACHE, "  value hash " + subkey.to_hex());
 
     /* Place a human-readable version in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
@@ -216,8 +216,8 @@ bool MultiCache::store_protobuf(const Hash &key,
 bool MultiCache::retrieve_protobuf(const Hash &key,
                                    const Hash &subkey,
                                    google::protobuf::MessageLite *msg) {
-  if (firebuild::debug_level >= 2) {
-    FB_DEBUG(2, "MultiCache: retrieving protobuf, key " + key.to_hex() + " subkey " + subkey.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    FB_DEBUG(FB_DEBUG_CACHE, "MultiCache: retrieving protobuf, key " + key.to_hex() + " subkey " + subkey.to_hex());
   }
 
   std::string path = construct_cached_file_name(base_dir_, key, subkey, false);
@@ -234,7 +234,7 @@ bool MultiCache::retrieve_protobuf(const Hash &key,
     close(fd);
     return false;
   } else if (!S_ISREG(st.st_mode)) {
-    FB_DEBUG(2, "not a regular file");
+    FB_DEBUG(FB_DEBUG_CACHE, "not a regular file");
     close(fd);
     return false;
   }

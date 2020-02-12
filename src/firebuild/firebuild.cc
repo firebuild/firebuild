@@ -25,6 +25,7 @@
 #include "firebuild/debug.h"
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
+#include "firebuild/debug.h"
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
@@ -78,7 +79,8 @@ static void usage() {
          "\n"
          "Mandatory arguments to long options are mandatory for short options too.\n"
          "   -c --config-file=FILE     use FILE as configuration file\n"
-         "   -d --debug-level=N        set debugging level to N (0-4, default is 0)\n"
+         "   -d --debug-flags=list     comma separated list of debug flags,\n"
+         "                             \"-d help\" to get a list.\n"
          "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
          "                             the report's filename can be specified \n"
          "                             (firebuild-build-report.html by default). \n"
@@ -132,7 +134,7 @@ static void parse_cfg_file(const char * const custom_cfg_file) {
 static char** get_sanitized_env() {
   const libconfig::Setting& root = cfg->getRoot();
 
-  FB_DEBUG(1, "Passing through environment variables:");
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, "Passing through environment variables:");
 
   const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
   std::vector<std::string> env_v;
@@ -142,21 +144,21 @@ static char** get_sanitized_env() {
       env_v.push_back(pass_through[i].c_str() +
                       std::string("=") +
                       std::string(got_env));
-      FB_DEBUG(1, " " + env_v.back());
+      FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
     }
   }
-  FB_DEBUG(1, "");
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
 
-  FB_DEBUG(1, "Setting preset environment variables:");
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, "Setting preset environment variables:");
   const libconfig::Setting& preset = root["env_vars"]["preset"];
   for (int i = 0; i < preset.getLength(); i++) {
     env_v.push_back(preset[i]);
-    FB_DEBUG(1, " " + env_v.back());
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
   env_v.push_back("FB_SOCKET=" + fb_conn_string);
-  FB_DEBUG(1, " " + env_v.back());
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
 
-  FB_DEBUG(1, "");
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
 
   if (insert_trace_markers) {
     env_v.push_back("FB_INSERT_TRACE_MARKERS=1");
@@ -236,9 +238,9 @@ static void init_signal_handlers(void) {
 void ack_msg(const int conn, const int ack_num) {
   firebuild::msg::SupervisorMsg sv_msg;
   sv_msg.set_ack_num(ack_num);
-  FB_DEBUG(4, "sending ACK no. " + std::to_string(ack_num));
+  FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + std::to_string(ack_num));
   firebuild::fb_send_msg(sv_msg, conn);
-  FB_DEBUG(4, "ACK sent");
+  FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
 /**
@@ -296,8 +298,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     } else {
 #endif
       scproc_resp->set_shortcut(false);
-      if (firebuild::debug_level != 0) {
-        scproc_resp->set_debug_level(firebuild::debug_level);
+      if (firebuild::debug_flags != 0) {
+        scproc_resp->set_debug_flags(firebuild::debug_flags);
       }
 #if 0
     }
@@ -438,8 +440,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         ::firebuild::ProcessPBAdaptor::msg(proc, ic_msg.chdir());
       }
     } catch (std::out_of_range&) {
-      FB_DEBUG(1, "Ignoring message on fd: " + std::to_string(fd_conn) +
-               std::string(", process probably exited already."));
+      FB_DEBUG(firebuild::FB_DEBUG_COMM, "Ignoring message on fd: " + std::to_string(fd_conn) +
+                              std::string(", process probably exited already."));
     }
   } else if (ic_msg.has_gen_call()) {
   }
@@ -689,11 +691,7 @@ int main(const int argc, char *argv[]) {
       break;
 
     case 'd':
-      firebuild::debug_level = optarg?atoi(optarg):-1;
-      if ((firebuild::debug_level < 0) || (firebuild::debug_level > 4)) {
-        usage();
-        exit(EXIT_FAILURE);
-      }
+      firebuild::debug_flags = firebuild::parse_debug_flags(optarg);
       break;
 
     case 'h':
@@ -876,8 +874,8 @@ int main(const int argc, char *argv[]) {
               // got error or connection closed by client
               if (nbytes == 0) {
                 // connection closed
-                FB_DEBUG(2, "socket " + std::to_string(i) +
-                         std::string(" hung up"));
+                FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(i) +
+                                        std::string(" hung up"));
               } else {
                 perror("recv");
               }
@@ -885,8 +883,8 @@ int main(const int argc, char *argv[]) {
               close(i);  // bye!
               FD_CLR(i, &master);  // remove from master set
             } else {
-              if (firebuild::debug_level >= 2) {
-                FB_DEBUG(2, "fd " + std::to_string(i) + std::string(": "));
+              if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+                FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(i) + std::string(": "));
                 google::protobuf::TextFormat::Print(ic_msg, error_fos);
                 error_fos->Flush();
               }
@@ -972,6 +970,6 @@ extern void fb_debug(const std::string &msg) {
   std::cerr << msg << std::endl;
 }
 
-int debug_level = 0;
+int32_t debug_flags = 0;
 
 }  // namespace firebuild
