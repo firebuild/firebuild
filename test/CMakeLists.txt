@@ -7,6 +7,7 @@ endfunction()
 add_test(bats-integration ./integration.bats)
 
 add_custom_target(check ctest -V)
+add_custom_target(valgrind-check env FIREBUILD_PREFIX_CMD='valgrind -q --leak-check=full --track-fds=yes' ctest -V)
 
 add_test_binary(test_system)
 add_test_binary(test_exec)
