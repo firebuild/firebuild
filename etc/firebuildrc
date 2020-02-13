@@ -7,6 +7,9 @@ env_vars = {
   // the following environment variables are passed to the build command unchanged
   pass_through = [ "PATH", "SHELL", "PWD", "LD_LIBRARY_PATH" ];
 
+  // These env vars are skipped when computing an intercepted command's fingerprint.
+  fingerprint_skip = [ "MAKE_TERMOUT", "MAKE_TERMERR" ];
+
   // the folloving env vars are pre-set to the values configured below
   // Note that FB_SOCKET is also set by firebuild internally 
   preset = ["LD_PRELOAD=libfbintercept.so"];
