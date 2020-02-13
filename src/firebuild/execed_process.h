@@ -37,8 +37,8 @@ class ExecedProcess : public Process {
   std::set<std::string>& failed_wds() {return failed_wds_;}
   const std::vector<std::string>& args() const {return args_;}
   std::vector<std::string>& args() {return args_;}
-  const std::set<std::string>& env_vars() const {return env_vars_;}
-  std::set<std::string>& env_vars() {return env_vars_;}
+  const std::vector<std::string>& env_vars() const {return env_vars_;}
+  std::vector<std::string>& env_vars() {return env_vars_;}
   const std::string& executable() const {return executable_;}
   std::string& executable() {return executable_;}
   const std::set<std::string>& libs() const {return libs_;}
@@ -103,7 +103,7 @@ class ExecedProcess : public Process {
   /// chdir() to
   std::set<std::string> failed_wds_;
   std::vector<std::string> args_;
-  std::set<std::string> env_vars_;
+  std::vector<std::string> env_vars_;
   std::string executable_;
   /// DSO-s loaded by process and forked children (transitively)
   std::set<std::string> libs_;

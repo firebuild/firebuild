@@ -31,7 +31,7 @@ ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process 
       // this is used internally by FireBuild and changes with every run
       continue;
     }
-    e->env_vars().insert(scpq.env_var(i));
+    e->env_vars().push_back(scpq.env_var(i));
   }
   // TODO(rbalint) keep files in a separate container and refer to them instead
   // of creating the same strings several times
