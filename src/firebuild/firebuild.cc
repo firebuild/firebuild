@@ -232,6 +232,23 @@ static void init_signal_handlers(void) {
   }
 }
 
+static bool env_fingerprintable(const std::string& name_and_value) {
+  /* Strip off the "=value" part. */
+  std::string name = name_and_value.substr(0, name_and_value.find('='));
+
+  /* Env vars to skip, taken from the config files.
+   * Note: FB_SOCKET is already filtered out in the interceptor. */
+  const libconfig::Setting& root = cfg->getRoot();
+  const libconfig::Setting& skiplist = root["env_vars"]["fingerprint_skip"];
+  for (int i = 0; i < skiplist.getLength(); i++) {
+    std::string item = skiplist[i];
+    if (name == item) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static void fingerprint_process(firebuild::ExecedProcess *proc,
                                 const firebuild::msg::ShortCutProcessQuery &scproc_query) {
   firebuild::msg::ProcessDescription pd_msg;
@@ -242,7 +259,9 @@ static void fingerprint_process(firebuild::ExecedProcess *proc,
 
   /* Already sorted by the interceptor */
   for (auto env : scproc_query.env_var()) {
-    pd_msg.add_env(env);
+    if (env_fingerprintable(env)) {
+      pd_msg.add_env(env);
+    }
   }
 
   // TODO add exe and libs checksums
