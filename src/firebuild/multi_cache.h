@@ -22,6 +22,7 @@ class MultiCache {
                       const google::protobuf::Message &msg,
                       const google::protobuf::Message *debug_key,
                       const std::string &debug_header,
+                      const google::protobuf::TextFormat::Printer *printer,
                       Hash *subkey_out);
   bool retrieve_protobuf(const Hash &key,
                          const Hash &subkey,

@@ -9,6 +9,58 @@
 
 namespace firebuild {
 
+/**
+ * A protobuf FieldValuePrinter that adds the hex hash to fields of
+ * type "bytes" that happen to be exactly as long as our hashes, for
+ * easier debugging.
+ *
+ * Similarly, int32s are also printed in octal (useful at file permissions).
+ *
+ * Other types are printed as usual.
+ *
+ * False positives might happen at e.g. short filenames, that's okay.
+ *
+ * We could probably go for a solution that's aware of the exact meaning
+ * of fields and really only adds the hex string for hashes. It would go
+ * something like
+ *     Printer::RegisterFieldValuePrinter(
+ *         msg.GetDescriptor()->FindFieldByName("hash"), ...)
+ * but then the exact message type we store would be hardwired to
+ * MultiCache.
+ */
+class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldValuePrinter {
+ public:
+  std::string PrintBytes(const std::string& val) const override {
+    /* Call the base class to print as usual. */
+    std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintBytes(val);
+    /* Append the hex value if desirable. */
+    if (val.size() == Hash::hash_size()) {
+      ret += "  # ";
+      char buf[3];
+      for (unsigned int i = 0; i < Hash::hash_size(); i++) {
+        sprintf(buf, "%02x", (unsigned char)(val[i]));
+        ret += buf;
+      }
+    }
+    return ret;
+  }
+  std::string PrintInt32(google::protobuf::int32 val) const override {
+    /* Call the base class to print as usual. */
+    std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintInt32(val);
+    /* Append the octal value if desirable. */
+    if (val > 0 && val <= 07777) {
+      ret += "  # 0";
+      if (val >= 01000) {
+        ret += ('0' + val / 01000);
+      }
+      ret += ('0' + val % 01000 / 0100);
+      ret += ('0' + val %  0100 /  010);
+      ret += ('0' + val %   010);
+    }
+    return ret;
+  }
+};
+
 ExecedProcessCacher::ExecedProcessCacher(Cache *cache,
                                          MultiCache *multi_cache,
                                          bool no_store) :
@@ -84,12 +136,18 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   // TODO Add all sorts of other stuff
 
   std::string debug_header;
+  google::protobuf::TextFormat::Printer *printer = NULL;
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     debug_header = pretty_print_timestamp() + "\n\n";
+
+    const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
+    printer = new google::protobuf::TextFormat::Printer();
+    printer->SetDefaultFieldValuePrinter(pb_hash_hex_value_printer);  /* takes ownership */
   }
 
   /* Store in the cache everything about this process. */
-  multi_cache_->store_protobuf(proc->fingerprint(), pio, proc->fingerprint_msg(), debug_header, NULL);
+  multi_cache_->store_protobuf(proc->fingerprint(), pio, proc->fingerprint_msg(), debug_header, printer, NULL);
+  delete printer;
 }
 
 }  // namespace firebuild
