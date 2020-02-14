@@ -8,6 +8,7 @@ add_executable(firebuild
   firebuild.cc
   process.cc
   execed_process.cc
+  execed_process_cacher.cc
   execed_process_parameters.cc
   forked_process.cc
   process_factory.cc

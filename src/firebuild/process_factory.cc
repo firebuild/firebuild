@@ -6,6 +6,8 @@
 
 namespace firebuild {
 
+class ExecedProcessCacher;
+
 ForkedProcess* ProcessFactory::getForkedProcess(const msg::ForkChild &fc,
                                                 Process * const parent) {
   auto f = new ForkedProcess(fc.pid(), fc.ppid(), parent);
@@ -18,9 +20,10 @@ ForkedProcess* ProcessFactory::getForkedProcess(const int pid,
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent) {
+ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent,
+                                 ExecedProcessCacher *cacher) {
   auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),
-                             scpq.executable(), parent);
+                             scpq.executable(), parent, cacher);
 
   for (int i = 0; i < scpq.arg_size(); i++) {
     e->args().push_back(scpq.arg(i));

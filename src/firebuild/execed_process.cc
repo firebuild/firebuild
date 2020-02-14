@@ -8,6 +8,8 @@
 #include <sstream>
 
 #include "firebuild/file_db.h"
+#include "firebuild/execed_process_cacher.h"
+#include "firebuild/platform.h"
 
 namespace firebuild {
 
@@ -37,11 +39,12 @@ static std::string escapeJsonString(const std::string& input) {
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
                              const std::string &executable,
-                             Process * parent)
+                             Process * parent,
+                             ExecedProcessCacher *cacher)
     : Process(pid, ppid, cwd, parent, true), can_shortcut_(true),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), fingerprint_(), fingerprint_msg_(NULL) {
+      libs_(), file_usages_(), fingerprint_(), fingerprint_msg_(NULL), cacher_(cacher) {
   if (NULL != parent) {
     // add as exec child of parent
     parent->set_exec_pending(false);
@@ -65,10 +68,16 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
   Process::exit_result(status, utime_u, stime_u);
   // propagate to parents exec()-ed this FireBuild process
   propagate_exit_status(status);
+}
+
+void ExecedProcess::do_finalize() {
   // store data for shortcutting
-  if (can_shortcut()) {
-    // TODO(rbalint) store data
+  if (cacher_ && can_shortcut()) {
+    cacher_->store(this);
   }
+
+  // Call the base class's method
+  Process::do_finalize();
 }
 
 /**
