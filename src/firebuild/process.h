@@ -92,7 +92,6 @@ class Process {
   void set_exit_status(const int e) {exit_status_ = e;}
   std::string& wd() {return wd_;}
   void set_wd(const std::string &d);
-  virtual std::set<std::string>& libs() = 0;
   int64_t utime_u() const {return utime_u_;}
   void set_utime_u(int64_t t) {utime_u_ = t;}
   int64_t stime_u() const {return stime_u_;}

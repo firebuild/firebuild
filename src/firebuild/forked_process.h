@@ -35,10 +35,6 @@ class ForkedProcess : public Process {
     assert(parent() != NULL);
     parent()->add_wd(d);
   }
-  std::set<std::string>& libs() {
-    assert(parent() != NULL);
-    return parent()->libs();
-  }
   Process* exec_proc() const {return parent()->exec_proc();};
   int64_t sum_rusage_recurse() {
     set_aggr_time(utime_u() + stime_u());
