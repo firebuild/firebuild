@@ -6,9 +6,8 @@
 
 namespace firebuild {
 int ProcessPBAdaptor::msg(Process *p, const msg::Open &o) {
-  bool c = (o.has_created())?o.created():false;
   int error = (o.has_error_no())?o.error_no():0;
-  return p->handle_open(o.file(), o.flags(), o.mode(), o.ret(), c, error);
+  return p->handle_open(o.file(), o.flags(), o.ret(), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const msg::Close &c) {
