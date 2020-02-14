@@ -8,8 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "firebuild/execed_process_parameters.h"
-
 namespace firebuild {
 
 /**
