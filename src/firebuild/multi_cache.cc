@@ -94,7 +94,11 @@ static std::string construct_cached_file_name(const std::string &base,
 /**
  * A protobuf FieldValuePrinter that adds the hex hash to fields of
  * type "bytes" that happen to be exactly as long as our hashes, for
- * easier debugging. Other types are printed as usual.
+ * easier debugging.
+ *
+ * Similarly, int32s are also printed in octal (useful at file permissions).
+ *
+ * Other types are printed as usual.
  *
  * False positives might happen at e.g. short filenames, that's okay.
  *
@@ -119,6 +123,21 @@ class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldVa
         sprintf(buf, "%02x", (unsigned char)(val[i]));
         ret += buf;
       }
+    }
+    return ret;
+  }
+  std::string PrintInt32(google::protobuf::int32 val) const override {
+    /* Call the base class to print as usual. */
+    std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintInt32(val);
+    /* Append the octal value if desirable. */
+    if (val > 0 && val <= 07777) {
+      ret += "  # 0";
+      if (val >= 01000) {
+        ret += ('0' + val / 01000);
+      }
+      ret += ('0' + val % 01000 / 0100);
+      ret += ('0' + val %  0100 /  010);
+      ret += ('0' + val %   010);
     }
     return ret;
   }
