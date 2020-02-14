@@ -92,64 +92,13 @@ static std::string construct_cached_file_name(const std::string &base,
 }
 
 /**
- * A protobuf FieldValuePrinter that adds the hex hash to fields of
- * type "bytes" that happen to be exactly as long as our hashes, for
- * easier debugging.
- *
- * Similarly, int32s are also printed in octal (useful at file permissions).
- *
- * Other types are printed as usual.
- *
- * False positives might happen at e.g. short filenames, that's okay.
- *
- * We could probably go for a solution that's aware of the exact meaning
- * of fields and really only adds the hex string for hashes. It would go
- * something like
- *     Printer::RegisterFieldValuePrinter(
- *         msg.GetDescriptor()->FindFieldByName("hash"), ...)
- * but then the exact message type we store would be hardwired to
- * MultiCache.
- */
-class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldValuePrinter {
- public:
-  std::string PrintBytes(const std::string& val) const override {
-    /* Call the base class to print as usual. */
-    std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintBytes(val);
-    /* Append the hex value if desirable. */
-    if (val.size() == Hash::hash_size()) {
-      ret += "  # ";
-      char buf[3];
-      for (unsigned int i = 0; i < Hash::hash_size(); i++) {
-        sprintf(buf, "%02x", (unsigned char)(val[i]));
-        ret += buf;
-      }
-    }
-    return ret;
-  }
-  std::string PrintInt32(google::protobuf::int32 val) const override {
-    /* Call the base class to print as usual. */
-    std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintInt32(val);
-    /* Append the octal value if desirable. */
-    if (val > 0 && val <= 07777) {
-      ret += "  # 0";
-      if (val >= 01000) {
-        ret += ('0' + val / 01000);
-      }
-      ret += ('0' + val % 01000 / 0100);
-      ret += ('0' + val %  0100 /  010);
-      ret += ('0' + val %   010);
-    }
-    return ret;
-  }
-};
-
-/**
  * Store a protobuf (its serialization) in the protobuf cache.
  *
  * @param key The key
  * @param msg The protobuf to store
  * @param debug_key Optionally the key as pb for debugging purposes
  * @param debug_header String prepended to debug lines
+ * @param printer Protobuf printer to use for debugging, or NULL for the default
  * @param subkey_out Optionally store the subkey (hash of the protobuf) here
  * @return Whether succeeded
  */
@@ -157,6 +106,7 @@ bool MultiCache::store_protobuf(const Hash &key,
                                 const google::protobuf::Message &msg,
                                 const google::protobuf::Message *debug_key,
                                 const std::string &debug_header,
+                                const google::protobuf::TextFormat::Printer *printer,
                                 Hash *subkey_out) {
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     FB_DEBUG(FB_DEBUG_CACHE, "MultiCache: storing protobuf, key " + key.to_hex());
@@ -165,10 +115,13 @@ bool MultiCache::store_protobuf(const Hash &key,
     std::string path_debug = construct_cached_dir_name(base_dir_, key, true) + "/%_directory_debug.txt";
     std::string pb_txt;
 
-    const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
-    google::protobuf::TextFormat::Printer printer;
-    printer.SetDefaultFieldValuePrinter(pb_hash_hex_value_printer);
-    printer.PrintToString(*debug_key, &pb_txt);
+    if (printer) {
+      /* Print using supplied printer. */
+      printer->PrintToString(*debug_key, &pb_txt);
+    } else {
+      /* Print using default printer. */
+      google::protobuf::TextFormat::PrintToString(*debug_key, &pb_txt);
+    }
 
     int fd = creat(path_debug.c_str(), 0600);
     write(fd, pb_txt.c_str(), pb_txt.size());
@@ -225,10 +178,13 @@ bool MultiCache::store_protobuf(const Hash &key,
     std::string path_debug = path_dst + "_debug.txt";
     std::string pb_txt;
 
-    const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
-    google::protobuf::TextFormat::Printer printer;
-    printer.SetDefaultFieldValuePrinter(pb_hash_hex_value_printer);
-    printer.PrintToString(msg, &pb_txt);
+    if (printer) {
+      /* Print using supplied printer. */
+      printer->PrintToString(msg, &pb_txt);
+    } else {
+      /* Print using default printer. */
+      google::protobuf::TextFormat::PrintToString(msg, &pb_txt);
+    }
 
     int fd = creat(path_debug.c_str(), 0600);
     write(fd, debug_header.c_str(), debug_header.size());
