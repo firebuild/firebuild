@@ -16,6 +16,8 @@ add_executable(firebuild
   hash.cc
   file.cc
   file_db.cc
+  file_usage.cc
+  file_usage_db.cc
   cache.cc
   multi_cache.cc
   ${PROTO_CACHE_SRCS}
