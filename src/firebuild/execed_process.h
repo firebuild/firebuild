@@ -37,12 +37,12 @@ class ExecedProcess : public Process {
   std::set<std::string>& failed_wds() {return failed_wds_;}
   const std::vector<std::string>& args() const {return args_;}
   std::vector<std::string>& args() {return args_;}
-  const std::set<std::string>& env_vars() const {return env_vars_;}
-  std::set<std::string>& env_vars() {return env_vars_;}
+  const std::vector<std::string>& env_vars() const {return env_vars_;}
+  std::vector<std::string>& env_vars() {return env_vars_;}
   const std::string& executable() const {return executable_;}
   std::string& executable() {return executable_;}
-  const std::set<std::string>& libs() const {return libs_;}
-  std::set<std::string>& libs() {return libs_;}
+  const std::vector<std::string>& libs() const {return libs_;}
+  std::vector<std::string>& libs() {return libs_;}
   std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;}
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
   void exit_result(const int status, const int64_t utime_u,
@@ -101,10 +101,13 @@ class ExecedProcess : public Process {
   /// chdir() to
   std::set<std::string> failed_wds_;
   std::vector<std::string> args_;
-  std::set<std::string> env_vars_;
+  /// Environment variables in deterministic (sorted) order.
+  std::vector<std::string> env_vars_;
   std::string executable_;
-  /// DSO-s loaded by process and forked children (transitively)
-  std::set<std::string> libs_;
+  /// DSO-s loaded by the linker at process startup, in the same order.
+  /// (DSO-s later loaded via dlopen(), and DSO-s of descendant processes
+  /// are registered as regular file open operations.)
+  std::vector<std::string> libs_;
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<std::string, FileUsage*> file_usages_;
   /// Fingerprint of the process
