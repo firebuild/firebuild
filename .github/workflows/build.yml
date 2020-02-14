@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
@@ -47,7 +47,7 @@ jobs:
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
   scan-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
