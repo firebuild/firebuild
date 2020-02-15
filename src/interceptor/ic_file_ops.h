@@ -74,28 +74,8 @@ IC_VA(int, fcntl, (int fd, int cmd, ...), {
        va_start(ap, oflag);                             \
        mode = va_arg(ap, mode_t);                       \
        va_end(ap);                                      \
-       bool created = false;                            \
-       if ((oflag & O_CREAT) && !(oflag & O_EXCL)) {    \
-         int err_saved = errno;                         \
-         int tmp_fd;                                    \
-         oflag &= ~O_CREAT;                             \
-         if (-1 == (tmp_fd = orig_fn o_pars)) {         \
-           if (errno == ENOENT) {                       \
-             created = true;                            \
-           }                                            \
-         } else {                                       \
-           ic_orig_close(tmp_fd);                       \
-         }                                              \
-         oflag |= O_CREAT;                              \
-         errno = err_saved;                             \
-       }                                                \
-                                                        \
        ret = orig_fn o_pars;                            \
-       if (!created) {                                  \
-         intercept_open(file, oflag, mode, ret);        \
-       } else {                                         \
-         intercept_open(file, oflag, mode, true, ret);  \
-       }                                                \
+       intercept_open(file, oflag, mode, ret);          \
        clear_file_state(ret);                           \
      })
 
