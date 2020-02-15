@@ -129,16 +129,31 @@ class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldVa
  *
  * @param key The key
  * @param msg The protobuf to store
- * @param debug_header string prepended to debug lines
+ * @param debug_key Optionally the key as pb for debugging purposes
+ * @param debug_header String prepended to debug lines
  * @param subkey_out Optionally store the subkey (hash of the protobuf) here
  * @return Whether succeeded
  */
 bool MultiCache::store_protobuf(const Hash &key,
                                 const google::protobuf::Message &msg,
+                                const google::protobuf::Message *debug_key,
                                 const std::string &debug_header,
                                 Hash *subkey_out) {
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     FB_DEBUG(FB_DEBUG_CACHE, "MultiCache: storing protobuf, key " + key.to_hex());
+
+    /* Place a human-readable version of the key in the cache, for easier debugging. */
+    std::string path_debug = construct_cached_dir_name(base_dir_, key, true) + "/%_directory_debug.txt";
+    std::string pb_txt;
+
+    const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
+    google::protobuf::TextFormat::Printer printer;
+    printer.SetDefaultFieldValuePrinter(pb_hash_hex_value_printer);
+    printer.PrintToString(*debug_key, &pb_txt);
+
+    int fd = creat(path_debug.c_str(), 0600);
+    write(fd, pb_txt.c_str(), pb_txt.size());
+    close(fd);
   }
 
   std::string tmpfile = base_dir_ + "/new.XXXXXX";
@@ -187,7 +202,7 @@ bool MultiCache::store_protobuf(const Hash &key,
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     FB_DEBUG(FB_DEBUG_CACHE, "  value hash " + subkey.to_hex());
 
-    /* Place a human-readable version in the cache, for easier debugging. */
+    /* Place a human-readable version of the value in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
     std::string pb_txt;
 
@@ -196,10 +211,9 @@ bool MultiCache::store_protobuf(const Hash &key,
     printer.SetDefaultFieldValuePrinter(pb_hash_hex_value_printer);
     printer.PrintToString(msg, &pb_txt);
 
-    std::string txt = debug_header + pb_txt;
     int fd = creat(path_debug.c_str(), 0600);
-    /* FIXME print some header about the process, e.g. argv */
-    write(fd, txt.c_str(), txt.size());
+    write(fd, debug_header.c_str(), debug_header.size());
+    write(fd, pb_txt.c_str(), pb_txt.size());
     close(fd);
   }
   return true;
