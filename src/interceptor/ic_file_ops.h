@@ -99,16 +99,25 @@ IC_VA(int, fcntl, (int fd, int cmd, ...), {
        clear_file_state(ret);                           \
      })
 
+#define IC_OPEN_2(ret_type, name, pars, o_pars)         \
+  IC(ret_type, name, pars,                              \
+     {                                                  \
+       ret = orig_fn o_pars;                            \
+       intercept_open(file, oflag, 0, ret);             \
+       clear_file_state(ret);                           \
+     })
 
 IC_OPEN_VA(int, open, (const char *file, int oflag, ...), (file, oflag, mode))
-
 IC_OPEN_VA(int, open64, (const char *file, int oflag, ...), (file, oflag, mode))
-
 IC_OPEN_VA(int, openat, (int fd, const char *file, int oflag, ...),
            (fd, file, oflag, mode))
-
 IC_OPEN_VA(int, openat64, (int fd, const char *file, int oflag, ...),
            (fd, file, oflag, mode))
+
+IC_OPEN_2(int, __open_2, (const char *file, int oflag), (file, oflag))
+IC_OPEN_2(int, __open64_2, (const char *file, int oflag), (file, oflag))
+IC_OPEN_2(int, __openat_2, (int fd, const char *file, int oflag), (fd, file, oflag))
+IC_OPEN_2(int, __openat64_2, (int fd, const char *file, int oflag), (fd, file, oflag))
 
 #define IC_FOPEN(name)                                                  \
   IC(FILE*, name, (const char *pathname, const char *mode),             \
