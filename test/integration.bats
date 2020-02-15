@@ -54,3 +54,10 @@ load test_helper
       strip_stderr stderr
       [ -z "$(strip_stderr stderr)" ]
 }
+
+@test "closedir() inside an rm -r" {
+      result=$(./run-firebuild -- bash -c 'mkdir -p TeMp/FoF; rm -r TeMp' 2> stderr)
+      [ "$result" = "" ]
+      strip_stderr stderr
+      [ -z "$(strip_stderr stderr)" ]
+}
