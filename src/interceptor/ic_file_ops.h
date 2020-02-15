@@ -697,6 +697,10 @@ IC(int, fclose, (FILE *stream), {
     ret = orig_fn(stream);
     if (stream_fileno != fb_sv_conn) {
       intercept_close(stream_fileno, (ret == EOF)?-1:ret);}})
+IC(int, closedir, (DIR *dirp), {
+    int dir_fileno = (dirp)?dirfd(dirp):-1;
+    ret = orig_fn(dirp);
+    intercept_close(dir_fileno, (ret == EOF)?-1:ret);})
 // ignore: fflush fflush_unlocked
 IC(int, fcloseall, (void), {
     ret = orig_fn();
@@ -938,8 +942,6 @@ IC(void*, dlopen, (const char *filename, int flag), {
 // dirent.h
 IC(DIR *, opendir, (const char *name), {
     ret = orig_fn(name); intercept_opendir(name, ret);})
-IC_GENERIC(int, closedir, (DIR *dirp), {
-    ret = orig_fn(dirp);})
 IC_GENERIC(struct dirent *, readdir, (DIR *dirp), {
     ret = orig_fn(dirp);})
 IC_GENERIC(struct dirent64 *, readdir64, (DIR *dirp), {
@@ -955,8 +957,6 @@ IC_GENERIC_VOID(void, rewinddir, (DIR *dirp), {
 IC_GENERIC_VOID(void, seekdir, (DIR *dirp, long int pos), {
     orig_fn(dirp, pos);})
 IC_GENERIC(long int, telldir, (DIR *dirp), {
-    ret = orig_fn(dirp);})
-IC_GENERIC(int, dirfd, (DIR *dirp), {
     ret = orig_fn(dirp);})
 // ignore scandir scandir64 alphasort
 IC_GENERIC(ssize_t, getdirentries, (int fd, char *buf, size_t nbytes,
