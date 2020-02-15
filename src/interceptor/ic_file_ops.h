@@ -710,8 +710,9 @@ IC(FILE*, freopen64, (const char *filename, const char *modes, FILE *stream), {
     ret = orig_fn(filename, modes, stream);
     intercept_freopen(filename, modes, stream_fileno, (ret)?fileno(ret):(-1));})
 
-// ignore: fdopen fopencookie fmemopen open_memstream setbuf setbuffer
-// setlinebuf setvbuf
+// ignore: fdopen fdopendir fopencookie fmemopen open_memstream setbuf setbuffer
+// setlinebuf setvbuf -- these are functions that do glibc internal administration only,
+// without actual file operations.
 
 IC_VA(int, fprintf, (FILE * stream, const char * format, ...), {
     (void)format;
@@ -937,8 +938,6 @@ IC(void*, dlopen, (const char *filename, int flag), {
 // dirent.h
 IC(DIR *, opendir, (const char *name), {
     ret = orig_fn(name); intercept_opendir(name, ret);})
-IC(DIR *, fdopendir, (int fd), {
-    ret = orig_fn(fd); intercept_fdopendir(fd, ret);})
 IC_GENERIC(int, closedir, (DIR *dirp), {
     ret = orig_fn(dirp);})
 IC_GENERIC(struct dirent *, readdir, (DIR *dirp), {

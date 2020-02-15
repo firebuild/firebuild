@@ -562,8 +562,6 @@ IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file,
 IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept opendir */
 IC2_SIMPLE_1P(void*, IC2_NO_RET, OpenDir, opendir, const char *, name)
-/* Intercept fdopendir */
-IC2_SIMPLE_1P(void*, IC2_NO_RET, FDOpenDir, fdopendir, int, fd)
 /* Intercept chdir */
 IC2_SIMPLE_1P(int, IC2_NO_RET, ChDir, chdir, const char *, dir)
 
