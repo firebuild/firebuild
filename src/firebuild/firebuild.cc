@@ -264,9 +264,36 @@ static void fingerprint_process(firebuild::ExecedProcess *proc,
     }
   }
 
-  // TODO add exe and libs checksums
-
+  /* The executable and its hash */
   firebuild::Hash hash;
+  if (!hash.set_from_file(scproc_query.executable())) {
+    proc->disable_shortcutting("Could not checksum the executable");
+    return;
+  }
+  pd_msg.mutable_executable()->set_path(scproc_query.executable());
+  pd_msg.mutable_executable()->set_hash(hash.to_binary());
+  if (proc->parent_exec_point()) {
+    /* Propagate the opening of this file upwards as a regular file open event. */
+    proc->parent_exec_point()->register_file_usage(scproc_query.executable(), O_RDONLY, 0);
+  }
+
+  for (auto lib : scproc_query.libs().file()) {
+    if (lib == "linux-vdso.so.1") {
+      continue;
+    }
+    if (!hash.set_from_file(lib)) {
+      proc->disable_shortcutting("Could not checksum the library " + firebuild::pretty_print_string(lib));
+      return;
+    }
+    auto entry = pd_msg.add_libs();
+    entry->set_path(lib);
+    entry->set_hash(hash.to_binary());
+    if (proc->parent_exec_point()) {
+      /* Propagate the opening of this file upwards as a regular file open event. */
+      proc->parent_exec_point()->register_file_usage(lib, O_RDONLY, 0);
+    }
+  }
+
   hash.set_from_protobuf(pd_msg);
   proc->set_fingerprint(hash);
 }
