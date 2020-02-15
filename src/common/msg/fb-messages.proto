@@ -90,13 +90,6 @@ message OpenDir {
     optional int32 error_no = 2;
 }
 
-message FDOpenDir {
-    // file descriptor
-    optional int32 fd = 1;
-    // error no., when ret = -1
-    optional int32 error_no = 2;
-}
-
 message FReOpen {
     // file path
     optional bytes filename = 1;
@@ -710,7 +703,6 @@ message InterceptorMsg {
     optional FUTime futime = 56;
     optional FBError fb_error = 57;
     optional FBDebug fb_debug = 58;
-    optional FDOpenDir fdopendir = 59;
     optional Fcntl fcntl = 60;
     optional SysCall syscall = 61;
     optional System system = 62;
