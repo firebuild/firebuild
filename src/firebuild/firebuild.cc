@@ -251,16 +251,16 @@ static bool env_fingerprintable(const std::string& name_and_value) {
 
 static void fingerprint_process(firebuild::ExecedProcess *proc,
                                 const firebuild::msg::ShortCutProcessQuery &scproc_query) {
-  firebuild::msg::ProcessDescription pd_msg;
-  pd_msg.set_cwd(scproc_query.cwd());
+  auto fp_msg = new firebuild::msg::ProcessFingerprint();
+  fp_msg->set_cwd(scproc_query.cwd());
   for (auto arg : scproc_query.arg()) {
-    pd_msg.add_arg(arg);
+    fp_msg->add_arg(arg);
   }
 
   /* Already sorted by the interceptor */
   for (auto env : scproc_query.env_var()) {
     if (env_fingerprintable(env)) {
-      pd_msg.add_env(env);
+      fp_msg->add_env(env);
     }
   }
 
@@ -268,10 +268,11 @@ static void fingerprint_process(firebuild::ExecedProcess *proc,
   firebuild::Hash hash;
   if (!hash.set_from_file(scproc_query.executable())) {
     proc->disable_shortcutting("Could not checksum the executable");
+    delete fp_msg;
     return;
   }
-  pd_msg.mutable_executable()->set_path(scproc_query.executable());
-  pd_msg.mutable_executable()->set_hash(hash.to_binary());
+  fp_msg->mutable_executable()->set_path(scproc_query.executable());
+  fp_msg->mutable_executable()->set_hash(hash.to_binary());
   if (proc->parent_exec_point()) {
     /* Propagate the opening of this file upwards as a regular file open event. */
     proc->parent_exec_point()->register_file_usage(scproc_query.executable(), O_RDONLY, 0);
@@ -283,9 +284,10 @@ static void fingerprint_process(firebuild::ExecedProcess *proc,
     }
     if (!hash.set_from_file(lib)) {
       proc->disable_shortcutting("Could not checksum the library " + firebuild::pretty_print_string(lib));
+      delete fp_msg;
       return;
     }
-    auto entry = pd_msg.add_libs();
+    auto entry = fp_msg->add_libs();
     entry->set_path(lib);
     entry->set_hash(hash.to_binary());
     if (proc->parent_exec_point()) {
@@ -294,8 +296,13 @@ static void fingerprint_process(firebuild::ExecedProcess *proc,
     }
   }
 
-  hash.set_from_protobuf(pd_msg);
+  hash.set_from_protobuf(*fp_msg);
   proc->set_fingerprint(hash);
+  if (FB_DEBUGGING(firebuild::FB_DEBUG_CACHE)) {
+    proc->set_fingerprint_msg(fp_msg);
+  } else {
+    delete fp_msg;
+  }
 }
 
 /**
