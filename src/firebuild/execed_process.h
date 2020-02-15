@@ -14,6 +14,7 @@
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
+#include "firebuild/fb-cache.pb.h"
 
 namespace firebuild {
 
@@ -49,6 +50,8 @@ class ExecedProcess : public Process {
                    const int64_t stime_u);
   void set_fingerprint(const Hash& fingerprint) {fingerprint_ = fingerprint;}
   const Hash& fingerprint() const {return fingerprint_;}
+  void set_fingerprint_msg(firebuild::msg::ProcessFingerprint *fingerprint_msg) {delete fingerprint_msg_; fingerprint_msg_ = fingerprint_msg;}
+  const firebuild::msg::ProcessFingerprint *fingerprint_msg() const {return fingerprint_msg_;}
 
   void propagate_file_usage(const std::string &name,
                             const FileUsage &fu_change);
@@ -114,6 +117,8 @@ class ExecedProcess : public Process {
   std::unordered_map<std::string, FileUsage*> file_usages_;
   /// Fingerprint of the process
   Hash fingerprint_;
+  /// Fingerprint of the process, as the entire protobuf, for debugging purposes
+  firebuild::msg::ProcessFingerprint *fingerprint_msg_;
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";
   /// Process the event preventing short-cutting happened in

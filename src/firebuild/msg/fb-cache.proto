@@ -56,7 +56,7 @@ message EnvVar {
 // expected to change across runs, e.g. pid, ppid, $FB_SOCKET etc. are
 // not included here. Things that only become known while the process is
 // running, such as the files it reads, aren't included either.
-message ProcessDescription {
+message ProcessFingerprint {
     // Program file
     required File executable = 1;
 
@@ -132,7 +132,7 @@ message Process {
     // Checksum (binary) of process and children
     optional bytes hash = 2;
 
-    required ProcessDescription descr = 3;
+    required ProcessFingerprint fingerprint = 3;
     required ProcessInputsOutputs inputs_outputs = 4;
 
     // exit status of the process

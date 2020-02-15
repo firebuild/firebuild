@@ -6,9 +6,9 @@
  * multiple values. More precisely, a key contains a list of subkeys,
  * and a (key, subkey) pair points to a value.
  *
- * In practice, one ProcessDescription can have multiple
+ * In practice, one ProcessFingerprint can have multiple
  * ProcessInputsOutputs associated with it. The key is the hash of
- * ProcessDescription's serialization. The subkey happens to be the hash
+ * ProcessFingerprint's serialization. The subkey happens to be the hash
  * of ProcessInputsOutputs's serialization, although it could easily be
  * anything else.
  *
@@ -16,12 +16,12 @@
  * stored as separate file of a given directory. The list of subkeys is
  * retrieved by listing the directory.
  *
- * E.g. ProcessDescription1's hash in hex is "description1". Underneath
+ * E.g. ProcessFingerprint1's hash in hex is "fingerprint1". Underneath
  * it there are two values: ProcessInputsOutputs1's hash in hex is
  * "inputsoutputs1",ProcessInputsOutputs2's hash in hex is
  * "inputsoutputs2". The directory structure is:
- * - d/de/description1/inputsoutputs1
- * - d/de/description1/inputsoutputs2
+ * - f/fi/fingerprint1/inputsoutputs1
+ * - f/fi/fingerprint1/inputsoutputs2
  */
 
 #include "firebuild/multi_cache.h"
