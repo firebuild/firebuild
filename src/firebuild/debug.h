@@ -32,6 +32,8 @@ enum {
   FB_DEBUG_CACHING      = 1 << 7,
   /* Shortcutting */
   FB_DEBUG_SHORTCUT     = 1 << 8,
+  /* Emulating pipes */
+  FB_DEBUG_PIPE         = 1 << 9,
 };
 
 /**

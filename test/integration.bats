@@ -19,6 +19,14 @@ setup() {
   done
 }
 
+@test "bash -c grep ok" {
+  for i in 1 2; do
+    result=$(echo -e "foo\nok\nbar" | ./run-firebuild -- bash -c "grep ok")
+    assert_streq "$result" "ok"
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
     result=$(./run-firebuild -r -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
@@ -36,8 +44,16 @@ setup() {
 
 @test "simple pipe" {
   for i in 1 2; do
-    result=$(./run-firebuild -- bash -c 'seq 10000 | grep ^9')
+    result=$(./run-firebuild -- bash -c 'seq 30000 | (sleep 0.01 && grep ^9)')
     assert_streq "$result" "$(seq 10000 | grep ^9)"
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
+@test "yes | head" {
+  for i in 1 2; do
+    result=$(./run-firebuild -- bash -c 'yes | head -n 10000000 | tail -n 1')
+    assert_streq "$result" "y"
     assert_streq "$(strip_stderr stderr)" ""
   done
 }

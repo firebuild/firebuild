@@ -5,12 +5,14 @@
 #ifndef FIREBUILD_PROCESS_TREE_H_
 #define FIREBUILD_PROCESS_TREE_H_
 
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "firebuild/process.h"

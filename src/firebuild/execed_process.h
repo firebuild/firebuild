@@ -65,6 +65,7 @@ class ExecedProcess : public Process {
   bool register_file_usage(const std::string &name, const std::string &actual_file,
                            FileAction action, int flags, int error);
   bool register_file_usage(const std::string &name, FileUsage fu_change);
+  void add_pipe(int fd1_conn, std::shared_ptr<Pipe> pipe) {fd1_conn2pipe_[fd1_conn] = pipe;}
 
   /**
    * Fail to change to a working directory
@@ -130,6 +131,13 @@ class ExecedProcess : public Process {
   std::vector<std::string> libs_;
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<std::string, FileUsage*> file_usages_;
+  /**
+   * Pipes associated with the process including pipes for file descriptors
+   * inherited by the top process.
+   * Pipes can be associated with several processes because they can have multiple fd1 ends which
+   * are connected to the process' output.
+   */
+  std::unordered_map<int, std::shared_ptr<Pipe>> fd1_conn2pipe_ = {};
   void store_in_cache();
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";

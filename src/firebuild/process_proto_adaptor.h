@@ -25,7 +25,6 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBB_unlink *u);
   static int msg(Process *p, const FBB_mkdir *m);
   static int msg(Process *p, const FBB_rmdir *r);
-  static int msg(Process *p, const FBB_pipe2 *pipe);
   static int msg(Process *p, const FBB_dup *d);
   static int msg(Process *p, const FBB_dup3 *d);
   static int msg(Process *p, const FBB_rename *r);

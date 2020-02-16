@@ -13,6 +13,7 @@ add_executable(firebuild
   config.cc
   debug.cc
   firebuild.cc
+  pipe.cc
   process.cc
   execed_process.cc
   execed_process_cacher.cc

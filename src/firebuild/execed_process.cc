@@ -52,7 +52,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       can_shortcut_(true), was_shortcut_(false),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), cacher_(NULL) {
+      libs_(), file_usages_(), fd1_conn2pipe_(), cacher_(NULL) {
   if (parent != NULL) {
     // add as exec child of parent
     parent->set_exec_pending(false);
@@ -95,6 +95,7 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
 }
 
 void ExecedProcess::do_finalize() {
+  forward_all_pipes();
   // store data for shortcutting
   if (cacher_ && !was_shortcut() && can_shortcut()) {
     cacher_->store(this);

@@ -4,7 +4,9 @@
 #include "firebuild/process_tree.h"
 
 #include <math.h>
+#include <unistd.h>
 
+#include <cassert>
 #include <cstdio>
 #include <stdexcept>
 #include <limits>

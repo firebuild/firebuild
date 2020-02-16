@@ -39,6 +39,7 @@ class ForkedProcess : public Process {
     parent()->add_wd(d);
   }
   Process* exec_proc() const {return parent()->exec_proc();}
+  void do_finalize();
   int64_t sum_rusage_recurse() {
     set_aggr_time(utime_u() + stime_u());
     return Process::sum_rusage_recurse();
