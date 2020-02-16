@@ -18,9 +18,10 @@
 #include <dirent.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <spawn.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <spawn.h>
+#include <sys/stat.h>
 
 #include "common/firebuild_common.h"
 
@@ -62,6 +63,7 @@ extern void reset_fn_infos();
 
 /** Connect to supervisor */
 extern int fb_connect_supervisor(int fd);
+
 /** Set up main supervisor connection */
 extern void fb_init_supervisor_conn();
 
@@ -78,6 +80,9 @@ void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd);
 
 /** Connection string to supervisor */
 extern char * fb_conn_string;
+
+/** Connection string length */
+extern size_t fb_conn_string_len;
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;

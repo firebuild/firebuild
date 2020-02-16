@@ -18,7 +18,7 @@ namespace firebuild {
     FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using fmemopen()) */ \
     FD_ORIGIN_PIPE,      /* pipe endpoint (e.g. using pipe()) */        \
     FD_ORIGIN_DUP,       /* created using dup() */                      \
-    FD_ORIGIN_ROOT       /* std fd of the root process (stdin, etc.) */ }
+    FD_ORIGIN_ROOT       /* inherited in the root process (stdin...) */ }
 
 #ifdef __GNUC__
 #  include <features.h>
@@ -35,6 +35,7 @@ namespace firebuild {
 #endif
 
 class Process;
+class Pipe;
 
 class FileFD {
  public:
@@ -42,24 +43,30 @@ class FileFD {
   FileFD(int fd, int flags)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), read_(false),
       written_(false), open_(fd_ >= 0), origin_fd_(NULL),
-      filename_(), opened_by_(NULL) {}
-  /** Constructor for fds backed by internal memory or a pipe. */
-  FileFD(int fd, int flags, fd_origin origin_type, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(origin_type), read_(false),
+        filename_(), pipe_(), opened_by_(NULL) {}
+  /** Constructor for fds backed by internal memory. */
+  FileFD(int fd, int flags, Process * const p)
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL), read_(false),
       written_(false), open_(fd_ >= 0), origin_fd_(NULL),
-      filename_(), opened_by_(p) {}
+      filename_(), pipe_(), opened_by_(p) {}
+  /** Constructor for fds backed by a pipe. */
+  FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process * const p)
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_PIPE), read_(false),
+      written_(false), open_(fd_ >= 0), origin_fd_(NULL),
+      filename_(), pipe_(pipe), opened_by_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
   FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
       written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
-      filename_(), opened_by_(o_fd->opened_by()) {}
+      filename_(), pipe_(), opened_by_(o_fd->opened_by()) {}
   /** Constructor for fds obtained through opening files. */
   FileFD(const std::string &f, int fd, int flags, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
       read_(false), written_(false), open_(true), origin_fd_(NULL),
-      filename_(f), opened_by_(p) {}
+      filename_(f), pipe_(), opened_by_(p) {}
   FileFD(FileFD&) = default;
   FileFD& operator= (const FileFD&) = default;
+  int fd() {return fd_;}
   int last_err() {return last_err_;}
   void set_last_err(int err) {last_err_ = err;}
   int flags() {return curr_flags_;}
@@ -77,6 +84,17 @@ class FileFD {
   fd_origin origin_type() {return origin_type_;}
   bool read() {return read_;}
   bool written() {return written_;}
+  void set_pipe(std::shared_ptr<Pipe> pipe) {
+    assert(origin_type_ == FD_ORIGIN_ROOT && !pipe_);
+    pipe_ = pipe;
+  }
+  std::shared_ptr<Pipe> pipe() {
+    if (origin_type_ == FD_ORIGIN_DUP) {
+      return origin_fd_->pipe();
+    } else {
+      return pipe_;
+    }
+  }
 
  private:
   int fd_;
@@ -89,6 +107,7 @@ class FileFD {
   bool open_ : 1;
   std::shared_ptr<FileFD> origin_fd_;
   std::string filename_;
+  std::shared_ptr<Pipe> pipe_;
   /** Process that opened this file by name.
    *  Remains the same (doesn't get updated to the current process) at dup2() or alike.
    *  NULL if the topmost intercepted process already inherited it from the supervisor. */

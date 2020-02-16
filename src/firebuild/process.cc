@@ -8,6 +8,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <utility>
+
 #include "firebuild/file.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
@@ -25,15 +27,6 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
       expected_child_(), exec_child_(NULL) {
-  if (!fds_) {
-    fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
-    add_filefd(fds_, STDIN_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-    add_filefd(fds_, STDOUT_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-    add_filefd(fds_, STDERR_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-  }
 }
 
 void Process::update_rusage(const int64_t utime_u, const int64_t stime_u) {
@@ -63,8 +56,10 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
   }
 }
 
-void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
-                         int fd, std::shared_ptr<FileFD> ffd) {
+std::shared_ptr<FileFD>
+Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+                    int fd,
+                    std::shared_ptr<FileFD> ffd) {
   if (fds->size() <= static_cast<unsigned int>(fd)) {
     fds->resize(fd + 1, nullptr);
   }
@@ -73,7 +68,57 @@ void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> f
   }
   // the shared_ptr takes care of cleaning up the old fd if needed
   (*fds)[fd] = ffd;
+  return ffd;
 }
+
+void Process::add_pipe(int fd1, std::shared_ptr<Pipe> pipe) {
+  exec_point()->add_pipe(fd1, pipe);
+}
+
+void Process::forward_all_pipes() {
+  for (auto file_fd : *fds_) {
+    if (!file_fd) {
+      continue;
+    }
+    auto pipe = file_fd->pipe();
+    if (pipe) {
+      /* One round of forwarding should be enough, since the parent can't perform a
+       * new write() after the exec(). */
+      for (std::unordered_map<int, pipe_end *>::iterator it = pipe->fd1_ends.begin();
+           it != pipe->fd1_ends.end();) {
+        bool pipe_finished = false;
+        auto fd1_end = it->second;
+        auto ev = fd1_end->ev;
+        assert(ev);
+        int fd = event_get_fd(ev);
+        auto res = pipe->forward(fd);
+        switch (res) {
+          case FB_PIPE_FD1_EOF: {
+            it = pipe->fd1_ends.erase(it);
+            close(fd);
+            event_free(ev);
+            delete(fd1_end);
+            if (pipe->fd1_ends.size() > 0) {
+              break;
+            }
+          }
+            [[fallthrough]];
+          case FB_PIPE_FD0_EOF: {
+            pipe->finish();
+            pipe_finished = true;
+            break;
+          }
+          default:
+            it++;
+        }
+        if (pipe_finished) {
+          break;
+        }
+      }
+    }
+  }
+}
+
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
   auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
@@ -201,33 +246,41 @@ int Process::handle_rmdir(const std::string &ar_name, const int error) {
   return 0;
 }
 
-int Process::handle_pipe(const int fd1, const int fd2, const int flags,
-                         const int error) {
+std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const int flags,
+                                           const int error, int fd0_conn, int fd1_conn) {
+  (void) flags; /* unused */
   if (error) {
-    return 0;
+    return std::shared_ptr<Pipe>(nullptr);
   }
 
   // validate fd-s
+  if (get_fd(fd0)) {
+    // we already have this fd, probably missed a close()
+    disable_shortcutting_bubble_up("Process created an fd (" + std::to_string(fd0) +
+                                   ") which is known to be open, which means interception "
+                                   "missed at least one close()");
+    return std::shared_ptr<Pipe>(nullptr);
+  }
   if (get_fd(fd1)) {
     // we already have this fd, probably missed a close()
     disable_shortcutting_bubble_up("Process created an fd (" + std::to_string(fd1) +
                                    ") which is known to be open, which means interception "
                                    "missed at least one close()");
-    return -1;
-  }
-  if (get_fd(fd2)) {
-    // we already have this fd, probably missed a close()
-    disable_shortcutting_bubble_up("Process created an fd (" + std::to_string(fd2) +
-                                   ") which is known to be open, which means interception "
-                                   "missed at least one close()");
-    return -1;
+    return std::shared_ptr<Pipe>(nullptr);
   }
 
+  assert(fd0_conn != -1 && "connection to pipe's fd[0] is not valid");
+  assert(fd1_conn != -1 && "connection to pipe's fd[1] is not valid");
+
+  // TODO(rbalint) open cache files for fd1 and pass that
+  auto cache_fds = std::vector<int>();
+  auto pipe =  std::make_shared<Pipe>(fd0_conn, fd1_conn, std::move(cache_fds));
+  add_filefd(fds_, fd0, std::make_shared<FileFD>(
+      fd0, (flags & ~O_ACCMODE) | O_RDONLY, pipe, this));
   add_filefd(fds_, fd1, std::make_shared<FileFD>(
-      fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this));
-  add_filefd(fds_, fd2, std::make_shared<FileFD>(
-      fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this));
-  return 0;
+      fd1, (flags & ~O_ACCMODE) | O_WRONLY, pipe, this));
+
+  return pipe;
 }
 
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,

@@ -22,5 +22,11 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
   }
 }
 
+void ForkedProcess::do_finalize() {
+  forward_all_pipes();
+  // Call the base class's method
+  Process::do_finalize();
+}
+
 }  // namespace firebuild
 
