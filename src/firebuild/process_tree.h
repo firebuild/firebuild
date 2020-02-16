@@ -5,12 +5,14 @@
 #ifndef FIREBUILD_PROCESS_TREE_H_
 #define FIREBUILD_PROCESS_TREE_H_
 
+#include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "firebuild/debug.h"
@@ -69,12 +71,18 @@ struct pending_parent_ack {
 class ProcessTree {
  public:
   ProcessTree()
-      : fb_pid2proc_(), pid2proc_(), pid2fork_child_sock_(), pid2exec_child_sock_(),
-        pid2posix_spawn_child_sock_(), cmd_profs_()
-  {}
+      : inherited_fds_(), inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
+        pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
+        cmd_profs_() {
+    for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
+      inherited_fds_.push_back(fd);
+    }
+  }
   ~ProcessTree();
 
+  std::vector<int>& inherited_fds() {return inherited_fds_;}
   void insert(Process *p);
+  void insert_inherited(std::shared_ptr<Pipe> p) {inherited_fd_pipes_.push_back(p);}
   void insert(ExecedProcess *p);
   static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
@@ -149,6 +157,8 @@ class ProcessTree {
 
  private:
   ExecedProcess *root_ = NULL;
+  std::vector<int> inherited_fds_;
+  std::vector<std::shared_ptr<Pipe>> inherited_fd_pipes_;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;

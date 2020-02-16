@@ -50,14 +50,6 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_mkdir *m) {
   return p->handle_mkdir(dirfd, fbb_mkdir_get_pathname(m), error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBB_pipe2 *pipe) {
-  const int fd0 = fbb_pipe2_get_fd0_with_fallback(pipe, -1);
-  const int fd1 = fbb_pipe2_get_fd1_with_fallback(pipe, -1);
-  const int flags = fbb_pipe2_get_flags_with_fallback(pipe, 0);
-  const int error = fbb_pipe2_get_error_no_with_fallback(pipe, 0);
-  return p->handle_pipe(fd0, fd1, flags, error);
-}
-
 int ProcessPBAdaptor::msg(Process *p, const FBB_dup3 *d) {
   const int error = fbb_dup3_get_error_no_with_fallback(d, 0);
   const int flags = fbb_dup3_get_flags_with_fallback(d, 0);

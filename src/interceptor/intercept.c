@@ -32,6 +32,9 @@ pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
 /** Connection string to supervisor */
 char * fb_conn_string = NULL;
 
+/** Connection string length */
+size_t fb_conn_string_len = 0;
+
 /** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
 
@@ -474,10 +477,35 @@ int fb_connect_supervisor(int fd) {
   return conn;
 }
 
+static void reopen_fd_fifo(const char* fd_fifo_str) {
+  int reopen_fd, reopen_flags, fifo_name_offset;
+  sscanf(fd_fifo_str, "%d:%d %n", &reopen_fd, &reopen_flags, &fifo_name_offset);
+  const char* reopen_fd_fifo = fd_fifo_str + fifo_name_offset;
+  /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
+   * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
+   * Pipe fd1 end is cleaned up. */
+  int tmp_fd = ic_orig_open(reopen_fd_fifo, O_NONBLOCK | O_RDONLY);
+  int fd = ic_orig_open(reopen_fd_fifo, reopen_flags | O_WRONLY);
+  ic_orig_close(tmp_fd);
+  assert(fd != -1 && "reopening fd failed");
+  if (fd != reopen_fd) {
+    /* dup2, because fds to be reopened can't have O_CLOEXEC */
+#ifndef NDEBUG
+    int dup2_ret =
+#endif
+        ic_orig_dup2(fd, reopen_fd);
+    assert(dup2_ret == reopen_fd);
+    ic_orig_close(fd);
+  }
+  /* the fifo is opened on both ends, there is no need for the file */
+  ic_orig_unlink(reopen_fd_fifo);
+}
+
 /**  Set up the main supervisor connection */
 void fb_init_supervisor_conn() {
   if (fb_conn_string == NULL) {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
+    fb_conn_string_len = strlen(fb_conn_string);
   }
   // reconnect to supervisor
   ic_orig_close(fb_sv_conn);
@@ -602,6 +630,13 @@ static void fb_ic_init() {
     void(*orig_underscore_exit)(int) = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
     (*orig_underscore_exit)(fbb_scproc_resp_get_exit_status(sv_msg));
     assert(0 && "_exit() did not exit");
+  }
+
+  if (fbb_scproc_resp_has_reopen_fd_fifos(sv_msg)) {
+    /* reopen fds */
+    for_s_in_fbb_scproc_resp_reopen_fd_fifos(sv_msg, {
+        reopen_fd_fifo(s);
+    });
   }
 
   free(sv_msg);

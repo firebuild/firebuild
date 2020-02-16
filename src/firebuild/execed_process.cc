@@ -53,16 +53,18 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       can_shortcut_(true), was_shortcut_(false),
       sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), cacher_(NULL), exec_count_(1) {
+      libs_(), file_usages_(), created_pipes_(), cacher_(NULL), exec_count_(1) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
          pid, ppid, D(initial_wd), D(executable), D(parent));
 
   if (parent != NULL) {
+    assert(parent->state() == FB_PROC_TERMINATED);
     exec_count_ = parent->exec_count() + 1;
     // add as exec child of parent
     parent->set_exec_pending(false);
-    parent->set_state(FB_PROC_TERMINATED);
+    parent->reset_file_fd_pipe_refs();
+
     // clear a previous exit status, just in case an atexit handler performed the exec
     parent->set_exit_status(-1);
     parent->set_exec_child(this);
@@ -129,6 +131,10 @@ void ExecedProcess::do_finalize() {
 
   // Call the base class's method
   Process::do_finalize();
+
+  for (const auto& pipe : created_pipes_) {
+    pipe->finish();
+  }
 }
 
 /**

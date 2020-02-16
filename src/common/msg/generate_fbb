@@ -95,6 +95,9 @@ gen_fbb([
     (OPTIONAL, "int64_t", "exit_status"),
     # makes sense only for shortcut = false
     (OPTIONAL, "int32_t", "debug_flags"),
+    # fifos for fds to reopen
+    # the format is "<fd>:<flags as int> <fifo path>"
+    (OPTIONAL, STRINGARRAY, "reopen_fd_fifos"),
   ]),
 
   # Those function calls are not handled specially in interceptor lib and
@@ -418,6 +421,10 @@ gen_fbb([
     (OPTIONAL, "int32_t", "flags"),
     # error no., when ret = -1
     (OPTIONAL, "int32_t", "error_no"),
+    # named pipe which is read by the intercepted process when reading fd[0]
+    (OPTIONAL, STRING, "fd0_fifo"),
+    # named pipe which is written by the intercepted process when reading fd[1]
+    (OPTIONAL, STRING, "fd1_fifo"),
   ]),
 
   # for dup

@@ -23,6 +23,7 @@ add_executable(firebuild
   fd.cc
   file_name.cc
   firebuild.cc
+  pipe.cc
   process.cc
   execed_process.cc
   execed_process_cacher.cc

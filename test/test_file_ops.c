@@ -15,7 +15,15 @@
 #define LOC "[" __FILE__ ":" TOSTR(__LINE__) "]"
 
 int main() {
-  int fd, fd_dup, fd_dup2, fd_dup3, i;
+  int fd, fd_dup, fd_dup2, fd_dup3, i, pipe_fds[2];
+
+  if (pipe2(pipe_fds, 0) != 0) {
+    perror("pipe2" LOC);
+    exit(1);
+  } else {
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+  }
 
   /* Set up some files for test_file_ops_[23]. */
   fd = creat("test_empty_1.txt", 0600);
