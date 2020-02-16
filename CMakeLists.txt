@@ -13,7 +13,6 @@ set(TENTATIVE_C_CXX_FLAGS
   -W
   -Wall
   -Wextra
-  -ggdb
   -Werror
   -Wpointer-arith
   -Warray-bounds
