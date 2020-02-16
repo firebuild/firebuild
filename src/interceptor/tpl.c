@@ -23,6 +23,7 @@
 {#  send_msg_condition:  Custom condition to send message             #}
 {#  ack_condition:       Whether to ask for ack 'true', 'false' or    #}
 {#                       '<condition>' (default: 'false')             #}
+{#  after_send_lines:    Things to place after sending msg            #}
 {# ------------------------------------------------------------------ #}
 {# Jinja lacks native support for generating multiple files.          #}
 {# Work it around by running multiple times, each time with a         #}
@@ -297,6 +298,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   }
 ###         endif
 ###       endblock send_msg
+###       if after_send_lines
+###         for item in after_send_lines
+  {{ item }}
+###         endfor
+###       endif
 
 ###     endblock body
 

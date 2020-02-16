@@ -15,6 +15,7 @@
 
 #include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
+#include "firebuild/pipe.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
@@ -67,6 +68,7 @@ class ExecedProcess : public Process {
                            FileAction action, int flags, int error);
   bool register_file_usage(const FileName *name, FileUsage fu_change);
   bool register_parent_directory(const FileName *name);
+  void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
 
   /**
    * Fail to change to a working directory
@@ -128,6 +130,10 @@ class ExecedProcess : public Process {
   std::vector<const FileName*> libs_;
   /// File usage per path for p and f. c. (t.)
   std::unordered_map<const FileName*, FileUsage*> file_usages_;
+  /**
+   * Pipes created by this process.
+   */
+  std::unordered_set<std::shared_ptr<Pipe>> created_pipes_ = {};
   void store_in_cache();
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";

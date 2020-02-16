@@ -19,6 +19,7 @@
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/cxx_lang_utils.h"
+#include "firebuild/pipe.h"
 
 namespace firebuild {
 
@@ -148,7 +149,23 @@ class Process {
   }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
   void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
+  /** Add add ffd FileFD* to open fds */
+  static std::shared_ptr<FileFD>
+  add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+             const int fd, std::shared_ptr<FileFD> ffd);
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
+  void add_pipe(std::shared_ptr<Pipe> pipe);
+  /** Drain all pipes's associated with open file descriptors of the process reading as much data
+   *  as available on each fd1 end of each pipe */
+  // TODO(rbalint) forward only fd0 pipe ends coming from this process
+  void drain_all_pipes();
+  void reset_file_fd_pipe_refs() {
+    for (auto& file_fd : *fds_) {
+      if (file_fd && file_fd->pipe()) {
+        file_fd->set_pipe(nullptr);
+      }
+    }
+  }
 
   void AddPopenedProcess(int fd, ExecedProcess *proc) {
     fd2popen_child_[fd] = proc;
@@ -228,10 +245,12 @@ class Process {
    * @param fd2 file descriptor to write
    * @param flags flags passed in pipe2()
    * @param error error code
-   * @return 0 on success, -1 on failure
+   * @param fd0_conn connection to write to intercepted pipe's fd[0]
+   * @param fd1_conn connection to read from intercepted pipe's fd[1]
+   * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
    */
-  int handle_pipe(const int fd1, const int fd2, const int flags,
-                  const int error = 0);
+  std::shared_ptr<Pipe> handle_pipe(const int fd1, const int fd2, const int flags,
+                                    const int error, int fd0_conn, int fd1_conn);
 
   /**
    * Handle dup(), dup2() or dup3() in the monitored process
@@ -429,9 +448,6 @@ class Process {
   bool posix_spawn_pending_ {false};
   Process * exec_child_;
   bool any_child_not_finalized();
-  /** Add add ffd FileFD* to open fds */
-  void add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
-                  const int fd, std::shared_ptr<FileFD> ffd);
   int on_finalized_ack_id_ = -1;
   FD on_finalized_ack_fd_ = {};
   DISALLOW_COPY_AND_ASSIGN(Process);

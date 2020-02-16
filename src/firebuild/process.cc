@@ -28,16 +28,6 @@ Process::Process(const int pid, const int ppid, const FileName *wd,
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), fork_children_(),
       expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
-
-  if (!fds_) {
-    fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
-    add_filefd(fds_, STDIN_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-    add_filefd(fds_, STDOUT_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-    add_filefd(fds_, STDERR_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-  }
 }
 
 void Process::update_rusage(const int64_t utime_u, const int64_t stime_u) {
@@ -67,10 +57,10 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
   }
 }
 
-void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
-                         int fd, std::shared_ptr<FileFD> ffd) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
-
+std::shared_ptr<FileFD>
+Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+                    int fd,
+                    std::shared_ptr<FileFD> ffd) {
   if (fds->size() <= static_cast<unsigned int>(fd)) {
     fds->resize(fd + 1, nullptr);
   }
@@ -79,6 +69,23 @@ void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> f
   }
   // the shared_ptr takes care of cleaning up the old fd if needed
   (*fds)[fd] = ffd;
+  return ffd;
+}
+
+void Process::add_pipe(std::shared_ptr<Pipe> pipe) {
+  exec_point()->add_pipe(pipe);
+}
+
+void Process::drain_all_pipes() {
+  for (auto file_fd : *fds_) {
+    if (!file_fd || ((file_fd->flags() & O_ACCMODE) != O_WRONLY)) {
+      continue;
+    }
+    auto pipe = file_fd->pipe().get();
+    if (pipe) {
+      pipe->drain_fd1_ends();
+    }
+  }
 }
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
@@ -160,6 +167,7 @@ int Process::handle_close(const int fd, const int error) {
     return -1;
   } else if (error == EBADF) {
     // Process closed an fd unknown to it. Who cares?
+    assert(!get_fd(fd));
     return 0;
   } else {
     if (!file_fd) {
@@ -175,6 +183,13 @@ int Process::handle_close(const int fd, const int error) {
         }
         /* Remove from open fds. The (*fds_)[fd].reset() is performed by the move. */
         closed_fds_.push_back(std::move((*fds_)[fd]));
+        auto pipe = file_fd->pipe().get();
+        if (pipe) {
+          /* There may be data pending, drain it. */
+          // TODO(rbalint) drain only this fd
+          pipe->drain_fd1_ends();
+          file_fd->set_pipe(nullptr);
+        }
         return 0;
       } else if ((file_fd->last_err() == EINTR) && (error == 0)) {
         // previous close got interrupted but the current one succeeded
@@ -252,34 +267,48 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
   return 0;
 }
 
-int Process::handle_pipe(const int fd1, const int fd2, const int flags,
-                         const int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd1=%d, fd2=%d, flags=%d, error=%d",
-         fd1, fd2, flags, error);
+std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const int flags,
+                                           const int error, int fd0_conn, int fd1_conn) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd0=%d, fd1=%d, flags=%d, error=%d",
+         fd0, fd1, flags, error);
 
   if (error) {
-    return 0;
+    return std::shared_ptr<Pipe>(nullptr);
   }
 
   // validate fd-s
+  if (get_fd(fd0)) {
+    // we already have this fd, probably missed a close()
+    disable_shortcutting_bubble_up("Process created an fd (" + d(fd0) + ") which is known to be "
+                                   "open, which means interception missed at least one close()");
+    return std::shared_ptr<Pipe>(nullptr);
+  }
   if (get_fd(fd1)) {
     // we already have this fd, probably missed a close()
     disable_shortcutting_bubble_up("Process created an fd (" + d(fd1) + ") which is known to be "
                                    "open, which means interception missed at least one close()");
-    return -1;
-  }
-  if (get_fd(fd2)) {
-    // we already have this fd, probably missed a close()
-    disable_shortcutting_bubble_up("Process created an fd (" + d(fd2) + ") which is known to be "
-                                   "open, which means interception missed at least one close()");
-    return -1;
+    return std::shared_ptr<Pipe>(nullptr);
   }
 
+  assert(fd0_conn != -1 && "connection to pipe's fd[0] is not valid");
+  assert(fd1_conn != -1 && "connection to pipe's fd[1] is not valid");
+
+  // TODO(rbalint) open cache files for fd1 and pass that
+  auto cache_fds = std::vector<int>();
+#ifdef __clang_analyzer__
+  /* Scan-build reports a false leak for the correct code. This is used only in static
+   * analysis. It is broken because all shared pointers to the Pipe must be copies of
+   * the shared self pointer stored in it. */
+  auto pipe = std::make_shared<Pipe>(fd0_conn, fd1_conn, this, std::move(cache_fds));
+#else
+  auto pipe = (new Pipe(fd0_conn, fd1_conn, this, std::move(cache_fds)))->shared_ptr();
+#endif
+  add_filefd(fds_, fd0, std::make_shared<FileFD>(
+      fd0, (flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this));
   add_filefd(fds_, fd1, std::make_shared<FileFD>(
-      fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this));
-  add_filefd(fds_, fd2, std::make_shared<FileFD>(
-      fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this));
-  return 0;
+      fd1, (flags & ~O_ACCMODE) | O_WRONLY, pipe->fd1_shared_ptr(), this));
+
+  return pipe;
 }
 
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
@@ -788,6 +817,8 @@ void Process::do_finalize() {
     ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
   }
 
+  reset_file_fd_pipe_refs();
+
   assert_cmp(state(), ==, FB_PROC_TERMINATED);
   set_state(FB_PROC_FINALIZED);
 }
@@ -806,7 +837,9 @@ void Process::maybe_finalize() {
     /* A child is yet to be finalized. We're not ready to finalize. */
     return;
   }
+  drain_all_pipes();
   do_finalize();
+
   if (parent()) {
     parent()->maybe_finalize();
   }
@@ -820,6 +853,12 @@ void Process::finish() {
                             " (e.g. posix_spawn() failed in the pre-exec or exec step):");
     FB_DEBUG(FB_DEBUG_PROC, "  " + d(expected_child_));
   }
+
+  if (!exec_pending_ && !pending_popen_child_) {
+    /* The pending child may show up and it needs to inherit the pipes. */
+    reset_file_fd_pipe_refs();
+  }
+
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();
 }

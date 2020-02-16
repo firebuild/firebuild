@@ -928,15 +928,49 @@ generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
 
 # Intercept the pipe family
 generate("int", "pipe", "int pipefd[2]",
+         tpl="pipe",
+         before_lines=["int flags = 0, tmp_fd;",
+                       "char fd0_fifo[fb_conn_string_len + 64], fd1_fifo[fb_conn_string_len + 64];",
+                       "struct timespec time;"],
          after_lines=["if (success && i_am_intercepting) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
          msg="pipe2",
          msg_skip_fields=["pipefd"],
-         msg_add_fields=["if (success) { fbb_pipe2_set_fd0(&ic_msg, pipefd[0]); fbb_pipe2_set_fd1(&ic_msg, pipefd[1]); }"])
+         msg_add_fields=["if (success) {",
+                         "  fbb_pipe2_set_fd0(&ic_msg, pipefd[0]);",
+                         "  fbb_pipe2_set_fd1(&ic_msg, pipefd[1]);",
+                         "  fbb_pipe2_set_fd0_fifo(&ic_msg, fd0_fifo);",
+                         "  fbb_pipe2_set_fd1_fifo(&ic_msg, fd1_fifo);",
+                         "}",
+                         "fbb_pipe2_set_flags(&ic_msg, flags);"],
+         after_send_lines = ["if (i_am_intercepting) {",
+                             "  ic_orig_fcntl(pipefd[0], F_SETFL, ic_orig_fcntl(pipefd[0], F_GETFL) & ~O_NONBLOCK);",
+                             "  ic_orig_unlink(fd0_fifo);",
+                             "  ic_orig_unlink(fd1_fifo);",
+                             "  ic_orig_close(tmp_fd);",
+                             "}"],
+         ack_condition="true")
 generate("int", "pipe2", "int pipefd[2], int flags",
+         tpl="pipe",
+         before_lines=["int tmp_fd;",
+                       "char fd0_fifo[fb_conn_string_len + 64], fd1_fifo[fb_conn_string_len + 64];",
+                       "struct timespec time;"],
          after_lines=["if (success && i_am_intercepting) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
          msg_skip_fields=["pipefd"],
-         msg_add_fields=["if (success) { fbb_pipe2_set_fd0(&ic_msg, pipefd[0]); fbb_pipe2_set_fd1(&ic_msg, pipefd[1]); }",
-                         "fbb_pipe2_set_flags(&ic_msg, flags);"])
+         msg_add_fields=["if (success) {",
+                         "  fbb_pipe2_set_fd0(&ic_msg, pipefd[0]);",
+                         "  fbb_pipe2_set_fd1(&ic_msg, pipefd[1]);",
+                         "  fbb_pipe2_set_fd0_fifo(&ic_msg, fd0_fifo);",
+                         "  fbb_pipe2_set_fd1_fifo(&ic_msg, fd1_fifo);"
+                         "}"],
+         after_send_lines = ["if (i_am_intercepting) {",
+                             "  if (!(flags & O_NONBLOCK)) {",
+                             "    ic_orig_fcntl(pipefd[0], F_SETFL, ic_orig_fcntl(pipefd[0], F_GETFL) & ~O_NONBLOCK);",
+                             "  }",
+                             "  ic_orig_unlink(fd0_fifo);",
+                             "  ic_orig_unlink(fd1_fifo);",
+                             "  ic_orig_close(tmp_fd);",
+                             "}"],
+         ack_condition="true")
 
 # Intercept the truncate family
 generate("int", "truncate", "const char *path, off_t len")
