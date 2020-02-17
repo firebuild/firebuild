@@ -410,8 +410,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
              ic_msg.has_dup3() ||
              ic_msg.has_dup() ||
              ic_msg.has_fcntl() ||
-             ic_msg.has_chdir() ||
-             ic_msg.has_opendir()) {
+             ic_msg.has_chdir()) {
     try {
       ::firebuild::Process *proc = proc_tree->Sock2Proc(fd_conn);
       if (ic_msg.has_exit()) {
