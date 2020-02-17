@@ -76,11 +76,6 @@ message Open {
     required int32 ret = 5;
     // error no., when ret = -1
     optional int32 error_no = 6;
-    // file did not exis before opening but it was created
-    // It is set explicitly only when it is impossble to know if the file
-    // existed before the call or not, like in the case of opening successfully
-    // with O_CREAT
-    optional bool created = 7;
 }
 
 message OpenDir {

@@ -555,9 +555,6 @@ IC2_SIMPLE_3P(int, IC2_WITH_RET, FReOpen, freopen, const char *, filename,
 /* Intercept open variants */
 IC2_SIMPLE_3P(int, IC2_WITH_RET, Open, open, const char *, file,
               const int, flags, const int, mode)
-/* Intercept open variants creating the file*/
-IC2_SIMPLE_4P(int, IC2_WITH_RET, Open, open, const char *, file,
-              const int, flags, const int, mode, bool, created)
 /* Intercept close */
 IC2_SIMPLE_1P(int, IC2_NO_RET, Close, close, const int, fd)
 /* Intercept opendir */
