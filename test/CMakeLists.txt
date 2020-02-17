@@ -11,4 +11,7 @@ add_custom_target(valgrind-check env FIREBUILD_PREFIX_CMD='valgrind -q --leak-ch
 
 add_test_binary(test_system)
 add_test_binary(test_exec)
+add_test_binary(test_file_ops)
+add_test_binary(test_file_ops_2)
+add_test_binary(test_file_ops_3)
 add_test_binary(close_fds_exec)

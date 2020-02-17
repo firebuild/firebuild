@@ -61,3 +61,10 @@ load test_helper
       strip_stderr stderr
       [ -z "$(strip_stderr stderr)" ]
 }
+
+@test "file operations" {
+      result=$(./run-firebuild -- ./test_file_ops 2> stderr)
+      [ "$result" = "" ]
+      strip_stderr stderr
+      [ -z "$(strip_stderr stderr)" ]
+}
