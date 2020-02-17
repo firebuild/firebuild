@@ -83,13 +83,6 @@ message Open {
     optional bool created = 7;
 }
 
-message OpenDir {
-    // path
-    optional bytes name = 1;
-    // error no., when ret = -1
-    optional int32 error_no = 2;
-}
-
 message FReOpen {
     // file path
     optional bytes filename = 1;
@@ -698,7 +691,6 @@ message InterceptorMsg {
     optional LAObjSearch la_objsearch = 51;
     optional LAObjOpen la_objopen = 52;
     optional DLClose dlclose = 53;
-    optional OpenDir opendir = 54;
     optional UTime utime = 55;
     optional FUTime futime = 56;
     optional FBError fb_error = 57;

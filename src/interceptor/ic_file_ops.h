@@ -940,8 +940,9 @@ IC(void*, dlopen, (const char *filename, int flag), {
   })
 
 // dirent.h
-IC(DIR *, opendir, (const char *name), {
-    ret = orig_fn(name); intercept_opendir(name, ret);})
+IC_GENERIC(DIR *, opendir, (const char *name), {
+    ret = orig_fn(name);
+    intercept_open(name, O_RDONLY|O_CLOEXEC|O_DIRECTORY, 0, (ret == NULL)?-1:dirfd(ret));})
 IC_GENERIC(struct dirent *, readdir, (DIR *dirp), {
     ret = orig_fn(dirp);})
 IC_GENERIC(struct dirent64 *, readdir64, (DIR *dirp), {
