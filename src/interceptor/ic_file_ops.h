@@ -70,10 +70,12 @@ IC_VA(int, fcntl, (int fd, int cmd, ...), {
   IC(ret_type, name, pars,                              \
      {                                                  \
        mode_t mode = 0;                                 \
-       va_list ap;                                      \
-       va_start(ap, oflag);                             \
-       mode = va_arg(ap, mode_t);                       \
-       va_end(ap);                                      \
+       if (oflag & O_CREAT) {                           \
+         va_list ap;                                    \
+         va_start(ap, oflag);                           \
+         mode = va_arg(ap, mode_t);                     \
+         va_end(ap);                                    \
+       }                                                \
        ret = orig_fn o_pars;                            \
        intercept_open(file, oflag, mode, ret);          \
        clear_file_state(ret);                           \
