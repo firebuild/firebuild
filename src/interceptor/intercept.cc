@@ -231,7 +231,8 @@ static void fb_ic_init() {
   }
 
   for (auto cursor = env; *cursor != NULL; cursor++) {
-    if (strncmp(*cursor, "FB_SOCKET=", strlen("FB_SOCKET=")) != 0) {
+    const char *fb_socket = "FB_SOCKET=";
+    if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0) {
       proc->add_env_var(*cursor);
     }
   }
@@ -383,9 +384,21 @@ int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   // unused
   (void)size;
 
-  if (info->dlpi_name[0] != '\0') {
-    fl->add_file(info->dlpi_name);
+  if (info->dlpi_name[0] == '\0') {
+    /* FIXME does this really happen? */
+    return 0;
   }
+  const char *libfbintercept = "/libfbintercept.so";
+  if (strlen(info->dlpi_name) >= strlen(libfbintercept) &&
+    strcmp(info->dlpi_name + strlen(info->dlpi_name) - strlen(libfbintercept), libfbintercept) == 0) {
+    /* This is internal to Firebuild, filter it out. */
+    return 0;
+  }
+  if (strcmp(info->dlpi_name, "linux-vdso.so.1") == 0) {
+    /* This is an in-kernel library, filter it out. */
+    return 0;
+  }
+  fl->add_file(info->dlpi_name);
 
   return 0;
 }
