@@ -24,8 +24,10 @@ enum {
   FB_DEBUG_FS           = 1 << 3,
   /* Checksum computation */
   FB_DEBUG_HASH         = 1 << 4,
-  /* Cache */
+  /* The data stored in the cache */
   FB_DEBUG_CACHE        = 1 << 5,
+  /* Placing in / retrieving from the cache */
+  FB_DEBUG_CACHING      = 1 << 6,
 };
 
 /**

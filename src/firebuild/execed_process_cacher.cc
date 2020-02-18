@@ -116,7 +116,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         /* TODO don't store and don't record if it was read with the same hash. */
         if (!cache_->store_file(filename, &hash)) {
           /* unexpected error, now what? */
-          FB_DEBUG(FB_DEBUG_CACHE, "Could not store blob in cache, not writing shortcut info");
+          FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
           return;
         }
         firebuild::msg::File* file_written = pio.mutable_outputs()->add_file_with_hash();
