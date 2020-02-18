@@ -6,5 +6,8 @@ find . -name '*.gcno' | grep CMakeFiles/ | while read f; do
     cp $f $(dirname $f| xargs dirname | xargs dirname)/$(basename $f)
 done
 lcov -q -c -d . --no-external -o tmp.info
-lcov -q -r tmp.info -o coverage.info '*.pb.*' '*test_exec.c*' -o coverage.info && genhtml coverage.info
-lcov  --summary coverage.info  2>&1 | grep '^  lines' | sed 's/  lines.*: \([^%]*\)%.*/\1/'
+lcov -q -r tmp.info -o coverage-incl-tests.info '*.pb.*'
+genhtml coverage-incl-tests.info
+lcov -q -r coverage-incl-tests.info -o coverage-excl-tests.info '*/test/*.c*'
+echo "Line coverage rate, excluding test files:"
+lcov --summary coverage-excl-tests.info  2>&1 | grep '^  lines' | sed 's/  lines.*: \([^%]*\)%.*/\1/'
