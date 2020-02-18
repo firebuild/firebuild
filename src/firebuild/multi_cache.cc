@@ -108,9 +108,11 @@ bool MultiCache::store_protobuf(const Hash &key,
                                 const std::string &debug_header,
                                 const google::protobuf::TextFormat::Printer *printer,
                                 Hash *subkey_out) {
-  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-    FB_DEBUG(FB_DEBUG_CACHE, "MultiCache: storing protobuf, key " + key.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: storing protobuf, key " + key.to_hex());
+  }
 
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the key in the cache, for easier debugging. */
     std::string path_debug = construct_cached_dir_name(base_dir_, key, true) + "/%_directory_debug.txt";
     std::string pb_txt;
@@ -150,7 +152,7 @@ bool MultiCache::store_protobuf(const Hash &key,
     if (written == -1) {
       perror("write");
     } else {
-      FB_DEBUG(FB_DEBUG_CACHE, "short write");
+      FB_DEBUG(FB_DEBUG_CACHING, "short write");
     }
     close(fd_dst);
     delete[] buf;
@@ -171,9 +173,11 @@ bool MultiCache::store_protobuf(const Hash &key,
     *subkey_out = subkey;
   }
 
-  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-    FB_DEBUG(FB_DEBUG_CACHE, "  value hash " + subkey.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + subkey.to_hex());
+  }
 
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the value in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
     std::string pb_txt;
@@ -205,8 +209,8 @@ bool MultiCache::store_protobuf(const Hash &key,
 bool MultiCache::retrieve_protobuf(const Hash &key,
                                    const Hash &subkey,
                                    google::protobuf::MessageLite *msg) {
-  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-    FB_DEBUG(FB_DEBUG_CACHE, "MultiCache: retrieving protobuf, key " + key.to_hex() + " subkey " + subkey.to_hex());
+  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: retrieving protobuf, key " + key.to_hex() + " subkey " + subkey.to_hex());
   }
 
   std::string path = construct_cached_file_name(base_dir_, key, subkey, false);
@@ -223,7 +227,7 @@ bool MultiCache::retrieve_protobuf(const Hash &key,
     close(fd);
     return false;
   } else if (!S_ISREG(st.st_mode)) {
-    FB_DEBUG(FB_DEBUG_CACHE, "not a regular file");
+    FB_DEBUG(FB_DEBUG_CACHING, "not a regular file");
     close(fd);
     return false;
   }

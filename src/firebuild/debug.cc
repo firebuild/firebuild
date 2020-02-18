@@ -99,6 +99,7 @@ static struct flag available_flags[] = {
   { "fs",                FB_DEBUG_FS },
   { "hash",              FB_DEBUG_HASH },
   { "cache",             FB_DEBUG_CACHE },
+  { "caching",           FB_DEBUG_CACHING },
   { NULL, 0 }
 };
 
