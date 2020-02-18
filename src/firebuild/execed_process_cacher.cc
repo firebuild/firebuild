@@ -61,15 +61,102 @@ class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldVa
   }
 };
 
+/**
+ * One object is responsible for handling the fingerprinting and caching
+ * of multiple ExecedProcesses which potentially come from / go to the
+ * same cache.
+ */
 ExecedProcessCacher::ExecedProcessCacher(Cache *cache,
                                          MultiCache *multi_cache,
-                                         bool no_store) :
-    cache_(cache), multi_cache_(multi_cache), no_store_(no_store) { }
+                                         bool no_store,
+                                         const libconfig::Setting& envs_skip) :
+    cache_(cache), multi_cache_(multi_cache), no_store_(no_store),
+    envs_skip_(envs_skip), fingerprints_(), fingerprint_msgs_() { }
+
+/**
+ * Helper for fingerprint() to decide which env vars matter
+ */
+bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value) const {
+  /* Strip off the "=value" part. */
+  std::string name = name_and_value.substr(0, name_and_value.find('='));
+
+  /* Env vars to skip, taken from the config files.
+   * Note: FB_SOCKET is already filtered out in the interceptor. */
+  for (int i = 0; i < envs_skip_.getLength(); i++) {
+    std::string item = envs_skip_[i];
+    if (name == item) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Compute the fingerprint, store it keyed by the process in fingerprints_.
+ * Also store fingerprint_msgs_ if debugging is enabled.
+ */
+bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
+  auto fp_msg = new msg::ProcessFingerprint();
+
+  fp_msg->set_cwd(proc->cwd());
+  for (auto arg : proc->args()) {
+    fp_msg->add_arg(arg);
+  }
+
+  /* Already sorted by the interceptor */
+  for (auto env : proc->env_vars()) {
+    if (env_fingerprintable(env)) {
+      fp_msg->add_env(env);
+    }
+  }
+
+  /* The executable and its hash */
+  firebuild::Hash hash;
+  if (!hash.set_from_file(proc->executable())) {
+    delete fp_msg;
+    return false;
+  }
+  fp_msg->mutable_executable()->set_path(proc->executable());
+  fp_msg->mutable_executable()->set_hash(hash.to_binary());
+
+  for (auto lib : proc->libs()) {
+    if (lib == "linux-vdso.so.1") {
+      continue;
+    }
+    if (!hash.set_from_file(lib)) {
+      delete fp_msg;
+      return false;
+    }
+    auto entry = fp_msg->add_libs();
+    entry->set_path(lib);
+    entry->set_hash(hash.to_binary());
+  }
+
+  hash.set_from_protobuf(*fp_msg);
+
+  fingerprints_[proc] = hash;
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    fingerprint_msgs_[proc] = fp_msg;
+  } else {
+    delete fp_msg;
+  }
+  return true;
+}
+
+void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
+  fingerprints_.erase(proc);
+  if (FB_DEBUGGING(FB_DEBUG_CACHE) && fingerprint_msgs_.count(proc) > 0) {
+    delete fingerprint_msgs_[proc];
+    fingerprint_msgs_.erase(proc);
+  }
+}
 
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
   if (no_store_) {
     return;
   }
+
+  Hash fingerprint = fingerprints_[proc];
 
   /* Go through the files the process opened for reading and/or writing.
    * Construct the protobuf describing the initial and the final state
@@ -136,9 +223,12 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   // TODO Add all sorts of other stuff
 
   std::string debug_header;
+  msg::ProcessFingerprint *debug_msg = NULL;
   google::protobuf::TextFormat::Printer *printer = NULL;
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     debug_header = pretty_print_timestamp() + "\n\n";
+
+    debug_msg = fingerprint_msgs_[proc];
 
     const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
     printer = new google::protobuf::TextFormat::Printer();
@@ -146,7 +236,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
-  multi_cache_->store_protobuf(proc->fingerprint(), pio, proc->fingerprint_msg(), debug_header, printer, NULL);
+  multi_cache_->store_protobuf(fingerprint, pio, debug_msg, debug_header, printer, NULL);
   delete printer;
 }
 

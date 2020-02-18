@@ -44,7 +44,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     : Process(pid, ppid, cwd, parent, true), can_shortcut_(true),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), fingerprint_(), fingerprint_msg_(NULL), cacher_(cacher) {
+      libs_(), file_usages_(), cacher_(cacher) {
   if (NULL != parent) {
     // add as exec child of parent
     parent->set_exec_pending(false);
@@ -52,6 +52,30 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     // clear a previous exit status, just in case an atexit handler performed the exec
     parent->set_exit_status(-1);
     parent->set_exec_child(this);
+  }
+}
+
+/**
+ * Initialization stuff that can only be done after placing the
+ * ExecedProcess in the ProcessTree.
+ */
+void ExecedProcess::initialize() {
+  // TODO This architecture potentially computes the hash of the executable
+  // and libraries twice, for the two independent purposes. A somewhat
+  // uglier design could make it faster by computing them only once.
+
+  /* Compute the fingerprint */
+  if (!cacher_->fingerprint(this)) {
+    disable_shortcutting("Could not fingerprint the process");
+  }
+
+  /* Propagate the opening of the executable and libraries upwards as
+   * regular file open events. */
+  if (parent_exec_point()) {
+    parent_exec_point()->register_file_usage(executable(), O_RDONLY, 0);
+    for (auto lib : libs()) {
+      parent_exec_point()->register_file_usage(lib, O_RDONLY, 0);
+    }
   }
 }
 
@@ -292,7 +316,7 @@ ExecedProcess::~ExecedProcess() {
   for (auto pair : file_usages()) {
     delete(pair.second);
   }
-  delete fingerprint_msg_;
+  cacher_->erase_fingerprint(this);
 }
 
 }  // namespace firebuild

@@ -235,76 +235,6 @@ static void init_signal_handlers(void) {
   }
 }
 
-static bool env_fingerprintable(const std::string& name_and_value) {
-  /* Strip off the "=value" part. */
-  std::string name = name_and_value.substr(0, name_and_value.find('='));
-
-  /* Env vars to skip, taken from the config files.
-   * Note: FB_SOCKET is already filtered out in the interceptor. */
-  const libconfig::Setting& root = cfg->getRoot();
-  const libconfig::Setting& skiplist = root["env_vars"]["fingerprint_skip"];
-  for (int i = 0; i < skiplist.getLength(); i++) {
-    std::string item = skiplist[i];
-    if (name == item) {
-      return false;
-    }
-  }
-  return true;
-}
-
-static void fingerprint_process(firebuild::ExecedProcess *proc,
-                                const firebuild::msg::ShortCutProcessQuery &scproc_query) {
-  auto fp_msg = new firebuild::msg::ProcessFingerprint();
-  fp_msg->set_cwd(scproc_query.cwd());
-  for (auto arg : scproc_query.arg()) {
-    fp_msg->add_arg(arg);
-  }
-
-  /* Already sorted by the interceptor */
-  for (auto env : scproc_query.env_var()) {
-    if (env_fingerprintable(env)) {
-      fp_msg->add_env(env);
-    }
-  }
-
-  /* The executable and its hash */
-  firebuild::Hash hash;
-  if (!hash.set_from_file(scproc_query.executable())) {
-    proc->disable_shortcutting("Could not checksum the executable");
-    delete fp_msg;
-    return;
-  }
-  fp_msg->mutable_executable()->set_path(scproc_query.executable());
-  fp_msg->mutable_executable()->set_hash(hash.to_binary());
-  if (proc->parent_exec_point()) {
-    /* Propagate the opening of this file upwards as a regular file open event. */
-    proc->parent_exec_point()->register_file_usage(scproc_query.executable(), O_RDONLY, 0);
-  }
-
-  for (auto lib : scproc_query.libs().file()) {
-    if (!hash.set_from_file(lib)) {
-      proc->disable_shortcutting("Could not checksum the library " + firebuild::pretty_print_string(lib));
-      delete fp_msg;
-      return;
-    }
-    auto entry = fp_msg->add_libs();
-    entry->set_path(lib);
-    entry->set_hash(hash.to_binary());
-    if (proc->parent_exec_point()) {
-      /* Propagate the opening of this file upwards as a regular file open event. */
-      proc->parent_exec_point()->register_file_usage(lib, O_RDONLY, 0);
-    }
-  }
-
-  hash.set_from_protobuf(*fp_msg);
-  proc->set_fingerprint(hash);
-  if (FB_DEBUGGING(firebuild::FB_DEBUG_CACHE)) {
-    proc->set_fingerprint_msg(fp_msg);
-  } else {
-    delete fp_msg;
-  }
-}
-
 /**
  * ACK a message from the supervised process
  * @param conn connection file descriptor to send the ACK on
@@ -366,7 +296,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
             ic_msg.scproc_query(), parent, cacher);
     proc_tree->insert(proc, fd_conn);
 
-    fingerprint_process(proc, ic_msg.scproc_query());
+    proc->initialize();
 
     // TODO(rbalint) look up stored result
 #if 0
@@ -825,7 +755,7 @@ int main(const int argc, char *argv[]) {
   auto cache = new firebuild::Cache(cache_dir + "/blobs");
   auto multi_cache = new firebuild::MultiCache(cache_dir + "/pbs");
   bool no_store = (getenv("FIREBUILD_READONLY") != NULL);
-  cacher = new firebuild::ExecedProcessCacher(cache, multi_cache, no_store);
+  cacher = new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, cfg->getRoot()["env_vars"]["fingerprint_skip"]);
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.
