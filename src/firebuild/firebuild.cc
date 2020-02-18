@@ -282,9 +282,6 @@ static void fingerprint_process(firebuild::ExecedProcess *proc,
   }
 
   for (auto lib : scproc_query.libs().file()) {
-    if (lib == "linux-vdso.so.1") {
-      continue;
-    }
     if (!hash.set_from_file(lib)) {
       proc->disable_shortcutting("Could not checksum the library " + firebuild::pretty_print_string(lib));
       delete fp_msg;
