@@ -18,11 +18,6 @@ class Hash {
       :arr_()
   {}
 
-  Hash& operator=(const Hash& src) {
-    memcpy(&arr_, &src.arr_, hash_size_);
-    return *this;
-  }
-
   static unsigned int hash_size() {return hash_size_;}
 
   void set_from_data(const void *data, ssize_t size);
