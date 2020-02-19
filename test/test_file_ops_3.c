@@ -22,7 +22,6 @@ int main() {
     fprintf(stderr, "open should have failed\n");
     exit(1);
   }
-  close(fd);
 
   /* Attempt to write to nonexisting file, without O_CREAT. */
   fd = open("wont_create_1", O_WRONLY|O_TRUNC);
