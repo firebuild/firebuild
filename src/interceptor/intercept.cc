@@ -19,6 +19,7 @@
 #include <string>
 
 #include "interceptor/env.h"
+#include "interceptor/interceptors.h"
 #include "fb-messages.pb.h"
 #include "common/firebuild_common.h"
 
@@ -31,29 +32,14 @@ extern "C" {
 static void fb_ic_cleanup() __attribute__((destructor));
 
 #ifdef  __cplusplus
-}
+}  // extern "C"
 #endif
-
-/* global vars */
-ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
 /** file fd states */
 std::vector<fd_state> *fd_states;
 
 /** Global lock for manipulating fd states */
 pthread_mutex_t ic_fd_states_lock;
-
-/* local declarations for original intercepted functions */
-#undef IC_VOID
-/* create ic_orig_... version of intercepted function */
-#define IC_VOID(ret_type, name, parameters, _body)  \
-  ret_type(*ic_orig_##name) parameters = NULL;
-
-/* we need to include every file using IC() macro to create ic_orig_... version
- * for all functions */
-#include "interceptor/ic_file_ops.h"
-
-#undef IC_VOID
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -74,13 +60,13 @@ bool ic_init_done = false;
 int ic_pid;
 
 /** Per thread variable which we turn on inside call interception */
-__thread bool intercept_on = false;
+__thread const char *intercept_on = NULL;
 
 /** debugging flags */
 int32_t debug_flags = 0;
 
 /** Insert marker open()-s for strace, ltrace, etc. */
-static bool insert_trace_markers = false;
+bool insert_trace_markers = false;
 
 /** Next ACK id*/
 static int ack_id = 0;
@@ -90,13 +76,7 @@ void insert_debug_msg(const std::string &m) {
   if (insert_trace_markers) {
     int saved_errno = errno;
     const std::string tpl = "/FIREBUILD   ###   ";
-    if (ic_orig_open) {
-      ic_orig_open((tpl + m).c_str(), 0);
-    } else {
-      auto orig_open = (int(*)(const char*, int, ...))dlsym(RTLD_NEXT, "open");
-      assert(orig_open);
-      orig_open((tpl + m).c_str(), 0);
-    }
+    ic_orig_open((tpl + m).c_str(), 0);
     errno = saved_errno;
   }
 }
@@ -121,25 +101,6 @@ void insert_end_marker(const std::string &m) {
   }
 }
 
-/**
- * Reset globally maintained information about intercepted functions
- */
-void reset_fn_infos() {
-  for (int i = 0; i < IC_FN_IDX_MAX ; i++) {
-    ic_fn[i].called = false;
-  }
-}
-
-/**
- * Get pointer to a function implemented in the next shared
- * library. In our case this is a function we intercept.
- * @param[in] name function's name
- */
-static void * get_orig_fn(const char* name) {
-  void * const function = dlsym(RTLD_NEXT, name);
-  return function;
-}
-
 /** Get next unique ACK id */
 static int get_next_ack_id() {
   return (ack_id++);
@@ -154,21 +115,6 @@ void fb_send_msg_and_check_ack(msg::InterceptorMsg& ic_msg, int fd) {
   auto len = fb_recv_msg(&sv_msg, fd);
   assert(len > 0);
   assert(sv_msg.ack_num() == ack_num);
-}
-
-/**
- * Get pointers to all the functions we intercept but we also want to use
- */
-static void set_orig_fns() {
-  /* lookup ic_orig_... version of intercepted function */
-#define IC_VOID(ret_type, name, parameters, _body)              \
-  ic_orig_##name = (ret_type(*)parameters)get_orig_fn(#name);
-
-  /* we need to include every file using IC() macro to create ic_orig_... version
-   * for all functions */
-#include "interceptor/ic_file_ops.h"
-
-#undef IC_VOID
 }
 
 /**
@@ -225,20 +171,20 @@ void fb_init_supervisor_conn() {
  * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init() {
+  if (NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
+    insert_trace_markers = true;
+  }
+
+  init_interceptors();
+
+  assert(intercept_on == NULL);
+  intercept_on = "init";
+  insert_debug_msg("initialization-begin");
+
   // init global variables
   fd_states = new std::vector<fd_state>();
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  set_orig_fns();
-  reset_fn_infos();
-
-  intercept_on = true;
-  insert_begin_marker(__func__);
-
-  if (NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
-    insert_trace_markers = true;
-  }
 
   fb_init_supervisor_conn();
 
@@ -315,8 +261,8 @@ static void fb_ic_init() {
     }
   }
   ic_init_done = true;
-  insert_end_marker(__func__);
-  intercept_on = false;
+  insert_debug_msg("initialization-end");
+  intercept_on = NULL;
 }
 
 extern "C" {
@@ -363,7 +309,7 @@ void handle_exit(const int status) {
   }
   fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
 }
-}
+}  // extern "C"
 
 static void fb_ic_cleanup() {
   /* Don't put anything here, unless you really know what you're doing!
@@ -487,7 +433,7 @@ unsigned int la_objopen(struct link_map *map, const Lmid_t lmid,
 
 
 #ifdef  __cplusplus
-}
+}  // extern "C"
 #endif
 
 #pragma GCC visibility pop

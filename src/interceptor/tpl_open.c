@@ -1,0 +1,24 @@
+{# ------------------------------------------------------------------ #}
+{# Copyright (c) 2020 Interri Kft.                                    #}
+{# This file is an unpublished work. All rights reserved.             #}
+{# ------------------------------------------------------------------ #}
+{# Template for the vararg open() family.                             #}
+{# (The non-vararg __open_2() variants are handled elsewhere.)        #}
+{# ------------------------------------------------------------------ #}
+### extends "tpl.c"
+
+{% set msg_add_fields = ["if (flags & O_CREAT) m->set_mode(mode);"] %}
+
+### block before
+  mode_t mode = 0;
+  if (flags & O_CREAT) {
+    va_list ap;
+    va_start(ap, flags);
+    mode = va_arg(ap, mode_t);
+    va_end(ap);
+  }
+### endblock before
+
+### block call_orig
+  ret = ic_orig_{{ func }}({{ names_str }}, mode);
+### endblock call_orig

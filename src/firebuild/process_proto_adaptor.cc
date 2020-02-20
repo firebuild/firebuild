@@ -7,7 +7,8 @@
 namespace firebuild {
 int ProcessPBAdaptor::msg(Process *p, const msg::Open &o) {
   int error = (o.has_error_no())?o.error_no():0;
-  return p->handle_open(o.file(), o.flags(), o.ret(), error);
+  int ret = (o.has_ret())?o.ret():-1;
+  return p->handle_open(o.file(), o.flags(), ret, error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const msg::Close &c) {
@@ -34,7 +35,9 @@ int ProcessPBAdaptor::msg(Process *p, const msg::Dup &d) {
 
 int ProcessPBAdaptor::msg(Process *p, const msg::Fcntl &f) {
   const int error = (f.has_error_no())?f.error_no():0;
-  return p->handle_fcntl(f.fd(), f.cmd(), f.arg(), f.ret(), error);
+  int arg = (f.has_arg())?f.arg():0;
+  int ret = (f.has_ret())?f.ret():-1;
+  return p->handle_fcntl(f.fd(), f.cmd(), arg, ret, error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const msg::ChDir &c) {
