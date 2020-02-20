@@ -65,15 +65,28 @@ message Fcntl {
     optional int32 error_no = 5;
 }
 
+message Ioctl {
+    // file descriptor
+    optional int32 fd = 1;
+    // command
+    optional int32 cmd = 2;
+    // return value, depends on cmd
+    optional int32 ret = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
+}
+
 message Open {
+    // dir file descriptor for openat()
+    optional int32 dirfd = 1;
     // file path
     optional bytes file = 2;
     // flags, decoding is left for FireBuild supervisor
     required int32 flags = 3;
-    // mode, decoding is left for FireBuild supervisor
-    required int32 mode = 4;
+    // mode if (flags & O_CREAT), decoding is left for FireBuild supervisor
+    optional int32 mode = 4;
     // return value, the file descriptor if != -1
-    required int32 ret = 5;
+    optional int32 ret = 5;
     // error no., when ret = -1
     optional int32 error_no = 6;
 }
@@ -81,8 +94,8 @@ message Open {
 message FReOpen {
     // file path
     optional bytes filename = 1;
-    // modes, decoding is left for FireBuild supervisor
-    optional bytes modes = 2;
+    // flags, decoding is left for FireBuild supervisor
+    optional int32 flags = 2;
     // file descriptor associated to the stream to be reopened
     optional int32 fd = 3;
     // return value, the file descriptor if != -1
@@ -97,13 +110,6 @@ message OpenFileResp {
     optional bool collect_state = 1;
 }
 
-message GetCwd {
-    // result directory
-    optional bytes ret = 1;
-    // error no., when ret = NULL
-    optional int32 error_no = 2;
-}
-
 message ChDir {
     // directory path
     optional bytes dir = 1;
@@ -113,65 +119,37 @@ message ChDir {
 
 message FChDir {
     // directory fd
-    optional int64 dir = 1;
-    // error no., when ret = -1
-    optional int32 error_no = 2;
-}
-
-message UnLink {
-    // path name
-    optional bytes path = 1;
+    optional int64 fd = 1;
     // error no., when ret = -1
     optional int32 error_no = 2;
 }
 
 message ReadLink {
-    // path name
-    optional bytes path = 1;
-    // returned path
-    optional bytes ret_path = 2;
-    // error no., when ret = -1
-    optional int32 error_no = 3;
-}
-
-message ReadLinkAt {
-    // dir file descriptor
+    // dir file descriptor for readlinkat()
     optional int64 dirfd = 1;
     // path name
     optional bytes path = 2;
+    // buffer size
+    optional int32 bufsiz = 3;
     // returned path
-    optional bytes ret_path = 3;
+    optional bytes ret_path = 4;
     // error no., when ret = -1
-    optional int32 error_no = 4;
-}
-
-message Remove {
-    // path to file
-    optional bytes filename = 1;
-    // error no., when ret = -1
-    optional int32 error_no = 2;
+    optional int32 error_no = 5;
 }
 
 message Rename {
-    // path to old file
-    optional bytes oldpath = 1;
-    // path to new file
-    optional bytes newpath = 2;
-    // error no., when ret = -1
-    optional int32 error_no = 3;
-}
-
-message RenameAt {
-    // old dir file descriptor
+    // old dir file descriptor for renameat[2]()
     optional int32 oldfd = 1;
     // path to old file
     optional bytes oldpath = 2;
-    // new dir file descriptor
+    // new dir file descriptor for renameat[2]()
     optional int32 newfd = 3;
     // path to new file
     optional bytes newpath = 4;
+    // flags for renmaeat2()
+    optional int32 flags = 5;
     // error no., when ret = -1
-    optional int32 error_no = 5;
+    optional int32 error_no = 6;
 }
 
 message Access {
@@ -183,7 +161,7 @@ message Access {
     optional int32 error_no = 3;
 }
 
-message EAccess {
+message EuidAccess {
     // path to file
     optional bytes pathname = 1;
     // access mode
@@ -205,6 +183,24 @@ message FAccessAt {
     optional int32 error_no = 5;
 }
 
+message Stat {
+    // dir file descriptor for fstatat()
+    optional int32 dirfd = 1;
+    // path to file
+    optional bytes filename = 2;
+    // it was actually lstat() or fstatat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+    optional bool link = 3;
+    // error no., when ret = -1
+    optional int32 error_no = 4;
+}
+
+message FStat {
+    // file fd
+    optional int32 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
+}
+
 message RmDir {
     // dir path
     optional bytes dir = 1;
@@ -224,84 +220,81 @@ message FCloseAll {
     optional int32 error_no = 1;
 }
 
-message Chown {
+message Chmod {
+    // dir file descriptor for fchmodat()
+    optional int32 dirfd = 1;
     // file path
-    optional bytes path = 1;
-    // uid
-    optional int32 owner = 2;
-    // gid
-    optional int32 group = 3;
+    optional bytes path = 2;
+    // mode
+    optional int32 mode = 3;
+    // flags for fchmodat()
+    optional int32 flags = 4;
+    // it was actually lchmod() or fchmodat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+    optional bool link = 5;
     // error no., when ret = -1
-    optional int32 error_no = 4;
+    optional int32 error_no = 6;
 }
 
-message FChown {
-    // file descriptor
-    optional int64 fd = 1;
-    // uid
-    optional int32 owner = 2;
-    // gid
-    optional int32 group = 3;
+message FChmod {
+    // file fd
+    optional int32 fd = 1;
+    // mode
+    optional int32 mode = 2;
     // error no., when ret = -1
-    optional int32 error_no = 4;
+    optional int32 error_no = 3;
 }
 
-message FChownAt {
-    // dir file descriptor
-    optional int64 dirfd = 1;
+message Chown {
+    // dir file descriptor for fchownat()
+    optional int32 dirfd = 1;
     // file path
     optional bytes path = 2;
     // uid
     optional int32 owner = 3;
     // gid
     optional int32 group = 4;
-    // flags
+    // flags for fchownat()
     optional int32 flags = 5;
+    // it was actually lchown() or fchownat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+    optional bool link = 6;
     // error no., when ret = -1
-    optional int32 error_no = 6;
+    optional int32 error_no = 7;
 }
 
-message LChown {
-    // file path
-    optional bytes path = 1;
+message FChown {
+    // file fd
+    optional int32 fd = 1;
     // uid
     optional int32 owner = 2;
     // gid
     optional int32 group = 3;
+    // flags for fchownat()
+    optional int32 flags = 4;
     // error no., when ret = -1
-    optional int32 error_no = 4;
+    optional int32 error_no = 5;
 }
 
-message UnLinkAt {
-    // dir fd
+message UnLink {
+    // dir file descriptor for unlinkat()
     optional int32 dirfd = 1;
     // path name
     optional bytes pathname = 2;
-    // flags
+    // flags for unlinkat()
     optional int32 flags = 3;
-    // error qno., when ret = -1
+    // error no., when ret = -1
     optional int32 error_no = 4;
 }
 
 message Link {
-    // old file path
-    optional bytes oldpath = 1;
-    // new file path
-    optional bytes newpath = 2;
-    // error no., when ret = -1
-    optional int32 error_no = 3;
-}
-
-message LinkAt {
-    // old dir fd
+    // old dir file descriptor for linkat()
     optional int32 olddirfd = 1;
     // old file path
     optional bytes oldpath = 2;
-    // new dir fd
+    // new dir file descriptor for linkat()
     optional int32 newdirfd = 3;
     // new file path
     optional bytes newpath = 4;
-    // flags
+    // flags for linkat()
     optional int32 flags = 5;
     // error no., when ret = -1
     optional int32 error_no = 6;
@@ -310,16 +303,7 @@ message LinkAt {
 message Symlink {
     // old file path
     optional bytes oldpath = 1;
-    // new file path
-    optional bytes newpath = 2;
-    // error no., when ret = -1
-    optional int32 error_no = 3;
-}
-
-message SymlinkAt {
-    // old file path
-    optional bytes oldpath = 1;
-    // new dir fd
+    // new dir file descriptor for symlinkat()
     optional int32 newdirfd = 2;
     // new file path
     optional bytes newpath = 3;
@@ -332,17 +316,19 @@ message LockF {
     optional int32 fd = 1;
     // lock command
     optional int32 cmd = 2;
+    // file range
+    optional int64 len = 3;
     // error no., when ret = -1
     optional int32 error_no = 4;
 }
 
 message UTime {
-    // file name
-    optional bytes file = 1;
-    // it was actually lutime(), so don't follow symlink
-    optional bool link = 2;
     // ..at(), like utimensat
-    optional int32 at = 3;
+    optional int32 dirfd = 1;
+    // file name
+    optional bytes file = 2;
+    // it was actually lutime() or utimensat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+    optional bool link = 3;
     // error no., when ret = -1
     optional int32 error_no = 4;
 }
@@ -366,6 +352,7 @@ message Pipe2 {
     optional int32 error_no = 4;
 }
 
+// for dup
 message Dup {
     // old file fd
     required int32 oldfd = 1;
@@ -375,6 +362,7 @@ message Dup {
     optional int32 error_no = 3;
 }
 
+// for dup2 and dup3
 message Dup3 {
     // old file fd
     required int32 oldfd = 1;
@@ -382,10 +370,8 @@ message Dup3 {
     required int32 newfd = 2;
     // flags
     optional int32 flags = 3;
-    // new fd returned
-    optional int32 ret = 4;
     // error no., when ret = -1
-    optional int32 error_no = 5;
+    optional int32 error_no = 4;
 }
 
 message DLOpen {
@@ -402,24 +388,25 @@ message ExecV {
     optional bytes file = 1;
     // file fd to execute, in case of fexecve()
     optional int32 fd = 2;
+    // dir fd to execute, in case of execveat()
+    optional int32 dirfd = 3;
     // argv[]
-    repeated bytes arg = 3;
-    // envp[] in case of execve()/execvpe() it is passed as parameter
-    repeated bytes env = 4;
+    repeated bytes arg = 4;
+    // envp[]
+    repeated bytes env = 5;
     // true, in case of execvp()/execvpe()
-    optional bool with_p = 5;
-    // PATH , or confstr(_CS_PATH), if PATH is not set
-    optional bytes path = 6;
+    optional bool with_p = 6;
+    // PATH, or confstr(_CS_PATH) if PATH is not set
+    optional bytes path = 7;
     // user CPU time in microseconds
-    required int64 utime_u = 7;
+    required int64 utime_u = 8;
     // system CPU time in microseconds
-    required int64 stime_u = 8;
+    required int64 stime_u = 9;
 }
 
 message ExecVFailed {
-    required int32 ret = 1;
     // error no., when ret = -1
-    required int32 error_no = 5;
+    required int32 error_no = 1;
 }
 
 // system(3)
@@ -449,10 +436,6 @@ message Popen {
 message PopenParent {
     // return value
     required int32 fd = 1;
-    // type
-    optional bytes type = 2;
-    // unused
-    optional int32 error_no = 3;
 }
 
 message PopenFailed {
@@ -609,7 +592,9 @@ message ForkChild {
 
 // process that called fork()
 message ForkParent {
-    // the pid is already known in the supervisor
+    // child process id
+    // FIXME - the pid is already known in the supervisor???
+    required int64 pid = 1;
 }
 
 message LAObjSearch {
@@ -643,29 +628,24 @@ message InterceptorMsg {
     optional Exit exit = 7;
     optional ForkChild fork_child = 8;
     optional ForkParent fork_parent = 9;
-    optional GetCwd getcwd = 10;
     optional ChDir chdir = 11;
     optional FChDir fchdir = 12;
-    optional UnLink unlink = 13;
     optional RmDir rmdir = 14;
-    optional Chown chown = 15;
-    optional FChown fchown = 16;
-    optional FChownAt fchownat = 17;
-    optional LChown lchown = 18;
-    optional UnLinkAt unlinkat = 19;
+    optional Chmod chmod = 15;
+    optional FChmod fchmod = 16;
+    optional Chown chown = 17;
+    optional FChown fchown = 18;
+    optional UnLink unlink = 19;
     optional Link link = 20;
-    optional LinkAt linkat = 21;
     optional Symlink symlink = 22;
-    optional SymlinkAt symlinkat = 23;
     optional LockF lockf = 24;
     optional Pipe2 pipe2 = 25;
     optional Sysconf sysconf = 26;
     optional Dup dup = 27;
     optional Dup3 dup3 = 28;
     optional ReadLink readlink = 29;
-    optional ReadLinkAt readlinkat = 30;
     optional Access access = 31;
-    optional EAccess eaccess = 32;
+    optional EuidAccess euidaccess = 32;
     optional FAccessAt faccessat = 33;
     optional ExecV execv = 34;
     optional ExecVFailed execvfailed = 35;
@@ -677,9 +657,7 @@ message InterceptorMsg {
     optional FPathConf fpathconf = 41;
     optional Read read = 42;
     optional Write write = 43;
-    optional Remove remove = 44;
     optional Rename rename = 45;
-    optional RenameAt renameat = 46;
     optional DLOpen dlopen = 47;
     optional FReOpen freopen = 49;
     optional FCloseAll fcloseall = 50;
@@ -690,7 +668,8 @@ message InterceptorMsg {
     optional FUTime futime = 56;
     optional FBError fb_error = 57;
     optional FBDebug fb_debug = 58;
-    optional Fcntl fcntl = 60;
+    optional Fcntl fcntl = 59;
+    optional Ioctl ioctl = 60;
     optional SysCall syscall = 61;
     optional System system = 62;
     optional SystemRet system_ret = 63;
@@ -700,4 +679,6 @@ message InterceptorMsg {
     optional PosixSpawn posix_spawn = 67;
     optional PosixSpawnParent posix_spawn_parent = 68;
     optional PosixSpawnFailed posix_spawn_failed = 69;
+    optional Stat stat = 70;
+    optional FStat fstat = 71;
 }

@@ -11,7 +11,7 @@ This PPA hosts valgrind packages with fixes needed to make valgrind-check pass:
 Install the dependencies:
 
     sudo apt update
-    sudo apt install bats graphviz libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils
+    sudo apt install bats graphviz libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2
 
 Get [d3 version 5](https://github.com/d3/d3/releases),
 extract `d3.min.js` from the zip, rename and place it as

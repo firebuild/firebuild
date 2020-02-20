@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <spawn.h>
 
 #include <string>
@@ -20,85 +21,7 @@
 #include "common/firebuild_common.h"
 #include "fb-messages.pb.h"
 
-/**
- * Intercept call
- */
-#define IC(ret_type, name, parameters, body)    \
-  IC_VOID(ret_type, name, parameters,           \
-          { ret_type ret;                       \
-            body;                               \
-            insert_end_marker(__func__);        \
-            intercept_on = false;               \
-            return ret;                         \
-          })
-
-/** Intercept generic call with var args, called, ret is set */
-#define IC_VA(ret_type, name, parameters, body)                         \
-  IC(ret_type, name, parameters, {                                      \
-      void *args = __builtin_apply_args();                              \
-      void * const result =                                             \
-          __builtin_apply((void (*)(...))(void *)orig_fn, args, 100);   \
-      ret = *reinterpret_cast<ret_type*>(result);                       \
-      body;                                                             \
-    })
-
-/**
- * Just send the intercepted function's name
- */
-#define IC_GENERIC(ret_type, name, parameters, body)    \
-  IC(ret_type, name, parameters,                        \
-     {                                                  \
-       if (!ic_fn[IC_FN_IDX_##name].called) {           \
-         msg::InterceptorMsg ic_msg;                    \
-         auto m = ic_msg.mutable_gen_call();            \
-         m->set_call(#name);                            \
-         fb_send_msg(ic_msg, fb_sv_conn);               \
-         ic_fn[IC_FN_IDX_##name].called = true;         \
-       }                                                \
-       body;                                            \
-     })
-
-#define IC_GENERIC_VOID(ret_type, name, parameters, body)   \
-  IC_VOID(ret_type, name, parameters,                       \
-          {                                                 \
-            if (!ic_fn[IC_FN_IDX_##name].called) {          \
-              msg::InterceptorMsg ic_msg;                   \
-              auto m = ic_msg.mutable_gen_call();           \
-              m->set_call(#name);                           \
-              fb_send_msg(ic_msg, fb_sv_conn);              \
-              ic_fn[IC_FN_IDX_##name].called = true;        \
-            }                                               \
-            body;                                           \
-          })
-
-
-/* create global array indexed by intercepted function's id */
-#define IC_VOID(_ret_type, name, _parameters, _body)    \
-  IC_FN_IDX_##name,
-
-/* we need to include every file using IC() macro to create index for all
- * functions */
-enum {
-#include "interceptor/ic_file_ops.h"
-  IC_FN_IDX_MAX
-};
-#undef IC_VOID
-
 namespace firebuild {
-/* create ic_orig_... version of intercepted function */
-#define IC_VOID(ret_type, name, parameters, _body)      \
-  extern ret_type(*ic_orig_##name)parameters;
-
-/* we need to include every file using IC() macro to create ic_orig_... version
- * for all functions */
-#include "interceptor/ic_file_ops.h"
-#undef IC_VOID
-
-typedef struct {
-  bool called;
-} ic_fn_info;
-
-extern ic_fn_info ic_fn[IC_FN_IDX_MAX];
 
 /** file usage state */
 typedef struct {
@@ -151,7 +74,7 @@ extern void insert_end_marker(const std::string&);
 extern int ic_pid;
 
 /** Per thread variable which we turn on inside call interception */
-extern __thread bool intercept_on;
+extern __thread const char *intercept_on;
 
 }  // namespace firebuild
 
@@ -168,35 +91,11 @@ extern void handle_exit(const int status);
 extern int __libc_start_main(int (*main)(int, char **, char **),
                              int argc, char **ubp_av,
                              void (*init)(void), void (*fini)(void),
-                             void (*rtld_fini)(void), void (* stack_end));
+                             void (*rtld_fini)(void), void *stack_end);
 
 #ifdef  __cplusplus
-}
+}  // extern "C"
 #endif
 
-/**
- * Intercept call returning void
- */
-#define IC_VOID(ret_type, name, parameters, body)                       \
-  extern ret_type(name)parameters                                       \
-  {                                                                     \
-    /* local name for original intercepted function */                  \
-    ret_type(* orig_fn)parameters = ic_orig_##name;                     \
-    /* If we are called before the constructor we have to look up */    \
-    /* function for ourself. This happens once per process run. */      \
-    if (!orig_fn) {                                                     \
-      orig_fn = (ret_type(*)parameters)dlsym(RTLD_NEXT, #name);         \
-      assert(orig_fn);                                                  \
-    }                                                                   \
-    assert(intercept_on == false);                                      \
-    intercept_on = true;                                                \
-    insert_begin_marker(__func__);                                      \
-    fb_ic_load();                                                       \
-    {                                                                   \
-      body; /* this is where interceptor function body goes */          \
-    }                                                                   \
-    insert_end_marker(__func__);                                        \
-    intercept_on = false;                                               \
-  }
 
 #endif  // FIREBUILD_INTERCEPT_H_
