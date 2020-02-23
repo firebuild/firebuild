@@ -140,8 +140,19 @@ static void * get_orig_fn(const char* name) {
 }
 
 /** Get next unique ACK id */
-int get_next_ack_id() {
+static int get_next_ack_id() {
   return (ack_id++);
+}
+
+void fb_send_msg_and_check_ack(msg::InterceptorMsg& ic_msg, int fd) {
+  int ack_num = get_next_ack_id();
+  ic_msg.set_ack_num(ack_num);
+  fb_send_msg(ic_msg, fd);
+
+  msg::SupervisorMsg sv_msg;
+  auto len = fb_recv_msg(&sv_msg, fd);
+  assert(len > 0);
+  assert(sv_msg.ack_num() == ack_num);
 }
 
 /**
@@ -325,15 +336,7 @@ void handle_exit(const int status) {
     auto *fl = m->mutable_libs();
     dl_iterate_phdr(shared_libs_cb, fl);
   }
-  int ack_num = get_next_ack_id();
-  ic_msg.set_ack_num(ack_num);
-  fb_send_msg(ic_msg, fb_sv_conn);
-  msg::SupervisorMsg sv_msg;
-  auto len = fb_recv_msg(&sv_msg, fb_sv_conn);
-  if ((len > 0) && (sv_msg.ack_num() != ack_num)) {
-    // something unexpected happened ...
-    assert(0 && "Supervisor did not ack exit");
-  }
+  fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
 }
 }
 

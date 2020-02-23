@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "common/firebuild_common.h"
+#include "fb-messages.pb.h"
 
 /**
  * Intercept call
@@ -123,8 +124,8 @@ extern void init_supervisor_conn();
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
-/** Get next unique ACK id */
-extern int get_next_ack_id();
+/* Send message and wait for ACK */
+extern void fb_send_msg_and_check_ack(firebuild::msg::InterceptorMsg& ic_msg, int fd);
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
