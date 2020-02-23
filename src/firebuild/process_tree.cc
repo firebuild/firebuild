@@ -46,8 +46,10 @@ void ProcessTree::insert(ExecedProcess *p, const int sock) {
 }
 
 void ProcessTree::finished(const int sock) {
-  Process *p = sock2proc_[sock];
-  p->finish();
+  auto p = sock2proc_[sock];
+  if (p) {
+    p->finish();
+  }
   sock2proc_.erase(sock);
 }
 
