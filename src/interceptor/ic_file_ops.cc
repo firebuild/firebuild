@@ -74,22 +74,15 @@ IC2_TO_SET_ALL_BUT(const void*, NULL);
   intercept_##ics_pmname ics_pars                                   \
   {                                                                 \
     msg::InterceptorMsg ic_msg;                                     \
-    int ack_num, saved_errno = errno;                                \
-    if (IC2_WAIT_ACK) {                                             \
-      ack_num = get_next_ack_id();                                  \
-      ic_msg.set_ack_num(ack_num);                                  \
-    }                                                               \
+    int saved_errno = errno;                                        \
                                                                     \
     auto m = ic_msg.mutable_##ics_pmname();                         \
     ics_body;                                                       \
     IC2_MSG_##ics_with_rettype;                                     \
-    fb_send_msg(ic_msg, fb_sv_conn);                                \
     if (IC2_WAIT_ACK) {                                             \
-      msg::SupervisorMsg sv_msg;                                    \
-      if ( 0 >= fb_recv_msg(&sv_msg, fb_sv_conn)) {                 \
-        /* something unexpected happened ... */                     \
-        assert(sv_msg.ack_num() == ack_num);                        \
-      }                                                             \
+      fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);                \
+    } else {                                                        \
+      fb_send_msg(ic_msg, fb_sv_conn);                              \
     }                                                               \
     errno = saved_errno;                                            \
   }
@@ -307,7 +300,8 @@ static void intercept_pipe2(const int pipefd[2], const int flags,
     m->set_error_no(saved_errno);
   }
 
-  fb_send_msg(ic_msg, fb_sv_conn);
+  fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+
   errno = saved_errno;
 }
 
@@ -360,14 +354,7 @@ static void intercept_execve(const bool with_p, const char * const file,
   m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
   m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-  int ack_num = get_next_ack_id();
-  ic_msg.set_ack_num(ack_num);
-  fb_send_msg(ic_msg, fb_sv_conn);
-  fb_recv_msg(&sv_msg, fb_sv_conn);
-  if (sv_msg.ack_num() != ack_num) {
-    // something unexpected happened ...
-    assert(0 &&"Interceptor has not received proper ACK from firebuild");
-  }
+  fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
 }
 /* Intercept failed (f)execv*() */
 IC2_SIMPLE_0P(int, IC2_WITH_RET, ExecVFailed, execvfailed)
@@ -376,20 +363,9 @@ IC2_SIMPLE_0P(int, IC2_WITH_RET, ExecVFailed, execvfailed)
 static void intercept_system(const char * cmd) {
   if (cmd) {
     msg::InterceptorMsg ic_msg;
-    msg::SupervisorMsg sv_msg;
     auto m = ic_msg.mutable_system();
     m->set_cmd(cmd);
-    int ack_num = get_next_ack_id();
-    ic_msg.set_ack_num(ack_num);
-    fb_send_msg(ic_msg, fb_sv_conn);
-    /* waiting for ACK to make sure the system() call is registered before
-       the child shows up with the new pid at the supervisor looking for a
-       parent */
-    fb_recv_msg(&sv_msg, fb_sv_conn);
-    if (sv_msg.ack_num() != ack_num) {
-      // something unexpected happened ...
-      assert(0 &&"Interceptor has not received proper ACK from firebuild");
-    }
+    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
   }
 }
 
@@ -397,21 +373,10 @@ static void intercept_system(const char * cmd) {
 static void intercept_popen(const char * cmd, const char * type) {
   if (cmd) {
     msg::InterceptorMsg ic_msg;
-    msg::SupervisorMsg sv_msg;
     auto m = ic_msg.mutable_popen();
     m->set_cmd(cmd);
     m->set_type(type);
-    int ack_num = get_next_ack_id();
-    ic_msg.set_ack_num(ack_num);
-    fb_send_msg(ic_msg, fb_sv_conn);
-    /* waiting for ACK to make sure the popen() call is registered before
-       the child shows up with the new pid at the supervisor lookig for a
-       parent */
-    fb_recv_msg(&sv_msg, fb_sv_conn);
-    if (sv_msg.ack_num() != ack_num) {
-      // something unexpected happened ...
-      assert(0 &&"Interceptor has not received proper ACK from firebuild");
-    }
+    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
   }
 }
 
@@ -430,17 +395,7 @@ static void intercept_posix_spawn(const char * file, bool is_spawnp,
     for (int i = 0; envp[i] != NULL; i++) {
       m->add_env(envp[i]);
     }
-    int ack_num = get_next_ack_id();
-    ic_msg.set_ack_num(ack_num);
-    fb_send_msg(ic_msg, fb_sv_conn);
-    /* waiting for ACK to make sure the posix_spawn[p]() call is registered before
-       the child shows up with the new pid at the supervisor lookig for a
-       parent */
-    fb_recv_msg(&sv_msg, fb_sv_conn);
-    if (sv_msg.ack_num() != ack_num) {
-      // something unexpected happened ...
-      assert(0 &&"Interceptor has not received proper ACK from firebuild");
-    }
+    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
   }
 }
 
@@ -587,17 +542,7 @@ static void intercept_posix_spawn_failed(char *const argv[], int ret) {
   for (int i = 0; argv[i] != NULL; i++) {
     m->add_arg(argv[i]);
   }
-  int ack_num = get_next_ack_id();
-  ic_msg.set_ack_num(ack_num);
-  fb_send_msg(ic_msg, fb_sv_conn);
-  /* waiting for ACK to make sure the posix_spawn[p]() call is registered before
-     the child shows up with the new pid at the supervisor lookig for a
-     parent */
-  fb_recv_msg(&sv_msg, fb_sv_conn);
-  if (sv_msg.ack_num() != ack_num) {
-    // something unexpected happened ...
-    assert(0 &&"Interceptor has not received proper ACK from firebuild");
-  }
+  fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
 }
 
 
