@@ -2,12 +2,14 @@
 
 set -e
 
-find . -name '*.gcno' | grep CMakeFiles/ | while read f; do
-    cp $f $(dirname $f| xargs dirname | xargs dirname)/$(basename $f)
+find . -name '*.gcno' | grep -v /gcov/ | while read f; do
+    mkdir -p gcov/$(dirname $f)
+    ln -sf $(realpath $f) gcov/$f
 done
-lcov -q -c -d . --no-external -o tmp.info
-lcov -q -r tmp.info -o coverage-incl-tests.info '*.pb.*'
-genhtml coverage-incl-tests.info
-lcov -q -r coverage-incl-tests.info -o coverage-excl-tests.info '*/test/*.c*'
+
+lcov -q -c -d . --no-external -o gcov/tmp.info
+lcov -q -r gcov/tmp.info -o gcov/coverage-incl-tests.info '*.pb.*'
+genhtml -o gcovhtml gcov/coverage-incl-tests.info
+lcov -q -r gcov/coverage-incl-tests.info -o gcov/coverage-excl-tests.info '*/test/*.c*'
 echo "Line coverage rate, excluding test files:"
-lcov --summary coverage-excl-tests.info  2>&1 | grep '^  lines' | sed 's/  lines.*: \([^%]*\)%.*/\1/'
+lcov --summary gcov/coverage-excl-tests.info 2>&1 | grep '^  lines' | sed 's/  lines.*: \([^%]*\)%.*/\1/'
