@@ -721,12 +721,11 @@ static void intercept_underscore_exit(const int status) {
 /* make intercepted functions visible */
 static pid_t intercept_fork(const pid_t ret) {
   msg::InterceptorMsg ic_msg;
-  pid_t pid;
 
   if (ret == 0) {
     // child
     reset_fn_infos();
-    ic_pid = pid = ic_orig_getpid();
+    ic_pid = ic_orig_getpid();
     // unlock global interceptor lock if it is locked
     pthread_mutex_trylock(&ic_global_lock);
     pthread_mutex_unlock(&ic_global_lock);
@@ -734,7 +733,7 @@ static pid_t intercept_fork(const pid_t ret) {
     ic_orig_close(fb_sv_conn);
     fb_sv_conn = -1;
     init_supervisor_conn();
-    intercept_fork_child(pid, ic_orig_getppid(), ret);
+    intercept_fork_child(ic_pid, ic_orig_getppid(), ret);
   } else {
     intercept_fork_parent(ret);
   }
