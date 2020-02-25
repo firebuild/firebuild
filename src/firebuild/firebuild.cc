@@ -23,6 +23,7 @@
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/config.h"
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/debug.h"
@@ -39,8 +40,6 @@
 bool firebuild_readonly = false;
 
 namespace {
-
-static char global_cfg[] = "/etc/firebuildrc";
 
 static char datadir[] = FIREBUILD_DATADIR;
 
@@ -89,44 +88,15 @@ static void usage() {
          "                             the report's filename can be specified \n"
          "                             (firebuild-build-report.html by default). \n"
          "   -h --help                 show this help\n"
+         "   -o --option=key=val       Add or replace a scalar in the config\n"
+         "   -o --option=key+=val      Append to an array of scalars in the config\n"
+         "   -o --option=key-=val      Remove from an array of scalars in the config\n"
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
          "                             to let users find unintercepted calls using\n"
          "                             strace or ltrace\n"
          "Exit status:\n"
          " exit status of the BUILD COMMAND\n"
          " 1  in case of failure\n");
-}
-
-/** Parse configuration file */
-static void parse_cfg_file(const char * const custom_cfg_file) {
-  // we fall back to global configuration file
-  std::string cfg_file(global_cfg);
-  if (custom_cfg_file != NULL) {
-    cfg_file = std::string(custom_cfg_file);
-  } else {
-    char * homedir = getenv("HOME");
-    int cfg_fd;
-    if ((homedir != NULL ) &&
-        (-1 != (cfg_fd = open(std::string(homedir +
-                                          std::string("/.firebuildrc")).c_str(),
-                              O_RDONLY)))) {
-      // fall back to private config file
-      cfg_file = std::string(homedir + std::string("/.firebuildrc"));
-      close(cfg_fd);
-    }
-  }
-  try {
-    cfg->readFile(cfg_file.c_str());
-  }
-  catch(const libconfig::FileIOException &fioex) {
-    std::cerr << "Could not read configuration file " << cfg_file << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  catch(const libconfig::ParseException &pex) {
-    std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-              << " - " << pex.getError() << std::endl;
-    exit(EXIT_FAILURE);
-  }
 }
 
 /**
@@ -663,6 +633,7 @@ static bool is_listener(int const fd) {
 
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
+  std::list<std::string> config_strings = {};
   int c;
 
   // running under BATS fd 3 is inherited
@@ -684,11 +655,12 @@ int main(const int argc, char *argv[]) {
       {"debug-level",          required_argument, 0, 'd' },
       {"generate-report",      optional_argument, 0, 'r' },
       {"help",                 no_argument,       0, 'h' },
+      {"option",               required_argument, 0, 'o' },
       {"insert-trace-markers", no_argument,       0, 'i' },
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:d:r::hi",
+    c = getopt_long(argc, argv, "c:d:r::o:hi",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -706,6 +678,15 @@ int main(const int argc, char *argv[]) {
       usage();
       exit(EXIT_SUCCESS);
       // break;
+
+    case 'o':
+      if (optarg != NULL) {
+        config_strings.push_back(std::string(optarg));
+      } else {
+        usage();
+        exit(EXIT_FAILURE);
+      }
+      break;
 
     case 'i':
       insert_trace_markers = true;
@@ -728,7 +709,7 @@ int main(const int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  parse_cfg_file(config_file);
+  firebuild::read_config(cfg, config_file, config_strings);
 
   // Initialize the cache
   std::string cache_dir;

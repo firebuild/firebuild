@@ -4,6 +4,7 @@ set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-e
 find_package(LibConfig REQUIRED)
 
 add_executable(firebuild
+  config.cc
   debug.cc
   firebuild.cc
   process.cc
