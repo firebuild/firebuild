@@ -91,6 +91,7 @@ struct flag {
 
 /* Keep this in sync with debug.h! */
 static struct flag available_flags[] = {
+  { "config",            FB_DEBUG_CONFIG },
   { "proc",              FB_DEBUG_PROC },
   { "proctree",          FB_DEBUG_PROCTREE },
   { "communication",     FB_DEBUG_COMM },

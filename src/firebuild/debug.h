@@ -14,20 +14,22 @@ void fb_error(const std::string &msg);
 
 /** Possible debug flags. Keep in sync with debug.cc! */
 enum {
+  /* Firebuild's configuration */
+  FB_DEBUG_CONFIG       = 1 << 0,
   /* Events with one process, e.g. shortcut, exit */
-  FB_DEBUG_PROC         = 1 << 0,
+  FB_DEBUG_PROC         = 1 << 1,
   /* How processes are organized into ProcTree */
-  FB_DEBUG_PROCTREE     = 1 << 1,
+  FB_DEBUG_PROCTREE     = 1 << 2,
   /* Communication */
-  FB_DEBUG_COMM         = 1 << 2,
+  FB_DEBUG_COMM         = 1 << 3,
   /* File system */
-  FB_DEBUG_FS           = 1 << 3,
+  FB_DEBUG_FS           = 1 << 4,
   /* Checksum computation */
-  FB_DEBUG_HASH         = 1 << 4,
+  FB_DEBUG_HASH         = 1 << 5,
   /* The data stored in the cache */
-  FB_DEBUG_CACHE        = 1 << 5,
+  FB_DEBUG_CACHE        = 1 << 6,
   /* Placing in / retrieving from the cache */
-  FB_DEBUG_CACHING      = 1 << 6,
+  FB_DEBUG_CACHING      = 1 << 7,
 };
 
 /**
