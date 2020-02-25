@@ -2,4 +2,8 @@
 
 . test_helper.bash
 
-exec $FIREBUILD_PREFIX_CMD firebuild -c ../etc/firebuildrc "$@"
+exec $FIREBUILD_PREFIX_CMD firebuild \
+  -c ../etc/firebuildrc \
+  -o 'env_vars.pass_through += "GCOV_PREFIX"' \
+  -o 'env_vars.pass_through += "GCOV_PREFIX_STRIP"' \
+  "$@"
