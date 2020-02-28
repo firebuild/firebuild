@@ -13,11 +13,12 @@
 
 namespace firebuild {
 #define FD_ORIGIN_ENUM {                                                \
-      FD_ORIGIN_FILE_OPEN, /* backed by open()-ed file */               \
-      FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using pipe()) */   \
-      FD_ORIGIN_DUP,       /* created using dup() */                    \
-      FD_ORIGIN_INHERITED, /* inherited through fork() or exec() */     \
-      FD_ORIGIN_ROOT       /* std fd of the root process (stdin, etc.) */ }
+    FD_ORIGIN_FILE_OPEN, /* backed by open()-ed file */                 \
+    FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using fmemopen()) */ \
+    FD_ORIGIN_PIPE,      /* pipe endpoint (e.g. using pipe()) */        \
+    FD_ORIGIN_DUP,       /* created using dup() */                      \
+    FD_ORIGIN_INHERITED, /* inherited through fork() or exec() */       \
+    FD_ORIGIN_ROOT       /* std fd of the root process (stdin, etc.) */ }
 
 #ifdef __GNUC__
 #  include <features.h>
@@ -37,11 +38,11 @@ class Process;
 
 class FileFD {
  public:
-  /** Constructor for fds backed by internal memory, like pipe() created fds. */
-  FileFD(int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL),
-      read_(false), written_(false), open_((fd_ >= 0)?true:false),
-      origin_fd_(NULL) , filename_(), process_(p) {}
+  /** Constructor for fds backed by internal memory or a pipe. */
+  FileFD(int fd, int flags, fd_origin origin_type, Process * const p)
+      : fd_(fd), curr_flags_(flags), origin_type_(origin_type), read_(false),
+      written_(false), open_((fd_ >= 0)?true:false), origin_fd_(NULL),
+      filename_(), process_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
   FileFD(int fd, int flags, fd_origin o, FileFD * o_fd, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),

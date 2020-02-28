@@ -166,8 +166,8 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
     return -1;
   }
 
-  add_filefd(fd1, new FileFD(fd1, (flags & ~O_ACCMODE) | O_RDONLY, this));
-  add_filefd(fd2, new FileFD(fd2, (flags & ~O_ACCMODE) | O_WRONLY, this));
+  add_filefd(fd1, new FileFD(fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this));
+  add_filefd(fd2, new FileFD(fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this));
   return 0;
 }
 
