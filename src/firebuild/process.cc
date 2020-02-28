@@ -25,17 +25,19 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
   if (parent) {
     for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
       if (parent->fds_.at(i) && ! (execed && parent->fds_[i]->cloexec())) {
-        fds_.resize(i + 1);
-        fds_[i] = parent->fds_.at(i)->inherit(this);
+        add_filefd(i, parent->fds_.at(i));
       }
     }
   } else {
-    fds_[STDIN_FILENO]  = new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
-                                     NULL, this);
-    fds_[STDOUT_FILENO] = new FileFD(STDOUT_FILENO, O_WRONLY, FD_ORIGIN_ROOT,
-                                     NULL, this);
-    fds_[STDERR_FILENO] = new FileFD(STDERR_FILENO, O_WRONLY, FD_ORIGIN_ROOT,
-                                     NULL, this);
+    add_filefd(STDIN_FILENO,
+               std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
+                                                  this)));
+    add_filefd(STDOUT_FILENO,
+               std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
+                                                  this)));
+    add_filefd(STDERR_FILENO,
+               std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
+                                                  this)));
   }
 }
 
@@ -66,15 +68,14 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
   }
 }
 
-void Process::add_filefd(int fd, FileFD* ffd) {
+void Process::add_filefd(int fd, std::shared_ptr<FileFD> ffd) {
   if (fds_.size() <= static_cast<unsigned int>(fd)) {
     fds_.resize(fd + 1, nullptr);
   }
-  if (fds_[fd] != nullptr) {
+  if (fds_[fd]) {
     firebuild::fb_error("Fd " + std::to_string(fd) + " is already tracked as being open.");
-    delete(fds_[fd]);
   }
-  fds_[fd] = ffd;
+  fds_[fd] = ffd; // the share_ptr takes care of cleanint up the old fd if needed
 }
 
 int Process::handle_open(const std::string &ar_name, const int flags,
@@ -83,7 +84,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
       (wd() + "/" + ar_name);
 
   if (fd >= 0) {
-    add_filefd(fd, new FileFD(name, fd, flags, this));
+    add_filefd(fd, std::shared_ptr<FileFD>(new FileFD(name, fd, flags, this)));
   }
 
   if (!exec_point()->register_file_usage(name, flags, error)) {
@@ -99,7 +100,7 @@ int Process::handle_close(const int fd, const int error) {
     // IO prevents shortcutting
     disable_shortcutting("IO error closing fd " + fd);
     return -1;
-  } else if (error == 0 && get_fd(fd) == nullptr) {
+  } else if (error == 0 && !get_fd(fd)) {
     // closing an unknown fd successfully prevents shortcutting
     disable_shortcutting("Process closed an unknown fd (" +
                          std::to_string(fd) + ") successfully, which means "
@@ -108,7 +109,7 @@ int Process::handle_close(const int fd, const int error) {
   } else if (EBADF == error) {
     // Process closed an fd unknown to it. Who cares?
     return 0;
-  } else if (get_fd(fd) == nullptr) {
+  } else if (!get_fd(fd)) {
     // closing an unknown fd with not EBADF prevents shortcutting
     disable_shortcutting("Process closed an unknown fd (" +
                          std::to_string(fd) + ") successfully, which means "
@@ -122,14 +123,16 @@ int Process::handle_close(const int fd, const int error) {
       }
       // remove from open fds
       closed_fds_.push_back(fds_[fd]);
-      fds_[fd] = NULL;
+      fds_[fd].reset();
       return 0;
     } else if ((fds_[fd]->last_err() == EINTR) && (error == 0)) {
       // previous close got interrupted but the current one succeeded
+      fds_[fd].reset();
       return 0;
     } else {
       // already closed, it may be an error
       // TODO(rbalint) debug
+      fds_[fd].reset();
       return 0;
     }
   }
@@ -151,14 +154,14 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
   }
 
   // validate fd-s
-  if (get_fd(fd1) != nullptr) {
+  if (get_fd(fd1)) {
     // we already have this fd, probably missed a close()
     disable_shortcutting("Process created an fd (" + std::to_string(fd1) +
                          ") which is known to be open, which means interception "
                          "missed at least one close()");
     return -1;
   }
-  if (get_fd(fd2) != nullptr) {
+  if (get_fd(fd2)) {
     // we already have this fd, probably missed a close()
     disable_shortcutting("Process created an fd (" + std::to_string(fd2) +
                          ") which is known to be open, which means interception "
@@ -166,8 +169,10 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
     return -1;
   }
 
-  add_filefd(fd1, new FileFD(fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this));
-  add_filefd(fd2, new FileFD(fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this));
+  add_filefd(fd1, std::shared_ptr<FileFD>(new FileFD(
+      fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this)));
+  add_filefd(fd2, std::shared_ptr<FileFD>(new FileFD(
+      fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this)));
   return 0;
 }
 
@@ -188,18 +193,19 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   }
 
   // validate fd-s
-  if (get_fd(oldfd) == nullptr) {
+  if (!get_fd(oldfd)) {
     // we already have this fd, probably missed a close()
     disable_shortcutting("Process created an fd (" + std::to_string(oldfd) +
                          ") which is known to be open, which means interception"
                          " missed at least one close()");
     return -1;
   }
-  if (get_fd(newfd) != nullptr) {
+  if (get_fd(newfd)) {
     handle_close(newfd, 0);
   }
 
-  add_filefd(newfd, new FileFD(newfd, ((fds_[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP, fds_[oldfd], this));
+  add_filefd(newfd, std::shared_ptr<FileFD>(new FileFD(
+      newfd, ((fds_[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP, fds_[oldfd], this)));
   return 0;
 }
 
@@ -212,7 +218,7 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
       return handle_dup3(fd, ret, O_CLOEXEC, error);
     case F_SETFD:
       if (error == 0) {
-        if (get_fd(fd) == nullptr) {
+        if (!get_fd(fd)) {
           disable_shortcutting("Process successfully fcntl'ed on fd (" + std::to_string(fd) +
                                ") which is known to be closed, which means interception"
                                " missed at least one open()");
@@ -319,13 +325,6 @@ void Process::export2js_recurse(const unsigned int level, FILE* stream,
 
 
 Process::~Process() {
-  for (auto fd : fds_) {
-    delete(fd);
-  }
-
-  for (auto fd : closed_fds_) {
-    delete(fd);
-  }
 }
 
 }  // namespace firebuild
