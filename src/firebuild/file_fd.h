@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 
+#include <memory>
 #include <string>
 
 #include "firebuild/file.h"
@@ -17,7 +18,6 @@ namespace firebuild {
     FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using fmemopen()) */ \
     FD_ORIGIN_PIPE,      /* pipe endpoint (e.g. using pipe()) */        \
     FD_ORIGIN_DUP,       /* created using dup() */                      \
-    FD_ORIGIN_INHERITED, /* inherited through fork() or exec() */       \
     FD_ORIGIN_ROOT       /* std fd of the root process (stdin, etc.) */ }
 
 #ifdef __GNUC__
@@ -44,7 +44,7 @@ class FileFD {
       written_(false), open_((fd_ >= 0)?true:false), origin_fd_(NULL),
       filename_(), process_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
-  FileFD(int fd, int flags, fd_origin o, FileFD * o_fd, Process * const p)
+  FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
       written_(false), open_((fd_ >= 0)?true:false), origin_fd_(o_fd),
       filename_(), process_(p) {}
@@ -68,22 +68,6 @@ class FileFD {
     }
   }
 
-  /**
-   * Create new fd inherited from this one
-   */
-  FileFD* inherit(Process * const p) {
-    return new FileFD (fd_, curr_flags_, FD_ORIGIN_INHERITED, this, p);
-  }
-
-  /**
-   * Create new fd dup()-d from this one
-   * @param fd fd number of result
-   * @param p process that called dup()
-   */
-  FileFD* dup(const int fd, Process * const p) {
-    return new FileFD (fd, curr_flags_, FD_ORIGIN_INHERITED, this, p);
-  }
-
  private:
   int fd_;
   int curr_flags_;
@@ -93,7 +77,7 @@ class FileFD {
   bool written_ : 1;
   /** file descriptor is open (valid) */
   bool open_ : 1;
-  FileFD* origin_fd_;
+  std::shared_ptr<FileFD> origin_fd_;
   std::string filename_;
   Process* process_;
   /** Process the fd has been created in */
