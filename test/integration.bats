@@ -35,7 +35,7 @@ load test_helper
 
 @test "parallel sleeps" {
       # TODO (rbalint) firebuild needs to gracefully handle when it is out of file descriptors
-      result=$(./run-firebuild -- bash -c 'for i in $(seq 200); do sleep 2 & done;  wait < <(jobs -p)' 2>stderr)
+      result=$(./run-firebuild -- bash -c 'for i in $(seq 200); do sleep 2 & done;  wait $(jobs -p)' 2>stderr)
       [ "$result" = "" ]
       strip_stderr stderr
       [ -z "$(strip_stderr stderr)" ]
