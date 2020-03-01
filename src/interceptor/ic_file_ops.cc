@@ -675,9 +675,7 @@ static pid_t intercept_fork(const pid_t ret) {
     pthread_mutex_trylock(&ic_global_lock);
     pthread_mutex_unlock(&ic_global_lock);
     // reconnect to supervisor
-    ic_orig_close(fb_sv_conn);
-    fb_sv_conn = -1;
-    init_supervisor_conn();
+    fb_init_supervisor_conn();
     intercept_fork_child(ic_pid, ic_orig_getppid(), ret);
   } else {
     intercept_fork_parent(ret);
