@@ -6,6 +6,7 @@
 
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <link.h>
 #include <sys/un.h>
 #include <sys/resource.h>
@@ -170,30 +171,54 @@ static void set_orig_fns() {
 #undef IC_VOID
 }
 
-/**  Set up supervisor connection */
-void init_supervisor_conn() {
-  if (fb_conn_string == NULL) {
-    fb_conn_string = strdup(getenv("FB_SOCKET"));
-  }
+/**
+ * Set up a supervisor connection
+ * @param[in] fd if > -1 remap the connection to that fd
+ * @return fd of the connection
+ */
+int fb_connect_supervisor(int fd) {
+  int conn_ret = -1, conn = ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 
-  if (-1 == (fb_sv_conn =
-             ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0))) {
-    assert(fb_sv_conn > STDERR_FILENO);
-    assert(fb_sv_conn != -1);
-  }
+  assert(conn != -1);
 
   struct sockaddr_un remote;
   memset(&remote, 0, sizeof(remote));
   remote.sun_family = AF_UNIX;
   assert(strlen(fb_conn_string) + 1 < sizeof(remote.sun_path));
-  /* always use the first socket from the pool for the first connection */
-  snprintf(remote.sun_path, sizeof(remote.sun_path), "%s%d", fb_conn_string, 0);
 
-  if (-1 == ic_orig_connect(fb_sv_conn,
-                            (struct sockaddr *)&remote, sizeof(remote))) {
+  for (int sock_id = 0; conn_ret == -1; sock_id++) {
+    snprintf(remote.sun_path, sizeof(remote.sun_path), "%s%d", fb_conn_string, sock_id);
+    conn_ret = ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote));
+    if (conn_ret == -1 && errno != EADDRINUSE && errno != EISCONN) {
+      break;
+    }
+  }
+
+  if (conn_ret == -1) {
     perror("connect");
     assert(0 && "connection to supervisor failed");
   }
+
+  if (fd > -1 && conn != fd) {
+    int ret = ic_orig_dup3(conn, fd, O_CLOEXEC);
+    if (ret == -1) {
+      perror("dup3:");
+      assert(0 && "connecting standard fds to supervisor failed");
+    }
+    ic_orig_close(conn);
+    conn = fd;
+  }
+  return conn;
+}
+
+/**  Set up the main supervisor connection */
+void fb_init_supervisor_conn() {
+  if (fb_conn_string == NULL) {
+    fb_conn_string = strdup(getenv("FB_SOCKET"));
+  }
+  // reconnect to supervisor
+  ic_orig_close(fb_sv_conn);
+  fb_sv_conn = fb_connect_supervisor(-1);
 }
 
 /**
@@ -215,7 +240,7 @@ static void fb_ic_init() {
     insert_trace_markers = true;
   }
 
-  init_supervisor_conn();
+  fb_init_supervisor_conn();
 
   on_exit(on_exit_handler, NULL);
 

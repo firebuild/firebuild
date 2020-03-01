@@ -118,8 +118,10 @@ extern pthread_mutex_t ic_fd_states_lock;
 /** Reset globally maintained information about intercepted functions */
 extern void reset_fn_infos();
 
-/**  Set up supervisor connection */
-extern void init_supervisor_conn();
+/** Connect to supervisor */
+extern int fb_connect_supervisor(int fd);
+/** Set up main supervisor connection */
+extern void fb_init_supervisor_conn();
 
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
