@@ -75,7 +75,7 @@ void Process::add_filefd(int fd, std::shared_ptr<FileFD> ffd) {
   if (fds_[fd]) {
     firebuild::fb_error("Fd " + std::to_string(fd) + " is already tracked as being open.");
   }
-  fds_[fd] = ffd; // the share_ptr takes care of cleanint up the old fd if needed
+  fds_[fd] = ffd; // the shared_ptr takes care of cleaning up the old fd if needed
 }
 
 int Process::handle_open(const std::string &ar_name, const int flags,
