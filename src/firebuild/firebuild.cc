@@ -34,6 +34,9 @@
 #include "firebuild/fb-cache.pb.h"
 #include "fb-messages.pb.h"
 
+/** global configuration */
+libconfig::Config * cfg;
+
 namespace {
 
 static char datadir[] = FIREBUILD_DATADIR;
@@ -67,9 +70,6 @@ static bool generate_report = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;
-
-/** global configuration */
-libconfig::Config * cfg;
 
 static void usage() {
   printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"

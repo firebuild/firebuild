@@ -41,3 +41,6 @@ processes = {
     "egrep", "fgrep", "grep", "rgrep", "sed"
   ];
 };
+
+// Ignore file operations under these directories
+ignore_locations = [];
