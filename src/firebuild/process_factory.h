@@ -25,7 +25,7 @@ class ProcessFactory {
                                          Process * const parent);
   static ForkedProcess* getForkedProcess(int pid, Process * const parent);
   static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq,
-                                         Process * parent, ExecedProcessCacher *cacher);
+                                         Process * parent);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);

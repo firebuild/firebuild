@@ -254,7 +254,8 @@ static void fb_ic_init() {
   // we may return immediately if supervisor decides that way
   if (resp->shortcut()) {
     assert(resp->has_exit_status());
-    exit(resp->exit_status());
+    auto orig_underscore_exit = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
+    (*orig_underscore_exit)(resp->exit_status());
   } else {
     if (resp->has_debug_flags()) {
       debug_flags = resp->debug_flags();

@@ -181,6 +181,21 @@ bool Hash::set_hash_from_hex(const std::string &hex) {
 }
 
 /**
+ * The inverse of to_binary(): Sets the binary hash value directly from
+ * the given binary string. No hash computation takes place.
+ *
+ * Returns true if succeeded, false if the input is not exactly the
+ * required length.
+ */
+bool Hash::set_hash_from_binary(const std::string &binary) {
+  if (binary.size() != sizeof(arr_)) {
+    return false;
+  }
+  memcpy(arr_, binary.c_str(), sizeof(arr_));
+  return true;
+}
+
+/**
  * Get the raw binary representation, wrapped in std::string for
  * convenience (e.g. easy placement in a protobuf).
  */

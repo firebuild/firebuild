@@ -68,3 +68,13 @@ load test_helper
       strip_stderr stderr
       [ -z "$(strip_stderr stderr)" ]
 }
+
+@test "file operations again" {
+      # Due to the "again" parameter the 1st level cannot be shortcut,
+      # but the 2nd level (./test_file_ops_2) can, it should fetch the
+      # cached entries stored by the previous test.
+      result=$(./run-firebuild -- ./test_file_ops again 2> stderr)
+      [ "$result" = "" ]
+      strip_stderr stderr
+      [ -z "$(strip_stderr stderr)" ]
+}

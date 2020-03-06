@@ -22,8 +22,7 @@ class ExecedProcessCacher;
 class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
-                         const std::string &executable, Process * parent,
-                         ExecedProcessCacher *cacher);
+                         const std::string &executable, Process * parent);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
@@ -48,6 +47,7 @@ class ExecedProcess : public Process {
   std::vector<std::string>& libs() {return libs_;}
   std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;}
   const std::unordered_map<std::string, FileUsage*>& file_usages() const {return file_usages_;}
+  void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
   void do_finalize();
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
   void exit_result(const int status, const int64_t utime_u,
@@ -71,6 +71,11 @@ class ExecedProcess : public Process {
     wds_.insert(d);
   }
 
+  /// Returns if the process can be short-cut
+  bool can_shortcut() const {return can_shortcut_;}
+
+  bool shortcut();
+
   virtual void propagate_exit_status(const int status);
   virtual void disable_shortcutting(const std::string &reason, const Process *p = NULL) {
     if (true == can_shortcut_) {
@@ -85,6 +90,8 @@ class ExecedProcess : public Process {
       }
     }
   }
+  bool was_shortcut() const {return was_shortcut_;}
+  void set_was_shortcut(bool value) {was_shortcut_ = value;}
   virtual int64_t sum_rusage_recurse();
 
   void export2js(const unsigned int level, FILE* stream,
@@ -94,6 +101,7 @@ class ExecedProcess : public Process {
 
  private:
   bool can_shortcut_:1;
+  bool was_shortcut_:1;
   /// Sum of user time in microseconds for all forked but not exec()-ed children
   int64_t sum_utime_u_ = 0;
   /// Sum of system time in microseconds for all forked but not exec()-ed
@@ -121,9 +129,9 @@ class ExecedProcess : public Process {
   std::string cant_shortcut_reason_ = "";
   /// Process the event preventing short-cutting happened in
   const Process *cant_shortcut_proc_ = NULL;
-  virtual bool can_shortcut() const {return can_shortcut_;}
-  virtual bool can_shortcut() {return can_shortcut_;}
-  /// Helper object for storing in cache
+  /// Helper object for storing in / retrieving from cache.
+  /// NULL if we prefer not to (although probably could)
+  /// cache / shortcut this process.
   ExecedProcessCacher *cacher_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };

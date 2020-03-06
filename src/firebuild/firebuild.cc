@@ -34,11 +34,6 @@
 #include "firebuild/fb-cache.pb.h"
 #include "fb-messages.pb.h"
 
-/* Globals */
-
-/* Like CCACHE_READONLY: Don't store new results in the cache. */
-bool firebuild_readonly = false;
-
 namespace {
 
 static char datadir[] = FIREBUILD_DATADIR;
@@ -205,6 +200,34 @@ static void init_signal_handlers(void) {
   }
 }
 
+/*
+ * Check if either exe or arg0 matches any of the entries in the list.
+ */
+static bool exe_matches_list(const std::string& exe,
+                             const std::string& arg0,
+                             const libconfig::Setting& list) {
+  size_t pos = exe.rfind('/');
+  std::string exe_base = exe.substr(pos == std::string::npos ? 0 : pos + 1);
+  pos = arg0.rfind('/');
+  std::string arg0_base = arg0.substr(pos == std::string::npos ? 0 : pos + 1);
+
+  for (int i = 0; i < list.getLength(); i++) {
+    const std::string& entry = list[i];
+    if (entry.find('/') == std::string::npos) {
+      /* If the entry doesn't contain a '/', only the basename needs to match. */
+      if (entry == exe_base || entry == arg0_base) {
+        return true;
+      }
+    } else {
+      /* If the entry contains a '/', it needs to be an exact string match. */
+      if (entry == exe || entry == arg0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /**
  * ACK a message from the supervised process
  * @param conn connection file descriptor to send the ACK on
@@ -263,25 +286,41 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     /* Add the ExecedProcess. */
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
-            ic_msg.scproc_query(), parent, cacher);
+            ic_msg.scproc_query(), parent);
     proc_tree->insert(proc, fd_conn);
 
     proc->initialize();
 
-    // TODO(rbalint) look up stored result
-#if 0
-    if ( /* can shortcut*/) {
+    /* Check for executables that are known not to be shortcuttable. */
+    if (exe_matches_list(ic_msg.scproc_query().executable(),
+                         ic_msg.scproc_query().arg_size() > 0 ? ic_msg.scproc_query().arg(0) : "",
+                         cfg->getRoot()["processes"]["blacklist"])) {
+      proc->disable_shortcutting("Executable blacklisted");
+    }
+
+    /* If we still potentially can, and prefer to cache / shortcut this process,
+     * register the cacher object and calculate the process's fingerprint. */
+    if (proc->can_shortcut() &&
+        !exe_matches_list(ic_msg.scproc_query().executable(),
+                          ic_msg.scproc_query().arg_size() > 0 ? ic_msg.scproc_query().arg(0) : "",
+                          cfg->getRoot()["processes"]["skip_cache"])) {
+      proc->set_cacher(cacher);
+      if (!cacher->fingerprint(proc)) {
+        proc->disable_shortcutting("Could not fingerprint the process");
+      }
+    }
+
+    /* Try to shortcut the process. */
+    if (proc->shortcut()) {
       scproc_resp->set_shortcut(true);
-      scproc_resp->set_exit_status(0);
+      scproc_resp->set_exit_status(proc->exit_status());
     } else {
-#endif
       scproc_resp->set_shortcut(false);
       if (firebuild::debug_flags != 0) {
         scproc_resp->set_debug_flags(firebuild::debug_flags);
       }
-#if 0
     }
-#endif
+
     firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
     auto fork_child = ic_msg.fork_child();
@@ -735,8 +774,17 @@ int main(const int argc, char *argv[]) {
   }
   auto cache = new firebuild::Cache(cache_dir + "/blobs");
   auto multi_cache = new firebuild::MultiCache(cache_dir + "/pbs");
+  /* Like CCACHE_READONLY: Don't store new results in the cache. */
   bool no_store = (getenv("FIREBUILD_READONLY") != NULL);
-  cacher = new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, cfg->getRoot()["env_vars"]["fingerprint_skip"]);
+  /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
+   * potentially store new ones. Note however that it might decrease the
+   * multicache hit ratio: new entries might be stored that eventually
+   * result in the same operation, but go through a slightly different
+   * path (e.g. different tmp file name), and thus look different in
+   * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
+   * more matches are found in the protobuf multicache. */
+  bool no_fetch = (getenv("FIREBUILD_RECACHE") != NULL);
+  cacher = new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, no_fetch, cfg->getRoot()["env_vars"]["fingerprint_skip"]);
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.

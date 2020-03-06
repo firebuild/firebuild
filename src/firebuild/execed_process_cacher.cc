@@ -3,6 +3,8 @@
 
 #include "firebuild/execed_process_cacher.h"
 
+#include <unistd.h>
+
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/fb-cache.pb.h"
@@ -69,8 +71,9 @@ class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldVa
 ExecedProcessCacher::ExecedProcessCacher(Cache *cache,
                                          MultiCache *multi_cache,
                                          bool no_store,
+                                         bool no_fetch,
                                          const libconfig::Setting& envs_skip) :
-    cache_(cache), multi_cache_(multi_cache), no_store_(no_store),
+    cache_(cache), multi_cache_(multi_cache), no_store_(no_store), no_fetch_(no_fetch),
     envs_skip_(envs_skip), fingerprints_(), fingerprint_msgs_() { }
 
 /**
@@ -238,6 +241,199 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   /* Store in the cache everything about this process. */
   multi_cache_->store_protobuf(fingerprint, pio, debug_msg, debug_header, printer, NULL);
   delete printer;
+}
+
+/**
+ * Check whether the given ProcessInputs matches the file system's
+ * current contents.
+ */
+static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint) {
+  struct stat64 st;
+  for (const msg::File& file : pi.file_exist_with_hash()) {
+    Hash on_fs_hash, in_cache_hash;
+    if (!on_fs_hash.set_from_file(file.path(), NULL)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+                                  pretty_print_string(file.path()) + ": file expected but does not exist");
+      return false;
+    }
+    in_cache_hash.set_hash_from_binary(file.hash());
+    if (on_fs_hash != in_cache_hash) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+                                  pretty_print_string(file.path()) + ": hash differs");
+      return false;
+    }
+    // TODO: also check for file type (regular vs. directory) matching.
+  }
+  for (const std::string& filename : pi.file_exist()) {
+    if (stat64(filename.c_str(), &st) == -1) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+                                  pretty_print_string(filename) + ": file expected but does not exist");
+      return false;
+    }
+  }
+  for (const std::string& filename : pi.file_notexist_or_empty()) {
+    if (stat64(filename.c_str(), &st) != -1 && st.st_size > 0) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+                                  pretty_print_string(filename) + ": file expected to be missing or empty, non-empty file found");
+      return false;
+    }
+  }
+  for (const std::string& filename : pi.file_notexist()) {
+    if (stat64(filename.c_str(), &st) != -1) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+                                  pretty_print_string(filename) + ": file expected to be missing, existing file is found");
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Look up the cache for an entry describing what this process did the
+ * last time.
+ *
+ * This means fetching all the entries corresponding to the process's
+ * fingerprint, and finding the one matching the file system.
+ *
+ * Returns a new object, to be deleted by the caller, if exactly one
+ * match was found.
+ */
+msg::ProcessInputsOutputs *ExecedProcessCacher::find_shortcut(const ExecedProcess *proc) {
+  msg::ProcessInputsOutputs inouts;
+  msg::ProcessInputsOutputs *ret = NULL;
+  int count = 0;
+  Hash fingerprint = fingerprints_[proc]; // FIXME error handling
+
+  FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
+  std::vector<Hash> subkeys = multi_cache_->list_subkeys(fingerprint);
+  if (subkeys.empty()) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
+  }
+  for (const Hash& subkey : subkeys) {
+    if (!multi_cache_->retrieve_protobuf(fingerprint, subkey, &inouts)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Cannot retrieve " + subkey.to_hex() + " from multicache, ignoring");
+      continue;
+    }
+    if (!inouts.has_inputs() || pi_matches_fs(inouts.inputs(), subkey)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + subkey.to_hex() + " matches the file system");
+      count++;
+      if (count == 1) {
+        ret = new msg::ProcessInputsOutputs();
+        *ret = inouts;
+        /* Let's play safe for now and not break out of this loop, let's
+         * make sure that there are no other matches. */
+      }
+      if (count == 2) {
+        FB_DEBUG(FB_DEBUG_SHORTCUT, "│   More than 1 matching candidates found, ignoring them all");
+        delete ret;
+        return NULL;
+      }
+    }
+  }
+  return ret;
+}
+
+/**
+ * Applies the given shortcut.
+ *
+ * Modifies the file system to match the given instructions. Propagates
+ * upwards all the shortcutted file read and write events.
+ */
+bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
+                                         const msg::ProcessInputsOutputs& inouts) {
+  if (proc->parent_exec_point()) {
+    for (const msg::File& file : inouts.inputs().file_exist_with_hash()) {
+      Hash hash;
+      hash.set_hash_from_binary(file.hash());
+      FileUsage fu(EXIST_WITH_HASH, hash);
+      proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
+    }
+    for (const std::string& filename : inouts.inputs().file_exist()) {
+      FileUsage fu(EXIST);
+      proc->parent_exec_point()->propagate_file_usage(filename, fu);
+    }
+    for (const std::string& filename : inouts.inputs().file_notexist_or_empty()) {
+      FileUsage fu(NOTEXIST_OR_EMPTY);
+      proc->parent_exec_point()->propagate_file_usage(filename, fu);
+    }
+    for (const std::string& filename : inouts.inputs().file_notexist()) {
+      FileUsage fu(NOTEXIST);
+      proc->parent_exec_point()->propagate_file_usage(filename, fu);
+    }
+  }
+
+  /* We'll reuse this for every file modification event to propagate. */
+  FileUsage fu;
+  fu.set_written(true);
+
+  for (const msg::File& file : inouts.outputs().file_with_hash()) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Fetching file from blobs cache: " + pretty_print_string(file.path()));
+    Hash hash;
+    hash.set_hash_from_binary(file.hash());
+    cache_->retrieve_file(hash, file.path());
+    if (file.has_mode()) {
+      /* Refuse to apply setuid, setgid, sticky bit. */
+      // FIXME warn on them, even when we store them.
+      chmod(file.path().c_str(), file.mode() & 0777);
+    }
+    if (proc->parent_exec_point()) {
+      proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
+    }
+  }
+  for (const std::string& filename : inouts.outputs().file_notexist()) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file: " + pretty_print_string(filename));
+    unlink(filename.c_str());
+    if (proc->parent_exec_point()) {
+      proc->parent_exec_point()->propagate_file_usage(filename, fu);
+    }
+  }
+
+  /* Set the exit code, propagate upwards. */
+  // TODO what to do with resource usage?
+  proc->exit_result(inouts.outputs().exit_status(), 0, 0);
+
+  return true;
+}
+
+/**
+ * Tries to shortcut the process.
+ *
+ * Returns if it succeeded.
+ */
+bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
+  if (no_fetch_) {
+    return false;
+  }
+
+  bool ret = false;
+  msg::ProcessInputsOutputs *inouts = NULL;
+
+  if (FB_DEBUGGING(FB_DEBUG_SHORTCUT)) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Trying to shortcut process:");
+    if (proc->can_shortcut()) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   fingerprint = " + fingerprints_[proc].to_hex());
+    }
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + pretty_print_string(proc->executable()));
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + pretty_print_array(proc->args()));
+    /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + pretty_print_array(proc->env_vars())); */
+  }
+
+  if (proc->can_shortcut()) {
+    inouts = find_shortcut(proc);
+  }
+
+  FB_DEBUG(FB_DEBUG_SHORTCUT, inouts ? "│ Shortcutting:" : "│ Not shortcutting.");
+
+  if (inouts) {
+    ret = apply_shortcut(proc, *inouts);
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Exiting with " + std::to_string(proc->exit_status()));
+    delete inouts;
+  }
+  FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
+
+  proc->set_was_shortcut(ret);
+  return ret;
 }
 
 }  // namespace firebuild

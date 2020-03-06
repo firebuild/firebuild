@@ -30,15 +30,19 @@ typedef enum {
 
 class FileUsage {
  public:
-  FileUsage() :
-      initial_state_(DONTCARE),
-      /*read_(false),*/ initial_hash_(),
+  FileUsage(FileInitialState initial_state, Hash hash) :
+      initial_state_(initial_state),
+      /*read_(false),*/ initial_hash_(hash),
       stated_(false), initial_stat_(), initial_stat_err_(0),
       written_(false), stat_changed_(true), unknown_err_(0) {}
+  FileUsage(FileInitialState initial_state) :
+      FileUsage(initial_state, Hash()) {}
+  FileUsage() : FileUsage(DONTCARE) {}
 
   FileInitialState initial_state() const {return initial_state_;}
   const Hash& initial_hash() const {return initial_hash_;}
   bool written() const {return written_;}
+  void set_written(bool val) {written_ = val;}
 
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}

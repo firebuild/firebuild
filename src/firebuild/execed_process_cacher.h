@@ -20,6 +20,7 @@ class ExecedProcessCacher {
   ExecedProcessCacher(Cache *cache,
                       MultiCache *multi_cache,
                       bool no_store,
+                      bool no_fetch,
                       const libconfig::Setting& envs_skip);
 
   bool fingerprint(const ExecedProcess *proc);
@@ -27,12 +28,18 @@ class ExecedProcessCacher {
 
   void store(const ExecedProcess *proc);
 
+  msg::ProcessInputsOutputs *find_shortcut(const ExecedProcess *proc);
+  bool apply_shortcut(ExecedProcess *proc,
+                      const msg::ProcessInputsOutputs& outputs);
+  bool shortcut(ExecedProcess *proc);
+
  private:
   bool env_fingerprintable(const std::string& name_and_value) const;
 
   Cache *cache_;
   MultiCache *multi_cache_;
   bool no_store_;
+  bool no_fetch_;
   const libconfig::Setting& envs_skip_;
 
   /* The hashed fingerprint of the processes handled by this cacher. */
