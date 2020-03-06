@@ -22,6 +22,7 @@ add_executable(firebuild
   file_usage_db.cc
   cache.cc
   multi_cache.cc
+  utils.cc
   ${PROTO_CACHE_SRCS}
   ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)

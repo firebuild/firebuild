@@ -7,9 +7,14 @@
 #include <map>
 #include <sstream>
 
+#include <libconfig.h++>
+
 #include "firebuild/file_db.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/platform.h"
+#include "firebuild/utils.h"
+
+extern libconfig::Config * cfg;
 
 namespace firebuild {
 
@@ -132,6 +137,13 @@ void ExecedProcess::propagate_file_usage(const std::string &name,
 bool ExecedProcess::register_file_usage(const std::string &name,
                                         const int flags,
                                         const int error) {
+  libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
+  for (int i = 0; i < ignores.getLength(); i++) {
+    if (path_begins_with(name, ignores[i])) {
+      return true;
+    }
+  }
+
   FileUsage *fu;
   if (file_usages().count(name) > 0) {
     /* The process already used this file. The initial state was already
