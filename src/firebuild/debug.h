@@ -30,6 +30,8 @@ enum {
   FB_DEBUG_CACHE        = 1 << 6,
   /* Placing in / retrieving from the cache */
   FB_DEBUG_CACHING      = 1 << 7,
+  /* Shortcutting */
+  FB_DEBUG_SHORTCUT     = 1 << 8,
 };
 
 /**

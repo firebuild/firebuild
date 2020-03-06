@@ -195,9 +195,6 @@ class Process {
    *     omitted for the current process
    */
   virtual void disable_shortcutting(const std::string& reason, const Process *p = NULL) = 0;
-  /** Returns if the process can be short-cut */
-  virtual bool can_shortcut() const = 0;
-  virtual bool can_shortcut() = 0;
 
   virtual int64_t sum_rusage_recurse();
 

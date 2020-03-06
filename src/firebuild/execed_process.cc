@@ -39,12 +39,11 @@ static std::string escapeJsonString(const std::string& input) {
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
                              const std::string &executable,
-                             Process * parent,
-                             ExecedProcessCacher *cacher)
-    : Process(pid, ppid, cwd, parent, true), can_shortcut_(true),
+                             Process * parent)
+    : Process(pid, ppid, cwd, parent, true), can_shortcut_(true), was_shortcut_(false),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), cacher_(cacher) {
+      libs_(), file_usages_(), cacher_(NULL) {
   if (NULL != parent) {
     // add as exec child of parent
     parent->set_exec_pending(false);
@@ -60,15 +59,6 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
  * ExecedProcess in the ProcessTree.
  */
 void ExecedProcess::initialize() {
-  // TODO This architecture potentially computes the hash of the executable
-  // and libraries twice, for the two independent purposes. A somewhat
-  // uglier design could make it faster by computing them only once.
-
-  /* Compute the fingerprint */
-  if (!cacher_->fingerprint(this)) {
-    disable_shortcutting("Could not fingerprint the process");
-  }
-
   /* Propagate the opening of the executable and libraries upwards as
    * regular file open events. */
   if (parent_exec_point()) {
@@ -96,7 +86,7 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
 
 void ExecedProcess::do_finalize() {
   // store data for shortcutting
-  if (cacher_ && can_shortcut()) {
+  if (cacher_ && !was_shortcut() && can_shortcut()) {
     cacher_->store(this);
   }
 
@@ -176,6 +166,21 @@ bool ExecedProcess::register_file_usage(const std::string &name,
     }
   }
   return true;
+}
+
+/* Find and apply shortcut */
+bool ExecedProcess::shortcut() {
+  if (can_shortcut() && cacher_) {
+    return cacher_->shortcut(this);
+  } else {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Shortcutting disabled:");
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + pretty_print_string(executable()));
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + pretty_print_array(args()));
+    /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + pretty_print_array(env_vars())); */
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
+    return false;
+  }
 }
 
 int64_t ExecedProcess::sum_rusage_recurse() {
@@ -316,7 +321,9 @@ ExecedProcess::~ExecedProcess() {
   for (auto pair : file_usages()) {
     delete(pair.second);
   }
-  cacher_->erase_fingerprint(this);
+  if (cacher_) {
+    cacher_->erase_fingerprint(this);
+  }
 }
 
 }  // namespace firebuild

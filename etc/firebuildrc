@@ -15,3 +15,29 @@ env_vars = {
   preset = ["LD_PRELOAD=libfbintercept.so"];
 };
 
+processes = {
+  // Processes that we don't support. This means that their ancestors
+  // can't be cached and shortcutted either.
+  blacklist = [
+    // orchestrating tools that compare timestamps
+    "make", "ninja",
+    // temprorary until stdin/stdout and pipes are handled
+    "sort", "uniq", "find", "awk", "gawk", "mawk",
+    "glib-compile-resources", "g-ir-compiler", "python3.7"
+  ];
+
+  // Processes that we could cache and shortcut, but prefer not to (for example
+  // because they are fast enough).
+  // This has no effect on potentially caching and shortcutting their ancestors.
+  skip_cache = [
+    // coreutils
+    "basename", "cat", "chgrp", "chmod", "chown", "cp", "cut",
+    "dd", "dir", "dirname", "head", "install", "link", "ln",
+    "ls", "mkdir", "mv", "readlink", "realpath", "rm", "rmdir",
+    "seq", "tail", "touch", "tr", "unlink",
+    // usually shell builtins, but not always
+    "[", "echo", "false", "printf", "pwd", "test", "true",
+    // other standard utils
+    "egrep", "fgrep", "grep", "rgrep", "sed"
+  ];
+};
