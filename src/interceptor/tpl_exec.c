@@ -17,10 +17,8 @@
 ### block body
 ###   if l
   /* Convert "arg, ..." to "argv[]" */
-  va_list ap;
   unsigned int argc = 0, argc_size = 16;
   char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*)));
-  va_start(ap, arg);
   argv[argc] = const_cast<char *>(arg);
   while (argv[argc]) {
     argv[++argc] = static_cast<char *>(va_arg(ap, char*));
@@ -33,7 +31,6 @@
   /* Also locate the environment */
   char **envp = static_cast<char **>(va_arg(ap, char**));
 ###     endif
-  va_end(ap);
 ###   endif
 
   {

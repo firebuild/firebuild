@@ -52,10 +52,7 @@
     case F_SETFD: {
       to_send = true;
       has_int_arg = true;
-      va_list ap;
-      va_start(ap, cmd);
       int_arg = va_arg(ap, int);
-      va_end(ap);
       break;
     }
 
