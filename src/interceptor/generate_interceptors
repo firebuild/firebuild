@@ -393,47 +393,48 @@ generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, i
          msg_skip_fields=["lineptr", "n", "delim", "stream"],
          msg_add_fields=["m->set_fd(fd);"],
          ack=True)
-generate("int", "scanf", "const char *format, ...",
-         tpl="read",
-         before_lines=["int fd = safe_fileno(stdin);"],
-         call_orig_lines=["ret = ic_orig_vscanf(format, ap);"],
-         msg_skip_fields=["format"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "__isoc99_scanf", "const char *format, ...",
-         tpl="read",
-         before_lines=["int fd = safe_fileno(stdin);"],
-         call_orig_lines=["ret = ic_orig___isoc99_vscanf(format, ap);"],
-         msg_skip_fields=["format"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "fscanf", "FILE *stream, const char *format, ...",
-         tpl="read",
-         before_lines=["int fd = safe_fileno(stream);"],
-         call_orig_lines=["ret = ic_orig_vfscanf(stream, format, ap);"],
-         msg_skip_fields=["stream", "format"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "__isoc99_fscanf", "FILE *stream, const char *format, ...",
-         tpl="read",
-         before_lines=["int fd = safe_fileno(stream);"],
-         call_orig_lines=["ret = ic_orig___isoc99_vfscanf(stream, format, ap);"],
-         msg_skip_fields=["stream", "format"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", ["vscanf", "__isoc99_vscanf"], "const char *format, FB_VA_LIST ap",
-         tpl="read",
-         before_lines=["int fd = safe_fileno(stdin);"],
-         msg_skip_fields=["format", "ap"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", ["vfscanf", "__isoc99_vfscanf"], "FILE *stream, const char *format, FB_VA_LIST ap",
-         tpl="read",
-         before_lines=["int fd = safe_fileno(stream);"],
-         msg_skip_fields=["stream", "format", "ap"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-skip("sscanf", "vsscanf")
+# Handle (__isoc99_)?v?f?w?scanf
+for i in ['', '__isoc99_']:
+  for v in ['', 'v']:
+    for f in ['', 'f']:
+      for w in ['', 'w']:
+        func = i + v + f + w + "scanf"
+        if f == '':
+          sig_str = ''
+          names_str = ''
+          before_lines = ["int fd = safe_fileno(stdin);"]
+          msg_skip_fields = []
+          msg_add_fields = ["m->set_fd(fd);"]
+        elif f == 'f':
+          sig_str = "FILE *stream, "
+          names_str = "stream, "
+          before_lines = ["int fd = safe_fileno(stream);"]
+          msg_skip_fields = ["stream"]
+          msg_add_fields = ["m->set_fd(fd);"]
+        if w:
+          sig_str += "const wchar_t *format, "
+        else:
+          sig_str += "const char *format, "
+        names_str += "format, "
+        msg_skip_fields += ["format"]
+        if v:
+          sig_str += "FB_VA_LIST ap"
+          call_orig_lines = None
+          msg_skip_fields += ["ap"]
+        else:
+          sig_str += "..."
+          call_orig_lines = ["ret = ic_orig_" + i + "v" + f + w + "scanf(" + names_str + "ap);"]
+        generate("int", func, sig_str,
+                 tpl="read",
+                 before_lines=before_lines,
+                 call_orig_lines=call_orig_lines,
+                 msg_skip_fields=msg_skip_fields,
+                 msg_add_fields=msg_add_fields,
+                 ack=True)
+for i in ['', '__isoc99_']:
+  for v in ['', 'v']:
+    for w in ['', 'w']:
+      skip(i + v + "s" + w + "scanf")
 
 # Intercept operations that write to a file descriptor.
 # FIXME also intercept mmap with PROT_WRITE
@@ -514,48 +515,59 @@ generate("int", "puts", "const char *s",
          msg_skip_fields=["s"],
          msg_add_fields=["m->set_fd(fd);"],
          ack=True)
-generate("int", "printf", "const char *format, ...",
-         tpl="write",
-         before_lines=["int fd = safe_fileno(stdout);"],
-         call_orig_lines=["ret = ic_orig_vprintf(format, ap);"],
-         msg_skip_fields=["format"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "fprintf", "FILE *stream, const char *format, ...",
-         tpl="write",
-         before_lines=["int fd = safe_fileno(stream);"],
-         call_orig_lines=["ret = ic_orig_vfprintf(stream, format, ap);"],
-         msg_skip_fields=["stream", "format"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "dprintf", "int fd, const char *format, ...",
-         tpl="write",
-         call_orig_lines=["ret = ic_orig_vdprintf(fd, format, ap);"],
-         msg_skip_fields=["format"],
-         ack=True)
-generate("int", "vprintf", "const char *format, FB_VA_LIST ap",
-         tpl="write",
-         before_lines=["int fd = safe_fileno(stdout);"],
-         msg_skip_fields=["format", "ap"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "vfprintf", "FILE *stream, const char *format, FB_VA_LIST ap",
-         tpl="write",
-         before_lines=["int fd = safe_fileno(stream);"],
-         msg_skip_fields=["stream", "format", "ap"],
-         msg_add_fields=["m->set_fd(fd);"],
-         ack=True)
-generate("int", "vdprintf", "int fd, const char *format, FB_VA_LIST ap",
-         tpl="write",
-         msg_skip_fields=["format", "ap"],
-         ack=True)
-skip("sprintf", "snprintf", "vsprintf", "vsnprintf")
 generate("void", "perror", "const char *s",
          tpl="write",
          before_lines=["int fd = safe_fileno(stderr);"],
          msg_skip_fields=["s"],
          msg_add_fields=["m->set_fd(fd);"],
          ack=True)
+# Handle v?[fd]?w?printf
+for v in ['', 'v']:
+  for f in ['', 'f', 'd']:
+    for w in ['', 'w']:
+      func = v + f + w + "printf"
+      if f == '':
+        sig_str = ''
+        names_str = ''
+        before_lines = ["int fd = safe_fileno(stdout);"]
+        msg_skip_fields = []
+        msg_add_fields = ["m->set_fd(fd);"]
+      elif f == 'f':
+        sig_str = "FILE *stream, "
+        names_str = "stream, "
+        before_lines = ["int fd = safe_fileno(stream);"]
+        msg_skip_fields = ["stream"]
+        msg_add_fields = ["m->set_fd(fd);"]
+      elif f == 'd':
+        sig_str = "int fd, "
+        names_str = "fd, "
+        before_lines = []
+        msg_skip_fields = []
+        msg_add_fields = []
+      if w:
+        sig_str += "const wchar_t *format, "
+      else:
+        sig_str += "const char *format, "
+      names_str += "format, "
+      msg_skip_fields += ["format"]
+      if v:
+        sig_str += "FB_VA_LIST ap"
+        call_orig_lines = None
+        msg_skip_fields += ["ap"]
+      else:
+        sig_str += "..."
+        call_orig_lines = ["ret = ic_orig_v" + v + f + w + "printf(" + names_str + "ap);"]
+      generate("int", func, sig_str,
+               tpl="write",
+               before_lines=before_lines,
+               call_orig_lines=call_orig_lines,
+               msg_skip_fields=msg_skip_fields,
+               msg_add_fields=msg_add_fields,
+               ack=True)
+for v in ['', 'v']:
+  for w in ['', 'w', 'n']:
+    skip(v + "s" + w + "printf")
+skip("asprintf", "vasprintf")
 
 # Intercept chdir and fchdir
 generate("int", "chdir", "const char *dir")
