@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -e
+
+if [ -e CMakeCache.txt ]; then
+    echo "Please remove generated cmake files from the top dir" >&2
+    exit 1
+fi
+
+build_dir="${1:-build-self-dir}"
+
+mkdir $build_dir
+cd $build_dir
+cmake ..
+cd ..
+# TODO make this out-of-tree build, too
+cmake .
+make all
+cd test
+./run-firebuild -- make -C ../$build_dir clean
+./run-firebuild -- make -C ../$build_dir all
+
