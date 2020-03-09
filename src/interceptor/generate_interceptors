@@ -305,7 +305,7 @@ generate("int", "renameat2", "int oldfd, const char *oldpath, int newfd, const c
          msg="rename")
 
 # Intercept operations that read from a file descriptor.
-# We use it with pipes, but not with regular files. Therefore it's okay to ignore pread and mmap.
+# FIXME also intercept mmap with PROT_READ
 generate("ssize_t", "read", "int fd, void *buf, size_t count",
          tpl="read",
          msg_skip_fields=["buf", "count"],
@@ -314,7 +314,30 @@ generate("ssize_t", "readv", "int fd, const struct iovec *iov, int iovcnt",
          tpl="read",
          msg_skip_fields=["iov", "iovcnt"],
          ack=True)
-skip("pread", "pread64", "preadv", "preadv2", "preadv64", "preadv64v2")
+generate("ssize_t", "pread", "int fd, void *buf, size_t count, off_t offset",
+         tpl="read",
+         msg_skip_fields=["buf", "count", "offset"],
+         ack=True)
+generate("ssize_t", "pread64", "int fd, void *buf, size_t count, off64_t offset",
+         tpl="read",
+         msg_skip_fields=["buf", "count", "offset"],
+         ack=True)
+generate("ssize_t", "preadv", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
+         tpl="read",
+         msg_skip_fields=["iov", "iovcnt", "offset"],
+         ack=True)
+generate("ssize_t", "preadv64", "int fd, const struct iovec *iov, int iovcnt, off64_t offset",
+         tpl="read",
+         msg_skip_fields=["iov", "iovcnt", "offset"],
+         ack=True)
+generate("ssize_t", "preadv2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
+         tpl="read",
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
+         ack=True)
+generate("ssize_t", "preadv64v2", "int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags",
+         tpl="read",
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
+         ack=True)
 generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -397,7 +420,7 @@ generate("int", ["vfscanf", "__isoc99_vfscanf"], "FILE *stream, const char *form
 skip("sscanf", "vsscanf")
 
 # Intercept operations that write to a file descriptor.
-# We use it with pipes, but not with regular files. Therefore it's okay to ignore pwrite and mmap.
+# FIXME also intercept mmap with PROT_WRITE
 generate("ssize_t", "write", "int fd, const void *buf, size_t count",
          tpl="write",
          msg_skip_fields=["buf", "count"],
@@ -406,7 +429,30 @@ generate("ssize_t", "writev", "int fd, const struct iovec *iov, int iovcnt",
          tpl="write",
          msg_skip_fields=["iov", "iovcnt"],
          ack=True)
-skip("pwrite", "pwrite64", "pwritev", "pwritev2", "pwritev64", "pwritev64v2")
+generate("ssize_t", "pwrite", "int fd, const void *buf, size_t count, off_t offset",
+         tpl="write",
+         msg_skip_fields=["buf", "count", "offset"],
+         ack=True)
+generate("ssize_t", "pwrite64", "int fd, const void *buf, size_t count, off64_t offset",
+         tpl="write",
+         msg_skip_fields=["buf", "count", "offset"],
+         ack=True)
+generate("ssize_t", "pwritev", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
+         tpl="write",
+         msg_skip_fields=["iov", "iovcnt", "offset"],
+         ack=True)
+generate("ssize_t", "pwritev64", "int fd, const struct iovec *iov, int iovcnt, off64_t offset",
+         tpl="write",
+         msg_skip_fields=["iov", "iovcnt", "offset"],
+         ack=True)
+generate("ssize_t", "pwritev2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
+         tpl="write",
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
+         ack=True)
+generate("ssize_t", "pwritev64v2", "int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags",
+         tpl="write",
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
+         ack=True)
 generate("size_t", ["fwrite", "fwrite_unlocked"], "const void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -918,6 +964,7 @@ skip("getdtablesize")
 
 # Memory management
 skip("malloc", "calloc", "realloc", "free", "brk", "sbrk")
+# FIXME intercept mmap
 skip("mmap", "munmap")
 
 # Hostname stuff - report gethostname, getdomainname, gethostid.
