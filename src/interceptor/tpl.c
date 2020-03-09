@@ -8,6 +8,7 @@
 {# ------------------------------------------------------------------ #}
 {# Parameters:                                                        #}
 {#  before_lines:        Things to place right before the call        #}
+{#  call_orig_lines:     How to call the orig method                  #}
 {#  after_lines:         Things to place right after the call         #}
 {#  success:             Success condition (default: "ret != -1")     #}
 {#  msg_skip_fields:     Don't automatically set these fields         #}
@@ -98,6 +99,12 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   }
   intercept_on = "{{ func }}";
 
+###     if vararg
+  /* Auto-generated for vararg functions */
+  va_list ap;
+  va_start(ap, {{ names[-1] }});
+###     endif
+
 ###     block body
   bool success = 0;
 
@@ -113,15 +120,21 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   /* Perform the call */
   errno = saved_errno;
 ###       block call_orig
-###         if not vararg
+###         if call_orig_lines
+###           for item in call_orig_lines
+  {{ item }}
+###           endfor
+###         else
+###           if not vararg
   {%+ if rettype != 'void' %}ret = {% endif -%}
   ic_orig_{{ func }}({{ names_str }});
-###         else
+###           else
   void *args = __builtin_apply_args();
   {%+ if rettype != 'void' %}void const * const result ={% endif -%}
   __builtin_apply((void (*)(...))(void *)ic_orig_{{ func }}, args, 100);
   {%+ if rettype != 'void' %}ret = *({{ rettype }}*)result;{% endif %}
 
+###           endif
 ###         endif
 ###       endblock call_orig
   saved_errno = errno;
@@ -186,6 +199,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###       endblock send_msg
 
 ###     endblock body
+
+###     if vararg
+  /* Auto-generated for vararg functions */
+  va_end(ap);
+###     endif
 
   /* Cool down */
   if (insert_trace_markers) {
