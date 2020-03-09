@@ -153,7 +153,7 @@ def generate(rettype, funcs, sig, **dict):
     elif '*' in rettype:
       dict['success'] = "ret != NULL /* default success condition for pointer rettype */"
     else:
-      dict['success'] = "ret != -1 /* default success condition for scalar rettype */"
+      dict['success'] = "ret >= 0 /* default success condition for scalar rettype */"
 
   add_signature_to_dict(rettype, sig, dict)
 
