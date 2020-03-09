@@ -10,7 +10,7 @@
 {#  before_lines:        Things to place right before the call        #}
 {#  call_orig_lines:     How to call the orig method                  #}
 {#  after_lines:         Things to place right after the call         #}
-{#  success:             Success condition (default: "ret != -1")     #}
+{#  success:             Success condition (default: "ret >= 0")      #}
 {#  msg_skip_fields:     Don't automatically set these fields         #}
 {#  msg_add_fields:      Additional code lines to set fields          #}
 {#  send_ret_on_success: Whether to send the actual return value      #}
