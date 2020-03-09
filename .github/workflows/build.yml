@@ -31,7 +31,10 @@ jobs:
       run: |
         cd test
         ./run-firebuild make -C ../build clean
-        ./run-firebuild make -C ../build all
+        time ./run-firebuild make -C ../build all
+        # rebuild again, to test shortcutting
+        ./run-firebuild make -C ../build clean
+        time ./run-firebuild make -C ../build all
     - name: test
       # tests don't run with out of tree builds at the moment
       run: |
