@@ -27,14 +27,6 @@ jobs:
       run: |
         cmake .
         make
-    - name: rebuild self
-      run: |
-        cd test
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -C ../build all
-        # rebuild again, to test shortcutting
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -C ../build all
     - name: test
       # tests don't run with out of tree builds at the moment
       run: |
@@ -64,3 +56,19 @@ jobs:
       run: |
         scan-build-9 cmake .
         scan-build-9 --status-bugs make
+  rebuild-self:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        sudo add-apt-repository -y -u ppa:rbalint/xxhash
+        sudo apt-get -y install cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev
+    - name: rebuild self
+      run: |
+        tools/rebuild-self build
+        # rebuild again, to test shortcutting
+        cd test
+        ./run-firebuild make -C ../build clean
+        time ./run-firebuild make -C ../build all
