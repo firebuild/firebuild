@@ -12,7 +12,7 @@ jobs:
       run: |
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
         sudo add-apt-repository -y -u ppa:rbalint/valgrind
-        sudo apt-get -y install bats cmake doxygen graphviz lcov libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils valgrind
+        sudo apt-get -y install bats cmake doxygen graphviz lcov libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2 valgrind
     - name: build-out-of-tree
       run: |
         mkdir build
@@ -51,7 +51,7 @@ jobs:
         sudo cp .github/workflows/llvm-snapshot.gpg.key /etc/apt/trusted.gpg.d/llvm-snapshot.asc
         sudo add-apt-repository -y 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
-        sudo apt-get -y install clang-tools-9 cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev
+        sudo apt-get -y install clang-tools-9 cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev python3-jinja2
     - name: scan-build
       run: |
         scan-build-9 cmake .
@@ -64,7 +64,7 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
-        sudo apt-get -y install cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev
+        sudo apt-get -y install cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev python3-jinja2
     - name: rebuild self
       run: |
         tools/rebuild-self build
