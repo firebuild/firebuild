@@ -18,5 +18,5 @@ cmake .
 make all
 cd test
 ./run-firebuild -- make -C ../$build_dir clean
-./run-firebuild -- make -C ../$build_dir all
+time ./run-firebuild -- make -C ../$build_dir all
 
