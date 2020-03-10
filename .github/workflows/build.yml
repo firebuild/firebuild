@@ -88,6 +88,15 @@ jobs:
         cd test
         ./run-firebuild make -C ../build clean
         time ./run-firebuild make -C ../build all
+        du -sh test_cache_dir
+    - name: rebuild self with -j8
+      run: |
+        cd test
+        rm -r test_cache_dir
+        ./run-firebuild make -C ../build clean
+        time ./run-firebuild make -j8 -C ../build all
+        ./run-firebuild make -C ../build clean
+        time ./run-firebuild make -j8 -C ../build all
   style-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -103,3 +112,4 @@ jobs:
       run: cmake .
     - name: style-check
       run: env PATH=$HOME/.local/bin:$PATH make style-check
+
