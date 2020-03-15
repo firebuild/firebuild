@@ -6,18 +6,11 @@
 
 #include "interceptor/interceptors.h"
 
-#include <fcntl.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/resource.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <utime.h>
+#include <errno.h>
 
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
+#include "firebuild/platform.h"
 
 namespace firebuild {
 
