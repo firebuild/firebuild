@@ -365,7 +365,6 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto *proc = proc_tree->Sock2Proc(fd_conn);
     // FIXME(rbalint) check execv parameter and record what needs to be
     // checked when shortcutting the process
-    proc = proc;
     proc->set_exec_pending(false);
   } else if (ic_msg.has_exit() ||
              ic_msg.has_execv() ||

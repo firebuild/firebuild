@@ -74,7 +74,7 @@ std::string pretty_print_timestamp() {
   gettimeofday(&tv, NULL);
   time_t t = tv.tv_sec;
   struct tm *local = localtime(&t);
-  int abs_diff_min = abs(local->tm_gmtoff) / 60;
+  int abs_diff_min = std::abs(local->tm_gmtoff) / 60;
   char buf[64];
   /* Note: strftime() doesn't support sub-seconds. */
   sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d.%06ld %c%02d%02d",

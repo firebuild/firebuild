@@ -1,6 +1,7 @@
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 set_source_files_properties(intercept.cc PROPERTIES OBJECT_DEPENDS ${PROTO_MESSAGES_HDRS})
+set_source_files_properties(interceptors.cc PROPERTIES COMPILE_FLAGS "-Wno-tautological-pointer-compare")
 
 add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_reset.c

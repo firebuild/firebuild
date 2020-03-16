@@ -77,7 +77,9 @@ int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
   while (*p != '\0') {
     switch (*p) {
       case 'b':
-        __attribute__((fallthrough));
+        /* ignore, not interesting from interception POV */
+        p++;
+        continue;
       case 'c': {
         /* ignore, not interesting from interception POV */
         p++;
