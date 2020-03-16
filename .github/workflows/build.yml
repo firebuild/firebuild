@@ -56,6 +56,22 @@ jobs:
       run: |
         scan-build-9 cmake .
         scan-build-9 --status-bugs make
+  clang-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        sudo cp .github/workflows/llvm-snapshot.gpg.key /etc/apt/trusted.gpg.d/llvm-snapshot.asc
+        sudo add-apt-repository -y 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-9 main'
+        sudo add-apt-repository -y -u ppa:rbalint/xxhash
+        sudo apt-get -y install clang-tools-9 cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev python3-jinja2
+    - name: build
+      run: |
+        env CXX=clang++ CC=clang cmake .
+        # the interceptor does not work when building it with Clang, thus make check always fails
+        make all
   rebuild-self:
     runs-on: ubuntu-latest
     timeout-minutes: 10
