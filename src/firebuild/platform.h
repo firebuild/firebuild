@@ -13,12 +13,12 @@ namespace firebuild {
 
 #ifdef __clang__
 extern "C" {
-extern void* __builtin_apply_args() {
+inline void* __builtin_apply_args() {
   FB_MISSING(__func__);
   return NULL;
 }
 
-extern void* __builtin_apply(void (*)(...), void *, size_t) {
+inline void* __builtin_apply(void (*)(...), void *, size_t) {
   FB_MISSING(__func__);
   return NULL;
 }

@@ -98,7 +98,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
 int Process::handle_close(const int fd, const int error) {
   if (EIO == error) {
     // IO prevents shortcutting
-    disable_shortcutting("IO error closing fd " + fd);
+    disable_shortcutting("IO error closing fd " + std::to_string(fd));
     return -1;
   } else if (error == 0 && !get_fd(fd)) {
     // closing an unknown fd successfully prevents shortcutting
