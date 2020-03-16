@@ -841,9 +841,11 @@ generate("int", "mkfifoat", "int dirfd, const char *pathname, mode_t mode",
 #   do not receive the exit status. So notify the supervisor before calling this method, just like
 #   for _exit().
 generate("void", ["exit"], "int status",
-         tpl="exit")
+         tpl="exit",
+         no_saved_errno=True)
 generate("void", ["_exit", "_Exit", "quick_exit"], "int status",
-         tpl="_exit")
+         tpl="_exit",
+         no_saved_errno=True)
 # No wrapper for exit_group() in glibc 2.30.
 #generate("void", "exit_group", "int status",
 #         tpl="_exit")
@@ -897,7 +899,8 @@ generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
 # Intercept main
 # Note: Our parser parses this method signature completely wrong. This is not a problem since only the original string is used.
 generate("int", "__libc_start_main", "int (*main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end",
-         tpl="main")
+         tpl="main",
+         no_saved_errno=True)
 
 # Skip the getcwd family: The initial working directory is part of the fingerprint
 skip("getcwd", "getwd", "get_current_dir_name")

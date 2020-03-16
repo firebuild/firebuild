@@ -85,7 +85,9 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###     endif
 
   /* Warm up */
+###     if not no_saved_errno
   int saved_errno = errno;
+###     endif
   fb_ic_load();
 
   if (insert_trace_markers) {
@@ -118,7 +120,9 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###       endblock before
 
   /* Perform the call */
+###       if not no_saved_errno
   errno = saved_errno;
+###       endif
 ###       block call_orig
 ###         if call_orig_lines
 ###           for item in call_orig_lines
@@ -137,7 +141,9 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###           endif
 ###         endif
 ###       endblock call_orig
+###       if not no_saved_errno
   saved_errno = errno;
+###       endif
   success = {{ success }};
   (void)success;  /* sometimes it's unused, silence warning */
 
@@ -184,7 +190,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 ###           if send_msg_on_error
     /* Send errno on failure */
+###             if not no_saved_errno
     if (!success) m->set_error_no(saved_errno);
+###             else
+    if (!success) m->set_error_no(errno);
+###             endif
 ###           endif
 
 ###           if ack
@@ -212,7 +222,9 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     insert_end_marker(debug_buf);
   }
   intercept_on = NULL;
+###     if not no_saved_errno
   errno = saved_errno;
+###     endif
 
 ###     if rettype != 'void'
   return ret;
