@@ -17,25 +17,20 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const std::string &wd,
-                 Process * parent, bool execed)
+                 Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
-      pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_({NULL, NULL, NULL}),
+      pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
       running_system_cmds_(), expected_children_(), exec_child_(NULL) {
-  if (parent) {
-    for (unsigned int i = 0; i < parent->fds_ .size(); i++) {
-      if (parent->fds_.at(i) && ! (execed && parent->fds_[i]->cloexec())) {
-        add_filefd(i, parent->fds_.at(i));
-      }
-    }
-  } else {
-    add_filefd(STDIN_FILENO,
+  if (!fds_) {
+    fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+    add_filefd(fds_, STDIN_FILENO,
                std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
                                                   this)));
-    add_filefd(STDOUT_FILENO,
+    add_filefd(fds_, STDOUT_FILENO,
                std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
                                                   this)));
-    add_filefd(STDERR_FILENO,
+    add_filefd(fds_, STDERR_FILENO,
                std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
                                                   this)));
   }
@@ -68,14 +63,24 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
   }
 }
 
-void Process::add_filefd(int fd, std::shared_ptr<FileFD> ffd) {
-  if (fds_.size() <= static_cast<unsigned int>(fd)) {
-    fds_.resize(fd + 1, nullptr);
+void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds, int fd, std::shared_ptr<FileFD> ffd) {
+  if (fds->size() <= static_cast<unsigned int>(fd)) {
+    fds->resize(fd + 1, nullptr);
   }
-  if (fds_[fd]) {
+  if ((*fds)[fd]) {
     firebuild::fb_error("Fd " + std::to_string(fd) + " is already tracked as being open.");
   }
-  fds_[fd] = ffd; // the shared_ptr takes care of cleaning up the old fd if needed
+  (*fds)[fd] = ffd; // the shared_ptr takes care of cleaning up the old fd if needed
+}
+
+std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
+  auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+  for (unsigned int i = 0; i < fds_->size(); i++) {
+    if (fds_->at(i) && ! (execed &&(*fds_)[i]->cloexec())) {
+      add_filefd(fds, i, std::make_shared<FileFD>(*fds_->at(i).get()));
+    }
+  }
+  return fds;
 }
 
 int Process::handle_open(const std::string &ar_name, const int flags,
@@ -84,7 +89,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
       (wd() + "/" + ar_name);
 
   if (fd >= 0) {
-    add_filefd(fd, std::shared_ptr<FileFD>(new FileFD(name, fd, flags, this)));
+    add_filefd(fds_, fd, std::shared_ptr<FileFD>(new FileFD(name, fd, flags, this)));
   }
 
   if (!exec_point()->register_file_usage(name, flags, error)) {
@@ -116,23 +121,23 @@ int Process::handle_close(const int fd, const int error) {
                          "interception missed at least one open()");
     return -1;
   } else {
-    if (fds_[fd]->open() == true) {
-      fds_[fd]->set_open(false);
-      if (fds_[fd]->last_err() != error) {
-        fds_[fd]->set_last_err(error);
+    if ((*fds_)[fd]->open() == true) {
+      (*fds_)[fd]->set_open(false);
+      if ((*fds_)[fd]->last_err() != error) {
+        (*fds_)[fd]->set_last_err(error);
       }
       // remove from open fds
-      closed_fds_.push_back(fds_[fd]);
-      fds_[fd].reset();
+      closed_fds_.push_back((*fds_)[fd]);
+      (*fds_)[fd].reset();
       return 0;
-    } else if ((fds_[fd]->last_err() == EINTR) && (error == 0)) {
+    } else if (((*fds_)[fd]->last_err() == EINTR) && (error == 0)) {
       // previous close got interrupted but the current one succeeded
-      fds_[fd].reset();
+      (*fds_)[fd].reset();
       return 0;
     } else {
       // already closed, it may be an error
       // TODO(rbalint) debug
-      fds_[fd].reset();
+      (*fds_)[fd].reset();
       return 0;
     }
   }
@@ -169,9 +174,9 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
     return -1;
   }
 
-  add_filefd(fd1, std::shared_ptr<FileFD>(new FileFD(
+  add_filefd(fds_, fd1, std::shared_ptr<FileFD>(new FileFD(
       fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this)));
-  add_filefd(fd2, std::shared_ptr<FileFD>(new FileFD(
+  add_filefd(fds_, fd2, std::shared_ptr<FileFD>(new FileFD(
       fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this)));
   return 0;
 }
@@ -204,8 +209,8 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
     handle_close(newfd, 0);
   }
 
-  add_filefd(newfd, std::shared_ptr<FileFD>(new FileFD(
-      newfd, ((fds_[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP, fds_[oldfd], this)));
+  add_filefd(fds_, newfd, std::shared_ptr<FileFD>(new FileFD(
+      newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP, (*fds_)[oldfd], this)));
   return 0;
 }
 
@@ -224,7 +229,7 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
                                " missed at least one open()");
           return -1;
         }
-        fds_[fd]->set_cloexec(arg & FD_CLOEXEC);
+        (*fds_)[fd]->set_cloexec(arg & FD_CLOEXEC);
       }
       return 0;
     default:

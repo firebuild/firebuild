@@ -53,6 +53,8 @@ class FileFD {
       :fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
       read_(false), written_(false), open_(true), origin_fd_(NULL),
       filename_(f), process_(p) {}
+  FileFD(FileFD&) = default;
+  FileFD& operator= (const FileFD&) = default;
   int last_err() {return last_err_;}
   void set_last_err(int err) {last_err_ = err;}
   int flags() {return curr_flags_;}
@@ -79,9 +81,8 @@ class FileFD {
   bool open_ : 1;
   std::shared_ptr<FileFD> origin_fd_;
   std::string filename_;
-  Process* process_;
   /** Process the fd has been created in */
-  DISALLOW_COPY_AND_ASSIGN(FileFD);
+  Process* process_;
 };
 
 }  // namespace firebuild

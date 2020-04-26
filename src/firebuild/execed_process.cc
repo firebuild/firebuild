@@ -45,7 +45,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
                              const std::string &executable,
                              Process * parent)
-    : Process(pid, ppid, cwd, parent, true), can_shortcut_(true), was_shortcut_(false),
+    : Process(pid, ppid, cwd, parent,
+              parent?parent->pass_on_fds(true):std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
+     can_shortcut_(true), was_shortcut_(false),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_(), cacher_(NULL) {
