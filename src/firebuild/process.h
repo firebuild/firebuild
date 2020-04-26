@@ -68,7 +68,7 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, const std::string &wd,
-          Process* parent, bool execed = false);
+          Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -119,11 +119,12 @@ class Process {
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
   std::shared_ptr<FileFD> get_fd(int fd) {
     try {
-      return fds_.at(fd);
+      return fds_->at(fd);
     } catch (const std::out_of_range& oor) {
       return nullptr;
     }
   }
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed);
 
   /**
    * Handle file opening in the monitored process
@@ -209,7 +210,7 @@ class Process {
   int ppid_;         ///< UNIX ppid
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   std::string wd_;  ///< Current working directory
-  std::vector<std::shared_ptr<FileFD>> fds_;  ///< Active file descriptors
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
   std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   int64_t utime_u_;  ///< user time in microseconds as reported by getrusage()
   /// system time in microseconds as reported by getrusage()
@@ -225,7 +226,8 @@ class Process {
   bool exec_pending_ {false};
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */
-  void add_filefd(const int fd, std::shared_ptr<FileFD> ffd);
+  void add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+                  const int fd, std::shared_ptr<FileFD> ffd);
   DISALLOW_COPY_AND_ASSIGN(Process);
 };
 

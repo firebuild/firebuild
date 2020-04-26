@@ -10,7 +10,7 @@ namespace firebuild {
 
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent)
-    : Process(pid, ppid, (parent)?parent->wd():"", parent) {
+    : Process(pid, ppid, (parent)?parent->wd():"", parent, (parent)?parent->pass_on_fds(false):nullptr) {
   // add as fork child of parent
   if (parent) {
     exec_point_ = parent->exec_point();
