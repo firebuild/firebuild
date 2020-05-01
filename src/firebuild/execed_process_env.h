@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_EXECEDPROCESSPARAMETERS_H_
-#define FIREBUILD_EXECEDPROCESSPARAMETERS_H_
+#ifndef FIREBUILD_EXECEDPROCESSENV_H_
+#define FIREBUILD_EXECEDPROCESSENV_H_
 
 #include <string>
 #include <vector>
@@ -13,14 +13,14 @@
 namespace firebuild {
 
 /**
- * A thin class representing a process by its command line parameters, inherited file descriptors
- * (and later perhaps environment variables too).
+ * A process' inherited environment, command line parameters and file descriptors
+ * (and later perhaps the environment variables too).
  */
-class ExecedProcessParameters {
+class ExecedProcessEnv {
  public:
-  ExecedProcessParameters();
-  ExecedProcessParameters(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
-  bool operator == (ExecedProcessParameters const &pp) const;
+  ExecedProcessEnv();
+  ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  bool operator == (ExecedProcessEnv const &pp) const;
 
   std::vector<std::string>& argv() {return argv_;}
   const std::vector<std::string>& argv() const {return argv_;}
@@ -35,11 +35,11 @@ class ExecedProcessParameters {
   // TODO(egmont) add envp ?
 };
 
-inline bool ExecedProcessParameters::operator == (ExecedProcessParameters const &pp) const {
+inline bool ExecedProcessEnv::operator == (ExecedProcessEnv const &pp) const {
   return (pp.argv() == argv());
 }
 
-std::string to_string(ExecedProcessParameters const&);
+std::string to_string(ExecedProcessEnv const&);
 
 }  // namespace firebuild
-#endif  // FIREBUILD_EXECEDPROCESSPARAMETERS_H_
+#endif  // FIREBUILD_EXECEDPROCESSENV_H_

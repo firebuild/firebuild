@@ -13,7 +13,7 @@
 #include <algorithm>
 
 #include "firebuild/file_fd.h"
-#include "firebuild/execed_process_parameters.h"
+#include "firebuild/execed_process_env.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
@@ -108,8 +108,8 @@ class Process {
   bool remove_running_system_cmd(const std::string &cmd);
   bool has_running_system_cmd(const std::string &cmd) {
     return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
-  void add_expected_child(ExecedProcessParameters &ec) {expected_children_.push_back(std::move(ec));}
-  bool remove_expected_child(const ExecedProcessParameters &ec);
+  void add_expected_child(ExecedProcessEnv &ec) {expected_children_.push_back(std::move(ec));}
+  bool remove_expected_child(const ExecedProcessEnv &ec);
   virtual void do_finalize();
   virtual void maybe_finalize();
   void finish();
@@ -222,7 +222,7 @@ class Process {
   /// commands of system(3) calls which did not finish yet
   std::multiset<std::string> running_system_cmds_;
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
-  std::vector<ExecedProcessParameters> expected_children_;
+  std::vector<ExecedProcessEnv> expected_children_;
   bool exec_pending_ {false};
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */

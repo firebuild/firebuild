@@ -273,7 +273,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       proc_tree->insert(parent, -1);
 
       /* Verify that the child was expected. */
-      ::firebuild::ExecedProcessParameters expected_child;
+      ::firebuild::ExecedProcessEnv expected_child;
       for (const auto &arg : ic_msg.scproc_query().arg()) {
         expected_child.argv().push_back(arg);
       }
@@ -393,7 +393,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         proc->add_running_system_cmd(ic_msg.system().cmd());
 
         // system(cmd) launches a child of argv = ["sh", "-c", cmd]
-        ::firebuild::ExecedProcessParameters expected_child;
+        ::firebuild::ExecedProcessEnv expected_child;
         // FIXME what if !has_cmd() ?
         expected_child.set_sh_c_command(ic_msg.system().cmd());
         proc->add_expected_child(expected_child);
@@ -404,14 +404,14 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         }
       } else if (ic_msg.has_popen()) {
         // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
-        ::firebuild::ExecedProcessParameters expected_child;
+        ::firebuild::ExecedProcessEnv expected_child;
         // FIXME what if !has_cmd() ?
         expected_child.set_sh_c_command(ic_msg.popen().cmd());
         proc->add_expected_child(expected_child);
       } else if (ic_msg.has_popen_parent()) {
         // FIXME(egmont) Connect pipe's end with child
       } else if (ic_msg.has_popen_failed()) {
-        ::firebuild::ExecedProcessParameters expected_child;
+        ::firebuild::ExecedProcessEnv expected_child;
         expected_child.set_sh_c_command(ic_msg.popen_failed().cmd());
         // FIXME what if !has_cmd() ?
         if (!proc->remove_expected_child(expected_child)) {
@@ -419,7 +419,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                               + "\" from expected_children after a failed popen");
         }
       } else if (ic_msg.has_posix_spawn()) {
-        ::firebuild::ExecedProcessParameters expected_child;
+        ::firebuild::ExecedProcessEnv expected_child;
         for (const auto &arg : ic_msg.posix_spawn().arg()) {
           expected_child.argv().push_back(arg);
         }
@@ -427,7 +427,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       } else if (ic_msg.has_posix_spawn_parent()) {
         // FIXME(egmont)
       } else if (ic_msg.has_posix_spawn_failed()) {
-        ::firebuild::ExecedProcessParameters expected_child;
+        ::firebuild::ExecedProcessEnv expected_child;
         for (const auto &arg : ic_msg.posix_spawn_failed().arg()) {
           expected_child.argv().push_back(arg);
         }
