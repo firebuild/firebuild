@@ -108,7 +108,7 @@ class Process {
   bool remove_running_system_cmd(const std::string &cmd);
   bool has_running_system_cmd(const std::string &cmd) {
     return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
-  void add_expected_child(const ExecedProcessParameters &ec) {expected_children_.push_back(ec);}
+  void add_expected_child(ExecedProcessParameters &ec) {expected_children_.push_back(std::move(ec));}
   bool remove_expected_child(const ExecedProcessParameters &ec);
   virtual void do_finalize();
   virtual void maybe_finalize();
