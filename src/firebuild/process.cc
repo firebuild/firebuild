@@ -9,7 +9,7 @@
 #include "firebuild/file.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
-#include "firebuild/execed_process_parameters.h"
+#include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"
 
 namespace firebuild {
@@ -255,7 +255,7 @@ bool Process::remove_running_system_cmd(const std::string &cmd) {
   return false;
 }
 
-bool Process::remove_expected_child(const ExecedProcessParameters &ec) {
+bool Process::remove_expected_child(const ExecedProcessEnv &ec) {
   auto item = std::find(expected_children_.begin(), expected_children_.end(), ec);
   if (item != expected_children_.end()) {
     expected_children_.erase(item);
