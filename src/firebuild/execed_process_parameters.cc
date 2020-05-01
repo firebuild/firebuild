@@ -8,7 +8,10 @@
 
 namespace firebuild {
 
-ExecedProcessParameters::ExecedProcessParameters() : argv_() { }
+ExecedProcessParameters::ExecedProcessParameters() : argv_(), fds_(nullptr) { }
+
+ExecedProcessParameters::ExecedProcessParameters(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+    : argv_(), fds_(fds) { }
 
 void ExecedProcessParameters::set_sh_c_command(const std::string &cmd) {
   argv_.push_back("sh");
