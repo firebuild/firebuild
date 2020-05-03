@@ -8,6 +8,7 @@
 
 ### block before
   {
+    pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
     msg::InterceptorMsg ic_msg;
     auto m = ic_msg.mutable_popen();
@@ -29,5 +30,6 @@
       m->set_error_no(saved_errno);
     }
     fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    pthread_mutex_unlock(&ic_system_popen_lock);
   }
 ### endblock send_msg

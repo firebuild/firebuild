@@ -252,6 +252,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto scproc_resp = sv_msg.mutable_scproc_resp();
 
     firebuild::Process *parent = NULL;
+    std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds = nullptr;
 
     /* Locate the parent in case of execve or alike. This includes the
      * case when the outermost intercepted process starts up (no
@@ -259,10 +260,12 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
      * exec (an exec parent will be found then). */
     parent = proc_tree->pid2proc(scq.pid());
 
-    /* Locate the parent in case of system/popen/posix_spawn, but not
-     * when the first intercepter process starts up. */
-    if (!parent && scq.ppid() != getpid()) {
-      /* Locate the indirect parent who called system/popen/posix_spawn. */
+    if (parent) {
+      // TODO(rbalint) wait for exec parent to close connection to let all exit handlers finish
+      fds = parent->pass_on_fds();
+    } else if (!parent && scq.ppid() != getpid()) {
+      /* Locate the parent in case of system/popen/posix_spawn, but not
+       * when the first intercepter process starts up. */
       ::firebuild::Process *unix_parent = proc_tree->pid2proc(scq.ppid());
       assert(unix_parent != NULL);
 
@@ -272,21 +275,16 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       // FIXME set exec_child_ ???
       proc_tree->insert(parent, -1);
 
-      /* Verify that the child was expected. */
-      ::firebuild::ExecedProcessEnv expected_child;
-      for (const auto &arg : ic_msg.scproc_query().arg()) {
-        expected_child.argv().push_back(arg);
-      }
-      if (!unix_parent->remove_expected_child(expected_child)) {
-        firebuild::fb_error("Unexpected system/popen/posix_spawn child appeared: " + to_string(expected_child));
-        // FIXME now what?
-      }
+      /* Verify that the child was expected and get inherited fds. */
+      fds = unix_parent->pop_expected_child_fds(
+          std::vector<std::string>(ic_msg.scproc_query().arg().begin(),
+                                   ic_msg.scproc_query().arg().end()));
     }
 
     /* Add the ExecedProcess. */
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
-            ic_msg.scproc_query(), parent);
+            ic_msg.scproc_query(), parent, fds);
     proc_tree->insert(proc, fd_conn);
 
     proc->initialize();
@@ -393,48 +391,40 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         proc->add_running_system_cmd(ic_msg.system().cmd());
 
         // system(cmd) launches a child of argv = ["sh", "-c", cmd]
-        ::firebuild::ExecedProcessEnv expected_child;
+        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
         // FIXME what if !has_cmd() ?
-        expected_child.set_sh_c_command(ic_msg.system().cmd());
-        proc->add_expected_child(expected_child);
+        expected_child->set_sh_c_command(ic_msg.system().cmd());
+        proc->set_expected_child(expected_child);
       } else if (ic_msg.has_system_ret()) {
-        if (!proc->remove_running_system_cmd(ic_msg.system_ret().cmd())) {
+        // the child should have appeared by now
+        if (proc->has_expected_child()) {
           firebuild::fb_error("system(\"" + ic_msg.system_ret().cmd()
                               + "\") exited but the call was not registered ");
         }
       } else if (ic_msg.has_popen()) {
         // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
-        ::firebuild::ExecedProcessEnv expected_child;
+        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
         // FIXME what if !has_cmd() ?
-        expected_child.set_sh_c_command(ic_msg.popen().cmd());
-        proc->add_expected_child(expected_child);
+        expected_child->set_sh_c_command(ic_msg.popen().cmd());
+        proc->set_expected_child(expected_child);
       } else if (ic_msg.has_popen_parent()) {
         // FIXME(egmont) Connect pipe's end with child
       } else if (ic_msg.has_popen_failed()) {
-        ::firebuild::ExecedProcessEnv expected_child;
-        expected_child.set_sh_c_command(ic_msg.popen_failed().cmd());
         // FIXME what if !has_cmd() ?
-        if (!proc->remove_expected_child(expected_child)) {
-          firebuild::fb_error("Failed to remove \"" + ic_msg.popen_failed().cmd()
-                              + "\" from expected_children after a failed popen");
-        }
+        proc->pop_expected_child_fds(
+            std::vector<std::string>({"sh", "-c", ic_msg.popen_failed().cmd()}), true);
       } else if (ic_msg.has_posix_spawn()) {
-        ::firebuild::ExecedProcessEnv expected_child;
+        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
         for (const auto &arg : ic_msg.posix_spawn().arg()) {
-          expected_child.argv().push_back(arg);
+          expected_child->argv().push_back(arg);
         }
-        proc->add_expected_child(expected_child);
+        proc->set_expected_child(expected_child);
       } else if (ic_msg.has_posix_spawn_parent()) {
         // FIXME(egmont)
       } else if (ic_msg.has_posix_spawn_failed()) {
-        ::firebuild::ExecedProcessEnv expected_child;
-        for (const auto &arg : ic_msg.posix_spawn_failed().arg()) {
-          expected_child.argv().push_back(arg);
-        }
-        if (!proc->remove_expected_child(expected_child)) {
-          firebuild::fb_error("Failed to remove " + to_string(expected_child)
-                              + " from expected_children after a failed posix_spawn[p]");
-        }
+        proc->pop_expected_child_fds(
+            std::vector<std::string>(ic_msg.posix_spawn_failed().arg().begin(),
+                                     ic_msg.posix_spawn_failed().arg().end()), true);
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_u(),
                             ic_msg.execv().stime_u());
