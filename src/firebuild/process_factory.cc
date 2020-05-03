@@ -20,9 +20,10 @@ ForkedProcess* ProcessFactory::getForkedProcess(const int pid,
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent) {
+ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent,
+                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
   auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),
-                             scpq.executable(), parent);
+                             scpq.executable(), parent, fds);
 
   for (int i = 0; i < scpq.arg_size(); i++) {
     e->args().push_back(scpq.arg(i));

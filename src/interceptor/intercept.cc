@@ -41,6 +41,9 @@ std::vector<fd_state> *fd_states;
 /** Global lock for manipulating fd states */
 pthread_mutex_t ic_fd_states_lock;
 
+/** Global lock for preventing parallel system and popen calls */
+pthread_mutex_t ic_system_popen_lock;
+
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
 

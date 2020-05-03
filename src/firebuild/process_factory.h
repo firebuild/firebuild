@@ -25,7 +25,7 @@ class ProcessFactory {
                                          Process * const parent);
   static ForkedProcess* getForkedProcess(int pid, Process * const parent);
   static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq,
-                                         Process * parent);
+                                         Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);

@@ -108,8 +108,13 @@ class Process {
   bool remove_running_system_cmd(const std::string &cmd);
   bool has_running_system_cmd(const std::string &cmd) {
     return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
-  void add_expected_child(ExecedProcessEnv &ec) {expected_children_.push_back(std::move(ec));}
-  bool remove_expected_child(const ExecedProcessEnv &ec);
+  void set_expected_child(ExecedProcessEnv *ec) {
+    assert(!expected_child_);
+    expected_child_ = ec;
+  }
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+  pop_expected_child_fds(const std::vector<std::string>&, const bool failed = false);
+  bool has_expected_child () {return expected_child_?true:false;}
   virtual void do_finalize();
   virtual void maybe_finalize();
   void finish();
@@ -124,7 +129,7 @@ class Process {
       return nullptr;
     }
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed);
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
 
   /**
    * Handle file opening in the monitored process
@@ -222,7 +227,7 @@ class Process {
   /// commands of system(3) calls which did not finish yet
   std::multiset<std::string> running_system_cmds_;
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
-  std::vector<ExecedProcessEnv> expected_children_;
+  ExecedProcessEnv *expected_child_;
   bool exec_pending_ {false};
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */

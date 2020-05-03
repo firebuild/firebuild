@@ -21,7 +21,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
-      running_system_cmds_(), expected_children_(), exec_child_(NULL) {
+      running_system_cmds_(), expected_child_(), exec_child_(NULL) {
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
     add_filefd(fds_, STDIN_FILENO,
@@ -246,23 +246,28 @@ void Process::set_wd(const std::string &ar_d) {
   add_wd(d);
 }
 
-bool Process::remove_running_system_cmd(const std::string &cmd) {
-  auto it = running_system_cmds_.find(cmd);
-  if (it != running_system_cmds_.end()) {
-    running_system_cmds_.erase(it);
-    return true;
-  }
-  return false;
-}
-
-bool Process::remove_expected_child(const ExecedProcessEnv &ec) {
-  auto item = std::find(expected_children_.begin(), expected_children_.end(), ec);
-  if (item != expected_children_.end()) {
-    expected_children_.erase(item);
-    return true;
+std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+Process::pop_expected_child_fds(const std::vector<std::string>& argv, const bool failed) {
+  std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
+  if (expected_child_) {
+    if (expected_child_->argv() == argv) {
+      auto fds = expected_child_->fds();
+      delete(expected_child_);
+      expected_child_ = nullptr;
+      return fds;
+    } else {
+      disable_shortcutting("Unexpected system/popen/posix_spawn child appeared: " +
+                           ::firebuild::pretty_print_array(argv) +
+                           "while waiting for: " + ::firebuild::to_string(*expected_child_));
+    }
+    delete(expected_child_);
+    expected_child_ = nullptr;
   } else {
-    return false;
+    disable_shortcutting("Unexpected system/popen/posix_spawn child " +
+                         std::string(failed?"failed: ":"appeared: ") +
+                         firebuild::pretty_print_array(argv));
   }
+  return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
 }
 
 /**
@@ -297,12 +302,10 @@ void Process::maybe_finalize() {
 }
 
 void Process::finish() {
-  if (FB_DEBUGGING(FB_DEBUG_PROC) && !expected_children_.empty()) {
+  if (FB_DEBUGGING(FB_DEBUG_PROC) && expected_child_) {
     FB_DEBUG(FB_DEBUG_PROC, "Expected system()/popen()/posix_spawn() children that did not appear"
                             " (e.g. posix_spawn() failed in the pre-exec or exec step):");
-    for (const auto &ec : expected_children_) {
-      FB_DEBUG(FB_DEBUG_PROC, "  " + to_string(ec));
-    }
+    FB_DEBUG(FB_DEBUG_PROC, "  " + to_string(*expected_child_));
   }
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();

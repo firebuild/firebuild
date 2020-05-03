@@ -35,6 +35,9 @@ extern std::vector<fd_state> *fd_states;
 /** Global lock for manipulating fd states */
 extern pthread_mutex_t ic_fd_states_lock;
 
+/** Global lock for preventing parallel system and popen calls */
+extern pthread_mutex_t ic_system_popen_lock;
+
 /** buffer size for getcwd */
 #define CWD_BUFSIZE 4096
 
