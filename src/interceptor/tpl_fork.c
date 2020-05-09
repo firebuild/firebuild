@@ -36,6 +36,6 @@
     msg::InterceptorMsg ic_msg;
     auto m = ic_msg.mutable_fork_parent();
     m->set_pid(ret);
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg(ic_msg, fb_sv_conn);
   }
 ### endblock send_msg
