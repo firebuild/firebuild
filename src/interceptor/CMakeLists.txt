@@ -5,7 +5,23 @@ set_source_files_properties(interceptors.cc PROPERTIES COMPILE_FLAGS "-Wno-tauto
 
 add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_reset.c
-  DEPENDS generate_interceptors tpl*
+  DEPENDS generate_interceptors
+  tpl.c
+  tpl_exec.c
+  tpl__exit.c
+  tpl_exit.c
+  tpl_fcntl.c
+  tpl_fork.c
+  tpl_main.c
+  tpl_once.c
+  tpl_open.c
+  tpl_popen.c
+  tpl_posix_spawn.c
+  tpl_read.c
+  tpl_readlink.c
+  tpl_skip.c
+  tpl_system.c
+  tpl_write.c
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   COMMAND ./generate_interceptors ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating interceptor files from templates")
