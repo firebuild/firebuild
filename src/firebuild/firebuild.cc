@@ -357,8 +357,6 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
       proc_tree->DropQueuedForkChild(child_pid);
     }
-    ack_msg(fd_conn, ic_msg.ack_num());
-    return;
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->Sock2Proc(fd_conn);
     // FIXME(rbalint) check execv parameter and record what needs to be
