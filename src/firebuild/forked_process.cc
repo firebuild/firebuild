@@ -9,8 +9,9 @@
 namespace firebuild {
 
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
-                             Process* parent)
-    : Process(pid, ppid, (parent)?parent->wd():"", parent, (parent)?parent->pass_on_fds(false):nullptr) {
+                             Process* parent,
+                             std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+    : Process(pid, ppid, (parent)?parent->wd():"", parent, fds) {
   // add as fork child of parent
   if (parent) {
     exec_point_ = parent->exec_point();
