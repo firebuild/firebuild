@@ -269,16 +269,16 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       ::firebuild::Process *unix_parent = proc_tree->pid2proc(scq.ppid());
       assert(unix_parent != NULL);
 
-      /* Add a ForkedProcess for the forked child we never directly saw. */
-      parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent);
-      parent->set_state(firebuild::FB_PROC_TERMINATED);
-      // FIXME set exec_child_ ???
-      proc_tree->insert(parent, -1);
-
       /* Verify that the child was expected and get inherited fds. */
       fds = unix_parent->pop_expected_child_fds(
           std::vector<std::string>(ic_msg.scproc_query().arg().begin(),
                                    ic_msg.scproc_query().arg().end()));
+
+      /* Add a ForkedProcess for the forked child we never directly saw. */
+      parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent, fds);
+      parent->set_state(firebuild::FB_PROC_TERMINATED);
+      // FIXME set exec_child_ ???
+      proc_tree->insert(parent, -1);
     }
 
     /* Add the ExecedProcess. */
@@ -323,41 +323,41 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
   } else if (ic_msg.has_fork_child()) {
     auto fork_child = ic_msg.fork_child();
     auto ppid = fork_child.ppid();
-    auto pproc = proc_tree->pid2proc(ppid);
-    auto fork_parent = proc_tree->Pid2ForkParentSock(ppid);
+    auto fork_parent_fds = proc_tree->Pid2ForkParentFds(fork_child.pid());
     /* The supervisor needs up to date information about the fork parent in the ProcessTree
      * when the child Process is created. To ensure having up to date information all the
      * messages must be processed from the fork parent up to ForkParent and only then can
      * the child Process created in the ProcessTree and let the child process continue execution.
      */
-    if (!fork_parent) {
+    if (!fork_parent_fds) {
       /* queue fork_child data and delay processing messages on this socket */
-      proc_tree->QueueForkChild(fork_child.ppid(), fd_conn, fork_child.pid(), ic_msg.ack_num());
+      proc_tree->QueueForkChild(fork_child.pid(), fd_conn, fork_child.ppid(), ic_msg.ack_num());
     } else {
       /* record new process */
+      auto pproc = proc_tree->pid2proc(ppid);
       auto proc =
-          firebuild::ProcessFactory::getForkedProcess(fork_child, pproc);
+          firebuild::ProcessFactory::getForkedProcess(fork_child.pid(), pproc, fork_parent_fds);
       proc_tree->insert(proc, fd_conn);
-      ack_msg(fork_parent->sock, fork_parent->ack_num);
-      proc_tree->DropQueuedForkParent(ppid);
+      proc_tree->DropForkParentFds(fork_child.pid());
       ack_msg(fd_conn, ic_msg.ack_num());
     }
     return;
   } else if (ic_msg.has_fork_parent()) {
+    auto child_pid = ic_msg.fork_parent().pid();
     /* here pproc is the current process as it is the fork parent */
     auto pproc = proc_tree->Sock2Proc(fd_conn);
-    auto fork_child_sock = proc_tree->PPid2ForkChildSock(pproc->pid());
+    auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
     if (!fork_child_sock) {
-      /* queue fork_parent data and delay processing messages on this socket */
-      proc_tree->QueueForkParent(pproc->pid(), fd_conn, ic_msg.ack_num());
+      /* queue fork_parent data */
+      proc_tree->SaveForkParentState(child_pid, pproc->pass_on_fds(false));
     } else {
-      /* record new process */
-      auto proc = firebuild::ProcessFactory::getForkedProcess(fork_child_sock->pid, pproc);
+      /* record new child process */
+      auto proc = firebuild::ProcessFactory::getForkedProcess(child_pid, pproc, pproc->pass_on_fds(false));
       proc_tree->insert(proc, fork_child_sock->sock);
       ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
-      proc_tree->DropQueuedForkChild(pproc->pid());
-      ack_msg(fd_conn, ic_msg.ack_num());
+      proc_tree->DropQueuedForkChild(child_pid);
     }
+    ack_msg(fd_conn, ic_msg.ack_num());
     return;
   } else if (ic_msg.has_execvfailed()) {
     auto *proc = proc_tree->Sock2Proc(fd_conn);
