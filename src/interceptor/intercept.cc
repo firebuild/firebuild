@@ -285,13 +285,10 @@ void on_exit_handler(const int status, void *) {
   handle_exit(status);
   insert_debug_msg("our_on_exit_handler-end");
 
-  /* Destruct global stuff here so that valgrind doesn't complain.
-   * This is the last place anything from the interceptor code can be
-   * executed. Alas it's skipped if one does an _exit(). */
-  google::protobuf::ShutdownProtobufLibrary();
-  ic_orig_close(fb_sv_conn);
-  free(fb_conn_string);
-  delete fd_states;
+  /* Destruction of global objects is not done here, because other exit handlers
+   * may perform actions that need to be reported to the supervisor.
+   * TODO(rbalint) add Valgrind suppress file
+   */
 }
 
 void handle_exit(const int status) {
