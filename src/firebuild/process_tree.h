@@ -41,11 +41,19 @@ struct fork_child_sock {
   int ack_num;
 };
 
+/** Connection of a waiting exec() child process*/
+struct exec_child_sock {
+  /** Connection exec() child is waiting on */
+  int sock;
+  /** Child data without fds filled */
+  ExecedProcess* incomplete_child;
+};
+
 class ProcessTree {
  public:
   ProcessTree()
       : sock2proc_(), fb_pid2proc_(), pid2proc_(), pid2fork_parent_fds_(),
-        pid2fork_child_sock_(), cmd_profs_()
+        pid2fork_child_sock_(), pid2exec_child_sock_(), cmd_profs_()
   {}
   ~ProcessTree();
 
@@ -81,6 +89,9 @@ class ProcessTree {
   void QueueForkChild(int pid, int sock, int ppid, int ack_num) {
     pid2fork_child_sock_[pid] = {sock, ppid, ack_num};
   }
+  void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
+    pid2exec_child_sock_[pid] = {sock, incomplete_child};
+  }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Pid2ForkParentFds(const int pid) {
     try {
       return pid2fork_parent_fds_.at(pid);
@@ -95,10 +106,20 @@ class ProcessTree {
       return nullptr;
     }
   }
+  const exec_child_sock* Pid2ExecChildSock(const int pid) {
+    try {
+      return &pid2exec_child_sock_.at(pid);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
   void DropForkParentFds(const int pid) {
     pid2fork_parent_fds_.erase(pid);
   }
   void DropQueuedForkChild(const int pid) {
+    pid2fork_child_sock_.erase(pid);
+  }
+  void DropQueuedExecChild(const int pid) {
     pid2fork_child_sock_.erase(pid);
   }
 
@@ -109,6 +130,7 @@ class ProcessTree {
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
+  std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds

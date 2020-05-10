@@ -240,6 +240,47 @@ void ack_msg(const int conn, const int ack_num) {
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
+
+static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn, firebuild::ProcessTree* proc_tree) {
+    firebuild::msg::SupervisorMsg sv_msg;
+    auto scproc_resp = sv_msg.mutable_scproc_resp();
+
+    proc_tree->insert(proc, fd_conn);
+    proc->initialize();
+
+    /* Check for executables that are known not to be shortcuttable. */
+    if (exe_matches_list(proc->executable(),
+                         proc->args().size() > 0 ? proc->args()[0] : "",
+                         cfg->getRoot()["processes"]["blacklist"])) {
+      proc->disable_shortcutting("Executable blacklisted");
+    }
+
+    /* If we still potentially can, and prefer to cache / shortcut this process,
+     * register the cacher object and calculate the process's fingerprint. */
+    if (proc->can_shortcut() &&
+        !exe_matches_list(proc->executable(),
+                          proc->args().size() > 0 ? proc->args()[0] : "",
+                          cfg->getRoot()["processes"]["skip_cache"])) {
+      proc->set_cacher(cacher);
+      if (!cacher->fingerprint(proc)) {
+        proc->disable_shortcutting("Could not fingerprint the process");
+      }
+    }
+
+    /* Try to shortcut the process. */
+    if (proc->shortcut()) {
+      scproc_resp->set_shortcut(true);
+      scproc_resp->set_exit_status(proc->exit_status());
+    } else {
+      scproc_resp->set_shortcut(false);
+      if (firebuild::debug_flags != 0) {
+        scproc_resp->set_debug_flags(firebuild::debug_flags);
+      }
+    }
+
+    firebuild::fb_send_msg(sv_msg, fd_conn);
+}
+
 /**
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
@@ -248,8 +289,6 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                  const int fd_conn) {
   if (ic_msg.has_scproc_query()) {
     auto scq = ic_msg.scproc_query();
-    firebuild::msg::SupervisorMsg sv_msg;
-    auto scproc_resp = sv_msg.mutable_scproc_resp();
 
     firebuild::Process *parent = NULL;
     std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds = nullptr;
@@ -261,8 +300,17 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     parent = proc_tree->pid2proc(scq.pid());
 
     if (parent) {
-      // TODO(rbalint) wait for exec parent to close connection to let all exit handlers finish
-      fds = parent->pass_on_fds();
+      assert(parent->state() != firebuild::FB_PROC_FINALIZED);
+      if (parent->state() == firebuild::FB_PROC_TERMINATED) {
+        fds = parent->pass_on_fds();
+      } else {
+        /* Queue the ExecedProcess until parent's connection is closed */
+        auto proc =
+            firebuild::ProcessFactory::getExecedProcess(
+                ic_msg.scproc_query(), parent, fds);
+        proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
+        return;
+      }
     } else if (!parent && scq.ppid() != getpid()) {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
@@ -285,41 +333,8 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
             ic_msg.scproc_query(), parent, fds);
-    proc_tree->insert(proc, fd_conn);
+    accept_exec_child(proc, fd_conn, proc_tree);
 
-    proc->initialize();
-
-    /* Check for executables that are known not to be shortcuttable. */
-    if (exe_matches_list(ic_msg.scproc_query().executable(),
-                         ic_msg.scproc_query().arg_size() > 0 ? ic_msg.scproc_query().arg(0) : "",
-                         cfg->getRoot()["processes"]["blacklist"])) {
-      proc->disable_shortcutting("Executable blacklisted");
-    }
-
-    /* If we still potentially can, and prefer to cache / shortcut this process,
-     * register the cacher object and calculate the process's fingerprint. */
-    if (proc->can_shortcut() &&
-        !exe_matches_list(ic_msg.scproc_query().executable(),
-                          ic_msg.scproc_query().arg_size() > 0 ? ic_msg.scproc_query().arg(0) : "",
-                          cfg->getRoot()["processes"]["skip_cache"])) {
-      proc->set_cacher(cacher);
-      if (!cacher->fingerprint(proc)) {
-        proc->disable_shortcutting("Could not fingerprint the process");
-      }
-    }
-
-    /* Try to shortcut the process. */
-    if (proc->shortcut()) {
-      scproc_resp->set_shortcut(true);
-      scproc_resp->set_exit_status(proc->exit_status());
-    } else {
-      scproc_resp->set_shortcut(false);
-      if (firebuild::debug_flags != 0) {
-        scproc_resp->set_debug_flags(firebuild::debug_flags);
-      }
-    }
-
-    firebuild::fb_send_msg(sv_msg, fd_conn);
   } else if (ic_msg.has_fork_child()) {
     auto fork_child = ic_msg.fork_child();
     auto ppid = fork_child.ppid();
@@ -904,6 +919,16 @@ int main(const int argc, char *argv[]) {
                                         std::string(" hung up"));
               } else {
                 perror("recv");
+              }
+              auto proc = proc_tree->Sock2Proc(i);
+              if (proc) {
+                auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
+                if (exec_child_sock) {
+                  auto exec_child = exec_child_sock->incomplete_child;
+                  exec_child->set_fds(proc->pass_on_fds());
+                  accept_exec_child(exec_child, exec_child_sock->sock, proc_tree);
+                  proc_tree->DropQueuedExecChild(proc->pid());
+                }
               }
               proc_tree->finished(i);
               close(i);  // bye!
