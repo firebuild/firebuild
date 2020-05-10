@@ -243,7 +243,7 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "%s exe:\"%s\",\n", indent, executable().c_str());
   fprintf(stream, "%s state: %u,\n", indent, state());
   if (!can_shortcut_) {
-    fprintf(stream, "%s cant_sc_reason: \"%s\",\n", indent, cant_shortcut_reason_.c_str());
+    fprintf(stream, "%s cant_sc_reason: \"%s\",\n", indent, escapeJsonString(cant_shortcut_reason_).c_str());
     if (cant_shortcut_proc_->exec_proc()->fb_pid() != fb_pid()) {
       fprintf(stream, "%s cant_sc_fb_pid: \"%u\",\n", indent, cant_shortcut_proc_->exec_proc()->fb_pid());
     }
