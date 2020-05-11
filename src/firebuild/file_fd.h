@@ -69,6 +69,9 @@ class FileFD {
       curr_flags_ &= ~O_CLOEXEC;
     }
   }
+  fd_origin origin_type() {return origin_type_;}
+  bool read() {return read_;}
+  bool written() {return written_;}
 
  private:
   int fd_;
