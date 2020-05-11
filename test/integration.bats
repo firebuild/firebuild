@@ -33,6 +33,15 @@ load test_helper
       [ -z "$(strip_stderr stderr)" ]
 }
 
+@test "parallel make" {
+      # clean up previous run
+      make -s -f test_parallel_make.Makefile clean
+      result=$(./run-firebuild -- make -s -j8 -f test_parallel_make.Makefile 2> stderr)
+      [ "$result" = "ok" ]
+      strip_stderr stderr
+      [ -z "$(strip_stderr stderr)" ]
+}
+
 @test "parallel sleeps" {
       # TODO (rbalint) firebuild needs to gracefully handle when it is out of file descriptors
       result=$(./run-firebuild -- bash -c 'for i in $(seq 200); do sleep 2 & done;  wait $(jobs -p)' 2>stderr)
