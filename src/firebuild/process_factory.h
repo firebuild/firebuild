@@ -1,10 +1,13 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_PROCESSFACTORY_H_
-#define FIREBUILD_PROCESSFACTORY_H_
+#ifndef FIREBUILD_PROCESS_FACTORY_H_
+#define FIREBUILD_PROCESS_FACTORY_H_
 
-#include "fb-messages.pb.h"
+#include <memory>
+#include <vector>
+
+#include "./fb-messages.pb.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/process_tree.h"
@@ -24,11 +27,12 @@ class ProcessFactory {
   static ForkedProcess* getForkedProcess(int pid, Process * const parent,
                                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq,
-                                         Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+                                         Process * parent,
+                                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_PROCESSFACTORY_H_
+#endif  // FIREBUILD_PROCESS_FACTORY_H_

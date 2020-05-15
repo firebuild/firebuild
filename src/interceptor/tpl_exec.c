@@ -89,7 +89,7 @@
     m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
     m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 
   /* Perform the call. */
@@ -109,6 +109,6 @@
     msg::InterceptorMsg ic_msg;
     auto m = ic_msg.mutable_execvfailed();
     m->set_error_no(saved_errno);
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock body

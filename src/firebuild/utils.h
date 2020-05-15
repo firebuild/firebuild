@@ -4,6 +4,7 @@
 #ifndef FIREBUILD_UTILS_H_
 #define FIREBUILD_UTILS_H_
 
+#include <string>
 #include <unordered_map>
 #include <libconfig.h++>
 

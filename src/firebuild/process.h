@@ -6,6 +6,7 @@
 #define FIREBUILD_PROCESS_H_
 
 #include <list>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>

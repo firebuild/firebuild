@@ -24,7 +24,7 @@
     for (int i = 0; envp[i] != NULL; i++) {
       m->add_env(envp[i]);
     }
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
@@ -39,7 +39,7 @@
       auto m = ic_msg.mutable_posix_spawn_failed();
       m->set_error_no(saved_errno);
     }
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     pthread_mutex_unlock(&ic_system_popen_lock);
   }
 ### endblock send_msg

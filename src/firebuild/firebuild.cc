@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -16,23 +18,20 @@
 #include <cerrno>
 #include <cstdio>
 #include <stdexcept>
-
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <libconfig.h++>
+
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
-#include "firebuild/debug.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
 #include "firebuild/fb-cache.pb.h"
-#include "fb-messages.pb.h"
+#include "./fb-messages.pb.h"
 
 /** global configuration */
 libconfig::Config * cfg;
@@ -241,7 +240,8 @@ void ack_msg(const int conn, const int ack_num) {
 }
 
 
-static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn, firebuild::ProcessTree* proc_tree) {
+static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
+                              firebuild::ProcessTree* proc_tree) {
     firebuild::msg::SupervisorMsg sv_msg;
     auto scproc_resp = sv_msg.mutable_scproc_resp();
 
@@ -367,7 +367,9 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       proc_tree->SaveForkParentState(child_pid, pproc->pass_on_fds(false));
     } else {
       /* record new child process */
-      auto proc = firebuild::ProcessFactory::getForkedProcess(child_pid, pproc, pproc->pass_on_fds(false));
+      auto proc =
+          firebuild::ProcessFactory::getForkedProcess(child_pid, pproc,
+                                                      pproc->pass_on_fds(false));
       proc_tree->insert(proc, fork_child_sock->sock);
       ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
       proc_tree->DropQueuedForkChild(child_pid);
@@ -786,7 +788,9 @@ int main(const int argc, char *argv[]) {
    * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
    * more matches are found in the protobuf multicache. */
   bool no_fetch = (getenv("FIREBUILD_RECACHE") != NULL);
-  cacher = new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, no_fetch, cfg->getRoot()["env_vars"]["fingerprint_skip"]);
+  cacher =
+      new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, no_fetch,
+                                         cfg->getRoot()["env_vars"]["fingerprint_skip"]);
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.

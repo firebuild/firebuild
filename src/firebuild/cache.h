@@ -14,7 +14,7 @@ namespace firebuild {
 
 class Cache {
  public:
-  Cache(const std::string &base_dir);
+  explicit Cache(const std::string &base_dir);
   ~Cache();
 
   bool store_file(const std::string &path,

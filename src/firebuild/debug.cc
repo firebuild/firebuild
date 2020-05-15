@@ -1,10 +1,10 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-#include "debug.h"
-
 #include <time.h>
 #include <sys/time.h>
+
+#include "firebuild/debug.h"
 
 namespace firebuild {
 
@@ -73,14 +73,15 @@ std::string pretty_print_timestamp() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   time_t t = tv.tv_sec;
-  struct tm *local = localtime(&t);
-  int abs_diff_min = std::abs(local->tm_gmtoff) / 60;
+  struct tm local;
+  localtime_r(&t, &local);
+  int abs_diff_min = std::abs(local.tm_gmtoff) / 60;
   char buf[64];
   /* Note: strftime() doesn't support sub-seconds. */
-  sprintf(buf, "%d-%02d-%02d %02d:%02d:%02d.%06ld %c%02d%02d",
-      1900 + local->tm_year, 1 + local->tm_mon, local->tm_mday,
-      local->tm_hour, local->tm_min, local->tm_sec, tv.tv_usec,
-      local->tm_gmtoff >= 0 ? '+' : '-', abs_diff_min / 60, abs_diff_min % 60);
+  snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%06ld %c%02d%02d",
+      1900 + local.tm_year, 1 + local.tm_mon, local.tm_mday,
+      local.tm_hour, local.tm_min, local.tm_sec, tv.tv_usec,
+      local.tm_gmtoff >= 0 ? '+' : '-', abs_diff_min / 60, abs_diff_min % 60);
   return std::string(buf);
 }
 

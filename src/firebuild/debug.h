@@ -37,7 +37,7 @@ enum {
 /**
  * Test if debugging this kind of events is enabled.
  */
-#define FB_DEBUGGING(flag) (firebuild::debug_flags & flag)
+#define FB_DEBUGGING(flag) ((firebuild::debug_flags) & flag)
 
 /**
  * Print debug message if the given debug flag is enabled.

@@ -4,18 +4,19 @@
 #ifndef FIREBUILD_MULTI_CACHE_H_
 #define FIREBUILD_MULTI_CACHE_H_
 
+#include <google/protobuf/message.h>
+#include <google/protobuf/text_format.h>
+
 #include <string>
 #include <vector>
 
-#include <google/protobuf/message.h>
-#include <google/protobuf/text_format.h>
 #include "firebuild/hash.h"
 
 namespace firebuild {
 
 class MultiCache {
  public:
-  MultiCache(const std::string &base_dir);
+  explicit MultiCache(const std::string &base_dir);
   ~MultiCache();
 
   bool store_protobuf(const Hash &key,

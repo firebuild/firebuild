@@ -2,14 +2,16 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_PROCESSTREE_H_
-#define FIREBUILD_PROCESSTREE_H_
+#ifndef FIREBUILD_PROCESS_TREE_H_
+#define FIREBUILD_PROCESS_TREE_H_
 
 #include <map>
+#include <memory>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <stdexcept>
+#include <vector>
 
 #include "firebuild/process.h"
 #include "firebuild/execed_process.h"
@@ -128,7 +130,8 @@ class ProcessTree {
   std::unordered_map<int, Process*> sock2proc_;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
-  std::unordered_map<int, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
+  std::unordered_map<int,
+                     std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
   std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
   /**
@@ -147,4 +150,4 @@ class ProcessTree {
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_PROCESSTREE_H_
+#endif  // FIREBUILD_PROCESS_TREE_H_

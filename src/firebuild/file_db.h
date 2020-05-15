@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_FILEDB_H_
-#define FIREBUILD_FILEDB_H_
+#ifndef FIREBUILD_FILE_DB_H_
+#define FIREBUILD_FILE_DB_H_
 
 #include <string>
 #include <unordered_map>
@@ -33,4 +33,4 @@ class FileDB {
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_FILEDB_H_
+#endif  // FIREBUILD_FILE_DB_H_

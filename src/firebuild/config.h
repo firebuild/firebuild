@@ -5,12 +5,14 @@
 #define FIREBUILD_CONFIG_H_
 
 #include <list>
+#include <string>
 
 #include <libconfig.h++>
 
 namespace firebuild {
 
-void read_config(libconfig::Config *cfg, const char *custom_cfg_file, const std::list<std::string>& config_strings);
+void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
+                 const std::list<std::string>& config_strings);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_CONFIG_H_
