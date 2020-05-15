@@ -67,3 +67,5 @@ if(COVERAGE)
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating coverage report with lcov" VERBATIM)
 endif(COVERAGE)
+
+add_custom_target(style-check cpplint --recursive src/ test/)
