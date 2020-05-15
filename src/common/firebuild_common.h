@@ -2,8 +2,8 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_FIREBUILD_COMMON_H_
-#define FIREBUILD_FIREBUILD_COMMON_H_
+#ifndef COMMON_FIREBUILD_COMMON_H_
+#define COMMON_FIREBUILD_COMMON_H_
 
 #include <google/protobuf/message_lite.h>
 
@@ -55,4 +55,4 @@ ssize_t fb_read_buf(const int fd, void * buf, const size_t count);
 
 }  // namespace firebuild
 
-#endif  // FIREBUILD_FIREBUILD_COMMON_H_
+#endif  // COMMON_FIREBUILD_COMMON_H_

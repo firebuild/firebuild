@@ -28,7 +28,7 @@
     auto m = ic_msg.mutable_fork_child();
     m->set_pid(ic_pid);
     m->set_ppid(getppid());
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   } else {
     /* Parent */
 

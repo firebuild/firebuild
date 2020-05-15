@@ -1,9 +1,9 @@
 /* Copyright (c) 2019 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
+#include <memory>
 
 #include "firebuild/execed_process_env.h"
-
 #include "firebuild/debug.h"
 
 namespace firebuild {

@@ -8,8 +8,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-void get_argv_env(char *** argv, char ***env)
-{
+void get_argv_env(char *** argv, char ***env) {
   char* arg = *(__environ - 2);
   unsigned long int argc_guess = 0;
 
@@ -20,7 +19,7 @@ void get_argv_env(char *** argv, char ***env)
     argc_guess++;
     arg = *(__environ - 2 - argc_guess);
   }
-  
+
   *argv = __environ - 1 - argc_guess;
   *env = __environ;
 }

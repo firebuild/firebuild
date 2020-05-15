@@ -162,7 +162,8 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
   delete mini_config;
 }
 
-void read_config(libconfig::Config *cfg, const char *custom_cfg_file, const std::list<std::string>& config_strings) {
+void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
+                 const std::list<std::string> &config_strings) {
   parse_cfg_file(cfg, custom_cfg_file);
   for (auto s : config_strings) {
     modify_config(cfg, s);

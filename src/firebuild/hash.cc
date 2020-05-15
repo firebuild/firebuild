@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <vector>
 
 #include "firebuild/debug.h"
 
@@ -27,7 +28,7 @@ void Hash::set_from_data(const void *data, ssize_t size) {
   XXH64_hash_t hash = XXH64(data, size, 0);
 
   // Convert from endian-specific representation to endian-independent byte array.
-  XXH64_canonicalFromHash((XXH64_canonical_t*)&arr_, hash);
+  XXH64_canonicalFromHash(reinterpret_cast<XXH64_canonical_t *>(&arr_), hash);
 }
 
 /**
@@ -37,7 +38,7 @@ void Hash::set_from_protobuf(const google::protobuf::MessageLite &msg) {
   uint32_t msg_size = msg.ByteSize();
   uint8_t *buf = new uint8_t[msg_size];
   msg.SerializeWithCachedSizesToArray(buf);
-  set_from_data((void *)buf, msg_size);
+  set_from_data(reinterpret_cast<void *>(buf), msg_size);
   delete[] buf;
 }
 
@@ -211,7 +212,7 @@ std::string Hash::to_hex() const {
   std::string ret;
   ret.reserve(sizeof(arr_) * 2);
   for (unsigned int i = 0; i < sizeof(arr_); i++) {
-    sprintf(hex, "%02x", (unsigned char)(arr_[i]));
+    snprintf(hex, sizeof(hex), "%02x", (unsigned char)(arr_[i]));
     ret += hex;
   }
   return ret;

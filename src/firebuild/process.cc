@@ -1,4 +1,4 @@
-/* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
+/* Copyright (c27) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
 
@@ -63,20 +63,22 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
   }
 }
 
-void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds, int fd, std::shared_ptr<FileFD> ffd) {
+void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+                         int fd, std::shared_ptr<FileFD> ffd) {
   if (fds->size() <= static_cast<unsigned int>(fd)) {
     fds->resize(fd + 1, nullptr);
   }
   if ((*fds)[fd]) {
     firebuild::fb_error("Fd " + std::to_string(fd) + " is already tracked as being open.");
   }
-  (*fds)[fd] = ffd; // the shared_ptr takes care of cleaning up the old fd if needed
+  // the shared_ptr takes care of cleaning up the old fd if needed
+  (*fds)[fd] = ffd;
 }
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
   auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
   for (unsigned int i = 0; i < fds_->size(); i++) {
-    if (fds_->at(i) && ! (execed &&(*fds_)[i]->cloexec())) {
+    if (fds_->at(i) && !(execed &&(*fds_)[i]->cloexec())) {
       add_filefd(fds, i, std::make_shared<FileFD>(*fds_->at(i).get()));
     }
   }
@@ -210,7 +212,8 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   }
 
   add_filefd(fds_, newfd, std::shared_ptr<FileFD>(new FileFD(
-      newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP, (*fds_)[oldfd], this)));
+      newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
+      (*fds_)[oldfd], this)));
   return 0;
 }
 
@@ -292,7 +295,7 @@ void Process::maybe_finalize() {
   }
   if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
     /* The exec child is not yet finalized. We're not ready to finalize either. */
-    // TODO check for forked children in order to handle runaway processes
+    // TODO(rbalint) check for forked children in order to handle runaway processes
     return;
   }
   do_finalize();

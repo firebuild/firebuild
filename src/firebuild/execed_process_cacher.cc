@@ -5,6 +5,10 @@
 
 #include <unistd.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/fb-cache.pb.h"
@@ -40,7 +44,7 @@ class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldVa
       ret += "  # ";
       char buf[3];
       for (unsigned int i = 0; i < Hash::hash_size(); i++) {
-        sprintf(buf, "%02x", (unsigned char)(val[i]));
+        snprintf(buf, sizeof(buf), "%02x", (unsigned char)(val[i]));
         ret += buf;
       }
     }
@@ -212,7 +216,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         firebuild::msg::File* file_written = pio.mutable_outputs()->add_file_with_hash();
         file_written->set_path(filename);
         file_written->set_hash(hash.to_binary());
-        // TODO fail if setuid/setgid/sticky is set
+        // TODO(egmont) fail if setuid/setgid/sticky is set
         file_written->set_mode(st.st_mode & 07777);
       } else {
         if (fu->initial_state() != NOTEXIST) {
@@ -223,7 +227,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   pio.mutable_outputs()->set_exit_status(proc->exit_status());
-  // TODO Add all sorts of other stuff
+  // TODO(egmont) Add all sorts of other stuff
 
   std::string debug_header;
   msg::ProcessFingerprint *debug_msg = NULL;
@@ -252,8 +256,10 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const msg::File& file : pi.file_exist_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
     if (!on_fs_hash.set_from_file(file.path(), NULL)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
-                                  pretty_print_string(file.path()) + ": file expected but does not exist");
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_hex()
+               + " mismatches e.g. at " + pretty_print_string(file.path())
+               + ": file expected but does not exist");
       return false;
     }
     in_cache_hash.set_hash_from_binary(file.hash());
@@ -262,26 +268,32 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
                                   pretty_print_string(file.path()) + ": hash differs");
       return false;
     }
-    // TODO: also check for file type (regular vs. directory) matching.
+    // TODO(egmont): also check for file type (regular vs. directory) matching.
   }
   for (const std::string& filename : pi.file_exist()) {
     if (stat64(filename.c_str(), &st) == -1) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
-                                  pretty_print_string(filename) + ": file expected but does not exist");
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_hex()
+               + " mismatches e.g. at " + pretty_print_string(filename)
+               + ": file expected but does not exist");
       return false;
     }
   }
   for (const std::string& filename : pi.file_notexist_or_empty()) {
     if (stat64(filename.c_str(), &st) != -1 && st.st_size > 0) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
-                                  pretty_print_string(filename) + ": file expected to be missing or empty, non-empty file found");
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_hex()
+               + " mismatches e.g. at " + pretty_print_string(filename)
+               + ": file expected to be missing or empty, non-empty file found");
       return false;
     }
   }
   for (const std::string& filename : pi.file_notexist()) {
     if (stat64(filename.c_str(), &st) != -1) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
-                                  pretty_print_string(filename) + ": file expected to be missing, existing file is found");
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_hex()
+               + " mismatches e.g. at " + pretty_print_string(filename)
+               + ": file expected to be missing, existing file is found");
       return false;
     }
   }
@@ -302,7 +314,7 @@ msg::ProcessInputsOutputs *ExecedProcessCacher::find_shortcut(const ExecedProces
   msg::ProcessInputsOutputs inouts;
   msg::ProcessInputsOutputs *ret = NULL;
   int count = 0;
-  Hash fingerprint = fingerprints_[proc]; // FIXME error handling
+  Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
   std::vector<Hash> subkeys = multi_cache_->list_subkeys(fingerprint);
@@ -311,7 +323,8 @@ msg::ProcessInputsOutputs *ExecedProcessCacher::find_shortcut(const ExecedProces
   }
   for (const Hash& subkey : subkeys) {
     if (!multi_cache_->retrieve_protobuf(fingerprint, subkey, &inouts)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Cannot retrieve " + subkey.to_hex() + " from multicache, ignoring");
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   Cannot retrieve " + subkey.to_hex() + " from multicache, ignoring");
       continue;
     }
     if (!inouts.has_inputs() || pi_matches_fs(inouts.inputs(), subkey)) {
@@ -324,7 +337,8 @@ msg::ProcessInputsOutputs *ExecedProcessCacher::find_shortcut(const ExecedProces
          * make sure that there are no other matches. */
       }
       if (count == 2) {
-        FB_DEBUG(FB_DEBUG_SHORTCUT, "│   More than 1 matching candidates found, ignoring them all");
+        FB_DEBUG(FB_DEBUG_SHORTCUT,
+                 "│   More than 1 matching candidates found, ignoring them all");
         delete ret;
         return NULL;
       }
@@ -367,7 +381,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   fu.set_written(true);
 
   for (const msg::File& file : inouts.outputs().file_with_hash()) {
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Fetching file from blobs cache: " + pretty_print_string(file.path()));
+    FB_DEBUG(FB_DEBUG_SHORTCUT,
+             "│   Fetching file from blobs cache: "
+             + pretty_print_string(file.path()));
     Hash hash;
     hash.set_hash_from_binary(file.hash());
     cache_->retrieve_file(hash, file.path());
@@ -389,7 +405,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   /* Set the exit code, propagate upwards. */
-  // TODO what to do with resource usage?
+  // TODO(egmont) what to do with resource usage?
   proc->exit_result(inouts.outputs().exit_status(), 0, 0);
 
   return true;

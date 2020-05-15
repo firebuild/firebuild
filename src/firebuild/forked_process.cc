@@ -1,9 +1,10 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
+#include <memory>
+#include <vector>
 
 #include "firebuild/forked_process.h"
-
 #include "firebuild/debug.h"
 
 namespace firebuild {

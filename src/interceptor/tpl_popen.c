@@ -14,7 +14,7 @@
     auto m = ic_msg.mutable_popen();
     if (cmd != NULL) m->set_cmd(cmd);
     if (type != NULL) m->set_type(type);
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
@@ -29,7 +29,7 @@
       auto m = ic_msg.mutable_popen_failed();
       m->set_error_no(saved_errno);
     }
-    fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     pthread_mutex_unlock(&ic_system_popen_lock);
   }
 ### endblock send_msg

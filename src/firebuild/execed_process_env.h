@@ -2,9 +2,10 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_EXECEDPROCESSENV_H_
-#define FIREBUILD_EXECEDPROCESSENV_H_
+#ifndef FIREBUILD_EXECED_PROCESS_ENV_H_
+#define FIREBUILD_EXECED_PROCESS_ENV_H_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -19,7 +20,7 @@ namespace firebuild {
 class ExecedProcessEnv {
  public:
   ExecedProcessEnv();
-  ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  explicit ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   bool operator == (ExecedProcessEnv const &pp) const;
 
   std::vector<std::string>& argv() {return argv_;}
@@ -42,4 +43,4 @@ inline bool ExecedProcessEnv::operator == (ExecedProcessEnv const &pp) const {
 std::string to_string(ExecedProcessEnv const&);
 
 }  // namespace firebuild
-#endif  // FIREBUILD_EXECEDPROCESSENV_H_
+#endif  // FIREBUILD_EXECED_PROCESS_ENV_H_

@@ -109,10 +109,10 @@ static int get_next_ack_id() {
   return (ack_id++);
 }
 
-void fb_send_msg_and_check_ack(msg::InterceptorMsg& ic_msg, int fd) {
+void fb_send_msg_and_check_ack(msg::InterceptorMsg *ic_msg, int fd) {
   int ack_num = get_next_ack_id();
-  ic_msg.set_ack_num(ack_num);
-  fb_send_msg(ic_msg, fd);
+  ic_msg->set_ack_num(ack_num);
+  fb_send_msg(*ic_msg, fd);
 
   msg::SupervisorMsg sv_msg;
   auto len = fb_recv_msg(&sv_msg, fd);
@@ -308,7 +308,7 @@ void handle_exit(const int status) {
     auto *fl = m->mutable_libs();
     dl_iterate_phdr(shared_libs_cb, fl);
   }
-  fb_send_msg_and_check_ack(ic_msg, fb_sv_conn);
+  fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 }
 }  // extern "C"
 
@@ -365,7 +365,8 @@ int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   }
   const char *libfbintercept = "/libfbintercept.so";
   if (strlen(info->dlpi_name) >= strlen(libfbintercept) &&
-    strcmp(info->dlpi_name + strlen(info->dlpi_name) - strlen(libfbintercept), libfbintercept) == 0) {
+    strcmp(info->dlpi_name + strlen(info->dlpi_name)
+           - strlen(libfbintercept), libfbintercept) == 0) {
     /* This is internal to Firebuild, filter it out. */
     return 0;
   }

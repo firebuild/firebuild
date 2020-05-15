@@ -2,13 +2,15 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#ifndef FIREBUILD_EXECEDPROCESS_H_
-#define FIREBUILD_EXECEDPROCESS_H_
+#ifndef FIREBUILD_EXECED_PROCESS_H_
+#define FIREBUILD_EXECED_PROCESS_H_
 
 #include <cassert>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "firebuild/file_usage.h"
 #include "firebuild/process.h"
@@ -50,7 +52,7 @@ class ExecedProcess : public Process {
   const std::unordered_map<std::string, FileUsage*>& file_usages() const {return file_usages_;}
   void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
   void do_finalize();
-  Process* exec_proc() const {return const_cast<ExecedProcess*>(this);};
+  Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
   void exit_result(const int status, const int64_t utime_u,
                    const int64_t stime_u);
 
@@ -85,7 +87,8 @@ class ExecedProcess : public Process {
       cant_shortcut_reason_ = reason;
       assert(cant_shortcut_proc_ == NULL);
       cant_shortcut_proc_ = p ? p : this;
-      FB_DEBUG(FB_DEBUG_PROC, "Command \"" + executable_ + "\" can't be short-cut due to: " + reason);
+      FB_DEBUG(FB_DEBUG_PROC, "Command \"" + executable_
+               + "\" can't be short-cut due to: " + reason);
       if (parent()) {
         parent()->disable_shortcutting(reason, cant_shortcut_proc_);
       }
@@ -139,4 +142,4 @@ class ExecedProcess : public Process {
 
 
 }  // namespace firebuild
-#endif  // FIREBUILD_EXECEDPROCESS_H_
+#endif  // FIREBUILD_EXECED_PROCESS_H_

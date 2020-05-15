@@ -2,10 +2,12 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_FILEUSAGE_H_
-#define FIREBUILD_FILEUSAGE_H_
+#ifndef FIREBUILD_FILE_USAGE_H_
+#define FIREBUILD_FILE_USAGE_H_
 
 #include <sys/stat.h>
+
+#include <string>
 
 #include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -35,7 +37,7 @@ class FileUsage {
       /*read_(false),*/ initial_hash_(hash),
       stated_(false), initial_stat_(), initial_stat_err_(0),
       written_(false), stat_changed_(true), unknown_err_(0) {}
-  FileUsage(FileInitialState initial_state) :
+  explicit FileUsage(FileInitialState initial_state) :
       FileUsage(initial_state, Hash()) {}
   FileUsage() : FileUsage(DONTCARE) {}
 
@@ -54,7 +56,6 @@ class FileUsage {
 
 
  private:
-
   /* Things that describe the filesystem when the process started up */
 
   /** The file's contents at the process's startup. More precisely, at
@@ -108,4 +109,4 @@ class FileUsage {
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_FILEUSAGE_H_
+#endif  // FIREBUILD_FILE_USAGE_H_

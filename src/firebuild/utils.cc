@@ -1,6 +1,8 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
+#include <string>
+
 #include "firebuild/utils.h"
 
 #include "firebuild/debug.h"
@@ -14,7 +16,7 @@ namespace firebuild {
  */
 bool path_begins_with(const std::string& path, const std::string& prefix) {
   /* Strip off trailing slashes from prefix. */
-  unsigned long prefixlen = prefix.length();
+  auto prefixlen = prefix.length();
   while (prefixlen > 0 && prefix[prefixlen - 1] == '/') {
     prefixlen--;
   }

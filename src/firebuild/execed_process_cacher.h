@@ -1,9 +1,10 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_EXECEDPROCESSCACHER_H_
-#define FIREBUILD_EXECEDPROCESSCACHER_H_
+#ifndef FIREBUILD_EXECED_PROCESS_CACHER_H_
+#define FIREBUILD_EXECED_PROCESS_CACHER_H_
 
+#include <string>
 #include <unordered_map>
 #include <libconfig.h++>
 
@@ -52,4 +53,4 @@ class ExecedProcessCacher {
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_EXECEDPROCESSCACHER_H_
+#endif  // FIREBUILD_EXECED_PROCESS_CACHER_H_

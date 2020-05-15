@@ -55,7 +55,8 @@ int File::update() {
       }
       mtimes_[i] = s.st_mtim;
       // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
-      // "A pathname that begins with two successive slashes may be interpreted in an implementation-defined manner [...]"
+      // "A pathname that begins with two successive slashes may be interpreted
+      // in an implementation-defined manner [...]"
       if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir)) || (0 == strcmp("//", dir))) {
         break;
       } else {
@@ -73,8 +74,7 @@ int File::update() {
 
 #ifndef timespeccmp
 #define timespeccmp(a, b, CMP)                                          \
-  (((a)->tv_sec == (b)->tv_sec)?((a)->tv_nsec CMP(b)->tv_nsec):         \
-   ((a)->tv_sec CMP(b)->tv_sec))
+  (((a)->tv_sec == (b)->tv_sec)?((a)->tv_nsec CMP(b)->tv_nsec):((a)->tv_sec CMP(b)->tv_sec))
 #endif
 
 int File::is_changed() {
@@ -108,7 +108,8 @@ int File::is_changed() {
         return 1;
       }
       // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
-      // "A pathname that begins with two successive slashes may be interpreted in an implementation-defined manner [...]"
+      // "A pathname that begins with two successive slashes may be interpreted
+      // in an implementation-defined manner [...]"
       if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir)) || (0 == strcmp("//", dir))) {
         break;
       } else {
