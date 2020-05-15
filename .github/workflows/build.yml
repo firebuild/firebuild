@@ -88,3 +88,18 @@ jobs:
         cd test
         ./run-firebuild make -C ../build clean
         time ./run-firebuild make -C ../build all
+  style-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        sudo add-apt-repository -y -u ppa:rbalint/xxhash
+        sudo apt-get -y install cmake libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev python3-pip
+        # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
+        pip3 install cpplint
+    - name: configure
+      run: cmake .
+    - name: style-check
+      run: env PATH=$HOME/.local/bin:$PATH make style-check
