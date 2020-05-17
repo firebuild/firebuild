@@ -43,7 +43,7 @@ static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
 /** The connection sockets are derived from the fb_conn_string by appending an integer. */
-static std::string fb_conn_string;
+static char *fb_conn_string;
 
 /** Pool of listenter sockets
  *
@@ -124,7 +124,7 @@ static char** get_sanitized_env() {
     env_v.push_back(preset[i]);
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
-  env_v.push_back("FB_SOCKET=" + fb_conn_string);
+  env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
 
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
@@ -632,7 +632,7 @@ static void init_listeners() {
 
     struct sockaddr_un local;
     local.sun_family = AF_UNIX;
-    snprintf(local.sun_path, sizeof(local.sun_path), "%s%d", fb_conn_string.c_str(), i);
+    snprintf(local.sun_path, sizeof(local.sun_path), "%s%d", fb_conn_string, i);
 
     auto len = strlen(local.sun_path) + sizeof(local.sun_family);
     if (bind(listener, (struct sockaddr *)&local, len) == -1) {
@@ -801,7 +801,7 @@ int main(const int argc, char *argv[]) {
       perror("mkdtemp");
       exit(EXIT_FAILURE);
     }
-    fb_conn_string = std::string(fb_tmp_dir) + "/socket.";
+    fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket.").c_str());
   }
   auto env_exec = get_sanitized_env();
 
@@ -973,13 +973,14 @@ int main(const int argc, char *argv[]) {
   close_listeners();
   for (size_t i = 0; i < (sizeof(fb_listener_pool) / sizeof(fb_listener_pool[0])); i++) {
     close(fb_listener_pool[i]);
-    unlink((fb_conn_string + std::to_string(i)).c_str());
+    unlink((std::string(fb_conn_string) + std::to_string(i)).c_str());
   }
   rmdir(fb_tmp_dir);
 
   delete(error_fos);
   fclose(sigchld_stream);
   close(sigchld_fds[0]);
+  free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
   delete(cfg);
