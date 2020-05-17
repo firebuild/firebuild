@@ -25,14 +25,17 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
     add_filefd(fds_, STDIN_FILENO,
-               std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
-                                                  this)));
+               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
+                                        std::shared_ptr<FileFD>(nullptr),
+                                        this));
     add_filefd(fds_, STDOUT_FILENO,
-               std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
-                                                  this)));
+               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
+                                        std::shared_ptr<FileFD>(nullptr),
+                                        this));
     add_filefd(fds_, STDERR_FILENO,
-               std::shared_ptr<FileFD>(new FileFD(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT, NULL,
-                                                  this)));
+               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
+                                        std::shared_ptr<FileFD>(nullptr),
+                                        this));
   }
 }
 
@@ -91,7 +94,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
       (wd() + "/" + ar_name);
 
   if (fd >= 0) {
-    add_filefd(fds_, fd, std::shared_ptr<FileFD>(new FileFD(name, fd, flags, this)));
+    add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
   }
 
   if (!exec_point()->register_file_usage(name, flags, error)) {
@@ -176,10 +179,10 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
     return -1;
   }
 
-  add_filefd(fds_, fd1, std::shared_ptr<FileFD>(new FileFD(
-      fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this)));
-  add_filefd(fds_, fd2, std::shared_ptr<FileFD>(new FileFD(
-      fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this)));
+  add_filefd(fds_, fd1, std::make_shared<FileFD>(
+      fd1, (flags & ~O_ACCMODE) | O_RDONLY, FD_ORIGIN_PIPE, this));
+  add_filefd(fds_, fd2, std::make_shared<FileFD>(
+      fd2, (flags & ~O_ACCMODE) | O_WRONLY, FD_ORIGIN_PIPE, this));
   return 0;
 }
 
@@ -211,9 +214,9 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
     handle_close(newfd, 0);
   }
 
-  add_filefd(fds_, newfd, std::shared_ptr<FileFD>(new FileFD(
+  add_filefd(fds_, newfd, std::make_shared<FileFD>(
       newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
-      (*fds_)[oldfd], this)));
+      (*fds_)[oldfd], this));
   return 0;
 }
 
