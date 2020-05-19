@@ -85,8 +85,8 @@ class ProcessTree {
    * @param pid child's PID
    * @param fds file descriptors to be inherited by the child
    */
-  void SaveForkParentState(int pid, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
-    pid2fork_parent_fds_[pid] = fds;
+  void SaveForkParentState(int pid, std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
+    pid2fork_parent_fds_[pid] = std::move(fds);
   }
   void QueueForkChild(int pid, int sock, int ppid, int ack_num) {
     pid2fork_child_sock_[pid] = {sock, ppid, ack_num};
@@ -94,9 +94,9 @@ class ProcessTree {
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Pid2ForkParentFds(const int pid) {
+  std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> Pid2ForkParentFds(const int pid) {
     try {
-      return pid2fork_parent_fds_.at(pid);
+      return std::move(pid2fork_parent_fds_.at(pid));
     } catch (const std::out_of_range& oor) {
       return nullptr;
     }
@@ -131,7 +131,7 @@ class ProcessTree {
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int,
-                     std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
+                     std::unique_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
   std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
   /**

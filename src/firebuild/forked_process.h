@@ -21,7 +21,7 @@ class ExecedProcess;
 class ForkedProcess : public Process {
  public:
   explicit ForkedProcess(const int pid, const int ppid, Process* parent,
-                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+                         std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   ExecedProcess* exec_point() {return exec_point_;}
   const ExecedProcess* exec_point() const {return exec_point_;}
   /**

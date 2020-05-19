@@ -69,7 +69,7 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, const std::string &wd,
-          Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+          Process* parent, std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -113,7 +113,7 @@ class Process {
     assert(!expected_child_);
     expected_child_ = ec;
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+  std::unique_ptr<std::vector<std::shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&, const bool failed = false);
   bool has_expected_child () {return expected_child_?true:false;}
   virtual void do_finalize();
@@ -130,8 +130,8 @@ class Process {
       return nullptr;
     }
   }
-  void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
+  void set_fds(std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = std::move(fds);}
+  std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
 
   /**
    * Handle file opening in the monitored process
@@ -217,7 +217,7 @@ class Process {
   int ppid_;         ///< UNIX ppid
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   std::string wd_;  ///< Current working directory
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
+  std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
   std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   int64_t utime_u_;  ///< user time in microseconds as reported by getrusage()
   /// system time in microseconds as reported by getrusage()
@@ -233,7 +233,7 @@ class Process {
   bool exec_pending_ {false};
   Process * exec_child_;
   /** Add add ffd FileFD* to open fds */
-  void add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+  void add_filefd(std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                   const int fd, std::shared_ptr<FileFD> ffd);
   DISALLOW_COPY_AND_ASSIGN(Process);
 };

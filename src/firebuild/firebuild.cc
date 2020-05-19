@@ -291,7 +291,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto scq = ic_msg.scproc_query();
 
     firebuild::Process *parent = NULL;
-    std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds = nullptr;
+    std::unique_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds = nullptr;
 
     /* Locate the parent in case of execve or alike. This includes the
      * case when the outermost intercepted process starts up (no
@@ -307,7 +307,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         /* Queue the ExecedProcess until parent's connection is closed */
         auto proc =
             firebuild::ProcessFactory::getExecedProcess(
-                ic_msg.scproc_query(), parent, fds);
+                ic_msg.scproc_query(), parent, std::move(fds));
         proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
         return;
       }
@@ -323,7 +323,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                                    ic_msg.scproc_query().arg().end()));
 
       /* Add a ForkedProcess for the forked child we never directly saw. */
-      parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent, fds);
+      parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent, std::move(fds));
       parent->set_state(firebuild::FB_PROC_TERMINATED);
       // FIXME set exec_child_ ???
       proc_tree->insert(parent, -1);
@@ -332,7 +332,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     /* Add the ExecedProcess. */
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
-            ic_msg.scproc_query(), parent, fds);
+            ic_msg.scproc_query(), parent, std::move(fds));
     accept_exec_child(proc, fd_conn, proc_tree);
 
   } else if (ic_msg.has_fork_child()) {
@@ -351,7 +351,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       /* record new process */
       auto pproc = proc_tree->pid2proc(ppid);
       auto proc =
-          firebuild::ProcessFactory::getForkedProcess(fork_child.pid(), pproc, fork_parent_fds);
+          firebuild::ProcessFactory::getForkedProcess(fork_child.pid(), pproc, std::move(fork_parent_fds));
       proc_tree->insert(proc, fd_conn);
       proc_tree->DropForkParentFds(fork_child.pid());
       ack_msg(fd_conn, ic_msg.ack_num());

@@ -10,7 +10,7 @@ namespace firebuild {
 
 ExecedProcessEnv::ExecedProcessEnv() : argv_(), fds_(nullptr) { }
 
-ExecedProcessEnv::ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+ExecedProcessEnv::ExecedProcessEnv(std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : argv_(), fds_(fds) { }
 
 void ExecedProcessEnv::set_sh_c_command(const std::string &cmd) {

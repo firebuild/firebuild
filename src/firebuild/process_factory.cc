@@ -10,13 +10,13 @@ class ExecedProcessCacher;
 
 ForkedProcess*
 ProcessFactory::getForkedProcess(const int pid, Process * const parent,
-                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
+                                 std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
   return new ForkedProcess(pid, parent->pid(), parent, fds);
 }
 
 ExecedProcess*
 ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent,
-                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
+                                 std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
   auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),
                              scpq.executable(), parent, fds);
 

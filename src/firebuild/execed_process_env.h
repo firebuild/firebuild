@@ -20,19 +20,19 @@ namespace firebuild {
 class ExecedProcessEnv {
  public:
   ExecedProcessEnv();
-  explicit ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  explicit ExecedProcessEnv(std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   bool operator == (ExecedProcessEnv const &pp) const;
 
   std::vector<std::string>& argv() {return argv_;}
   const std::vector<std::string>& argv() const {return argv_;}
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
+  std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return std::move(fds_);}
 
   void set_sh_c_command(const std::string&);
 
  private:
   std::vector<std::string> argv_;
   /// File descriptor states intherited from parent
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
+  std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
   // TODO(egmont) add envp ?
 };
 

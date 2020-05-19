@@ -4,6 +4,7 @@
 
 #include "firebuild/process.h"
 
+#include <memory>
 #include <unistd.h>
 
 #include "firebuild/file.h"
@@ -17,13 +18,13 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const std::string &wd,
-                 Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                 Process * parent, std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
-      pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
+      pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(std::move(fds)),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
       running_system_cmds_(), expected_child_(), exec_child_(NULL) {
   if (!fds_) {
-    fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+    fds_ = std::make_unique<std::vector<std::shared_ptr<FileFD>>>();
     add_filefd(fds_, STDIN_FILENO,
                std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
                                         std::shared_ptr<FileFD>(nullptr),
@@ -66,7 +67,7 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
   }
 }
 
-void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+void Process::add_filefd(std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                          int fd, std::shared_ptr<FileFD> ffd) {
   if (fds->size() <= static_cast<unsigned int>(fd)) {
     fds->resize(fd + 1, nullptr);
@@ -78,8 +79,8 @@ void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> f
   (*fds)[fd] = ffd;
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
-  auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+std::unique_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
+  auto fds = std::make_unique<std::vector<std::shared_ptr<FileFD>>>();
   for (unsigned int i = 0; i < fds_->size(); i++) {
     if (fds_->at(i) && !(execed &&(*fds_)[i]->cloexec())) {
       add_filefd(fds, i, std::make_shared<FileFD>(*fds_->at(i).get()));
@@ -252,7 +253,7 @@ void Process::set_wd(const std::string &ar_d) {
   add_wd(d);
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+std::unique_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv, const bool failed) {
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
