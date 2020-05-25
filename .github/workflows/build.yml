@@ -80,7 +80,10 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
+        # work around breaking 18.04's make https://github.com/rbalint/fb/issues/174
+        sudo add-apt-repository -y -u ppa:rbalint/make
         sudo apt-get -y install cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev python3-jinja2
+        sudo apt-get -y upgrade
     - name: rebuild self
       run: |
         tools/rebuild-self build
