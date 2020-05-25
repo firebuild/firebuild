@@ -16,3 +16,8 @@ Install the dependencies:
 Get [d3 version 5](https://github.com/d3/d3/releases),
 extract `d3.min.js` from the zip, rename and place it as
 `data/d3.v5.min.js`.
+
+## Notes
+
+ Firebuild breaks running make < 4.2 in parallel mode, thus it is recommended
+ to run builds accelerated/analysed by firebuild with make >= 4.2.
