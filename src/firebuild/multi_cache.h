@@ -4,11 +4,12 @@
 #ifndef FIREBUILD_MULTI_CACHE_H_
 #define FIREBUILD_MULTI_CACHE_H_
 
-#include <google/protobuf/message.h>
-#include <google/protobuf/text_format.h>
 
 #include <string>
 #include <vector>
+
+#include <google/protobuf/message.h>
+#include <google/protobuf/text_format.h>
 
 #include "firebuild/hash.h"
 
