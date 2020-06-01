@@ -10,7 +10,7 @@
 
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
-#include "firebuild/platform.h"
+#include "interceptor/ic_platform.h"
 
 namespace firebuild {
 
