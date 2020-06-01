@@ -16,12 +16,21 @@
 #include <stdlib.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/time.h>
+#include <sys/timeb.h>
+#include <bits/timex.h>
+// #include <sys/timex.h>
+struct ntptimeval;
 #include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/vfs.h>
 #include <unistd.h>
+// #include <ustat.h>
+struct statx;
+struct ustat;
 #include <utime.h>
-
-#include "fb-messages.pb.h"
+#include <wchar.h>
 
 #if __GLIBC_PREREQ (2, 28)
 #define FB_SSIZE_T ssize_t
@@ -31,10 +40,12 @@
 #define FB_VA_LIST _G_va_list
 #endif
 
+#ifdef  __cplusplus
+
 namespace firebuild {
 
-#ifdef  __cplusplus
 extern "C" {
+
 #endif
 
 void init_interceptors();
@@ -45,9 +56,11 @@ void reset_interceptors();
 #include "interceptor/gen_decl.h"
 
 #ifdef  __cplusplus
+
 }  // extern "C"
-#endif
 
 }  // namespace firebuild
+
+#endif
 
 #endif  // FIREBUILD_INTERCEPTORS_H_

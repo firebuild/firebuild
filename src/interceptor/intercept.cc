@@ -12,11 +12,9 @@
 #include <sys/resource.h>
 #include <spawn.h>
 
-#include <algorithm>
 #include <cassert>
 #include <cstdarg>
 #include <cstdlib>
-#include <string>
 
 #include "interceptor/env.h"
 #include "interceptor/interceptors.h"
@@ -25,15 +23,9 @@
 
 namespace firebuild {
 
-#ifdef  __cplusplus
 extern "C" {
-#endif
 
 static void fb_ic_cleanup() __attribute__((destructor));
-
-#ifdef  __cplusplus
-}  // extern "C"
-#endif
 
 /** file fd states */
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
@@ -54,7 +46,7 @@ char * fb_conn_string = NULL;
 int fb_sv_conn = -1;
 
 /** interceptor init has been run */
-bool ic_init_done = false;
+int ic_init_done = false;
 
 /**
  * Stored PID
@@ -69,38 +61,34 @@ __thread const char *intercept_on = NULL;
 int32_t debug_flags = 0;
 
 /** Insert marker open()-s for strace, ltrace, etc. */
-bool insert_trace_markers = false;
+int insert_trace_markers = false;
 
 /** Next ACK id*/
 static int ack_id = 0;
 
 /** Insert debug message */
-void insert_debug_msg(const std::string &m) {
+void insert_debug_msg(const char* m) {
   if (insert_trace_markers) {
     int saved_errno = errno;
-    const std::string tpl = "/FIREBUILD   ###   ";
-    ic_orig_open((tpl + m).c_str(), 0);
+    char tpl[256] = "/FIREBUILD   ###   ";
+    ic_orig_open(strncat(tpl, m, sizeof(tpl) - strlen(tpl) - 1), 0);
     errno = saved_errno;
   }
 }
 
 /** Insert interception begin marker */
-void insert_begin_marker(const std::string &m) {
+void insert_begin_marker(const char* m) {
   if (insert_trace_markers) {
-    // TODO(egmont) Can string concatenation tamper with errno? Let's play safe.
-    int saved_errno = errno;
-    insert_debug_msg("intercept-begin: " + m);
-    errno = saved_errno;
+    char tpl[256] = "intercept-begin: ";
+    insert_debug_msg(strncat(tpl, m, sizeof(tpl) - strlen(tpl) - 1));
   }
 }
 
 /** Insert interception end marker */
-void insert_end_marker(const std::string &m) {
+void insert_end_marker(const char* m) {
   if (insert_trace_markers) {
-    // TODO(egmont) Can string concatenation tamper with errno? Let's play safe.
-    int saved_errno = errno;
-    insert_debug_msg("intercept-end: " + m);
-    errno = saved_errno;
+    char tpl[256] = "intercept-end: ";
+    insert_debug_msg(strncat(tpl, m, sizeof(tpl) - strlen(tpl) - 1));
   }
 }
 
@@ -109,8 +97,9 @@ static int get_next_ack_id() {
   return (ack_id++);
 }
 
-void fb_send_msg_and_check_ack(msg::InterceptorMsg *ic_msg, int fd) {
+void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
   int ack_num = get_next_ack_id();
+  auto ic_msg = reinterpret_cast<msg::InterceptorMsg *>(void_ic_msg);
   ic_msg->set_ack_num(ack_num);
   fb_send_msg(*ic_msg, fd);
 
@@ -118,6 +107,14 @@ void fb_send_msg_and_check_ack(msg::InterceptorMsg *ic_msg, int fd) {
   auto len = fb_recv_msg(&sv_msg, fd);
   assert(len > 0);
   assert(sv_msg.ack_num() == ack_num);
+}
+
+/** Compare compare pointers to char* like strcmp() for char* */
+static int cmpstringpp(const void *p1, const void *p2) {
+  /* The actual arguments to this function are "pointers to
+     pointers to char", but strcmp(3) arguments are "pointers
+     to char", hence the following cast plus dereference */
+  return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
 /**
@@ -210,18 +207,28 @@ static void fb_ic_init() {
   proc->set_ppid(ppid);
   proc->set_cwd(cwd_buf);
 
-  for (auto cursor = argv; *cursor != NULL; cursor++) {
+  for (char** cursor = argv; *cursor != NULL; cursor++) {
     proc->add_arg(*cursor);
   }
 
-  for (auto cursor = env; *cursor != NULL; cursor++) {
+  /* make a sorted copy onf env */
+  int env_len = 0;
+  for (char** cursor = env; *cursor != NULL; cursor++) {
+    env_len += 1;
+  }
+
+  char** env_copy = reinterpret_cast<char**>(malloc(env_len * sizeof(env[0])));
+  memcpy(env_copy, env, env_len * sizeof(env[0]));
+
+  qsort(env_copy, env_len, sizeof(env_copy[0]), cmpstringpp);
+
+  /* send sorted env, omitting FB_SOCKET */
+  for (int i = 0; i < env_len; i++) {
     const char *fb_socket = "FB_SOCKET=";
-    if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0) {
-      proc->add_env_var(*cursor);
+    if (strncmp(env_copy[i], fb_socket, strlen(fb_socket)) != 0) {
+      proc->add_env_var(env_copy[i]);
     }
   }
-  std::sort(proc->mutable_env_var()->begin(),
-            proc->mutable_env_var()->end());
 
   // get full executable path
   // see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
@@ -266,9 +273,10 @@ static void fb_ic_init() {
   ic_init_done = true;
   insert_debug_msg("initialization-end");
   intercept_on = NULL;
+
+  free(env_copy);
 }
 
-extern "C" {
 /**
  * Collect information about process the earliest possible, right
  * when interceptor library loads or when the first interceped call happens
@@ -309,7 +317,6 @@ void handle_exit(const int status) {
   }
   fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 }
-}  // extern "C"
 
 static void fb_ic_cleanup() {
   /* Don't put anything here, unless you really know what you're doing!
@@ -335,7 +342,7 @@ ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count) {
 }
 
 /** Send error message to supervisor */
-extern void fb_error(const std::string &msg) {
+extern void fb_error(const char* msg) {
   msg::InterceptorMsg ic_msg;
   auto err = ic_msg.mutable_fb_error();
   err->set_msg(msg);
@@ -343,14 +350,13 @@ extern void fb_error(const std::string &msg) {
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
-void fb_debug(const std::string &msg) {
+void fb_debug(const char* msg) {
   msg::InterceptorMsg ic_msg;
   auto dbg = ic_msg.mutable_fb_debug();
   dbg->set_msg(msg);
   fb_send_msg(ic_msg, fb_sv_conn);
 }
 
-}  // namespace firebuild
 
 /** Add shared library's name to the file list */
 int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
@@ -380,10 +386,6 @@ int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
 
 /* make auditing functions visible */
 #pragma GCC visibility push(default)
-
-#ifdef  __cplusplus
-extern "C" {
-#endif
 
 /**
  * Dynamic linker auditing function
@@ -432,10 +434,9 @@ unsigned int la_objopen(struct link_map *map, const Lmid_t lmid,
   return LA_FLG_BINDTO | LA_FLG_BINDFROM;
 }
 
-
-#ifdef  __cplusplus
 }  // extern "C"
-#endif
+
+}  // namespace firebuild
 
 #pragma GCC visibility pop
 

@@ -8,17 +8,18 @@
 
 #include <errno.h>
 
+#include "common/firebuild_common.h"
+#include "fb-messages.pb.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
 #include "interceptor/ic_platform.h"
 
 namespace firebuild {
 
-extern bool insert_trace_markers;
-
-#ifdef  __cplusplus
 extern "C" {
-#endif
+
+extern int insert_trace_markers;
+
 
 void init_interceptors() {
 /* Include the auto-generated initializations of the ic_orig function pointers */
@@ -38,8 +39,6 @@ void reset_interceptors() {
 /* Include the auto-generated implementations of the interceptor functions */
 #include "interceptor/gen_impl.c"
 
-#ifdef  __cplusplus
 }  // extern "C"
-#endif
 
 }  // namespace firebuild

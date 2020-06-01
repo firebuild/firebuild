@@ -9,12 +9,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include <cstdarg>
-#include <cstdlib>
+#include <stdarg.h>
+#include <stdlib.h>
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
+int euidaccess(const char *pathname, int mode);
+int open64(const char *file, int flags, ...);
 
 /* make redirected functions visible */
 #pragma GCC visibility push(default)
@@ -51,7 +50,3 @@ extern int eaccess(const char *pathname, int mode) {
 }
 
 #pragma GCC visibility pop
-
-#ifdef  __cplusplus
-}  // extern "C"
-#endif
