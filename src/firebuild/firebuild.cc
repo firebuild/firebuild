@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -18,6 +16,8 @@
 #include <cerrno>
 #include <cstdio>
 #include <stdexcept>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
 #include <libconfig.h++>
 
 

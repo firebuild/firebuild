@@ -4,11 +4,11 @@
 #ifndef FIREBUILD_HASH_H_
 #define FIREBUILD_HASH_H_
 
-#include <xxhash.h>
+#include <string>
 
+#include <xxhash.h>
 #include <google/protobuf/message_lite.h>
 
-#include <string>
 
 namespace firebuild {
 
