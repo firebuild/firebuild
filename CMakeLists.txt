@@ -9,7 +9,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
 set(DATADIR "${CMAKE_SOURCE_DIR}/data" CACHE STRING "FireBuild's architecture-independent files' location")
 set(TENTATIVE_C_CXX_FLAGS
-  -std=c++0x
+  -std=c++14
   -W
   -Wall
   -Wextra
