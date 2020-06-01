@@ -1,6 +1,9 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
+#define _LARGEFILE64_SOURCE 1
+#define _GNU_SOURCE
+
 #include "interceptor/ic_file_ops.h"
 
 #include <fcntl.h>
@@ -17,15 +20,13 @@
 #include <link.h>
 #include <sys/resource.h>
 
-#include <cassert>
-#include <cstdarg>
-#include <cstdio>
-#include <cwchar>
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <wchar.h>
 
 #include "interceptor/intercept.h"
-#include "fb-messages.pb.h"
-
-namespace firebuild {
 
 int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
   int flags;
@@ -114,8 +115,8 @@ int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
 void clear_file_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     pthread_mutex_lock(&ic_fd_states_lock);
-    ic_fd_states[fd].read = false;
-    ic_fd_states[fd].written = false;
+    ic_fd_states[fd].read = 0;
+    ic_fd_states[fd].written = 0;
     pthread_mutex_unlock(&ic_fd_states_lock);
   }
 }
@@ -144,9 +145,7 @@ extern int firebuild_fake_main(int argc, char **argv, char **env) {
   memcpy(&orig_argv, &argv[1], sizeof(argv[1]));
 
   insert_debug_msg("orig_main-begin");
-  auto ret = orig_main(argc, orig_argv, env);
+  int ret = orig_main(argc, orig_argv, env);
   insert_debug_msg("orig_main-end");
   return ret;
 }
-
-}  // namespace firebuild

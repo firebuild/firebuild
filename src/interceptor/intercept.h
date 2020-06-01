@@ -9,18 +9,20 @@
 #define FIREBUILD_INTERCEPT_H_
 
 #include <dlfcn.h>
+#include <link.h>
 #include <pthread.h>
 #include <dirent.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <spawn.h>
 
-#include <string>
+#ifdef  __cplusplus
 
-#include "common/firebuild_common.h"
-#include "fb-messages.pb.h"
+extern "C" {
 
 namespace firebuild {
+
+#endif
 
 /** file usage state */
 typedef struct {
@@ -53,22 +55,22 @@ extern void fb_init_supervisor_conn();
 extern pthread_mutex_t ic_global_lock;
 
 /* Send message and wait for ACK */
-extern void fb_send_msg_and_check_ack(firebuild::msg::InterceptorMsg *ic_msg, int fd);
+extern void fb_send_msg_and_check_ack(void* ic_msg, int fd);
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
 /** interceptor init has been run */
-extern bool ic_init_done;
+extern int ic_init_done;
 
 /** Insert debug message */
-extern void insert_debug_msg(const std::string&);
+extern void insert_debug_msg(const char*);
 
 /** Insert begin marker strace, ltrace, etc. */
-extern void insert_begin_marker(const std::string&);
+extern void insert_begin_marker(const char*);
 
 /** Insert end marker strace, ltrace, etc. */
-extern void insert_end_marker(const std::string&);
+extern void insert_end_marker(const char*);
 
 /**
  * Stored PID
@@ -79,10 +81,8 @@ extern int ic_pid;
 /** Per thread variable which we turn on inside call interception */
 extern __thread const char *intercept_on;
 
-}  // namespace firebuild
-
 #ifdef  __cplusplus
-extern "C" {
+}  // namespace firebuild
 #endif
 
 /** Add shared library's name to the file list */
@@ -99,6 +99,5 @@ extern int __libc_start_main(int (*main)(int, char **, char **),
 #ifdef  __cplusplus
 }  // extern "C"
 #endif
-
 
 #endif  // FIREBUILD_INTERCEPT_H_

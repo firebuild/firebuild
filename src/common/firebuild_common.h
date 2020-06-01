@@ -12,6 +12,8 @@ namespace firebuild {
 ssize_t fb_send_msg(const google::protobuf::MessageLite &pb_msg, const int fd);
 ssize_t fb_recv_msg(google::protobuf::MessageLite *pb_msg, const int fd);
 
+extern "C" {
+
 /**
  * wrapper for write() retrying on recoverable errors
  *
@@ -25,6 +27,8 @@ ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count);
  * It is implemented differently in supervisor and interceptor
  */
 ssize_t fb_read_buf(const int fd, void * buf, const size_t count);
+
+}
 
 /** wrapper macro for send() or recv() retrying on recoverable errors */
 #define FB_IO_OP_BUF(mp_op, mp_fd, mp_buf, mp_count, mp_flags, mp_cleanup_bl) \
