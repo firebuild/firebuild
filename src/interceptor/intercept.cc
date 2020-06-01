@@ -36,7 +36,7 @@ static void fb_ic_cleanup() __attribute__((destructor));
 #endif
 
 /** file fd states */
-std::vector<fd_state> *fd_states;
+fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
 /** Global lock for manipulating fd states */
 pthread_mutex_t ic_fd_states_lock;
@@ -185,7 +185,6 @@ static void fb_ic_init() {
   insert_debug_msg("initialization-begin");
 
   // init global variables
-  fd_states = new std::vector<fd_state>();
 
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 

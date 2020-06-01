@@ -113,28 +113,19 @@ int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
 }
 
 void clear_file_state(const int fd) {
-  if (fd >= 0) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     pthread_mutex_lock(&ic_fd_states_lock);
-    try {
-      fd_states->at(fd);
-    } catch (std::exception& e) {
-      fd_states->resize(fd + 1);
-    }
-    (*fd_states)[fd].read = false;
-    (*fd_states)[fd].written = false;
+    ic_fd_states[fd].read = false;
+    ic_fd_states[fd].written = false;
     pthread_mutex_unlock(&ic_fd_states_lock);
   }
 }
 
 void copy_file_state(const int to_fd, const int from_fd) {
-  if ((to_fd >= 0) && (from_fd >= 0)) {
+  if ((to_fd >= 0) && (to_fd < IC_FD_STATES_SIZE) &&
+      (from_fd >= 0) && (from_fd < IC_FD_STATES_SIZE)) {
     pthread_mutex_lock(&ic_fd_states_lock);
-    try {
-      fd_states->at(to_fd);
-    } catch (std::exception& e) {
-      fd_states->resize(to_fd + 1);
-    }
-    (*fd_states)[to_fd] = (*fd_states)[from_fd];
+    ic_fd_states[to_fd] = ic_fd_states[from_fd];
     pthread_mutex_unlock(&ic_fd_states_lock);
   }
 }
