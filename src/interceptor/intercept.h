@@ -16,7 +16,6 @@
 #include <spawn.h>
 
 #include <string>
-#include <vector>
 
 #include "common/firebuild_common.h"
 #include "fb-messages.pb.h"
@@ -25,12 +24,13 @@ namespace firebuild {
 
 /** file usage state */
 typedef struct {
-  bool read; /** file has been read */
-  bool written; /** file has been written to */
+  char read:1; /** file has been read */
+  char written:1; /** file has been written to */
 } fd_state;
 
 /** file fd states */
-extern std::vector<fd_state> *fd_states;
+#define IC_FD_STATES_SIZE 4096
+extern fd_state ic_fd_states[];
 
 /** Global lock for manipulating fd states */
 extern pthread_mutex_t ic_fd_states_lock;
