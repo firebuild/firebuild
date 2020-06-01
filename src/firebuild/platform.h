@@ -4,27 +4,9 @@
 #ifndef FIREBUILD_PLATFORM_H_
 #define FIREBUILD_PLATFORM_H_
 
-#include <cassert>
 #include <string>
 
-#define FB_MISSING(thing) assert(0 && "Missing" && thing)
-
 namespace firebuild {
-
-#ifdef __clang__
-extern "C" {
-inline void* __builtin_apply_args() {
-  FB_MISSING(__func__);
-  return NULL;
-}
-
-inline void* __builtin_apply(void (*)(...), void *, size_t) {
-  FB_MISSING(__func__);
-  return NULL;
-}
-}
-
-#endif
 
 namespace platform {
 

@@ -24,7 +24,6 @@
 
 #include "interceptor/intercept.h"
 #include "fb-messages.pb.h"
-#include "firebuild/platform.h"
 
 namespace firebuild {
 
