@@ -4,9 +4,9 @@
 #ifndef FIREBUILD_CACHE_H_
 #define FIREBUILD_CACHE_H_
 
-#include <string>
-
 #include <google/protobuf/message_lite.h>
+
+#include <string>
 
 #include "firebuild/hash.h"
 
