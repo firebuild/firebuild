@@ -5,10 +5,10 @@
 #include "common/firebuild_common.h"
 
 #include <netinet/in.h>
+#include <google/protobuf/message_lite.h>
 
 #include <cstdlib>
 
-#include <google/protobuf/message_lite.h>
 
 namespace firebuild {
 
