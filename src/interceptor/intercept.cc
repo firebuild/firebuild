@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <link.h>
+#include <pthread.h>
 #include <sys/un.h>
 #include <sys/resource.h>
 #include <spawn.h>
@@ -94,7 +95,7 @@ void insert_end_marker(const char* m) {
 
 /** Get next unique ACK id */
 static int get_next_ack_id() {
-  return (ack_id++);
+  return __atomic_add_fetch(&ack_id, 1, __ATOMIC_SEQ_CST);
 }
 
 void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
