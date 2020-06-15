@@ -68,4 +68,5 @@ if(COVERAGE)
     COMMENT "Generating coverage report with lcov" VERBATIM)
 endif(COVERAGE)
 
-add_custom_target(style-check cpplint --recursive src/ test/)
+add_custom_target(style-check
+  cpplint --recursive ${CMAKE_SOURCE_DIR}/src/ ${CMAKE_SOURCE_DIR}/test/)
