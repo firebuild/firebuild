@@ -14,15 +14,15 @@
 
 #include "firebuild/debug.h"
 
-#define GLOBAL_CONFIG "/etc/firebuildrc"
-#define USER_CONFIG ".firebuildrc"
+#define GLOBAL_CONFIG "/etc/firebuild.conf"
+#define USER_CONFIG ".firebuild.conf"
 
 namespace firebuild {
 
 /** Parse configuration file
  *
  *  If custom_cfg_file is non-NULL, use that.
- *  Otherwise try ~/.firebuildrc, or if that one does not exist then /etc/firebuildrc.
+ *  Otherwise try ~/.firebuild.conf, or if that one does not exist then /etc/firebuild.conf.
  * */
 static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) {
   // we fall back to global configuration file
