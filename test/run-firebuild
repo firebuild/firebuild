@@ -2,9 +2,18 @@
 
 . test_helper.bash
 
-exec $FIREBUILD_PREFIX_CMD firebuild \
+$FIREBUILD_PREFIX_CMD firebuild \
   -c ../etc/firebuild.conf \
   -o 'env_vars.pass_through += "GCOV_PREFIX"' \
   -o 'env_vars.pass_through += "GCOV_PREFIX_STRIP"' \
   -o "ignore_locations += \"$GCOV_PREFIX\"" \
-  "$@"
+  "$@" 2>stderr
+
+exitcode=$?
+
+if [ $exitcode != 0 ]; then
+  echo "firebuild exited with $exitcode, stderr is:" >&2
+  cat stderr >&2
+fi
+
+exit $exitcode
