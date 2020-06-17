@@ -51,6 +51,14 @@ struct exec_child_sock {
   ExecedProcess* incomplete_child;
 };
 
+/** ACK a parent process is waiting for when the child appears */
+struct pending_parent_ack {
+  /** ACK number the parent is waiting for */
+  int ack_num;
+  /** Connection system/popen/posix_spawn parent is waiting on */
+  int sock;
+};
+
 class ProcessTree {
  public:
   ProcessTree()
@@ -94,6 +102,9 @@ class ProcessTree {
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
   }
+  void QueueParentAck(int ppid, int ack, int sock) {
+    ppid2pending_parent_ack_[ppid] = {ack, sock};
+  }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Pid2ForkParentFds(const int pid) {
     try {
       return pid2fork_parent_fds_.at(pid);
@@ -115,6 +126,13 @@ class ProcessTree {
       return nullptr;
     }
   }
+  const pending_parent_ack* PPid2ParentAck(const int ppid) {
+    try {
+      return &ppid2pending_parent_ack_.at(ppid);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
   void DropForkParentFds(const int pid) {
     pid2fork_parent_fds_.erase(pid);
   }
@@ -123,6 +141,9 @@ class ProcessTree {
   }
   void DropQueuedExecChild(const int pid) {
     pid2fork_child_sock_.erase(pid);
+  }
+  void DropParentAck(const int ppid) {
+    ppid2pending_parent_ack_.erase(ppid);
   }
 
  private:
@@ -134,6 +155,7 @@ class ProcessTree {
                      std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
   std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
+  std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds
