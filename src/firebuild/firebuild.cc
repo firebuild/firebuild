@@ -327,6 +327,13 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       parent->set_state(firebuild::FB_PROC_TERMINATED);
       // FIXME set exec_child_ ???
       proc_tree->insert(parent, -1);
+
+      /* Now we can ack the previous system/popen/posix_spawn's second message. */
+      auto pending_ack = proc_tree->PPid2ParentAck(unix_parent->pid());
+      if (pending_ack) {
+        ack_msg(pending_ack->sock, pending_ack->ack_num);
+        proc_tree->DropParentAck(unix_parent->pid());
+      }
     }
 
     /* Add the ExecedProcess. */
@@ -411,10 +418,10 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         expected_child->set_sh_c_command(ic_msg.system().cmd());
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_system_ret()) {
-        // the child should have appeared by now
         if (proc->has_expected_child()) {
-          firebuild::fb_error("system(\"" + ic_msg.system_ret().cmd()
-                              + "\") exited but the call was not registered ");
+          /* skip ACK and send it when the the child arrives */
+          proc_tree->QueueParentAck(proc->pid(), ic_msg.ack_num(), fd_conn);
+          return;
         }
       } else if (ic_msg.has_popen()) {
         // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
@@ -423,7 +430,12 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         expected_child->set_sh_c_command(ic_msg.popen().cmd());
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_popen_parent()) {
-        // FIXME(egmont) Connect pipe's end with child
+        if (proc->has_expected_child()) {
+          /* skip ACK and send it when the the child arrives */
+          proc_tree->QueueParentAck(proc->pid(), ic_msg.ack_num(), fd_conn);
+          return;
+        }
+        // else FIXME(egmont) Connect pipe's end with child
       } else if (ic_msg.has_popen_failed()) {
         // FIXME what if !has_cmd() ?
         proc->pop_expected_child_fds(
@@ -435,7 +447,11 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         }
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_posix_spawn_parent()) {
-        // FIXME(egmont)
+        if (proc->has_expected_child()) {
+          /* skip ACK and send it when the the child arrives */
+          proc_tree->QueueParentAck(proc->pid(), ic_msg.ack_num(), fd_conn);
+          return;
+        }
       } else if (ic_msg.has_posix_spawn_failed()) {
         proc->pop_expected_child_fds(
             std::vector<std::string>(ic_msg.posix_spawn_failed().arg().begin(),
