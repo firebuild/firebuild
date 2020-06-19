@@ -66,9 +66,22 @@ static int child_pid, child_ret = 1;
 static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
 static bool generate_report = false;
+static bool generate_stats = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;
+
+static int stat_execv = 0;
+static int stat_exit = 0;
+static int stat_fork = 0;
+static int stat_popen = 0;
+static int stat_popen_parent = 0;
+static int stat_popen_failed = 0;
+static int stat_posix_spawn = 0;
+static int stat_posix_spawn_parent = 0;
+static int stat_posix_spawn_failed = 0;
+static int stat_system = 0;
+static int stat_system_ret = 0;
 
 static void usage() {
   printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
@@ -88,6 +101,7 @@ static void usage() {
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
          "                             to let users find unintercepted calls using\n"
          "                             strace or ltrace\n"
+         "   -s --stats                dump stats\n"
          "Exit status:\n"
          " exit status of the BUILD COMMAND\n"
          " 1  in case of failure\n");
@@ -358,6 +372,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     }
     return;
   } else if (ic_msg.has_fork_parent()) {
+    stat_fork++;
     auto child_pid = ic_msg.fork_parent().pid();
     /* here pproc is the current process as it is the fork parent */
     auto pproc = proc_tree->Sock2Proc(fd_conn);
@@ -399,10 +414,12 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     try {
       ::firebuild::Process *proc = proc_tree->Sock2Proc(fd_conn);
       if (ic_msg.has_exit()) {
+        stat_exit++;
         proc->exit_result(ic_msg.exit().exit_status(),
                           ic_msg.exit().utime_u(),
                           ic_msg.exit().stime_u());
       } else if (ic_msg.has_system()) {
+        stat_system++;
         proc->add_running_system_cmd(ic_msg.system().cmd());
 
         // system(cmd) launches a child of argv = ["sh", "-c", cmd]
@@ -411,36 +428,44 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         expected_child->set_sh_c_command(ic_msg.system().cmd());
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_system_ret()) {
+        stat_system_ret++;
         // the child should have appeared by now
         if (proc->has_expected_child()) {
           firebuild::fb_error("system(\"" + ic_msg.system_ret().cmd()
                               + "\") exited but the call was not registered ");
         }
       } else if (ic_msg.has_popen()) {
+        stat_popen++;
         // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
         auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
         // FIXME what if !has_cmd() ?
         expected_child->set_sh_c_command(ic_msg.popen().cmd());
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_popen_parent()) {
+        stat_popen_parent++;
         // FIXME(egmont) Connect pipe's end with child
       } else if (ic_msg.has_popen_failed()) {
+        stat_popen_failed++;
         // FIXME what if !has_cmd() ?
         proc->pop_expected_child_fds(
             std::vector<std::string>({"sh", "-c", ic_msg.popen_failed().cmd()}), true);
       } else if (ic_msg.has_posix_spawn()) {
+        stat_posix_spawn++;
         auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
         for (const auto &arg : ic_msg.posix_spawn().arg()) {
           expected_child->argv().push_back(arg);
         }
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_posix_spawn_parent()) {
+        stat_posix_spawn_parent++;
         // FIXME(egmont)
       } else if (ic_msg.has_posix_spawn_failed()) {
+        stat_posix_spawn_failed++;
         proc->pop_expected_child_fds(
             std::vector<std::string>(ic_msg.posix_spawn_failed().arg().begin(),
                                      ic_msg.posix_spawn_failed().arg().end()), true);
       } else if (ic_msg.has_execv()) {
+        stat_execv++;
         proc->update_rusage(ic_msg.execv().utime_u(),
                             ic_msg.execv().stime_u());
         // FIXME(rbalint) save execv parameters
@@ -597,6 +622,20 @@ static void write_report(const std::string &html_filename,
   fclose(dst_file);
 }
 
+static void write_stats() {
+  printf("execv              %7d\n", stat_execv);
+  printf("exit               %7d\n", stat_exit);
+  printf("fork               %7d\n", stat_fork);
+  printf("popen              %7d\n", stat_popen);
+  printf("popen_parent       %7d\n", stat_popen_parent);
+  printf("popen_failed       %7d\n", stat_popen_failed);
+  printf("posix_spawn        %7d\n", stat_posix_spawn);
+  printf("posix_spawn_parent %7d\n", stat_posix_spawn_parent);
+  printf("posix_spawn_failed %7d\n", stat_posix_spawn_failed);
+  printf("system             %7d\n", stat_system);
+  printf("system_ret         %7d\n", stat_system_ret);
+}
+
 /**
  * Get the system temporary directory to use.
  *
@@ -700,10 +739,11 @@ int main(const int argc, char *argv[]) {
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
       {"insert-trace-markers", no_argument,       0, 'i' },
+      {"stats",                no_argument,       0, 's' },
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:d:r::o:hi",
+    c = getopt_long(argc, argv, "c:d:r::o:his",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -740,6 +780,10 @@ int main(const int argc, char *argv[]) {
       if (optarg != NULL) {
         report_file = optarg;
       }
+      break;
+
+    case 's':
+      generate_stats = true;
       break;
 
     default:
@@ -962,6 +1006,10 @@ int main(const int argc, char *argv[]) {
     // show process tree if needed
     if (generate_report) {
       write_report(report_file, datadir);
+    }
+
+    if (generate_stats) {
+      write_stats();
     }
   }
 
