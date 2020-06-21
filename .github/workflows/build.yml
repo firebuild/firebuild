@@ -95,6 +95,31 @@ jobs:
         time ./run-firebuild make -j8 -C ../build all
         ./run-firebuild make -C ../build clean
         time ./run-firebuild make -j8 -C ../build all
+
+  build-other-projects:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        sudo sed -i 's/# deb-src/deb-src/' /etc/apt/sources.list
+        sudo apt-get update
+        sudo apt-get -y install cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2 devscripts ninja-build
+        sudo apt-get build-dep vte2.91
+    - name: build-in-tree
+      run: |
+        cmake .
+        make
+    - name: build-vte
+      run: |
+        apt-get source vte2.91
+        cd vte2.91-*
+        # TODO(rbalint) (enable gir and vapi when those are reliable, too)
+        meson -Dgir=false -Dvapi=false build
+        cd ../test
+        ./run-firebuild ninja -j8 -C ../vte2.91-*/build
+
   style-checks:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
