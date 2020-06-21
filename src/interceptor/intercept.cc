@@ -26,6 +26,18 @@ namespace firebuild {
 
 extern "C" {
 
+/** A poor man's (plain C) implementation of a hashmap:
+ *  posix_spawn_file_actions_t -> msg::PosixSpawnFileActions
+ *  implemented as a dense array with linear lookup.
+ */
+typedef struct {
+  const posix_spawn_file_actions_t *p;
+  msg::PosixSpawnFileActions *protobuf;
+} psfa;
+extern psfa *psfas;
+extern int psfas_num;
+extern int psfas_alloc;
+
 static void fb_ic_cleanup() __attribute__((destructor));
 
 /** file fd states */
@@ -66,6 +78,11 @@ int insert_trace_markers = false;
 
 /** Next ACK id*/
 static int ack_id = 0;
+
+psfa *psfas = NULL;
+int psfas_num = 0;
+int psfas_alloc = 0;
+
 
 /** Insert debug message */
 void insert_debug_msg(const char* m) {
@@ -433,6 +450,113 @@ unsigned int la_objopen(struct link_map *map, const Lmid_t lmid,
   firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
 
   return LA_FLG_BINDTO | LA_FLG_BINDFROM;
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_init():
+ * Add an entry, with a new empty protobuf, to our pool.
+ */
+void psfa_init(const posix_spawn_file_actions_t *p) {
+  psfa_destroy(p);
+
+  /* grow buffer if necessary */
+  if (psfas_alloc == 0) {
+    psfas_alloc = 4 /* whatever */;
+    psfas = reinterpret_cast<psfa *>(malloc(sizeof(psfa) * psfas_alloc));
+  } else if (psfas_num == psfas_alloc) {
+    psfas_alloc *= 2;
+    psfas = reinterpret_cast<psfa *>(realloc(psfas, sizeof(psfa) * psfas_alloc));
+  }
+
+  psfas[psfas_num].p = p;
+  psfas[psfas_num].protobuf = new msg::PosixSpawnFileActions();
+  psfas_num++;
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_destroy():
+ * Remove the entry, freeing up the protobuf, from our pool.
+ * Do not shrink psfas.
+ */
+void psfa_destroy(const posix_spawn_file_actions_t *p) {
+  for (int i = 0; i < psfas_num; i++) {
+    if (psfas[i].p == p) {
+      delete psfas[i].protobuf;
+      if (i < psfas_num - 1) {
+        /* Keep the array dense by moving the last item to this slot. */
+        psfas[i] = psfas[psfas_num - 1];
+      }
+      psfas_num--;
+      /* There can't be more than 1 match. */
+      break;
+    }
+  }
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_addopen():
+ * Append a corresponding record to our protobuf.
+ */
+void psfa_addopen(const posix_spawn_file_actions_t *p,
+                  int fd,
+                  const char *path,
+                  int flags,
+                  mode_t mode) {
+  // FIXME remove cast
+  msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(p);
+  assert(actions_msg);
+
+  msg::PosixSpawnFileAction *action_msg = actions_msg->add_action();
+  msg::PosixSpawnFileActionOpen *open_msg = action_msg->mutable_open();
+  open_msg->set_fd(fd);
+  open_msg->set_path(path);
+  open_msg->set_flags(flags);
+  open_msg->set_mode(mode);
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclose():
+ * Append a corresponding record to our protobuf.
+ */
+void psfa_addclose(const posix_spawn_file_actions_t *p,
+                   int fd) {
+  // FIXME remove cast
+  msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(p);
+  assert(actions_msg);
+
+  msg::PosixSpawnFileAction *action_msg = actions_msg->add_action();
+  msg::PosixSpawnFileActionClose *close_msg = action_msg->mutable_close();
+  close_msg->set_fd(fd);
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_adddup2():
+ * Append a corresponding record to our protobuf.
+ */
+void psfa_adddup2(const posix_spawn_file_actions_t *p,
+                  int oldfd,
+                  int newfd) {
+  // FIXME remove cast
+  msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(p);
+  assert(actions_msg);
+
+  msg::PosixSpawnFileAction *action_msg = actions_msg->add_action();
+  msg::PosixSpawnFileActionDup2 *dup2_msg = action_msg->mutable_dup2();
+  dup2_msg->set_oldfd(oldfd);
+  dup2_msg->set_newfd(newfd);
+}
+
+/**
+ * Find the additional protobuf for a given posix_spawn_file_actions.
+ */
+// FIXME msg::PosixSpawnFileActions *
+void *psfa_find(const posix_spawn_file_actions_t *p) {
+  for (int i = 0; i < psfas_num; i++) {
+    if (psfas[i].p == p) {
+      return psfas[i].protobuf;
+    }
+  }
+  return NULL;
 }
 
 }  // extern "C"

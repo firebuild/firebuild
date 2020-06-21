@@ -63,6 +63,15 @@ extern int fb_sv_conn;
 /** interceptor init has been run */
 extern int ic_init_done;
 
+extern void psfa_init(const posix_spawn_file_actions_t *p);
+extern void psfa_destroy(const posix_spawn_file_actions_t *p);
+extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
+                         const char *path, int flags, mode_t mode);
+extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
+extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
+// FIXME msg::PosixSpawnFileActions *
+extern void *psfa_find(const posix_spawn_file_actions_t *p);
+
 /** Insert debug message */
 extern void insert_debug_msg(const char*);
 
