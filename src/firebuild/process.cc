@@ -6,6 +6,7 @@
 
 #include <unistd.h>
 
+#include "./fb-messages.pb.h"
 #include "firebuild/file.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
@@ -102,6 +103,14 @@ int Process::handle_open(const std::string &ar_name, const int flags,
     return -1;
   }
 
+  return 0;
+}
+
+/* close that fd if open, silently ignore if not open */
+int Process::handle_force_close(const int fd) {
+  if (get_fd(fd)) {
+    return handle_close(fd, 0);
+  }
   return 0;
 }
 
@@ -210,13 +219,22 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
                          " missed at least one close()");
     return -1;
   }
-  if (get_fd(newfd)) {
-    handle_close(newfd, 0);
-  }
+  handle_force_close(newfd);
 
   add_filefd(fds_, newfd, std::make_shared<FileFD>(
       newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
       (*fds_)[oldfd], this));
+  return 0;
+}
+
+int Process::handle_clear_cloexec(const int fd) {
+  if (!get_fd(fd)) {
+    disable_shortcutting("Process successfully cleared cloexec on fd (" + std::to_string(fd) +
+                         ") which is known to be closed, which means interception"
+                         " missed at least one open()");
+    return -1;
+  }
+  (*fds_)[fd]->set_cloexec(false);
   return 0;
 }
 
@@ -253,11 +271,15 @@ void Process::set_wd(const std::string &ar_d) {
 }
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
-Process::pop_expected_child_fds(const std::vector<std::string>& argv, const bool failed) {
+Process::pop_expected_child_fds(const std::vector<std::string>& argv,
+                                std::shared_ptr<msg::PosixSpawnFileActions> *file_actions_p,
+                                const bool failed) {
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
     if (expected_child_->argv() == argv) {
       auto fds = expected_child_->fds();
+      if (file_actions_p)
+          *file_actions_p = expected_child_->file_actions();
       delete(expected_child_);
       expected_child_ = nullptr;
       return fds;

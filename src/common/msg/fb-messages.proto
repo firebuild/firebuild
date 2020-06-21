@@ -455,6 +455,8 @@ message PosixSpawn {
     repeated bytes env = 3;
     // spawn or spawnp
     required bool is_spawnp = 4;
+    // posix_spawn_file_actions_t translated into protobuf
+    optional PosixSpawnFileActions file_actions = 5;
 }
 
 message PosixSpawnParent {
@@ -681,4 +683,32 @@ message InterceptorMsg {
     optional PosixSpawnFailed posix_spawn_failed = 69;
     optional Stat stat = 70;
     optional FStat fstat = 71;
+}
+
+message PosixSpawnFileActionOpen {
+    required int32 fd = 1;
+    required bytes path = 2;
+    required int32 flags = 3;
+    required int32 mode = 4;
+}
+
+message PosixSpawnFileActionClose {
+    required int32 fd = 1;
+}
+
+message PosixSpawnFileActionDup2 {
+    required int32 oldfd = 1;
+    required int32 newfd = 2;
+}
+
+message PosixSpawnFileAction {
+    // exactly 1 of these:
+    optional PosixSpawnFileActionOpen open = 1;
+    optional PosixSpawnFileActionClose close = 2;
+    optional PosixSpawnFileActionDup2 dup2 = 3;
+}
+
+// the protobuf equivalent of posix_spawn_file_actions_t
+message PosixSpawnFileActions {
+    repeated PosixSpawnFileAction action = 1;
 }

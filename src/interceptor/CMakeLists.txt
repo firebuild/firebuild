@@ -17,6 +17,7 @@ add_custom_command (
   tpl_open.c
   tpl_popen.c
   tpl_posix_spawn.c
+  tpl_posix_spawn_file_actions.c
   tpl_read.c
   tpl_readlink.c
   tpl_skip.c

@@ -9,23 +9,26 @@
 #include <string>
 #include <vector>
 
+#include "./fb-messages.pb.h"
 #include "firebuild/file_fd.h"
 
 namespace firebuild {
 
 /**
- * A process' inherited environment, command line parameters and file descriptors
+ * A process' inherited environment, command line parameters and file descriptors,
+ * file actions to be executed on startup (for posix_spawn'ed children),
  * (and later perhaps the environment variables too).
  */
 class ExecedProcessEnv {
  public:
   ExecedProcessEnv();
-  explicit ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
-  bool operator == (ExecedProcessEnv const &pp) const;
+  explicit ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+                            msg::PosixSpawnFileActions *file_actions = nullptr);
 
   std::vector<std::string>& argv() {return argv_;}
   const std::vector<std::string>& argv() const {return argv_;}
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
+  std::shared_ptr<msg::PosixSpawnFileActions> file_actions() {return file_actions_;}
 
   void set_sh_c_command(const std::string&);
 
@@ -33,12 +36,14 @@ class ExecedProcessEnv {
   std::vector<std::string> argv_;
   /// File descriptor states intherited from parent
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
+  /// In case the process is started via a posix_spawn[p]() with a file_actions parameter:
+  /// File operations to be executed, along with the usual administration of file events,
+  /// as soon as the child appears.
+  std::shared_ptr<msg::PosixSpawnFileActions> file_actions_;
   // TODO(egmont) add envp ?
-};
 
-inline bool ExecedProcessEnv::operator == (ExecedProcessEnv const &pp) const {
-  return (pp.argv() == argv());
-}
+  DISALLOW_COPY_AND_ASSIGN(ExecedProcessEnv);
+};
 
 std::string to_string(ExecedProcessEnv const&);
 

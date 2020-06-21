@@ -872,12 +872,27 @@ generate("int", "posix_spawn", "pid_t *pid, const char *file, " +
                                "const posix_spawn_file_actions_t *file_actions, " +
                                "const posix_spawnattr_t *attrp, " +
                                "char *const argv[], char *const envp[]",
-         tpl="posix_spawn")
+         tpl="posix_spawn",
+         success="ret == 0")
 generate("int", "posix_spawnp", "pid_t *pid, const char *file, " +
                                 "const posix_spawn_file_actions_t *file_actions, " +
                                 "const posix_spawnattr_t *attrp, " +
                                 "char *const argv[], char *const envp[]",
-         tpl="posix_spawn")
+         tpl="posix_spawn",
+         success="ret == 0")
+
+generate("int", ["posix_spawn_file_actions_init", "posix_spawn_file_actions_destroy"], "posix_spawn_file_actions_t *file_actions",
+         tpl="posix_spawn_file_actions",
+         success="ret == 0")
+generate("int", "posix_spawn_file_actions_addopen", "posix_spawn_file_actions_t *file_actions, int fd, const char *path, int flags, mode_t mode",
+         tpl="posix_spawn_file_actions",
+         success="ret == 0")
+generate("int", "posix_spawn_file_actions_addclose", "posix_spawn_file_actions_t *file_actions, int fd",
+         tpl="posix_spawn_file_actions",
+         success="ret == 0")
+generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t *file_actions, int oldfd, int newfd",
+         tpl="posix_spawn_file_actions",
+         success="ret == 0")
 
 # Intercept the exec family
 generate("int", ["execl", "execlp"], "const char *file, const char *arg, ...",

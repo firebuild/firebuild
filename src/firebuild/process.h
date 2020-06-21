@@ -13,6 +13,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "./fb-messages.pb.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -114,7 +115,9 @@ class Process {
     expected_child_ = ec;
   }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
-  pop_expected_child_fds(const std::vector<std::string>&, const bool failed = false);
+  pop_expected_child_fds(const std::vector<std::string>&,
+                         std::shared_ptr<msg::PosixSpawnFileActions> *file_actions_p,
+                         const bool failed = false);
   bool has_expected_child () {return expected_child_?true:false;}
   virtual void do_finalize();
   virtual void maybe_finalize();
@@ -149,6 +152,18 @@ class Process {
    * @param error error code of close()
    */
   int handle_close(const int fd, const int error = 0);
+
+  /**
+   * Handle file closure in the monitored process when we don't know
+   * if the operation succeeded or failed. Required for glibc's way of
+   * ignoring an error from a close() that was registered by
+   * posix_spawn_file_actions_addclose(). Also required as an internal
+   * helper for opening to a particular fd, as done via
+   * posix_spawn_file_actions_addopen().
+   * @param fd file descriptor to close
+   */
+  int handle_force_close(const int fd);
+
   /**
    * Handle pipe() in the monitored process
    * @param fd1 file descriptor to read
@@ -159,6 +174,7 @@ class Process {
    */
   int handle_pipe(const int fd1, const int fd2, const int flags,
                   const int error = 0);
+
   /**
    * Handle dup(), dup2() or dup3() in the monitored process
    * @param oldfd old fd
@@ -169,9 +185,17 @@ class Process {
    */
   int handle_dup3(const int oldfd, const int newfd, const int flags,
                   const int error = 0);
+
+  /**
+   * Handle successfully clearing the cloexec bit, via a
+   * posix_spawn_file_actions_adddup2() handler with oldfd==newfd.
+   * @param fd file descriptor
+   * @return 0 on success, -1 on failure
+   */
+  int handle_clear_cloexec(const int fd);
+
   /**
    * Handle fcntl() in the monitored process
-   *
    * @param fd file descriptor
    * @param cmd fcntl's cmd parameter
    * @param arg fcntl's arg parameter

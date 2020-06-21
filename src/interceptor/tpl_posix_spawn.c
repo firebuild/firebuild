@@ -18,6 +18,12 @@
 ###   else
     m->set_is_spawnp(false);
 ###   endif
+    if (file_actions) {
+      // FIXME remove cast
+      msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(file_actions);
+      assert(actions_msg);
+      m->mutable_file_actions()->CopyFrom(*actions_msg);
+    }
     for (int i = 0; argv[i] != NULL; i++) {
       m->add_arg(argv[i]);
     }

@@ -318,12 +318,52 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       assert(unix_parent != NULL);
 
       /* Verify that the child was expected and get inherited fds. */
+      std::shared_ptr<firebuild::msg::PosixSpawnFileActions> file_actions;
       fds = unix_parent->pop_expected_child_fds(
           std::vector<std::string>(ic_msg.scproc_query().arg().begin(),
-                                   ic_msg.scproc_query().arg().end()));
+                                   ic_msg.scproc_query().arg().end()),
+          &file_actions);
 
       /* Add a ForkedProcess for the forked child we never directly saw. */
       parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent, fds);
+
+      /* The actual forked process might have already performed some file operations
+       * according to posix_spawn()'s file_actions. Do the corresponding administration
+       * in the ForkedProcess. */
+      if (file_actions) {
+        for (const firebuild::msg::PosixSpawnFileAction file_action : file_actions->action()) {
+          if (file_action.has_open()) {
+            /* A successful open to a particular fd, silently closing the previous file if any. */
+            parent->handle_force_close(file_action.open().fd());
+            parent->handle_open(file_action.open().path(), file_action.open().flags(),
+                                file_action.open().fd(), 0);
+          } else if (file_action.has_close()) {
+            /* A close attempt, maybe successful, maybe failed, we don't know. See glibc's
+             * sysdeps/unix/sysv/linux/spawni.c:
+             *   Signal errors only for file descriptors out of range.
+             * sysdeps/posix/spawni.c:
+             *   Only signal errors for file descriptors out of range.
+             * whereas signaling the error means to abort posix_spawn and thus not reach
+             * this code here. */
+            parent->handle_force_close(file_action.close().fd());
+          } else if (file_action.has_dup2()) {
+            /* A successful dup2.
+             * Note that as per https://austingroupbugs.net/view.php?id=411 and glibc's
+             * implementation, oldfd==newfd clears the close-on-exec bit (here only,
+             * not in a real dup2()). */
+            if (file_action.dup2().oldfd() == file_action.dup2().newfd()) {
+              parent->handle_clear_cloexec(file_action.dup2().oldfd());
+            } else {
+              parent->handle_dup3(file_action.dup2().oldfd(), file_action.dup2().newfd(), 0, 0);
+            }
+          }
+        }
+      }
+
+      /* For the intermediate ForkedProcess where posix_spawn()'s file_actions were executed,
+       * we still had all the fds, even the close-on-exec ones. Now it's time to close them. */
+      fds = parent->pass_on_fds();
+
       parent->set_state(firebuild::FB_PROC_TERMINATED);
       // FIXME set exec_child_ ???
       proc_tree->insert(parent, -1);
@@ -406,7 +446,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         proc->add_running_system_cmd(ic_msg.system().cmd());
 
         // system(cmd) launches a child of argv = ["sh", "-c", cmd]
-        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
+        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
         // FIXME what if !has_cmd() ?
         expected_child->set_sh_c_command(ic_msg.system().cmd());
         proc->set_expected_child(expected_child);
@@ -418,7 +458,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
         }
       } else if (ic_msg.has_popen()) {
         // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
-        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
+        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
         // FIXME what if !has_cmd() ?
         expected_child->set_sh_c_command(ic_msg.popen().cmd());
         proc->set_expected_child(expected_child);
@@ -427,9 +467,16 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       } else if (ic_msg.has_popen_failed()) {
         // FIXME what if !has_cmd() ?
         proc->pop_expected_child_fds(
-            std::vector<std::string>({"sh", "-c", ic_msg.popen_failed().cmd()}), true);
+            std::vector<std::string>({"sh", "-c", ic_msg.popen_failed().cmd()}),
+            nullptr,
+            true);
       } else if (ic_msg.has_posix_spawn()) {
-        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds());
+        firebuild::msg::PosixSpawnFileActions *actions = nullptr;
+        if (ic_msg.posix_spawn().has_file_actions()) {
+          actions = new firebuild::msg::PosixSpawnFileActions();
+          actions->CopyFrom(ic_msg.posix_spawn().file_actions());
+        }
+        auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false), actions);
         for (const auto &arg : ic_msg.posix_spawn().arg()) {
           expected_child->argv().push_back(arg);
         }
@@ -439,7 +486,9 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       } else if (ic_msg.has_posix_spawn_failed()) {
         proc->pop_expected_child_fds(
             std::vector<std::string>(ic_msg.posix_spawn_failed().arg().begin(),
-                                     ic_msg.posix_spawn_failed().arg().end()), true);
+                                     ic_msg.posix_spawn_failed().arg().end()),
+            nullptr,
+            true);
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_u(),
                             ic_msg.execv().stime_u());
