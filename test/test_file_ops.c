@@ -9,20 +9,24 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#define TOSTR(x) TOSTR2(x)
+#define TOSTR2(x) #x
+#define LOC "[" __FILE__ ":" TOSTR(__LINE__) "]"
+
 int main() {
   int fd, i;
 
   /* Set up some files for test_file_ops_[23]. */
   fd = creat("test_empty_1.txt", 0600);
   if (fd == -1) {
-    perror("open");
+    perror("open" LOC);
     exit(1);
   }
   close(fd);
 
   fd = creat("test_empty_2.txt", 0600);
   if (fd == -1) {
-    perror("open");
+    perror("open" LOC);
     exit(1);
   }
   close(fd);
@@ -30,24 +34,24 @@ int main() {
   const char *msg = "Hello World!\n";
   fd = creat("test_nonempty_1.txt", 0600);
   if (fd == -1) {
-    perror("open");
+    perror("open" LOC);
     exit(1);
   }
   i = write(fd, msg, strlen(msg));
   if (i != strlen(msg)) {
-    perror("write");
+    perror("write" LOC);
     exit(1);
   }
   close(fd);
 
   fd = creat("test_nonempty_2.txt", 0600);
   if (fd == -1) {
-    perror("open");
+    perror("open" LOC);
     exit(1);
   }
   i = write(fd, msg, strlen(msg));
   if (i != strlen(msg)) {
-    perror("write");
+    perror("write" LOC);
     exit(1);
   }
   close(fd);
@@ -55,13 +59,13 @@ int main() {
   /* Only create _1, and not _2. */
   fd = creat("test_maybe_exists_1.txt", 0600);
   if (fd == -1) {
-    perror("open");
+    perror("open" LOC);
     exit(1);
   }
   close(fd);
 
   if (mkdir("test_directory", 0700) == -1) {
-    perror("mkdir");
+    perror("mkdir" LOC);
     exit(1);
   }
 
@@ -72,35 +76,35 @@ int main() {
 
   /* Cleanup. */
   if (unlink("test_empty_1.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (unlink("test_empty_2.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (unlink("test_nonempty_1.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (unlink("test_nonempty_2.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (unlink("test_maybe_exists_1.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (unlink("test_maybe_exists_2.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (unlink("test_exclusive.txt") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
   if (rmdir("test_directory") != 0) {
-    perror("unlink");
+    perror("unlink" LOC);
     exit(1);
   }
 
