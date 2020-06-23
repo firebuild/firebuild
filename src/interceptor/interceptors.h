@@ -17,6 +17,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
 #include <bits/timex.h>

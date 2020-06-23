@@ -1050,6 +1050,7 @@ generate("long", "sysconf", "int name",
 # Intercept syscall
 # FIXME retval == -1 does not have a generic meaning
 generate("long", "syscall", "long number, ...",
+         tpl="syscall",
          send_ret_on_success=True,
          ack=True)
 

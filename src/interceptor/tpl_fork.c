@@ -17,9 +17,8 @@
 
     reset_interceptors();
     ic_pid = getpid();
-    // unlock global interceptor lock if it is locked
+    // relock global interceptor lock if it is unlocked – it should be locked, though
     pthread_mutex_trylock(&ic_global_lock);
-    pthread_mutex_unlock(&ic_global_lock);
     // reconnect to supervisor
     fb_init_supervisor_conn();
 

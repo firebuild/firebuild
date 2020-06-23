@@ -10,6 +10,7 @@
 ### block body
   /* Exit handlers may call intercepted functions */
   intercept_on = NULL;
+  pthread_mutex_unlock(&ic_global_lock);
 
   /* Mark the end now */
   insert_end_marker("{{ func }}");

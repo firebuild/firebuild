@@ -112,7 +112,7 @@ void insert_end_marker(const char* m) {
 
 /** Get next unique ACK id */
 static int get_next_ack_id() {
-  return __atomic_add_fetch(&ack_id, 1, __ATOMIC_SEQ_CST);
+  return ack_id++;
 }
 
 void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
@@ -347,16 +347,12 @@ static void fb_ic_cleanup() {
 
 /** wrapper for send() retrying on recoverable errors*/
 ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count) {
-  pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0, {
-      pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0, {});
 }
 
 /** wrapper for recv() retrying on recoverable errors*/
 ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count) {
-  pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {
-      pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {});
 }
 
 /** Send error message to supervisor */

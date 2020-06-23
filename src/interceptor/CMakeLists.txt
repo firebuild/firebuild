@@ -21,6 +21,7 @@ add_custom_command (
   tpl_read.c
   tpl_readlink.c
   tpl_skip.c
+  tpl_syscall.c
   tpl_system.c
   tpl_write.c
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

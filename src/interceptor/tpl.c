@@ -84,10 +84,15 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   {{ rettype }} ret;
 ###     endif
 
+  /* Maybe don't intercept? */
+###     block no_intercept
+###     endblock no_intercept
+
   /* Warm up */
 ###     if not no_saved_errno
   int saved_errno = errno;
 ###     endif
+  pthread_mutex_lock(&ic_global_lock);
   fb_ic_load();
 
   if (insert_trace_markers) {
@@ -222,6 +227,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     insert_end_marker(debug_buf);
   }
   intercept_on = NULL;
+  pthread_mutex_unlock(&ic_global_lock);
 ###     if not no_saved_errno
   errno = saved_errno;
 ###     endif
