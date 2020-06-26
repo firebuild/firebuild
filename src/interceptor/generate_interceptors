@@ -738,17 +738,13 @@ generate("void *", "dlopen", "const char *filename, int flag",
 # Intercept the pipe family
 generate("int", "pipe", "int pipefd[2]",
          after_lines=["if (success) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
-         send_msg_cond="success",
          msg="pipe2",
          msg_skip_fields=["pipefd"],
-         msg_add_fields=["m->set_fd0(pipefd[0]);",
-                         "m->set_fd1(pipefd[1]);"])
+         msg_add_fields=["if (success) { m->set_fd0(pipefd[0]); m->set_fd1(pipefd[1]); }"])
 generate("int", "pipe2", "int pipefd[2], int flags",
          after_lines=["if (success) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
-         send_msg_cond="success",
          msg_skip_fields=["pipefd"],
-         msg_add_fields=["m->set_fd0(pipefd[0]);",
-                         "m->set_fd1(pipefd[1]);",
+         msg_add_fields=["if (success) { m->set_fd0(pipefd[0]); m->set_fd1(pipefd[1]); }",
                          "m->set_flags(flags);"])
 
 # Intercept the truncate family
@@ -762,14 +758,14 @@ generate("int", "ftruncate64", "int fd, off64_t len",
 # Intercept the mkstemp family
 # Note: these update the file template in place.
 generate("int", "mkstemp", "char *file",
-         send_msg_cond="success",
+         send_msg_on_error=False,
          msg="open",
          msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL);",
                          "m->set_mode(0600);"],
          send_ret_on_success=True,
          ack=True)
 generate("int", "mkostemp", "char *file, int flags",
-         send_msg_cond="success",
+         send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["flags"],
          msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
@@ -777,7 +773,7 @@ generate("int", "mkostemp", "char *file, int flags",
          send_ret_on_success=True,
          ack=True)
 generate("int", "mkstemps", "char *file, int suffixlen",
-         send_msg_cond="success",
+         send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["suffixlen"],
          msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL);",
@@ -785,7 +781,7 @@ generate("int", "mkstemps", "char *file, int suffixlen",
          send_ret_on_success=True,
          ack=True)
 generate("int", "mkostemps", "char *file, int suffixlen, int flags",
-         send_msg_cond="success",
+         send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["suffixlen", "flags"],
          msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
@@ -793,7 +789,7 @@ generate("int", "mkostemps", "char *file, int suffixlen, int flags",
          send_ret_on_success=True,
          ack=True)
 #  generate("char *", "mkdtemp", "char *dir",
-#           send_msg_cond="success",
+#           send_msg_on_error=False,
 #           msg="mkdir",
 #           msg_add_fields=["m->set_mode(0700);"],
 #           ack=True)
