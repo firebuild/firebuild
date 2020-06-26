@@ -159,17 +159,8 @@ int Process::handle_close(const int fd, const int error) {
 
 int Process::handle_pipe(const int fd1, const int fd2, const int flags,
                          const int error) {
-  switch (error) {
-    case EFAULT:
-    case EINVAL:
-    case EMFILE:
-    case ENFILE: {
-      // pipe() failed
-      return 0;
-    }
-    case 0:
-    default:
-      break;
+  if (error) {
+    return 0;
   }
 
   // validate fd-s

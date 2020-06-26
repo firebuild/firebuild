@@ -17,9 +17,11 @@ int ProcessPBAdaptor::msg(Process *p, const msg::Close &c) {
 }
 
 int ProcessPBAdaptor::msg(Process *p, const msg::Pipe2 &pipe) {
-  const int error = (pipe.has_error_no())?pipe.error_no():0;
+  const int fd0 = (pipe.has_fd0())?pipe.fd0():-1;
+  const int fd1 = (pipe.has_fd1())?pipe.fd1():-1;
   const int flags = (pipe.has_flags())?pipe.flags():0;
-  return p->handle_pipe(pipe.fd0(), pipe.fd1(), flags, error);
+  const int error = (pipe.has_error_no())?pipe.error_no():0;
+  return p->handle_pipe(fd0, fd1, flags, error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const msg::Dup3 &d) {

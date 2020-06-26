@@ -342,10 +342,10 @@ message FUTime {
 
 // pipe2() with flags = 0 is equivalent to pipe()
 message Pipe2 {
-    // pipe fd[0]
-    required int32 fd0 = 1;
-    // pipe fd[1]
-    required int32 fd1 = 2;
+    // pipe fd[0] in case of success
+    optional int32 fd0 = 1;
+    // pipe fd[1] in case of success
+    optional int32 fd1 = 2;
     // flags
     optional int32 flags = 3;
     // error no., when ret = -1
