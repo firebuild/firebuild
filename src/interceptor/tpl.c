@@ -26,7 +26,7 @@
 {# of this file.                                                      #}
 {# ------------------------------------------------------------------ #}
 {#                                                                    #}
-{# Convenient handling of default-false boolean #}
+{# Convenient handling of default-true boolean #}
 ### if send_msg_on_error is not defined
 ###   set send_msg_on_error = true
 ### endif
