@@ -621,68 +621,70 @@ message SupervisorMsg {
 
 // wrapper for messages interceptor can send
 message InterceptorMsg {
-    optional ShortCutProcessQuery scproc_query = 1;
-    optional Open open = 2;
     // ACK id, to be sent back in SupervisorMsg
-    optional int64 ack_num = 3;
-    optional Close close = 4;
-    optional GenericCall gen_call = 6;
-    optional Exit exit = 7;
-    optional ForkChild fork_child = 8;
-    optional ForkParent fork_parent = 9;
-    optional ChDir chdir = 11;
-    optional FChDir fchdir = 12;
-    optional RmDir rmdir = 14;
-    optional Chmod chmod = 15;
-    optional FChmod fchmod = 16;
-    optional Chown chown = 17;
-    optional FChown fchown = 18;
-    optional UnLink unlink = 19;
-    optional Link link = 20;
-    optional Symlink symlink = 22;
-    optional LockF lockf = 24;
-    optional Pipe2 pipe2 = 25;
-    optional Sysconf sysconf = 26;
-    optional Dup dup = 27;
-    optional Dup3 dup3 = 28;
-    optional ReadLink readlink = 29;
-    optional Access access = 31;
-    optional EuidAccess euidaccess = 32;
-    optional FAccessAt faccessat = 33;
-    optional ExecV execv = 34;
-    optional ExecVFailed execvfailed = 35;
-    optional GetHostname gethostname = 36;
-    optional GetDomainname getdomainname = 37;
-    optional Truncate truncate = 38;
-    optional FTruncate ftruncate = 39;
-    optional PathConf pathconf = 40;
-    optional FPathConf fpathconf = 41;
-    optional Read read = 42;
-    optional Write write = 43;
-    optional Rename rename = 45;
-    optional DLOpen dlopen = 47;
-    optional FReOpen freopen = 49;
-    optional FCloseAll fcloseall = 50;
-    optional LAObjSearch la_objsearch = 51;
-    optional LAObjOpen la_objopen = 52;
-    optional DLClose dlclose = 53;
-    optional UTime utime = 55;
-    optional FUTime futime = 56;
-    optional FBError fb_error = 57;
-    optional FBDebug fb_debug = 58;
-    optional Fcntl fcntl = 59;
-    optional Ioctl ioctl = 60;
-    optional SysCall syscall = 61;
-    optional System system = 62;
-    optional SystemRet system_ret = 63;
-    optional Popen popen = 64;
-    optional PopenParent popen_parent = 65;
-    optional PopenFailed popen_failed = 66;
-    optional PosixSpawn posix_spawn = 67;
-    optional PosixSpawnParent posix_spawn_parent = 68;
-    optional PosixSpawnFailed posix_spawn_failed = 69;
-    optional Stat stat = 70;
-    optional FStat fstat = 71;
+    optional int64 ack_num = 1;
+    oneof x_function {
+        ShortCutProcessQuery scproc_query = 2;
+        Open open = 3;
+        Close close = 4;
+        GenericCall gen_call = 6;
+        Exit exit = 7;
+        ForkChild fork_child = 8;
+        ForkParent fork_parent = 9;
+        ChDir chdir = 11;
+        FChDir fchdir = 12;
+        RmDir rmdir = 14;
+        Chmod chmod = 15;
+        FChmod fchmod = 16;
+        Chown chown = 17;
+        FChown fchown = 18;
+        UnLink unlink = 19;
+        Link link = 20;
+        Symlink symlink = 22;
+        LockF lockf = 24;
+        Pipe2 pipe2 = 25;
+        Sysconf sysconf = 26;
+        Dup dup = 27;
+        Dup3 dup3 = 28;
+        ReadLink readlink = 29;
+        Access access = 31;
+        EuidAccess euidaccess = 32;
+        FAccessAt faccessat = 33;
+        ExecV execv = 34;
+        ExecVFailed execvfailed = 35;
+        GetHostname gethostname = 36;
+        GetDomainname getdomainname = 37;
+        Truncate truncate = 38;
+        FTruncate ftruncate = 39;
+        PathConf pathconf = 40;
+        FPathConf fpathconf = 41;
+        Read read = 42;
+        Write write = 43;
+        Rename rename = 45;
+        DLOpen dlopen = 47;
+        FReOpen freopen = 49;
+        FCloseAll fcloseall = 50;
+        LAObjSearch la_objsearch = 51;
+        LAObjOpen la_objopen = 52;
+        DLClose dlclose = 53;
+        UTime utime = 55;
+        FUTime futime = 56;
+        FBError fb_error = 57;
+        FBDebug fb_debug = 58;
+        Fcntl fcntl = 59;
+        Ioctl ioctl = 60;
+        SysCall syscall = 61;
+        System system = 62;
+        SystemRet system_ret = 63;
+        Popen popen = 64;
+        PopenParent popen_parent = 65;
+        PopenFailed popen_failed = 66;
+        PosixSpawn posix_spawn = 67;
+        PosixSpawnParent posix_spawn_parent = 68;
+        PosixSpawnFailed posix_spawn_failed = 69;
+        Stat stat = 70;
+        FStat fstat = 71;
+    }
 }
 
 message PosixSpawnFileActionOpen {
@@ -702,10 +704,11 @@ message PosixSpawnFileActionDup2 {
 }
 
 message PosixSpawnFileAction {
-    // exactly 1 of these:
-    optional PosixSpawnFileActionOpen open = 1;
-    optional PosixSpawnFileActionClose close = 2;
-    optional PosixSpawnFileActionDup2 dup2 = 3;
+    oneof x_action {
+        PosixSpawnFileActionOpen open = 1;
+        PosixSpawnFileActionClose close = 2;
+        PosixSpawnFileActionDup2 dup2 = 3;
+    }
 }
 
 // the protobuf equivalent of posix_spawn_file_actions_t
