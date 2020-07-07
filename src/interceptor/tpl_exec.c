@@ -16,20 +16,27 @@
 
 ### block body
 ###   if l
-  /* Convert "arg, ..." to "argv[]" */
-  unsigned int argc = 0, argc_size = 16;
-  char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*)));
-  argv[argc] = const_cast<char *>(arg);
-  while (argv[argc]) {
-    argv[++argc] = static_cast<char *>(va_arg(ap, char*));
-    if (argc == argc_size - 1) {
-      argc_size *= 2;
-      argv = static_cast<char **>(realloc(argv, argc_size * sizeof(char*)));
-    }
+  /* Convert "arg, ..." to "argv[]".
+   * Work on the stack, no malloc, just in case we run in a signal handler.
+   * The code is shamelessly taken from glibc's execl() implementation. */
+  ptrdiff_t argc;
+  for (argc = 1; va_arg(ap, const char *); argc++) {
+    // FIXME(egmont) handle if too many args
+  }
+
+  va_end(ap);
+  va_start(ap, arg);
+
+  char *argv[argc + 1];
+  argv[0] = (char *) arg;
+  /* The '<=' makes sure that the trailing NULL is included in argv,
+   * and also that ap is set correctly for the forthcoming envp. */
+  for (ptrdiff_t i = 1; i <= argc; i++) {
+    argv[i] = va_arg(ap, char *);
   }
 ###     if e
   /* Also locate the environment */
-  char **envp = static_cast<char **>(va_arg(ap, char**));
+  char **envp = va_arg(ap, char**);
 ###     endif
 ###   endif
 
@@ -99,10 +106,6 @@
   errno = saved_errno;
   ret = ic_orig_{{ func | replace("l", "v") }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv{% if e %}, envp{% endif %}{% if at %}, flags{% endif %});
   saved_errno = errno;
-
-### if l
-  free(argv);
-### endif
 
   {
     /* Notify the supervisor after the call */
