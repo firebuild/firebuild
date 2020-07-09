@@ -15,11 +15,11 @@ namespace firebuild {
 
 ProcessTree::~ProcessTree() {
   // clean up all processes
-  for (auto pair : fb_pid2proc_) {
+  for (auto& pair : fb_pid2proc_) {
     delete(pair.second);
   }
   // clean up expected exec() children
-  for (auto pair : pid2exec_child_sock_) {
+  for (auto& pair : pid2exec_child_sock_) {
     delete(pair.second.incomplete_child);
   }
 }
@@ -78,7 +78,7 @@ profile_collect_cmds(const Process &p,
     }
     (*cmds)[ec->args()[0]].count += 1;
   }
-  for (auto child : p.children()) {
+  for (auto& child : p.children()) {
     profile_collect_cmds(*child, cmds, ancestors);
   }
 }
@@ -100,7 +100,7 @@ void ProcessTree::build_profile(const Process &p,
   if (p.exec_child() != NULL) {
     build_profile(*p.exec_child(), ancestors);
   }
-  for (auto child : p.children()) {
+  for (auto& child : p.children()) {
     build_profile(*child, ancestors);
   }
 
@@ -168,7 +168,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
           " width=0, shape=box, fontcolor=white];\n"
           "edge [fontname=Helvetica, fontsize=12]\n");
 
-  for (auto pair : cmd_profs_) {
+  for (auto& pair : cmd_profs_) {
     fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", (pair.first).c_str(),
             (pair.first).c_str());
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
@@ -176,7 +176,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
             percent_of(pair.second.cmd_time, build_time),
             pct_to_hsv_str(percent_of(pair.second.aggr_time,
                                       build_time)).c_str());
-    for (auto pair2 : pair.second.subcmds) {
+    for (auto& pair2 : pair.second.subcmds) {
       fprintf(stream, "    \"%s\" -> \"%s\" [label=\"",
               (pair.first).c_str(), (pair2.first).c_str());
       if (!pair2.second.recursed) {

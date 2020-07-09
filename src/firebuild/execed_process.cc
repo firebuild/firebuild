@@ -71,7 +71,7 @@ void ExecedProcess::initialize() {
    * regular file open events. */
   if (parent_exec_point()) {
     parent_exec_point()->register_file_usage(executable(), O_RDONLY, 0);
-    for (auto lib : libs()) {
+    for (auto& lib : libs()) {
       parent_exec_point()->register_file_usage(lib, O_RDONLY, 0);
     }
   }
@@ -254,43 +254,43 @@ void ExecedProcess::export2js(const unsigned int level,
     }
   }
   fprintf(stream, "%s args: [", indent);
-  for (auto arg : args()) {
+  for (auto& arg : args()) {
     fprintf(stream, "\"%s\",", escapeJsonString(arg).c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s env: [", indent);
-  for (auto env : env_vars()) {
+  for (auto& env : env_vars()) {
     fprintf(stream, "\"%s\",", escapeJsonString(env).c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s libs: [", indent);
-  for (auto lib : libs()) {
+  for (auto& lib : libs()) {
     fprintf(stream, "\"%s\",", lib.c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s wds: [", indent);
-  for (auto wd : wds()) {
+  for (auto& wd : wds()) {
     fprintf(stream, "\"%s\",", wd.c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s failed_wds: [", indent);
-  for (auto f_wd : failed_wds()) {
+  for (auto& f_wd : failed_wds()) {
     fprintf(stream, "\"%s\",", f_wd.c_str());
   }
   fprintf(stream, "],\n");
 
   // sort files before printing
   std::map<std::string, FileUsage*> ordered_file_usages;
-  for (auto pair : file_usages()) {
+  for (auto& pair : file_usages()) {
     ordered_file_usages[pair.first] =  pair.second;
   }
 
   fprintf(stream, "%s fcreated: [", indent);
-  for (auto pair : ordered_file_usages) {
+  for (auto& pair : ordered_file_usages) {
     if (pair.second->initial_state() != EXIST_WITH_HASH && pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
@@ -298,7 +298,7 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fmodified: [", indent);
-  for (auto pair : ordered_file_usages) {
+  for (auto& pair : ordered_file_usages) {
     if (pair.second->initial_state() == EXIST_WITH_HASH && pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
@@ -306,7 +306,7 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fread: [", indent);
-  for (auto pair : ordered_file_usages) {
+  for (auto& pair : ordered_file_usages) {
     if (pair.second->initial_state() == EXIST_WITH_HASH && !pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
@@ -314,7 +314,7 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fnotf: [", indent);
-  for (auto pair : ordered_file_usages) {
+  for (auto& pair : ordered_file_usages) {
     if (pair.second->initial_state() != EXIST_WITH_HASH && !pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
@@ -335,7 +335,7 @@ void ExecedProcess::export2js(const unsigned int level,
 }
 
 ExecedProcess::~ExecedProcess() {
-  for (auto pair : file_usages()) {
+  for (auto& pair : file_usages()) {
     delete(pair.second);
   }
   if (cacher_) {

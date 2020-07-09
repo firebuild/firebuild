@@ -331,7 +331,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
        * according to posix_spawn()'s file_actions. Do the corresponding administration
        * in the ForkedProcess. */
       if (file_actions) {
-        for (const firebuild::msg::PosixSpawnFileAction file_action : file_actions->action()) {
+        for (const firebuild::msg::PosixSpawnFileAction& file_action : file_actions->action()) {
           if (file_action.has_open()) {
             /* A successful open to a particular fd, silently closing the previous file if any. */
             parent->handle_force_close(file_action.open().fd());
@@ -719,7 +719,7 @@ static void init_listeners() {
  * Close all listeners
  */
 static void close_listeners() {
-  for (auto const listener : fb_listener_pool) {
+  for (auto const &listener : fb_listener_pool) {
     close(listener);
   }
 }
@@ -731,7 +731,7 @@ static void close_listeners() {
  * @return true if the fd is a listener
  */
 static bool is_listener(int const fd) {
-  for (auto const listener : fb_listener_pool) {
+  for (auto const &listener : fb_listener_pool) {
     if (fd == listener) {
       return true;
     }
@@ -916,7 +916,7 @@ int main(const int argc, char *argv[]) {
 
     // add the listener and and fd listening for child's death to the
     // master set
-    for (auto const listener : fb_listener_pool) {
+    for (auto const &listener : fb_listener_pool) {
       FD_SET(listener, &master);
       fdmax = (listener > fdmax)?listener:fdmax;
     }
