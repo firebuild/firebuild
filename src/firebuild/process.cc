@@ -22,7 +22,7 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
-      running_system_cmds_(), expected_child_(), exec_child_(NULL) {
+      expected_child_(), exec_child_(NULL) {
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
     add_filefd(fds_, STDIN_FILENO,

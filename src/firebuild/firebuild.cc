@@ -450,8 +450,6 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                           ic_msg.exit().utime_u(),
                           ic_msg.exit().stime_u());
       } else if (ic_msg.has_system()) {
-        proc->add_running_system_cmd(ic_msg.system().cmd());
-
         // system(cmd) launches a child of argv = ["sh", "-c", cmd]
         auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
         // FIXME what if !has_cmd() ?

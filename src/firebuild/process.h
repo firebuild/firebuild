@@ -106,10 +106,6 @@ class Process {
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
   const std::vector<Process*>& children() const {return children_;}
-  void add_running_system_cmd(const std::string &cmd) {running_system_cmds_.insert(cmd);}
-  bool remove_running_system_cmd(const std::string &cmd);
-  bool has_running_system_cmd(const std::string &cmd) {
-    return (running_system_cmds_.find(cmd) != running_system_cmds_.end());}
   void set_expected_child(ExecedProcessEnv *ec) {
     assert(!expected_child_);
     expected_child_ = ec;
@@ -250,8 +246,6 @@ class Process {
       children */
   int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
-  /// commands of system(3) calls which did not finish yet
-  std::multiset<std::string> running_system_cmds_;
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
   ExecedProcessEnv *expected_child_;
   bool exec_pending_ {false};
