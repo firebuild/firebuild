@@ -149,7 +149,7 @@ def generate(rettype, funcs, sig, **dict):
 
   if 'success' not in dict:
     if rettype == 'void':
-      dict['success'] = "1 /* default success condition for void rettype */"
+      dict['success'] = "true /* default success condition for void rettype */"
     elif '*' in rettype:
       dict['success'] = "ret != NULL /* default success condition for pointer rettype */"
     else:
@@ -926,7 +926,7 @@ skip("timer_create", "timer_delete", "timer_settime", "timer_gettime", "timer_ge
 
 # Querying current time - probably disable shortcutting, let the supervisor decide
 generate("time_t", "time", "time_t *loc",
-         success="1",
+         success="true",
          tpl="once")
 generate("int", "ftime", "struct timeb *tp",
          tpl="once")
@@ -962,10 +962,10 @@ generate("int", "prctl", "int option, unsigned long arg2, unsigned long arg3, un
 skip("getpid", "getppid", "getpgrp", "getpgid", "__getpgid", "setpgid", "setpgrp", "setsid", "getsid")
 # FIXME Allow these, but store the old umask as the initial state in the supervisor
 generate("mode_t", "umask", "mode_t mask",
-         success="1",
+         success="true",
          tpl="once")
 generate("mode_t", "getumask", "",
-         success="1",
+         success="true",
          tpl="once")
 
 # FIXME {get,set,p}rlimit

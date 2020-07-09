@@ -108,7 +108,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###     endif
 
 ###     block body
-  bool success = 0;
+  bool success = false;
 
   /* Beforework */
 ###       block before
