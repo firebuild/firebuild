@@ -12,6 +12,7 @@
 #include <link.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <spawn.h>
@@ -26,8 +27,8 @@ namespace firebuild {
 
 /** file usage state */
 typedef struct {
-  char read:1; /** file has been read */
-  char written:1; /** file has been written to */
+  bool read:1; /** file has been read */
+  bool written:1; /** file has been written to */
 } fd_state;
 
 /** file fd states */
@@ -61,7 +62,7 @@ extern void fb_send_msg_and_check_ack(void* ic_msg, int fd);
 extern int fb_sv_conn;
 
 /** interceptor init has been run */
-extern int ic_init_done;
+extern bool ic_init_done;
 
 extern void psfa_init(const posix_spawn_file_actions_t *p);
 extern void psfa_destroy(const posix_spawn_file_actions_t *p);

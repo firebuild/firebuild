@@ -18,7 +18,7 @@ namespace firebuild {
 
 extern "C" {
 
-extern int insert_trace_markers;
+extern bool insert_trace_markers;
 
 
 void init_interceptors() {

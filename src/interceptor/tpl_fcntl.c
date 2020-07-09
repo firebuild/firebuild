@@ -11,7 +11,7 @@
 
 ### block before
   /* Preparations */
-  int to_send = false;
+  bool to_send = false;
   bool has_int_arg = false;
   int int_arg;
 

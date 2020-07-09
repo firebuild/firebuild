@@ -59,7 +59,7 @@ char * fb_conn_string = NULL;
 int fb_sv_conn = -1;
 
 /** interceptor init has been run */
-int ic_init_done = false;
+bool ic_init_done = false;
 
 /**
  * Stored PID
@@ -74,7 +74,7 @@ __thread const char *intercept_on = NULL;
 int32_t debug_flags = 0;
 
 /** Insert marker open()-s for strace, ltrace, etc. */
-int insert_trace_markers = false;
+bool insert_trace_markers = false;
 
 /** Next ACK id*/
 static int ack_id = 0;

@@ -8,7 +8,7 @@
 ### extends "tpl.c"
 
 ### block decl_h
-extern int ic_called_{{ func }};
+extern bool ic_called_{{ func }};
 {{ super() }}
 ### endblock decl_h
 
@@ -17,7 +17,7 @@ ic_called_{{ func }} = false;
 ### endblock reset_c
 
 ### block impl_c
-int ic_called_{{ func }};
+bool ic_called_{{ func }};
 {{ super() }}
 ### endblock impl_c
 
