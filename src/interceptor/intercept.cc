@@ -127,7 +127,7 @@ void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
   assert(sv_msg.ack_num() == ack_num);
 }
 
-/** Compare compare pointers to char* like strcmp() for char* */
+/** Compare pointers to char* like strcmp() for char* */
 static int cmpstringpp(const void *p1, const void *p2) {
   /* The actual arguments to this function are "pointers to
      pointers to char", but strcmp(3) arguments are "pointers

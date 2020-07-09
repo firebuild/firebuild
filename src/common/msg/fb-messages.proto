@@ -514,7 +514,7 @@ message GetDomainname {
 message Truncate {
     // name
     optional bytes path = 1;
-    // lenght
+    // length
     optional int64 len = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
@@ -523,7 +523,7 @@ message Truncate {
 message FTruncate {
     // file fd
     optional int32 fd = 1;
-    // lenght
+    // length
     optional int64 len = 2;
     // error no., when ret = -1
     optional int32 error_no = 3;
