@@ -106,12 +106,12 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   auto fp_msg = new msg::ProcessFingerprint();
 
   fp_msg->set_cwd(proc->cwd());
-  for (auto arg : proc->args()) {
+  for (auto& arg : proc->args()) {
     fp_msg->add_arg(arg);
   }
 
   /* Already sorted by the interceptor */
-  for (auto env : proc->env_vars()) {
+  for (auto& env : proc->env_vars()) {
     if (env_fingerprintable(env)) {
       fp_msg->add_env(env);
     }
@@ -126,7 +126,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   fp_msg->mutable_executable()->set_path(proc->executable());
   fp_msg->mutable_executable()->set_hash(hash.to_binary());
 
-  for (auto lib : proc->libs()) {
+  for (auto& lib : proc->libs()) {
     if (lib == "linux-vdso.so.1") {
       continue;
     }

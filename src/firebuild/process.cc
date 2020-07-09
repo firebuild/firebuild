@@ -334,7 +334,7 @@ int64_t Process::sum_rusage_recurse() {
   if (exec_child_ != NULL) {
     aggr_time_ += exec_child_->sum_rusage_recurse();
   }
-  for (auto child : children_) {
+  for (auto& child : children_) {
     aggr_time_ += child->sum_rusage_recurse();
   }
   return aggr_time_;
@@ -345,7 +345,7 @@ void Process::export2js_recurse(const unsigned int level, FILE* stream,
   if (exec_child() != NULL) {
     exec_child_->export2js_recurse(level + 1, stream, nodeid);
   }
-  for (auto child : children_) {
+  for (auto& child : children_) {
     child->export2js_recurse(level, stream, nodeid);
   }
 }
