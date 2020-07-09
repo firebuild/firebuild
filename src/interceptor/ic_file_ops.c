@@ -115,8 +115,8 @@ int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
 void clear_file_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     pthread_mutex_lock(&ic_fd_states_lock);
-    ic_fd_states[fd].read = true;
-    ic_fd_states[fd].written = true;
+    ic_fd_states[fd].read = false;
+    ic_fd_states[fd].written = false;
     pthread_mutex_unlock(&ic_fd_states_lock);
   }
 }
