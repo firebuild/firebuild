@@ -16,7 +16,7 @@
   main_and_argv[1] = reinterpret_cast<char *>(ubp_av);
 
   /* Get out of the way from others */
-  intercept_on = NULL;
+  thread_intercept_on = NULL;
 
   /* Mark the end now */
   insert_end_marker("{{ func }}");
