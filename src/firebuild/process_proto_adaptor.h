@@ -20,6 +20,7 @@ namespace firebuild  {
 class ProcessPBAdaptor {
  public:
   static int msg(Process *p, const msg::Open &o);
+  static int msg(Process *p, const msg::DLOpen &dlo);
   static int msg(Process *p, const msg::Close &c);
   static int msg(Process *p, const msg::Pipe2 &pipe);
   static int msg(Process *p, const msg::Dup &d);

@@ -140,7 +140,7 @@ class Process {
    * Handle file opening in the monitored process
    * @param name relative or absolute file name
    * @param flags flags of open()
-   * @param fd the return value
+   * @param fd the return value, or -1 if file was dlopen()ed successfully
    * @param error error code of open()
    */
   int handle_open(const std::string &name, const int flags,

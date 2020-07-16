@@ -329,10 +329,7 @@ void handle_exit(const int status) {
   getrusage(RUSAGE_SELF, &ru);
   m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
   m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
-  {
-    auto *fl = m->mutable_libs();
-    dl_iterate_phdr(shared_libs_cb, fl);
-  }
+
   fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 }
 
