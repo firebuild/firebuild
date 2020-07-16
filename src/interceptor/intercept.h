@@ -61,9 +61,6 @@ extern void fb_send_msg_and_check_ack(void* ic_msg, int fd);
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
-/** interceptor init has been run */
-extern bool ic_init_done;
-
 extern void psfa_init(const posix_spawn_file_actions_t *p);
 extern void psfa_destroy(const posix_spawn_file_actions_t *p);
 extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,

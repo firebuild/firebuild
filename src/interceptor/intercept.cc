@@ -46,6 +46,9 @@ fd_state ic_fd_states[IC_FD_STATES_SIZE];
 /** Global lock for manipulating fd states */
 pthread_mutex_t ic_fd_states_lock;
 
+/** Global lock for running fb_ic_init() at most once */
+pthread_mutex_t ic_init_lock = PTHREAD_MUTEX_INITIALIZER;
+
 /** Global lock for preventing parallel system and popen calls */
 pthread_mutex_t ic_system_popen_lock;
 
@@ -59,7 +62,7 @@ char * fb_conn_string = NULL;
 int fb_sv_conn = -1;
 
 /** interceptor init has been run */
-bool ic_init_done = false;
+volatile bool ic_init_done = false;
 
 /**
  * Stored PID
@@ -300,8 +303,13 @@ static void fb_ic_init() {
  * when interceptor library loads or when the first interceped call happens
  */
 void fb_ic_load() {
+  /* Make sure to run fb_ic_init() only once. */
   if (!ic_init_done) {
-    fb_ic_init();
+    pthread_mutex_lock(&ic_init_lock);
+    if (!ic_init_done) {
+      fb_ic_init();
+    }
+    pthread_mutex_unlock(&ic_init_lock);
   }
 }
 
