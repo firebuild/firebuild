@@ -731,9 +731,15 @@ generate("int", "futimens", "int fd, const struct timespec times[2]",
 # Intercept dlopen
 # The new library's constructor may generate intercepted calls
 generate("void *", "dlopen", "const char *filename, int flag",
+         tpl="dlopen",
          before_lines=["intercept_on = NULL;"],
          after_lines=["intercept_on = \"dlopen\";"])
-# FIXME dlmopen()
+generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
+         tpl="dlopen",
+         msg="dlopen",
+         msg_skip_fields=["lmid"],
+         before_lines=["intercept_on = NULL;"],
+         after_lines=["intercept_on = \"dlmopen\";"])
 
 # Intercept the pipe family
 generate("int", "pipe", "int pipefd[2]",

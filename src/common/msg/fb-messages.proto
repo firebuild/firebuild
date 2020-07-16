@@ -379,8 +379,10 @@ message DLOpen {
     optional bytes filename = 1;
     // flag, decoding is left for FireBuild supervisor
     optional int32 flag = 2;
+    // absolute filename where (if) the library was found
+    optional bytes absolute_filename = 3;
     // error no., when ret = -1
-    optional int32 error_no = 3;
+    optional int32 error_no = 4;
 }
 
 message ExecV {
@@ -569,10 +571,6 @@ message FileList {
     repeated bytes file = 1;
 }
 
-message DLClose {
-    // loaded shared libraries before dlclose
-    optional FileList libs = 1;
-}
 message Exit {
     // exit status of the process
     required int32 exit_status = 1;
@@ -580,8 +578,6 @@ message Exit {
     required int64 utime_u = 2;
     // system CPU time in microseconds
     required int64 stime_u = 3;
-    // loaded shared libraries at exit
-    optional FileList libs = 4;
 }
 
 // fork()'s child
@@ -666,7 +662,6 @@ message InterceptorMsg {
         FCloseAll fcloseall = 50;
         LAObjSearch la_objsearch = 51;
         LAObjOpen la_objopen = 52;
-        DLClose dlclose = 53;
         UTime utime = 55;
         FUTime futime = 56;
         FBError fb_error = 57;
