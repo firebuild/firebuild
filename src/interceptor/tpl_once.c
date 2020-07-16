@@ -34,7 +34,7 @@ bool ic_called_{{ func }};
     fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 ###   else
     /* Send and go on, no ack */
-    fb_send_msg(ic_msg, fb_sv_conn);
+    fb_send_msg(&ic_msg, fb_sv_conn);
 ###   endif
   }
 ### endblock send_msg

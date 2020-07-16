@@ -50,7 +50,7 @@ void ack_msg(const int conn, const int ack_num) {
   firebuild::msg::SupervisorMsg sv_msg;
   sv_msg.set_ack_num(ack_num);
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + std::to_string(ack_num));
-  fb_send_msg(sv_msg, conn);
+  fb_send_msg_unlocked(sv_msg, conn);
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 

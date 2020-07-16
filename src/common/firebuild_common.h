@@ -9,8 +9,8 @@
 
 namespace firebuild {
 
-ssize_t fb_send_msg(const google::protobuf::MessageLite &pb_msg, const int fd);
-ssize_t fb_recv_msg(google::protobuf::MessageLite *pb_msg, const int fd);
+ssize_t fb_send_msg_unlocked(const google::protobuf::MessageLite &pb_msg, const int fd);
+ssize_t fb_recv_msg_unlocked(google::protobuf::MessageLite *pb_msg, const int fd);
 
 extern "C" {
 

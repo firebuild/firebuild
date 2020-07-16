@@ -55,6 +55,9 @@ extern void fb_init_supervisor_conn();
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
+/* Send message */
+extern void fb_send_msg(const void* ic_msg, int fd);
+
 /* Send message and wait for ACK */
 extern void fb_send_msg_and_check_ack(void* ic_msg, int fd);
 
