@@ -118,14 +118,19 @@ static int get_next_ack_id() {
   return __atomic_add_fetch(&ack_id, 1, __ATOMIC_SEQ_CST);
 }
 
+void fb_send_msg(const void* void_ic_msg, int fd) {
+  auto ic_msg = reinterpret_cast<const msg::InterceptorMsg *>(void_ic_msg);
+  fb_send_msg_unlocked(*ic_msg, fd);
+}
+
 void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
   int ack_num = get_next_ack_id();
   auto ic_msg = reinterpret_cast<msg::InterceptorMsg *>(void_ic_msg);
   ic_msg->set_ack_num(ack_num);
-  fb_send_msg(*ic_msg, fd);
+  fb_send_msg_unlocked(*ic_msg, fd);
 
   msg::SupervisorMsg sv_msg;
-  auto len = fb_recv_msg(&sv_msg, fd);
+  auto len = fb_recv_msg_unlocked(&sv_msg, fd);
   assert(len > 0);
   assert(sv_msg.ack_num() == ack_num);
 }
@@ -275,10 +280,10 @@ static void fb_ic_init() {
     dl_iterate_phdr(shared_libs_cb, fl);
   }
 
-  fb_send_msg(ic_msg, fb_sv_conn);
+  fb_send_msg_unlocked(ic_msg, fb_sv_conn);
 
   msg::SupervisorMsg sv_msg;
-  fb_recv_msg(&sv_msg, fb_sv_conn);
+  fb_recv_msg_unlocked(&sv_msg, fb_sv_conn);
 
   auto resp = sv_msg.mutable_scproc_resp();
   // we may return immediately if supervisor decides that way
@@ -369,7 +374,7 @@ extern void fb_error(const char* msg) {
   msg::InterceptorMsg ic_msg;
   auto err = ic_msg.mutable_fb_error();
   err->set_msg(msg);
-  fb_send_msg(ic_msg, fb_sv_conn);
+  fb_send_msg(&ic_msg, fb_sv_conn);
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
@@ -377,7 +382,7 @@ void fb_debug(const char* msg) {
   msg::InterceptorMsg ic_msg;
   auto dbg = ic_msg.mutable_fb_debug();
   dbg->set_msg(msg);
-  fb_send_msg(ic_msg, fb_sv_conn);
+  fb_send_msg(&ic_msg, fb_sv_conn);
 }
 
 
@@ -433,7 +438,7 @@ char * la_objsearch(const char *name, uintptr_t *cookie,
   auto *los = ic_msg.mutable_la_objsearch();
   los->set_name(name);
   los->set_flag(flag);
-  firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
+  firebuild::fb_send_msg(&ic_msg, firebuild::fb_sv_conn);
 
   return const_cast<char*>(name);
 }
@@ -452,7 +457,7 @@ unsigned int la_objopen(struct link_map *map, const Lmid_t lmid,
   firebuild::msg::InterceptorMsg ic_msg;
   auto *los = ic_msg.mutable_la_objopen();
   los->set_name(map->l_name);
-  firebuild::fb_send_msg(ic_msg, firebuild::fb_sv_conn);
+  firebuild::fb_send_msg(&ic_msg, firebuild::fb_sv_conn);
 
   return LA_FLG_BINDTO | LA_FLG_BINDFROM;
 }

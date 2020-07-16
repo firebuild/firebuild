@@ -16,9 +16,11 @@ namespace firebuild {
  * Send protobuf message via file descriptor
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
+ *
+ * No thread locking or signal blocking/delaying performed, it's up to the caller
  */
-extern ssize_t fb_send_msg(const google::protobuf::MessageLite &pb_msg,
-                           const int fd) {
+extern ssize_t fb_send_msg_unlocked(const google::protobuf::MessageLite &pb_msg,
+                                    const int fd) {
   int offset = 0;
   uint32_t msg_size = pb_msg.ByteSize(), msg_size_n = htonl(msg_size);
   char *buf = new char[sizeof(msg_size) + msg_size];
@@ -41,9 +43,11 @@ extern ssize_t fb_send_msg(const google::protobuf::MessageLite &pb_msg,
  * Read protobuf message via file descriptor
  *
  * Framing is very simple: 4 bytes length, then the protobuf message serialized
+ *
+ * No thread locking or signal blocking/delaying performed, it's up to the caller
  */
-extern ssize_t fb_recv_msg(google::protobuf::MessageLite *pb_msg,
-                           const int fd) {
+extern ssize_t fb_recv_msg_unlocked(google::protobuf::MessageLite *pb_msg,
+                                    const int fd) {
   uint32_t msg_size;
 
   /* read serialized length */

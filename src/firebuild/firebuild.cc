@@ -266,7 +266,7 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
       }
     }
 
-    firebuild::fb_send_msg(sv_msg, fd_conn);
+    firebuild::fb_send_msg_unlocked(sv_msg, fd_conn);
 }
 
 /**
@@ -1032,7 +1032,7 @@ int main(const int argc, char *argv[]) {
             // handle data from a client
             ssize_t nbytes;
 
-            if ((nbytes = firebuild::fb_recv_msg(&ic_msg, i)) <= 0) {
+            if ((nbytes = firebuild::fb_recv_msg_unlocked(&ic_msg, i)) <= 0) {
               // got error or connection closed by client
               if (nbytes == 0) {
                 // connection closed
