@@ -30,6 +30,7 @@
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
+#include "firebuild/utils.h"
 #include "firebuild/fb-cache.pb.h"
 #include "./fb-messages.pb.h"
 
@@ -227,19 +228,6 @@ static bool exe_matches_list(const std::string& exe,
   return false;
 }
 
-/**
- * ACK a message from the supervised process
- * @param conn connection file descriptor to send the ACK on
- */
-void ack_msg(const int conn, const int ack_num) {
-  firebuild::msg::SupervisorMsg sv_msg;
-  sv_msg.set_ack_num(ack_num);
-  FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + std::to_string(ack_num));
-  firebuild::fb_send_msg(sv_msg, conn);
-  FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
-}
-
-
 static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
                               firebuild::ProcessTree* proc_tree) {
     firebuild::msg::SupervisorMsg sv_msg;
@@ -288,6 +276,9 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
 void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                  const int fd_conn) {
   if (ic_msg.has_scproc_query()) {
+    ::firebuild::Process *unix_parent = NULL;
+    firebuild::LaunchType launch_type = firebuild::LAUNCH_TYPE_OTHER;
+
     auto scq = ic_msg.scproc_query();
 
     firebuild::Process *parent = NULL;
@@ -314,7 +305,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     } else if (!parent && scq.ppid() != getpid()) {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
-      ::firebuild::Process *unix_parent = proc_tree->pid2proc(scq.ppid());
+      unix_parent = proc_tree->pid2proc(scq.ppid());
       assert(unix_parent != NULL);
 
       /* Verify that the child was expected and get inherited fds. */
@@ -322,7 +313,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       fds = unix_parent->pop_expected_child_fds(
           std::vector<std::string>(ic_msg.scproc_query().arg().begin(),
                                    ic_msg.scproc_query().arg().end()),
-          &file_actions);
+          &file_actions, &launch_type);
 
       /* Add a ForkedProcess for the forked child we never directly saw. */
       parent = new firebuild::ForkedProcess(scq.pid(), scq.ppid(), unix_parent, fds);
@@ -368,10 +359,10 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
       // FIXME set exec_child_ ???
       proc_tree->insert(parent, -1);
 
-      /* Now we can ack the previous system/popen/posix_spawn's second message. */
+      /* Now we can ack the previous popen()/posix_spawn()'s second message. */
       auto pending_ack = proc_tree->PPid2ParentAck(unix_parent->pid());
       if (pending_ack) {
-        ack_msg(pending_ack->sock, pending_ack->ack_num);
+        firebuild::ack_msg(pending_ack->sock, pending_ack->ack_num);
         proc_tree->DropParentAck(unix_parent->pid());
       }
     }
@@ -380,6 +371,21 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
             ic_msg.scproc_query(), parent, fds);
+    if (launch_type == firebuild::LAUNCH_TYPE_SYSTEM) {
+      unix_parent->set_system_child(proc);
+    } else if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
+      if (unix_parent->pending_popen_fd() != -1) {
+        /* The popen_parent message has already arrived. Take a note of the fd -> child mapping. */
+        assert(!unix_parent->pending_popen_child());
+        unix_parent->AddPopenedProcess(unix_parent->pending_popen_fd(), proc);
+        unix_parent->set_pending_popen_fd(-1);
+      } else {
+        /* The popen_parent message has not yet arrived.
+         * Remember the new child, the handler of the popen_parent message will need it. */
+        assert(!unix_parent->pending_popen_child());
+        unix_parent->set_pending_popen_child(proc);
+      }
+    }
     accept_exec_child(proc, fd_conn, proc_tree);
 
   } else if (ic_msg.has_fork_child()) {
@@ -401,7 +407,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
           firebuild::ProcessFactory::getForkedProcess(fork_child.pid(), pproc, fork_parent_fds);
       proc_tree->insert(proc, fd_conn);
       proc_tree->DropForkParentFds(fork_child.pid());
-      ack_msg(fd_conn, ic_msg.ack_num());
+      firebuild::ack_msg(fd_conn, ic_msg.ack_num());
     }
     return;
   } else if (ic_msg.has_fork_parent()) {
@@ -418,7 +424,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
           firebuild::ProcessFactory::getForkedProcess(child_pid, pproc,
                                                       pproc->pass_on_fds(false));
       proc_tree->insert(proc, fork_child_sock->sock);
-      ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
+      firebuild::ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
       proc_tree->DropQueuedForkChild(child_pid);
     }
   } else if (ic_msg.has_execvfailed()) {
@@ -433,9 +439,11 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
              ic_msg.has_popen() ||
              ic_msg.has_popen_parent() ||
              ic_msg.has_popen_failed() ||
+             ic_msg.has_pclose() ||
              ic_msg.has_posix_spawn() ||
              ic_msg.has_posix_spawn_parent() ||
              ic_msg.has_posix_spawn_failed() ||
+             ic_msg.has_wait() ||
              ic_msg.has_open() ||
              ic_msg.has_dlopen() ||
              ic_msg.has_close() ||
@@ -451,36 +459,69 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
                           ic_msg.exit().utime_u(),
                           ic_msg.exit().stime_u());
       } else if (ic_msg.has_system()) {
+        assert(!proc->system_child());
         // system(cmd) launches a child of argv = ["sh", "-c", cmd]
         auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
         // FIXME what if !has_cmd() ?
         expected_child->set_sh_c_command(ic_msg.system().cmd());
+        expected_child->set_launch_type(firebuild::LAUNCH_TYPE_SYSTEM);
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_system_ret()) {
-        if (proc->has_expected_child()) {
-          /* skip ACK and send it when the the child arrives */
-          proc_tree->QueueParentAck(proc->pid(), ic_msg.ack_num(), fd_conn);
+        assert(proc->system_child());
+        if (proc->system_child()->state() != firebuild::FB_PROC_FINALIZED) {
+          /* The process has actually quit (otherwise the interceptor
+           * couldn't send us the system_ret message), but the supervisor
+           * hasn't seen this event yet. Thus we have to slightly defer
+           * sending the ACK. */
+          proc->system_child()->set_on_finalized_ack(ic_msg.ack_num(), fd_conn);
+          proc->set_system_child(NULL);
           return;
         }
+        /* Else we can ACK straight away. */
+        proc->set_system_child(NULL);
       } else if (ic_msg.has_popen()) {
+        assert(!proc->pending_popen_child());
+        assert(proc->pending_popen_fd() == -1);
         // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
         auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
         // FIXME what if !has_cmd() ?
         expected_child->set_sh_c_command(ic_msg.popen().cmd());
+        expected_child->set_launch_type(firebuild::LAUNCH_TYPE_POPEN);
         proc->set_expected_child(expected_child);
       } else if (ic_msg.has_popen_parent()) {
         if (proc->has_expected_child()) {
-          /* skip ACK and send it when the the child arrives */
+          /* The child hasn't appeared yet. Defer sending the ACK and setting up
+           * the fd -> child mapping. */
+          assert(!proc->pending_popen_child());
           proc_tree->QueueParentAck(proc->pid(), ic_msg.ack_num(), fd_conn);
+          proc->set_pending_popen_fd(ic_msg.popen_parent().fd());
           return;
         }
-        // else FIXME(egmont) Connect pipe's end with child
+        /* The child has already appeared. Take a note of the fd -> child mapping. */
+        assert(proc->pending_popen_fd() == -1);
+        assert(proc->pending_popen_child());
+        proc->AddPopenedProcess(ic_msg.popen_parent().fd(), proc->pending_popen_child());
+        proc->set_pending_popen_child(NULL);
+        // FIXME(egmont) Connect pipe's end with child
       } else if (ic_msg.has_popen_failed()) {
         // FIXME what if !has_cmd() ?
         proc->pop_expected_child_fds(
             std::vector<std::string>({"sh", "-c", ic_msg.popen_failed().cmd()}),
             nullptr,
+            nullptr,
             true);
+      } else if (ic_msg.has_pclose()) {
+        if (!ic_msg.pclose().has_error_no()) {
+          // FIXME(egmont) proc->handle_close(ic_msg.pclose().fd(), 0);
+          firebuild::ExecedProcess *child = proc->PopPopenedProcess(ic_msg.pclose().fd());
+          assert(child);
+          if (child->state() != firebuild::FB_PROC_FINALIZED) {
+            /* We haven't seen the process quitting yet. Defer sending the ACK. */
+            child->set_on_finalized_ack(ic_msg.ack_num(), fd_conn);
+            return;
+          }
+          /* Else we can ACK straight away. */
+        }
       } else if (ic_msg.has_posix_spawn()) {
         firebuild::msg::PosixSpawnFileActions *actions = nullptr;
         if (ic_msg.posix_spawn().has_file_actions()) {
@@ -503,7 +544,17 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
             std::vector<std::string>(ic_msg.posix_spawn_failed().arg().begin(),
                                      ic_msg.posix_spawn_failed().arg().end()),
             nullptr,
+            nullptr,
             true);
+      } else if (ic_msg.has_wait()) {
+        firebuild::Process *child = proc_tree->pid2proc(ic_msg.wait().pid());
+        assert(child);
+        if (child->state() != firebuild::FB_PROC_FINALIZED) {
+          /* We haven't seen the process quitting yet. Defer sending the ACK. */
+          child->set_on_finalized_ack(ic_msg.ack_num(), fd_conn);
+          return;
+        }
+        /* Else we can ACK straight away. */
       } else if (ic_msg.has_execv()) {
         proc->update_rusage(ic_msg.execv().utime_u(),
                             ic_msg.execv().stime_u());
@@ -534,7 +585,7 @@ void proc_ic_msg(const firebuild::msg::InterceptorMsg &ic_msg,
   }
 
   if (ic_msg.has_ack_num()) {
-    ack_msg(fd_conn, ic_msg.ack_num());
+    firebuild::ack_msg(fd_conn, ic_msg.ack_num());
   }
 }
 

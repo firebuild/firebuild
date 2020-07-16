@@ -18,5 +18,7 @@ namespace firebuild {
 
 bool path_begins_with(const std::string& path, const std::string& prefix);
 
+void ack_msg(const int conn, const int ack_num);
+
 }  // namespace firebuild
 #endif  // FIREBUILD_UTILS_H_
