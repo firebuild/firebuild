@@ -198,24 +198,24 @@ for gen in outputs:
 # Intercept vararg open() and friends
 generate("int", ["open", "open64"], "const char *file, int flags, ...",
          tpl="open",
-         after_lines=["clear_file_state(ret);"],
+         after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          send_ret_on_success=True,
          ack=True)
 generate("int", ["openat", "openat64"], "int dirfd, const char *file, int flags, ...",
          tpl="open",
-         after_lines=["clear_file_state(ret);"],
+         after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          msg="open",
          send_ret_on_success=True,
          ack=True)
 
 # Intercept open_2 variants
 generate("int", ["__open_2", "__open64_2"], "const char *file, int flags",
-         after_lines=["clear_file_state(ret);"],
+         after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          msg="open",
          send_ret_on_success=True,
          ack=True)
 generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, int flags",
-         after_lines=["clear_file_state(ret);"],
+         after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          msg="open",
          send_ret_on_success=True,
          ack=True)
@@ -224,7 +224,7 @@ generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, in
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
 generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
          after_lines=["int fd = safe_fileno(ret);",
-                      "clear_file_state(fd);"],
+                      "if (i_am_intercepting) clear_file_state(fd);"],
          msg="open",
          msg_skip_fields=["mode"],
          msg_add_fields=["m->set_flags(intercept_fopen_mode_to_open_flags_helper(mode));",
@@ -235,9 +235,9 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
 # FIXME implement in the supervisor. Note that the behavior heavily depends on filename's nullness.
 #generate("FILE *", ["freopen", "freopen64"], "const char *filename, const char *mode, FILE *stream",
 #         before_lines=["int oldfd = safe_fileno(stream);",
-#                       "clear_file_state(oldfd);"],
+#                       "if (i_am_intercepting) clear_file_state(oldfd);"],
 #         after_lines=["int newfd = safe_fileno(ret);",
-#                      "clear_file_state(newfd);"],
+#                      "if (i_am_intercepting) clear_file_state(newfd);"],
 #         msg_skip_fields=["mode", "stream"],
 #         msg_add_fields=["m->set_flags(intercept_fopen_mode_to_open_flags_helper(mode));",
 #                         "m->set_fd(oldfd);",
@@ -257,13 +257,13 @@ generate("int", "memfd_create", "const char *name, unsigned int flags",
 # Don't call the actual method on the supervisor connection fd.
 generate("int", "close", "int fd",
          before_lines=["if (fd != fb_sv_conn) {",
-                       "  clear_file_state(fd);"],
+                       "  if (i_am_intercepting) clear_file_state(fd);"],
          after_lines=["} else { ret = -1; saved_errno = EBADF; }"],
          ack=True)
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
                        "if (fd != fb_sv_conn) {",
-                       "  clear_file_state(fd);"],
+                       "  if (i_am_intercepting) clear_file_state(fd);"],
          after_lines=["} else { ret = -1 /* a.k.a. EOF */; saved_errno = EBADF; }"],
          msg="close",
          msg_skip_fields=["stream"],
@@ -743,12 +743,12 @@ generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
 
 # Intercept the pipe family
 generate("int", "pipe", "int pipefd[2]",
-         after_lines=["if (success) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
+         after_lines=["if (success && i_am_intercepting) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
          msg="pipe2",
          msg_skip_fields=["pipefd"],
          msg_add_fields=["if (success) { m->set_fd0(pipefd[0]); m->set_fd1(pipefd[1]); }"])
 generate("int", "pipe2", "int pipefd[2], int flags",
-         after_lines=["if (success) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
+         after_lines=["if (success && i_am_intercepting) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
          msg_skip_fields=["pipefd"],
          msg_add_fields=["if (success) { m->set_fd0(pipefd[0]); m->set_fd1(pipefd[1]); }",
                          "m->set_flags(flags);"])
@@ -970,7 +970,15 @@ generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
 # Note: Our parser parses this method signature completely wrong. This is not a problem since only the original string is used.
 generate("int", "__libc_start_main", "int (*main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end",
          tpl="main",
+         global_lock=False,
          no_saved_errno=True)
+
+# Signal handling
+generate("sighandler_t", ["signal", "sigset"], "int signum, sighandler_t handler",
+         tpl="signal",
+         success="1")
+generate("int", "sigaction", "int signum, const struct sigaction *act, struct sigaction *oldact",
+         tpl="signal")
 
 # Skip the getcwd family: The initial working directory is part of the fingerprint
 skip("getcwd", "getwd", "get_current_dir_name")
@@ -1105,6 +1113,7 @@ generate("long", "sysconf", "int name",
 # Intercept syscall
 # FIXME retval == -1 does not have a generic meaning
 generate("long", "syscall", "long number, ...",
+         tpl="syscall",
          send_ret_on_success=True,
          ack=True)
 

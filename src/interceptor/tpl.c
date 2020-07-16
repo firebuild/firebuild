@@ -7,6 +7,7 @@
 {# required code for the majority of the intercepted functions.       #}
 {# ------------------------------------------------------------------ #}
 {# Parameters:                                                        #}
+{#  global_lock:         If to acquire global lock (default: true)    #}
 {#  before_lines:        Things to place right before the call        #}
 {#  call_orig_lines:     How to call the orig method                  #}
 {#  after_lines:         Things to place right after the call         #}
@@ -32,10 +33,13 @@
 ### endif
 ### if not send_msg_condition
 ###   if send_msg_on_error
-###     set send_msg_condition = "1"
+###     set send_msg_condition = "true"
 ###   else
 ###     set send_msg_condition = "success"
 ###   endif
+### endif
+### if global_lock is not defined
+###   set global_lock = true
 ### endif
 {#                                                                    #}
 {# --- Template for 'decl.h' ---------------------------------------- #}
@@ -83,28 +87,61 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###     if rettype != 'void'
   {{ rettype }} ret;
 ###     endif
-
-  /* Warm up */
-###     if not no_saved_errno
-  int saved_errno = errno;
-###     endif
-  fb_ic_load();
-
-  if (insert_trace_markers) {
-    char debug_buf[1024];
-    snprintf(debug_buf, 1000, "%s{{ debug_before_fmt }}", "{{ func }}"{{ debug_before_args }});
-    insert_begin_marker(debug_buf);
-  }
-  if (thread_intercept_on != NULL) {
-    fprintf(stderr, "Started to intercept %s while already intercepting %s\n", "{{ func }}", thread_intercept_on);
-    assert(0);
-  }
-  thread_intercept_on = "{{ func }}";
+  bool i_am_intercepting = intercepting_enabled;  /* use a copy, in case another thread modifies it */
 
 ###     if vararg
   /* Auto-generated for vararg functions */
   va_list ap;
   va_start(ap, {{ names[-1] }});
+###     endif
+
+  /* Maybe don't intercept? */
+###     block no_intercept
+###     endblock no_intercept
+
+  /* Warm up */
+###     if not no_saved_errno
+  int saved_errno = errno;
+###     endif
+
+  fb_ic_load();
+
+  if (insert_trace_markers) {
+    char debug_buf[256];
+    snprintf(debug_buf, sizeof(debug_buf), "%s%s{{ debug_before_fmt }}",
+        i_am_intercepting ? "" : "[not intercepting] ",
+        "{{ func }}"{{ debug_before_args }});
+    insert_begin_marker(debug_buf);
+  }
+
+###     if global_lock
+  bool i_locked = false;  /* "i" as in "me, myself and I" */
+  if (i_am_intercepting) {
+    thread_signal_danger_zone_enter();
+
+    /* Some internal integrity assertions */
+    if ((thread_has_global_lock) != (thread_intercept_on != NULL)) {
+      char debug_buf[256];
+      snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: thread_has_global_lock (%s) and thread_intercept_on (%s) must go hand in hand", "{{ func }}", thread_has_global_lock ? "true" : "false", thread_intercept_on);
+      insert_debug_msg(debug_buf);
+      assert(0 && "Internal error: thread_has_global_lock and thread_intercept_on must go hand in hand");
+    }
+    if (thread_signal_handler_running_depth == 0 && thread_intercept_on != NULL) {
+      char debug_buf[256];
+      snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: already intercepting %s (and no signal handler running in this thread)", "{{ func }}", thread_intercept_on);
+      insert_debug_msg(debug_buf);
+      assert(0 && "Internal error: nested interceptors (no signal handler running)");
+    }
+
+    if (!thread_has_global_lock) {
+      pthread_mutex_lock(&ic_global_lock);
+      thread_has_global_lock = true;
+      thread_intercept_on = "{{ func }}";
+      i_locked = true;
+    }
+    thread_signal_danger_zone_leave();
+    assert(thread_signal_danger_zone_depth == 0);
+  }
 ###     endif
 
 ###     block body
@@ -159,7 +196,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###       block send_msg
 ###         if msg
   /* Maybe notify the supervisor */
-  if ({{ send_msg_condition }}) {
+  if (i_am_intercepting && {{ send_msg_condition }}) {
     msg::InterceptorMsg ic_msg;
     auto m = ic_msg.mutable_{{ msg }}();
 
@@ -210,20 +247,33 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 ###     endblock body
 
+  /* Cool down */
+  if (insert_trace_markers) {
+    char debug_buf[256];
+    snprintf(debug_buf, sizeof(debug_buf), "%s%s{{ debug_after_fmt }}",
+        i_am_intercepting ? "" : "[not intercepting] ",
+        "{{ func }}"{{ debug_after_args }});
+    insert_end_marker(debug_buf);
+  }
+
+###     if global_lock
+  if (i_locked) {
+    thread_signal_danger_zone_enter();
+    pthread_mutex_unlock(&ic_global_lock);
+    thread_has_global_lock = false;
+    thread_intercept_on = NULL;
+    thread_signal_danger_zone_leave();
+    assert(thread_signal_danger_zone_depth == 0);
+  }
+###     endif
+
+###     if not no_saved_errno
+  errno = saved_errno;
+###     endif
+
 ###     if vararg
   /* Auto-generated for vararg functions */
   va_end(ap);
-###     endif
-
-  /* Cool down */
-  if (insert_trace_markers) {
-    char debug_buf[1024];
-    snprintf(debug_buf, 1000, "%s{{ debug_after_fmt }}", "{{ func }}"{{ debug_after_args }});
-    insert_end_marker(debug_buf);
-  }
-  thread_intercept_on = NULL;
-###     if not no_saved_errno
-  errno = saved_errno;
 ###     endif
 
 ###     if rettype != 'void'
