@@ -106,13 +106,25 @@ class Process {
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
   const std::vector<Process*>& children() const {return children_;}
+  void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
+  ExecedProcess *system_child() const {return system_child_;}
   void set_expected_child(ExecedProcessEnv *ec) {
     assert(!expected_child_);
     expected_child_ = ec;
   }
+  ExecedProcess *pending_popen_child() const {return pending_popen_child_;}
+  void set_pending_popen_child(ExecedProcess *proc) {
+    assert(!pending_popen_child_ || !proc);
+    pending_popen_child_ = proc;
+  }
+  int pending_popen_fd() const {return pending_popen_fd_;}
+  void set_pending_popen_fd(int fd) {
+    pending_popen_fd_ = fd;
+  }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&,
                          std::shared_ptr<msg::PosixSpawnFileActions> *file_actions_p,
+                         LaunchType *launch_type_p,
                          const bool failed = false);
   bool has_expected_child () {return expected_child_?true:false;}
   virtual void do_finalize();
@@ -131,6 +143,16 @@ class Process {
   }
   void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
+
+  void AddPopenedProcess(int fd, ExecedProcess *proc) {
+    fd2popen_child_[fd] = proc;
+  }
+  ExecedProcess *PopPopenedProcess(int fd) {
+    assert(fd2popen_child_.count(fd) > 0);
+    ExecedProcess *ret = fd2popen_child_[fd];
+    fd2popen_child_.erase(fd);
+    return ret;
+  }
 
   /**
    * Handle file opening in the monitored process
@@ -229,6 +251,11 @@ class Process {
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
+  void set_on_finalized_ack(int id, int fd) {
+    on_finalized_ack_id_ = id;
+    on_finalized_ack_fd_ = fd;
+  }
+
  private:
   Process *parent_;
   process_state state_ :2;
@@ -246,6 +273,14 @@ class Process {
       children */
   int64_t aggr_time_ = 0;
   std::vector<Process*> children_;  ///< children of the process
+  /// the latest system() child
+  ExecedProcess *system_child_ {NULL};
+  /// for popen()ed children: client fd -> process mapping
+  std::unordered_map<int, ExecedProcess *> fd2popen_child_ {};
+  /// if the popen()ed child has appeared, but the popen_parent messages hasn't:
+  ExecedProcess *pending_popen_child_ {NULL};
+  /// if the popen_parent message has arrived, but the popen()ed child hasn't:
+  int pending_popen_fd_ {-1};
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
   ExecedProcessEnv *expected_child_;
   bool exec_pending_ {false};
@@ -253,6 +288,8 @@ class Process {
   /** Add add ffd FileFD* to open fds */
   void add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                   const int fd, std::shared_ptr<FileFD> ffd);
+  int on_finalized_ack_id_ = -1;
+  int on_finalized_ack_fd_ = -1;
   DISALLOW_COPY_AND_ASSIGN(Process);
 };
 

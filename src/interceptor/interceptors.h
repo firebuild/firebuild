@@ -26,6 +26,7 @@ struct ntptimeval;
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/vfs.h>
+#include <sys/wait.h>
 #include <unistd.h>
 // #include <ustat.h>
 struct statx;

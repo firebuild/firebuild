@@ -14,6 +14,12 @@
 
 namespace firebuild {
 
+typedef enum {
+  LAUNCH_TYPE_SYSTEM,
+  LAUNCH_TYPE_POPEN,
+  LAUNCH_TYPE_OTHER
+} LaunchType;
+
 /**
  * A process' inherited environment, command line parameters and file descriptors,
  * file actions to be executed on startup (for posix_spawn'ed children),
@@ -29,11 +35,15 @@ class ExecedProcessEnv {
   const std::vector<std::string>& argv() const {return argv_;}
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
   std::shared_ptr<msg::PosixSpawnFileActions> file_actions() {return file_actions_;}
+  void set_launch_type(LaunchType value) {launch_type_ = value;}
+  LaunchType launch_type() const {return launch_type_;}
 
   void set_sh_c_command(const std::string&);
 
  private:
   std::vector<std::string> argv_;
+  /// Whether it's launched via system() or popen() or other
+  LaunchType launch_type_;
   /// File descriptor states intherited from parent
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
   /// In case the process is started via a posix_spawn[p]() with a file_actions parameter:

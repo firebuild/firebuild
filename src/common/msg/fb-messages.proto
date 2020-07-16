@@ -447,6 +447,13 @@ message PopenFailed {
     optional int32 error_no = 2;
 }
 
+message Pclose {
+    // file descriptor
+    required int32 fd = 1;
+    // error no., when ret = -1
+    optional int32 error_no = 2;
+}
+
 // posix_spawn[p](3)
 message PosixSpawn {
     // command
@@ -475,6 +482,11 @@ message PosixSpawnFailed {
     repeated bytes arg = 1;
     // error no., when ret = -1
     optional int32 error_no = 4;
+}
+
+message Wait {
+    // pid whose termination the parent has successfully waited for
+    required int64 pid = 1;
 }
 
 message Sysconf {
@@ -674,11 +686,13 @@ message InterceptorMsg {
         Popen popen = 64;
         PopenParent popen_parent = 65;
         PopenFailed popen_failed = 66;
-        PosixSpawn posix_spawn = 67;
-        PosixSpawnParent posix_spawn_parent = 68;
-        PosixSpawnFailed posix_spawn_failed = 69;
-        Stat stat = 70;
-        FStat fstat = 71;
+        Pclose pclose = 67;
+        PosixSpawn posix_spawn = 68;
+        PosixSpawnParent posix_spawn_parent = 69;
+        PosixSpawnFailed posix_spawn_failed = 70;
+        Wait wait = 71;
+        Stat stat = 72;
+        FStat fstat = 73;
     }
 }
 

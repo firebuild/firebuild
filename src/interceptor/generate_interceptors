@@ -861,9 +861,14 @@ generate("pid_t", "fork", "",
 generate("int", "system", "const char *cmd",
          tpl="system")
 
-# Intercept popen
+# Intercept popen and pclose
 generate("FILE *", "popen", "const char *cmd, const char *type",
          tpl="popen")
+generate("int", "pclose", "FILE *stream",
+         before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the pclose() */"],
+         msg_skip_fields=["stream"],
+         msg_add_fields=["m->set_fd(fd);"],
+         ack=True)
 
 # Intercept the posix_spawn family
 # FIXME Check the error condition. The manpage is weird:
@@ -895,6 +900,54 @@ generate("int", "posix_spawn_file_actions_addclose", "posix_spawn_file_actions_t
 generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t *file_actions, int oldfd, int newfd",
          tpl="posix_spawn_file_actions",
          success="ret == 0")
+
+# Intercept the wait family
+# Need to wait for the supervisor to ACK that it has processed what the child had done
+generate("pid_t", "wait", "int *wstatus",
+         success="ret > 0",
+         send_msg_on_error=False,
+         msg="wait",
+         msg_skip_fields=["wstatus"],
+         msg_add_fields=["m->set_pid(ret);"],
+         ack=True)
+generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
+         before_lines=["int wstatus_fallback;",
+                       "if (!wstatus) wstatus = &wstatus_fallback;"],
+         success="ret > 0",
+         send_msg_on_error=False,
+         send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
+         msg="wait",
+         msg_skip_fields=["pid", "wstatus", "options"],
+         msg_add_fields=["m->set_pid(ret);"],
+         ack=True)
+generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
+         before_lines=["int wstatus_fallback;",
+                       "if (!wstatus) wstatus = &wstatus_fallback;"],
+         success="ret > 0",
+         send_msg_on_error=False,
+         send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
+         msg="wait",
+         msg_skip_fields=["wstatus", "options", "rusage"],
+         msg_add_fields=["m->set_pid(ret);"],
+         ack=True)
+generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage *rusage",
+         before_lines=["int wstatus_fallback;",
+                       "if (!wstatus) wstatus = &wstatus_fallback;"],
+         success="ret > 0",
+         send_msg_on_error=False,
+         send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
+         msg="wait",
+         msg_skip_fields=["pid", "wstatus", "options", "rusage"],
+         msg_add_fields=["m->set_pid(ret);"],
+         ack=True)
+# Note: See BUGS in the waitid(2) manual page for the infop==NULL case.
+generate("int", "waitid", "idtype_t idtype, id_t id, siginfo_t *infop, int options",
+         send_msg_on_error=False,
+         send_msg_condition="success && infop && !((options & WNOHANG) && (infop->si_pid == 0)) && infop->si_code != CLD_STOPPED && infop->si_code != CLD_TRAPPED && infop->si_code != CLD_CONTINUED",
+         msg="wait",
+         msg_skip_fields=["idtype", "id", "infop", "options"],
+         msg_add_fields=["m->set_pid(infop->si_pid);"],
+         ack=True)
 
 # Intercept the exec family
 generate("int", ["execl", "execlp"], "const char *file, const char *arg, ...",

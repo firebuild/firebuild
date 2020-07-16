@@ -5,6 +5,7 @@
 
 #include "firebuild/utils.h"
 
+#include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
 namespace firebuild {
@@ -38,6 +39,19 @@ bool path_begins_with(const std::string& path, const std::string& prefix) {
   }
 
   return false;
+}
+
+/**
+ * ACK a message from the supervised process
+ * @param conn connection file descriptor to send the ACK on
+ * @param ack_num the ACK id
+ */
+void ack_msg(const int conn, const int ack_num) {
+  firebuild::msg::SupervisorMsg sv_msg;
+  sv_msg.set_ack_num(ack_num);
+  FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + std::to_string(ack_num));
+  fb_send_msg(sv_msg, conn);
+  FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
 }  // namespace firebuild

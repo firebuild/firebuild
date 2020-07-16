@@ -77,3 +77,18 @@ load test_helper
       assert_streq "$result" ""
       assert_streq "$(strip_stderr stderr)" ""
 }
+
+@test "waiting for a child" {
+      result=$(./run-firebuild -o 'processes.skip_cache -= "touch"' -- ./test_wait)
+      assert_streq "$result" ""
+      assert_streq "$(strip_stderr stderr)" ""
+}
+
+@test "waiting for a child again" {
+      # Due to the "again" parameter the outer process cannot be shortcut,
+      # but the children can, they should fetch the cached entries stored
+      # by the previous test.
+      result=$(./run-firebuild -o 'processes.skip_cache -= "touch"' -- ./test_wait again)
+      assert_streq "$result" ""
+      assert_streq "$(strip_stderr stderr)" ""
+}

@@ -12,6 +12,7 @@
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -264,6 +265,7 @@ void Process::set_wd(const std::string &ar_d) {
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 std::shared_ptr<msg::PosixSpawnFileActions> *file_actions_p,
+                                LaunchType *launch_type_p,
                                 const bool failed) {
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
@@ -271,6 +273,8 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
       auto fds = expected_child_->fds();
       if (file_actions_p)
           *file_actions_p = expected_child_->file_actions();
+      if (launch_type_p)
+          *launch_type_p = expected_child_->launch_type();
       delete(expected_child_);
       expected_child_ = nullptr;
       return fds;
@@ -293,6 +297,12 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
  * Finalize the current process.
  */
 void Process::do_finalize() {
+  /* Now we can ack the previous system()'s second message,
+   * or a pending pclose() or wait*(). */
+  if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_ != -1) {
+    ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
+  }
+
   assert(state() == FB_PROC_TERMINATED);
   set_state(FB_PROC_FINALIZED);
 }
