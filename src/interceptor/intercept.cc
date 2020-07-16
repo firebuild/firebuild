@@ -71,7 +71,7 @@ volatile bool ic_init_done = false;
 int ic_pid;
 
 /** Per thread variable which we turn on inside call interception */
-__thread const char *intercept_on = NULL;
+__thread const char *thread_intercept_on = NULL;
 
 /** debugging flags */
 int32_t debug_flags = 0;
@@ -203,8 +203,8 @@ static void fb_ic_init() {
 
   init_interceptors();
 
-  assert(intercept_on == NULL);
-  intercept_on = "init";
+  assert(thread_intercept_on == NULL);
+  thread_intercept_on = "init";
   insert_debug_msg("initialization-begin");
 
   // init global variables
@@ -298,7 +298,7 @@ static void fb_ic_init() {
   }
   ic_init_done = true;
   insert_debug_msg("initialization-end");
-  intercept_on = NULL;
+  thread_intercept_on = NULL;
 
   free(env_copy);
 }

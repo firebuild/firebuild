@@ -89,7 +89,7 @@ extern void insert_end_marker(const char*);
 extern int ic_pid;
 
 /** Per thread variable which we turn on inside call interception */
-extern __thread const char *intercept_on;
+extern __thread const char *thread_intercept_on;
 
 #ifdef  __cplusplus
 }  // namespace firebuild

@@ -95,11 +95,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     snprintf(debug_buf, 1000, "%s{{ debug_before_fmt }}", "{{ func }}"{{ debug_before_args }});
     insert_begin_marker(debug_buf);
   }
-  if (intercept_on != NULL) {
-    fprintf(stderr, "Started to intercept %s while already intercepting %s\n", "{{ func }}", intercept_on);
+  if (thread_intercept_on != NULL) {
+    fprintf(stderr, "Started to intercept %s while already intercepting %s\n", "{{ func }}", thread_intercept_on);
     assert(0);
   }
-  intercept_on = "{{ func }}";
+  thread_intercept_on = "{{ func }}";
 
 ###     if vararg
   /* Auto-generated for vararg functions */
@@ -221,7 +221,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     snprintf(debug_buf, 1000, "%s{{ debug_after_fmt }}", "{{ func }}"{{ debug_after_args }});
     insert_end_marker(debug_buf);
   }
-  intercept_on = NULL;
+  thread_intercept_on = NULL;
 ###     if not no_saved_errno
   errno = saved_errno;
 ###     endif

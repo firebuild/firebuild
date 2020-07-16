@@ -9,7 +9,7 @@
 
 ### block body
   /* Exit handlers may call intercepted functions */
-  intercept_on = NULL;
+  thread_intercept_on = NULL;
 
   /* Mark the end now */
   insert_end_marker("{{ func }}");
