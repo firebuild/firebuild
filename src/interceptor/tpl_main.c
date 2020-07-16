@@ -17,6 +17,8 @@
 
   /* Get out of the way from others */
   thread_intercept_on = NULL;
+  pthread_mutex_unlock(&ic_global_lock);
+  thread_has_global_lock = false;
 
   /* Mark the end now */
   insert_end_marker("{{ func }}");

@@ -43,14 +43,11 @@ static void fb_ic_cleanup() __attribute__((destructor));
 /** file fd states */
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
-/** Global lock for manipulating fd states */
-pthread_mutex_t ic_fd_states_lock;
-
 /** Global lock for running fb_ic_init() at most once */
 pthread_mutex_t ic_init_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /** Global lock for preventing parallel system and popen calls */
-pthread_mutex_t ic_system_popen_lock;
+pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -64,14 +61,110 @@ int fb_sv_conn = -1;
 /** interceptor init has been run */
 volatile bool ic_init_done = false;
 
+bool intercepting_enabled = true;
+
 /**
  * Stored PID
  * When getpid() returns a different value, we missed a fork() :-)
  */
 int ic_pid;
 
-/** Per thread variable which we turn on inside call interception */
 __thread const char *thread_intercept_on = NULL;
+__thread sig_atomic_t thread_signal_danger_zone_depth = 0;
+__thread bool thread_has_global_lock = false;
+__thread sig_atomic_t thread_signal_handler_running_depth = 0;
+__thread uint64_t thread_delayed_signals_bitmap = 0;
+
+void (**orig_signal_handlers)(void);
+
+/** Whether to install our wrapper for the given signal. */
+bool signal_is_wrappable(int signum) {
+  /* Safety check, so that we don't crash if the user passes an invalid value to signal(),
+   * sigset() or sigaction(). Just let the original function handle it somehow. */
+  if (signum < 1 || signum > SIGRTMAX) {
+    return false;
+  }
+
+  return true;
+}
+
+/** When a signal handler is installed using signal(), sigset(), or sigaction() without the
+ *  SA_SIGINFO flag, this wrapper gets installed instead.
+ *
+ *  See tpl_signal.c for how this wrapper is installed instead of the actual handler.
+ *
+ *  This wrapper makes sure that the actual signal handler is only executed straight away if the
+ *  thread is not inside a "signal danger zone". Otherwise execution is deferred until the danger
+ *  zone is left (thread_signal_danger_zone_leave()).
+ */
+void wrapper_signal_handler_1arg(int signum) {
+  char debug_msg[256];
+
+  if (thread_signal_danger_zone_depth > 0) {
+    snprintf(debug_msg, sizeof(debug_msg), "signal %d arrived in danger zone, delaying\n", signum);
+    insert_debug_msg(debug_msg);
+    thread_delayed_signals_bitmap |= (1LL << (signum - 1));
+    return;
+  }
+
+  thread_signal_handler_running_depth++;
+
+  snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-begin %d\n", signum);
+  insert_debug_msg(debug_msg);
+
+  ((void (*)(int))(*orig_signal_handlers[signum]))(signum);
+
+  snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-end %d\n", signum);
+  insert_debug_msg(debug_msg);
+
+  thread_signal_handler_running_depth--;
+}
+
+/** When a signal handler is installed using sigaction() with the SA_SIGINFO flag,
+ *  this wrapper gets installed instead.
+ *
+ *  See wrapper_signal_handler_3arg() for further details.
+ */
+void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
+  char debug_msg[256];
+
+  if (thread_signal_danger_zone_depth > 0) {
+    snprintf(debug_msg, sizeof(debug_msg), "signal %d arrived in danger zone, delaying\n", signum);
+    insert_debug_msg(debug_msg);
+    thread_delayed_signals_bitmap |= (1LL << (signum - 1));
+    // FIXME(egmont) stash "info"
+    return;
+  }
+
+  thread_signal_handler_running_depth++;
+
+  snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-begin %d\n", signum);
+  insert_debug_msg(debug_msg);
+
+  // FIXME(egmont) if this is a re-raised signal from thread_raise_delayed_signals()
+  // [can this be detected fully reliably, without the slightest race condition?]
+  // then replace "info" with the stashed version
+  ((void (*)(int, siginfo_t *, void *))(*orig_signal_handlers[signum]))(signum, info, ucontext);
+
+  snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-end %d\n", signum);
+  insert_debug_msg(debug_msg);
+
+  thread_signal_handler_running_depth--;
+}
+
+/** Internal helper for thread_signal_danger_zone_leave(), see there for details. */
+void thread_raise_delayed_signals() {
+  /* Execute the delayed signals, by re-raising them. */
+  char debug_msg[256];
+  for (int signum = 1; signum <= SIGRTMAX; signum++) {
+    if (thread_delayed_signals_bitmap & (1LL << (signum - 1))) {
+      snprintf(debug_msg, sizeof(debug_msg), "raising delayed signal %d\n", signum);
+      insert_debug_msg(debug_msg);
+      thread_delayed_signals_bitmap &= ~(1LL << (signum - 1));
+      raise(signum);
+    }
+  }
+}
 
 /** debugging flags */
 int32_t debug_flags = 0;
@@ -115,15 +208,25 @@ void insert_end_marker(const char* m) {
 
 /** Get next unique ACK id */
 static int get_next_ack_id() {
-  return __atomic_add_fetch(&ack_id, 1, __ATOMIC_SEQ_CST);
+  return ack_id++;
 }
 
+/** Send message, delaying all signals in the current thread.
+ *  The caller has to take care of thread locking. */
 void fb_send_msg(const void* void_ic_msg, int fd) {
+  thread_signal_danger_zone_enter();
+
   auto ic_msg = reinterpret_cast<const msg::InterceptorMsg *>(void_ic_msg);
   fb_send_msg_unlocked(*ic_msg, fd);
+
+  thread_signal_danger_zone_leave();
 }
 
+/** Send message and wait for ACK, delaying all signals in the current thread.
+ *  The caller has to take care of thread locking. */
 void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
+  thread_signal_danger_zone_enter();
+
   int ack_num = get_next_ack_id();
   auto ic_msg = reinterpret_cast<msg::InterceptorMsg *>(void_ic_msg);
   ic_msg->set_ack_num(ack_num);
@@ -133,6 +236,8 @@ void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
   auto len = fb_recv_msg_unlocked(&sv_msg, fd);
   assert(len > 0);
   assert(sv_msg.ack_num() == ack_num);
+
+  thread_signal_danger_zone_leave();
 }
 
 /** Compare pointers to char* like strcmp() for char* */
@@ -200,6 +305,11 @@ static void fb_ic_init() {
   if (NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
     insert_trace_markers = true;
   }
+
+  /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay. */
+  assert(SIGRTMAX <= 64);
+  /* Can't declare orig_signal_handlers as an array because SIGRTMAX isn't a constant */
+  orig_signal_handlers = (void (**)(void)) calloc(SIGRTMAX + 1, sizeof (void (*)(void)));
 
   init_interceptors();
 
@@ -334,16 +444,37 @@ void handle_exit(const int status) {
    * time) this method is called multiple times. The server can safely
    * handle it. */
 
-  msg::InterceptorMsg ic_msg;
-  auto m = ic_msg.mutable_exit();
-  m->set_exit_status(status);
+  /* Use the same pattern for locking as in tpl.c, simplified (fewer debugging messages). */
+  if (intercepting_enabled) {
+    bool i_locked = false;
+    thread_signal_danger_zone_enter();
+    if (!thread_has_global_lock) {
+      pthread_mutex_lock(&ic_global_lock);
+      thread_has_global_lock = true;
+      thread_intercept_on = "handle_exit";
+      i_locked = true;
+    }
+    thread_signal_danger_zone_leave();
 
-  struct rusage ru;
-  getrusage(RUSAGE_SELF, &ru);
-  m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
-  m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
+    msg::InterceptorMsg ic_msg;
+    auto m = ic_msg.mutable_exit();
+    m->set_exit_status(status);
 
-  fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    struct rusage ru;
+    getrusage(RUSAGE_SELF, &ru);
+    m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
+    m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
+
+    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+
+    if (i_locked) {
+      thread_signal_danger_zone_enter();
+      pthread_mutex_unlock(&ic_global_lock);
+      thread_has_global_lock = false;
+      thread_intercept_on = NULL;
+      thread_signal_danger_zone_leave();
+    }
+  }
 }
 
 static void fb_ic_cleanup() {
@@ -357,16 +488,12 @@ static void fb_ic_cleanup() {
 
 /** wrapper for send() retrying on recoverable errors*/
 ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count) {
-  pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0, {
-      pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0, {});
 }
 
 /** wrapper for recv() retrying on recoverable errors*/
 ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count) {
-  pthread_mutex_lock(&ic_global_lock);
-  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {
-      pthread_mutex_unlock(&ic_global_lock);});
+  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {});
 }
 
 /** Send error message to supervisor */

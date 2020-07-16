@@ -12,6 +12,7 @@
 #include <link.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -35,9 +36,6 @@ typedef struct {
 #define IC_FD_STATES_SIZE 4096
 extern fd_state ic_fd_states[];
 
-/** Global lock for manipulating fd states */
-extern pthread_mutex_t ic_fd_states_lock;
-
 /** Global lock for preventing parallel system and popen calls */
 extern pthread_mutex_t ic_system_popen_lock;
 
@@ -55,14 +53,18 @@ extern void fb_init_supervisor_conn();
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
-/* Send message */
+/** Send message, delaying all signals in the current thread.
+ *  The caller has to take care of thread locking. */
 extern void fb_send_msg(const void* ic_msg, int fd);
 
-/* Send message and wait for ACK */
+/** Send message and wait for ACK, delaying all signals in the current thread.
+ *  The caller has to take care of thread locking. */
 extern void fb_send_msg_and_check_ack(void* ic_msg, int fd);
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
+
+extern bool intercepting_enabled;
 
 extern void psfa_init(const posix_spawn_file_actions_t *p);
 extern void psfa_destroy(const posix_spawn_file_actions_t *p);
@@ -88,8 +90,81 @@ extern void insert_end_marker(const char*);
  */
 extern int ic_pid;
 
-/** Per thread variable which we turn on inside call interception */
+/** The method name the current thread is intercepting, or NULL. In case of nested interceptions
+ *  (which can happen with signal handlers), it contains the outermost intercepted method. The value
+ *  is used for internal assertions and debugging messages only, not for actual business logic. */
 extern __thread const char *thread_intercept_on;
+
+/** Whether the current thread is in "signal danger zone" where we don't like if a signal handler
+ *  kicks in, because our data structures are inconsistent. Blocking/unblocking signals would be too
+ *  slow for us (a pair of pthread_sigmask() kernel syscalls). So we just detect this scenario from
+ *  the wrapped signal handler. It's a counter, similar to a recursive lock. */
+extern __thread sig_atomic_t thread_signal_danger_zone_depth;
+
+/** Only if thread_signal_danger_zone_depth == 0: tells whether the current thread holds
+ *  ic_global_lock. Querying the lock itself would not be async-signal-safe (and there aren't direct
+ *  methods for querying either), hence this accompanying value.
+ *  If thread_signal_danger_zone_depth > 0, the contents are undefined and must not be relied on. */
+extern __thread bool thread_has_global_lock;
+
+/** Counting the depth of nested signal handlers running in the current thread. */
+extern __thread sig_atomic_t thread_signal_handler_running_depth;
+
+/** Bitmap of signals that we're delaying. Multiplicity is irrelevant. Since signals are counted
+ *  from 1 to 64 (on Linux x86), it's bit number (signum-1) that corresponds to signal signum. */
+extern __thread uint64_t thread_delayed_signals_bitmap;
+
+/** Array of the original signal handlers.
+ *  The items are actually either void (*)(int) a.k.a. sighandler_t,
+ *  or void (*)(int, siginfo_t *, void *), depending on how the handler was installed. */
+extern void (**orig_signal_handlers)(void);
+
+/** Whether we can intercept the given signal. */
+bool signal_is_wrappable(int);
+
+/** Wrapper for 1 argument signal handlers. */
+void wrapper_signal_handler_1arg(int);
+
+/** Wrapper for 3 argument signal handlers. */
+void wrapper_signal_handler_3arg(int, siginfo_t *, void *);
+
+/** Internal helper for thread_signal_danger_zone_leave(), see there for details. */
+void thread_raise_delayed_signals();
+
+/** Enter a "signal danger zone" where if a signal arrives then its execution is delayed.
+ *  This delaying is done manually because sigprocmask() or pthread_sigmask() are too expensive
+ *  for us. Our signal handler wrapper returns immediately (after the necessary bookkeeping,
+ *  but without invoking the actual handler).
+ *  The signal is later re-raised from thread_signal_danger_zone_leave().
+ *  There can be multiple levels nested.
+ *  Inline so that it's as fast as possible. */
+inline void thread_signal_danger_zone_enter() { thread_signal_danger_zone_depth++; }
+
+/** Leave one level of "signal danger zone".
+ *  See thread_signal_danger_zone_enter() for how we delay signals.
+ *  If leaving the outermost level, re-raise the delayed signals.
+ *  Inline so that the typical branch is as fast as possible. */
+inline void thread_signal_danger_zone_leave() {
+  /* Leave this danger zone first.
+   *
+   * If leaving the outermost danger zone, a signal can now kick in any time after this decrement,
+   * potentially even before we reach that raise() below to emit the delayed signal, and its real
+   * handler is executed immediately. This reordering is not a problem (fingers crossed).
+   *
+   * (The other possible order of code lines, i.e. raise the delayed signals first, then leave the
+   * danger zone, would suffer from a race condition if a signal kicks in between these steps.) */
+  thread_signal_danger_zone_depth--;
+
+  /* If this wasn't the outermost danger zone, there's nothing more to do, just return.
+   * Also, obviously nothing to do if there's no delayed signal.
+   *
+   * Otherwise, re-raise them. (Note that in this case thread_delayed_signals_bitmap is stable now,
+   * a randomly arriving signal cannot surprisingly modify it.) */
+  if (thread_delayed_signals_bitmap != 0 && thread_signal_danger_zone_depth == 0) {
+    /* The rarely executed heavy stuff is factored out to a separate method to reduce code size. */
+    thread_raise_delayed_signals();
+  }
+}
 
 #ifdef  __cplusplus
 }  // namespace firebuild
