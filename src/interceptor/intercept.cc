@@ -539,56 +539,6 @@ int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   return 0;
 }
 
-/* make auditing functions visible */
-#pragma GCC visibility push(default)
-
-/**
- * Dynamic linker auditing function
- * see man rtld-audit(7) for details
- */
-unsigned int la_version(const unsigned int version) {
-  return version;
-}
-
-/**
- * Send path to supervisor whenever the dynamic linker wants to load a shared
- * library
- */
-char * la_objsearch(const char *name, uintptr_t *cookie,
-                    const unsigned int flag) {
-  // unused
-  (void)cookie;
-
-  fb_ic_load();
-
-  firebuild::msg::InterceptorMsg ic_msg;
-  auto *los = ic_msg.mutable_la_objsearch();
-  los->set_name(name);
-  los->set_flag(flag);
-  firebuild::fb_send_msg(&ic_msg, firebuild::fb_sv_conn);
-
-  return const_cast<char*>(name);
-}
-
-/**
- * Send path to supervisor whenever the dynamic linker loads a shared library
- */
-unsigned int la_objopen(struct link_map *map, const Lmid_t lmid,
-                        uintptr_t *cookie) {
-  // unused
-  (void)lmid;
-  (void)cookie;
-
-  fb_ic_load();
-
-  firebuild::msg::InterceptorMsg ic_msg;
-  auto *los = ic_msg.mutable_la_objopen();
-  los->set_name(map->l_name);
-  firebuild::fb_send_msg(&ic_msg, firebuild::fb_sv_conn);
-
-  return LA_FLG_BINDTO | LA_FLG_BINDFROM;
-}
-
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_init():
  * Add an entry, with a new empty protobuf, to our pool.
@@ -699,6 +649,3 @@ void *psfa_find(const posix_spawn_file_actions_t *p) {
 }  // extern "C"
 
 }  // namespace firebuild
-
-#pragma GCC visibility pop
-
