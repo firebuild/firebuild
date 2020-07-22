@@ -607,18 +607,6 @@ message ForkParent {
     required int64 pid = 1;
 }
 
-message LAObjSearch {
-    // file name
-    required bytes name = 1;
-    // search flag
-    required int32 flag = 2;
-}
-
-message LAObjOpen {
-    // file name
-    required bytes name = 1;
-}
-
 // wrapper for messages supervisor can send
 message SupervisorMsg {
     optional ShortCutProcessResp scproc_resp= 1;
@@ -672,8 +660,6 @@ message InterceptorMsg {
         DLOpen dlopen = 47;
         FReOpen freopen = 49;
         FCloseAll fcloseall = 50;
-        LAObjSearch la_objsearch = 51;
-        LAObjOpen la_objopen = 52;
         UTime utime = 55;
         FUTime futime = 56;
         FBError fb_error = 57;
