@@ -59,7 +59,7 @@ char * fb_conn_string = NULL;
 int fb_sv_conn = -1;
 
 /** interceptor init has been run */
-volatile bool ic_init_done = false;
+bool ic_init_done = false;
 
 bool intercepting_enabled = true;
 
@@ -406,7 +406,6 @@ static void fb_ic_init() {
       debug_flags = resp->debug_flags();
     }
   }
-  ic_init_done = true;
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
 
@@ -423,6 +422,7 @@ void fb_ic_load() {
     pthread_mutex_lock(&ic_init_lock);
     if (!ic_init_done) {
       fb_ic_init();
+      __atomic_test_and_set(&ic_init_done, __ATOMIC_SEQ_CST);
     }
     pthread_mutex_unlock(&ic_init_lock);
   }
