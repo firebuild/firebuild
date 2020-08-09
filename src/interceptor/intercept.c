@@ -400,16 +400,10 @@ int fb_connect_supervisor(int fd) {
   struct sockaddr_un remote;
   memset(&remote, 0, sizeof(remote));
   remote.sun_family = AF_UNIX;
-  assert(strlen(fb_conn_string) + 1 < sizeof(remote.sun_path));
+  assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
+  strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
-  for (int sock_id = 0; conn_ret == -1; sock_id++) {
-    snprintf(remote.sun_path, sizeof(remote.sun_path), "%s%d", fb_conn_string, sock_id);
-    conn_ret = ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote));
-    if (conn_ret == -1 && errno != EADDRINUSE && errno != EISCONN) {
-      break;
-    }
-  }
-
+  conn_ret = ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote));
   if (conn_ret == -1) {
     ic_orig_perror("connect");
     assert(0 && "connection to supervisor failed");
