@@ -44,23 +44,7 @@ namespace {
 static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
-/** The connection sockets are derived from the fb_conn_string by appending an integer. */
-static char *fb_conn_string;
-
-/** Pool of listenter sockets
- *
- * The interceptor creates parallel connections from each intercepted process
- * and the parallel connections require separate sockets.
- *
- * Each process need one socket for the supervisor connection,
- * 2 for stdout and stderr, 2 for a potential pipe setting up stdio for the next
- * exec()-ed process.
- *
- * When the interceptor creates more pipes it can't connect them to the
- * supervisor and children of the process may not be shortcuttable.
- */
-static int fb_listener_pool[5];
-
+static std::string fb_conn_string;
 static int sigchld_fds[2];
 static FILE * sigchld_stream;
 
@@ -794,55 +778,31 @@ static const char *get_tmpdir() {
 /**
  * Create connection sockets for the interceptor
  */
-static void init_listeners() {
-  int i = 0;
-  for (auto &listener : fb_listener_pool) {
-    if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-      perror("socket");
-      exit(EXIT_FAILURE);
-    }
+static int create_listener() {
+  int listener;
 
-    struct sockaddr_un local;
-    local.sun_family = AF_UNIX;
-    snprintf(local.sun_path, sizeof(local.sun_path), "%s%d", fb_conn_string, i);
-
-    auto len = strlen(local.sun_path) + sizeof(local.sun_family);
-    if (bind(listener, (struct sockaddr *)&local, len) == -1) {
-      perror("bind");
-      exit(EXIT_FAILURE);
-    }
-
-    if (listen(listener, 500) == -1) {
-      perror("listen");
-      exit(EXIT_FAILURE);
-    }
-    i++;
+  if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    perror("socket");
+    exit(EXIT_FAILURE);
   }
+
+  struct sockaddr_un local;
+  local.sun_family = AF_UNIX;
+  strncpy(local.sun_path, fb_conn_string.c_str(), sizeof(local.sun_path));
+
+  auto len = strlen(local.sun_path) + sizeof(local.sun_family);
+  if (bind(listener, (struct sockaddr *)&local, len) == -1) {
+    perror("bind");
+    exit(EXIT_FAILURE);
+  }
+
+  if (listen(listener, 500) == -1) {
+    perror("listen");
+    exit(EXIT_FAILURE);
+  }
+  return listener;
 }
 
-/**
- * Close all listeners
- */
-static void close_listeners() {
-  for (auto const &listener : fb_listener_pool) {
-    close(listener);
-  }
-}
-
-/**
- * Is the fd a listener
- *
- * @param fd The fd to check
- * @return true if the fd is a listener
- */
-static bool is_listener(int const fd) {
-  for (auto const &listener : fb_listener_pool) {
-    if (fd == listener) {
-      return true;
-    }
-  }
-  return false;
-}
 
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
@@ -981,13 +941,13 @@ int main(const int argc, char *argv[]) {
       perror("mkdtemp");
       exit(EXIT_FAILURE);
     }
-    fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket.").c_str());
+    fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket").c_str());
   }
   auto env_exec = get_sanitized_env();
 
   init_signal_handlers();
 
-  init_listeners();
+  int listener = create_listener();
 
   // run command and handle interceptor messages
   if ((child_pid = fork()) == 0) {
@@ -998,7 +958,7 @@ int main(const int argc, char *argv[]) {
     // we don't need those
     close(sigchld_fds[0]);
     close(sigchld_fds[1]);
-    close_listeners();
+    close(listener);
     // create and execute build command
     for (i = 0; i < argc - optind ; i++) {
       argv_exec[i] = argv[optind + i];
@@ -1032,10 +992,8 @@ int main(const int argc, char *argv[]) {
 
     // add the listener and and fd listening for child's death to the
     // master set
-    for (auto const &listener : fb_listener_pool) {
-      FD_SET(listener, &master);
-      fdmax = listener > fdmax ? listener : fdmax;
-    }
+    FD_SET(listener, &master);
+    fdmax = (listener > fdmax)?listener:fdmax;
     FD_SET(sigchld_fds[0], &master);
 
     // main loop for processing interceptor messages
@@ -1057,7 +1015,7 @@ int main(const int argc, char *argv[]) {
       for (i = 0; i <= fdmax; i++) {
         if (FD_ISSET(i, &read_fds)) {  // we got one!!
           // fd_handled = true;
-          if (is_listener(i)) {
+          if (i == listener) {
             // handle new connections
             struct sockaddr_un remote;
             socklen_t addrlen = sizeof(remote);
@@ -1162,17 +1120,13 @@ int main(const int argc, char *argv[]) {
     free(env_exec);
   }
 
-  close_listeners();
-  for (size_t i = 0; i < (sizeof(fb_listener_pool) / sizeof(fb_listener_pool[0])); i++) {
-    close(fb_listener_pool[i]);
-    unlink((std::string(fb_conn_string) + std::to_string(i)).c_str());
-  }
+  close(listener);
+  unlink(fb_conn_string.c_str());
   rmdir(fb_tmp_dir);
 
   delete(error_fos);
   fclose(sigchld_stream);
   close(sigchld_fds[0]);
-  free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
   delete(cfg);
