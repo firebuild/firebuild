@@ -10,42 +10,40 @@
   {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_posix_spawn();
-    if (file != NULL) m->set_file(file);
+    FBB_Builder_posix_spawn ic_msg;
+    fbb_posix_spawn_init(&ic_msg);
+    fbb_posix_spawn_set_file(&ic_msg, file);
 ###   if func == 'posix_spawnp'
-    m->set_is_spawnp(true);
+    fbb_posix_spawn_set_is_spawnp(&ic_msg, true);
 ###   else
-    m->set_is_spawnp(false);
+    fbb_posix_spawn_set_is_spawnp(&ic_msg, false);
 ###   endif
     if (file_actions) {
-      // FIXME remove cast
-      msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(file_actions);
-      assert(actions_msg);
-      m->mutable_file_actions()->CopyFrom(*actions_msg);
+      string_array *p = psfa_find(file_actions);
+      assert(p);
+      fbb_posix_spawn_set_file_actions(&ic_msg, p->p);
     }
-    for (int i = 0; argv[i] != NULL; i++) {
-      m->add_arg(argv[i]);
-    }
-    for (int i = 0; envp[i] != NULL; i++) {
-      m->add_env(envp[i]);
-    }
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fbb_posix_spawn_set_arg(&ic_msg, argv);
+    fbb_posix_spawn_set_env(&ic_msg, envp);
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
 ### block send_msg
   {
     /* Notify the supervisor after the call */
-    msg::InterceptorMsg ic_msg;
     if (success) {
-      auto m = ic_msg.mutable_posix_spawn_parent();
-      m->set_pid(*pid);
+      FBB_Builder_posix_spawn_parent ic_msg;
+      fbb_posix_spawn_parent_init(&ic_msg);
+      fbb_posix_spawn_parent_set_pid(&ic_msg, *pid);
+      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     } else {
-      auto m = ic_msg.mutable_posix_spawn_failed();
-      m->set_error_no(saved_errno);
+      FBB_Builder_posix_spawn_failed ic_msg;
+      fbb_posix_spawn_failed_init(&ic_msg);
+      fbb_posix_spawn_failed_set_arg(&ic_msg, argv);
+      fbb_posix_spawn_failed_set_error_no(&ic_msg, saved_errno);
+      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     }
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     pthread_mutex_unlock(&ic_system_popen_lock);
   }
 ### endblock send_msg

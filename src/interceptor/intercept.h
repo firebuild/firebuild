@@ -18,6 +18,8 @@
 #include <sys/types.h>
 #include <spawn.h>
 
+#include "interceptor/utils.h"
+
 #ifdef  __cplusplus
 
 extern "C" {
@@ -25,6 +27,23 @@ extern "C" {
 namespace firebuild {
 
 #endif
+
+/** A poor man's (plain C) implementation of a hashmap:
+ *  posix_spawn_file_actions_t -> char**
+ *  implemented as a dense array with linear lookup.
+ *
+ *  Each file action is encoded as a simple string, e.g.
+ *  - open:  "o 10 0 0 /etc/hosts"
+ *  - close: "c 11"
+ *  - dup2:  "d 3 5"
+ */
+typedef struct {
+  const posix_spawn_file_actions_t *p;
+  string_array actions;
+} psfa;
+extern psfa *psfas;
+extern int psfas_num;
+extern int psfas_alloc;
 
 /** file usage state */
 typedef struct {
@@ -55,11 +74,11 @@ extern pthread_mutex_t ic_global_lock;
 
 /** Send message, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-extern void fb_send_msg(const void* ic_msg, int fd);
+void fb_fbb_send_msg(void *ic_msg, int fd);
 
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-extern void fb_send_msg_and_check_ack(void* ic_msg, int fd);
+void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd);
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
@@ -72,8 +91,7 @@ extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
                          const char *path, int flags, mode_t mode);
 extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
-// FIXME msg::PosixSpawnFileActions *
-extern void *psfa_find(const posix_spawn_file_actions_t *p);
+extern string_array *psfa_find(const posix_spawn_file_actions_t *p);
 
 /** Insert debug message */
 extern void insert_debug_msg(const char*);

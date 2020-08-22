@@ -42,12 +42,15 @@ class ExecedProcess : public Process {
   std::set<std::string>& failed_wds() {return failed_wds_;}
   const std::vector<std::string>& args() const {return args_;}
   std::vector<std::string>& args() {return args_;}
+  void set_args(const std::vector<std::string>& args) {args_ = args;}
   const std::vector<std::string>& env_vars() const {return env_vars_;}
   std::vector<std::string>& env_vars() {return env_vars_;}
+  void set_env_vars(const std::vector<std::string>& env_vars) {env_vars_ = env_vars;}
   const std::string& executable() const {return executable_;}
   std::string& executable() {return executable_;}
   const std::vector<std::string>& libs() const {return libs_;}
   std::vector<std::string>& libs() {return libs_;}
+  void set_libs(const std::vector<std::string>& libs) {libs_ = libs;}
   std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;}
   const std::unordered_map<std::string, FileUsage*>& file_usages() const {return file_usages_;}
   void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}

@@ -27,3 +27,5 @@ add_executable(firebuild
   ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} xxhash)
+
+add_dependencies(firebuild fbb_gen_files)

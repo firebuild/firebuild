@@ -15,6 +15,6 @@ cmake_install.cmake
 data/d3.v5.min.js
 fb-cache.pb.cc
 fb-cache.pb.h
-fb-messages.pb.cc
-fb-messages.pb.h
+fbb.c
+fbb.h
 src/firebuild/firebuild

@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include "./fb-messages.pb.h"
+#include "./fbb.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/process_tree.h"
@@ -26,7 +26,7 @@ class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(int pid, Process * const parent,
                                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
-  static ExecedProcess* getExecedProcess(const msg::ShortCutProcessQuery &scpq,
+  static ExecedProcess* getExecedProcess(const FBB_scproc_query *msg,
                                          Process * parent,
                                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
 

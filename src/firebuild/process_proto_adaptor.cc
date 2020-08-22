@@ -7,59 +7,60 @@
 #include <string>
 
 namespace firebuild {
-int ProcessPBAdaptor::msg(Process *p, const msg::Open &o) {
-  int error = (o.has_error_no())?o.error_no():0;
-  int ret = (o.has_ret())?o.ret():-1;
-  return p->handle_open(o.file(), o.flags(), ret, error);
+int ProcessPBAdaptor::msg(Process *p, const FBB_open *o) {
+  int error = fbb_open_get_error_no_with_fallback(o, 0);
+  int ret = fbb_open_get_ret_with_fallback(o, -1);
+  return p->handle_open(fbb_open_get_file(o), fbb_open_get_flags(o), ret, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::DLOpen &dlo) {
-  if (!dlo.has_error_no() && dlo.has_absolute_filename()) {
-    return p->handle_open(dlo.absolute_filename(), O_RDONLY, -1, 0);
+int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo) {
+  if (!fbb_dlopen_has_error_no(dlo) && fbb_dlopen_has_absolute_filename(dlo)) {
+    return p->handle_open(fbb_dlopen_get_absolute_filename(dlo), O_RDONLY, -1, 0);
   } else {
-    std::string filename = dlo.has_filename() ? dlo.filename() : "NULL";
+    std::string filename = fbb_dlopen_has_absolute_filename(dlo) ?
+                           fbb_dlopen_get_absolute_filename(dlo) : "NULL";
     p->disable_shortcutting("Process failed to dlopen() " + filename);
     return 0;
   }
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::Close &c) {
-  const int error = (c.has_error_no())?c.error_no():0;
-  return p->handle_close(c.fd(), error);
+int ProcessPBAdaptor::msg(Process *p, const FBB_close *c) {
+  const int error = fbb_close_get_error_no_with_fallback(c, 0);
+  return p->handle_close(fbb_close_get_fd(c), error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::Pipe2 &pipe) {
-  const int fd0 = (pipe.has_fd0())?pipe.fd0():-1;
-  const int fd1 = (pipe.has_fd1())?pipe.fd1():-1;
-  const int flags = (pipe.has_flags())?pipe.flags():0;
-  const int error = (pipe.has_error_no())?pipe.error_no():0;
+int ProcessPBAdaptor::msg(Process *p, const FBB_pipe2 *pipe) {
+  const int fd0 = fbb_pipe2_get_fd0_with_fallback(pipe, -1);
+  const int fd1 = fbb_pipe2_get_fd1_with_fallback(pipe, -1);
+  const int flags = fbb_pipe2_get_flags_with_fallback(pipe, 0);
+  const int error = fbb_pipe2_get_error_no_with_fallback(pipe, 0);
   return p->handle_pipe(fd0, fd1, flags, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::Dup3 &d) {
-  const int error = (d.has_error_no())?d.error_no():0;
-  const int flags = (d.has_flags())?d.flags():0;
-  return p->handle_dup3(d.oldfd(), d.newfd(), flags, error);
+int ProcessPBAdaptor::msg(Process *p, const FBB_dup3 *d) {
+  const int error = fbb_dup3_get_error_no_with_fallback(d, 0);
+  const int flags = fbb_dup3_get_flags_with_fallback(d, 0);
+  return p->handle_dup3(fbb_dup3_get_oldfd(d), fbb_dup3_get_newfd(d), flags, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::Dup &d) {
-  const int error = (d.has_error_no())?d.error_no():0;
-  return p->handle_dup3(d.oldfd(), d.ret(), 0, error);
+int ProcessPBAdaptor::msg(Process *p, const FBB_dup *d) {
+  const int error = fbb_dup_get_error_no_with_fallback(d, 0);
+  return p->handle_dup3(fbb_dup_get_oldfd(d), fbb_dup_get_ret(d), 0, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::Fcntl &f) {
-  const int error = (f.has_error_no())?f.error_no():0;
-  int arg = (f.has_arg())?f.arg():0;
-  int ret = (f.has_ret())?f.ret():-1;
-  return p->handle_fcntl(f.fd(), f.cmd(), arg, ret, error);
+int ProcessPBAdaptor::msg(Process *p, const FBB_fcntl *f) {
+  const int error = fbb_fcntl_get_error_no_with_fallback(f, 0);
+  int arg = fbb_fcntl_get_arg_with_fallback(f, 0);
+  int ret = fbb_fcntl_get_ret_with_fallback(f, -1);
+  return p->handle_fcntl(fbb_fcntl_get_fd(f), fbb_fcntl_get_cmd(f), arg, ret, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const msg::ChDir &c) {
-  const int error = (c.has_error_no())?c.error_no():0;
+int ProcessPBAdaptor::msg(Process *p, const FBB_chdir *c) {
+  const int error = fbb_chdir_get_error_no_with_fallback(c, 0);
   if (0 == error) {
-    p->set_wd(c.dir());
+    p->set_wd(fbb_chdir_get_dir(c));
   } else {
-    p->fail_wd(c.dir());
+    p->fail_wd(fbb_chdir_get_dir(c));
   }
   return 0;
 }

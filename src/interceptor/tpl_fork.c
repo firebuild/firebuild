@@ -51,17 +51,17 @@
     /* Error, nothing here to do */
   } else if (ret == 0) {
     /* Child */
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_fork_child();
-    m->set_pid(ic_pid);
-    m->set_ppid(getppid());
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    FBB_Builder_fork_child ic_msg;
+    fbb_fork_child_init(&ic_msg);
+    fbb_fork_child_set_pid(&ic_msg, ic_pid);
+    fbb_fork_child_set_ppid(&ic_msg, getppid());
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   } else {
     /* Parent */
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_fork_parent();
-    m->set_pid(ret);
-    fb_send_msg(&ic_msg, fb_sv_conn);
+    FBB_Builder_fork_parent ic_msg;
+    fbb_fork_parent_init(&ic_msg);
+    fbb_fork_parent_set_pid(&ic_msg, ret);
+    fb_fbb_send_msg(&ic_msg, fb_sv_conn);
   }
 
   /* Common for all three outcomes: re-enable signal delivery */
