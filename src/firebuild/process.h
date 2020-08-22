@@ -13,7 +13,6 @@
 #include <vector>
 #include <algorithm>
 
-#include "./fb-messages.pb.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -123,7 +122,7 @@ class Process {
   }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&,
-                         std::shared_ptr<msg::PosixSpawnFileActions> *file_actions_p,
+                         std::shared_ptr<std::vector<std::string>> *file_actions_p,
                          LaunchType *launch_type_p,
                          const bool failed = false);
   bool has_expected_child () {return expected_child_?true:false;}

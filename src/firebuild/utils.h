@@ -5,16 +5,10 @@
 #define FIREBUILD_UTILS_H_
 
 #include <string>
-#include <unordered_map>
-#include <libconfig.h++>
-
-#include "firebuild/cache.h"
-#include "firebuild/multi_cache.h"
-#include "firebuild/execed_process.h"
-#include "firebuild/hash.h"
-#include "firebuild/fb-cache.pb.h"
 
 namespace firebuild {
+
+ssize_t fb_recv_msg(char **bufp, uint32_t *ack_id_p, int fd);
 
 bool path_begins_with(const std::string& path, const std::string& prefix);
 

@@ -130,7 +130,7 @@ generated={}
 # funcs: one or more function names, as (list of) string
 # sig: the function signature, as string
 # tpl: the template file to use, default is 'tpl.c'
-# msg: the protobuf message, default is the first func
+# msg: the message type, default is the first func
 # success: the success condition, default depends on rettype
 # dict: further parameters to pass to the template,
 #       see the template for their documentation
@@ -227,9 +227,9 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
                       "if (i_am_intercepting) clear_file_state(fd);"],
          msg="open",
          msg_skip_fields=["mode"],
-         msg_add_fields=["m->set_flags(intercept_fopen_mode_to_open_flags_helper(mode));",
-                         "m->set_mode(0666);",
-                         "if (success) m->set_ret(fd);"])
+         msg_add_fields=["fbb_open_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
+                         "fbb_open_set_mode(&ic_msg, 0666);",
+                         "if (success) fbb_open_set_ret(&ic_msg, fd);"])
 
 # Intercept freopen
 # FIXME implement in the supervisor. Note that the behavior heavily depends on filename's nullness.
@@ -239,9 +239,9 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
 #         after_lines=["int newfd = safe_fileno(ret);",
 #                      "if (i_am_intercepting) clear_file_state(newfd);"],
 #         msg_skip_fields=["mode", "stream"],
-#         msg_add_fields=["m->set_flags(intercept_fopen_mode_to_open_flags_helper(mode));",
-#                         "m->set_fd(oldfd);",
-#                         "if (success) m->set_ret(newfd);"])
+#         msg_add_fields=["fbb_freopen_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
+#                         "fbb_freopen_set_fd(&ic_msg, oldfd);",
+#                         "if (success) fbb_freopen_set_ret(&ic_msg, newfd);"])
 generate("FILE *", ["freopen", "freopen64"], "const char *filename, const char *mode, FILE *stream",
          tpl="once")
 
@@ -267,7 +267,7 @@ generate("int", "fclose", "FILE *stream",
          after_lines=["} else { ret = -1 /* a.k.a. EOF */; saved_errno = EBADF; }"],
          msg="close",
          msg_skip_fields=["stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"],
          ack=True)
 
 skip("fcloseall")  # Only closes the high level streams, not the underlying fds.
@@ -275,14 +275,14 @@ skip("fcloseall")  # Only closes the high level streams, not the underlying fds.
 # Intercept opendir, closedir (no need to intercept fdopendir)
 generate("DIR *", "opendir", "const char *file",
          msg="open",
-         msg_add_fields=["m->set_flags(O_RDONLY | O_CLOEXEC | O_DIRECTORY);",
-                         "if (success) m->set_ret(ic_orig_dirfd(ret));"],
+         msg_add_fields=["fbb_open_set_flags(&ic_msg, O_RDONLY | O_CLOEXEC | O_DIRECTORY);",
+                         "if (success) fbb_open_set_ret(&ic_msg, ic_orig_dirfd(ret));"],
          ack=True)
 generate("int", "closedir", "DIR *dirp",
          before_lines=["int fd = safe_dirfd(dirp); /* save it here, we can't do dirfd() after the closedir() */"],
          msg="close",
          msg_skip_fields=["dirp"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"],
          ack=True)
 # FIXME implement scandir(at)(64)
 
@@ -343,55 +343,55 @@ generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t 
          before_lines=["int fd = safe_fileno(stream);"],
          success="ret > 0 || !ferror(stream)",  # unused anyway
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("int", ["fgetc", "fgetc_unlocked", "getc", "getc_unlocked", "getw"], "FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("wint_t", ["fgetwc", "fgetwc_unlocked", "getwc", "getwc_unlocked"], "FILE *stream",
          tpl="read",
          success="ret != WEOF",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("char *", ["fgets", "fgets_unlocked"], "char *s, int size, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["s", "size", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("int", ["getchar", "getchar_unlocked"], "",
          tpl="read",
          before_lines=["int fd = safe_fileno(stdin);"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("wint_t", ["getwchar", "getwchar_unlocked"], "",
          tpl="read",
          success="ret != WEOF",
          before_lines=["int fd = safe_fileno(stdin);"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("char *", "gets", "char *s",  # should be never used, see man gets
          tpl="read",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["s"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["lineptr", "n", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["lineptr", "n", "delim", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 # Handle (__isoc99_)?v?f?w?scanf
 for i in ['', '__isoc99_']:
@@ -404,13 +404,13 @@ for i in ['', '__isoc99_']:
           names_str = ''
           before_lines = ["int fd = safe_fileno(stdin);"]
           msg_skip_fields = []
-          msg_add_fields = ["m->set_fd(fd);"]
+          msg_add_fields = ["fbb_read_set_fd(&ic_msg, fd);"]
         elif f == 'f':
           sig_str = "FILE *stream, "
           names_str = "stream, "
           before_lines = ["int fd = safe_fileno(stream);"]
           msg_skip_fields = ["stream"]
-          msg_add_fields = ["m->set_fd(fd);"]
+          msg_add_fields = ["fbb_read_set_fd(&ic_msg, fd);"]
         if w:
           sig_str += "const wchar_t *format, "
         else:
@@ -475,51 +475,51 @@ generate("size_t", ["fwrite", "fwrite_unlocked"], "const void *ptr, size_t size,
          before_lines=["int fd = safe_fileno(stream);"],
          success="ret > 0 || !ferror(stream)",  # unused anyway
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("int", ["fputc", "fputc_unlocked", "putc", "putc_unlocked", "putw"], "int c, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["c", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("wint_t", ["fputwc", "fputwc_unlocked", "putwc", "putwc_unlocked"], "wchar_t wc, FILE *stream",
          tpl="write",
          success="ret != WEOF",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["wc", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("int", ["fputs", "fputs_unlocked"], "const char *s, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["s", "stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("int", ["putchar", "putchar_unlocked"], "int c",
          tpl="write",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["c"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("wint_t", ["putwchar", "putwchar_unlocked"], "wchar_t wc",
          tpl="write",
          success="ret != WEOF",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["wc"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("int", "puts", "const char *s",
          tpl="write",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["s"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("void", "perror", "const char *s",
          tpl="write",
          before_lines=["int fd = safe_fileno(stderr);"],
          msg_skip_fields=["s"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 # Handle v?[fd]?w?printf
 for v in ['', 'v']:
@@ -531,13 +531,13 @@ for v in ['', 'v']:
         names_str = ''
         before_lines = ["int fd = safe_fileno(stdout);"]
         msg_skip_fields = []
-        msg_add_fields = ["m->set_fd(fd);"]
+        msg_add_fields = ["fbb_write_set_fd(&ic_msg, fd);"]
       elif f == 'f':
         sig_str = "FILE *stream, "
         names_str = "stream, "
         before_lines = ["int fd = safe_fileno(stream);"]
         msg_skip_fields = ["stream"]
-        msg_add_fields = ["m->set_fd(fd);"]
+        msg_add_fields = ["fbb_write_set_fd(&ic_msg, fd);"]
       elif f == 'd':
         sig_str = "int fd, "
         names_str = "fd, "
@@ -577,22 +577,22 @@ generate("int", "fchdir", "int fd")
 generate("int", "chmod", "const char *path, mode_t mode")
 generate("int", "lchmod", "const char *path, mode_t mode",
          msg="chmod",
-         msg_add_fields=["m->set_link(true);"])
+         msg_add_fields=["fbb_chmod_set_link(&ic_msg, true);"])
 # fchmodat() is badly named, should be chmodat()
 generate("int", "fchmodat", "int dirfd, const char *path, mode_t mode, int flags",
          msg="chmod",
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) m->set_link(true);"])
+         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbb_chmod_set_link(&ic_msg, true);"])
 generate("int", "fchmod", "int fd, mode_t mode")
 
 # Intercept the chown family
 generate("int", "chown", "const char *path, uid_t owner, gid_t group")
 generate("int", "lchown", "const char *path, uid_t owner, gid_t group",
          msg="chown",
-         msg_add_fields=["m->set_link(true);"])
+         msg_add_fields=["fbb_chown_set_link(&ic_msg, true);"])
 # fchownat() is badly named, should be chownat()
 generate("int", "fchownat", "int dirfd, const char *path, uid_t owner, gid_t group, int flags",
          msg="chown",
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) m->set_link(true);"])
+         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbb_chown_set_link(&ic_msg, true);"])
 generate("int", "fchown", "int fd, uid_t owner, gid_t group")
 
 # Intercept the link, symlink and readlink families
@@ -621,11 +621,11 @@ generate("int", "__xstat64", "int ver, const char *filename, struct stat64 *stat
 generate("int", "__lxstat", "int ver, const char *filename, struct stat *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "stat_buf"],
-         msg_add_fields=["m->set_link(true);"])
+         msg_add_fields=["fbb_stat_set_link(&ic_msg, true);"])
 generate("int", "__lxstat64", "int ver, const char *filename, struct stat64 *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "stat_buf"],
-         msg_add_fields=["m->set_link(true);"])
+         msg_add_fields=["fbb_stat_set_link(&ic_msg, true);"])
 generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
          msg="fstat",
          msg_skip_fields=["ver", "stat_buf"])
@@ -636,16 +636,16 @@ generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
 generate("int", "__fxstatat", "int ver, int dirfd, const char *filename, struct stat *stat_buf, int flags",
          msg="stat",
          msg_skip_fields=["ver", "stat_buf", "flags"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) m->set_link(true);"])
+         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbb_stat_set_link(&ic_msg, true);"])
 generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
          msg="stat",
          msg_skip_fields=["ver", "stat_buf", "flags"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) m->set_link(true);"])
+         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbb_stat_set_link(&ic_msg, true);"])
 # since glibc 2.28
 generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned int mask, struct statx *statx_buf",
          msg="stat",
          msg_skip_fields=["flags", "mask", "statx_buf"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) m->set_link(true);"])
+         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbb_stat_set_link(&ic_msg, true);"])
 # Treat isfdtype() as a fstat()
 generate("int", "isfdtype", "int fd, int fdtype",
          msg="fstat",
@@ -710,11 +710,11 @@ generate("int", "utimes", "const char *file, const struct timeval times[2]",
 generate("int", "lutimes", "const char *file, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["times"],
-         msg_add_fields=["m->set_link(true);"])
+         msg_add_fields=["fbb_utime_set_link(&ic_msg, true);"])
 generate("int", "utimensat", "int dirfd, const char *file, const struct timespec times[2], int flags",
          msg="utime",
          msg_skip_fields=["times", "flags"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) m->set_link(true);"])
+         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbb_utime_set_link(&ic_msg, true);"])
 # futimesat is badly named and badly designed, and is obsoleted by utimensat
 generate("int", "futimesat", "int dirfd, const char *file, const struct timeval times[2]",
          msg="utime",
@@ -746,12 +746,12 @@ generate("int", "pipe", "int pipefd[2]",
          after_lines=["if (success && i_am_intercepting) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
          msg="pipe2",
          msg_skip_fields=["pipefd"],
-         msg_add_fields=["if (success) { m->set_fd0(pipefd[0]); m->set_fd1(pipefd[1]); }"])
+         msg_add_fields=["if (success) { fbb_pipe2_set_fd0(&ic_msg, pipefd[0]); fbb_pipe2_set_fd1(&ic_msg, pipefd[1]); }"])
 generate("int", "pipe2", "int pipefd[2], int flags",
          after_lines=["if (success && i_am_intercepting) { clear_file_state(pipefd[0]); clear_file_state(pipefd[1]); }"],
          msg_skip_fields=["pipefd"],
-         msg_add_fields=["if (success) { m->set_fd0(pipefd[0]); m->set_fd1(pipefd[1]); }",
-                         "m->set_flags(flags);"])
+         msg_add_fields=["if (success) { fbb_pipe2_set_fd0(&ic_msg, pipefd[0]); fbb_pipe2_set_fd1(&ic_msg, pipefd[1]); }",
+                         "fbb_pipe2_set_flags(&ic_msg, flags);"])
 
 # Intercept the truncate family
 generate("int", "truncate", "const char *path, off_t len")
@@ -766,38 +766,38 @@ generate("int", "ftruncate64", "int fd, off64_t len",
 generate("int", "mkstemp", "char *file",
          send_msg_on_error=False,
          msg="open",
-         msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL);",
-                         "m->set_mode(0600);"],
+         msg_add_fields=["fbb_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
+                         "fbb_open_set_mode(&ic_msg, 0600);"],
          send_ret_on_success=True,
          ack=True)
 generate("int", "mkostemp", "char *file, int flags",
          send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["flags"],
-         msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
-                         "m->set_mode(0600);"],
+         msg_add_fields=["fbb_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
+                         "fbb_open_set_mode(&ic_msg, 0600);"],
          send_ret_on_success=True,
          ack=True)
 generate("int", "mkstemps", "char *file, int suffixlen",
          send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["suffixlen"],
-         msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL);",
-                         "m->set_mode(0600);"],
+         msg_add_fields=["fbb_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
+                         "fbb_open_set_mode(&ic_msg, 0600);"],
          send_ret_on_success=True,
          ack=True)
 generate("int", "mkostemps", "char *file, int suffixlen, int flags",
          send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["suffixlen", "flags"],
-         msg_add_fields=["m->set_flags(O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
-                         "m->set_mode(0600);"],
+         msg_add_fields=["fbb_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
+                         "fbb_open_set_mode(&ic_msg, 0600);"],
          send_ret_on_success=True,
          ack=True)
 #  generate("char *", "mkdtemp", "char *dir",
 #           send_msg_on_error=False,
 #           msg="mkdir",
-#           msg_add_fields=["m->set_mode(0700);"],
+#           msg_add_fields=["fbb_mkdir_set_mode(&ic_msg, 0700);"],
 #           ack=True)
 # FIXME needs support on the supervisor for starting to track an fd without knowing the backing file
 generate("FILE *", ["tmpfile", "tmpfile64"], "",
@@ -867,7 +867,7 @@ generate("FILE *", "popen", "const char *cmd, const char *type",
 generate("int", "pclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the pclose() */"],
          msg_skip_fields=["stream"],
-         msg_add_fields=["m->set_fd(fd);"],
+         msg_add_fields=["fbb_pclose_set_fd(&ic_msg, fd);"],
          ack=True)
 
 # Intercept the posix_spawn family
@@ -908,7 +908,7 @@ generate("pid_t", "wait", "int *wstatus",
          send_msg_on_error=False,
          msg="wait",
          msg_skip_fields=["wstatus"],
-         msg_add_fields=["m->set_pid(ret);"],
+         msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
          before_lines=["int wstatus_fallback;",
@@ -918,7 +918,7 @@ generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
          send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
          msg="wait",
          msg_skip_fields=["pid", "wstatus", "options"],
-         msg_add_fields=["m->set_pid(ret);"],
+         msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
          before_lines=["int wstatus_fallback;",
@@ -928,7 +928,7 @@ generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
          send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
          msg="wait",
          msg_skip_fields=["wstatus", "options", "rusage"],
-         msg_add_fields=["m->set_pid(ret);"],
+         msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage *rusage",
          before_lines=["int wstatus_fallback;",
@@ -938,7 +938,7 @@ generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage 
          send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
          msg="wait",
          msg_skip_fields=["pid", "wstatus", "options", "rusage"],
-         msg_add_fields=["m->set_pid(ret);"],
+         msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 # Note: See BUGS in the waitid(2) manual page for the infop==NULL case.
 generate("int", "waitid", "idtype_t idtype, id_t id, siginfo_t *infop, int options",
@@ -946,7 +946,7 @@ generate("int", "waitid", "idtype_t idtype, id_t id, siginfo_t *infop, int optio
          send_msg_condition="success && infop && !((options & WNOHANG) && (infop->si_pid == 0)) && infop->si_code != CLD_STOPPED && infop->si_code != CLD_TRAPPED && infop->si_code != CLD_CONTINUED",
          msg="wait",
          msg_skip_fields=["idtype", "id", "infop", "options"],
-         msg_add_fields=["m->set_pid(infop->si_pid);"],
+         msg_add_fields=["fbb_wait_set_pid(&ic_msg, infop->si_pid);"],
          ack=True)
 
 # Intercept the exec family

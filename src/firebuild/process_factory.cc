@@ -4,6 +4,8 @@
 
 #include "firebuild/process_factory.h"
 
+#include <string>
+
 namespace firebuild {
 
 class ExecedProcessCacher;
@@ -15,22 +17,22 @@ ProcessFactory::getForkedProcess(const int pid, Process * const parent,
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const msg::ShortCutProcessQuery &scpq, Process * parent,
+ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
                                  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
-  auto e = new ExecedProcess(scpq.pid(), scpq.ppid(), scpq.cwd(),
-                             scpq.executable(), parent, fds);
+  auto e = new ExecedProcess(fbb_scproc_query_get_pid(msg),
+                             fbb_scproc_query_get_ppid(msg),
+                             fbb_scproc_query_get_cwd(msg),
+                             fbb_scproc_query_get_executable(msg),
+                             parent, fds);
 
-  for (int i = 0; i < scpq.arg_size(); i++) {
-    e->args().push_back(scpq.arg(i));
-  }
-  for (int i = 0; i < scpq.env_var_size(); i++) {
-    e->env_vars().push_back(scpq.env_var(i));
-  }
+  std::vector<std::string> args = fbb_scproc_query_get_arg(msg);
+  e->set_args(args);
+  std::vector<std::string> env_vars = fbb_scproc_query_get_env_var(msg);
+  e->set_env_vars(env_vars);
   // TODO(rbalint) keep files in a separate container and refer to them instead
   // of creating the same strings several times
-  for (int i = 0; i < scpq.libs().file_size(); i++) {
-    e->libs().push_back(scpq.libs().file(i));
-  }
+  std::vector<std::string> libs = fbb_scproc_query_get_libs(msg);
+  e->set_libs(libs);
   return e;
 }
 

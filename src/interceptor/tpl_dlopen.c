@@ -6,7 +6,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (absolute_filename != NULL) m->set_absolute_filename(absolute_filename);"] %}
+{% set msg_add_fields = ["if (absolute_filename != NULL) fbb_" + msg + "_set_absolute_filename(&ic_msg, absolute_filename);"] %}
 
 ### block after
   char *absolute_filename = NULL;

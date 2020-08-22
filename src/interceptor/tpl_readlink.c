@@ -8,9 +8,16 @@
 
 ### block set_fields
     {{ super() }}
+    /* Create a zero-terminated copy on the stack.
+     * Make sure it lives until we send the message. */
+    int len = 0;
     if (ret >= 0 && (size_t)abs(ret) <= bufsiz) {
-      char *ret_path = strndup(buf, ret);
-      m->set_ret_path(ret_path);
-      free(ret_path);
+      len = ret;
+    }
+    char ret_path[len + 1];
+    if (len > 0) {
+      memcpy(ret_path, buf, len);
+      ret_path[len] = '\0';
+      fbb_{{ msg }}_set_ret_path(&ic_msg, ret_path);
     }
 ### endblock set_fields

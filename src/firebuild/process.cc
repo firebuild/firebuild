@@ -6,7 +6,6 @@
 
 #include <unistd.h>
 
-#include "./fb-messages.pb.h"
 #include "firebuild/file.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
@@ -264,7 +263,7 @@ void Process::set_wd(const std::string &ar_d) {
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
-                                std::shared_ptr<msg::PosixSpawnFileActions> *file_actions_p,
+                                std::shared_ptr<std::vector<std::string>> *file_actions_p,
                                 LaunchType *launch_type_p,
                                 const bool failed) {
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;

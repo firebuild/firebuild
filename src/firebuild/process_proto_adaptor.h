@@ -4,7 +4,7 @@
 #ifndef FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
 #define FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
 
-#include "./fb-messages.pb.h"
+#include "./fbb.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 
@@ -19,14 +19,14 @@ namespace firebuild  {
    */
 class ProcessPBAdaptor {
  public:
-  static int msg(Process *p, const msg::Open &o);
-  static int msg(Process *p, const msg::DLOpen &dlo);
-  static int msg(Process *p, const msg::Close &c);
-  static int msg(Process *p, const msg::Pipe2 &pipe);
-  static int msg(Process *p, const msg::Dup &d);
-  static int msg(Process *p, const msg::Dup3 &d);
-  static int msg(Process *p, const msg::Fcntl &f);
-  static int msg(Process *p, const msg::ChDir &c);
+  static int msg(Process *p, const FBB_open *o);
+  static int msg(Process *p, const FBB_dlopen *dlo);
+  static int msg(Process *p, const FBB_close *c);
+  static int msg(Process *p, const FBB_pipe2 *pipe);
+  static int msg(Process *p, const FBB_dup *d);
+  static int msg(Process *p, const FBB_dup3 *d);
+  static int msg(Process *p, const FBB_fcntl *f);
+  static int msg(Process *p, const FBB_chdir *c);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);

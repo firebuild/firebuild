@@ -35,61 +35,60 @@
 
   {
     /* Notify the supervisor before the call */
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_execv();
+    FBB_Builder_execv ic_msg;
+    fbb_execv_init(&ic_msg);
 ###   if not f
-    if (file != NULL) m->set_file(file);
+    fbb_execv_set_file(&ic_msg, file);
 ###   else
     /* Set for fexec*() */
-    m->set_fd(fd);
+    fbb_execv_set_fd(&ic_msg, fd);
 ###   endif
 ###   if at
     /* Set for exec*at() */
-    m->set_dirfd(dirfd);
-    // m->set_flags(flags);
+    fbb_execv_set_dirfd(&ic_msg, dirfd);
+    // fbb_execv_set_flags(&ic_msg, flags);
 ###   endif
 ###   if p
     /* Set for exec*p*() */
-    m->set_with_p(true);
-    char *path;
-    if ((path = getenv("PATH"))) {
-      m->set_path(path);
+    fbb_execv_set_with_p(&ic_msg, true);
+    char *path_env;
+    size_t confstr_len = 0;
+    if ((path_env = getenv("PATH"))) {
+      fbb_execv_set_path(&ic_msg, path_env);
     } else {
       /* We have to fall back as described in man execvp.
        * This code is for glibc >= 2.24. For older versions
        * we'd need to prepend ".:", see issue 153. */
-      size_t n = ic_orig_confstr(_CS_PATH, NULL, 0);
-      path = (char *)malloc(n);
-      assert(path != NULL);
-      ic_orig_confstr(_CS_PATH, path, n);
-      m->set_path(path);
-      free(path);
+      confstr_len = ic_orig_confstr(_CS_PATH, NULL, 0);
+    }
+    /* Use the stack rather than the heap, make sure it lives
+     * until we send the message. */
+    char path_confstr[confstr_len];
+    if (confstr_len > 0) {
+      ic_orig_confstr(_CS_PATH, path_confstr, confstr_len);
+      fbb_execv_set_path(&ic_msg, path_confstr);
     }
 ###   endif
 
     /* Command line arguments */
-    for (int i = 0; argv[i] != NULL; i++) {
-      m->add_arg(argv[i]);
-    }
+    fbb_execv_set_arg(&ic_msg, argv);
 
     /* Environment variables */
 ###   if e
-    for (int i = 0; envp[i] != NULL; i++) {
-      m->add_env(envp[i]);
-    }
+    fbb_execv_set_env(&ic_msg, envp);
 ###   else
-    for (int i = 0; environ[i] != NULL; i++) {
-      m->add_env(environ[i]);
-    }
+    fbb_execv_set_env(&ic_msg, environ);
 ###   endif
 
     /* Get CPU time used up to this exec() */
     struct rusage ru;
     ic_orig_getrusage(RUSAGE_SELF, &ru);
-    m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
-    m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
+    fbb_execv_set_utime_u(&ic_msg,
+        (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
+    fbb_execv_set_stime_u(&ic_msg,
+        (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 
   /* Perform the call. */
@@ -106,9 +105,9 @@
 
   {
     /* Notify the supervisor after the call */
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_execvfailed();
-    m->set_error_no(saved_errno);
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    FBB_Builder_execv_failed ic_msg;
+    fbb_execv_failed_init(&ic_msg);
+    fbb_execv_failed_set_error_no(&ic_msg, saved_errno);
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock body

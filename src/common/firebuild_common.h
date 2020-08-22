@@ -8,25 +8,10 @@
 #include <limits.h>
 #include <sys/uio.h>
 
-#include <google/protobuf/message_lite.h>
-
-namespace firebuild {
-
-ssize_t fb_send_msg_unlocked(const google::protobuf::MessageLite &pb_msg, const int fd);
-ssize_t fb_recv_msg_unlocked(google::protobuf::MessageLite *pb_msg, const int fd);
-
-}  /* namespace firebuild */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**
- * wrapper for write() retrying on recoverable errors
- *
- * It is implemented differently in supervisor and interceptor
- */
-ssize_t fb_write(int fd, const void *buf, size_t count);
 
 /**
  * wrapper for read() retrying on recoverable errors
@@ -34,6 +19,13 @@ ssize_t fb_write(int fd, const void *buf, size_t count);
  * It is implemented differently in supervisor and interceptor
  */
 ssize_t fb_read(int fd, void *buf, size_t count);
+
+/**
+ * wrapper for writev() retrying on recoverable errors
+ *
+ * It is implemented differently in supervisor and interceptor
+ */
+ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
 
 #ifdef __cplusplus
 }  /* extern "C" */

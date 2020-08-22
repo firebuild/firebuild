@@ -9,7 +9,6 @@
 #include <errno.h>
 
 #include "common/firebuild_common.h"
-#include "fb-messages.pb.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
 #include "interceptor/ic_platform.h"

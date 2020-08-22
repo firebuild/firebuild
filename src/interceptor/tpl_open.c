@@ -7,7 +7,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (flags & O_CREAT) m->set_mode(mode);"] %}
+{% set msg_add_fields = ["if (flags & O_CREAT) fbb_" + msg + "_set_mode(&ic_msg, mode);"] %}
 
 ### block before
   mode_t mode = 0;

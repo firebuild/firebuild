@@ -25,16 +25,16 @@ bool ic_called_{{ func }};
   /* Notify the supervisor */
   if (!ic_called_{{ func }}) {
     ic_called_{{ func }} = true;
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_gen_call();
-    m->set_call("{{ func }}");
+    FBB_Builder_gen_call ic_msg;
+    fbb_gen_call_init(&ic_msg);
+    fbb_gen_call_set_call(&ic_msg, "{{ func }}");
 
 ###   if ack
     /* Send and wait for ack */
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 ###   else
     /* Send and go on, no ack */
-    fb_send_msg(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg(&ic_msg, fb_sv_conn);
 ###   endif
   }
 ### endblock send_msg

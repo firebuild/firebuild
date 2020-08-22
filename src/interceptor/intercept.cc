@@ -19,24 +19,12 @@
 
 #include "interceptor/env.h"
 #include "interceptor/interceptors.h"
-#include "fb-messages.pb.h"
+#include "interceptor/utils.h"
 #include "common/firebuild_common.h"
 
 namespace firebuild {
 
 extern "C" {
-
-/** A poor man's (plain C) implementation of a hashmap:
- *  posix_spawn_file_actions_t -> msg::PosixSpawnFileActions
- *  implemented as a dense array with linear lookup.
- */
-typedef struct {
-  const posix_spawn_file_actions_t *p;
-  msg::PosixSpawnFileActions *protobuf;
-} psfa;
-extern psfa *psfas;
-extern int psfas_num;
-extern int psfas_alloc;
 
 static void fb_ic_cleanup() __attribute__((destructor));
 
@@ -173,7 +161,7 @@ int32_t debug_flags = 0;
 bool insert_trace_markers = false;
 
 /** Next ACK id*/
-static int ack_id = 0;
+static uint32_t ack_id = 1;
 
 psfa *psfas = NULL;
 int psfas_num = 0;
@@ -211,31 +199,74 @@ static int get_next_ack_id() {
   return ack_id++;
 }
 
+/**
+ * Receive a message consisting of an ack_id, followed by either an FBB or the empty message.
+ * See common/msg/README_MSG_FRAME.txt for details.
+ *
+ * If bufp == NULL, the received message has to be an empty one, and this method is
+ * async-signal-safe.
+ *
+ * If bufp != NULL, the received message is stored in a newly allocated buffer which the caller
+ * will have to free().
+ *
+ * It's the caller's responsibility to lock.
+ *
+ * @param msg the decoded message, or unchanged if the empty message is received
+ * @param ack_id_p if non-NULL, store the received ack_id here
+ * @param bufp if non-NULL, store the received message here
+ * @param fd the communication file descriptor
+ * @return the received payload length (0 for empty messages), or -1 on error
+ */
+static ssize_t fb_recv_msg(uint32_t *ack_id_p, char **bufp, int fd) {
+  /* read serialized length and ack_id */
+  uint32_t header[2];
+  ssize_t ret = fb_read(fd, header, sizeof(header));
+  if (ret == -1 || ret == 0) {
+    return ret;
+  }
+  uint32_t msg_size = header[0];
+  if (ack_id_p) {
+    *ack_id_p = header[1];
+  }
+
+  if (msg_size == 0) {
+    /* empty message, only an ack_id */
+    return 0;
+  }
+
+  /* bufp can be NULL only if we expect an empty message (ack_id only) */
+  assert(bufp != NULL);
+
+  /* read serialized msg */
+  *bufp = (char *) malloc(msg_size);
+  if ((ret = fb_read(fd, *bufp, msg_size)) == -1) {
+    return ret;
+  }
+  assert(ret >= (ssize_t) sizeof(uint32_t));
+  return ret;
+}
+
 /** Send message, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-void fb_send_msg(const void* void_ic_msg, int fd) {
+void fb_fbb_send_msg(void *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
-  auto ic_msg = reinterpret_cast<const msg::InterceptorMsg *>(void_ic_msg);
-  fb_send_msg_unlocked(*ic_msg, fd);
+  fbb_send(fd, ic_msg, 0);
 
   thread_signal_danger_zone_leave();
 }
 
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-void fb_send_msg_and_check_ack(void* void_ic_msg, int fd) {
+void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
-  int ack_num = get_next_ack_id();
-  auto ic_msg = reinterpret_cast<msg::InterceptorMsg *>(void_ic_msg);
-  ic_msg->set_ack_num(ack_num);
-  fb_send_msg_unlocked(*ic_msg, fd);
+  uint32_t ack_num = get_next_ack_id();
+  fbb_send(fd, ic_msg, ack_num);
 
-  msg::SupervisorMsg sv_msg;
-  auto len = fb_recv_msg_unlocked(&sv_msg, fd);
-  assert(len > 0);
-  assert(sv_msg.ack_num() == ack_num);
+  uint32_t ack_num_resp = 0;
+  fb_recv_msg(&ack_num_resp, NULL, fd);
+  assert(ack_num_resp == ack_num);
 
   thread_signal_danger_zone_leave();
 }
@@ -319,8 +350,6 @@ static void fb_ic_init() {
 
   // init global variables
 
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
   fb_init_supervisor_conn();
 
   on_exit(on_exit_handler, NULL);
@@ -336,81 +365,68 @@ static void fb_ic_init() {
   auto cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
   assert(cwd_ret != NULL);
 
-  msg::InterceptorMsg ic_msg;
-  auto proc = ic_msg.mutable_scproc_query();
+  FBB_Builder_scproc_query ic_msg;
+  fbb_scproc_query_init(&ic_msg);
 
-  proc->set_pid(pid);
-  proc->set_ppid(ppid);
-  proc->set_cwd(cwd_buf);
+  fbb_scproc_query_set_pid(&ic_msg, pid);
+  fbb_scproc_query_set_ppid(&ic_msg, ppid);
+  fbb_scproc_query_set_cwd(&ic_msg, cwd_buf);
+  fbb_scproc_query_set_arg(&ic_msg, argv);
 
-  for (char** cursor = argv; *cursor != NULL; cursor++) {
-    proc->add_arg(*cursor);
-  }
-
-  /* make a sorted copy onf env */
-  int env_len = 0;
+  /* make a sorted and filtered copy of env */
+  int env_len = 0, env_copy_len = 0;
   for (char** cursor = env; *cursor != NULL; cursor++) {
-    env_len += 1;
+    env_len++;
   }
+  char *env_copy[sizeof(env[0]) * (env_len + 1)];
 
-  char** env_copy = reinterpret_cast<char**>(malloc(env_len * sizeof(env[0])));
-  memcpy(env_copy, env, env_len * sizeof(env[0]));
-
-  qsort(env_copy, env_len, sizeof(env_copy[0]), cmpstringpp);
-
-  /* send sorted env, omitting FB_SOCKET */
-  for (int i = 0; i < env_len; i++) {
+  for (char** cursor = env; *cursor != NULL; cursor++) {
     const char *fb_socket = "FB_SOCKET=";
-    if (strncmp(env_copy[i], fb_socket, strlen(fb_socket)) != 0) {
-      proc->add_env_var(env_copy[i]);
+    if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0) {
+      env_copy[env_copy_len++] = *cursor;
     }
   }
+  env_copy[env_copy_len] = NULL;
+  qsort(env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
+  fbb_scproc_query_set_env_var(&ic_msg, env_copy);
 
   // get full executable path
   // see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
   // and man 2 readlink
-  {
-    char linkname[CWD_BUFSIZE];
-    ssize_t r;
-    r = ic_orig_readlink("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
-
-    if ((r < 0) || (r > CWD_BUFSIZE - 1)) {
-      // skip
-      goto exec_path_filled;
-    }
-
+  char linkname[CWD_BUFSIZE];
+  ssize_t r;
+  r = ic_orig_readlink("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
+  if (r > 0 && r < CWD_BUFSIZE) {
     linkname[r] = '\0';
-    proc->set_executable(linkname);
+    fbb_scproc_query_set_executable(&ic_msg, linkname);
   }
- exec_path_filled:
 
   // list loaded shared libs
-  {
-    msg::FileList *fl = proc->mutable_libs();
-    dl_iterate_phdr(shared_libs_cb, fl);
-  }
+  string_array libs;
+  string_array_init(&libs);
+  dl_iterate_phdr(shared_libs_cb, &libs);
+  fbb_scproc_query_set_libs(&ic_msg, libs.p);
 
-  fb_send_msg_unlocked(ic_msg, fb_sv_conn);
+  fbb_send(fb_sv_conn, &ic_msg, 0);
 
-  msg::SupervisorMsg sv_msg;
-  fb_recv_msg_unlocked(&sv_msg, fb_sv_conn);
+  FBB_scproc_resp *sv_msg = NULL;
+  auto len = fb_recv_msg(NULL, (char **)&sv_msg, fb_sv_conn);
+  assert(len >= (ssize_t) sizeof(int));
+  int tag = *(int *) sv_msg;
+  assert(tag == FBB_TAG_scproc_resp);
 
-  auto resp = sv_msg.mutable_scproc_resp();
   // we may return immediately if supervisor decides that way
-  if (resp->shortcut()) {
-    assert(resp->has_exit_status());
+  if (fbb_scproc_resp_get_shortcut(sv_msg)) {
+    assert(fbb_scproc_resp_has_exit_status(sv_msg));
     auto orig_underscore_exit = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
-    (*orig_underscore_exit)(resp->exit_status());
+    (*orig_underscore_exit)(fbb_scproc_resp_get_exit_status(sv_msg));
   } else {
-    if (resp->has_debug_flags()) {
-      debug_flags = resp->debug_flags();
-    }
+    debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
   }
+  free(sv_msg);
   ic_init_done = true;
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
-
-  free(env_copy);
 }
 
 /**
@@ -456,16 +472,18 @@ void handle_exit(const int status) {
     }
     thread_signal_danger_zone_leave();
 
-    msg::InterceptorMsg ic_msg;
-    auto m = ic_msg.mutable_exit();
-    m->set_exit_status(status);
+    FBB_Builder_exit ic_msg;
+    fbb_exit_init(&ic_msg);
+    fbb_exit_set_exit_status(&ic_msg, status);
 
     struct rusage ru;
     getrusage(RUSAGE_SELF, &ru);
-    m->set_utime_u((int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
-    m->set_stime_u((int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
+    fbb_exit_set_utime_u(&ic_msg,
+        (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
+    fbb_exit_set_stime_u(&ic_msg,
+        (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 
     if (i_locked) {
       thread_signal_danger_zone_enter();
@@ -482,42 +500,41 @@ static void fb_ic_cleanup() {
    * Our on_exit_handler, which reports the exit code and resource usage
    * to the supervisor, is run _after_ this destructor, and still needs
    * pretty much all the functionality that we have (including the
-   * communication channel and the protobuf stuff). */
+   * communication channel). */
 }
 
-
-/** wrapper for write() retrying on recoverable errors */
-ssize_t fb_write(int fd, const void *buf, size_t count) {
-  FB_READ_WRITE(*ic_orig_write, fd, buf, count);
-}
 
 /** wrapper for read() retrying on recoverable errors */
 ssize_t fb_read(int fd, void *buf, size_t count) {
   FB_READ_WRITE(*ic_orig_read, fd, buf, count);
 }
 
+/** wrapper for writev() retrying on recoverable errors */
+ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
+  FB_READV_WRITEV(*ic_orig_writev, fd, iov, iovcnt);
+}
+
 /** Send error message to supervisor */
 extern void fb_error(const char* msg) {
-  msg::InterceptorMsg ic_msg;
-  auto err = ic_msg.mutable_fb_error();
-  err->set_msg(msg);
-  fb_send_msg(&ic_msg, fb_sv_conn);
+  FBB_Builder_fb_error ic_msg;
+  fbb_fb_error_init(&ic_msg);
+  fbb_fb_error_set_msg(&ic_msg, msg);
+  fb_fbb_send_msg(&ic_msg, fb_sv_conn);
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
 void fb_debug(const char* msg) {
-  msg::InterceptorMsg ic_msg;
-  auto dbg = ic_msg.mutable_fb_debug();
-  dbg->set_msg(msg);
-  fb_send_msg(&ic_msg, fb_sv_conn);
+  FBB_Builder_fb_debug ic_msg;
+  fbb_fb_debug_init(&ic_msg);
+  fbb_fb_debug_set_msg(&ic_msg, msg);
+  fb_fbb_send_msg(&ic_msg, fb_sv_conn);
 }
 
 
 /** Add shared library's name to the file list */
 int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
-  auto *fl = (firebuild::msg::FileList*)data;
-  // unused
-  (void)size;
+  auto *array = (string_array *) data;
+  (void) size;  /* unused */
 
   if (info->dlpi_name[0] == '\0') {
     /* FIXME does this really happen? */
@@ -534,14 +551,14 @@ int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
     /* This is an in-kernel library, filter it out. */
     return 0;
   }
-  fl->add_file(info->dlpi_name);
 
+  string_array_append(array, (/* non-const */ char *) info->dlpi_name);
   return 0;
 }
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_init():
- * Add an entry, with a new empty protobuf, to our pool.
+ * Add an entry, with a new empty string array, to our pool.
  */
 void psfa_init(const posix_spawn_file_actions_t *p) {
   psfa_destroy(p);
@@ -556,19 +573,19 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
   }
 
   psfas[psfas_num].p = p;
-  psfas[psfas_num].protobuf = new msg::PosixSpawnFileActions();
+  string_array_init(&psfas[psfas_num].actions);
   psfas_num++;
 }
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_destroy():
- * Remove the entry, freeing up the protobuf, from our pool.
+ * Remove the entry, freeing up the string array, from our pool.
  * Do not shrink psfas.
  */
 void psfa_destroy(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (psfas[i].p == p) {
-      delete psfas[i].protobuf;
+      string_array_deep_free(&psfas[i].actions);
       if (i < psfas_num - 1) {
         /* Keep the array dense by moving the last item to this slot. */
         psfas[i] = psfas[psfas_num - 1];
@@ -582,65 +599,61 @@ void psfa_destroy(const posix_spawn_file_actions_t *p) {
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_addopen():
- * Append a corresponding record to our protobuf.
+ * Append a corresponding record to our structures.
+ * An open action is denoted using the string "o <fd> <flags> <mode> <filename>"
+ * (without the angle brackets).
  */
 void psfa_addopen(const posix_spawn_file_actions_t *p,
                   int fd,
                   const char *path,
                   int flags,
                   mode_t mode) {
-  // FIXME remove cast
-  msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(p);
-  assert(actions_msg);
+  string_array *obj = psfa_find(p);
+  assert(obj);
 
-  msg::PosixSpawnFileAction *action_msg = actions_msg->add_action();
-  msg::PosixSpawnFileActionOpen *open_msg = action_msg->mutable_open();
-  open_msg->set_fd(fd);
-  open_msg->set_path(path);
-  open_msg->set_flags(flags);
-  open_msg->set_mode(mode);
+  char *str;
+  asprintf(&str, "o %d %d %d %s", fd, flags, mode, path);
+  string_array_append(obj, str);
 }
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclose():
- * Append a corresponding record to our protobuf.
+ * Append a corresponding record to our structures.
+ * A close action is denoted using the string "c <fd>" (without the angle brackets).
  */
 void psfa_addclose(const posix_spawn_file_actions_t *p,
                    int fd) {
-  // FIXME remove cast
-  msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(p);
-  assert(actions_msg);
+  string_array *obj = psfa_find(p);
+  assert(obj);
 
-  msg::PosixSpawnFileAction *action_msg = actions_msg->add_action();
-  msg::PosixSpawnFileActionClose *close_msg = action_msg->mutable_close();
-  close_msg->set_fd(fd);
+  char *str;
+  asprintf(&str, "c %d", fd);
+  string_array_append(obj, str);
 }
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_adddup2():
- * Append a corresponding record to our protobuf.
+ * Append a corresponding record to our structures.
+ * A dup2 action is denoted using the string "d <oldfd> <newfd>" (without the angle brackets).
  */
 void psfa_adddup2(const posix_spawn_file_actions_t *p,
                   int oldfd,
                   int newfd) {
-  // FIXME remove cast
-  msg::PosixSpawnFileActions *actions_msg = (msg::PosixSpawnFileActions *) psfa_find(p);
-  assert(actions_msg);
+  string_array *obj = psfa_find(p);
+  assert(obj);
 
-  msg::PosixSpawnFileAction *action_msg = actions_msg->add_action();
-  msg::PosixSpawnFileActionDup2 *dup2_msg = action_msg->mutable_dup2();
-  dup2_msg->set_oldfd(oldfd);
-  dup2_msg->set_newfd(newfd);
+  char *str;
+  asprintf(&str, "d %d %d", oldfd, newfd);
+  string_array_append(obj, str);
 }
 
 /**
- * Find the additional protobuf for a given posix_spawn_file_actions.
+ * Find the string_array for a given posix_spawn_file_actions.
  */
-// FIXME msg::PosixSpawnFileActions *
-void *psfa_find(const posix_spawn_file_actions_t *p) {
+string_array *psfa_find(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (psfas[i].p == p) {
-      return psfas[i].protobuf;
+      return &psfas[i].actions;
     }
   }
   return NULL;
