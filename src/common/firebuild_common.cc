@@ -32,7 +32,7 @@ extern ssize_t fb_send_msg_unlocked(const google::protobuf::MessageLite &pb_msg,
 
   pb_msg.SerializeWithCachedSizesToArray(
       reinterpret_cast<uint8_t*>(&buf[offset]));
-  auto ret = fb_write_buf(fd, buf, msg_size + offset);
+  auto ret = fb_write(fd, buf, msg_size + offset);
 
   delete[] buf;
   return ret;
@@ -51,7 +51,7 @@ extern ssize_t fb_recv_msg_unlocked(google::protobuf::MessageLite *pb_msg,
   uint32_t msg_size;
 
   /* read serialized length */
-  auto ret = fb_read_buf(fd, &msg_size, sizeof(msg_size));
+  auto ret = fb_read(fd, &msg_size, sizeof(msg_size));
   if (ret == -1 || ret == 0) {
     return ret;
   }
@@ -59,7 +59,7 @@ extern ssize_t fb_recv_msg_unlocked(google::protobuf::MessageLite *pb_msg,
 
   auto buf = new char[msg_size];
   /* read serialized msg */
-  if (-1 == ((ret = fb_read_buf(fd, buf, msg_size)))) {
+  if ((ret = fb_read(fd, buf, msg_size)) == -1) {
     delete[] buf;
     return ret;
   }
@@ -70,4 +70,4 @@ extern ssize_t fb_recv_msg_unlocked(google::protobuf::MessageLite *pb_msg,
   return ret;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

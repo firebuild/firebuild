@@ -486,14 +486,14 @@ static void fb_ic_cleanup() {
 }
 
 
-/** wrapper for send() retrying on recoverable errors*/
-ssize_t fb_write_buf(const int fd, const void * const buf, const size_t count) {
-  FB_IO_OP_BUF(ic_orig_send, fd, buf, count, 0, {});
+/** wrapper for write() retrying on recoverable errors */
+ssize_t fb_write(int fd, const void *buf, size_t count) {
+  FB_READ_WRITE(*ic_orig_write, fd, buf, count);
 }
 
-/** wrapper for recv() retrying on recoverable errors*/
-ssize_t fb_read_buf(const int fd,  void * const buf, const size_t count) {
-  FB_IO_OP_BUF(ic_orig_recv, fd, buf, count, 0, {});
+/** wrapper for read() retrying on recoverable errors */
+ssize_t fb_read(int fd, void *buf, size_t count) {
+  FB_READ_WRITE(*ic_orig_read, fd, buf, count);
 }
 
 /** Send error message to supervisor */

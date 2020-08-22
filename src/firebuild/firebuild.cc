@@ -966,6 +966,9 @@ int main(const int argc, char *argv[]) {
     FD_ZERO(&master);    // clear the master and temp sets
     FD_ZERO(&read_fds);
 
+    /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
+    signal(SIGPIPE, SIG_IGN);
+
     // add the listener and and fd listening for child's death to the
     // master set
     for (auto const &listener : fb_listener_pool) {
@@ -1120,18 +1123,18 @@ int main(const int argc, char *argv[]) {
   exit(child_ret);
 }
 
+/** wrapper for write() retrying on recoverable errors */
+ssize_t fb_write(int fd, const void *buf, size_t count) {
+  FB_READ_WRITE(write, fd, buf, count);
+}
+
+/** wrapper for read() retrying on recoverable errors */
+ssize_t fb_read(int fd, void *buf, size_t count) {
+  FB_READ_WRITE(read, fd, buf, count);
+}
+
 
 namespace firebuild {
-
-/** wrapper for write() retrying on recoverable errors*/
-ssize_t fb_write_buf(const int fd, const void * buf, const size_t count) {
-  FB_IO_OP_BUF(send, fd, buf, count, MSG_NOSIGNAL, {});
-}
-
-/** wrapper for read() retrying on recoverable errors*/
-ssize_t fb_read_buf(const int fd, void *buf, const size_t count) {
-  FB_IO_OP_BUF(recv, fd, buf, count, 0, {});
-}
 
 /** Print error message */
 extern void fb_error(const std::string &msg) {
