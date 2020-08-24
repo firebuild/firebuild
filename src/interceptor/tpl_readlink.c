@@ -11,7 +11,7 @@
     /* Create a zero-terminated copy on the stack.
      * Make sure it lives until we send the message. */
     int len = 0;
-    if (ret >= 0 && (size_t)abs(ret) <= bufsiz) {
+    if (ret >= 0 && (size_t)labs(ret) <= bufsiz) {
       len = ret;
     }
     char ret_path[len + 1];

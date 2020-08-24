@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
   fbb_testing_set_os6(&testing_msgbldr, "loremipsum");
   fbb_testing_set_rs7(&testing_msgbldr, "quux");
 
-  fbb_testing_set_sa9(&testing_msgbldr, array);
+  fbb_testing_set_sa9(&testing_msgbldr, (char * const *) array);
   fbb_testing_set_sa10(&testing_msgbldr, NULL);
 
   fbb_send(fd, &testing_msgbldr, 123 /* ack id */);

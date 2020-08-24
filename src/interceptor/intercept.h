@@ -8,6 +8,10 @@
 #ifndef FIREBUILD_INTERCEPT_H_
 #define FIREBUILD_INTERCEPT_H_
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
 #include <dlfcn.h>
 #include <link.h>
 #include <pthread.h>
@@ -19,14 +23,6 @@
 #include <spawn.h>
 
 #include "interceptor/utils.h"
-
-#ifdef  __cplusplus
-
-extern "C" {
-
-namespace firebuild {
-
-#endif
 
 /** A poor man's (plain C) implementation of a hashmap:
  *  posix_spawn_file_actions_t -> char**
@@ -184,10 +180,6 @@ inline void thread_signal_danger_zone_leave() {
   }
 }
 
-#ifdef  __cplusplus
-}  // namespace firebuild
-#endif
-
 /** Add shared library's name to the file list */
 extern int shared_libs_cb(struct dl_phdr_info *info, size_t size, void *data);
 
@@ -198,9 +190,5 @@ extern int __libc_start_main(int (*main)(int, char **, char **),
                              int argc, char **ubp_av,
                              void (*init)(void), void (*fini)(void),
                              void (*rtld_fini)(void), void *stack_end);
-
-#ifdef  __cplusplus
-}  // extern "C"
-#endif
 
 #endif  // FIREBUILD_INTERCEPT_H_

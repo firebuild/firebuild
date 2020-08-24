@@ -71,7 +71,7 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
 ###   for (req, type, var) in fields
 ###     if type == STRINGARRAY
   if (msgbldr->wire.{{ var }}_size > 0) {
-    const char * const *p = msgbldr->{{ var }};
+    char * const *p = msgbldr->{{ var }};
     while (*p++) string_count++;
   }
 ###     endif
@@ -95,7 +95,7 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
   }
 ###     elif type == STRINGARRAY
   if (msgbldr->wire.{{ var }}_size > 0) {
-    const char * const *p = msgbldr->{{ var }};
+    char * const *p = msgbldr->{{ var }};
     while (*p) {
       iov[iovcnt].iov_base = (/* non-const */ void *) (*p);
       iov[iovcnt].iov_len = strlen(*p) + 1;

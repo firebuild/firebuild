@@ -12,8 +12,8 @@
 
   /* See comment in firebuild_fake_main() */
   char *main_and_argv[2];
-  main_and_argv[0] = reinterpret_cast<char *>(main);
-  main_and_argv[1] = reinterpret_cast<char *>(ubp_av);
+  main_and_argv[0] = (char *) main;
+  main_and_argv[1] = (char *) ubp_av;
 
   /* Get out of the way from others */
   thread_intercept_on = NULL;
