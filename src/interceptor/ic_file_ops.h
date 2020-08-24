@@ -10,14 +10,6 @@
 
 #include "interceptor/interceptors.h"
 
-#ifdef  __cplusplus
-
-namespace firebuild {
-
-extern "C" {
-
-#endif
-
 int intercept_fopen_mode_to_open_flags_helper(const char * mode);
 void clear_file_state(const int fd);
 void copy_file_state(const int to_fd, const int from_fd);
@@ -32,13 +24,5 @@ static inline int safe_fileno(FILE *stream) {
 static inline int safe_dirfd(DIR *dirp) {
   return dirp ? ic_orig_dirfd(dirp) : -1;
 }
-
-#ifdef  __cplusplus
-
-}  // extern "C"
-
-}  // namespace firebuild
-
-#endif
 
 #endif  // FIREBUILD_IC_FILE_OPS_H_

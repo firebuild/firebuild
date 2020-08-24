@@ -13,18 +13,10 @@
 #include <sys/resource.h>
 #include <spawn.h>
 
-#include <cassert>
-#include <cstdarg>
-#include <cstdlib>
-
 #include "interceptor/env.h"
 #include "interceptor/interceptors.h"
 #include "interceptor/utils.h"
 #include "common/firebuild_common.h"
-
-namespace firebuild {
-
-extern "C" {
 
 static void fb_ic_cleanup() __attribute__((destructor));
 
@@ -362,7 +354,7 @@ static void fb_ic_init() {
   ppid = ic_orig_getppid();
 
   char cwd_buf[CWD_BUFSIZE];
-  auto cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
+  char *cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
   assert(cwd_ret != NULL);
 
   FBB_Builder_scproc_query ic_msg;
@@ -410,7 +402,7 @@ static void fb_ic_init() {
   fbb_send(fb_sv_conn, &ic_msg, 0);
 
   FBB_scproc_resp *sv_msg = NULL;
-  auto len = fb_recv_msg(NULL, (char **)&sv_msg, fb_sv_conn);
+  ssize_t len = fb_recv_msg(NULL, (char **)&sv_msg, fb_sv_conn);
   assert(len >= (ssize_t) sizeof(int));
   int tag = *(int *) sv_msg;
   assert(tag == FBB_TAG_scproc_resp);
@@ -418,7 +410,7 @@ static void fb_ic_init() {
   // we may return immediately if supervisor decides that way
   if (fbb_scproc_resp_get_shortcut(sv_msg)) {
     assert(fbb_scproc_resp_has_exit_status(sv_msg));
-    auto orig_underscore_exit = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
+    void(*orig_underscore_exit)(int) = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
     (*orig_underscore_exit)(fbb_scproc_resp_get_exit_status(sv_msg));
   } else {
     debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
@@ -444,7 +436,7 @@ void fb_ic_load() {
   }
 }
 
-void on_exit_handler(const int status, void *) {
+void on_exit_handler(const int status, void *arg) {
   insert_debug_msg("our_on_exit_handler-begin");
   handle_exit(status);
   insert_debug_msg("our_on_exit_handler-end");
@@ -533,7 +525,7 @@ void fb_debug(const char* msg) {
 
 /** Add shared library's name to the file list */
 int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
-  auto *array = (string_array *) data;
+  string_array *array = (string_array *) data;
   (void) size;  /* unused */
 
   if (info->dlpi_name[0] == '\0') {
@@ -566,10 +558,10 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
   /* grow buffer if necessary */
   if (psfas_alloc == 0) {
     psfas_alloc = 4 /* whatever */;
-    psfas = reinterpret_cast<psfa *>(malloc(sizeof(psfa) * psfas_alloc));
+    psfas = (psfa *) malloc(sizeof(psfa) * psfas_alloc);
   } else if (psfas_num == psfas_alloc) {
     psfas_alloc *= 2;
-    psfas = reinterpret_cast<psfa *>(realloc(psfas, sizeof(psfa) * psfas_alloc));
+    psfas = (psfa *) realloc(psfas, sizeof(psfa) * psfas_alloc);
   }
 
   psfas[psfas_num].p = p;
@@ -658,7 +650,3 @@ string_array *psfa_find(const posix_spawn_file_actions_t *p) {
   }
   return NULL;
 }
-
-}  // extern "C"
-
-}  // namespace firebuild

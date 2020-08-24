@@ -5,7 +5,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 
-set_source_files_properties(common/firebuild_common.cc PROPERTIES COMPILE_FLAGS "-fPIC")
+set_source_files_properties(common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC")
 set_source_files_properties(fbb.c PROPERTIES COMPILE_FLAGS "-fPIC")
 
 add_custom_command(
@@ -19,7 +19,7 @@ add_custom_command(
 
 add_custom_target(fbb_gen_files ALL DEPENDS fbb.c fbb.h)
 
-add_library(common_objs OBJECT common/firebuild_common.cc fbb.c)
+add_library(common_objs OBJECT common/firebuild_common.c fbb.c)
 
 add_subdirectory(interceptor)
 add_subdirectory(firebuild)

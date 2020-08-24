@@ -25,7 +25,7 @@
     /* Child */
 
     /* Reinitialize the lock, see #207 */
-    ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_init(&ic_global_lock, NULL);
     /* Relocking is pretty pointless since a forked child is always
      * single-threaded. Anyway, let's maintain internal consistency and
      * let's not make the closing unlock() fail. */

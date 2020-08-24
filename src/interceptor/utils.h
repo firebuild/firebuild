@@ -4,10 +4,6 @@
 #ifndef FIREBUILD_UTILS_H_
 #define FIREBUILD_UTILS_H_
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 /**
  * string_array allows to conveniently build up an array of strings (i.e. NULL-terminated char**).
  */
@@ -20,9 +16,5 @@ typedef struct {
 void string_array_init(string_array *array);
 void string_array_append(string_array *array, char *s);
 void string_array_deep_free(string_array *array);
-
-#ifdef  __cplusplus
-}
-#endif
 
 #endif /* FIREBUILD_UTILS_H_ */

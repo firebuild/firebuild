@@ -7,9 +7,14 @@
 #ifndef FIREBUILD_INTERCEPTORS_H_
 #define FIREBUILD_INTERCEPTORS_H_
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1
+#endif
+
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <spawn.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -45,27 +50,11 @@ struct ustat;
 #define FB_VA_LIST _G_va_list
 #endif
 
-#ifdef  __cplusplus
-
-namespace firebuild {
-
-extern "C" {
-
-#endif
-
 void init_interceptors();
 void reset_interceptors();
 
 /* Include the auto-generated declarations of the ic_orig function pointers,
  * and some convenience #define redirects */
 #include "interceptor/gen_decl.h"
-
-#ifdef  __cplusplus
-
-}  // extern "C"
-
-}  // namespace firebuild
-
-#endif
 
 #endif  // FIREBUILD_INTERCEPTORS_H_

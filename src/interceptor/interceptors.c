@@ -13,10 +13,6 @@
 #include "interceptor/intercept.h"
 #include "interceptor/ic_platform.h"
 
-namespace firebuild {
-
-extern "C" {
-
 extern bool insert_trace_markers;
 
 
@@ -37,7 +33,3 @@ void reset_interceptors() {
 
 /* Include the auto-generated implementations of the interceptor functions */
 #include "interceptor/gen_impl.c"
-
-}  // extern "C"
-
-}  // namespace firebuild

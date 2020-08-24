@@ -6,10 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 void string_array_init(string_array *array) {
   memset(array, 0, sizeof(*array));
 }
@@ -32,7 +28,3 @@ void string_array_deep_free(string_array *array) {
     free(array->p[i]);
   free(array->p);
 }
-
-#ifdef  __cplusplus
-}
-#endif

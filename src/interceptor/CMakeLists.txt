@@ -1,6 +1,7 @@
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-set_source_files_properties(interceptors.cc PROPERTIES COMPILE_FLAGS "-Wno-tautological-pointer-compare")
+# gnu89 required to avoid the __isoc99_scanf hell
+set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89")
 
 add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_reset.c
@@ -35,8 +36,8 @@ add_library(fbintercept MODULE
   env.c
   ic_file_ops.c
   ic_redirect_only.c
-  intercept.cc
-  interceptors.cc
+  intercept.c
+  interceptors.c
   utils.c
   $<TARGET_OBJECTS:common_objs>)
 

@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-static inline size_t strarraysize(const char * const *p) {
+static inline size_t strarraysize(char * const *p) {
   if (p == NULL) return 0;
   size_t s = 0;
   while (*p != NULL) {
@@ -85,7 +85,7 @@ typedef struct _FBB_Builder_{{ msg }} {
 ###     if type == STRING
   const char *{{ var }};
 ###     elif type == STRINGARRAY
-  const char * const *{{ var }};
+  char * const *{{ var }};
 ###     endif
 ###   endfor
 #if FBB_DEBUG
@@ -118,7 +118,7 @@ static inline void fbb_{{ msg }}_set_{{ var }}(FBB_Builder_{{ msg }} *msgbldr, c
 
 ###     elif type == STRINGARRAY
 /* set stringarray '{{ var }}' */
-static inline void fbb_{{ msg }}_set_{{ var }}(FBB_Builder_{{ msg }} *msgbldr, const char * const *value) {
+static inline void fbb_{{ msg }}_set_{{ var }}(FBB_Builder_{{ msg }} *msgbldr, char * const *value) {
 #if FBB_DEBUG
   assert(msgbldr->wire.fbb_tag == FBB_TAG_{{ msg }});
 #endif

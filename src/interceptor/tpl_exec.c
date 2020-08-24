@@ -18,18 +18,18 @@
 ###   if l
   /* Convert "arg, ..." to "argv[]" */
   unsigned int argc = 0, argc_size = 16;
-  char **argv = static_cast<char **>(malloc(argc_size * sizeof(char*)));
-  argv[argc] = const_cast<char *>(arg);
+  char **argv = (char **) malloc(argc_size * sizeof(char*));
+  argv[argc] = (char *) arg;
   while (argv[argc]) {
-    argv[++argc] = static_cast<char *>(va_arg(ap, char*));
+    argv[++argc] = (char *) va_arg(ap, char*);
     if (argc == argc_size - 1) {
       argc_size *= 2;
-      argv = static_cast<char **>(realloc(argv, argc_size * sizeof(char*)));
+      argv = (char **) realloc(argv, argc_size * sizeof(char*));
     }
   }
 ###     if e
   /* Also locate the environment */
-  char **envp = static_cast<char **>(va_arg(ap, char**));
+  char **envp = (char **) va_arg(ap, char**);
 ###     endif
 ###   endif
 
