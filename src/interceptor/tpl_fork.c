@@ -22,31 +22,10 @@
 
   if (!success) {
     /* Error */
-
     // FIXME: disable shortcutting
-
-  } else if (ret == 0) {
-    /* Child */
-
-    /* Reinitialize the lock, see #207 */
-    pthread_mutex_init(&ic_global_lock, NULL);
-    /* Relocking is pretty pointless since a forked child is always
-     * single-threaded. Anyway, let's maintain internal consistency and
-     * let's not make the closing unlock() fail. */
-    if (i_am_intercepting) {
-      pthread_mutex_lock(&ic_global_lock);
-      assert(thread_has_global_lock);
-    }
-
-    /* Reinitialize other stuff */
-    reset_interceptors();
-    ic_pid = ic_orig_getpid();
-
-    /* Reconnect to supervisor */
-    fb_init_supervisor_conn();
-  } else {
-    /* Parent, nothing here to do */
   }
+  /* In the child, what we need to do here is done via our atfork_child_handler().
+   * In the parent there's nothing to do here at all. */
 ### endblock after
 
 ### block send_msg

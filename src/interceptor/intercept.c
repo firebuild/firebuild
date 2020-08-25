@@ -345,6 +345,7 @@ static void fb_ic_init() {
 
   fb_init_supervisor_conn();
 
+  pthread_atfork(NULL, NULL, atfork_child_handler);
   on_exit(on_exit_handler, NULL);
 
   char **argv, **env;
@@ -435,6 +436,31 @@ void fb_ic_load() {
     }
     pthread_mutex_unlock(&ic_init_lock);
   }
+}
+
+/**
+ * Reconnect to the supervisor and reinitialize other stuff in the child
+ * after a fork(). Do it from the first registered pthread_atfork
+ * handler so that it happens before other such handlers are run.
+ * See #237 for further details.
+ */
+void atfork_child_handler(void) {
+  /* Reinitialize the lock, see #207.
+   *
+   * We don't know if the lock was previously held, we'd need to check
+   * the variable i_am_intercepting from the intercepted fork() which is
+   * not available here, and storing it in a thread-global variable is
+   * probably not worth the trouble. The intercepted fork() will attempt
+   * to unlock if it grabbed the lock, which will silently fail, that's
+   * okay. */
+  pthread_mutex_init(&ic_global_lock, NULL);
+
+  /* Reinitialize other stuff */
+  reset_interceptors();
+  ic_pid = ic_orig_getpid();
+
+  /* Reconnect to supervisor */
+  fb_init_supervisor_conn();
 }
 
 void on_exit_handler(const int status, void *arg) {
