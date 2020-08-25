@@ -13,9 +13,13 @@
   sigset_t set_orig, set_block_all;
   sigfillset(&set_block_all);
   pthread_sigmask(SIG_SETMASK, &set_block_all, &set_orig);
+
+  thread_atfork_handler_running_depth++;
 ### endblock before
 
 ### block after
+  thread_atfork_handler_running_depth--;
+
   if (!success) {
     /* Error */
 
@@ -36,7 +40,7 @@
 
     /* Reinitialize other stuff */
     reset_interceptors();
-    ic_pid = getpid();
+    ic_pid = ic_orig_getpid();
 
     /* Reconnect to supervisor */
     fb_init_supervisor_conn();
