@@ -32,9 +32,9 @@
         /* sa_sigaction, handler called with 3 args */
         orig_signal_handlers[signum] = (void (*)(void))act->sa_sigaction;
         /* FIXME(egmont) It's unclear to me whether SIG_IGN and SIG_DFL are allowed values here in the SA_SIGINFO branch,
-         * probably not (they're of different pointer types, hence the casting). Still, better safe than sorry. */
+         * probably not (they're of incompatible pointer types, hence the double casting). Still, better safe than sorry. */
         void (*new_signal_handler)(int, siginfo_t *, void *) =
-            ((sighandler_t)act->sa_sigaction == SIG_IGN || (sighandler_t)act->sa_sigaction == SIG_DFL) ? act->sa_sigaction : wrapper_signal_handler_3arg;
+            ((sighandler_t)(void *)act->sa_sigaction == SIG_IGN || (sighandler_t)(void *)act->sa_sigaction == SIG_DFL) ? act->sa_sigaction : wrapper_signal_handler_3arg;
         wrapped_act.sa_sigaction = new_signal_handler;
       } else {
         /* sa_handler, handler called with 1 arg */

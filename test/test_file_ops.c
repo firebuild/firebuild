@@ -38,7 +38,7 @@ int main() {
     exit(1);
   }
   i = write(fd, msg, strlen(msg));
-  if (i != strlen(msg)) {
+  if (i != (int) strlen(msg)) {
     perror("write" LOC);
     exit(1);
   }
@@ -50,7 +50,7 @@ int main() {
     exit(1);
   }
   i = write(fd, msg, strlen(msg));
-  if (i != strlen(msg)) {
+  if (i != (int) strlen(msg)) {
     perror("write" LOC);
     exit(1);
   }

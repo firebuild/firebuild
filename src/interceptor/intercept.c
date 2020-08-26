@@ -323,6 +323,8 @@ static void atfork_child_handler(void) {
 }
 
 static void on_exit_handler(const int status, void *arg) {
+  (void) arg;  /* unused */
+
   insert_debug_msg("our_on_exit_handler-begin");
   handle_exit(status);
   insert_debug_msg("our_on_exit_handler-end");

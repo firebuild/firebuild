@@ -15,6 +15,9 @@ inline void* __builtin_apply_args() {
 }
 
 inline void* __builtin_apply(void (*function)(), void * arguments, size_t size) {
+  (void) function;   /* unused */
+  (void) arguments;  /* unused */
+  (void) size;       /* unused */
   FB_MISSING(__func__);
   return NULL;
 }
