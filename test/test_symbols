@@ -1,0 +1,53 @@
+#!/bin/bash
+# Check whether our preload library has any unexpected public symbol
+
+# Copyright (c) 2020 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# Figure out CMAKE_BINARY_DIR
+if [ $# -lt 1 ]; then
+  echo "Usage: test_symbols binary_dir" >&2
+  exit 1
+fi
+binary_dir="$1"
+
+# Additional allowed public symbols that are not auto-generated into gen_list.txt.
+# These are the ones defined in ic_redirect_only.c.
+# Also allow the ones added by gcov (__gcov* and mangle_path).
+additional_allowed_symbols="
+vfork
+creat
+creat64
+eaccess
+__gcov_dump
+__gcov_error_file
+__gcov_flush
+__gcov_master
+__gcov_reset
+__gcov_sort_n_vals
+__gcov_var
+mangle_path
+"
+
+# Extract and sort the public symbols
+nm -D "$binary_dir/src/interceptor/libfbintercept.so" | \
+  grep -v ' [Uvw] ' | \
+  cut -d' ' -f3- | \
+  LC_ALL=C sort > public-symbols.txt
+
+# Gather and sort the allowed public symbols
+{ cat "$binary_dir/src/interceptor/gen_list.txt"; echo "$additional_allowed_symbols"; } | \
+  LC_ALL=C sort > public-symbols-allowed.txt
+
+# Get the list of unexpected ones
+unexpected=$(LC_ALL=C comm -23 public-symbols.txt public-symbols-allowed.txt)
+
+# Print and return
+if [ -z "$unexpected" ]; then
+  echo "No unexpected public symbols"
+  exit 0
+else
+  echo "Unexpected public symbols:"
+  echo "$unexpected" | sed 's/^\(.*\)$/  \1/'
+  exit 1
+fi

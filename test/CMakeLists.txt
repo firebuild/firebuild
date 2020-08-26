@@ -22,3 +22,5 @@ add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc $<TARGET_OBJECTS:common_obj
 add_test(fbb ./fbb_test)
 add_dependencies(fbb_test fbb_gen_files)
 add_dependencies(check fbb_test)
+
+add_test(test-symbols ./test_symbols ${CMAKE_BINARY_DIR})

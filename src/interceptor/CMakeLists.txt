@@ -4,7 +4,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89")
 
 add_custom_command (
-  OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_reset.c
+  OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c
   DEPENDS generate_interceptors
   tpl.c
   tpl_dlopen.c
@@ -30,7 +30,7 @@ add_custom_command (
   COMMAND ./generate_interceptors ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating interceptor files from templates")
 
-add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_init.c gen_reset.c)
+add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c)
 
 add_library(fbintercept MODULE
   env.c
