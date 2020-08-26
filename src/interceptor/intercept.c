@@ -23,9 +23,6 @@ static void fb_ic_cleanup() __attribute__((destructor));
 /** file fd states */
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
-/** Global lock for running fb_ic_init() at most once */
-pthread_mutex_t ic_init_lock = PTHREAD_MUTEX_INITIALIZER;
-
 /** Global lock for preventing parallel system and popen calls */
 pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -38,8 +35,11 @@ char * fb_conn_string = NULL;
 /** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
 
-/** interceptor init has been run */
-volatile bool ic_init_done = false;
+/** Control for running the initialization exactly once */
+pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
+
+/** Fast check for whether interceptor init has been run */
+bool ic_init_done = false;
 
 bool intercepting_enabled = true;
 
@@ -519,9 +519,9 @@ static void fb_ic_init() {
     debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
   }
   free(sv_msg);
-  ic_init_done = true;
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
+  ic_init_done = true;
 }
 
 /**
@@ -529,14 +529,7 @@ static void fb_ic_init() {
  * when interceptor library loads or when the first interceped call happens
  */
 void fb_ic_load() {
-  /* Make sure to run fb_ic_init() only once. */
-  if (!ic_init_done) {
-    pthread_mutex_lock(&ic_init_lock);
-    if (!ic_init_done) {
-      fb_ic_init();
-    }
-    pthread_mutex_unlock(&ic_init_lock);
-  }
+  pthread_once(&ic_init_control, fb_ic_init);
 }
 
 static void fb_ic_cleanup() {
