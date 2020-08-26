@@ -272,6 +272,107 @@ static int cmpstringpp(const void *p1, const void *p2) {
   return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
+/** Add shared library's name to the file list */
+static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
+  string_array *array = (string_array *) data;
+  (void) size;  /* unused */
+
+  if (info->dlpi_name[0] == '\0') {
+    /* FIXME does this really happen? */
+    return 0;
+  }
+  const char *libfbintercept = "/libfbintercept.so";
+  if (strlen(info->dlpi_name) >= strlen(libfbintercept) &&
+    strcmp(info->dlpi_name + strlen(info->dlpi_name)
+           - strlen(libfbintercept), libfbintercept) == 0) {
+    /* This is internal to Firebuild, filter it out. */
+    return 0;
+  }
+  if (strcmp(info->dlpi_name, "linux-vdso.so.1") == 0) {
+    /* This is an in-kernel library, filter it out. */
+    return 0;
+  }
+
+  string_array_append(array, (/* non-const */ char *) info->dlpi_name);
+  return 0;
+}
+
+/**
+ * Reconnect to the supervisor and reinitialize other stuff in the child
+ * after a fork(). Do it from the first registered pthread_atfork
+ * handler so that it happens before other such handlers are run.
+ * See #237 for further details.
+ */
+static void atfork_child_handler(void) {
+  /* Reinitialize the lock, see #207.
+   *
+   * We don't know if the lock was previously held, we'd need to check
+   * the variable i_am_intercepting from the intercepted fork() which is
+   * not available here, and storing it in a thread-global variable is
+   * probably not worth the trouble. The intercepted fork() will attempt
+   * to unlock if it grabbed the lock, which will silently fail, that's
+   * okay. */
+  pthread_mutex_init(&ic_global_lock, NULL);
+
+  /* Reinitialize other stuff */
+  reset_interceptors();
+  ic_pid = ic_orig_getpid();
+
+  /* Reconnect to supervisor */
+  fb_init_supervisor_conn();
+}
+
+static void on_exit_handler(const int status, void *arg) {
+  insert_debug_msg("our_on_exit_handler-begin");
+  handle_exit(status);
+  insert_debug_msg("our_on_exit_handler-end");
+
+  /* Destruction of global objects is not done here, because other exit handlers
+   * may perform actions that need to be reported to the supervisor.
+   * TODO(rbalint) add Valgrind suppress file
+   */
+}
+
+void handle_exit(const int status) {
+  /* On rare occasions (e.g. two threads attempting to exit at the same
+   * time) this method is called multiple times. The server can safely
+   * handle it. */
+
+  /* Use the same pattern for locking as in tpl.c, simplified (fewer debugging messages). */
+  if (intercepting_enabled) {
+    bool i_locked = false;
+    thread_signal_danger_zone_enter();
+    if (!thread_has_global_lock) {
+      pthread_mutex_lock(&ic_global_lock);
+      thread_has_global_lock = true;
+      thread_intercept_on = "handle_exit";
+      i_locked = true;
+    }
+    thread_signal_danger_zone_leave();
+
+    FBB_Builder_exit ic_msg;
+    fbb_exit_init(&ic_msg);
+    fbb_exit_set_exit_status(&ic_msg, status);
+
+    struct rusage ru;
+    getrusage(RUSAGE_SELF, &ru);
+    fbb_exit_set_utime_u(&ic_msg,
+        (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
+    fbb_exit_set_stime_u(&ic_msg,
+        (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
+
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+
+    if (i_locked) {
+      thread_signal_danger_zone_enter();
+      pthread_mutex_unlock(&ic_global_lock);
+      thread_has_global_lock = false;
+      thread_intercept_on = NULL;
+      thread_signal_danger_zone_leave();
+    }
+  }
+}
+
 /**
  * Set up a supervisor connection
  * @param[in] fd if > -1 remap the connection to that fd
@@ -438,82 +539,6 @@ void fb_ic_load() {
   }
 }
 
-/**
- * Reconnect to the supervisor and reinitialize other stuff in the child
- * after a fork(). Do it from the first registered pthread_atfork
- * handler so that it happens before other such handlers are run.
- * See #237 for further details.
- */
-void atfork_child_handler(void) {
-  /* Reinitialize the lock, see #207.
-   *
-   * We don't know if the lock was previously held, we'd need to check
-   * the variable i_am_intercepting from the intercepted fork() which is
-   * not available here, and storing it in a thread-global variable is
-   * probably not worth the trouble. The intercepted fork() will attempt
-   * to unlock if it grabbed the lock, which will silently fail, that's
-   * okay. */
-  pthread_mutex_init(&ic_global_lock, NULL);
-
-  /* Reinitialize other stuff */
-  reset_interceptors();
-  ic_pid = ic_orig_getpid();
-
-  /* Reconnect to supervisor */
-  fb_init_supervisor_conn();
-}
-
-void on_exit_handler(const int status, void *arg) {
-  insert_debug_msg("our_on_exit_handler-begin");
-  handle_exit(status);
-  insert_debug_msg("our_on_exit_handler-end");
-
-  /* Destruction of global objects is not done here, because other exit handlers
-   * may perform actions that need to be reported to the supervisor.
-   * TODO(rbalint) add Valgrind suppress file
-   */
-}
-
-void handle_exit(const int status) {
-  /* On rare occasions (e.g. two threads attempting to exit at the same
-   * time) this method is called multiple times. The server can safely
-   * handle it. */
-
-  /* Use the same pattern for locking as in tpl.c, simplified (fewer debugging messages). */
-  if (intercepting_enabled) {
-    bool i_locked = false;
-    thread_signal_danger_zone_enter();
-    if (!thread_has_global_lock) {
-      pthread_mutex_lock(&ic_global_lock);
-      thread_has_global_lock = true;
-      thread_intercept_on = "handle_exit";
-      i_locked = true;
-    }
-    thread_signal_danger_zone_leave();
-
-    FBB_Builder_exit ic_msg;
-    fbb_exit_init(&ic_msg);
-    fbb_exit_set_exit_status(&ic_msg, status);
-
-    struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
-    fbb_exit_set_utime_u(&ic_msg,
-        (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
-    fbb_exit_set_stime_u(&ic_msg,
-        (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
-
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
-
-    if (i_locked) {
-      thread_signal_danger_zone_enter();
-      pthread_mutex_unlock(&ic_global_lock);
-      thread_has_global_lock = false;
-      thread_intercept_on = NULL;
-      thread_signal_danger_zone_leave();
-    }
-  }
-}
-
 static void fb_ic_cleanup() {
   /* Don't put anything here, unless you really know what you're doing!
    * Our on_exit_handler, which reports the exit code and resource usage
@@ -549,31 +574,6 @@ void fb_debug(const char* msg) {
   fb_fbb_send_msg(&ic_msg, fb_sv_conn);
 }
 
-
-/** Add shared library's name to the file list */
-int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
-  string_array *array = (string_array *) data;
-  (void) size;  /* unused */
-
-  if (info->dlpi_name[0] == '\0') {
-    /* FIXME does this really happen? */
-    return 0;
-  }
-  const char *libfbintercept = "/libfbintercept.so";
-  if (strlen(info->dlpi_name) >= strlen(libfbintercept) &&
-    strcmp(info->dlpi_name + strlen(info->dlpi_name)
-           - strlen(libfbintercept), libfbintercept) == 0) {
-    /* This is internal to Firebuild, filter it out. */
-    return 0;
-  }
-  if (strcmp(info->dlpi_name, "linux-vdso.so.1") == 0) {
-    /* This is an in-kernel library, filter it out. */
-    return 0;
-  }
-
-  string_array_append(array, (/* non-const */ char *) info->dlpi_name);
-  return 0;
-}
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_init():
