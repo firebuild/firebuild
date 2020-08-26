@@ -172,7 +172,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###           else
   void *args = __builtin_apply_args();
   {%+ if rettype != 'void' %}void const * const result ={% endif -%}
-  __builtin_apply((void (*)()) ic_orig_{{ func }}, args, 100);
+  __builtin_apply((void *) ic_orig_{{ func }}, args, 100);
   {%+ if rettype != 'void' %}ret = *({{ rettype }}*)result;{% endif %}
 
 ###           endif

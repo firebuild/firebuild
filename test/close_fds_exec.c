@@ -4,6 +4,8 @@
 #include <unistd.h>
 
 int main(int argc, char* argv[]) {
+  (void) argc;  /* unused */
+
   int i;
   for (i = 3; i < 120; i++) {
     close(i);
