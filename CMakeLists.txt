@@ -42,7 +42,7 @@ if(COVERAGE)
   # minimal (lines) coverage
   set(MIN_COVERAGE "65")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -fprofile-arcs -ftest-coverage")
-  set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -g -fprofile-arcs -ftest-coverage")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fprofile-arcs -ftest-coverage")
 endif(COVERAGE)
 
 add_definitions(-DFIREBUILD_DATADIR="${DATADIR}")
