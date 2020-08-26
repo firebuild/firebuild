@@ -14,7 +14,7 @@ if len(sys.argv) != 2:
   exit(1)
 outdir = sys.argv[1]
 
-outputs = ['decl.h', 'def.c', 'impl.c', 'init.c', 'reset.c']
+outputs = ['decl.h', 'def.c', 'impl.c', 'init.c', 'list.txt', 'reset.c']
 env = Environment(loader=FileSystemLoader('.'),
                   line_statement_prefix='###',
                   trim_blocks=True,

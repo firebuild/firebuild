@@ -73,6 +73,14 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###   endblock reset_c
 ### endif
 {#                                                                    #}
+{# --- Template for 'list.txt' -------------------------------------- #}
+{#                                                                    #}
+### if gen == 'list.txt'
+###   block list_txt
+{{ func }}
+###   endblock list_txt
+### endif
+{#                                                                    #}
 {# --- Template for 'impl.c' ---------------------------------------- #}
 {#                                                                    #}
 ### if gen == 'impl.c'
