@@ -16,20 +16,22 @@
 
 ### block body
 ###   if l
-  /* Convert "arg, ..." to "argv[]" */
-  unsigned int argc = 0, argc_size = 16;
-  char **argv = (char **) malloc(argc_size * sizeof(char*));
-  argv[argc] = (char *) arg;
-  while (argv[argc]) {
-    argv[++argc] = (char *) va_arg(ap, char*);
-    if (argc == argc_size - 1) {
-      argc_size *= 2;
-      argv = (char **) realloc(argv, argc_size * sizeof(char*));
-    }
+  /* Convert "arg, ..." to "argv[]" on the stack (async-signal-safe) */
+  unsigned int argc = 1;
+  unsigned int i;
+  while (va_arg(ap, char*) != NULL) {
+    argc++;
+  }
+  va_end(ap);
+  char *argv[argc + 1];
+  argv[0] = (/* non-const */ char *) arg;
+  va_start(ap, {{ names[-1] }});
+  for (i = 1; i <= argc ; i++) {
+    argv[i] = va_arg(ap, char*);
   }
 ###     if e
   /* Also locate the environment */
-  char **envp = (char **) va_arg(ap, char**);
+  char **envp = va_arg(ap, char**);
 ###     endif
 ###   endif
 
@@ -98,10 +100,6 @@
   errno = saved_errno;
   ret = ic_orig_{{ func | replace("l", "v") }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv{% if e %}, envp{% endif %}{% if at %}, flags{% endif %});
   saved_errno = errno;
-
-### if l
-  free(argv);
-### endif
 
   {
     /* Notify the supervisor after the call */
