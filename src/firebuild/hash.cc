@@ -10,6 +10,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#define XXH_INLINE_ALL
+#include <xxhash.h>
 
 #include <algorithm>
 #include <vector>
@@ -25,10 +27,10 @@ void Hash::set_from_data(const void *data, ssize_t size) {
   // xxhash's doc says:
   // "Streaming functions [...] is slower than single-call functions, due to state management."
   // Let's take the faster path.
-  XXH64_hash_t hash = XXH64(data, size, 0);
+  XXH128_hash_t hash = XXH128(data, size, 0);
 
   // Convert from endian-specific representation to endian-independent byte array.
-  XXH64_canonicalFromHash(reinterpret_cast<XXH64_canonical_t *>(&arr_), hash);
+  XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&arr_), hash);
 }
 
 /**

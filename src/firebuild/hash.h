@@ -4,8 +4,6 @@
 #ifndef FIREBUILD_HASH_H_
 #define FIREBUILD_HASH_H_
 
-#include <xxhash.h>
-
 #include <google/protobuf/message_lite.h>
 
 #include <string>
@@ -38,7 +36,7 @@ class Hash {
   std::string to_hex() const;
 
  private:
-  static const unsigned int hash_size_ = 8;
+  static const unsigned int hash_size_ = 16;
   char arr_[hash_size_] = {};
 };
 
