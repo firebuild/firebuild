@@ -224,6 +224,17 @@ class Process {
                    const int ret, const int error = 0);
 
   /**
+   * Handle ioctl() in the monitored process
+   * @param fd file descriptor
+   * @param cmd ioctl's cmd parameter
+   * @param ret ioctl's return value
+   * @param error errno set by ioctl
+   * @return 0 on success, -1 on failure
+   */
+  int handle_ioctl(const int fd, const int cmd,
+                   const int ret, const int error = 0);
+
+  /**
    * Fail to change to a working directory
    */
   virtual void fail_wd(const std::string &d) = 0;

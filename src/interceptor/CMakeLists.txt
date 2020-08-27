@@ -13,6 +13,7 @@ add_custom_command (
   tpl_exit.c
   tpl_fcntl.c
   tpl_fork.c
+  tpl_ioctl.c
   tpl_main.c
   tpl_once.c
   tpl_open.c
