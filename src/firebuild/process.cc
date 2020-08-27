@@ -4,6 +4,8 @@
 
 #include "firebuild/process.h"
 
+#include <fcntl.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 
 #include "firebuild/file.h"
@@ -249,6 +251,27 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
       return 0;
     default:
       disable_shortcutting("Process executed unsupported fcntl " + std::to_string(cmd));
+      return 0;
+  }
+}
+
+int Process::handle_ioctl(const int fd, const int cmd,
+                          const int ret, const int error) {
+  (void) ret;
+
+  switch (cmd) {
+    case FIOCLEX:
+      if (error == 0) {
+        (*fds_)[fd]->set_cloexec(true);
+      }
+      return 0;
+    case FIONCLEX:
+      if (error == 0) {
+        (*fds_)[fd]->set_cloexec(false);
+      }
+      return 0;
+    default:
+      disable_shortcutting("Process executed unsupported ioctl " + std::to_string(cmd));
       return 0;
   }
 }

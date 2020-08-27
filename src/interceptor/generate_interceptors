@@ -683,6 +683,7 @@ generate("int", ["fcntl", "fcntl64"], "int fd, int cmd, ...",
 
 # Intercept ioctl
 generate("int", "ioctl", "int fd, unsigned long cmd, ...",
+         tpl="ioctl",
          send_ret_on_success=True)
 
 # Intercept the dup family
