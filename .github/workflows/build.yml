@@ -129,7 +129,7 @@ jobs:
       run: |
         sudo apt-get -y install cmake libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev python3-pip
         # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
-        pip3 install cpplint==1.5.1
+        pip3 install cpplint==1.5.4
     - name: configure
       run: cmake .
     - name: style-check
