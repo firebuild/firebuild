@@ -14,6 +14,7 @@
 #include <spawn.h>
 
 #include "interceptor/env.h"
+#include "interceptor/ic_file_ops.h"
 #include "interceptor/interceptors.h"
 #include "interceptor/utils.h"
 #include "common/firebuild_common.h"
@@ -316,6 +317,7 @@ static void atfork_child_handler(void) {
 
   /* Reinitialize other stuff */
   reset_interceptors();
+  clear_all_file_states();
   ic_pid = ic_orig_getpid();
 
   /* Reconnect to supervisor */
