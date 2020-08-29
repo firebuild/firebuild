@@ -119,6 +119,13 @@ void clear_file_state(const int fd) {
   }
 }
 
+void clear_all_file_states() {
+  for (int fd = 0; fd < IC_FD_STATES_SIZE; fd++) {
+    ic_fd_states[fd].read = false;
+    ic_fd_states[fd].written = false;
+  }
+}
+
 void copy_file_state(const int to_fd, const int from_fd) {
   if ((to_fd >= 0) && (to_fd < IC_FD_STATES_SIZE) &&
       (from_fd >= 0) && (from_fd < IC_FD_STATES_SIZE)) {
