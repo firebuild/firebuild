@@ -401,14 +401,14 @@ int fb_connect_supervisor(int fd) {
   }
 
   if (conn_ret == -1) {
-    perror("connect");
+    ic_orig_perror("connect");
     assert(0 && "connection to supervisor failed");
   }
 
   if (fd > -1 && conn != fd) {
     int ret = ic_orig_dup3(conn, fd, O_CLOEXEC);
     if (ret == -1) {
-      perror("dup3:");
+      ic_orig_perror("dup3");
       assert(0 && "connecting standard fds to supervisor failed");
     }
     ic_orig_close(conn);
