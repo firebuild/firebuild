@@ -63,7 +63,7 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_ioctl *f) {
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_chdir *c) {
   const int error = fbb_chdir_get_error_no_with_fallback(c, 0);
-  if (0 == error) {
+  if (error == 0) {
     p->set_wd(fbb_chdir_get_dir(c));
   } else {
     p->fail_wd(fbb_chdir_get_dir(c));

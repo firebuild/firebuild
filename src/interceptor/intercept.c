@@ -431,7 +431,7 @@ void fb_init_supervisor_conn() {
  * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init() {
-  if (NULL != getenv("FB_INSERT_TRACE_MARKERS")) {
+  if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
     insert_trace_markers = true;
   }
 

@@ -39,7 +39,7 @@ void ProcessTree::insert(Process *p, const int sock) {
 void ProcessTree::insert(ExecedProcess *p, const int sock) {
   if (root_ == NULL) {
     root_ = p;
-  } else if (NULL == p->parent()) {
+  } else if (p->parent() == NULL) {
     // root's parent is firebuild which is not in the tree.
     // If any other parent is missing, FireBuild missed process
     // that can happen due to the missing process(es) being statically built
@@ -69,7 +69,7 @@ profile_collect_cmds(const Process &p,
                      std::set<std::string> *ancestors) {
   if (p.exec_child() != NULL) {
     ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());
-    if (0 == ancestors->count(ec->args()[0])) {
+    if (ancestors->count(ec->args()[0]) == 0) {
       (*cmds)[ec->args()[0]].sum_aggr_time += p.exec_child()->aggr_time();
     } else {
       if (!(*cmds)[ec->args()[0]].recursed) {
@@ -89,7 +89,7 @@ void ProcessTree::build_profile(const Process &p,
   if (p.exec_started()) {
     auto *e = static_cast<const ExecedProcess*>(&p);
     auto &cmd_prof = cmd_profs_[e->args()[0]];
-    if (0 == ancestors->count(e->args()[0])) {
+    if (ancestors->count(e->args()[0]) == 0) {
       cmd_prof.aggr_time += e->aggr_time();
       ancestors->insert(e->args()[0]);
       first_visited = true;
