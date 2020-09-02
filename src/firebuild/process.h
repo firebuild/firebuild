@@ -234,6 +234,13 @@ class Process {
   int handle_ioctl(const int fd, const int cmd,
                    const int ret, const int error = 0);
 
+
+  /**
+   * Handle write() in the monitored process
+   * @param fd file descriptor
+   */
+  void handle_write(const int fd);
+
   /**
    * Fail to change to a working directory
    */

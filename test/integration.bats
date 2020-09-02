@@ -12,8 +12,7 @@ setup() {
 }
 
 @test "bash -c ls" {
-  # FIXME run this twice in a row, which doesn't work yet, needs stdout replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- bash -c "ls integration.bats")
     assert_streq "$result" "integration.bats"
     assert_streq "$(strip_stderr stderr)" ""
@@ -21,16 +20,14 @@ setup() {
 }
 
 @test "debugging with trace markers and report generation" {
-  # FIXME run this twice in a row, which doesn't work yet, needs stdout replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -r -d all -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
     assert_streq "$result" "integration.bats"
   done
 }
 
 @test "bash exec chain" {
-  # FIXME run this twice in a row, which doesn't work yet, needs stdout replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- bash -c "exec bash -c exec\\ bash\\ -c\\ ls\\\\\ integration.bats")
     assert_streq "$result" "integration.bats"
     assert_streq "$(strip_stderr stderr)" ""
@@ -38,8 +35,7 @@ setup() {
 }
 
 @test "simple pipe" {
-  # FIXME run this twice in a row, which doesn't work yet, needs stdout replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- bash -c 'seq 10000 | grep ^9')
     assert_streq "$result" "$(seq 10000 | grep ^9)"
     assert_streq "$(strip_stderr stderr)" ""
@@ -66,8 +62,7 @@ setup() {
 }
 
 @test "system()" {
-  # FIXME run this twice in a row, which doesn't work yet, needs stdout replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- ./test_system)
     assert_streq "$result" "ok"
     assert_streq "$(strip_stderr stderr)" ""
@@ -75,8 +70,7 @@ setup() {
 }
 
 @test "exec()" {
-  # FIXME run this twice in a row, which doesn't work yet, needs stdout replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- ./test_exec)
     assert_streq "$result" "ok"
     assert_streq "$(strip_stderr stderr)" ""
@@ -124,8 +118,7 @@ setup() {
 @test "err()" {
   stderr_expected=$'test_err: warn1: No such file or directory\ntest_err: warn2: Permission denied\ntest_err: err1: No such file or directory\natexit_handler'
 
-  # FIXME run this twice in a row, which doesn't work yet, needs stderr replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- ./test_err || true)
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" "$stderr_expected"
@@ -135,8 +128,7 @@ setup() {
 @test "error()" {
   stderr_expected=$'./test_error: error1: No such file or directory\n./test_error: error2: Permission denied\n./test_error: error3: No such file or directory\natexit_handler'
 
-  # FIXME run this twice in a row, which doesn't work yet, needs stderr replaying
-  for i in 1; do
+  for i in 1 2; do
     result=$(./run-firebuild -- ./test_error || true)
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" "$stderr_expected"
