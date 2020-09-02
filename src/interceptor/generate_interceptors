@@ -515,15 +515,30 @@ generate("int", "puts", "const char *s",
          msg_skip_fields=["s"],
          msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
+# There's no public verror() and verror_at_line().
+# Construct the message ourselves so that we don't have to rely on
+# gcc's __builtin_apply() with its arbitrarily guessed size parameter.
 generate("void", "error", "int status, int errnum, const char *format, ...",
          tpl="error",
          before_lines=["int fd = safe_fileno(stderr);"],
+         call_orig_lines=["int msglen = vsnprintf(NULL, 0, format, ap);",
+                          "va_end(ap);",
+                          "char msgbuf[msglen + 1];",
+                          "va_start(ap, format);",
+                          "vsnprintf(msgbuf, msglen + 1, format, ap);",
+                          "ic_orig_error(status, errnum, \"%s\", msgbuf);"],
          msg_skip_fields=["status", "errnum", "format"],
          msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("void", "error_at_line", "int status, int errnum, const char *filename, unsigned int linenum, const char *format, ...",
          tpl="error",
          before_lines=["int fd = safe_fileno(stderr);"],
+         call_orig_lines=["int msglen = vsnprintf(NULL, 0, format, ap);",
+                          "va_end(ap);",
+                          "char msgbuf[msglen + 1];",
+                          "va_start(ap, format);",
+                          "vsnprintf(msgbuf, msglen + 1, format, ap);",
+                          "ic_orig_error_at_line(status, errnum, filename, linenum, \"%s\", msgbuf);"],
          msg_skip_fields=["status", "errnum", "filename", "linenum", "format"],
          msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
