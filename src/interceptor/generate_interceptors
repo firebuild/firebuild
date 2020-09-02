@@ -539,10 +539,10 @@ for v in ['', 'v']:
     for x in ['', 'x']:
       func = v + e + x
       if e == 'err':
-        sig_str = "int errnum, "
-        names_str = "errnum, "
+        sig_str = "int status, "
+        names_str = "status, "
         tpl = "error"
-        msg_skip_fields = ["errnum"]
+        msg_skip_fields = ["status"]
       else:
         sig_str = ''
         names_str = ''

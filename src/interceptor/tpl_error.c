@@ -59,7 +59,11 @@
     (void)i_locked;
 
     /* Should not be reached */
+###   if func in ['error', 'error_at_line']
     assert(0 && "{{ func }} with nonzero \"status\" parameter did not exit");
+###   else
+    assert(0 && "{{ func }} did not exit");
+###   endif
   }
 ### endblock call_orig
 
