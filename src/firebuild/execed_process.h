@@ -83,7 +83,7 @@ class ExecedProcess : public Process {
   bool shortcut();
 
   virtual void propagate_exit_status(const int status);
-  virtual void disable_shortcutting(const std::string &reason, const Process *p = NULL) {
+  virtual void disable_shortcutting_only_this(const std::string &reason, const Process *p = NULL) {
     if (can_shortcut_) {
       can_shortcut_ = false;
       assert(cant_shortcut_reason_ == "");
@@ -92,9 +92,6 @@ class ExecedProcess : public Process {
       cant_shortcut_proc_ = p ? p : this;
       FB_DEBUG(FB_DEBUG_PROC, "Command \"" + executable_
                + "\" can't be short-cut due to: " + reason);
-      if (parent()) {
-        parent()->disable_shortcutting(reason, cant_shortcut_proc_);
-      }
     }
   }
   bool was_shortcut() const {return was_shortcut_;}
