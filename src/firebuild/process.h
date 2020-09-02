@@ -81,8 +81,8 @@ class Process {
   virtual const ExecedProcess* exec_point() const = 0;
   /** The nearest ExecedProcess upwards in the tree, excluding "this".
    *  Same as the parent's exec_point, with safe NULL handling. */
-  ExecedProcess* parent_exec_point() {return parent()?parent()->exec_point():NULL;}
-  const ExecedProcess* parent_exec_point() const {return parent()?parent()->exec_point():NULL;}
+  ExecedProcess* parent_exec_point() {return parent() ? parent()->exec_point() : NULL;}
+  const ExecedProcess* parent_exec_point() const {return parent() ? parent()->exec_point() : NULL;}
   virtual bool exec_started() const {return false;}
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
@@ -125,7 +125,7 @@ class Process {
                          std::shared_ptr<std::vector<std::string>> *file_actions_p,
                          LaunchType *launch_type_p,
                          const bool failed = false);
-  bool has_expected_child () {return expected_child_?true:false;}
+  bool has_expected_child () {return expected_child_ ? true : false;}
   virtual void do_finalize();
   virtual void maybe_finalize();
   void finish();

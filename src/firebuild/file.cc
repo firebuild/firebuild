@@ -12,7 +12,7 @@
 namespace firebuild {
 
 File::File(const std::string &p)
-    :mtimes_(), path_(p), exists_(false), hash_() {
+    : mtimes_(), path_(p), exists_(false), hash_() {
 }
 
 
@@ -74,7 +74,7 @@ int File::update() {
 
 #ifndef timespeccmp
 #define timespeccmp(a, b, CMP)                                          \
-  (((a)->tv_sec == (b)->tv_sec)?((a)->tv_nsec CMP(b)->tv_nsec):((a)->tv_sec CMP(b)->tv_sec))
+  ((a)->tv_sec == (b)->tv_sec ? (a)->tv_nsec CMP (b)->tv_nsec : (a)->tv_sec CMP (b)->tv_sec)  /* NOLINT */
 #endif
 
 int File::is_changed() {

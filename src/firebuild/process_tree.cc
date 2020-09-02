@@ -146,8 +146,8 @@ static std::string pct_to_hsv_str(const double p) {
 
 static double percent_of(const double val, const double of) {
   return (((of < std::numeric_limits<double>::epsilon()) &&
-           (of > -std::numeric_limits<double>::epsilon()))?(0.0):
-          (val * 100 / of));
+           (of > -std::numeric_limits<double>::epsilon())) ? 0.0 :
+          val * 100 / of);
 }
 
 void ProcessTree::export_profile2dot(FILE* stream) {
@@ -169,8 +169,8 @@ void ProcessTree::export_profile2dot(FILE* stream) {
           "edge [fontname=Helvetica, fontsize=12]\n");
 
   for (auto& pair : cmd_profs_) {
-    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", (pair.first).c_str(),
-            (pair.first).c_str());
+    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", pair.first.c_str(),
+            pair.first.c_str());
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
             percent_of(pair.second.aggr_time, build_time),
             percent_of(pair.second.cmd_time, build_time),
@@ -178,7 +178,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
                                       build_time)).c_str());
     for (auto& pair2 : pair.second.subcmds) {
       fprintf(stream, "    \"%s\" -> \"%s\" [label=\"",
-              (pair.first).c_str(), (pair2.first).c_str());
+              pair.first.c_str(), pair2.first.c_str());
       if (!pair2.second.recursed) {
         fprintf(stream, "%.2lf%%\\n", percent_of(pair2.second.sum_aggr_time,
                                               build_time));

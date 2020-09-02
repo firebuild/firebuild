@@ -1,4 +1,4 @@
-/* Copyright (c27) 2014 Balint Reczey <balint@balintreczey.hu> */
+/* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
 
@@ -93,8 +93,8 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
 
 int Process::handle_open(const std::string &ar_name, const int flags,
                          const int fd, const int error) {
-  const std::string name = (platform::path_is_absolute(ar_name))?(ar_name):
-      (wd() + "/" + ar_name);
+  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
+      wd() + "/" + ar_name;
 
   if (fd >= 0) {
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
@@ -277,8 +277,8 @@ int Process::handle_ioctl(const int fd, const int cmd,
 }
 
 void Process::set_wd(const std::string &ar_d) {
-  const std::string d = (platform::path_is_absolute(ar_d))?(ar_d):
-      (wd_ + "/" + ar_d);
+  const std::string d = platform::path_is_absolute(ar_d) ? ar_d :
+      wd_ + "/" + ar_d;
   wd_ = d;
 
   add_wd(d);
@@ -309,7 +309,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
     expected_child_ = nullptr;
   } else {
     disable_shortcutting("Unexpected system/popen/posix_spawn child " +
-                         std::string(failed?"failed: ":"appeared: ") +
+                         std::string(failed ? "failed: " : "appeared: ") +
                          firebuild::pretty_print_array(argv));
   }
   return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();

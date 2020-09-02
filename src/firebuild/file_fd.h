@@ -41,16 +41,16 @@ class FileFD {
   /** Constructor for fds backed by internal memory or a pipe. */
   FileFD(int fd, int flags, fd_origin origin_type, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(origin_type), read_(false),
-      written_(false), open_((fd_ >= 0)?true:false), origin_fd_(NULL),
+      written_(false), open_(fd_ >= 0), origin_fd_(NULL),
       filename_(), process_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
   FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
-      written_(false), open_((fd_ >= 0)?true:false), origin_fd_(o_fd),
+      written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
       filename_(), process_(p) {}
   /** Constructor for fds obtained through opening files. */
   FileFD(const std::string &f, int fd, int flags, Process * const p)
-      :fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
       read_(false), written_(false), open_(true), origin_fd_(NULL),
       filename_(f), process_(p) {}
   FileFD(FileFD&) = default;
