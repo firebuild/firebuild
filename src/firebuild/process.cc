@@ -28,17 +28,11 @@ Process::Process(const int pid, const int ppid, const std::string &wd,
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
     add_filefd(fds_, STDIN_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
-                                        std::shared_ptr<FileFD>(nullptr),
-                                        this));
+               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
     add_filefd(fds_, STDOUT_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
-                                        std::shared_ptr<FileFD>(nullptr),
-                                        this));
+               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
     add_filefd(fds_, STDERR_FILENO,
-               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY, FD_ORIGIN_ROOT,
-                                        std::shared_ptr<FileFD>(nullptr),
-                                        this));
+               std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
   }
 }
 
@@ -217,7 +211,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 
   add_filefd(fds_, newfd, std::make_shared<FileFD>(
       newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
-      (*fds_)[oldfd], this));
+      (*fds_)[oldfd]));
   return 0;
 }
 
