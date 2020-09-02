@@ -11,7 +11,7 @@
 
 ### block send_msg
   {{ super() }}
-  if (fd >=0 && fd < IC_FD_STATES_SIZE) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].read = true;
   }
 ### endblock send_msg

@@ -15,7 +15,7 @@ namespace firebuild {
 class Hash {
  public:
   Hash()
-      :arr_()
+      : arr_()
   {}
 
   bool operator==(const Hash& src) {

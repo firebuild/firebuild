@@ -703,7 +703,7 @@ static void write_report(const std::string &html_filename,
           + "/" + dot_filename).c_str());
 
   FILE* dst_file = fopen(html_filename.c_str(), "w");
-  int ret = (dst_file == NULL)?-1:0;
+  int ret = dst_file == NULL ? -1 : 0;
   while ((ret != -1)) {
     char* line = NULL;
     size_t zero = 0;
@@ -999,7 +999,7 @@ int main(const int argc, char *argv[]) {
     // master set
     for (auto const &listener : fb_listener_pool) {
       FD_SET(listener, &master);
-      fdmax = (listener > fdmax)?listener:fdmax;
+      fdmax = listener > fdmax ? listener : fdmax;
     }
     FD_SET(sigchld_fds[0], &master);
 
