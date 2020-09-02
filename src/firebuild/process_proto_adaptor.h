@@ -27,6 +27,7 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBB_dup3 *d);
   static int msg(Process *p, const FBB_fcntl *f);
   static int msg(Process *p, const FBB_ioctl *i);
+  static int msg(Process *p, const FBB_write *w);
   static int msg(Process *p, const FBB_chdir *c);
 
  private:

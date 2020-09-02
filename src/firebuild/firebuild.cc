@@ -475,7 +475,8 @@ void proc_ic_msg(uint32_t ack_num,
              tag == FBB_TAG_dup ||
              tag == FBB_TAG_fcntl ||
              tag == FBB_TAG_ioctl ||
-             tag == FBB_TAG_chdir) {
+             tag == FBB_TAG_chdir ||
+             tag == FBB_TAG_write) {
     try {
       ::firebuild::Process *proc = proc_tree->Sock2Proc(fd_conn);
       if (tag == FBB_TAG_exit) {
@@ -605,6 +606,8 @@ void proc_ic_msg(uint32_t ack_num,
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_ioctl *>(fbb_buf));
       } else if (tag == FBB_TAG_chdir) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_chdir *>(fbb_buf));
+      } else if (tag == FBB_TAG_write) {
+        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_write *>(fbb_buf));
       }
     } catch (std::out_of_range&) {
       FB_DEBUG(firebuild::FB_DEBUG_COMM, "Ignoring message on fd: " + std::to_string(fd_conn) +

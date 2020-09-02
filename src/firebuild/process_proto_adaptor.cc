@@ -61,6 +61,14 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_ioctl *f) {
   return p->handle_ioctl(fbb_ioctl_get_fd(f), fbb_ioctl_get_cmd(f), ret, error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_write *w) {
+  const int error = fbb_write_get_error_no_with_fallback(w, 0);
+  if (error == 0) {
+    p->handle_write(fbb_write_get_fd(w));
+  }
+  return 0;
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBB_chdir *c) {
   const int error = fbb_chdir_get_error_no_with_fallback(c, 0);
   if (error == 0) {

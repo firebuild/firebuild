@@ -273,6 +273,20 @@ int Process::handle_ioctl(const int fd, const int cmd,
   }
 }
 
+void Process::handle_write(const int fd) {
+  if (!get_fd(fd)) {
+    disable_shortcutting_bubble_up("Process successfully wrote to (" +
+                                   std::to_string(fd) +
+                                   ") which is known to be closed, which means interception"
+                                   " missed at least one open()");
+    return;
+  }
+  /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
+   * i.e. the file was opened by the current process. */
+  disable_shortcutting_bubble_up_to_excl((*fds_)[fd]->opened_by(),
+                                         "Process wrote to inherited fd " + std::to_string(fd));
+}
+
 void Process::set_wd(const std::string &ar_d) {
   const std::string d = platform::path_is_absolute(ar_d) ? ar_d :
       wd_ + "/" + ar_d;
