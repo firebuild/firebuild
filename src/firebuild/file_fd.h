@@ -38,27 +38,32 @@ class Process;
 
 class FileFD {
  public:
+  /** Constructor for fds inherited from the supervisor (stdin, stdout, stderr). */
+  FileFD(int fd, int flags)
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), read_(false),
+      written_(false), open_(fd_ >= 0), origin_fd_(NULL),
+      filename_(), opened_by_(NULL) {}
   /** Constructor for fds backed by internal memory or a pipe. */
   FileFD(int fd, int flags, fd_origin origin_type, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(origin_type), read_(false),
       written_(false), open_(fd_ >= 0), origin_fd_(NULL),
-      filename_(), process_(p) {}
+      filename_(), opened_by_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
-  FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd, Process * const p)
+  FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
       written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
-      filename_(), process_(p) {}
+      filename_(), opened_by_(o_fd->opened_by()) {}
   /** Constructor for fds obtained through opening files. */
   FileFD(const std::string &f, int fd, int flags, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
       read_(false), written_(false), open_(true), origin_fd_(NULL),
-      filename_(f), process_(p) {}
+      filename_(f), opened_by_(p) {}
   FileFD(FileFD&) = default;
   FileFD& operator= (const FileFD&) = default;
   int last_err() {return last_err_;}
   void set_last_err(int err) {last_err_ = err;}
   int flags() {return curr_flags_;}
-  Process * process() {return process_;}
+  Process * opened_by() {return opened_by_;}
   bool open() {return open_;}
   void set_open(bool o) {open_ = o;}
   bool cloexec() {return curr_flags_ & O_CLOEXEC;}
@@ -84,8 +89,10 @@ class FileFD {
   bool open_ : 1;
   std::shared_ptr<FileFD> origin_fd_;
   std::string filename_;
-  /** Process the fd has been created in */
-  Process* process_;
+  /** Process that opened this file by name.
+   *  Remains the same (doesn't get updated to the current process) at dup2() or alike.
+   *  NULL if the topmost intercepted process already inherited it from the supervisor. */
+  Process* opened_by_;
 };
 
 }  // namespace firebuild
