@@ -101,7 +101,8 @@ int Process::handle_open(const std::string &ar_name, const int flags,
   }
 
   if (!exec_point()->register_file_usage(name, flags, error)) {
-    disable_shortcutting("Could not register the opening of " + pretty_print_string(name));
+    disable_shortcutting_bubble_up("Could not register the opening of " +
+                                   pretty_print_string(name));
     return -1;
   }
 
@@ -119,22 +120,22 @@ int Process::handle_force_close(const int fd) {
 int Process::handle_close(const int fd, const int error) {
   if (error == EIO) {
     // IO prevents shortcutting
-    disable_shortcutting("IO error closing fd " + std::to_string(fd));
+    disable_shortcutting_bubble_up("IO error closing fd " + std::to_string(fd));
     return -1;
   } else if (error == 0 && !get_fd(fd)) {
     // closing an unknown fd successfully prevents shortcutting
-    disable_shortcutting("Process closed an unknown fd (" +
-                         std::to_string(fd) + ") successfully, which means "
-                         "interception missed at least one open()");
+    disable_shortcutting_bubble_up("Process closed an unknown fd (" +
+                                   std::to_string(fd) + ") successfully, which means "
+                                   "interception missed at least one open()");
     return -1;
   } else if (error == EBADF) {
     // Process closed an fd unknown to it. Who cares?
     return 0;
   } else if (!get_fd(fd)) {
     // closing an unknown fd with not EBADF prevents shortcutting
-    disable_shortcutting("Process closed an unknown fd (" +
-                         std::to_string(fd) + ") successfully, which means "
-                         "interception missed at least one open()");
+    disable_shortcutting_bubble_up("Process closed an unknown fd (" +
+                                   std::to_string(fd) + ") successfully, which means "
+                                   "interception missed at least one open()");
     return -1;
   } else {
     if ((*fds_)[fd]->open() == true) {
@@ -168,16 +169,16 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
   // validate fd-s
   if (get_fd(fd1)) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting("Process created an fd (" + std::to_string(fd1) +
-                         ") which is known to be open, which means interception "
-                         "missed at least one close()");
+    disable_shortcutting_bubble_up("Process created an fd (" + std::to_string(fd1) +
+                                   ") which is known to be open, which means interception "
+                                   "missed at least one close()");
     return -1;
   }
   if (get_fd(fd2)) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting("Process created an fd (" + std::to_string(fd2) +
-                         ") which is known to be open, which means interception "
-                         "missed at least one close()");
+    disable_shortcutting_bubble_up("Process created an fd (" + std::to_string(fd2) +
+                                   ") which is known to be open, which means interception "
+                                   "missed at least one close()");
     return -1;
   }
 
@@ -207,9 +208,9 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   // validate fd-s
   if (!get_fd(oldfd)) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting("Process created an fd (" + std::to_string(oldfd) +
-                         ") which is known to be open, which means interception"
-                         " missed at least one close()");
+    disable_shortcutting_bubble_up("Process created an fd (" + std::to_string(oldfd) +
+                                   ") which is known to be open, which means interception"
+                                   " missed at least one close()");
     return -1;
   }
   handle_force_close(newfd);
@@ -222,9 +223,10 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 
 int Process::handle_clear_cloexec(const int fd) {
   if (!get_fd(fd)) {
-    disable_shortcutting("Process successfully cleared cloexec on fd (" + std::to_string(fd) +
-                         ") which is known to be closed, which means interception"
-                         " missed at least one open()");
+    disable_shortcutting_bubble_up("Process successfully cleared cloexec on fd (" +
+                                   std::to_string(fd) +
+                                   ") which is known to be closed, which means interception"
+                                   " missed at least one open()");
     return -1;
   }
   (*fds_)[fd]->set_cloexec(false);
@@ -241,16 +243,17 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
     case F_SETFD:
       if (error == 0) {
         if (!get_fd(fd)) {
-          disable_shortcutting("Process successfully fcntl'ed on fd (" + std::to_string(fd) +
-                               ") which is known to be closed, which means interception"
-                               " missed at least one open()");
+          disable_shortcutting_bubble_up("Process successfully fcntl'ed on fd (" +
+                                         std::to_string(fd) +
+                                         ") which is known to be closed, which means interception"
+                                         " missed at least one open()");
           return -1;
         }
         (*fds_)[fd]->set_cloexec(arg & FD_CLOEXEC);
       }
       return 0;
     default:
-      disable_shortcutting("Process executed unsupported fcntl " + std::to_string(cmd));
+      disable_shortcutting_bubble_up("Process executed unsupported fcntl " + std::to_string(cmd));
       return 0;
   }
 }
@@ -271,7 +274,7 @@ int Process::handle_ioctl(const int fd, const int cmd,
       }
       return 0;
     default:
-      disable_shortcutting("Process executed unsupported ioctl " + std::to_string(cmd));
+      disable_shortcutting_bubble_up("Process executed unsupported ioctl " + std::to_string(cmd));
       return 0;
   }
 }
@@ -301,16 +304,17 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
       expected_child_ = nullptr;
       return fds;
     } else {
-      disable_shortcutting("Unexpected system/popen/posix_spawn child appeared: " +
-                           ::firebuild::pretty_print_array(argv) +
-                           "while waiting for: " + ::firebuild::to_string(*expected_child_));
+      disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child appeared: " +
+                                     ::firebuild::pretty_print_array(argv) +
+                                     "while waiting for: " +
+                                     ::firebuild::to_string(*expected_child_));
     }
     delete(expected_child_);
     expected_child_ = nullptr;
   } else {
-    disable_shortcutting("Unexpected system/popen/posix_spawn child " +
-                         std::string(failed ? "failed: " : "appeared: ") +
-                         firebuild::pretty_print_array(argv));
+    disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child " +
+                                   std::string(failed ? "failed: " : "appeared: ") +
+                                   firebuild::pretty_print_array(argv));
   }
   return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
 }

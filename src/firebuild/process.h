@@ -248,13 +248,46 @@ class Process {
   virtual void propagate_exit_status(const int status) = 0;
 
   /**
+   * This particular process can't be short-cut because it performed calls preventing that.
+   * @param reason reason for can't being short-cut
+   * @param p process the event preventing shortcutting happened in, or
+   *     omitted for the current process
+   */
+  virtual void disable_shortcutting_only_this(const std::string& reason, const Process *p = NULL)
+      = 0;
+
+  /**
+   * Process and parents (transitively) up to (excluding) "stop" can't be short-cut because
+   * it performed calls preventing that.
+   * @param stop Stop before this process
+   * @param reason reason for can't being short-cut
+   * @param p process the event preventing shortcutting happened in, or
+   *     omitted for the current process
+   */
+  void disable_shortcutting_bubble_up_to_excl(const Process *stop, const std::string& reason,
+                                              const Process *p = NULL) {
+    if (this == stop) {
+      return;
+    }
+    if (p == NULL) {
+      p = this;
+    }
+    disable_shortcutting_only_this(reason, p);
+    if (parent()) {
+      parent()->disable_shortcutting_bubble_up_to_excl(stop, reason, p);
+    }
+  }
+
+  /**
    * Process and parents (transitively) can't be short-cut because it performed
    * calls preventing that.
    * @param reason reason for can't being short-cut
    * @param p process the event preventing shortcutting happened in, or
    *     omitted for the current process
    */
-  virtual void disable_shortcutting(const std::string& reason, const Process *p = NULL) = 0;
+  void disable_shortcutting_bubble_up(const std::string& reason, const Process *p = NULL) {
+    disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
+  }
 
   virtual int64_t sum_rusage_recurse();
 

@@ -241,7 +241,7 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
     if (exe_matches_list(proc->executable(),
                          proc->args().size() > 0 ? proc->args()[0] : "",
                          cfg->getRoot()["processes"]["blacklist"])) {
-      proc->disable_shortcutting("Executable blacklisted");
+      proc->disable_shortcutting_bubble_up("Executable blacklisted");
     }
 
     /* If we still potentially can, and prefer to cache / shortcut this process,
@@ -252,7 +252,7 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
                           cfg->getRoot()["processes"]["skip_cache"])) {
       proc->set_cacher(cacher);
       if (!cacher->fingerprint(proc)) {
-        proc->disable_shortcutting("Could not fingerprint the process");
+        proc->disable_shortcutting_bubble_up("Could not fingerprint the process");
       }
     }
 
