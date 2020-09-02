@@ -117,7 +117,7 @@ int Process::handle_force_close(const int fd) {
 }
 
 int Process::handle_close(const int fd, const int error) {
-  if (EIO == error) {
+  if (error == EIO) {
     // IO prevents shortcutting
     disable_shortcutting("IO error closing fd " + std::to_string(fd));
     return -1;
@@ -127,7 +127,7 @@ int Process::handle_close(const int fd, const int error) {
                          std::to_string(fd) + ") successfully, which means "
                          "interception missed at least one open()");
     return -1;
-  } else if (EBADF == error) {
+  } else if (error == EBADF) {
     // Process closed an fd unknown to it. Who cares?
     return 0;
   } else if (!get_fd(fd)) {

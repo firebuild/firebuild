@@ -52,7 +52,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_(), cacher_(NULL) {
-  if (NULL != parent) {
+  if (parent != NULL) {
     // add as exec child of parent
     parent->set_exec_pending(false);
     parent->set_state(FB_PROC_TERMINATED);

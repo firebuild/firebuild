@@ -190,12 +190,12 @@ static void init_signal_handlers(void) {
     exit(EXIT_FAILURE);
   }
 
-  if (NULL == ((sigchld_stream = fdopen(sigchld_fds[1], "w")))) {
+  if ((sigchld_stream = fdopen(sigchld_fds[1], "w")) == NULL) {
     perror("fdopen");
     exit(EXIT_FAILURE);
   }
 
-  if (0 != setvbuf(sigchld_stream, NULL, _IONBF, 0)) {
+  if (setvbuf(sigchld_stream, NULL, _IONBF, 0) != 0) {
     perror("setvbuf");
     exit(EXIT_FAILURE);
   }
@@ -665,7 +665,7 @@ static void write_report(const std::string &html_filename,
   const std::string dot_cmd = "dot";
 
   int d3 = open((datadir + "/" + d3_filename).c_str(), O_RDONLY);
-  if (-1 == d3) {
+  if (d3 == -1) {
     perror("open");
     firebuild::fb_error("Opening file " + (datadir + "/" + d3_filename) +
                         " failed.");
@@ -674,7 +674,7 @@ static void write_report(const std::string &html_filename,
   }
 
   FILE* src_file = fopen((datadir + "/" + html_orig_filename).c_str(), "r");
-  if (NULL == src_file) {
+  if (src_file == NULL) {
     perror("fopen");
     firebuild::fb_error("Opening file " + (datadir + "/" + html_orig_filename) +
                         " failed.");
@@ -691,7 +691,7 @@ static void write_report(const std::string &html_filename,
   // export profile
   {
     FILE* dot = fopen((dir + "/" + dot_filename).c_str(), "w");
-    if (NULL == dot) {
+    if (dot == NULL) {
       perror("fopen");
       firebuild::fb_error("Failed to open dot file for writing profile graph.");
     }
@@ -703,11 +703,11 @@ static void write_report(const std::string &html_filename,
           + "/" + dot_filename).c_str());
 
   FILE* dst_file = fopen(html_filename.c_str(), "w");
-  int ret = (NULL == dst_file)?-1:0;
+  int ret = (dst_file == NULL)?-1:0;
   while ((ret != -1)) {
     char* line = NULL;
     size_t zero = 0;
-    if (-1 == getline(&line, &zero, src_file)) {
+    if (getline(&line, &zero, src_file) == -1) {
       // finished reading file
       if (!feof(src_file)) {
         perror("getline");
@@ -716,18 +716,18 @@ static void write_report(const std::string &html_filename,
       free(line);
       break;
     }
-    if (NULL != strstr(line, d3_filename)) {
+    if (strstr(line, d3_filename) != NULL) {
       fprintf(dst_file, "<script type=\"text/javascript\">\n");
 
       fflush(dst_file);
       ret = sendfile_full(fileno(dst_file), d3);
       fsync(fileno(dst_file));
       fprintf(dst_file, "    </script>\n");
-    } else if (NULL != strstr(line, tree_filename)) {
+    } else if (strstr(line, tree_filename) != NULL) {
       fprintf(dst_file, "<script type=\"text/javascript\">\n");
       proc_tree->export2js(dst_file);
       fprintf(dst_file, "    </script>\n");
-    } else if (NULL != strstr(line, svg_filename)) {
+    } else if (strstr(line, svg_filename) != NULL) {
       int svg = open((dir + "/" + svg_filename).c_str(), O_RDONLY);
       fflush(dst_file);
       ret = sendfile_full(fileno(dst_file), svg);
@@ -1121,7 +1121,7 @@ int main(const int argc, char *argv[]) {
   // clean up everything
   {
     char* env_str;
-    for (int i = 0; NULL != (env_str = env_exec[i]); i++) {
+    for (int i = 0; (env_str = env_exec[i]) != NULL; i++) {
       free(env_str);
     }
     free(env_exec);

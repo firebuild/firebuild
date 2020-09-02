@@ -28,7 +28,7 @@ int File::update() {
   unsigned int i = 0;
   struct stat s;
   char *tmp_path = strdup(path_.c_str());
-  if (-1 == lstat(tmp_path, &s)) {
+  if (lstat(tmp_path, &s) == -1) {
     perror("lstat");
     free(tmp_path);
     return -1;
@@ -45,7 +45,7 @@ int File::update() {
     i++;
     dir = dirname(tmp_path);
     /* XXX lstat is intercepted */
-    if (-1 == lstat(dir, &s)) {
+    if (lstat(dir, &s) == -1) {
       perror("lstat");
       free(tmp_path);
       return -1;
@@ -57,7 +57,7 @@ int File::update() {
       // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
       // "A pathname that begins with two successive slashes may be interpreted
       // in an implementation-defined manner [...]"
-      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir)) || (0 == strcmp("//", dir))) {
+      if ((strcmp(".", dir) == 0) || (strcmp("/", dir) == 0) || (strcmp("//", dir) == 0)) {
         break;
       } else {
         char * next_path = strdup(dir);
@@ -82,7 +82,7 @@ int File::is_changed() {
   char *tmp_path = strdup(path_.c_str());
   struct stat s;
 
-  if (-1 == lstat(tmp_path, &s)) {
+  if (lstat(tmp_path, &s) == -1) {
     perror("lstat");
     free(tmp_path);
     return -1;
@@ -98,7 +98,7 @@ int File::is_changed() {
   while (true) {
     i++;
     dir = dirname(tmp_path);
-    if (-1 == lstat(dir, &s)) {
+    if (lstat(dir, &s) == -1) {
       perror("lstat");
       free(tmp_path);
       return -1;
@@ -110,7 +110,7 @@ int File::is_changed() {
       // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
       // "A pathname that begins with two successive slashes may be interpreted
       // in an implementation-defined manner [...]"
-      if ((0 == strcmp(".", dir)) || (0 == strcmp("/", dir)) || (0 == strcmp("//", dir))) {
+      if ((strcmp(".", dir) == 0) || (strcmp("/", dir) == 0) || (strcmp("//", dir) == 0)) {
         break;
       } else {
         char * next_path = strdup(dir);

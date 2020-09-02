@@ -84,7 +84,7 @@ class ExecedProcess : public Process {
 
   virtual void propagate_exit_status(const int status);
   virtual void disable_shortcutting(const std::string &reason, const Process *p = NULL) {
-    if (true == can_shortcut_) {
+    if (can_shortcut_) {
       can_shortcut_ = false;
       assert(cant_shortcut_reason_ == "");
       cant_shortcut_reason_ = reason;

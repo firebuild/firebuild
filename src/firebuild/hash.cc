@@ -55,7 +55,7 @@ void Hash::set_from_protobuf(const google::protobuf::MessageLite &msg) {
  */
 bool Hash::set_from_fd(int fd, bool *is_dir_out) {
   struct stat64 st;
-  if (-1 == fstat64(fd, &st)) {
+  if (fstat64(fd, &st) == -1) {
     perror("fstat");
     return false;
   }
@@ -137,7 +137,7 @@ bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
   int fd;
 
   fd = open(filename.c_str(), O_RDONLY);
-  if (-1 == fd) {
+  if (fd == -1) {
     if (FB_DEBUGGING(FB_DEBUG_HASH)) {
       FB_DEBUG(FB_DEBUG_HASH, "File " + filename);
       perror("open");
