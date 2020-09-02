@@ -533,6 +533,38 @@ generate("void", ["herror", "perror"], "const char *s",
          msg_skip_fields=["s"],
          msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
+# Handle v?(err|warn)x?
+for v in ['', 'v']:
+  for e in ['err', 'warn']:
+    for x in ['', 'x']:
+      func = v + e + x
+      if e == 'err':
+        sig_str = "int errnum, "
+        names_str = "errnum, "
+        tpl = "error"
+        msg_skip_fields = ["errnum"]
+      else:
+        sig_str = ''
+        names_str = ''
+        tpl = "write"
+        msg_skip_fields = []
+      sig_str += "const char *format, "
+      names_str += "format, "
+      msg_skip_fields += ["format"]
+      if v:
+        sig_str += "va_list ap"
+        call_orig_lines = None
+        msg_skip_fields += ["ap"]
+      else:
+        sig_str += "..."
+        call_orig_lines = ["ic_orig_v" + e + x + "(" + names_str + "ap);"]
+      generate("void", func, sig_str,
+         tpl=tpl,
+         before_lines=["int fd = safe_fileno(stderr);"],
+         call_orig_lines=call_orig_lines,
+         msg_skip_fields=msg_skip_fields,
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
+         ack=True)
 # Handle v?[fd]?w?printf
 for v in ['', 'v']:
   for f in ['', 'f', 'd']:
