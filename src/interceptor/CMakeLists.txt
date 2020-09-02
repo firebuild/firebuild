@@ -8,6 +8,7 @@ add_custom_command (
   DEPENDS generate_interceptors
   tpl.c
   tpl_dlopen.c
+  tpl_error.c
   tpl_exec.c
   tpl__exit.c
   tpl_exit.c
