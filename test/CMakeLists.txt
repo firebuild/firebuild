@@ -16,6 +16,8 @@ add_test_binary(test_file_ops_2)
 add_test_binary(test_file_ops_3)
 add_test_binary(test_wait)
 add_test_binary(close_fds_exec)
+add_test_binary(test_err)
+add_test_binary(test_error)
 
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
 add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc $<TARGET_OBJECTS:common_objs>)

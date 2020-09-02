@@ -2,8 +2,11 @@
 {# Copyright (c) 2020 Interri Kft.                                    #}
 {# This file is an unpublished work. All rights reserved.             #}
 {# ------------------------------------------------------------------ #}
-{# Template for the error() and error_at_line() calls (which may call #}
-{# the atexit / on_exit handlers).                                    #}
+{# Template for these calls:                                          #}
+{#  - error(), error_at_line():                                       #}
+{#      these call the atexit / on_exit handlers if status != 0       #}
+{#  - err(), errx(), verr(), verrx():                                 #}
+{#      these always call the atexit / on_exit handlers               #}
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
@@ -23,11 +26,16 @@
 ### endblock before
 
 ### block call_orig
-  /* Then call the original. If status is non-zero, the original will call exit()
+  /* Then call the original. If error()'s or error_at_line()'s status is non-zero,
+   * or if the method is err(), errx(), verr(), verrx(), then the original will call exit()
    * and in turn the atexit / on_exit handlers, which can call intercepted functions.
    * So release the lock, just like in tpl_exit.c. */
+###   if func in ['error', 'error_at_line']
   if (status == 0) {
     {{ super() }}
+###   else
+  if (false) {
+###   endif
   } else {
     /* Exit handlers may call intercepted functions, so release the lock */
     thread_signal_danger_zone_enter();

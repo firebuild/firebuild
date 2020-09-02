@@ -120,3 +120,25 @@ setup() {
     assert_streq "$(strip_stderr stderr)" ""
   done
 }
+
+@test "err()" {
+  stderr_expected=$'test_err: warn1: No such file or directory\ntest_err: warn2: Permission denied\ntest_err: err1: No such file or directory\natexit_handler'
+
+  # FIXME run this twice in a row, which doesn't work yet, needs stderr replaying
+  for i in 1; do
+    result=$(./run-firebuild -- ./test_err || true)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" "$stderr_expected"
+  done
+}
+
+@test "error()" {
+  stderr_expected=$'./test_error: error1: No such file or directory\n./test_error: error2: Permission denied\n./test_error: error3: No such file or directory\natexit_handler'
+
+  # FIXME run this twice in a row, which doesn't work yet, needs stderr replaying
+  for i in 1; do
+    result=$(./run-firebuild -- ./test_error || true)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" "$stderr_expected"
+  done
+}

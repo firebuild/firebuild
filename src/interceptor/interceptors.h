@@ -13,6 +13,9 @@
 
 #include <dirent.h>
 #include <dlfcn.h>
+#include <err.h>
+#include <errno.h>
+#include <error.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
