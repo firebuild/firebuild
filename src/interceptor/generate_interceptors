@@ -300,9 +300,11 @@ generate("int", "rmdir", "const char *dir")
 # Intercept the rename family
 generate("int", "rename", "const char *oldpath, const char *newpath")
 generate("int", "renameat", "int oldfd, const char *oldpath, int newfd, const char *newpath",
-         msg="rename")
+         msg="rename",
+         ack=True)
 generate("int", "renameat2", "int oldfd, const char *oldpath, int newfd, const char *newpath, unsigned int flags",
-         msg="rename")
+         msg="rename",
+         ack=True)
 
 # Intercept operations that read from a file descriptor.
 # FIXME also intercept mmap with PROT_READ

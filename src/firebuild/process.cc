@@ -94,7 +94,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
   }
 
-  if (!exec_point()->register_file_usage(name, flags, error)) {
+  if (!exec_point()->register_file_usage(name, name, flags, error)) {
     disable_shortcutting_bubble_up("Could not register the opening of " +
                                    pretty_print_string(name));
     return -1;
@@ -212,6 +212,40 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   add_filefd(fds_, newfd, std::make_shared<FileFD>(
       newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
       (*fds_)[oldfd]));
+  return 0;
+}
+
+int Process::handle_rename(const std::string &old_ar_name, const std::string &new_ar_name,
+                           const int error) {
+  if (error) {
+    return 0;
+  }
+
+  const std::string old_name = platform::path_is_absolute(old_ar_name) ? old_ar_name :
+      wd() + "/" + old_ar_name;
+  const std::string new_name = platform::path_is_absolute(new_ar_name) ? new_ar_name :
+      wd() + "/" + new_ar_name;
+
+  /* It's tricky because the renaming has already happened, there's supposedly nothing
+   * at the old filename. Yet we need to register that we read that file with its
+   * particular hash value.
+   * FIXME we compute the hash twice, both for the old and new location.
+   * FIXME refactor so that it plays nicer together with register_file_usage(). */
+
+  /* Register the opening for reading at the old location */
+  if (!exec_point()->register_file_usage(old_name, new_name, O_RDONLY, error)) {
+    disable_shortcutting_bubble_up("Could not register the renaming from " +
+                                   pretty_print_string(old_name));
+    return -1;
+  }
+
+  /* Register the opening for writing at the new location */
+  if (!exec_point()->register_file_usage(new_name, new_name, O_CREAT|O_WRONLY|O_TRUNC, error)) {
+    disable_shortcutting_bubble_up("Could not register the renaming to " +
+                                   pretty_print_string(new_name));
+    return -1;
+  }
+
   return 0;
 }
 

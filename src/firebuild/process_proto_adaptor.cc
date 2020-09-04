@@ -48,6 +48,11 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_dup *d) {
   return p->handle_dup3(fbb_dup_get_oldfd(d), fbb_dup_get_ret(d), 0, error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_rename *r) {
+  const int error = fbb_rename_get_error_no_with_fallback(r, 0);
+  return p->handle_rename(fbb_rename_get_oldpath(r), fbb_rename_get_newpath(r), error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBB_fcntl *f) {
   const int error = fbb_fcntl_get_error_no_with_fallback(f, 0);
   int arg = fbb_fcntl_get_arg_with_fallback(f, 0);

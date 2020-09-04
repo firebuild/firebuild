@@ -155,12 +155,12 @@ class Process {
 
   /**
    * Handle file opening in the monitored process
-   * @param name relative or absolute file name
+   * @param ar_name relative or absolute file name
    * @param flags flags of open()
    * @param fd the return value, or -1 if file was dlopen()ed successfully
    * @param error error code of open()
    */
-  int handle_open(const std::string &name, const int flags,
+  int handle_open(const std::string &ar_name, const int flags,
                   const int fd, const int error = 0);
 
   /**
@@ -202,6 +202,16 @@ class Process {
    */
   int handle_dup3(const int oldfd, const int newfd, const int flags,
                   const int error = 0);
+
+  /**
+   * Handle rename()
+   * @param old_ar_name old relative or absolute file name
+   * @param new_ar_name new relative or absolute file name
+   * @param error error code
+   * @return 0 on success, -1 on failure
+   */
+  int handle_rename(const std::string &old_ar_name, const std::string &new_ar_name,
+                    const int error = 0);
 
   /**
    * Handle successfully clearing the cloexec bit, via a
