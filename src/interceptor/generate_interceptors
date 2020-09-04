@@ -790,11 +790,11 @@ generate("int", "futimens", "int fd, const struct timespec times[2]",
 
 # Intercept dlopen
 # The new library's constructor may generate intercepted calls
-generate("void *", "dlopen", "const char *filename, int flag",
+generate("void *", "dlopen", "const char *filename, int flags",
          tpl="dlopen",
          before_lines=["thread_intercept_on = NULL;"],
          after_lines=["thread_intercept_on = \"dlopen\";"])
-generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
+generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flags",
          tpl="dlopen",
          msg="dlopen",
          msg_skip_fields=["lmid"],
