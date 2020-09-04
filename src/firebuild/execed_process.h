@@ -62,7 +62,8 @@ class ExecedProcess : public Process {
   void initialize();
   void propagate_file_usage(const std::string &name,
                             const FileUsage &fu_change);
-  bool register_file_usage(const std::string &name, const int flags, const int error);
+  bool register_file_usage(const std::string &name, const std::string &actual_file,
+                           const int flags, const int error);
 
   /**
    * Fail to change to a working directory

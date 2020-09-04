@@ -70,9 +70,9 @@ void ExecedProcess::initialize() {
   /* Propagate the opening of the executable and libraries upwards as
    * regular file open events. */
   if (parent_exec_point()) {
-    parent_exec_point()->register_file_usage(executable(), O_RDONLY, 0);
+    parent_exec_point()->register_file_usage(executable(), executable(), O_RDONLY, 0);
     for (auto& lib : libs()) {
-      parent_exec_point()->register_file_usage(lib, O_RDONLY, 0);
+      parent_exec_point()->register_file_usage(lib, lib, O_RDONLY, 0);
     }
   }
 }
@@ -136,8 +136,11 @@ void ExecedProcess::propagate_file_usage(const std::string &name,
  * FileUsage, stat'ing the file, computing its checksum if necessary.
  * Registers the file operation, and bubbles it upwards to the root via
  * propagate_file_usage().
+ * Looks at the contents of `actual_file`, but registers as if the event
+ * happened to `name`.
  */
 bool ExecedProcess::register_file_usage(const std::string &name,
+                                        const std::string &actual_file,
                                         const int flags,
                                         const int error) {
   libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
@@ -156,7 +159,7 @@ bool ExecedProcess::register_file_usage(const std::string &name,
      */
     fu = file_usages()[name];
     FileUsage *fu_change = new FileUsage();
-    if (!fu_change->update_from_open_params(name, flags, error, false)) {
+    if (!fu_change->update_from_open_params(actual_file, flags, error, false)) {
       /* Error */
       return false;
     }
@@ -170,7 +173,7 @@ bool ExecedProcess::register_file_usage(const std::string &name,
      * we need to know about its initial state. Use that same object to
      * propagate the changes upwards. */
     fu = new FileUsage();
-    if (!fu->update_from_open_params(name, flags, error, true)) {
+    if (!fu->update_from_open_params(actual_file, flags, error, true)) {
       /* Error */
       delete fu;
       return false;
