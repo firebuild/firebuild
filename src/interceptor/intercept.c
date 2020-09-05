@@ -322,6 +322,13 @@ static void atfork_child_handler(void) {
 
   /* Reconnect to supervisor */
   fb_init_supervisor_conn();
+
+  /* Inform the supervisor about who we are */
+  FBB_Builder_fork_child ic_msg;
+  fbb_fork_child_init(&ic_msg);
+  fbb_fork_child_set_pid(&ic_msg, ic_pid);
+  fbb_fork_child_set_ppid(&ic_msg, getppid());
+  fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 }
 
 static void on_exit_handler(const int status, void *arg) {
