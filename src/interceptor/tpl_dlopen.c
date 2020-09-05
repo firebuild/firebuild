@@ -8,7 +8,13 @@
 
 {% set msg_add_fields = ["if (absolute_filename != NULL) fbb_" + msg + "_set_absolute_filename(&ic_msg, absolute_filename);"] %}
 
+### block before
+  thread_libc_nesting_depth++;
+### endblock before
+
 ### block after
+  thread_libc_nesting_depth--;
+
   char *absolute_filename = NULL;
   if (ret != NULL) {
     struct link_map *map;

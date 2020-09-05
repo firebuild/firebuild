@@ -127,8 +127,10 @@ extern __thread bool thread_has_global_lock;
 /** Counting the depth of nested signal handlers running in the current thread. */
 extern __thread sig_atomic_t thread_signal_handler_running_depth;
 
-/** Counting the depth of nested pthread_atfork handlers running in the current thread. */
-extern __thread sig_atomic_t thread_atfork_handler_running_depth;
+/** Counting the nested depth of libc calls that might call other libc methods externally.
+ *  Currently fork() (atfork handlers) and dlopen() (constructor method) increment this level.
+ *  exit(), err(), error() etc. might also be ported to this infrastructure one day. */
+extern __thread sig_atomic_t thread_libc_nesting_depth;
 
 /** Bitmap of signals that we're delaying. Multiplicity is irrelevant. Since signals are counted
  *  from 1 to 64 (on Linux x86), it's bit number (signum-1) that corresponds to signal signum. */
