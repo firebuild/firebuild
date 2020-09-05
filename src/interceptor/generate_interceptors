@@ -256,15 +256,11 @@ generate("int", "memfd_create", "const char *name, unsigned int flags",
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.
 generate("int", "close", "int fd",
-         before_lines=["if (fd != fb_sv_conn) {",
-                       "  if (i_am_intercepting) clear_file_state(fd);"],
-         after_lines=["} else { ret = -1; saved_errno = EBADF; }"],
+         before_lines=["if (i_am_intercepting) clear_file_state(fd);"],
          ack=True)
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
-                       "if (fd != fb_sv_conn) {",
-                       "  if (i_am_intercepting) clear_file_state(fd);"],
-         after_lines=["} else { ret = -1 /* a.k.a. EOF */; saved_errno = EBADF; }"],
+                       "if (i_am_intercepting) clear_file_state(fd);"],
          msg="close",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"],
