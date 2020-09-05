@@ -259,11 +259,25 @@ int Process::handle_ioctl(const int fd, const int cmd,
   switch (cmd) {
     case FIOCLEX:
       if (error == 0) {
+        if (!get_fd(fd)) {
+          disable_shortcutting_bubble_up("Process successfully ioctl'ed on fd (" +
+                                         std::to_string(fd) +
+                                         ") which is known to be closed, which means interception"
+                                         " missed at least one open()");
+          return -1;
+        }
         (*fds_)[fd]->set_cloexec(true);
       }
       return 0;
     case FIONCLEX:
       if (error == 0) {
+        if (!get_fd(fd)) {
+          disable_shortcutting_bubble_up("Process successfully ioctl'ed on fd (" +
+                                         std::to_string(fd) +
+                                         ") which is known to be closed, which means interception"
+                                         " missed at least one open()");
+          return -1;
+        }
         (*fds_)[fd]->set_cloexec(false);
       }
       return 0;
