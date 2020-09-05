@@ -14,11 +14,11 @@
   sigfillset(&set_block_all);
   pthread_sigmask(SIG_SETMASK, &set_block_all, &set_orig);
 
-  thread_atfork_handler_running_depth++;
+  thread_libc_nesting_depth++;
 ### endblock before
 
 ### block after
-  thread_atfork_handler_running_depth--;
+  thread_libc_nesting_depth--;
 
   if (!success) {
     /* Error */

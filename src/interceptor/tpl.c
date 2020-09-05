@@ -134,7 +134,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
       insert_debug_msg(debug_buf);
       assert(0 && "Internal error: thread_has_global_lock and thread_intercept_on must go hand in hand");
     }
-    if (thread_signal_handler_running_depth == 0 && thread_atfork_handler_running_depth == 0 && thread_intercept_on != NULL) {
+    if (thread_signal_handler_running_depth == 0 && thread_libc_nesting_depth == 0 && thread_intercept_on != NULL) {
       char debug_buf[256];
       snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: already intercepting %s (and no signal or atfork handler running in this thread)", "{{ func }}", thread_intercept_on);
       insert_debug_msg(debug_buf);

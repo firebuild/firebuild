@@ -54,7 +54,7 @@ __thread const char *thread_intercept_on = NULL;
 __thread sig_atomic_t thread_signal_danger_zone_depth = 0;
 __thread bool thread_has_global_lock = false;
 __thread sig_atomic_t thread_signal_handler_running_depth = 0;
-__thread sig_atomic_t thread_atfork_handler_running_depth = 0;
+__thread sig_atomic_t thread_libc_nesting_depth = 0;
 __thread uint64_t thread_delayed_signals_bitmap = 0;
 
 void (**orig_signal_handlers)(void);
