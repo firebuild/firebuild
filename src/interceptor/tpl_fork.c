@@ -33,12 +33,7 @@
   if (!success) {
     /* Error, nothing here to do */
   } else if (ret == 0) {
-    /* Child */
-    FBB_Builder_fork_child ic_msg;
-    fbb_fork_child_init(&ic_msg);
-    fbb_fork_child_set_pid(&ic_msg, ic_pid);
-    fbb_fork_child_set_ppid(&ic_msg, getppid());
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    /* The child signed in to the supervisor in atfork_child_handler(), nothing else here to do. */
   } else {
     /* Parent */
     FBB_Builder_fork_parent ic_msg;
