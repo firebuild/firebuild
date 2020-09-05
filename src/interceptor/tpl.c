@@ -97,6 +97,16 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###     endif
   bool i_am_intercepting = intercepting_enabled;  /* use a copy, in case another thread modifies it */
 
+  /* Guard the communication channel */
+###     block guard_connection_fd
+###       for (type, name) in types_and_names
+{# It is ugly to check for the variable name to end with "fd", but is simple works well in practice. #}
+###         if type == "int" and name[-2:] == "fd"
+  if ({{ name }} == fb_sv_conn) { errno = EBADF; return -1; }
+###         endif
+###       endfor
+###     endblock
+
 ###     if vararg
   /* Auto-generated for vararg functions */
   va_list ap;
