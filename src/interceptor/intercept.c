@@ -520,15 +520,17 @@ static void fb_ic_init() {
   assert(len >= (ssize_t) sizeof(int));
   int tag = *(int *) sv_msg;
   assert(tag == FBB_TAG_scproc_resp);
+  debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
 
   // we may return immediately if supervisor decides that way
   if (fbb_scproc_resp_get_shortcut(sv_msg)) {
     assert(fbb_scproc_resp_has_exit_status(sv_msg));
+    insert_debug_msg("this process was shortcut by the supervisor, exiting");
     void(*orig_underscore_exit)(int) = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
     (*orig_underscore_exit)(fbb_scproc_resp_get_exit_status(sv_msg));
-  } else {
-    debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
+    assert(0 && "_exit() did not exit");
   }
+
   free(sv_msg);
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
