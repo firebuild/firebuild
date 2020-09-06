@@ -97,6 +97,7 @@ static std::string construct_cached_file_name(const std::string &base,
  * @param key The key
  * @param msg The protobuf to store
  * @param debug_key Optionally the key as pb for debugging purposes
+ * @param debug_rerun_command Optionally a debug script to rerun the command
  * @param debug_header String prepended to debug lines
  * @param printer Protobuf printer to use for debugging, or NULL for the default
  * @param subkey_out Optionally store the subkey (hash of the protobuf) here
@@ -105,6 +106,7 @@ static std::string construct_cached_file_name(const std::string &base,
 bool MultiCache::store_protobuf(const Hash &key,
                                 const google::protobuf::Message &msg,
                                 const google::protobuf::Message *debug_key,
+                                const std::string &debug_rerun_command,
                                 const std::string &debug_header,
                                 const google::protobuf::TextFormat::Printer *printer,
                                 Hash *subkey_out) {
@@ -128,6 +130,13 @@ bool MultiCache::store_protobuf(const Hash &key,
 
     int fd = creat(path_debug.c_str(), 0600);
     write(fd, pb_txt.c_str(), pb_txt.size());
+    close(fd);
+
+    /* Place in the cache a python script that reruns the command, for easier debugging. */
+    std::string path_rerun =
+        construct_cached_dir_name(base_dir_, key, true) + "/%_rerun_command.py";
+    fd = creat(path_rerun.c_str(), 0600);
+    write(fd, debug_rerun_command.c_str(), debug_rerun_command.size());
     close(fd);
   }
 

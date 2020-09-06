@@ -99,6 +99,8 @@ class ExecedProcess : public Process {
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
   virtual int64_t sum_rusage_recurse();
 
+  std::string get_rerun_command() const;
+
   void export2js(const unsigned int level, FILE* stream,
                  unsigned int * nodeid);
   void export2js_recurse(const unsigned int level, FILE* stream,

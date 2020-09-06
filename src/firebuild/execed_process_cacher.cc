@@ -229,13 +229,16 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   pio.mutable_outputs()->set_exit_status(proc->exit_status());
   // TODO(egmont) Add all sorts of other stuff
 
+  std::string debug_rerun_cmd;
   std::string debug_header;
   msg::ProcessFingerprint *debug_msg = NULL;
   google::protobuf::TextFormat::Printer *printer = NULL;
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-    debug_header = pretty_print_timestamp() + "\n\n";
-
     debug_msg = fingerprint_msgs_[proc];
+
+    debug_rerun_cmd = proc->get_rerun_command();
+
+    debug_header = pretty_print_timestamp() + "\n\n";
 
     const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
     printer = new google::protobuf::TextFormat::Printer();
@@ -243,7 +246,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
-  multi_cache_->store_protobuf(fingerprint, pio, debug_msg, debug_header, printer, NULL);
+  multi_cache_->store_protobuf(fingerprint, pio,
+                               debug_msg, debug_rerun_cmd, debug_header,
+                               printer, NULL);
   delete printer;
 }
 

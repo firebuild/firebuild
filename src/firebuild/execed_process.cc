@@ -229,6 +229,52 @@ int64_t ExecedProcess::sum_rusage_recurse() {
   return Process::sum_rusage_recurse();
 }
 
+/* Internal helper: Escape the string to a python string literal. */
+static std::string python_string(const std::string &s) {
+  std::string ret = "b'";
+  for (unsigned char c : s) {
+    if (c < 0x20 || c >= 0x7f || c == '\\' || c == '\'') {
+      const char *hex = "0123456789abcdef";
+      ret += "\\x";
+      ret += hex[c / 16];
+      ret += hex[c % 16];
+    } else {
+      ret += c;
+    }
+  }
+  ret += "'";
+  return ret;
+}
+
+/** Returns a python script that reruns the command. */
+std::string ExecedProcess::get_rerun_command() const {
+  std::string res = "#!/usr/bin/python3\nimport os\nos.chdir(" +
+      python_string(cwd()) +
+      ")\nos.execve(" +
+      python_string(executable()) +
+      ", [\n";
+  for (auto& arg : args()) {
+    res += "  " + python_string(arg) + ",\n";
+  }
+  res += "], {\n";
+  for (auto& env : env_vars()) {
+    auto eq = env.find('=');
+    if (eq == std::string::npos) {
+      /* Env doesn't have an '=' sign. Maybe bail out with an error? */
+      continue;
+    }
+    std::string env_name = env.substr(0, eq);
+    std::string env_value = env.substr(eq + 1);
+    if (env_name == "LD_LIBRARY_PATH" || env_name == "LD_PRELOAD") {
+      /* FIXME just filter out firebuild and leave the rest there */
+      res += "#";
+    }
+    res += "  " + python_string(env_name) + ": " + python_string(env_value) + ",\n";
+  }
+  res += "})\n";
+  return res;
+}
+
 void ExecedProcess::export2js_recurse(const unsigned int level, FILE* stream,
                                       unsigned int *nodeid) {
   if (level > 0) {
