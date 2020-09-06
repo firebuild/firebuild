@@ -74,6 +74,14 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_write *w) {
   return 0;
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_read *r) {
+  const int error = fbb_read_get_error_no_with_fallback(r, 0);
+  if (error == 0) {
+    p->handle_write(fbb_read_get_fd(r));
+  }
+  return 0;
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBB_chdir *c) {
   const int error = fbb_chdir_get_error_no_with_fallback(c, 0);
   if (error == 0) {

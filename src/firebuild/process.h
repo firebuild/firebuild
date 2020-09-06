@@ -247,6 +247,12 @@ class Process {
 
 
   /**
+   * Handle read() in the monitored process
+   * @param fd file descriptor
+   */
+  void handle_read(const int fd);
+
+  /**
    * Handle write() in the monitored process
    * @param fd file descriptor
    */
