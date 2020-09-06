@@ -28,6 +28,7 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBB_rename *r);
   static int msg(Process *p, const FBB_fcntl *f);
   static int msg(Process *p, const FBB_ioctl *i);
+  static int msg(Process *p, const FBB_read *r);
   static int msg(Process *p, const FBB_write *w);
   static int msg(Process *p, const FBB_chdir *c);
 

@@ -477,6 +477,7 @@ void proc_ic_msg(uint32_t ack_num,
              tag == FBB_TAG_fcntl ||
              tag == FBB_TAG_ioctl ||
              tag == FBB_TAG_chdir ||
+             tag == FBB_TAG_read ||
              tag == FBB_TAG_write) {
     try {
       ::firebuild::Process *proc = proc_tree->Sock2Proc(fd_conn);
@@ -609,6 +610,8 @@ void proc_ic_msg(uint32_t ack_num,
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_ioctl *>(fbb_buf));
       } else if (tag == FBB_TAG_chdir) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_chdir *>(fbb_buf));
+      } else if (tag == FBB_TAG_read) {
+        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_read *>(fbb_buf));
       } else if (tag == FBB_TAG_write) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_write *>(fbb_buf));
       }
