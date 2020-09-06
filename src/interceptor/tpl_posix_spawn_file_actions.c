@@ -8,7 +8,7 @@
 
 ### block guard_connection_fd
 ###   for (type, name) in types_and_names
-{# It is ugly to check for the variable name to end with "fd", but is simple works well in practice. #}
+{# It is ugly to check for the variable name to end with "fd", but is simple and works well in practice. #}
 ###     if type == "int" and name[-2:] == "fd"
 {# Unlike most methods which place the error code in errno and return -1, #}
 {# posix_spawn_file_actions_add*() return the error code directly.        #}
