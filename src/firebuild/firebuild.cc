@@ -330,8 +330,8 @@ void proc_ic_msg(uint32_t ack_num,
             case 'o': {
               /* A successful open to a particular fd, silently closing the previous file if any.
                * The string is "o <fd> <flags> <mode> <filename>" (without the angle brackets). */
-              int fd, flags;
-              int filename_offset = sscanf(file_action.c_str(), "o %d %d %*d ", &fd, &flags);
+              int fd, flags, filename_offset;
+              sscanf(file_action.c_str(), "o %d %d %*d %n", &fd, &flags, &filename_offset);
               const char *path = file_action.c_str() + filename_offset;
               parent->handle_force_close(fd);
               parent->handle_open(path, flags, fd, 0);
