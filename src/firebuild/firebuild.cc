@@ -37,6 +37,7 @@
 
 /** global configuration */
 libconfig::Config * cfg;
+bool generate_report = false;
 
 namespace {
 
@@ -67,7 +68,6 @@ static int inherited_fd = -1;
 static int child_pid, child_ret = 1;
 static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
-static bool generate_report = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;

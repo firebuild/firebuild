@@ -16,6 +16,7 @@
 #include "firebuild/utils.h"
 
 extern libconfig::Config * cfg;
+extern bool generate_report;
 
 namespace firebuild {
 
@@ -96,6 +97,18 @@ void ExecedProcess::do_finalize() {
   // store data for shortcutting
   if (cacher_ && !was_shortcut() && can_shortcut()) {
     cacher_->store(this);
+  }
+
+  // free up process data that we no longer need
+  for (auto& fu : file_usages()) {
+    delete fu.second;
+  }
+  file_usages().clear();
+  fds()->clear();
+  if (!generate_report) {
+    args().clear();
+    env_vars().clear();
+    libs().clear();
   }
 
   // Call the base class's method

@@ -140,6 +140,7 @@ class Process {
       return nullptr;
     }
   }
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
   void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
 
