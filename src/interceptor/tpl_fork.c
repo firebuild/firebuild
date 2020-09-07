@@ -12,7 +12,7 @@
    * signals before forking. */
   sigset_t set_orig, set_block_all;
   sigfillset(&set_block_all);
-  pthread_sigmask(SIG_SETMASK, &set_block_all, &set_orig);
+  (*ic_pthread_sigmask)(SIG_SETMASK, &set_block_all, &set_orig);
 
   thread_libc_nesting_depth++;
 ### endblock before
@@ -43,5 +43,5 @@
   }
 
   /* Common for all three outcomes: re-enable signal delivery */
-  pthread_sigmask(SIG_SETMASK, &set_orig, NULL);
+  (*ic_pthread_sigmask)(SIG_SETMASK, &set_orig, NULL);
 ### endblock send_msg

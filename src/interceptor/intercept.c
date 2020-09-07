@@ -36,6 +36,9 @@ char * fb_conn_string = NULL;
 /** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
 
+/** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
+int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
+
 /** Control for running the initialization exactly once */
 pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
 
@@ -532,6 +535,14 @@ static void fb_ic_init() {
   }
 
   free(sv_msg);
+
+  /* pthread_sigmask() is only available if we're linked against libpthread.
+   * Otherwise use the single-threaded sigprocmask(). */
+  ic_pthread_sigmask = dlsym(RTLD_NEXT, "pthread_sigmask");
+  if (!ic_pthread_sigmask) {
+    ic_pthread_sigmask = &sigprocmask;
+  }
+
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
   ic_init_done = true;
@@ -542,7 +553,17 @@ static void fb_ic_init() {
  * when interceptor library loads or when the first interceped call happens
  */
 void fb_ic_load() {
-  pthread_once(&ic_init_control, fb_ic_init);
+  if (!ic_init_done) {
+    int (*orig_pthread_once)(pthread_once_t *, void (*)(void)) = dlsym(RTLD_NEXT, "pthread_once");
+    if (orig_pthread_once) {
+      /* Symbol found means that we are linked to libpthread. Use its method to guarantee that we
+       * initialize exactly once. */
+      (*orig_pthread_once)(&ic_init_control, fb_ic_init);
+    } else  {
+      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded. */
+      fb_ic_init();
+    }
+  }
 }
 
 static void fb_ic_cleanup() {
