@@ -45,4 +45,4 @@ add_library(fbintercept MODULE
 
 add_dependencies(fbintercept gen_files fbb_gen_files)
 
-target_link_libraries(fbintercept dl pthread)
+target_link_libraries(fbintercept dl)

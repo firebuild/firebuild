@@ -79,6 +79,9 @@ void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd);
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
+/** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
+extern int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
+
 /** Fast check for whether interceptor init has been run */
 extern bool ic_init_done;
 
