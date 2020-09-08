@@ -1,6 +1,8 @@
 #!/bin/bash
 # Check whether our preload library has any unexpected public symbol.
 # Check that all our overridden methods actually exist in libc or libdl.
+# Check that for each overridden method we also override its fortified
+# counterpart, if that exists at all.
 
 # Copyright (c) 2020 Interri Kft.
 # This file is an unpublished work. All rights reserved.
@@ -64,6 +66,27 @@ if [ -z "$extra" ]; then
 else
   echo "Overridden methods that do not exist in libc or libdl:"
   echo "$extra" | sed 's/^\(.*\)$/  \1/'
+  status=1
+fi
+
+# Get the list of libc's (and libdl's) fortified symbols
+grep '_chk$' < libc-libdl-symbols.txt > libc-libdl-fortify-symbols.txt
+
+# Get the list of fortified libc symbols that we don't override, but override the non-fortified counterpart
+fortify_missing=$(for chk in $(< libc-libdl-fortify-symbols.txt); do
+  base="${chk%_chk}"
+  base="${base#__}"
+  if fgrep -qx "$base" public-symbols.txt && ! fgrep -qx "$chk" public-symbols.txt; then
+    echo "$chk"
+  fi
+done)
+
+# Report the non-overridden fortified symbols
+if [ -z "$fortify_missing" ]; then
+  echo "All expected fortified methods overridden"
+else
+  echo "Fortified methods not overridden:"
+  echo "$fortify_missing" | sed 's/^\(.*\)$/  \1/'
   status=1
 fi
 

@@ -309,6 +309,10 @@ generate("ssize_t", "read", "int fd, void *buf, size_t count",
          tpl="read",
          msg_skip_fields=["buf", "count"],
          ack=True)
+generate("ssize_t", "__read_chk", "int fd, void *buf, size_t count, size_t fortify_size",
+         tpl="read",
+         msg_skip_fields=["buf", "count", "fortify_size"],
+         ack=True)
 generate("ssize_t", "readv", "int fd, const struct iovec *iov, int iovcnt",
          tpl="read",
          msg_skip_fields=["iov", "iovcnt"],
@@ -317,9 +321,17 @@ generate("ssize_t", "pread", "int fd, void *buf, size_t count, off_t offset",
          tpl="read",
          msg_skip_fields=["buf", "count", "offset"],
          ack=True)
+generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, off_t offset, size_t fortify_size",
+         tpl="read",
+         msg_skip_fields=["buf", "count", "offset", "fortify_size"],
+         ack=True)
 generate("ssize_t", "pread64", "int fd, void *buf, size_t count, off64_t offset",
          tpl="read",
          msg_skip_fields=["buf", "count", "offset"],
+         ack=True)
+generate("ssize_t", "__pread64_chk", "int fd, void *buf, size_t count, off64_t offset, size_t fortify_size",
+         tpl="read",
+         msg_skip_fields=["buf", "count", "offset", "fortify_size"],
          ack=True)
 generate("ssize_t", "preadv", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
          tpl="read",
@@ -344,6 +356,13 @@ generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t 
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
          msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
+generate("size_t", ["__fread_chk", "__fread_unlocked_chk"], "void *ptr, size_t fortify_size, size_t size, size_t nmemb, FILE *stream",
+         tpl="read",
+         before_lines=["int fd = safe_fileno(stream);"],
+         success="ret > 0 || !ferror(stream)",  # unused anyway
+         msg_skip_fields=["ptr", "fortify_size", "size", "nmemb", "stream"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
+         ack=True)
 generate("int", ["fgetc", "fgetc_unlocked", "getc", "getc_unlocked", "getw"], "FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -363,6 +382,12 @@ generate("char *", ["fgets", "fgets_unlocked"], "char *s, int size, FILE *stream
          msg_skip_fields=["s", "size", "stream"],
          msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
+generate("char *", ["__fgets_chk", "__fgets_unlocked_chk"], "char *s, size_t fortify_size, int size, FILE *stream",
+         tpl="read",
+         before_lines=["int fd = safe_fileno(stream);"],
+         msg_skip_fields=["s", "fortify_size", "size", "stream"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
+         ack=True)
 generate("int", ["getchar", "getchar_unlocked"], "",
          tpl="read",
          before_lines=["int fd = safe_fileno(stdin);"],
@@ -378,6 +403,12 @@ generate("char *", "gets", "char *s",  # should be never used, see man gets
          tpl="read",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["s"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
+         ack=True)
+generate("char *", "__gets_chk", "char *s, size_t fortify_size",  # should be never used, see man gets
+         tpl="read",
+         before_lines=["int fd = safe_fileno(stdin);"],
+         msg_skip_fields=["s", "fortify_size"],
          msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
 generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
@@ -579,56 +610,64 @@ for v in ['', 'v']:
          msg_skip_fields=msg_skip_fields,
          msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
-# Handle v?[fd]?w?printf
+# Handle (__)?v?[fd]?w?printf(_chk)?
 for v in ['', 'v']:
   for f in ['', 'f', 'd']:
     for w in ['', 'w']:
-      if f == 'd' and w == 'w':
-        # No [v]dwprintf() in glibc
-        continue
-      func = v + f + w + "printf"
-      if f == '':
-        sig_str = ''
-        names_str = ''
-        before_lines = ["int fd = safe_fileno(stdout);"]
-        msg_skip_fields = []
-        msg_add_fields = ["fbb_write_set_fd(&ic_msg, fd);"]
-      elif f == 'f':
-        sig_str = "FILE *stream, "
-        names_str = "stream, "
-        before_lines = ["int fd = safe_fileno(stream);"]
-        msg_skip_fields = ["stream"]
-        msg_add_fields = ["fbb_write_set_fd(&ic_msg, fd);"]
-      elif f == 'd':
-        sig_str = "int fd, "
-        names_str = "fd, "
-        before_lines = []
-        msg_skip_fields = []
-        msg_add_fields = []
-      if w:
-        sig_str += "const wchar_t *format, "
-      else:
-        sig_str += "const char *format, "
-      names_str += "format, "
-      msg_skip_fields += ["format"]
-      if v:
-        sig_str += "FB_VA_LIST ap"
-        call_orig_lines = None
-        msg_skip_fields += ["ap"]
-      else:
-        sig_str += "..."
-        call_orig_lines = ["ret = ic_orig_v" + v + f + w + "printf(" + names_str + "ap);"]
-      generate("int", func, sig_str,
-               tpl="write",
-               before_lines=before_lines,
-               call_orig_lines=call_orig_lines,
-               msg_skip_fields=msg_skip_fields,
-               msg_add_fields=msg_add_fields,
-               ack=True)
+      for (c1, c2) in [('', ''), ('__', '_chk')]:
+        if f == 'd' and w == 'w':
+          # No [v]dwprintf() in glibc
+          continue
+        func = c1 + v + f + w + "printf" + c2
+        if f == '':
+          sig_str = ''
+          names_str = ''
+          before_lines = ["int fd = safe_fileno(stdout);"]
+          msg_skip_fields = []
+          msg_add_fields = ["fbb_write_set_fd(&ic_msg, fd);"]
+        elif f == 'f':
+          sig_str = "FILE *stream, "
+          names_str = "stream, "
+          before_lines = ["int fd = safe_fileno(stream);"]
+          msg_skip_fields = ["stream"]
+          msg_add_fields = ["fbb_write_set_fd(&ic_msg, fd);"]
+        elif f == 'd':
+          sig_str = "int fd, "
+          names_str = "fd, "
+          before_lines = []
+          msg_skip_fields = []
+          msg_add_fields = []
+        if c1:
+          sig_str += "int fortify_flag, "
+          names_str += "fortify_flag, "
+          msg_skip_fields += ["fortify_flag"]
+        if w:
+          sig_str += "const wchar_t *format, "
+        else:
+          sig_str += "const char *format, "
+        names_str += "format, "
+        msg_skip_fields += ["format"]
+        if v:
+          sig_str += "FB_VA_LIST ap"
+          call_orig_lines = None
+          msg_skip_fields += ["ap"]
+        else:
+          sig_str += "..."
+          call_orig_lines = ["ret = ic_orig_" + c1 + "v" + f + w + "printf" + c2 + "(" + names_str + "ap);"]
+        generate("int", func, sig_str,
+                 tpl="write",
+                 before_lines=before_lines,
+                 call_orig_lines=call_orig_lines,
+                 msg_skip_fields=msg_skip_fields,
+                 msg_add_fields=msg_add_fields,
+                 ack=True)
 for v in ['', 'v']:
   for w in ['', 'w', 'n']:
-    skip(v + "s" + w + "printf")
-skip("asprintf", "vasprintf")
+    for (c1, c2) in [('', ''), ('__', '_chk')]:
+      skip(c1 + v + "s" + w + "printf" + c2)
+for v in ['', 'v']:
+  for (c1, c2) in [('', ''), ('__', '_chk')]:
+    skip(c1 + v + "asprintf" + c2)
 
 # Intercept chdir and fchdir
 generate("int", "chdir", "const char *dir")
@@ -666,10 +705,18 @@ generate("int", "symlinkat", "const char *oldpath, int newdirfd, const char *new
 generate("ssize_t", "readlink", "const char *path, char *buf, size_t bufsiz",
          tpl="readlink",
          msg_skip_fields=["buf"])
+generate("ssize_t", "__readlink_chk", "const char *path, char *buf, size_t bufsiz, size_t fortify_size",
+         tpl="readlink",
+         msg="readlink",
+         msg_skip_fields=["buf", "fortify_size"])
 generate("ssize_t", "readlinkat", "int dirfd, const char *path, char *buf, size_t bufsiz",
          tpl="readlink",
          msg="readlink",
          msg_skip_fields=["buf"])
+generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *path, char *buf, size_t bufsiz, size_t fortify_size",
+         tpl="readlink",
+         msg="readlink",
+         msg_skip_fields=["buf", "fortify_size"])
 # FIXME realpath
 
 # Intercept the stat family
@@ -1145,7 +1192,11 @@ skip("mmap", "munmap")
 # The supervisor might decide whether to disable shortcutting, or ignore this difference
 generate("int", "gethostname", "char *name, size_t len",
          tpl="once")
+generate("int", "__gethostname_chk", "char *name, size_t len, size_t fortify_size",
+         tpl="once")
 generate("int", "getdomainname", "char *name, size_t len",
+         tpl="once")
+generate("int", "__getdomainname_chk", "char *name, size_t len, size_t fortify_size",
          tpl="once")
 generate("long", "gethostid", "",
          tpl="once")
