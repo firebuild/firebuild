@@ -66,18 +66,18 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_ioctl *f) {
   return p->handle_ioctl(fbb_ioctl_get_fd(f), fbb_ioctl_get_cmd(f), ret, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBB_write *w) {
-  const int error = fbb_write_get_error_no_with_fallback(w, 0);
+int ProcessPBAdaptor::msg(Process *p, const FBB_read *r) {
+  const int error = fbb_read_get_error_no_with_fallback(r, 0);
   if (error == 0) {
-    p->handle_write(fbb_write_get_fd(w));
+    p->handle_read(fbb_read_get_fd(r));
   }
   return 0;
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBB_read *r) {
-  const int error = fbb_read_get_error_no_with_fallback(r, 0);
+int ProcessPBAdaptor::msg(Process *p, const FBB_write *w) {
+  const int error = fbb_write_get_error_no_with_fallback(w, 0);
   if (error == 0) {
-    p->handle_write(fbb_read_get_fd(r));
+    p->handle_write(fbb_write_get_fd(w));
   }
   return 0;
 }
