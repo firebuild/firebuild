@@ -419,7 +419,7 @@ generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
          ack=True)
 generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
          tpl="read",
-         before_lines=["int fd = safe_fileno(stdin);"],
+         before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["lineptr", "n", "delim", "stream"],
          msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
