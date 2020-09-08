@@ -247,9 +247,10 @@ generate("FILE *", ["freopen", "freopen64"], "const char *filename, const char *
 
 skip("fdopen")  # High level stream operation only
 
-# FIXME add support for shm_open and memfd_create
-generate("int", "shm_open", "const char *name, int oflag, mode_t mode",
-         tpl="once")
+# FIXME add support for shm_open, memfd_create, timerfd_create, eventfd, signalfd
+# FIXME shm_open is in librt, ignore for now
+#generate("int", "shm_open", "const char *name, int oflag, mode_t mode",
+#         tpl="once")
 generate("int", "memfd_create", "const char *name, unsigned int flags",
          tpl="once")
 
@@ -582,6 +583,9 @@ for v in ['', 'v']:
 for v in ['', 'v']:
   for f in ['', 'f', 'd']:
     for w in ['', 'w']:
+      if f == 'd' and w == 'w':
+        # No [v]dwprintf() in glibc
+        continue
       func = v + f + w + "printf"
       if f == '':
         sig_str = ''
@@ -1089,9 +1093,7 @@ skip("getpid", "getppid", "getpgrp", "getpgid", "__getpgid", "setpgid", "setpgrp
 generate("mode_t", "umask", "mode_t mask",
          success="true",
          tpl="once")
-generate("mode_t", "getumask", "",
-         success="true",
-         tpl="once")
+# Note: getumask is gone since glibc 2.24
 
 # FIXME {get,set,p}rlimit
 
