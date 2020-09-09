@@ -53,6 +53,11 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_rename *r) {
   return p->handle_rename(fbb_rename_get_oldpath(r), fbb_rename_get_newpath(r), error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_symlink *s) {
+  const int error = fbb_symlink_get_error_no_with_fallback(s, 0);
+  return p->handle_symlink(fbb_symlink_get_oldpath(s), fbb_symlink_get_newpath(s), error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBB_fcntl *f) {
   const int error = fbb_fcntl_get_error_no_with_fallback(f, 0);
   int arg = fbb_fcntl_get_arg_with_fallback(f, 0);

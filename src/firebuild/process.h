@@ -215,6 +215,16 @@ class Process {
                     const int error = 0);
 
   /**
+   * Handle symlink()
+   * @param old_ar_name old relative or absolute file name
+   * @param new_ar_name new relative or absolute file name
+   * @param error error code
+   * @return 0 on success, -1 on failure
+   */
+  int handle_symlink(const std::string &old_ar_name, const std::string &new_ar_name,
+                     const int error = 0);
+
+  /**
    * Handle successfully clearing the cloexec bit, via a
    * posix_spawn_file_actions_adddup2() handler with oldfd==newfd.
    * @param fd file descriptor

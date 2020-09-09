@@ -249,6 +249,17 @@ int Process::handle_rename(const std::string &old_ar_name, const std::string &ne
   return 0;
 }
 
+int Process::handle_symlink(const std::string &old_ar_name, const std::string &new_ar_name,
+                            const int error) {
+  if (!error) {
+    disable_shortcutting_bubble_up("Process created a symlink (" +
+                                   pretty_print_string(new_ar_name) + " -> " +
+                                   pretty_print_string(old_ar_name) + ")");
+    return -1;
+  }
+  return 0;
+}
+
 int Process::handle_clear_cloexec(const int fd) {
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully cleared cloexec on fd (" +
