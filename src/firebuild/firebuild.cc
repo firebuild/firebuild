@@ -470,6 +470,7 @@ void proc_ic_msg(uint32_t ack_num,
              tag == FBB_TAG_open ||
              tag == FBB_TAG_dlopen ||
              tag == FBB_TAG_close ||
+             tag == FBB_TAG_mkdir ||
              tag == FBB_TAG_pipe2 ||
              tag == FBB_TAG_dup3 ||
              tag == FBB_TAG_dup ||
@@ -597,6 +598,8 @@ void proc_ic_msg(uint32_t ack_num,
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf));
       } else if (tag == FBB_TAG_close) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_close *>(fbb_buf));
+      } else if (tag == FBB_TAG_mkdir) {
+        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_mkdir *>(fbb_buf));
       } else if (tag == FBB_TAG_pipe2) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_pipe2 *>(fbb_buf));
       } else if (tag == FBB_TAG_dup3) {

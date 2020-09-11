@@ -39,6 +39,13 @@ typedef enum {
   ISDIR_WITH_HASH,
 } FileInitialState;
 
+typedef enum {
+  /** Performed an open() or creat() on the path */
+  FILE_ACTION_OPEN,
+  /** Performed a mkdir() on the path */
+  FILE_ACTION_MKDIR,
+} FileAction;
+
 class FileUsage {
  public:
   FileUsage(FileInitialState initial_state, Hash hash) :
@@ -59,7 +66,8 @@ class FileUsage {
   void set_unknown_err(int e) {unknown_err_ = e;}
 
   void merge(const FileUsage& fu);
-  bool update_from_open_params(const std::string& filename, int flags, int err,
+  bool update_from_open_params(const std::string& filename,
+                               FileAction action, int flags, int err,
                                bool do_read);
   bool open(const std::string& filename, int flags, int err, Hash **hashpp);
 

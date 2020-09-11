@@ -29,6 +29,11 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_close *c) {
   return p->handle_close(fbb_close_get_fd(c), error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_mkdir *m) {
+  const int error = fbb_mkdir_get_error_no_with_fallback(m, 0);
+  return p->handle_mkdir(fbb_mkdir_get_pathname(m), error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBB_pipe2 *pipe) {
   const int fd0 = fbb_pipe2_get_fd0_with_fallback(pipe, -1);
   const int fd1 = fbb_pipe2_get_fd1_with_fallback(pipe, -1);
