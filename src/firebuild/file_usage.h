@@ -15,19 +15,28 @@
 namespace firebuild {
 
 typedef enum {
-  /** We don't care if the file existed before or not, and what its
-   *  contents were. */
+  /** We don't care if the file or directory existed before or not, and what its
+   *  contents were (used only temporarily while building up our data structures). */
   DONTCARE,
-  /** We know and care that the file did not exist before. */
+  /** We know and care that the file or directory did not exist before (e.g. an
+   *  open(O_EXCL) or a mkdir() succeeded). */
   NOTEXIST,
   /** We know and care that the file either did not exist before, or was
-   *  zero sized (but we do not know which of these). */
-  NOTEXIST_OR_EMPTY,
-  /** We know and care that the file existed before, but don't care
-   *  about its previous contents. */
-  EXIST,
-  /** We know and care that the file existed with the given hash. */
-  EXIST_WITH_HASH,
+   *  a zero sized regular file (but we do not know which of these, because e.g.
+   *  a creat() a.k.a. open(O_CREAT|O_WRONLY|O_TRUNC) succeeded). */
+  NOTEXIST_OR_ISREG_EMPTY,
+  /** We know and care that the regular file existed before, but don't care
+   *  about its previous contents (e.g. an open(O_WRONLY|O_TRUNC) succeeded). */
+  ISREG,
+  /** We know and care that the file existed with the given hash (we opened it
+   *  for reading). */
+  ISREG_WITH_HASH,
+  /** We know and care that the directory existed before, but don't care about
+   *  its previous listing (e.g. we successfully created a file underneath it). */
+  ISDIR,
+  /** We know and care that the directory existed with the given file listing hash
+   *  (e.g. an opendir() was performed. */
+  ISDIR_WITH_HASH,
 } FileInitialState;
 
 class FileUsage {

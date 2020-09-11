@@ -181,20 +181,29 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       case DONTCARE:
         /* Nothing to do. */
         break;
-      case EXIST_WITH_HASH: {
-        firebuild::msg::File* input = pio.mutable_inputs()->add_file_exist_with_hash();
+      case ISREG_WITH_HASH: {
+        firebuild::msg::File* input = pio.mutable_inputs()->add_path_isreg_with_hash();
         input->set_path(filename);
         input->set_hash(fu->initial_hash().to_binary());
         break;
       }
-      case EXIST:
-        pio.mutable_inputs()->add_file_exist(filename);
+      case ISREG:
+        pio.mutable_inputs()->add_path_isreg(filename);
         break;
-      case NOTEXIST_OR_EMPTY:
-        pio.mutable_inputs()->add_file_notexist_or_empty(filename);
+      case ISDIR_WITH_HASH: {
+        firebuild::msg::File* input = pio.mutable_inputs()->add_path_isdir_with_hash();
+        input->set_path(filename);
+        input->set_hash(fu->initial_hash().to_binary());
+        break;
+      }
+      case ISDIR:
+        pio.mutable_inputs()->add_path_isdir(filename);
+        break;
+      case NOTEXIST_OR_ISREG_EMPTY:
+        pio.mutable_inputs()->add_path_notexist_or_isreg_empty(filename);
         break;
       case NOTEXIST:
-        pio.mutable_inputs()->add_file_notexist(filename);
+        pio.mutable_inputs()->add_path_notexist(filename);
         break;
       default:
         assert(false);
@@ -213,14 +222,14 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
           FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
           return;
         }
-        firebuild::msg::File* file_written = pio.mutable_outputs()->add_file_with_hash();
+        firebuild::msg::File* file_written = pio.mutable_outputs()->add_path_isreg_with_hash();
         file_written->set_path(filename);
         file_written->set_hash(hash.to_binary());
         // TODO(egmont) fail if setuid/setgid/sticky is set
         file_written->set_mode(st.st_mode & 07777);
       } else {
         if (fu->initial_state() != NOTEXIST) {
-          pio.mutable_outputs()->add_file_notexist(filename);
+          pio.mutable_outputs()->add_path_notexist(filename);
         }
       }
     }
@@ -253,13 +262,14 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
  */
 static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint) {
   struct stat64 st;
-  for (const msg::File& file : pi.file_exist_with_hash()) {
+  for (const msg::File& file : pi.path_isreg_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
-    if (!on_fs_hash.set_from_file(file.path(), NULL)) {
+    bool is_dir;
+    if (!on_fs_hash.set_from_file(file.path(), &is_dir) || is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_hex()
                + " mismatches e.g. at " + pretty_print_string(file.path())
-               + ": file expected but does not exist");
+               + ": regular file expected but does not exist or something else found");
       return false;
     }
     in_cache_hash.set_hash_from_binary(file.hash());
@@ -268,32 +278,57 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
                                   pretty_print_string(file.path()) + ": hash differs");
       return false;
     }
-    // TODO(egmont): also check for file type (regular vs. directory) matching.
   }
-  for (const std::string& filename : pi.file_exist()) {
-    if (stat64(filename.c_str(), &st) == -1) {
+  for (const msg::File& file : pi.path_isdir_with_hash()) {
+    Hash on_fs_hash, in_cache_hash;
+    bool is_dir;
+    if (!on_fs_hash.set_from_file(file.path(), &is_dir) || !is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_hex()
-               + " mismatches e.g. at " + pretty_print_string(filename)
-               + ": file expected but does not exist");
+               + " mismatches e.g. at " + pretty_print_string(file.path())
+               + ": directory expected but does not exist or something else found");
+      return false;
+    }
+    in_cache_hash.set_hash_from_binary(file.hash());
+    if (on_fs_hash != in_cache_hash) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+                                  pretty_print_string(file.path()) + ": hash differs");
       return false;
     }
   }
-  for (const std::string& filename : pi.file_notexist_or_empty()) {
-    if (stat64(filename.c_str(), &st) != -1 && st.st_size > 0) {
+  for (const std::string& filename : pi.path_isreg()) {
+    if (stat64(filename.c_str(), &st) == -1 || !S_ISREG(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_hex()
                + " mismatches e.g. at " + pretty_print_string(filename)
-               + ": file expected to be missing or empty, non-empty file found");
+               + ": regular file expected but does not exist or something else found");
       return false;
     }
   }
-  for (const std::string& filename : pi.file_notexist()) {
+  for (const std::string& filename : pi.path_isdir()) {
+    if (stat64(filename.c_str(), &st) == -1 || !S_ISDIR(st.st_mode)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_hex()
+               + " mismatches e.g. at " + pretty_print_string(filename)
+               + ": directory expected but does not exist or something else found");
+      return false;
+    }
+  }
+  for (const std::string& filename : pi.path_notexist_or_isreg_empty()) {
+    if (stat64(filename.c_str(), &st) != -1 && (!S_ISREG(st.st_mode) || st.st_size > 0)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_hex()
+               + " mismatches e.g. at " + pretty_print_string(filename)
+               + ": file expected to be missing or empty, non-empty file or something else found");
+      return false;
+    }
+  }
+  for (const std::string& filename : pi.path_notexist()) {
     if (stat64(filename.c_str(), &st) != -1) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_hex()
                + " mismatches e.g. at " + pretty_print_string(filename)
-               + ": file expected to be missing, existing file is found");
+               + ": path expected to be missing, existing object is found");
       return false;
     }
   }
@@ -356,21 +391,31 @@ msg::ProcessInputsOutputs *ExecedProcessCacher::find_shortcut(const ExecedProces
 bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                                          const msg::ProcessInputsOutputs& inouts) {
   if (proc->parent_exec_point()) {
-    for (const msg::File& file : inouts.inputs().file_exist_with_hash()) {
+    for (const msg::File& file : inouts.inputs().path_isreg_with_hash()) {
       Hash hash;
       hash.set_hash_from_binary(file.hash());
-      FileUsage fu(EXIST_WITH_HASH, hash);
+      FileUsage fu(ISREG_WITH_HASH, hash);
       proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
     }
-    for (const std::string& filename : inouts.inputs().file_exist()) {
-      FileUsage fu(EXIST);
+    for (const msg::File& file : inouts.inputs().path_isdir_with_hash()) {
+      Hash hash;
+      hash.set_hash_from_binary(file.hash());
+      FileUsage fu(ISDIR_WITH_HASH, hash);
+      proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
+    }
+    for (const std::string& filename : inouts.inputs().path_isreg()) {
+      FileUsage fu(ISREG);
       proc->parent_exec_point()->propagate_file_usage(filename, fu);
     }
-    for (const std::string& filename : inouts.inputs().file_notexist_or_empty()) {
-      FileUsage fu(NOTEXIST_OR_EMPTY);
+    for (const std::string& filename : inouts.inputs().path_isdir()) {
+      FileUsage fu(ISDIR);
       proc->parent_exec_point()->propagate_file_usage(filename, fu);
     }
-    for (const std::string& filename : inouts.inputs().file_notexist()) {
+    for (const std::string& filename : inouts.inputs().path_notexist_or_isreg_empty()) {
+      FileUsage fu(NOTEXIST_OR_ISREG_EMPTY);
+      proc->parent_exec_point()->propagate_file_usage(filename, fu);
+    }
+    for (const std::string& filename : inouts.inputs().path_notexist()) {
       FileUsage fu(NOTEXIST);
       proc->parent_exec_point()->propagate_file_usage(filename, fu);
     }
@@ -380,7 +425,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   FileUsage fu;
   fu.set_written(true);
 
-  for (const msg::File& file : inouts.outputs().file_with_hash()) {
+  for (const msg::File& file : inouts.outputs().path_isreg_with_hash()) {
     FB_DEBUG(FB_DEBUG_SHORTCUT,
              "│   Fetching file from blobs cache: "
              + pretty_print_string(file.path()));
@@ -396,7 +441,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
     }
   }
-  for (const std::string& filename : inouts.outputs().file_notexist()) {
+  for (const std::string& filename : inouts.outputs().path_notexist()) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file: " + pretty_print_string(filename));
     unlink(filename.c_str());
     if (proc->parent_exec_point()) {
