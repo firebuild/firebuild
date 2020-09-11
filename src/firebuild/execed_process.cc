@@ -307,7 +307,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fcreated: [", indent);
   for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() != EXIST_WITH_HASH && pair.second->written()) {
+    if (pair.second->initial_state() != ISREG_WITH_HASH && pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
@@ -315,7 +315,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fmodified: [", indent);
   for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() == EXIST_WITH_HASH && pair.second->written()) {
+    if (pair.second->initial_state() == ISREG_WITH_HASH && pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
@@ -323,7 +323,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fread: [", indent);
   for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() == EXIST_WITH_HASH && !pair.second->written()) {
+    if (pair.second->initial_state() == ISREG_WITH_HASH && !pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }
@@ -331,7 +331,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() != EXIST_WITH_HASH && !pair.second->written()) {
+    if (pair.second->initial_state() != ISREG_WITH_HASH && !pair.second->written()) {
       fprintf(stream, "\"%s\",", pair.first.c_str());
     }
   }

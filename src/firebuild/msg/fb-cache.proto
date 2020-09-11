@@ -88,17 +88,19 @@ message ProcessFingerprint {
 // that matches the current world.
 message ProcessInputs {
     // Files that are opened for reading, with various results.
-    repeated File file_exist_with_hash = 1;
-    repeated bytes file_exist = 2;
-    repeated bytes file_notexist_or_empty = 3;
-    repeated bytes file_notexist = 4;
+    repeated File path_isreg_with_hash = 1;
+    repeated bytes path_isreg = 2;
+    repeated File path_isdir_with_hash = 3;
+    repeated bytes path_isdir = 4;
+    repeated bytes path_notexist_or_isreg_empty = 5;
+    repeated bytes path_notexist = 6;
 
     // Files and directories that are stat'ed, even if stat failed.
-    //repeated File file_stated = 5;
+    //repeated File path_stated = 7;
 
     // TODO: Directories that are opendir'ed, even if opendir failed.
     // FIXME: need to fingerprint the entire directory listing??
-    // repeated Dir dir_listed = 6;
+    // repeated Dir path_isdir_listed = 8;
 
     // TODO: readlink and friends...
 }
@@ -108,19 +110,20 @@ message ProcessInputs {
 message ProcessOutputs {
     // Files that are written to (or removed), only if opening them for
     // writing succeeded.
-    repeated File file_with_hash = 1;
-    repeated bytes file_notexist = 2;
+    repeated File path_isreg_with_hash = 1;
+    // Directories created
+    repeated File path_isdir = 2;
+    repeated bytes path_notexist = 3;
 
     // Maybe special handling of files that are appended to?
 
     // TODO:
-    // mkdir
     // unlink, rmdir
     // link, symlink
     // chown, chmod
     // etc.
 
-    required int32 exit_status = 3;
+    required int32 exit_status = 4;
 }
 
 message ProcessInputsOutputs {

@@ -37,7 +37,8 @@ namespace firebuild {
 void FileUsage::merge(const FileUsage& that) {
   if (initial_state_ == DONTCARE) {
     initial_state_ = that.initial_state_;
-    if (that.initial_state_ == EXIST_WITH_HASH) {
+    if (that.initial_state_ == ISREG_WITH_HASH ||
+        that.initial_state_ == ISDIR_WITH_HASH) {
       initial_hash_ = that.initial_hash_;
     }
   }
@@ -63,7 +64,14 @@ bool FileUsage::update_from_open_params(const std::string& filename, int flags, 
   }
 
   if (!err) {
-    if (is_write(flags)) {
+    if (flags & O_DIRECTORY) {
+      /* opendir() or alike */
+      if (!initial_hash_.set_from_file(filename)) {
+        unknown_err_ = errno;
+        return false;
+      }
+      initial_state_ = ISDIR_WITH_HASH;
+    } else if (is_write(flags)) {
       /* If successfully opened for writing:
        *
        *     trunc   creat   excl
@@ -83,7 +91,7 @@ bool FileUsage::update_from_open_params(const std::string& filename, int flags, 
           /* A: What a nasty combo! We must take a note that the file
            * existed, but don't care about its previous contents (also
            * it's too late now to figure that out). */
-          initial_state_ = EXIST;
+          initial_state_ = ISREG;
         } else {
           /* B: The old contents could have been anything (including no
            * such file yet), we don't care since we truncated. Keep
@@ -96,7 +104,7 @@ bool FileUsage::update_from_open_params(const std::string& filename, int flags, 
             unknown_err_ = errno;
             return false;
           }
-          initial_state_ = EXIST_WITH_HASH;
+          initial_state_ = ISREG_WITH_HASH;
         } else {
           /* E: Another nasty combo. We can't distinguish a newly
            * created empty file from a previously empty one. If the file
@@ -111,9 +119,9 @@ bool FileUsage::update_from_open_params(const std::string& filename, int flags, 
               unknown_err_ = errno;
               return false;
             }
-            initial_state_ = EXIST_WITH_HASH;
+            initial_state_ = ISREG_WITH_HASH;
           } else {
-            initial_state_ = NOTEXIST_OR_EMPTY;
+            initial_state_ = NOTEXIST_OR_ISREG_EMPTY;
           }
         }
       }
@@ -124,7 +132,7 @@ bool FileUsage::update_from_open_params(const std::string& filename, int flags, 
         unknown_err_ = errno;
         return false;
       }
-      initial_state_ = EXIST_WITH_HASH;
+      initial_state_ = ISREG_WITH_HASH;
     }
   } else /* if (err) */ {
     /* The attempt to open failed. */
