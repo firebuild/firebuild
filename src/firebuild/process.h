@@ -183,6 +183,13 @@ class Process {
   int handle_force_close(const int fd);
 
   /**
+   * Handle mkdir in the monitored process
+   * @param name relative or absolute file name
+   * @param error error code of mkdir()
+   */
+  int handle_mkdir(const std::string &name, const int error = 0);
+
+  /**
    * Handle pipe() in the monitored process
    * @param fd1 file descriptor to read
    * @param fd2 file descriptor to write

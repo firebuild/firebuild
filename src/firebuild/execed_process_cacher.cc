@@ -216,17 +216,26 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       Hash hash;
       struct stat st;
       if (stat(filename.c_str(), &st) == 0) {
-        /* TODO don't store and don't record if it was read with the same hash. */
-        if (!cache_->store_file(filename, &hash)) {
-          /* unexpected error, now what? */
-          FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
-          return;
+        if (S_ISREG(st.st_mode)) {
+          /* TODO don't store and don't record if it was read with the same hash. */
+          if (!cache_->store_file(filename, &hash)) {
+            /* unexpected error, now what? */
+            FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
+            return;
+          }
+          firebuild::msg::File* file_written = pio.mutable_outputs()->add_path_isreg_with_hash();
+          file_written->set_path(filename);
+          file_written->set_hash(hash.to_binary());
+          // TODO(egmont) fail if setuid/setgid/sticky is set
+          file_written->set_mode(st.st_mode & 07777);
+        } else if (S_ISDIR(st.st_mode)) {
+          firebuild::msg::File* file_written = pio.mutable_outputs()->add_path_isdir();
+          file_written->set_path(filename);
+          // TODO(egmont) fail if setuid/setgid/sticky is set
+          file_written->set_mode(st.st_mode & 07777);
+        } else {
+          // TODO(egmont) handle other types of entries
         }
-        firebuild::msg::File* file_written = pio.mutable_outputs()->add_path_isreg_with_hash();
-        file_written->set_path(filename);
-        file_written->set_hash(hash.to_binary());
-        // TODO(egmont) fail if setuid/setgid/sticky is set
-        file_written->set_mode(st.st_mode & 07777);
       } else {
         if (fu->initial_state() != NOTEXIST) {
           pio.mutable_outputs()->add_path_notexist(filename);
@@ -425,6 +434,13 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   FileUsage fu;
   fu.set_written(true);
 
+  for (const msg::File& file : inouts.outputs().path_isdir()) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + pretty_print_string(file.path()));
+    mkdir(file.path().c_str(), file.mode());
+    if (proc->parent_exec_point()) {
+      proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
+    }
+  }
   for (const msg::File& file : inouts.outputs().path_isreg_with_hash()) {
     FB_DEBUG(FB_DEBUG_SHORTCUT,
              "│   Fetching file from blobs cache: "

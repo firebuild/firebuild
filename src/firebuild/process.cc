@@ -94,7 +94,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
   }
 
-  if (!exec_point()->register_file_usage(name, name, flags, error)) {
+  if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
     disable_shortcutting_bubble_up("Could not register the opening of " +
                                    pretty_print_string(name));
     return -1;
@@ -152,6 +152,19 @@ int Process::handle_close(const int fd, const int error) {
       return 0;
     }
   }
+}
+
+int Process::handle_mkdir(const std::string &ar_name, const int error) {
+  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
+      wd() + "/" + ar_name;
+
+  if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, 0, error)) {
+    disable_shortcutting_bubble_up("Could not register the directory creation of " +
+                                   pretty_print_string(name));
+    return -1;
+  }
+
+  return 0;
 }
 
 int Process::handle_pipe(const int fd1, const int fd2, const int flags,
@@ -233,14 +246,15 @@ int Process::handle_rename(const std::string &old_ar_name, const std::string &ne
    * FIXME refactor so that it plays nicer together with register_file_usage(). */
 
   /* Register the opening for reading at the old location */
-  if (!exec_point()->register_file_usage(old_name, new_name, O_RDONLY, error)) {
+  if (!exec_point()->register_file_usage(old_name, new_name, FILE_ACTION_OPEN, O_RDONLY, error)) {
     disable_shortcutting_bubble_up("Could not register the renaming from " +
                                    pretty_print_string(old_name));
     return -1;
   }
 
   /* Register the opening for writing at the new location */
-  if (!exec_point()->register_file_usage(new_name, new_name, O_CREAT|O_WRONLY|O_TRUNC, error)) {
+  if (!exec_point()->register_file_usage(new_name, new_name,
+                                         FILE_ACTION_OPEN, O_CREAT|O_WRONLY|O_TRUNC, error)) {
     disable_shortcutting_bubble_up("Could not register the renaming to " +
                                    pretty_print_string(new_name));
     return -1;

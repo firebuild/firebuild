@@ -71,9 +71,10 @@ void ExecedProcess::initialize() {
   /* Propagate the opening of the executable and libraries upwards as
    * regular file open events. */
   if (parent_exec_point()) {
-    parent_exec_point()->register_file_usage(executable(), executable(), O_RDONLY, 0);
+    parent_exec_point()->register_file_usage(executable(), executable(),
+                                             FILE_ACTION_OPEN, O_RDONLY, 0);
     for (auto& lib : libs()) {
-      parent_exec_point()->register_file_usage(lib, lib, O_RDONLY, 0);
+      parent_exec_point()->register_file_usage(lib, lib, FILE_ACTION_OPEN, O_RDONLY, 0);
     }
   }
 }
@@ -154,8 +155,9 @@ void ExecedProcess::propagate_file_usage(const std::string &name,
  */
 bool ExecedProcess::register_file_usage(const std::string &name,
                                         const std::string &actual_file,
-                                        const int flags,
-                                        const int error) {
+                                        FileAction action,
+                                        int flags,
+                                        int error) {
   libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
   for (int i = 0; i < ignores.getLength(); i++) {
     if (path_begins_with(name, ignores[i])) {
@@ -172,7 +174,7 @@ bool ExecedProcess::register_file_usage(const std::string &name,
      */
     fu = file_usages()[name];
     FileUsage *fu_change = new FileUsage();
-    if (!fu_change->update_from_open_params(actual_file, flags, error, false)) {
+    if (!fu_change->update_from_open_params(actual_file, action, flags, error, false)) {
       /* Error */
       return false;
     }
@@ -186,7 +188,7 @@ bool ExecedProcess::register_file_usage(const std::string &name,
      * we need to know about its initial state. Use that same object to
      * propagate the changes upwards. */
     fu = new FileUsage();
-    if (!fu->update_from_open_params(actual_file, flags, error, true)) {
+    if (!fu->update_from_open_params(actual_file, action, flags, error, true)) {
       /* Error */
       delete fu;
       return false;

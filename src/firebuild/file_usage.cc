@@ -54,101 +54,113 @@ void FileUsage::merge(const FileUsage& that) {
  * (or at least attempted to) for reading, and as such the initial
  * values are not changed; only the written property is updated.
  */
-bool FileUsage::update_from_open_params(const std::string& filename, int flags, int err,
+bool FileUsage::update_from_open_params(const std::string& filename,
+                                        FileAction action, int flags, int err,
                                         bool do_read) {
   if (!do_read) {
-    if (is_write(flags) && !err) {
+    if ((action == FILE_ACTION_MKDIR || is_write(flags)) && !err) {
       written_ = true;
     }
     return true;
   }
 
   if (!err) {
-    if (flags & O_DIRECTORY) {
-      /* opendir() or alike */
-      if (!initial_hash_.set_from_file(filename)) {
-        unknown_err_ = errno;
-        return false;
-      }
-      initial_state_ = ISDIR_WITH_HASH;
-    } else if (is_write(flags)) {
-      /* If successfully opened for writing:
-       *
-       *     trunc   creat   excl
-       * A     +       -            => prev file must exist, contents don't matter
-       * B     +       +       -    => prev file doesn't matter
-       * C     +       +       +    => prev file mustn't exist
-       * D     -       -            => prev file must exist, contents preserved and matter
-       * E     -       +       -    => contents preserved (or new empty) and matter
-       * F     -       +       +    => prev file mustn't exist
-       */
-      if ((flags & O_CREAT) && (flags & O_EXCL)) {
-        /* C+F: If an exclusive new file was created, take a note that
-         * the file didn't exist previously. */
-        initial_state_ = NOTEXIST;
-      } else if (flags & O_TRUNC) {
-        if (!(flags & O_CREAT)) {
-          /* A: What a nasty combo! We must take a note that the file
-           * existed, but don't care about its previous contents (also
-           * it's too late now to figure that out). */
-          initial_state_ = ISREG;
-        } else {
-          /* B: The old contents could have been anything (including no
-           * such file yet), we don't care since we truncated. Keep
-           * initial_state_ = DONTCARE. */
+    if (action == FILE_ACTION_OPEN) {
+      if (flags & O_DIRECTORY) {
+        /* opendir() or alike */
+        if (!initial_hash_.set_from_file(filename)) {
+          unknown_err_ = errno;
+          return false;
         }
-      } else {
-        if (!(flags & O_CREAT)) {
-          /* D: Contents unchanged. Need to checksum the file. */
-          if (!initial_hash_.set_from_file(filename)) {
-            unknown_err_ = errno;
-            return false;
+        initial_state_ = ISDIR_WITH_HASH;
+      } else if (is_write(flags)) {
+        /* If successfully opened for writing:
+         *
+         *     trunc   creat   excl
+         * A     +       -            => prev file must exist, contents don't matter
+         * B     +       +       -    => prev file doesn't matter
+         * C     +       +       +    => prev file mustn't exist
+         * D     -       -            => prev file must exist, contents preserved and matter
+         * E     -       +       -    => contents preserved (or new empty) and matter
+         * F     -       +       +    => prev file mustn't exist
+         */
+        if ((flags & O_CREAT) && (flags & O_EXCL)) {
+          /* C+F: If an exclusive new file was created, take a note that
+           * the file didn't exist previously. */
+          initial_state_ = NOTEXIST;
+        } else if (flags & O_TRUNC) {
+          if (!(flags & O_CREAT)) {
+            /* A: What a nasty combo! We must take a note that the file
+             * existed, but don't care about its previous contents (also
+             * it's too late now to figure that out). */
+            initial_state_ = ISREG;
+          } else {
+            /* B: The old contents could have been anything (including no
+             * such file yet), we don't care since we truncated. Keep
+             * initial_state_ = DONTCARE. */
           }
-          initial_state_ = ISREG_WITH_HASH;
         } else {
-          /* E: Another nasty combo. We can't distinguish a newly
-           * created empty file from a previously empty one. If the file
-           * is non-empty, we need to store its hash. */
-          struct stat st;
-          if (stat(filename.c_str(), &st) == -1) {
-            unknown_err_ = errno;
-            return false;
-          }
-          if (st.st_size == 0) {
+          if (!(flags & O_CREAT)) {
+            /* D: Contents unchanged. Need to checksum the file. */
             if (!initial_hash_.set_from_file(filename)) {
               unknown_err_ = errno;
               return false;
             }
             initial_state_ = ISREG_WITH_HASH;
           } else {
-            initial_state_ = NOTEXIST_OR_ISREG_EMPTY;
+            /* E: Another nasty combo. We can't distinguish a newly
+             * created empty file from a previously empty one. If the file
+             * is non-empty, we need to store its hash. */
+            struct stat st;
+            if (stat(filename.c_str(), &st) == -1) {
+              unknown_err_ = errno;
+              return false;
+            }
+            if (st.st_size == 0) {
+              if (!initial_hash_.set_from_file(filename)) {
+                unknown_err_ = errno;
+                return false;
+              }
+              initial_state_ = ISREG_WITH_HASH;
+            } else {
+              initial_state_ = NOTEXIST_OR_ISREG_EMPTY;
+            }
           }
         }
+        written_ = true;
+      } else {
+        /* The file was successfully opened for reading only. */
+        if (!initial_hash_.set_from_file(filename)) {
+          unknown_err_ = errno;
+          return false;
+        }
+        initial_state_ = ISREG_WITH_HASH;
       }
+    } else if (action == FILE_ACTION_MKDIR) {
+      initial_state_ = NOTEXIST;
       written_ = true;
-    } else {
-      /* The file was successfully opened for reading only. */
-      if (!initial_hash_.set_from_file(filename)) {
-        unknown_err_ = errno;
-        return false;
-      }
-      initial_state_ = ISREG_WITH_HASH;
     }
   } else /* if (err) */ {
-    /* The attempt to open failed. */
-    if (is_write(flags)) {
-      /* Opening for writing failed. Could be a permission problem or so.
+    if (action == FILE_ACTION_OPEN) {
+      /* The attempt to open failed. */
+      if (is_write(flags)) {
+        /* Opening for writing failed. Could be a permission problem or so.
+         * What to do? Probably nothing. */
+        // FIXME...
+      } else {
+        /* Opening for reading failed. */
+        if (err == ENOENT) {
+          initial_state_ = NOTEXIST;
+        } else {
+          /* We don't support other errors such as permission denied. */
+          unknown_err_ = err;
+          return false;
+        }
+      }
+    } else if (action == FILE_ACTION_MKDIR) {
+      /* Creating the directory failed. Could be a permission problem or so.
        * What to do? Probably nothing. */
       // FIXME...
-    } else {
-      /* Opening for reading failed. */
-      if (err == ENOENT) {
-        initial_state_ = NOTEXIST;
-      } else {
-        /* We don't support other errors such as permission denied. */
-        unknown_err_ = err;
-        return false;
-      }
     }
   }
   return true;
