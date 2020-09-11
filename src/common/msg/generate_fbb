@@ -252,6 +252,17 @@ gen_fbb([
     (OPTIONAL, "int32_t", "error_no"),
   ]),
 
+  ("mkdir", [
+    # dir file descriptor for mkdirat()
+    (OPTIONAL, "int", "dirfd"),
+    # dir path
+    (OPTIONAL, STRING, "pathname"),
+    # mode
+    (REQUIRED, "mode_t", "mode"),
+    # error no., when ret = -1
+    (OPTIONAL, "int", "error_no"),
+  ]),
+
   ("rmdir", [
     # dir path
     (OPTIONAL, STRING, "dir"),

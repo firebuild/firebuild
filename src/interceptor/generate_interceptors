@@ -283,10 +283,9 @@ generate("int", "closedir", "DIR *dirp",
          ack=True)
 # FIXME implement scandir(at)(64)
 
-# FIXME Intercept mkdir
-#generate("int", "mkdir", "const char *pathname, mode_t mode")
-#generate("int", "mkdirat", "int dirfd, const char *pathname, mode_t mode",
-#         msg="mkdir")
+generate("int", "mkdir", "const char *pathname, mode_t mode")
+generate("int", "mkdirat", "int dirfd, const char *pathname, mode_t mode",
+         msg="mkdir")
 
 # Intercept the remove, rmdir, unlink families
 generate("int", ["unlink", "remove"], "const char *pathname")
@@ -903,11 +902,11 @@ generate("int", "mkostemps", "char *file, int suffixlen, int flags",
                          "fbb_open_set_mode(&ic_msg, 0600);"],
          send_ret_on_success=True,
          ack=True)
-#  generate("char *", "mkdtemp", "char *dir",
-#           send_msg_on_error=False,
-#           msg="mkdir",
-#           msg_add_fields=["fbb_mkdir_set_mode(&ic_msg, 0700);"],
-#           ack=True)
+generate("char *", "mkdtemp", "char *pathname",
+         send_msg_on_error=False,
+         msg="mkdir",
+         msg_add_fields=["fbb_mkdir_set_mode(&ic_msg, 0700);"],
+         ack=True)
 # FIXME needs support on the supervisor for starting to track an fd without knowing the backing file
 generate("FILE *", ["tmpfile", "tmpfile64"], "",
          tpl="once")
