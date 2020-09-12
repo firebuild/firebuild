@@ -201,6 +201,31 @@ bool ExecedProcess::register_file_usage(const std::string &name,
   return true;
 }
 
+/**
+ * See the other register_file_usage().
+ * This one does not look at the file system, but instead registers the given fu_change.
+ */
+bool ExecedProcess::register_file_usage(const std::string &name,
+                                        FileUsage fu_change) {
+  libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
+  for (int i = 0; i < ignores.getLength(); i++) {
+    if (path_begins_with(name, ignores[i])) {
+      return true;
+    }
+  }
+
+  if (file_usages().count(name) > 0) {
+    file_usages()[name]->merge(fu_change);
+  } else {
+    FileUsage *fu = new FileUsage(fu_change);
+    file_usages()[name] = fu;
+  }
+  if (parent_exec_point()) {
+    parent_exec_point()->propagate_file_usage(name, fu_change);
+  }
+  return true;
+}
+
 /* Find and apply shortcut */
 bool ExecedProcess::shortcut() {
   if (can_shortcut() && cacher_) {

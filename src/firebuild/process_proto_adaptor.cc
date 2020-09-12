@@ -29,9 +29,19 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_close *c) {
   return p->handle_close(fbb_close_get_fd(c), error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_unlink *u) {
+  const int error = fbb_unlink_get_error_no_with_fallback(u, 0);
+  return p->handle_unlink(fbb_unlink_get_pathname(u), error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBB_mkdir *m) {
   const int error = fbb_mkdir_get_error_no_with_fallback(m, 0);
   return p->handle_mkdir(fbb_mkdir_get_pathname(m), error);
+}
+
+int ProcessPBAdaptor::msg(Process *p, const FBB_rmdir *r) {
+  const int error = fbb_rmdir_get_error_no_with_fallback(r, 0);
+  return p->handle_rmdir(fbb_rmdir_get_pathname(r), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_pipe2 *pipe) {

@@ -64,6 +64,7 @@ class ExecedProcess : public Process {
                             const FileUsage &fu_change);
   bool register_file_usage(const std::string &name, const std::string &actual_file,
                            FileAction action, int flags, int error);
+  bool register_file_usage(const std::string &name, FileUsage fu_change);
 
   /**
    * Fail to change to a working directory

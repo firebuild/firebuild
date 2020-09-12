@@ -120,9 +120,6 @@ class FileUsage {
   /** An unhandled error occured during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
-
-
-  DISALLOW_COPY_AND_ASSIGN(FileUsage);
 };
 
 }  // namespace firebuild
