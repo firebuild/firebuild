@@ -154,6 +154,23 @@ int Process::handle_close(const int fd, const int error) {
   }
 }
 
+int Process::handle_unlink(const std::string &ar_name, const int error) {
+  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
+      wd() + "/" + ar_name;
+
+  if (!error) {
+    FileUsage fu(ISREG);
+    fu.set_written(true);
+    if (!exec_point()->register_file_usage(name, fu)) {
+      disable_shortcutting_bubble_up("Could not register the unlinking of " +
+                                     pretty_print_string(name));
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
 int Process::handle_mkdir(const std::string &ar_name, const int error) {
   const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
       wd() + "/" + ar_name;
@@ -162,6 +179,23 @@ int Process::handle_mkdir(const std::string &ar_name, const int error) {
     disable_shortcutting_bubble_up("Could not register the directory creation of " +
                                    pretty_print_string(name));
     return -1;
+  }
+
+  return 0;
+}
+
+int Process::handle_rmdir(const std::string &ar_name, const int error) {
+  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
+      wd() + "/" + ar_name;
+
+  if (!error) {
+    FileUsage fu(ISDIR);  // FIXME register that it's an _empty_ directory
+    fu.set_written(true);
+    if (!exec_point()->register_file_usage(name, fu)) {
+      disable_shortcutting_bubble_up("Could not register the rmdir of " +
+                                     pretty_print_string(name));
+      return -1;
+    }
   }
 
   return 0;

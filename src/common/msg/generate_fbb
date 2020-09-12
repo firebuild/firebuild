@@ -265,7 +265,7 @@ gen_fbb([
 
   ("rmdir", [
     # dir path
-    (OPTIONAL, STRING, "dir"),
+    (OPTIONAL, STRING, "pathname"),
     # error no., when ret = -1
     (OPTIONAL, "int32_t", "error_no"),
   ]),

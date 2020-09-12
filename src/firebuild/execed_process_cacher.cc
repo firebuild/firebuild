@@ -457,9 +457,13 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       proc->parent_exec_point()->propagate_file_usage(file.path(), fu);
     }
   }
-  for (const std::string& filename : inouts.outputs().path_notexist()) {
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file: " + pretty_print_string(filename));
-    unlink(filename.c_str());
+  /* Walk backwards, so that inner contents are removed before the directory itself. */
+  for (int i = inouts.outputs().path_notexist_size() - 1; i >= 0; i--) {
+    const std::string& filename = inouts.outputs().path_notexist(i);
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file or directory: " + pretty_print_string(filename));
+    if (unlink(filename.c_str()) < 0 && errno == EISDIR) {
+      rmdir(filename.c_str());
+    }
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(filename, fu);
     }

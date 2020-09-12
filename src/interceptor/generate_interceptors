@@ -291,7 +291,7 @@ generate("int", "mkdirat", "int dirfd, const char *pathname, mode_t mode",
 generate("int", ["unlink", "remove"], "const char *pathname")
 generate("int", "unlinkat", "int dirfd, const char *pathname, int flags",
          msg="unlink")
-generate("int", "rmdir", "const char *dir")
+generate("int", "rmdir", "const char *pathname")
 
 # Intercept the rename family
 generate("int", "rename", "const char *oldpath, const char *newpath")
