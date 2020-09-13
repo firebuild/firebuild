@@ -85,6 +85,51 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 {#                                                                    #}
 ### if gen == 'impl.c'
 
+###   macro grab_lock_if_needed(grab_condition)
+  /* Grabbing the global lock (unless it's already ours, e.g. we're in a signal handler) */
+  bool i_locked = false;  /* "i" as in "me, myself and I" */
+  if ({{ grab_condition }}) {
+    thread_signal_danger_zone_enter();
+
+    /* Some internal integrity assertions */
+    if ((thread_has_global_lock) != (thread_intercept_on != NULL)) {
+      char debug_buf[256];
+      snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: thread_has_global_lock (%s) and thread_intercept_on (%s) must go hand in hand", "{{ func }}", thread_has_global_lock ? "true" : "false", thread_intercept_on);
+      insert_debug_msg(debug_buf);
+      assert(0 && "Internal error: thread_has_global_lock and thread_intercept_on must go hand in hand");
+    }
+    if (thread_signal_handler_running_depth == 0 && thread_libc_nesting_depth == 0 && thread_intercept_on != NULL) {
+      char debug_buf[256];
+      snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: already intercepting %s (and no signal or atfork handler running in this thread)", "{{ func }}", thread_intercept_on);
+      insert_debug_msg(debug_buf);
+      assert(0 && "Internal error: nested interceptors (no signal handler running)");
+    }
+
+    if (!thread_has_global_lock) {
+      pthread_mutex_lock(&ic_global_lock);
+      thread_has_global_lock = true;
+      thread_intercept_on = "{{ func }}";
+      i_locked = true;
+    }
+    thread_signal_danger_zone_leave();
+    assert(thread_signal_danger_zone_depth == 0);
+  }
+  /* Global lock grabbed */
+###   endmacro
+
+###   macro release_lock_if_needed()
+  /* Releasing the global lock (if we grabbed it in this pass) */
+  if (i_locked) {
+    thread_signal_danger_zone_enter();
+    pthread_mutex_unlock(&ic_global_lock);
+    thread_has_global_lock = false;
+    thread_intercept_on = NULL;
+    thread_signal_danger_zone_leave();
+    assert(thread_signal_danger_zone_depth == 0);
+  }
+  /* Global lock released */
+###   endmacro
+
 /* Generated from {{ tpl }} */
 ###   block impl_c
 
@@ -133,33 +178,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   }
 
 ###     if global_lock
-  bool i_locked = false;  /* "i" as in "me, myself and I" */
-  if (i_am_intercepting) {
-    thread_signal_danger_zone_enter();
-
-    /* Some internal integrity assertions */
-    if ((thread_has_global_lock) != (thread_intercept_on != NULL)) {
-      char debug_buf[256];
-      snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: thread_has_global_lock (%s) and thread_intercept_on (%s) must go hand in hand", "{{ func }}", thread_has_global_lock ? "true" : "false", thread_intercept_on);
-      insert_debug_msg(debug_buf);
-      assert(0 && "Internal error: thread_has_global_lock and thread_intercept_on must go hand in hand");
-    }
-    if (thread_signal_handler_running_depth == 0 && thread_libc_nesting_depth == 0 && thread_intercept_on != NULL) {
-      char debug_buf[256];
-      snprintf(debug_buf, sizeof(debug_buf), "Internal error while intercepting %s: already intercepting %s (and no signal or atfork handler running in this thread)", "{{ func }}", thread_intercept_on);
-      insert_debug_msg(debug_buf);
-      assert(0 && "Internal error: nested interceptors (no signal handler running)");
-    }
-
-    if (!thread_has_global_lock) {
-      pthread_mutex_lock(&ic_global_lock);
-      thread_has_global_lock = true;
-      thread_intercept_on = "{{ func }}";
-      i_locked = true;
-    }
-    thread_signal_danger_zone_leave();
-    assert(thread_signal_danger_zone_depth == 0);
-  }
+  {{ grab_lock_if_needed('i_am_intercepting') }}
 ###     endif
 
 ###     block body
@@ -274,14 +293,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   }
 
 ###     if global_lock
-  if (i_locked) {
-    thread_signal_danger_zone_enter();
-    pthread_mutex_unlock(&ic_global_lock);
-    thread_has_global_lock = false;
-    thread_intercept_on = NULL;
-    thread_signal_danger_zone_leave();
-    assert(thread_signal_danger_zone_depth == 0);
-  }
+  {{ release_lock_if_needed() }}
 ###     endif
 
 ###     if not no_saved_errno
