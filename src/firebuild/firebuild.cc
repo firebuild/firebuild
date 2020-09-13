@@ -44,7 +44,7 @@ namespace {
 static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
-static std::string fb_conn_string;
+static char *fb_conn_string;
 static int sigchld_fds[2];
 static FILE * sigchld_stream;
 
@@ -788,7 +788,7 @@ static int create_listener() {
 
   struct sockaddr_un local;
   local.sun_family = AF_UNIX;
-  strncpy(local.sun_path, fb_conn_string.c_str(), sizeof(local.sun_path));
+  strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path));
 
   auto len = strlen(local.sun_path) + sizeof(local.sun_family);
   if (bind(listener, (struct sockaddr *)&local, len) == -1) {
@@ -1121,12 +1121,13 @@ int main(const int argc, char *argv[]) {
   }
 
   close(listener);
-  unlink(fb_conn_string.c_str());
+  unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
 
   delete(error_fos);
   fclose(sigchld_stream);
   close(sigchld_fds[0]);
+  free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
   delete(cfg);
