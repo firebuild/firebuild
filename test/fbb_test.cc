@@ -122,6 +122,25 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
+  int i = 0;
+  const char* sa9[3];
+  for_s_in_fbb_testing_sa9(msg, {sa9[i++] = s;});
+  if (i != 3) {
+    fprintf(stderr, "i == 3 failed\n");
+  }
+  if (strcmp(sa9[0], "item1") != 0) {
+    fprintf(stderr, "sa9[0] == \"item1\" failed\n");
+    exit(1);
+  }
+  if (strcmp(sa9[1], "item02") != 0) {
+    fprintf(stderr, "sa9[1] == \"item02\" failed\n");
+    exit(1);
+  }
+  if (strcmp(sa9[2], "item003") != 0) {
+    fprintf(stderr, "sa9[2] == \"item003\" failed\n");
+    exit(1);
+  }
+
   std::vector<std::string> arr1 = fbb_testing_get_sa9(msg);
   if (arr1.size() != 3) {
     fprintf(stderr, "sa9.size() == 3 failed\n");

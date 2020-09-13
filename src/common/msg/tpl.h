@@ -182,6 +182,17 @@ static inline const char *fbb_{{ msg }}_get_{{ var }}(const FBB_{{ msg }} *msg) 
 }
 
 ###     elif type == STRINGARRAY
+#define for_s_in_fbb_{{ msg }}_{{ var }}(msg, loop_body) do {            \
+  size_t rem_size = msg->{{ var }}_size;                                 \
+  const char *s = (const char *)(msg) + sizeof(*msg){{ ns.offset_str }}; \
+  while (rem_size > 0) {                                                 \
+    loop_body                                                            \
+    size_t size = strlen(s) + 1;                                         \
+    rem_size -= size;                                                    \
+    s += size;                                                           \
+  }                                                                      \
+} while (0)
+
 #ifdef __cplusplus
 /* get stringarray '{{ var }}', assuming the wire format in memory, i.e. the struct is followed by the raw strings */
 static inline std::vector<std::string> fbb_{{ msg }}_get_{{ var }}(const FBB_{{ msg }} *msg) {
