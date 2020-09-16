@@ -43,7 +43,6 @@ add_library(fbintercept MODULE
   ic_redirect_only.c
   intercept.c
   interceptors.c
-  utils.c
   $<TARGET_OBJECTS:common_objs>)
 
 add_dependencies(fbintercept gen_files fbb_gen_files)

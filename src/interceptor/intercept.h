@@ -22,7 +22,7 @@
 #include <sys/types.h>
 #include <spawn.h>
 
-#include "interceptor/utils.h"
+#include "common/firebuild_common.h"
 
 /** A poor man's (plain C) implementation of a hashmap:
  *  posix_spawn_file_actions_t -> char**
