@@ -14,6 +14,19 @@ extern "C" {
 #endif
 
 /**
+ * string_array allows to conveniently build up an array of strings (i.e. NULL-terminated char**).
+ */
+typedef struct {
+  char **p;
+  int len;         /* excluding the trailing NULL */
+  int size_alloc;  /* including the room for the trailing NULL */
+} string_array;
+
+void string_array_init(string_array *array);
+void string_array_append(string_array *array, char *s);
+void string_array_deep_free(string_array *array);
+
+/**
  * wrapper for read() retrying on recoverable errors
  *
  * It is implemented differently in supervisor and interceptor

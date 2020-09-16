@@ -16,7 +16,6 @@
 #include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/interceptors.h"
-#include "interceptor/utils.h"
 #include "common/firebuild_common.h"
 
 static void fb_ic_cleanup() __attribute__((destructor));
