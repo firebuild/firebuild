@@ -11,7 +11,7 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y -u ppa:rbalint/valgrind
-        sudo apt-get -y install bats cmake doxygen graphviz lcov libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2 valgrind
+        sudo apt-get -y install bats cmake doxygen graphviz lcov libconfig++-dev node-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2 valgrind
     - name: build-out-of-tree
       run: |
         mkdir build
@@ -35,8 +35,6 @@ jobs:
       # tests don't run with out of tree builds at the moment
       run: |
         git clean -dxf
-        # fake d3.js
-        touch data/d3.v5.min.js
         cmake -DCOVERAGE=1 .
         make all check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
@@ -127,7 +125,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: install-deps
       run: |
-        sudo apt-get -y install cmake libconfig++-dev libjs-d3 libprotobuf-dev protobuf-compiler libxxhash-dev python3-pip
+        sudo apt-get -y install cmake libconfig++-dev libprotobuf-dev protobuf-compiler libxxhash-dev python3-pip
         # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
         pip3 install cpplint==1.5.4
     - name: configure
