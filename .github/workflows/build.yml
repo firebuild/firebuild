@@ -36,7 +36,7 @@ jobs:
       run: |
         git clean -dxf
         # fake d3.js
-        touch data/d3.v5.min.js
+        touch data/d3.v6.min.js
         cmake -DCOVERAGE=1 .
         make all check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]

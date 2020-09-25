@@ -3,7 +3,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-    <script type="text/javascript" src="d3.v5.min.js"></script>
+    <script type="text/javascript" src="d3.v6.min.js"></script>
     <script type="text/javascript" src="firebuild-process-tree.js"></script>
     <style type="text/css">
 
@@ -213,7 +213,7 @@ function hide_low_CPU(d) {
 root.cpu_limit = 0.1 * root.data.aggr_time;
 root.branch_limit = 20 ;
 hide_low_CPU(root);
-update(root);
+update(null, root);
 
 // calculate visible bounding box [min(x,) min(y), max(x), max(y)]
 // and place it to root.bb (old value gets backed up as .bb0)
@@ -342,8 +342,8 @@ function jump_details(fb_pid) {
   nodes.forEach(function(d) { if (d.data.fb_pid == fb_pid) { hide_details(); details(d.data); } });
 }
 
-function update(source) {
-  var duration = d3.event && d3.event.altKey ? 5000 : 500;
+function update(event, source) {
+  var duration = event && event.shiftKey ? 5000 : 500;
 
   // Compute the new tree layout.
   tree(root);
@@ -396,7 +396,7 @@ function update(source) {
   nodeEnter.filter(function (d) {return ! leaf(d);})
       .append("svg:circle")
       .attr("r", 1e-6)
-      .on("click", function(d) { toggle(d); update(d); })
+      .on("click", function(event, d) { toggle(d); update(event, d); })
       .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; })
       .append("svg:title")
       .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
