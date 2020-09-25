@@ -680,12 +680,14 @@ static void write_report(const std::string &html_filename,
                          const std::string &datadir) {
   const char dot_filename[] = "firebuild-profile.dot";
   const char svg_filename[] = "firebuild-profile.svg";
-  const char d3_filename[] = "d3.v5.min.js";
+  // FIXME Use a search path, according to the locations in various popular distributions
+  const std::string d3_datadir = "/usr/share/nodejs/d3/dist";
+  const char d3_filename[] = "d3.min.js";
   const char tree_filename[] = "firebuild-process-tree.js";
   const char html_orig_filename[] = "build-report.html";
   const std::string dot_cmd = "dot";
 
-  int d3 = open((datadir + "/" + d3_filename).c_str(), O_RDONLY);
+  int d3 = open((d3_datadir + "/" + d3_filename).c_str(), O_RDONLY);
   if (d3 == -1) {
     perror("open");
     firebuild::fb_error("Opening file " + (datadir + "/" + d3_filename) +

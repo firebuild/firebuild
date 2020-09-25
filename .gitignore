@@ -12,7 +12,6 @@ Doxyfile
 Makefile
 build/
 cmake_install.cmake
-data/d3.v5.min.js
 fb-cache.pb.cc
 fb-cache.pb.h
 fbb.c
