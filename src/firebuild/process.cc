@@ -254,6 +254,12 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
                                    " missed at least one close()");
     return -1;
   }
+
+  // dup2()'ing an existing fd to itself returns success and does nothing
+  if (oldfd == newfd) {
+    return 0;
+  }
+
   handle_force_close(newfd);
 
   add_filefd(fds_, newfd, std::make_shared<FileFD>(
