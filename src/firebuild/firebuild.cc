@@ -78,6 +78,7 @@ static void usage() {
          "\n"
          "Mandatory arguments to long options are mandatory for short options too.\n"
          "   -c --config-file=FILE     use FILE as configuration file\n"
+         "   -C --directory=DIR        change directory before running the command\n"
          "   -d --debug-flags=list     comma separated list of debug flags,\n"
          "                             \"-d help\" to get a list.\n"
          "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
@@ -845,6 +846,7 @@ static bool is_listener(int const fd) {
 
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
+  char *directory = NULL;
   std::list<std::string> config_strings = {};
   int c;
 
@@ -864,6 +866,7 @@ int main(const int argc, char *argv[]) {
     int option_index = 0;
     static struct option long_options[] = {
       {"config-file",          required_argument, 0, 'c' },
+      {"directory",            required_argument, 0, 'C' },
       {"debug-level",          required_argument, 0, 'd' },
       {"generate-report",      optional_argument, 0, 'r' },
       {"help",                 no_argument,       0, 'h' },
@@ -872,7 +875,7 @@ int main(const int argc, char *argv[]) {
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:d:r::o:hi",
+    c = getopt_long(argc, argv, "c:C:d:r::o:hi",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -880,6 +883,10 @@ int main(const int argc, char *argv[]) {
     switch (c) {
     case 'c':
       config_file = optarg;
+      break;
+
+    case 'C':
+      directory = optarg;
       break;
 
     case 'd':
@@ -997,6 +1004,11 @@ int main(const int argc, char *argv[]) {
       argv_exec[i] = argv[optind + i];
     }
     argv_exec[i] = NULL;
+
+    if (directory != NULL && chdir(directory) != 0) {
+      perror("chdir");
+      exit(EXIT_FAILURE);
+    }
 
     execvpe(argv[optind], argv_exec, env_exec);
     perror("Executing build command failed");
