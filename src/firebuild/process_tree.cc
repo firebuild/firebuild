@@ -24,19 +24,16 @@ ProcessTree::~ProcessTree() {
   }
 }
 
-void ProcessTree::insert_process(Process *p, const int sock) {
-  if (sock >= 0) {
-    sock2proc_[sock] = p;
-  }
+void ProcessTree::insert_process(Process *p) {
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
 }
 
-void ProcessTree::insert(Process *p, const int sock) {
-  insert_process(p, sock);
+void ProcessTree::insert(Process *p) {
+  insert_process(p);
 }
 
-void ProcessTree::insert(ExecedProcess *p, const int sock) {
+void ProcessTree::insert(ExecedProcess *p) {
   if (root_ == NULL) {
     root_ = p;
   } else if (p->parent() == NULL) {
@@ -46,15 +43,7 @@ void ProcessTree::insert(ExecedProcess *p, const int sock) {
     fb_error("TODO(rbalint) handle: Process without known exec parent\n");
   }
 
-  insert_process(p, sock);
-}
-
-void ProcessTree::finished(const int sock) {
-  auto p = sock2proc_[sock];
-  if (p) {
-    p->finish();
-  }
-  sock2proc_.erase(sock);
+  insert_process(p);
 }
 
 void ProcessTree::export2js(FILE * stream) {

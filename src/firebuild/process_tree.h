@@ -41,6 +41,8 @@ struct fork_child_sock {
   int ppid;
   /** ACK number the process is waiting for */
   int ack_num;
+  /** Location to save child's pointer to after it is created */
+  Process** fork_child_ref;
 };
 
 /** Connection of a waiting exec() child process*/
@@ -62,25 +64,17 @@ struct pending_parent_ack {
 class ProcessTree {
  public:
   ProcessTree()
-      : sock2proc_(), fb_pid2proc_(), pid2proc_(), pid2fork_parent_fds_(),
+      : fb_pid2proc_(), pid2proc_(), pid2fork_parent_fds_(),
         pid2fork_child_sock_(), pid2exec_child_sock_(), cmd_profs_()
   {}
   ~ProcessTree();
 
-  void insert(Process *p, const int sock);
-  void insert(ExecedProcess *p, const int sock);
-  void finished(const int sock);
+  void insert(Process *p);
+  void insert(ExecedProcess *p);
   static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
   ExecedProcess* root() {return root_;}
-  Process* Sock2Proc(int sock) {
-    try {
-      return sock2proc_.at(sock);
-    } catch (const std::out_of_range& oor) {
-      return nullptr;
-    }
-  }
   Process* pid2proc(int pid) {
     try {
       return pid2proc_.at(pid);
@@ -96,8 +90,8 @@ class ProcessTree {
   void SaveForkParentState(int pid, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
     pid2fork_parent_fds_[pid] = fds;
   }
-  void QueueForkChild(int pid, int sock, int ppid, int ack_num) {
-    pid2fork_child_sock_[pid] = {sock, ppid, ack_num};
+  void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
+    pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
   }
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
@@ -148,7 +142,6 @@ class ProcessTree {
 
  private:
   ExecedProcess *root_ = NULL;
-  std::unordered_map<int, Process*> sock2proc_;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int,
@@ -162,7 +155,7 @@ class ProcessTree {
    * (system + user time), and count the invocations of each other command
    * by C. */
   std::unordered_map<std::string, cmd_prof> cmd_profs_;
-  void insert_process(Process *p, const int sock);
+  void insert_process(Process *p);
   void profile_collect_cmds(const Process &p,
                             std::unordered_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);

@@ -2,6 +2,8 @@ PROTOBUF_GENERATE_CPP(PROTO_CACHE_SRCS PROTO_CACHE_HDRS msg/fb-cache.proto)
 set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-effc++ -Wno-unused-parameter")
 
 find_package(LibConfig REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBEVENT REQUIRED libevent)
 
 add_executable(firebuild
   config.cc
@@ -26,6 +28,6 @@ add_executable(firebuild
   ${PROTO_CACHE_SRCS}
   ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)
-target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} xxhash)
+target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} xxhash)
 
 add_dependencies(firebuild fbb_gen_files)
