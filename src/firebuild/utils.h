@@ -8,7 +8,10 @@
 
 namespace firebuild {
 
-ssize_t fb_recv_msg(char **bufp, uint32_t *ack_id_p, int fd);
+typedef struct msg_header_ {
+  uint32_t msg_size;
+  uint32_t ack_id;
+} msg_header;
 
 bool path_begins_with(const std::string& path, const std::string& prefix);
 

@@ -2,7 +2,9 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include <unistd.h>
+#include <event2/event.h>
+#include <event2/buffer.h>
+#include <event2/bufferevent.h>
 #include <signal.h>
 #include <getopt.h>
 #include <google/protobuf/text_format.h>
@@ -45,8 +47,7 @@ static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
 static char *fb_conn_string;
-static int sigchld_fds[2];
-static FILE * sigchld_stream;
+evutil_socket_t listener;
 
 static int inherited_fd = -1;
 static int child_pid, child_ret = 1;
@@ -134,58 +135,6 @@ static char** get_sanitized_env() {
   return ret_env;
 }
 
-/**
- * signal handler for SIGCHLD
- *
- * It send a 0 to the special file descriptor select is listening on, too.
- */
-static void sigchld_handler(const int /*sig */) {
-  char buf[] = {0};
-  int status = 0;
-
-  waitpid(child_pid, &status, WNOHANG);
-  if (WIFEXITED(status)) {
-    child_ret = WEXITSTATUS(status);
-    write(sigchld_fds[1], buf, sizeof(buf));
-  } else if (WIFSIGNALED(status)) {
-    fprintf(stderr, "Child process has been killed by signal %d",
-            WTERMSIG(status));
-    write(sigchld_fds[1], buf, 1);
-  }
-}
-
-/**
- * Initialize signal handlers
- */
-static void init_signal_handlers(void) {
-  struct sigaction sa;
-
-  sa.sa_handler = sigchld_handler;
-  sa.sa_flags = 0;
-  sigemptyset(&sa.sa_mask);
-
-  /* prepare sigchld_fd */
-
-  if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-    perror("Could not set up signal handler for SIGCHLD.");
-    exit(EXIT_FAILURE);
-  }
-  if (pipe(sigchld_fds) == -1) {
-    perror("pipe");
-    exit(EXIT_FAILURE);
-  }
-
-  if ((sigchld_stream = fdopen(sigchld_fds[1], "w")) == NULL) {
-    perror("fdopen");
-    exit(EXIT_FAILURE);
-  }
-
-  if (setvbuf(sigchld_stream, NULL, _IONBF, 0) != 0) {
-    perror("setvbuf");
-    exit(EXIT_FAILURE);
-  }
-}
-
 /*
  * Check if either exe or arg0 matches any of the entries in the list.
  */
@@ -219,7 +168,7 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
 
-    proc_tree->insert(proc, fd_conn);
+    proc_tree->insert(proc);
     proc->initialize();
 
     /* Check for executables that are known not to be shortcuttable. */
@@ -259,9 +208,8 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
  */
-void proc_ic_msg(uint32_t ack_num,
-                 const void *fbb_buf,
-                 int fd_conn) {
+void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
+                          firebuild::Process** new_proc) {
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   if (tag == FBB_TAG_scproc_query) {
     const FBB_scproc_query *ic_msg = reinterpret_cast<const FBB_scproc_query *>(fbb_buf);
@@ -290,7 +238,7 @@ void proc_ic_msg(uint32_t ack_num,
             firebuild::ProcessFactory::getExecedProcess(
                 ic_msg, parent, fds);
         proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
-        return;
+        *new_proc = proc;
       }
     } else if (!parent && ppid != getpid()) {
       /* Locate the parent in case of system/popen/posix_spawn, but not
@@ -363,7 +311,7 @@ void proc_ic_msg(uint32_t ack_num,
 
       parent->set_state(firebuild::FB_PROC_TERMINATED);
       // FIXME set exec_child_ ???
-      proc_tree->insert(parent, -1);
+      proc_tree->insert(parent);
 
       /* Now we can ack the previous popen()/posix_spawn()'s second message. */
       auto pending_ack = proc_tree->PPid2ParentAck(unix_parent->pid());
@@ -393,6 +341,7 @@ void proc_ic_msg(uint32_t ack_num,
       }
     }
     accept_exec_child(proc, fd_conn, proc_tree);
+    *new_proc = proc;
 
   } else if (tag == FBB_TAG_fork_child) {
     const FBB_fork_child *ic_msg = reinterpret_cast<const FBB_fork_child *>(fbb_buf);
@@ -406,37 +355,43 @@ void proc_ic_msg(uint32_t ack_num,
      */
     if (!fork_parent_fds) {
       /* queue fork_child data and delay processing messages on this socket */
-      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_num);
+      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, new_proc);
     } else {
       /* record new process */
       auto pproc = proc_tree->pid2proc(ppid);
       auto proc =
           firebuild::ProcessFactory::getForkedProcess(pid, pproc, fork_parent_fds);
-      proc_tree->insert(proc, fd_conn);
+      proc_tree->insert(proc);
       proc_tree->DropForkParentFds(pid);
-      firebuild::ack_msg(fd_conn, ack_num);
+      firebuild::ack_msg(fd_conn, ack_id);
+      *new_proc = proc;
     }
-    return;
-  } else if (tag == FBB_TAG_fork_parent) {
+  }
+}
+
+void proc_ic_msg(const void *fbb_buf,
+                 uint32_t ack_num,
+                 int fd_conn,
+                 firebuild::Process* proc) {
+  int tag = *reinterpret_cast<const int *>(fbb_buf);
+  if (tag == FBB_TAG_fork_parent) {
     const FBB_fork_parent *ic_msg = reinterpret_cast<const FBB_fork_parent *>(fbb_buf);
     auto child_pid = fbb_fork_parent_get_pid(ic_msg);
-    /* here pproc is the current process as it is the fork parent */
-    auto pproc = proc_tree->Sock2Proc(fd_conn);
     auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
     if (!fork_child_sock) {
       /* queue fork_parent data */
-      proc_tree->SaveForkParentState(child_pid, pproc->pass_on_fds(false));
+      proc_tree->SaveForkParentState(child_pid, proc->pass_on_fds(false));
     } else {
       /* record new child process */
-      auto proc =
-          firebuild::ProcessFactory::getForkedProcess(child_pid, pproc,
-                                                      pproc->pass_on_fds(false));
-      proc_tree->insert(proc, fork_child_sock->sock);
+      auto child_proc =
+          firebuild::ProcessFactory::getForkedProcess(child_pid, proc,
+                                                      proc->pass_on_fds(false));
+      *fork_child_sock->fork_child_ref = child_proc;
+      proc_tree->insert(child_proc);
       firebuild::ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
       proc_tree->DropQueuedForkChild(child_pid);
     }
   } else if (tag == FBB_TAG_execv_failed) {
-    auto *proc = proc_tree->Sock2Proc(fd_conn);
     // FIXME(rbalint) check execv parameter and record what needs to be
     // checked when shortcutting the process
     proc->set_exec_pending(false);
@@ -468,8 +423,8 @@ void proc_ic_msg(uint32_t ack_num,
              tag == FBB_TAG_chdir ||
              tag == FBB_TAG_read ||
              tag == FBB_TAG_write) {
-    try {
-      ::firebuild::Process *proc = proc_tree->Sock2Proc(fd_conn);
+    assert(proc);
+    {
       if (tag == FBB_TAG_exit) {
         const FBB_exit *ic_msg = reinterpret_cast<const FBB_exit *>(fbb_buf);
         proc->exit_result(fbb_exit_get_exit_status(ic_msg),
@@ -612,9 +567,6 @@ void proc_ic_msg(uint32_t ack_num,
       } else if (tag == FBB_TAG_write) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_write *>(fbb_buf));
       }
-    } catch (std::out_of_range&) {
-      FB_DEBUG(firebuild::FB_DEBUG_COMM, "Ignoring message on fd: " + std::to_string(fd_conn) +
-                              std::string(", process probably exited already."));
     }
   } else if (tag == FBB_TAG_gen_call) {
   }
@@ -774,12 +726,17 @@ static const char *get_tmpdir() {
 
 }  // namespace
 
+struct ConnectionContext {
+  firebuild::Process * proc = nullptr;
+  /** Partial interceptor message including the FBB header */
+  struct evbuffer* buf = NULL;
+};
 
 /**
  * Create connection sockets for the interceptor
  */
-static int create_listener() {
-  int listener;
+static evutil_socket_t create_listener() {
+  evutil_socket_t listener;
 
   if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
@@ -803,6 +760,172 @@ static int create_listener() {
   return listener;
 }
 
+static void ic_conn_readcb(struct bufferevent *bev, void *ctx) {
+  auto input = bufferevent_get_input(bev);
+  auto conn_ctx = reinterpret_cast<struct ConnectionContext*>(ctx);
+  auto proc = conn_ctx->proc;
+  auto buf = conn_ctx->buf;
+  size_t full_length;
+  struct evbuffer *full_msg_buffer;
+  firebuild::msg_header header;
+  struct evbuffer_iovec iovec;
+
+  do {
+    if (buf && evbuffer_get_length(buf) > 0) {
+      /* Have partial message, more data needed. */
+      if (evbuffer_get_length(buf) < sizeof(header)) {
+        /* Even the header is incomplete, try making it full. */
+        ssize_t to_move = sizeof(header) - evbuffer_get_length(buf);
+        auto moved = evbuffer_remove_buffer(input, buf, to_move);
+        if (moved != to_move) {
+          /* Header is still incomplete, try again later. */
+          return;
+        }
+      }
+      evbuffer_copyout(buf, &header, sizeof(header));
+      /* Try to get enough data for the full message. */
+      full_length = sizeof(header) + header.msg_size;
+      ssize_t to_move = full_length - evbuffer_get_length(buf);
+      assert(to_move > 0);
+      auto moved = evbuffer_remove_buffer(input, buf, to_move);
+      if (moved == to_move) {
+        /* The whole message is ready. */
+        full_msg_buffer = buf;
+      } else {
+        /* Even more data needed. */
+        return;
+      }
+    } else {
+      /* No partial message, use input. */
+      if (evbuffer_get_length(input) >= sizeof(header)) {
+        evbuffer_copyout(input, &header, sizeof(header));
+        full_length = sizeof(header) + header.msg_size;
+        if (full_length <= evbuffer_get_length(input)) {
+          /* The whole message is ready. */
+          full_msg_buffer = input;
+        } else {
+          /* Message is incomplete, save the part that's ready. */
+          if (!buf) {
+            buf = conn_ctx->buf = evbuffer_new();
+          }
+          evbuffer_add_buffer(buf, input);
+          return;
+        }
+      } else {
+        /* Even the header is incomplete, more data needed. */
+        if (!buf) {
+          buf = conn_ctx->buf = evbuffer_new();
+        }
+        evbuffer_add_buffer(buf, input);
+        return;
+      }
+    }
+
+    evbuffer_pullup(full_msg_buffer, full_length);
+    evbuffer_peek(full_msg_buffer, -1, NULL, &iovec, 1);
+
+    int fd_conn = bufferevent_getfd(bev);
+    char *fbb_msg = reinterpret_cast<char*>(iovec.iov_base) + sizeof(header);
+
+    if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(bufferevent_getfd(bev))
+               + std::string(": "));
+      if (header.ack_id) {
+        fprintf(stderr, "ack_num: %d\n", header.ack_id);
+      }
+      fbb_debug(fbb_msg);
+      fflush(stderr);
+    }
+
+    /* Process the messaage. */
+    if (proc) {
+      proc_ic_msg(fbb_msg, header.ack_id, fd_conn, proc);
+    } else {
+      /* Fist interceptor message */
+      proc_new_process_msg(fbb_msg, header.ack_id, fd_conn, &conn_ctx->proc);
+    }
+    evbuffer_drain(full_msg_buffer, full_length);
+  } while (evbuffer_get_length(input) > 0);
+}
+
+static void ic_conn_errorcb(struct bufferevent *bev, int16_t error, void *ctx) {
+  auto conn_ctx = reinterpret_cast<ConnectionContext*>(ctx);
+  auto proc = conn_ctx->proc;
+  auto buf = conn_ctx->buf;
+
+  if (error & BEV_EVENT_EOF) {
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(bufferevent_getfd(bev)) +
+             std::string(" hung up"));
+  } else if (error & BEV_EVENT_ERROR) {
+    /* check errno to see what error occurred */
+    assert(0 && "BEV_EVENT_ERROR occurred");
+  } else if (error & BEV_EVENT_TIMEOUT) {
+    /* must be a timeout event handle, handle it */
+    /* ? TODO(rbalint) */
+  }
+
+  if (proc) {
+    auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
+    if (exec_child_sock) {
+      auto exec_child = exec_child_sock->incomplete_child;
+      exec_child->set_fds(proc->pass_on_fds());
+      accept_exec_child(exec_child, exec_child_sock->sock, proc_tree);
+      proc_tree->DropQueuedExecChild(proc->pid());
+    }
+    proc->finish();
+  }
+
+  if (buf) {
+    evbuffer_free(buf);
+  }
+  delete reinterpret_cast<ConnectionContext*>(ctx);
+  bufferevent_free(bev);
+}
+
+
+/** Stop listener on SIGCHLD */
+static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
+  auto listener_event = reinterpret_cast<struct event *>(arg);
+  (void)fd;
+  (void)what;
+
+  int status = 0;
+
+  waitpid(child_pid, &status, WNOHANG);
+  if (WIFEXITED(status)) {
+    child_ret = WEXITSTATUS(status);
+  } else if (WIFSIGNALED(status)) {
+    fprintf(stderr, "Child process has been killed by signal %d",
+            WTERMSIG(status));
+  }
+
+  evutil_closesocket(listener);
+  event_free(listener_event);
+}
+
+
+static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
+  struct sockaddr_storage remote;
+  auto conn_ctx = new ConnectionContext();
+  socklen_t slen = sizeof(remote);
+  (void) event; /* unused */
+
+  auto base = reinterpret_cast<struct event_base*>(arg);
+  conn_ctx->proc = nullptr;
+  conn_ctx->buf = NULL;
+
+  int fd = accept(listener, (struct sockaddr*)&remote, &slen);
+  if (fd < 0) {
+    perror("accept");
+    delete conn_ctx;
+  } else {
+    struct bufferevent *bev;
+    evutil_make_socket_nonblocking(fd);
+    bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+    bufferevent_setcb(bev, ic_conn_readcb, NULL, ic_conn_errorcb, conn_ctx);
+    bufferevent_enable(bev, EV_READ);
+  }
+}
 
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
@@ -945,9 +1068,14 @@ int main(const int argc, char *argv[]) {
   }
   auto env_exec = get_sanitized_env();
 
-  init_signal_handlers();
+  auto base = event_base_new();;
 
-  int listener = create_listener();
+  /* Open listener socket before forking child to always let the child connect */
+  listener = create_listener();
+  auto listener_event = event_new(base, listener, EV_READ|EV_PERSIST, accept_ic_conn, base);
+  event_add(listener_event, NULL);
+  auto sigchild_event = event_new(base, SIGCHLD, EV_SIGNAL, sigchild_cb, listener_event);
+  event_add(sigchild_event, NULL);
 
   // run command and handle interceptor messages
   if ((child_pid = fork()) == 0) {
@@ -955,10 +1083,8 @@ int main(const int argc, char *argv[]) {
     // intercepted process
     char* argv_exec[argc - optind + 1];
 
-    // we don't need those
-    close(sigchld_fds[0]);
-    close(sigchld_fds[1]);
-    close(listener);
+    // we don't need that
+    evutil_closesocket(listener);
     // create and execute build command
     for (i = 0; i < argc - optind ; i++) {
       argv_exec[i] = argv[optind + i];
@@ -975,126 +1101,14 @@ int main(const int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   } else {
     // supervisor process
-    int fdmax = sigchld_fds[0];  // maximum file descriptor number
-
-    fd_set master;    // master file descriptor list
-    fd_set read_fds;  // temp file descriptor list for select()
-
-    bool child_exited = false;
-
-    uid_t euid = geteuid();
-
-    FD_ZERO(&master);    // clear the master and temp sets
-    FD_ZERO(&read_fds);
 
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
 
-    // add the listener and and fd listening for child's death to the
-    // master set
-    FD_SET(listener, &master);
-    fdmax = (listener > fdmax)?listener:fdmax;
-    FD_SET(sigchld_fds[0], &master);
-
     // main loop for processing interceptor messages
-    for (;;) {
-      int i;
-      if (child_exited) {
-        break;
-      }
-      read_fds = master;  // copy it
-      if (select(fdmax+1, &read_fds, NULL, NULL, NULL) == -1) {
-        if (errno != EINTR) {
-          perror("select");
-          exit(1);
-        } else {
-          break;
-        }
-      }
-
-      for (i = 0; i <= fdmax; i++) {
-        if (FD_ISSET(i, &read_fds)) {  // we got one!!
-          // fd_handled = true;
-          if (i == listener) {
-            // handle new connections
-            struct sockaddr_un remote;
-            socklen_t addrlen = sizeof(remote);
-
-            // newly accept()ed socket descriptor
-            int newfd = accept(i,
-                               (struct sockaddr *)&remote,
-                               &addrlen);
-            if (newfd == -1) {
-              perror("accept");
-            } else {
-              struct ucred creds;
-              socklen_t optlen = sizeof(creds);
-              getsockopt(newfd, SOL_SOCKET, SO_PEERCRED, &creds, &optlen);
-              if (euid != creds.uid) {
-                // someone else started using the socket
-                fprintf(stderr,
-                        "Unauthorized connection from pid %d, uid %d, gid %d"
-                        "\n",
-                        creds.pid, creds.uid, creds.gid);
-                close(newfd);
-              } else {
-                FD_SET(newfd, &master);  // add to master set
-                if (newfd > fdmax) {    // keep track of the max
-                  fdmax = newfd;
-                }
-              }
-              // TODO(rbalint) debug
-            }
-          } else if (i == sigchld_fds[0]) {
-            // Our child has exited.
-            // Process remaining messages, then we are done.
-            child_exited = true;
-            continue;
-          } else {
-            // handle data from a client
-            char *buf;
-            ssize_t nbytes;
-            uint32_t ack_num;
-
-            if ((nbytes = firebuild::fb_recv_msg(&buf, &ack_num, i)) <= 0) {
-              // got error or connection closed by client
-              if (nbytes == 0) {
-                // connection closed
-                FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(i) +
-                                        std::string(" hung up"));
-              } else {
-                perror("recv");
-              }
-              auto proc = proc_tree->Sock2Proc(i);
-              if (proc) {
-                auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
-                if (exec_child_sock) {
-                  auto exec_child = exec_child_sock->incomplete_child;
-                  exec_child->set_fds(proc->pass_on_fds());
-                  accept_exec_child(exec_child, exec_child_sock->sock, proc_tree);
-                  proc_tree->DropQueuedExecChild(proc->pid());
-                }
-              }
-              proc_tree->finished(i);
-              close(i);  // bye!
-              FD_CLR(i, &master);  // remove from master set
-            } else {
-              assert(nbytes >= (ssize_t) sizeof(int));
-              if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-                FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(i) + std::string(": "));
-                if (ack_num) {
-                  fprintf(stderr, "ack_num: %d\n", ack_num);
-                }
-                fbb_debug(buf);
-                fflush(stderr);
-              }
-              proc_ic_msg(ack_num, buf, i);
-              delete[] buf;
-            }
-          }
-        }
-      }
-    }
+    event_base_dispatch(base);
+    event_free(sigchild_event);
+    event_base_free(base);
   }
 
   if (!proc_tree->root()) {
@@ -1120,13 +1134,10 @@ int main(const int argc, char *argv[]) {
     free(env_exec);
   }
 
-  close(listener);
   unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
 
   delete(error_fos);
-  fclose(sigchld_stream);
-  close(sigchld_fds[0]);
   free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
@@ -1144,11 +1155,6 @@ int main(const int argc, char *argv[]) {
   }
 
   exit(child_ret);
-}
-
-/** wrapper for read() retrying on recoverable errors */
-ssize_t fb_read(int fd, void *buf, size_t count) {
-  FB_READ_WRITE(read, fd, buf, count);
 }
 
 /** wrapper for writev() retrying on recoverable errors */
