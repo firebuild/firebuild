@@ -652,7 +652,9 @@ void psfa_addopen(const posix_spawn_file_actions_t *p,
   assert(obj);
 
   char *str;
-  asprintf(&str, "o %d %d %d %s", fd, flags, mode, path);
+  if (asprintf(&str, "o %d %d %d %s", fd, flags, mode, path) < 0) {
+    perror("asprintf");
+  }
   string_array_append(obj, str);
 }
 
@@ -667,7 +669,9 @@ void psfa_addclose(const posix_spawn_file_actions_t *p,
   assert(obj);
 
   char *str;
-  asprintf(&str, "c %d", fd);
+  if (asprintf(&str, "c %d", fd) < 0) {
+    perror("asprintf");
+  }
   string_array_append(obj, str);
 }
 
@@ -683,7 +687,9 @@ void psfa_adddup2(const posix_spawn_file_actions_t *p,
   assert(obj);
 
   char *str;
-  asprintf(&str, "d %d %d", oldfd, newfd);
+  if (asprintf(&str, "d %d %d", oldfd, newfd) < 0) {
+    perror("asprintf");
+  }
   string_array_append(obj, str);
 }
 

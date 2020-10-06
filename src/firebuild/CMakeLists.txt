@@ -1,5 +1,8 @@
 PROTOBUF_GENERATE_CPP(PROTO_CACHE_SRCS PROTO_CACHE_HDRS msg/fb-cache.proto)
-set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-effc++ -Wno-unused-parameter")
+set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-effc++ -Wno-unused-parameter -Wno-array-bounds")
+
+# GCC raises warning about the GCC-optimized code
+set_source_files_properties(execed_process_cacher.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)

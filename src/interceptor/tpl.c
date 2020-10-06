@@ -136,6 +136,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 /* Make the intercepting function visible */
 #pragma GCC visibility push(default)
 
+/* Undefine potential macro */
+#ifdef {{ func }}
+#undef {{ func }}
+#endif
+
 {{ rettype }} {{ func }} ({{ sig_str }}) {
 ###     if rettype != 'void'
   {{ rettype }} ret;

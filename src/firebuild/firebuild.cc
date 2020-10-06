@@ -659,8 +659,13 @@ static void write_report(const std::string &html_filename,
     fclose(dot);
   }
 
-  system((dot_cmd + " -Tsvg -o" + dir + "/" + svg_filename + " " + dir
-          + "/" + dot_filename).c_str());
+  auto system_cmd =
+      dot_cmd + " -Tsvg -o" + dir + "/" + svg_filename + " " + dir + "/" + dot_filename;
+  if (system(system_cmd.c_str()) != 0) {
+    perror("system");
+    firebuild::fb_error("Failed to generate profile graph with the following command: "
+                        + system_cmd);
+  }
 
   FILE* dst_file = fopen(html_filename.c_str(), "w");
   int ret = dst_file == NULL ? -1 : 0;
@@ -745,7 +750,7 @@ static evutil_socket_t create_listener() {
 
   struct sockaddr_un local;
   local.sun_family = AF_UNIX;
-  strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path));
+  strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path) - 1);
 
   auto len = strlen(local.sun_path) + sizeof(local.sun_family);
   if (bind(listener, (struct sockaddr *)&local, len) == -1) {
@@ -1058,7 +1063,9 @@ int main(const int argc, char *argv[]) {
   error_fos = new google::protobuf::io::FileOutputStream(STDERR_FILENO);
   {
     char *pattern;
-    asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir());
+    if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {
+      perror("asprintf");
+    }
     fb_tmp_dir = mkdtemp(pattern);
     if (fb_tmp_dir == NULL) {
       perror("mkdtemp");

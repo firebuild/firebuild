@@ -3,6 +3,9 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 # gnu89 required to avoid the __isoc99_scanf hell
 set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89")
 
+# the trace markers may truncate the marker messages
+set_source_files_properties(intercept.c PROPERTIES COMPILE_FLAGS "-Wno-unknown-warning-option -Wno-stringop-truncation")
+
 add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c
   DEPENDS generate_interceptors

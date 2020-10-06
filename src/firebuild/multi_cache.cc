@@ -127,7 +127,9 @@ bool MultiCache::store_protobuf(const Hash &key,
     }
 
     int fd = creat(path_debug.c_str(), 0600);
-    write(fd, pb_txt.c_str(), pb_txt.size());
+    if (write(fd, pb_txt.c_str(), pb_txt.size()) < 0) {
+      perror("store_protobuf");
+    }
     close(fd);
   }
 
@@ -192,8 +194,12 @@ bool MultiCache::store_protobuf(const Hash &key,
     }
 
     int fd = creat(path_debug.c_str(), 0600);
-    write(fd, debug_header.c_str(), debug_header.size());
-    write(fd, pb_txt.c_str(), pb_txt.size());
+    if (write(fd, debug_header.c_str(), debug_header.size()) < 0) {
+      perror("store_protobuf");
+    }
+    if (write(fd, pb_txt.c_str(), pb_txt.size()) < 0) {
+      perror("store_protobuf");
+    }
     close(fd);
   }
   return true;
