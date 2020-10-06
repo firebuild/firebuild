@@ -158,7 +158,9 @@ bool Cache::store_file(const std::string &path,
     std::string path_debug = path_dst + "_debug.txt";
     std::string txt(pretty_print_timestamp() + "  Copied from " + path + "\n");
     int fd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
-    write(fd, txt.c_str(), txt.size());
+    if (write(fd, txt.c_str(), txt.size()) < 0) {
+      perror("Cache::store_file");
+    }
     close(fd);
   }
 
