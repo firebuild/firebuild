@@ -61,8 +61,10 @@
     /* Should not be reached */
 ###   if func in ['error', 'error_at_line']
     assert(0 && "{{ func }} with nonzero \"status\" parameter did not exit");
+    abort(); /* for NDEBUG */
 ###   else
     assert(0 && "{{ func }} did not exit");
+    abort(); /* for NDEBUG */
 ###   endif
   }
 ### endblock call_orig
