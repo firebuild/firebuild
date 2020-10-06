@@ -32,5 +32,6 @@ add_executable(firebuild
   ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} xxhash)
+target_link_options(firebuild PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 
 add_dependencies(firebuild fbb_gen_files)
