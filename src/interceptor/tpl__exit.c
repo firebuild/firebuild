@@ -33,4 +33,5 @@
 
   /* Should not be reached */
   assert(0 && "{{ func }} did not exit");
+  abort(); /* for NDEBUG */
 ### endblock body

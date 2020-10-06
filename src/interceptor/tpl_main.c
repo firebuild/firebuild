@@ -28,4 +28,5 @@
 
   /* Should not be reached */
   assert(0 && "fake_main must not return");
+  abort(); /* for NDEBUG */
 ### endblock body

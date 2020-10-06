@@ -465,8 +465,9 @@ static void fb_ic_init() {
   ppid = ic_orig_getppid();
 
   char cwd_buf[CWD_BUFSIZE];
-  char *cwd_ret = ic_orig_getcwd(cwd_buf, CWD_BUFSIZE);
-  assert(cwd_ret != NULL);
+  if (ic_orig_getcwd(cwd_buf, CWD_BUFSIZE) == NULL) {
+    assert(0 && "getcwd() returned NULL");
+  }
 
   FBB_Builder_scproc_query ic_msg;
   fbb_scproc_query_init(&ic_msg);
@@ -513,10 +514,12 @@ static void fb_ic_init() {
   fbb_send(fb_sv_conn, &ic_msg, 0);
 
   FBB_scproc_resp *sv_msg = NULL;
-  ssize_t len = fb_recv_msg(NULL, (char **)&sv_msg, fb_sv_conn);
+#ifndef NDEBUG
+  ssize_t len =
+#endif
+      fb_recv_msg(NULL, (char **)&sv_msg, fb_sv_conn);
   assert(len >= (ssize_t) sizeof(int));
-  int tag = *(int *) sv_msg;
-  assert(tag == FBB_TAG_scproc_resp);
+  assert(*(int *) sv_msg == FBB_TAG_scproc_resp);
   debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
 
   // we may return immediately if supervisor decides that way
