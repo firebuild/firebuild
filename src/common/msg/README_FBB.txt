@@ -104,10 +104,10 @@ FBB_Builder_foobar actually embeds a FBB_foobar, plus additional
 necessary bookkeeping, including the string and string array pointers.
 It also keeps track of which required scalars have been set, so that
 FBB_foobar_send() can perform integrity checking before sending the
-data. This integrity checking is only performed if compile-time
-debugging (FBB_DEBUG) is enabled. Not setting a required field is
-considered programming error, thus results in an assertion failure,
-rather than some soft error to handle.
+data. This integrity checking can be disabled at compile-time by setting
+NDEBUG. Not setting a required field is considered programming error,
+thus results in an assertion failure, rather than some soft error to
+handle.
 
 
 Receiving and parsing message
