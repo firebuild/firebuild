@@ -48,7 +48,6 @@ static void fbb_{{ msg }}_debug(const void *msg_void) {
 static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id) {
   const FBB_Builder_{{ msg }} *msgbldr = (const FBB_Builder_{{ msg }} *) msgbldr_void;
 
-#if FBB_DEBUG
   /* verify that required fields were set */
 ###   for (req, type, var) in fields
 ###     if req == REQUIRED
@@ -59,7 +58,6 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
 ###       endif
 ###     endif
 ###   endfor
-#endif
   /* construct and send message */
 ###   set ns = namespace(string_count=0)
 ###   for (req, type, var) in fields
@@ -123,9 +121,7 @@ static void (*fbb_debuggers_array[])(const void *) = {
 /* debug any message */
 void fbb_debug(const void *msg) {
   int tag = * ((int *) msg);
-#if FBB_DEBUG
   assert(tag >= 0 && tag < FBB_TAG_NEXT);
-#endif
   (*fbb_debuggers_array[tag])(msg);
 }
 
@@ -141,9 +137,7 @@ void fbb_send(int fd, const void *msgbldr, uint32_t ack_id) {
   if (msgbldr != NULL) {
     /* invoke the particular sender for this message type */
     int tag = * ((int *) msgbldr);
-#if FBB_DEBUG
     assert(tag >= 0 && tag < FBB_TAG_NEXT);
-#endif
     (*fbb_senders_array[tag])(fd, msgbldr, ack_id);
   } else {
     /* send an empty message (header with length and ack_id only) */
