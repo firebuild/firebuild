@@ -11,7 +11,7 @@ This PPA hosts valgrind packages with fixes needed to make valgrind-check pass:
 Install the dependencies:
 
     sudo apt update
-    sudo apt install bats graphviz libconfig++-dev node-d3 libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2
+    sudo apt install cmake bats graphviz libconfig++-dev node-d3 libevent-dev libprotobuf-dev protobuf-compiler libxxhash-dev moreutils python3-jinja2
 
 ## Notes
 
