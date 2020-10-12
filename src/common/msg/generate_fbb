@@ -3,6 +3,7 @@
 # Copyright (c) 2020 Interri Kft.
 # This file is an unpublished work. All rights reserved.
 
+import os
 import sys
 from jinja2 import Environment, FileSystemLoader
 
@@ -16,6 +17,9 @@ env = Environment(loader=FileSystemLoader('.'),
                   trim_blocks=True,
                   lstrip_blocks=True,
                   keep_trailing_newline=True)
+
+# Use a practically unique temporary filename, see #314
+tmpsuffix = ".tmp." + str(os.getpid())
 
 # Symbolic constants to reduce the chance of typos
 REQUIRED = "required"
@@ -43,8 +47,10 @@ def gen_fbb(msgs):
                                STRING=STRING,
                                STRINGARRAY=STRINGARRAY)
     if rendered:
-      with open(outdir + "/fbb." + extension, "w") as f:
+      filename = outdir + "/fbb." + extension
+      with open(filename + tmpsuffix, "w") as f:
         f.write(rendered)
+      os.rename(filename + tmpsuffix, filename)
 
 ################################################################################
 
