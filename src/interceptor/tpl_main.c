@@ -10,11 +10,6 @@
   /* Preparations: Initialize the interceptor */
   fb_ic_load();
 
-  /* See comment in firebuild_fake_main() */
-  char *main_and_argv[2];
-  main_and_argv[0] = (char *) main;
-  main_and_argv[1] = (char *) ubp_av;
-
   /* Get out of the way from others */
   thread_intercept_on = NULL;
   pthread_mutex_unlock(&ic_global_lock);
@@ -24,9 +19,9 @@
   insert_end_marker("{{ func }}");
 
   /* Perform the call */
-  ic_orig_{{ func }}(firebuild_fake_main, argc, main_and_argv, init, fini, rtld_fini, stack_end);
+  ic_orig_{{ func }}(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
 
   /* Should not be reached */
-  assert(0 && "fake_main must not return");
+  assert(0 && "ic_orig_{{ func }} must not return");
   abort(); /* for NDEBUG */
 ### endblock body
