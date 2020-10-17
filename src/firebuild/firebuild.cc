@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -49,6 +50,7 @@ static char datadir[] = FIREBUILD_DATADIR;
 static char *fb_tmp_dir;
 static char *fb_conn_string;
 evutil_socket_t listener;
+struct event *sigchild_event;
 
 static int inherited_fd = -1;
 static int child_pid, child_ret = 1;
@@ -915,6 +917,19 @@ static void ic_conn_errorcb(struct bufferevent *bev, int16_t error, void *ctx) {
 }
 
 
+static void save_child_status(int status, int * ret, bool runaway) {
+  if (WIFEXITED(status)) {
+    *ret = WEXITSTATUS(status);
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(runaway ? "runaway" : "child")
+             + " process exited with status " + std::to_string(*ret) + ".");
+  } else if (WIFSIGNALED(status)) {
+    fprintf(stderr, "%s process has been killed by signal %d",
+            runaway ? "Runaway" : "Child",
+            WTERMSIG(status));
+  }
+}
+
+
 /** Stop listener on SIGCHLD */
 static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   auto listener_event = reinterpret_cast<struct event *>(arg);
@@ -922,17 +937,24 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   (void)what;
 
   int status = 0;
+  pid_t waitpid_ret;
 
-  waitpid(child_pid, &status, WNOHANG);
-  if (WIFEXITED(status)) {
-    child_ret = WEXITSTATUS(status);
-  } else if (WIFSIGNALED(status)) {
-    fprintf(stderr, "Child process has been killed by signal %d",
-            WTERMSIG(status));
+  /* Collect exiting children. */
+  do {
+    waitpid_ret = waitpid(-1, &status, WNOHANG);
+    if (waitpid_ret == child_pid) {
+      save_child_status(status, &child_ret, false);
+    } else if (waitpid_ret > 0) {
+      // TODO(rbalint) find runaway child's parent and possibly disable shortcutting
+      int ret = -1;
+      save_child_status(status, &ret, true);
+    }
+  } while (waitpid_ret > 0);
+  if (waitpid_ret < 0) {
+    /* All children exited. */
+    event_del(sigchild_event);
+    event_del(listener_event);
   }
-
-  evutil_closesocket(listener);
-  event_free(listener_event);
 }
 
 
@@ -1108,8 +1130,11 @@ int main(const int argc, char *argv[]) {
   listener = create_listener();
   auto listener_event = event_new(base, listener, EV_READ|EV_PERSIST, accept_ic_conn, base);
   event_add(listener_event, NULL);
-  auto sigchild_event = event_new(base, SIGCHLD, EV_SIGNAL, sigchild_cb, listener_event);
+  sigchild_event = event_new(base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
   event_add(sigchild_event, NULL);
+
+  /* Collect runaway children */
+  prctl(PR_SET_CHILD_SUBREAPER, 1);
 
   // run command and handle interceptor messages
   if ((child_pid = fork()) == 0) {
@@ -1142,6 +1167,8 @@ int main(const int argc, char *argv[]) {
 
     // main loop for processing interceptor messages
     event_base_dispatch(base);
+    evutil_closesocket(listener);
+    event_free(listener_event);
     event_free(sigchild_event);
     event_base_free(base);
   }
