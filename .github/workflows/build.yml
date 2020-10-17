@@ -20,7 +20,7 @@ jobs:
         mkdir build
         cd build
         cmake ..
-        make
+        make -j2
     - name: doc
       run: |
         cd build
@@ -28,7 +28,7 @@ jobs:
     - name: build-in-tree
       run: |
         cmake .
-        make
+        make -j2
     - name: test
       # tests don't run with out of tree builds at the moment
       run: |
@@ -39,7 +39,8 @@ jobs:
       run: |
         git clean -dxf
         cmake -DCOVERAGE=1 .
-        make all check coverage-info
+        make -j2
+        make check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
   scan-build:
     runs-on: ubuntu-20.04
@@ -54,7 +55,7 @@ jobs:
     - name: scan-build
       run: |
         scan-build-9 cmake .
-        scan-build-9 --status-bugs make
+        scan-build-9 --status-bugs make -j2
   clang-build:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
@@ -69,7 +70,7 @@ jobs:
       run: |
         env CXX=clang++ CC=clang cmake .
         # the interceptor does not work when building it with Clang, thus make check always fails
-        make all
+        make -j2
   rebuild-self:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
@@ -111,7 +112,7 @@ jobs:
     - name: build-in-tree
       run: |
         cmake .
-        make
+        make -j2
     - name: build-vte
       run: |
         apt-get source vte2.91
