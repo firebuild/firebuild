@@ -54,8 +54,8 @@ setup() {
 
 @test "parallel sleeps" {
   for i in 1 2; do
-    # TODO (rbalint) firebuild needs to gracefully handle when it is out of file descriptors
-    result=$(./run-firebuild -- bash -c 'for i in $(seq 200); do sleep 2 & done;  wait $(jobs -p)')
+    # TODO (rbalint) firebuild needs to handle many parallel processes
+    result=$(./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait $(jobs -p)')
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
   done
