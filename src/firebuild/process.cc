@@ -480,9 +480,9 @@ void Process::maybe_finalize() {
     /* A child is yet to appear. We're not ready to finalize. */
     return;
   }
+  // TODO(rbalint) check for forked children, too, in order to handle runaway processes
   if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
     /* The exec child is not yet finalized. We're not ready to finalize either. */
-    // TODO(rbalint) check for forked children in order to handle runaway processes
     return;
   }
   do_finalize();

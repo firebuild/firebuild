@@ -206,6 +206,16 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
     fbb_send(fd_conn, &sv_msg, 0);
 }
 
+static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
+                              firebuild::Process** child_ref, int pid, int child_fd, int child_ack,
+                              firebuild::ProcessTree* proc_tree) {
+  auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
+  proc_tree->insert(proc);
+  *child_ref = proc;
+  firebuild::ack_msg(parent_fd, parent_ack);
+  firebuild::ack_msg(child_fd, child_ack);
+}
+
 /**
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
@@ -350,24 +360,22 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     const FBB_fork_child *ic_msg = reinterpret_cast<const FBB_fork_child *>(fbb_buf);
     auto pid = fbb_fork_child_get_pid(ic_msg);
     auto ppid = fbb_fork_child_get_ppid(ic_msg);
-    auto fork_parent_fds = proc_tree->Pid2ForkParentFds(pid);
+    auto pending_ack = proc_tree->PPid2ParentAck(ppid);
     /* The supervisor needs up to date information about the fork parent in the ProcessTree
      * when the child Process is created. To ensure having up to date information all the
      * messages must be processed from the fork parent up to ForkParent and only then can
      * the child Process created in the ProcessTree and let the child process continue execution.
      */
-    if (!fork_parent_fds) {
+    if (!pending_ack) {
       /* queue fork_child data and delay processing messages on this socket */
       proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, new_proc);
     } else {
-      /* record new process */
       auto pproc = proc_tree->pid2proc(ppid);
-      auto proc =
-          firebuild::ProcessFactory::getForkedProcess(pid, pproc, fork_parent_fds);
-      proc_tree->insert(proc);
-      proc_tree->DropForkParentFds(pid);
-      firebuild::ack_msg(fd_conn, ack_id);
-      *new_proc = proc;
+      assert(pproc);
+      /* record new process */
+      accept_fork_child(pproc, pending_ack->sock, pending_ack->ack_num,
+                        new_proc, pid, fd_conn, ack_id, proc_tree);
+      proc_tree->DropParentAck(ppid);
     }
   }
 }
@@ -382,17 +390,16 @@ void proc_ic_msg(const void *fbb_buf,
     auto child_pid = fbb_fork_parent_get_pid(ic_msg);
     auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
     if (!fork_child_sock) {
-      /* queue fork_parent data */
-      proc_tree->SaveForkParentState(child_pid, proc->pass_on_fds(false));
+      /* wait for child */
+      proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
+      return;
     } else {
       /* record new child process */
-      auto child_proc =
-          firebuild::ProcessFactory::getForkedProcess(child_pid, proc,
-                                                      proc->pass_on_fds(false));
-      *fork_child_sock->fork_child_ref = child_proc;
-      proc_tree->insert(child_proc);
-      firebuild::ack_msg(fork_child_sock->sock, fork_child_sock->ack_num);
+      accept_fork_child(proc, fd_conn, ack_num,
+                        fork_child_sock->fork_child_ref, child_pid, fork_child_sock->sock,
+                        fork_child_sock->ack_num, proc_tree);
       proc_tree->DropQueuedForkChild(child_pid);
+      return;
     }
   } else if (tag == FBB_TAG_execv_failed) {
     // FIXME(rbalint) check execv parameter and record what needs to be

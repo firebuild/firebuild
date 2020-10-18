@@ -11,9 +11,8 @@ namespace firebuild {
 class ExecedProcessCacher;
 
 ForkedProcess*
-ProcessFactory::getForkedProcess(const int pid, Process * const parent,
-                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
-  return new ForkedProcess(pid, parent->pid(), parent, fds);
+ProcessFactory::getForkedProcess(const int pid, Process * const parent) {
+  return new ForkedProcess(pid, parent->pid(), parent, parent->pass_on_fds(false));
 }
 
 ExecedProcess*
