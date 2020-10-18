@@ -64,8 +64,7 @@ struct pending_parent_ack {
 class ProcessTree {
  public:
   ProcessTree()
-      : fb_pid2proc_(), pid2proc_(), pid2fork_parent_fds_(),
-        pid2fork_child_sock_(), pid2exec_child_sock_(), cmd_profs_()
+      : fb_pid2proc_(), pid2proc_(), pid2fork_child_sock_(), pid2exec_child_sock_(), cmd_profs_()
   {}
   ~ProcessTree();
 
@@ -82,29 +81,16 @@ class ProcessTree {
       return NULL;
     }
   }
-  /**
-   * Save fork parent's state for the child.
-   * @param pid child's PID
-   * @param fds file descriptors to be inherited by the child
-   */
-  void SaveForkParentState(int pid, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
-    pid2fork_parent_fds_[pid] = fds;
-  }
   void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
+    assert(!Pid2ForkChildSock(pid));
     pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
   }
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
   }
   void QueueParentAck(int ppid, int ack, int sock) {
+    assert(!PPid2ParentAck(ppid));
     ppid2pending_parent_ack_[ppid] = {ack, sock};
-  }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Pid2ForkParentFds(const int pid) {
-    try {
-      return pid2fork_parent_fds_.at(pid);
-    } catch (const std::out_of_range& oor) {
-      return nullptr;
-    }
   }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
     try {
@@ -127,9 +113,6 @@ class ProcessTree {
       return nullptr;
     }
   }
-  void DropForkParentFds(const int pid) {
-    pid2fork_parent_fds_.erase(pid);
-  }
   void DropQueuedForkChild(const int pid) {
     pid2fork_child_sock_.erase(pid);
   }
@@ -144,8 +127,6 @@ class ProcessTree {
   ExecedProcess *root_ = NULL;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
-  std::unordered_map<int,
-                     std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> pid2fork_parent_fds_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
   std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
   std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
