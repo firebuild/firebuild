@@ -29,6 +29,20 @@
   }
 ### endblock before
 
+### block call_orig
+  /* Fix up the environment */
+  void *env_fixed_up;
+  if (env_needs_fixup((char **) envp)) {
+    int env_fixup_size = get_env_fixup_size((char **) envp);
+    env_fixed_up = alloca(env_fixup_size);
+    env_fixup((char **) envp, env_fixed_up);
+  } else {
+    env_fixed_up = environ;
+  }
+
+  ret = ic_orig_{{ func }}({{ names_str | replace("envp", "env_fixed_up")}});
+### endblock call_orig
+
 ### block send_msg
   {
     /* Notify the supervisor after the call */

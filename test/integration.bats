@@ -134,3 +134,14 @@ setup() {
     assert_streq "$(strip_stderr stderr)" "$stderr_expected"
   done
 }
+
+@test "env fixup" {
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_env_fixup)
+    echo "$result" | grep -qx "AAA=aaa"
+    echo "$result" | grep -qx "BBB=bbb"
+    echo "$result" | grep -qx "LD_PRELOAD=LIBXXX.SO LIBYYY.SO libfbintercept.so"
+    strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBXXX.SO' from LD_PRELOAD cannot be preloaded"
+    strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBYYY.SO' from LD_PRELOAD cannot be preloaded"
+  done
+}

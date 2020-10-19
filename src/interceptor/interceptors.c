@@ -9,11 +9,10 @@
 #include <errno.h>
 
 #include "common/firebuild_common.h"
+#include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
 #include "interceptor/ic_platform.h"
-
-extern bool insert_trace_markers;
 
 
 void init_interceptors() {

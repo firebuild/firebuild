@@ -34,6 +34,20 @@
   char **envp = va_arg(ap, char**);
 ###     endif
 ###   endif
+###   if not e
+  /* Use the global environment */
+  char **envp = environ;
+###   endif
+
+  /* Fix up the environment */
+  void *env_fixed_up;
+  if (env_needs_fixup((char **) envp)) {
+    int env_fixup_size = get_env_fixup_size((char **) envp);
+    env_fixed_up = alloca(env_fixup_size);
+    env_fixup((char **) envp, env_fixed_up);
+  } else {
+    env_fixed_up = environ;
+  }
 
   {
     /* Notify the supervisor before the call */
@@ -76,11 +90,7 @@
     fbb_execv_set_arg(&ic_msg, argv);
 
     /* Environment variables */
-###   if e
-    fbb_execv_set_env(&ic_msg, envp);
-###   else
-    fbb_execv_set_env(&ic_msg, environ);
-###   endif
+    fbb_execv_set_env(&ic_msg, env_fixed_up);
 
     /* Get CPU time used up to this exec() */
     struct rusage ru;
@@ -94,11 +104,17 @@
   }
 
   /* Perform the call. */
+{% set ic_orig_func = "ic_orig_" + func %}
 ###   if l
   /* Instead of execl*(), call its execv*() counterpart. */
+{% set ic_orig_func = ic_orig_func.replace("l", "v") %}
+###   endif
+###   if not e
+  /* Instead of exec*() without "e", call its exec*e() counterpart. */
+{% set ic_orig_func = ic_orig_func + "e" %}
 ###   endif
   errno = saved_errno;
-  ret = ic_orig_{{ func | replace("l", "v") }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv{% if e %}, envp{% endif %}{% if at %}, flags{% endif %});
+  ret = {{ ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv, env_fixed_up{% if at %}, flags{% endif %});
   saved_errno = errno;
 
   {
