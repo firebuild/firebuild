@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
@@ -731,6 +732,23 @@ static const char *get_tmpdir() {
   }
 }
 
+/**
+ * Bump RLIMIT_NOFILE to hard limit to allow more parallel interceptor connections.
+ */
+static void bump_limits() {
+  struct rlimit rlim;
+  getrlimit(RLIMIT_NOFILE, &rlim);
+  /* 8K is expected to be enough for up more than 2K parallel intercepted processes, thus try to
+   * bump the limit above that. */
+  rlim_t preferred_limit = (rlim.rlim_max == RLIM_INFINITY) ? 8192 : rlim.rlim_max;
+  if (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < preferred_limit) {
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, "Increasing limit of open files from "
+             + std::to_string(rlim.rlim_cur) + " to " + std::to_string(preferred_limit) + "");
+    rlim.rlim_cur = preferred_limit;
+    setrlimit(RLIMIT_NOFILE, &rlim);
+  }
+}
+
 }  // namespace
 
 struct ConnectionContext {
@@ -1111,6 +1129,7 @@ int main(const int argc, char *argv[]) {
   } else {
     // supervisor process
 
+    bump_limits();
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
 
