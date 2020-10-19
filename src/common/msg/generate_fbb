@@ -667,7 +667,6 @@ gen_fbb([
   # process that called fork()
   ("fork_parent", [
     # child process id
-    # FIXME - the pid is already known in the supervisor???
     (REQUIRED, "int64_t", "pid"),
   ]),
 ])
