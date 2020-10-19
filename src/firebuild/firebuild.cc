@@ -111,6 +111,7 @@ static char** get_sanitized_env() {
     env_v.push_back(preset[i]);
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
+  env_v.push_back("LD_PRELOAD=libfbintercept.so");
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
 

@@ -76,6 +76,9 @@ void fb_fbb_send_msg(void *ic_msg, int fd);
  *  The caller has to take care of thread locking. */
 void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd);
 
+/** Connection string to supervisor */
+extern char * fb_conn_string;
+
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
@@ -94,6 +97,12 @@ extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
 extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
 extern string_array *psfa_find(const posix_spawn_file_actions_t *p);
+
+/** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
+extern char *env_ld_library_path;
+
+/** Insert marker open()-s for strace, ltrace, etc. */
+extern bool insert_trace_markers;
 
 /** Insert debug message */
 extern void insert_debug_msg(const char*);
