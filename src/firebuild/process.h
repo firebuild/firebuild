@@ -383,6 +383,7 @@ class Process {
   ExecedProcessEnv *expected_child_;
   bool exec_pending_ {false};
   Process * exec_child_;
+  bool any_child_not_finalized();
   /** Add add ffd FileFD* to open fds */
   void add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                   const int fd, std::shared_ptr<FileFD> ffd);

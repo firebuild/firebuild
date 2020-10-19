@@ -454,6 +454,23 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
   return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
 }
 
+bool Process::any_child_not_finalized() {
+  if (exec_pending_ || pending_popen_child_) {
+    return true;
+  }
+  if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
+    /* The exec child is not yet finalized. We're not ready to finalize either. */
+    return true;
+  }
+
+  for (auto child : children_) {
+    if (child->state_ != FB_PROC_FINALIZED) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Finalize the current process.
  */
@@ -476,13 +493,8 @@ void Process::maybe_finalize() {
   if (state() != FB_PROC_TERMINATED) {
     return;
   }
-  if (exec_pending()) {
-    /* A child is yet to appear. We're not ready to finalize. */
-    return;
-  }
-  // TODO(rbalint) check for forked children, too, in order to handle runaway processes
-  if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
-    /* The exec child is not yet finalized. We're not ready to finalize either. */
+  if (any_child_not_finalized()) {
+    /* A child is yet to be finalized. We're not ready to finalize. */
     return;
   }
   do_finalize();
