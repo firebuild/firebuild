@@ -134,7 +134,7 @@ class ProcessTree {
     pid2fork_child_sock_.erase(pid);
   }
   void DropQueuedExecChild(const int pid) {
-    pid2fork_child_sock_.erase(pid);
+    pid2exec_child_sock_.erase(pid);
   }
   void DropParentAck(const int ppid) {
     ppid2pending_parent_ack_.erase(ppid);
