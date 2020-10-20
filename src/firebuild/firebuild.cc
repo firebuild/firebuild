@@ -240,6 +240,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
                 ic_msg, parent, fds);
         proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
         *new_proc = proc;
+        return;
       }
     } else if (!parent && ppid != getpid()) {
       /* Locate the parent in case of system/popen/posix_spawn, but not
