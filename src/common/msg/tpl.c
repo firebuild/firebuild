@@ -9,10 +9,6 @@
 
 #include "./fbb.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 ### for (msg, fields) in msgs
 /************************ {{ msg }} ************************/
 
@@ -147,7 +143,3 @@ void fbb_send(int fd, const void *msgbldr, uint32_t ack_id) {
     fb_writev(fd, iov, 2);
   }
 }
-
-#ifdef __cplusplus
-}  /* extern "C" */
-#endif
