@@ -30,12 +30,9 @@ static void fbb_{{ msg }}_debug(const void *msg_void) {
 ###     if type == STRING
     fprintf(stderr, "  {{ var }}: \"%s\"\n", fbb_{{ msg }}_get_{{ var }}(msg));
 ###     elif type == STRINGARRAY
-#ifdef __cplusplus
-    std::vector<std::string> {{ var }}_strs = fbb_{{ msg }}_get_{{ var }}(msg);
-    for (std::string& str : {{ var }}_strs) {
-      fprintf(stderr, "  {{ var }}: \"%s\"\n", str.c_str());
-    }
-#endif
+    for_s_in_fbb_{{ msg }}_{{ var }}(msg, {
+      fprintf(stderr, "  {{ var }}: \"%s\"\n", s);
+    });
 ###     else
     fprintf(stderr, "  {{ var }}: %lld\n", (long long) fbb_{{ msg }}_get_{{ var }}(msg));
 ###     endif
