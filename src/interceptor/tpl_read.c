@@ -8,7 +8,7 @@
 
 {% set msg = "read" %}
 {# No locking around the read(): see issue #279 #}
-{% set global_lock = False %}
+{% set global_lock = 'never' %}
 
 ### block send_msg
   {# Acquire the lock if sending a message #}
