@@ -56,6 +56,58 @@ def add_debug_to_dict(type, name, dict):
     dict['debug_' + when + '_args'] += ", " + name
 
 
+# Split the C parameter specification of a function, at spaces that are outside of parentheses.
+# E.g. "int (*compar)(void *, void *), void *arg" -> ["int (*compar)(void *, void *)", "void *arg"]
+def split_param_spec(sig):
+  sig = sig.strip()
+  if not sig:
+    return []
+
+  ret = []
+  start_pos = 0
+  pos = 0
+  nest = 0
+  while pos <= len(sig):
+    if pos == len(sig) or (sig[pos] == ',' and nest == 0):
+      ret.append(sig[start_pos:pos].strip())
+      start_pos = pos + 1
+    elif sig[pos] == '(':
+      nest += 1
+    elif sig[pos] == ')':
+      nest -= 1
+    pos += 1
+  return ret
+
+
+# For one parameter specification of a C function, extract the type and the name.
+# E.g. "int (*compar)(void *, void *)" -> ("int (*)(void *, void *)", "compar")
+def get_type_and_name(sig):
+  sig = sig.strip()
+  name_end = len(sig)
+  # Handle array declaration, e.g. "[2]" in "int pipefd[2]".
+  while name_end > 0 and sig[name_end - 1] == ']':
+    name_end = sig.rindex('[', 0, name_end)
+  # Handle function pointer parameter, e.g. "int (*compar)(void *, void *)".
+  # Walk backwards from the end, locate the beginning of the parameter list.
+  if name_end > 0 and sig[name_end - 1] == ')':
+    pos = name_end - 1
+    nest = 1
+    while pos > 0 and nest > 0:
+      if sig[pos - 1] == ')':
+        nest += 1
+      elif sig[pos - 1] == '(':
+        nest -= 1
+      pos -= 1
+    # pos now points to the parameter list, e.g. "(void *, void *)". Still need to walk back through a ')'.
+    name_end = sig.rindex(')', 0, pos)
+  # name_end is now the end of the variable name. Let's find the sequence of alphanumeric + '_' characters.
+  name_start = name_end
+  while name_start > 0 and (sig[name_start - 1].isalnum() or sig[name_start - 1] == '_'):
+      name_start -= 1
+  # The variable name is between name_start and name_end, the rest is the signature.
+  return (sig[0:name_start].strip() + sig[name_end:].strip(), sig[name_start:name_end].strip())
+
+
 # Given a method signature (return type, types and names of parameters)
 # as strings, generates various values for the convenience of templates.
 # Supports arrays, but does not support function pointers.
@@ -91,25 +143,18 @@ def add_signature_to_dict(rettype, sig, dict):
   dict['debug_after_fmt'] = ''
   dict['debug_after_args'] = ''
 
-  if sig != '':
-    for type_and_name in sig.split(','):
-      type_and_name = type_and_name.strip()
-      if type_and_name == '...':
-        dict['vararg'] = True
-      else:
-        pos = max(type_and_name.rfind('*') + 1, type_and_name.rfind(' ') + 1)
-        type = type_and_name[:pos].strip()
-        name = type_and_name[pos:].strip()
-        # Move "[]" or "[number]" from the end of name to the end of type
-        pos = name.rfind('[')
-        if pos >= 0:
-          type += name[pos:]
-          name = name[:pos]
-        dict['types'].append(type)
-        dict['names'].append(name)
-        dict['types_and_names'].append((type, name))
+  params = split_param_spec(sig)
+  for type_and_name in params:
+    type_and_name = type_and_name.strip()
+    if type_and_name == '...':
+      dict['vararg'] = True
+    else:
+      (type, name) = get_type_and_name(type_and_name)
+      dict['types'].append(type)
+      dict['names'].append(name)
+      dict['types_and_names'].append((type, name))
 
-        add_debug_to_dict(type, name, dict)
+      add_debug_to_dict(type, name, dict)
 
   dict['types_str'] = ', '.join(dict['types'])
   if dict['vararg']:
@@ -1079,7 +1124,6 @@ generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
          tpl="exec")
 
 # Intercept main
-# Note: Our parser parses this method signature completely wrong. This is not a problem since only the original string is used.
 generate("int", "__libc_start_main", "int (*main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end",
          tpl="main",
          global_lock=False,
