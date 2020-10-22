@@ -1058,6 +1058,14 @@ generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t 
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 
+# Insert a trace marker for clone and pthread_create
+generate("int", "clone", "int (*fn)(void *), void *stack, int flags, void *arg, ...",
+         tpl="marker_only",
+         before_lines=["(void) fn;     /* seemingly unused, actually used via __builtin_apply_args */",
+                       "(void) stack;  /* seemingly unused, actually used via __builtin_apply_args */"])
+generate("int", "pthread_create", "pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg",
+         tpl="marker_only")
+
 # Intercept the wait family
 # Need to wait for the supervisor to ACK that it has processed what the child had done
 generate("pid_t", "wait", "int *wstatus",
