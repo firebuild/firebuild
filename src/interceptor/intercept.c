@@ -320,6 +320,13 @@ static void atfork_child_handler(void) {
    * okay. */
   pthread_mutex_init(&ic_global_lock, NULL);
 
+  /* Add a useful trace marker */
+  if (insert_trace_markers) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "launched via fork() by ppid %d", ic_orig_getppid());
+    insert_debug_msg(buf);
+  }
+
   /* Reinitialize other stuff */
   reset_interceptors();
   clear_all_file_states();
@@ -387,6 +394,23 @@ void handle_exit(const int status) {
       thread_signal_danger_zone_leave();
     }
   }
+}
+
+/**
+ * A wrapper in front of the start_routine of a pthread_create(), inserting a useful trace marker.
+ * pthread_create()'s two parameters start_routine and arg are accessed via one,
+ * malloc()'ed in the intercepted pthread_create() and free()'d here.
+ */
+void *pthread_start_routine_wrapper(void *routine_and_arg) {
+  if (insert_trace_markers) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "launched via pthread_create() in pid %d", ic_orig_getpid());
+    insert_debug_msg(buf);
+  }
+  void *(*start_routine)(void *) = ((void **)routine_and_arg)[0];
+  void *arg = ((void **)routine_and_arg)[1];
+  free(routine_and_arg);
+  return (*start_routine)(arg);
 }
 
 /**
