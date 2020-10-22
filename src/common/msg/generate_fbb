@@ -532,21 +532,19 @@ gen_fbb([
     (OPTIONAL, STRINGARRAY, "env"),
     # spawn or spawnp
     (REQUIRED, "bool", "is_spawnp"),
-    # posix_spawn_file_actions_t translated into protobuf
-    (OPTIONAL, STRINGARRAY, "file_actions"),
   ]),
 
   ("posix_spawn_parent", [
-    # process id
-    (REQUIRED, "int64_t", "pid"),
+    # command args repeated, to let the supervisor remove it from expected_child
+    (OPTIONAL, STRINGARRAY, "arg"),
+    # posix_spawn_file_actions_t, each action encoded in one string
+    (OPTIONAL, STRINGARRAY, "file_actions"),
     # child's process id
-    (OPTIONAL, "int64_t", "child_pid"),
-    # unused
-    (OPTIONAL, "int32_t", "error_no"),
+    (REQUIRED, "int64_t", "pid"),
   ]),
 
   ("posix_spawn_failed", [
-    # command args, to let the supervisor remove it from expected_children
+    # command args repeated, to let the supervisor remove it from expected_child
     (OPTIONAL, STRINGARRAY, "arg"),
     # error no., when ret = -1
     (OPTIONAL, "int32_t", "error_no"),

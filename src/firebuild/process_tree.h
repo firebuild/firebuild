@@ -64,7 +64,8 @@ struct pending_parent_ack {
 class ProcessTree {
  public:
   ProcessTree()
-      : fb_pid2proc_(), pid2proc_(), pid2fork_child_sock_(), pid2exec_child_sock_(), cmd_profs_()
+      : fb_pid2proc_(), pid2proc_(), pid2fork_child_sock_(), pid2exec_child_sock_(),
+        pid2posix_spawn_child_sock_(), cmd_profs_()
   {}
   ~ProcessTree();
 
@@ -88,6 +89,9 @@ class ProcessTree {
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
   }
+  void QueuePosixSpawnChild(int pid, int sock, ExecedProcess* incomplete_child) {
+    pid2posix_spawn_child_sock_[pid] = {sock, incomplete_child};
+  }
   void QueueParentAck(int ppid, int ack, int sock) {
     assert(!PPid2ParentAck(ppid));
     ppid2pending_parent_ack_[ppid] = {ack, sock};
@@ -106,6 +110,13 @@ class ProcessTree {
       return nullptr;
     }
   }
+  const exec_child_sock* Pid2PosixSpawnChildSock(const int pid) {
+    try {
+      return &pid2posix_spawn_child_sock_.at(pid);
+    } catch (const std::out_of_range& oor) {
+      return nullptr;
+    }
+  }
   const pending_parent_ack* PPid2ParentAck(const int ppid) {
     try {
       return &ppid2pending_parent_ack_.at(ppid);
@@ -119,6 +130,9 @@ class ProcessTree {
   void DropQueuedExecChild(const int pid) {
     pid2exec_child_sock_.erase(pid);
   }
+  void DropQueuedPosixSpawnChild(const int pid) {
+    pid2posix_spawn_child_sock_.erase(pid);
+  }
   void DropParentAck(const int ppid) {
     ppid2pending_parent_ack_.erase(ppid);
   }
@@ -128,7 +142,13 @@ class ProcessTree {
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
+  /** Whenever an exec*() child appears, but we haven't yet fully processed its exec parent,
+   *  we need to put aside the new process until we finish processing its ancestor. */
   std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
+  /** Whenever a posix_spawn*() child process appears, but we haven't yet processed the
+   *  posix_spawn_parent message from the parent, we have to put aside the new process until
+   *  we get to this point in the parent. The key is the parent's pid. */
+  std::unordered_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
   std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
   /**
    * Profile is aggregated by command name (argv[0]).

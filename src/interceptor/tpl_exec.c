@@ -122,6 +122,10 @@
     FBB_Builder_execv_failed ic_msg;
     fbb_execv_failed_init(&ic_msg);
     fbb_execv_failed_set_error_no(&ic_msg, saved_errno);
+    /* It's important to wait for ACK, so that if this process now exits and its parent
+     * successfully waits for it then the supervisor won't incorrectly see it in
+     * exec_pending state and won't incorrectly believe that a statically linked binary
+     * was execed. See #324 for details. */
     fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock body

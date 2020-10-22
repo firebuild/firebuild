@@ -153,3 +153,43 @@ setup() {
     strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBYYY.SO' from LD_PRELOAD cannot be preloaded"
   done
 }
+
+@test "fork() + exec() a statically linked binary" {
+  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_fork_exec ./test_static)
+    assert_streq "$result" "I am statically linked."
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
+@test "popen() a statically linked binary" {
+  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_popen ./test_static)
+    assert_streq "$result" "I am statically linked."
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
+@test "posix_spawn() a statically linked binary" {
+  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_posix_spawn ./test_static)
+    assert_streq "$result" "I am statically linked."
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
+@test "system() a statically linked binary" {
+  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_system ./test_static)
+    assert_streq "$result" "I am statically linked."
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
