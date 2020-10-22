@@ -18,8 +18,12 @@ ProcessTree::~ProcessTree() {
   for (auto& pair : fb_pid2proc_) {
     delete(pair.second);
   }
-  // clean up expected exec() children
+  // clean up pending exec() children
   for (auto& pair : pid2exec_child_sock_) {
+    delete(pair.second.incomplete_child);
+  }
+  // clean up pending posix_spawn() children
+  for (auto& pair : pid2posix_spawn_child_sock_) {
     delete(pair.second.incomplete_child);
   }
 }

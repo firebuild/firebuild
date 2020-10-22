@@ -424,15 +424,12 @@ void Process::set_wd(const std::string &ar_d) {
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
-                                std::shared_ptr<std::vector<std::string>> *file_actions_p,
                                 LaunchType *launch_type_p,
                                 const bool failed) {
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
     if (expected_child_->argv() == argv) {
       auto fds = expected_child_->fds();
-      if (file_actions_p)
-          *file_actions_p = expected_child_->file_actions();
       if (launch_type_p)
           *launch_type_p = expected_child_->launch_type();
       delete(expected_child_);
@@ -441,7 +438,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
     } else {
       disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child appeared: " +
                                      ::firebuild::pretty_print_array(argv) +
-                                     "while waiting for: " +
+                                     " while waiting for: " +
                                      ::firebuild::to_string(*expected_child_));
     }
     delete(expected_child_);

@@ -117,8 +117,7 @@ jobs:
       run: |
         apt-get source vte2.91
         cd vte2.91-*
-        # TODO(rbalint) (enable gir and vapi when those are reliable, too)
-        meson -Dgir=false -Dvapi=false build
+        meson build
         cd ../test
         ./run-firebuild ninja -j8 -C ../vte2.91-*/build
 

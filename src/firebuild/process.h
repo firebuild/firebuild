@@ -101,6 +101,8 @@ class Process {
   void set_aggr_time(int64_t t) {aggr_time_ = t;}
   void set_exec_pending(bool val) {exec_pending_ = val;}
   bool exec_pending() {return exec_pending_;}
+  void set_posix_spawn_pending(bool val) {posix_spawn_pending_ = val;}
+  bool posix_spawn_pending() {return posix_spawn_pending_;}
   void set_exec_child(Process *p) {exec_child_ = p;}
   Process* exec_child() const {return exec_child_;}
   std::vector<Process*>& children() {return children_;}
@@ -122,7 +124,6 @@ class Process {
   }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&,
-                         std::shared_ptr<std::vector<std::string>> *file_actions_p,
                          LaunchType *launch_type_p,
                          const bool failed = false);
   bool has_expected_child () {return expected_child_ ? true : false;}
@@ -381,7 +382,16 @@ class Process {
   int pending_popen_fd_ {-1};
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
   ExecedProcessEnv *expected_child_;
+  /** Set upon an "execv" message, cleared upon "scproc_query" (i.e. new dynamically linked process
+   *  successfully started up) or "execv_failed". Also set in the child upon a "posix_spawn_parent"
+   *  in the typical case that the child hasn't appeared yet. Lets us detect statically linked
+   *  processes: if a process quits while this flag is true then it was most likely statically
+   *  linked (or failed to link, etc.). */
   bool exec_pending_ {false};
+  /** Set upon "posix_spawn", cleared upon "posix_spawn_parent" or "posix_spawn_failed". Lets us
+   *  detect the non-typical case when the posix_spawn'ed process appears (does an "scproc_query")
+   *  sooner than the parent gets to "posix_spawn_parent". */
+  bool posix_spawn_pending_ {false};
   Process * exec_child_;
   bool any_child_not_finalized();
   /** Add add ffd FileFD* to open fds */

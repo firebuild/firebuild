@@ -18,11 +18,6 @@
 ###   else
     fbb_posix_spawn_set_is_spawnp(&ic_msg, false);
 ###   endif
-    if (file_actions) {
-      string_array *p = psfa_find(file_actions);
-      assert(p);
-      fbb_posix_spawn_set_file_actions(&ic_msg, p->p);
-    }
     fbb_posix_spawn_set_arg(&ic_msg, argv);
     fbb_posix_spawn_set_env(&ic_msg, envp);
     fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
@@ -49,6 +44,12 @@
     if (success) {
       FBB_Builder_posix_spawn_parent ic_msg;
       fbb_posix_spawn_parent_init(&ic_msg);
+      fbb_posix_spawn_parent_set_arg(&ic_msg, argv);
+      if (file_actions) {
+        string_array *p = psfa_find(file_actions);
+        assert(p);
+        fbb_posix_spawn_parent_set_file_actions(&ic_msg, p->p);
+      }
       fbb_posix_spawn_parent_set_pid(&ic_msg, *pid);
       fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     } else {
