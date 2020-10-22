@@ -8,7 +8,7 @@
 ### extends "tpl.c"
 
 {% set msg = None %}
-{% set global_lock = False %}
+{% set global_lock = 'never' %}
 
 ### block no_intercept
   i_am_intercepting = false;

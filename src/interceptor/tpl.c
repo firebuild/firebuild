@@ -7,7 +7,9 @@
 {# required code for the majority of the intercepted functions.       #}
 {# ------------------------------------------------------------------ #}
 {# Parameters:                                                        #}
-{#  global_lock:         If to acquire global lock (default: true)    #}
+{#  global_lock:         Whether to acquire the global lock 'before', #}
+{#                       or 'after' the operation, or 'never'         #}
+{#                       (default: 'before')                          #}
 {#  before_lines:        Things to place right before the call        #}
 {#  call_orig_lines:     How to call the orig method                  #}
 {#  after_lines:         Things to place right after the call         #}
@@ -27,7 +29,7 @@
 {# of this file.                                                      #}
 {# ------------------------------------------------------------------ #}
 {#                                                                    #}
-{# Convenient handling of default-true boolean #}
+{# Convenient handling of default-true booleans and other defaults #}
 ### if send_msg_on_error is not defined
 ###   set send_msg_on_error = true
 ### endif
@@ -39,7 +41,7 @@
 ###   endif
 ### endif
 ### if global_lock is not defined
-###   set global_lock = true
+###   set global_lock = 'before'
 ### endif
 {#                                                                    #}
 {# --- Template for 'decl.h' ---------------------------------------- #}
@@ -182,7 +184,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     insert_begin_marker(debug_buf);
   }
 
-###     if global_lock
+###     if global_lock == 'before'
   {{ grab_lock_if_needed('i_am_intercepting') }}
 ###     endif
 
@@ -234,6 +236,10 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###           endfor
 ###         endif
 ###       endblock after
+
+###     if global_lock == 'after'
+  {{ grab_lock_if_needed('i_am_intercepting') }}
+###     endif
 
 ###       block send_msg
 ###         if msg
@@ -297,7 +303,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     insert_end_marker(debug_buf);
   }
 
-###     if global_lock
+###     if global_lock == 'before' or global_lock == 'after'
   {{ release_lock_if_needed() }}
 ###     endif
 

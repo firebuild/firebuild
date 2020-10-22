@@ -1068,14 +1068,17 @@ generate("int", "pthread_create", "pthread_t *thread, const pthread_attr_t *attr
 
 # Intercept the wait family
 # Need to wait for the supervisor to ACK that it has processed what the child had done
+# Lock only for the communication, see #338
 generate("pid_t", "wait", "int *wstatus",
          success="ret > 0",
+         global_lock='after',
          send_msg_on_error=False,
          msg="wait",
          msg_skip_fields=["wstatus"],
          msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
+         global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
          success="ret > 0",
@@ -1086,6 +1089,7 @@ generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
          msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
+         global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
          success="ret > 0",
@@ -1096,6 +1100,7 @@ generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
          msg_add_fields=["fbb_wait_set_pid(&ic_msg, ret);"],
          ack=True)
 generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage *rusage",
+         global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
          success="ret > 0",
@@ -1107,6 +1112,7 @@ generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage 
          ack=True)
 # Note: See BUGS in the waitid(2) manual page for the infop==NULL case.
 generate("int", "waitid", "idtype_t idtype, id_t id, siginfo_t *infop, int options",
+         global_lock='after',
          send_msg_on_error=False,
          send_msg_condition="success && infop && !((options & WNOHANG) && (infop->si_pid == 0)) && infop->si_code != CLD_STOPPED && infop->si_code != CLD_TRAPPED && infop->si_code != CLD_CONTINUED",
          msg="wait",
@@ -1134,7 +1140,7 @@ generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
 # Intercept main
 generate("int", "__libc_start_main", "int (*main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end",
          tpl="main",
-         global_lock=False,
+         global_lock='never',
          no_saved_errno=True)
 
 # Signal handling
