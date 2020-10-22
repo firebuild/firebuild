@@ -452,6 +452,16 @@ static void fb_ic_init() {
   thread_intercept_on = "init";
   insert_debug_msg("initialization-begin");
 
+  /* Useful for debugging deadlocks with strace, since the same values appear in futex()
+   * if we need to wait for the lock. */
+  if (insert_trace_markers) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), "ic_global_lock = %p", &ic_global_lock);
+    insert_debug_msg(buf);
+    snprintf(buf, sizeof(buf), "ic_system_popen_lock = %p", &ic_system_popen_lock);
+    insert_debug_msg(buf);
+  }
+
   // init global variables
 
   /* Save a copy of LD_LIBRARY_PATH before someone might modify it. */
