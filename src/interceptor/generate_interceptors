@@ -1064,7 +1064,7 @@ generate("int", "clone", "int (*fn)(void *), void *stack, int flags, void *arg, 
          before_lines=["(void) fn;     /* seemingly unused, actually used via __builtin_apply_args */",
                        "(void) stack;  /* seemingly unused, actually used via __builtin_apply_args */"])
 generate("int", "pthread_create", "pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg",
-         tpl="marker_only")
+         tpl="pthread_create")
 
 # Intercept the wait family
 # Need to wait for the supervisor to ACK that it has processed what the child had done

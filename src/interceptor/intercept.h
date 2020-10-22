@@ -202,6 +202,7 @@ inline void thread_signal_danger_zone_leave() {
 
 extern void fb_ic_load() __attribute__((constructor));
 extern void handle_exit(const int status);
+void *pthread_start_routine_wrapper(void *routine_and_arg);
 extern int __libc_start_main(int (*main)(int, char **, char **),
                              int argc, char **ubp_av,
                              void (*init)(void), void (*fini)(void),
