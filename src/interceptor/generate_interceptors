@@ -471,6 +471,21 @@ generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, i
          msg_skip_fields=["lineptr", "n", "delim", "stream"],
          msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
          ack=True)
+# glibc magic, see #343
+generate("int", ["__uflow", "__underflow"], "FILE *stream",
+         tpl="read",
+         before_lines=["int fd = safe_fileno(stream);"],
+         success="true",
+         msg_skip_fields=["stream"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
+         ack=True)
+generate("wint_t", ["__wuflow", "__wunderflow"], "FILE *stream",
+         tpl="read",
+         before_lines=["int fd = safe_fileno(stream);"],
+         success="true",
+         msg_skip_fields=["stream"],
+         msg_add_fields=["fbb_read_set_fd(&ic_msg, fd);"],
+         ack=True)
 # Handle (__isoc99_)?v?f?w?scanf
 for i in ['', '__isoc99_']:
   for v in ['', 'v']:
@@ -591,6 +606,21 @@ generate("int", "puts", "const char *s",
          tpl="write",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["s"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
+         ack=True)
+# glibc magic, see #343
+generate("int", "__overflow", "FILE *stream, int ch",
+         tpl="write",
+         before_lines=["int fd = safe_fileno(stream);"],
+         success="true",
+         msg_skip_fields=["stream", "ch"],
+         msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
+         ack=True)
+generate("wint_t", "__woverflow", "FILE *stream, wint_t ch",
+         tpl="write",
+         before_lines=["int fd = safe_fileno(stream);"],
+         success="true",
+         msg_skip_fields=["stream", "ch"],
          msg_add_fields=["fbb_write_set_fd(&ic_msg, fd);"],
          ack=True)
 # There's no public verror() and verror_at_line().
