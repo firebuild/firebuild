@@ -30,6 +30,7 @@
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
 #include "firebuild/cache.h"
+#include "firebuild/hash_cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/process_factory.h"
@@ -1161,6 +1162,7 @@ int main(const int argc, char *argv[]) {
   cacher =
       new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, no_fetch,
                                          cfg->getRoot()["env_vars"]["fingerprint_skip"]);
+  firebuild::hash_cache = new firebuild::HashCache();
 
   // Verify that the version of the ProtoBuf library that we linked against is
   // compatible with the version of the headers we compiled against.

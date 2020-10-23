@@ -9,6 +9,8 @@
 
 #include <cstring>
 
+#include "firebuild/hash_cache.h"
+
 namespace firebuild {
 
 File::File(const std::string &p)
@@ -17,7 +19,7 @@ File::File(const std::string &p)
 
 
 int File::set_hash() {
-  return hash_.set_from_file(path_, NULL);
+  return hash_cache->get_hash(path_, &hash_);
 }
 
 int File::update() {

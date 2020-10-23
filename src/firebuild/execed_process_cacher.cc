@@ -12,6 +12,7 @@
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/fb-cache.pb.h"
+#include "firebuild/hash_cache.h"
 
 namespace firebuild {
 
@@ -119,7 +120,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
   /* The executable and its hash */
   firebuild::Hash hash;
-  if (!hash.set_from_file(proc->executable())) {
+  if (!hash_cache->get_hash(proc->executable(), &hash)) {
     delete fp_msg;
     return false;
   }
@@ -130,7 +131,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     if (lib == "linux-vdso.so.1") {
       continue;
     }
-    if (!hash.set_from_file(lib)) {
+    if (!hash_cache->get_hash(lib, &hash)) {
       delete fp_msg;
       return false;
     }
@@ -274,7 +275,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const msg::File& file : pi.path_isreg_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
     bool is_dir;
-    if (!on_fs_hash.set_from_file(file.path(), &is_dir) || is_dir) {
+    if (!hash_cache->get_hash(file.path(), &on_fs_hash, &is_dir) || is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_hex()
                + " mismatches e.g. at " + pretty_print_string(file.path())
@@ -291,7 +292,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const msg::File& file : pi.path_isdir_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
     bool is_dir;
-    if (!on_fs_hash.set_from_file(file.path(), &is_dir) || !is_dir) {
+    if (!hash_cache->get_hash(file.path(), &on_fs_hash, &is_dir) || !is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_hex()
                + " mismatches e.g. at " + pretty_print_string(file.path())

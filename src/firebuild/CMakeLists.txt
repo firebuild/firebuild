@@ -21,6 +21,7 @@ add_executable(firebuild
   process_tree.cc
   process_proto_adaptor.cc
   hash.cc
+  hash_cache.cc
   file.cc
   file_db.cc
   file_usage.cc
