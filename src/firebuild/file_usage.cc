@@ -34,16 +34,28 @@ namespace firebuild {
  * "this" describes the older event(s) which happened to a file, and
  * "that" describes the new one. "this" is updated to represent what
  * happened to the file so far.
+ * @return if the merge caused a change in "this"
  */
-void FileUsage::merge(const FileUsage& that) {
+bool FileUsage::merge(const FileUsage& that) {
+  bool changed = false;
   if (initial_state_ == DONTCARE) {
-    initial_state_ = that.initial_state_;
+    if (initial_state_ != that.initial_state_) {
+      initial_state_ = that.initial_state_;
+      changed = true;
+    }
     if (that.initial_state_ == ISREG_WITH_HASH ||
         that.initial_state_ == ISDIR_WITH_HASH) {
-      initial_hash_ = that.initial_hash_;
+      if (initial_hash_ != that.initial_hash_) {
+        initial_hash_ = that.initial_hash_;
+        changed = true;
+      }
     }
   }
-  written_ = written_ || that.written_;
+  if (written_ != that.written_) {
+    written_ = written_ || that.written_;
+    changed = true;
+  }
+  return changed;
 }
 
 /**

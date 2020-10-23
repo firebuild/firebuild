@@ -65,7 +65,7 @@ class FileUsage {
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
 
-  void merge(const FileUsage& fu);
+  bool merge(const FileUsage& fu);
   bool update_from_open_params(const std::string& filename,
                                FileAction action, int flags, int err,
                                bool do_read);
