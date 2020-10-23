@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 
 #include "firebuild/hash.h"
+#include "firebuild/hash_cache.h"
 
 // static inline bool is_rdonly(int flags) { return ((flags & O_ACCMODE) == O_RDONLY); }
 static inline bool is_wronly(int flags) { return ((flags & O_ACCMODE) == O_WRONLY); }
@@ -68,7 +69,7 @@ bool FileUsage::update_from_open_params(const std::string& filename,
     if (action == FILE_ACTION_OPEN) {
       if (flags & O_DIRECTORY) {
         /* opendir() or alike */
-        if (!initial_hash_.set_from_file(filename)) {
+        if (!hash_cache->get_hash(filename, &initial_hash_)) {
           unknown_err_ = errno;
           return false;
         }
@@ -102,7 +103,7 @@ bool FileUsage::update_from_open_params(const std::string& filename,
         } else {
           if (!(flags & O_CREAT)) {
             /* D: Contents unchanged. Need to checksum the file. */
-            if (!initial_hash_.set_from_file(filename)) {
+            if (!hash_cache->get_hash(filename, &initial_hash_)) {
               unknown_err_ = errno;
               return false;
             }
@@ -117,7 +118,7 @@ bool FileUsage::update_from_open_params(const std::string& filename,
               return false;
             }
             if (st.st_size == 0) {
-              if (!initial_hash_.set_from_file(filename)) {
+              if (!hash_cache->get_hash(filename, &initial_hash_)) {
                 unknown_err_ = errno;
                 return false;
               }
@@ -130,7 +131,7 @@ bool FileUsage::update_from_open_params(const std::string& filename,
         written_ = true;
       } else {
         /* The file was successfully opened for reading only. */
-        if (!initial_hash_.set_from_file(filename)) {
+        if (!hash_cache->get_hash(filename, &initial_hash_)) {
           unknown_err_ = errno;
           return false;
         }
