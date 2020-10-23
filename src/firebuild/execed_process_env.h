@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "firebuild/file_fd.h"
@@ -27,12 +28,12 @@ typedef enum {
 class ExecedProcessEnv {
  public:
   ExecedProcessEnv();
-  explicit ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  explicit ExecedProcessEnv(std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds);
 
   std::vector<std::string>& argv() {return argv_;}
   const std::vector<std::string>& argv() const {return argv_;}
   void set_argv(const std::vector<std::string>& argv) {argv_ = argv;}
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds() {return fds_;}
   void set_launch_type(LaunchType value) {launch_type_ = value;}
   LaunchType launch_type() const {return launch_type_;}
 
@@ -43,7 +44,7 @@ class ExecedProcessEnv {
   /// Whether it's launched via system() or popen() or other
   LaunchType launch_type_;
   /// File descriptor states intherited from parent
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds_;
   // TODO(egmont) add envp ?
 
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessEnv);

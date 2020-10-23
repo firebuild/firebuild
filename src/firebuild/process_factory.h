@@ -5,7 +5,7 @@
 #define FIREBUILD_PROCESS_FACTORY_H_
 
 #include <memory>
-#include <vector>
+#include <unordered_map>
 
 #include "./fbb.h"
 #include "firebuild/execed_process.h"
@@ -25,9 +25,9 @@ namespace firebuild {
 class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(int pid, Process * const parent);
-  static ExecedProcess* getExecedProcess(const FBB_scproc_query *msg,
-                                         Process * parent,
-                                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  static ExecedProcess* getExecedProcess(
+      const FBB_scproc_query *msg, Process * parent,
+      std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);

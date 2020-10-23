@@ -22,7 +22,8 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const std::string &wd,
-                 Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                 Process * parent,
+                 std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
@@ -57,13 +58,10 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
 }
 
 std::shared_ptr<FileFD>
-Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+Process::add_filefd(std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds,
                     int fd,
                     std::shared_ptr<FileFD> ffd) {
-  if (fds->size() <= static_cast<unsigned int>(fd)) {
-    fds->resize(fd + 1, nullptr);
-  }
-  if ((*fds)[fd]) {
+  if (fds->count(fd)) {
     firebuild::fb_error("Fd " + std::to_string(fd) + " is already tracked as being open.");
   }
   // the shared_ptr takes care of cleaning up the old fd if needed
@@ -76,10 +74,8 @@ void Process::add_pipe(int fd1, std::shared_ptr<Pipe> pipe) {
 }
 
 void Process::forward_all_pipes() {
-  for (auto file_fd : *fds_) {
-    if (!file_fd) {
-      continue;
-    }
+  for (const auto& it : *fds_) {
+    auto file_fd = it.second;
     auto pipe = file_fd->pipe();
     if (pipe) {
       /* One round of forwarding should be enough, since the parent can't perform a
@@ -120,11 +116,12 @@ void Process::forward_all_pipes() {
 }
 
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
-  auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
-  for (unsigned int i = 0; i < fds_->size(); i++) {
-    if (fds_->at(i) && !(execed &&(*fds_)[i]->cloexec())) {
-      add_filefd(fds, i, std::make_shared<FileFD>(*fds_->at(i).get()));
+std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> Process::pass_on_fds(
+    bool execed) {
+  auto fds = std::make_shared<std::unordered_map<int, std::shared_ptr<FileFD>>>();
+  for (const auto& it : *fds_) {
+    if (!(execed && it.second->cloexec())) {
+      add_filefd(fds, it.first, std::make_shared<FileFD>(*it.second));
     }
   }
   return fds;
@@ -184,16 +181,16 @@ int Process::handle_close(const int fd, const int error) {
       }
       // remove from open fds
       closed_fds_.push_back((*fds_)[fd]);
-      (*fds_)[fd].reset();
+      fds_->erase(fd);
       return 0;
     } else if (((*fds_)[fd]->last_err() == EINTR) && (error == 0)) {
       // previous close got interrupted but the current one succeeded
-      (*fds_)[fd].reset();
+      fds_->erase(fd);
       return 0;
     } else {
       // already closed, it may be an error
       // TODO(rbalint) debug
-      (*fds_)[fd].reset();
+      fds_->erase(fd);
       return 0;
     }
   }
@@ -475,11 +472,11 @@ void Process::set_wd(const std::string &ar_d) {
   add_wd(d);
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
                                 const bool failed) {
-  std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
     if (expected_child_->argv() == argv) {
       auto fds = expected_child_->fds();
@@ -501,7 +498,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                    std::string(failed ? "failed: " : "appeared: ") +
                                    firebuild::pretty_print_array(argv));
   }
-  return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+  return std::make_shared<std::unordered_map<int, std::shared_ptr<FileFD>>>();
 }
 
 bool Process::any_child_not_finalized() {

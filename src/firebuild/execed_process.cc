@@ -47,7 +47,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::string &cwd,
                              const std::string &executable,
                              Process * parent,
-                             std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                             std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, cwd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),

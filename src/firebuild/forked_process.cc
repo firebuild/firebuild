@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 #include <memory>
-#include <vector>
+#include <unordered_map>
 
 #include "firebuild/forked_process.h"
 #include "firebuild/debug.h"
@@ -11,7 +11,7 @@ namespace firebuild {
 
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent,
-                             std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                             std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, parent ? parent->wd() : "", parent, fds) {
   // add as fork child of parent
   if (parent) {

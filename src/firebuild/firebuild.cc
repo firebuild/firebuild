@@ -308,7 +308,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     firebuild::LaunchType launch_type = firebuild::LAUNCH_TYPE_OTHER;
 
     firebuild::Process *parent = NULL;
-    auto fds = std::make_shared<std::vector<std::shared_ptr<firebuild::FileFD>>>();
+    auto fds = std::make_shared<std::unordered_map<int, std::shared_ptr<firebuild::FileFD>>>();
 
     /* Locate the parent in case of execve or alike. This includes the
      * case when the outermost intercepted process starts up (no

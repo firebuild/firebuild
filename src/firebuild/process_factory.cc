@@ -5,6 +5,7 @@
 #include "firebuild/process_factory.h"
 
 #include <string>
+#include <vector>
 
 namespace firebuild {
 
@@ -16,8 +17,9 @@ ProcessFactory::getForkedProcess(const int pid, Process * const parent) {
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
-                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
+ProcessFactory::getExecedProcess(
+    const FBB_scproc_query *msg, Process * parent,
+    std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds) {
   auto e = new ExecedProcess(fbb_scproc_query_get_pid(msg),
                              fbb_scproc_query_get_ppid(msg),
                              fbb_scproc_query_get_cwd(msg),

@@ -9,7 +9,7 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <vector>
+#include <unordered_map>
 
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -21,7 +21,7 @@ class ExecedProcess;
 class ForkedProcess : public Process {
  public:
   explicit ForkedProcess(const int pid, const int ppid, Process* parent,
-                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+                         std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds);
   ExecedProcess* exec_point() {return exec_point_;}
   const ExecedProcess* exec_point() const {return exec_point_;}
   /**

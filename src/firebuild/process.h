@@ -70,7 +70,7 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, const std::string &wd,
-          Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+          Process* parent, std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -123,7 +123,7 @@ class Process {
   void set_pending_popen_fd(int fd) {
     pending_popen_fd_ = fd;
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&,
                          LaunchType *launch_type_p,
                          const bool failed = false);
@@ -142,13 +142,13 @@ class Process {
       return nullptr;
     }
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
-  void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds() {return fds_;}
+  void set_fds(std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
   /** Add add ffd FileFD* to open fds */
   static std::shared_ptr<FileFD>
-  add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+  add_filefd(std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds,
              const int fd, std::shared_ptr<FileFD> ffd);
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
   void add_pipe(int fd1, std::shared_ptr<Pipe> pipe);
   /** Forward all pipes associated with open file descriptors of the process */
   void forward_all_pipes();
@@ -373,7 +373,8 @@ class Process {
   int ppid_;         ///< UNIX ppid
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   std::string wd_;  ///< Current working directory
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
+  /** Active file descriptors */
+  std::shared_ptr<std::unordered_map<int, std::shared_ptr<FileFD>>> fds_;
   std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   int64_t utime_u_;  ///< user time in microseconds as reported by getrusage()
   /// system time in microseconds as reported by getrusage()
