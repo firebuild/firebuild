@@ -138,8 +138,8 @@ void ExecedProcess::propagate_file_usage(const std::string &name,
     fu = new FileUsage();
     file_usages()[name] = fu;
   }
-  fu->merge(fu_change);
-  if (parent_exec_point()) {
+  /* Propagage change further if needed. */
+  if (fu->merge(fu_change) && parent_exec_point()) {
     parent_exec_point()->propagate_file_usage(name, fu_change);
   }
 }
@@ -178,8 +178,7 @@ bool ExecedProcess::register_file_usage(const std::string &name,
       /* Error */
       return false;
     }
-    fu->merge(*fu_change);
-    if (parent_exec_point()) {
+    if (fu->merge(*fu_change) && parent_exec_point()) {
       parent_exec_point()->propagate_file_usage(name, *fu_change);
     }
     delete fu_change;
