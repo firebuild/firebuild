@@ -7,15 +7,15 @@
 #include <string>
 
 namespace firebuild {
-int ProcessPBAdaptor::msg(Process *p, const FBB_open *o) {
+int ProcessPBAdaptor::msg(Process *p, const FBB_open *o, int fd_conn, const int ack_num) {
   int error = fbb_open_get_error_no_with_fallback(o, 0);
   int ret = fbb_open_get_ret_with_fallback(o, -1);
-  return p->handle_open(fbb_open_get_file(o), fbb_open_get_flags(o), ret, error);
+  return p->handle_open(fbb_open_get_file(o), fbb_open_get_flags(o), ret, error, fd_conn, ack_num);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo) {
+int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo, int fd_conn, const int ack_num) {
   if (!fbb_dlopen_has_error_no(dlo) && fbb_dlopen_has_absolute_filename(dlo)) {
-    return p->handle_open(fbb_dlopen_get_absolute_filename(dlo), O_RDONLY, -1, 0);
+    return p->handle_open(fbb_dlopen_get_absolute_filename(dlo), O_RDONLY, -1, 0, fd_conn, ack_num);
   } else {
     std::string filename = fbb_dlopen_has_absolute_filename(dlo) ?
                            fbb_dlopen_get_absolute_filename(dlo) : "NULL";

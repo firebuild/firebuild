@@ -161,9 +161,11 @@ class Process {
    * @param flags flags of open()
    * @param fd the return value, or -1 if file was dlopen()ed successfully
    * @param error error code of open()
+   * @param fd_conn fd to send ACK on when needed
+   * @param ack_num ACK number to send or 0 if sending ACK is not needed
    */
   int handle_open(const std::string &ar_name, const int flags,
-                  const int fd, const int error = 0);
+                  const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
 
   /**
    * Handle file closure in the monitored process

@@ -605,9 +605,15 @@ void proc_ic_msg(const void *fbb_buf,
         // FIXME(rbalint) save execv parameters
         proc->set_exec_pending(true);
       } else if (tag == FBB_TAG_open) {
-        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_open *>(fbb_buf));
+        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_open *>(fbb_buf),
+                                           fd_conn, ack_num);
+        /* ACK is sent by the msg handler if needed. */
+        return;
       } else if (tag == FBB_TAG_dlopen) {
-        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf));
+        ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf),
+                                           fd_conn, ack_num);
+        /* ACK is sent by the msg handler if needed. */
+        return;
       } else if (tag == FBB_TAG_close) {
         ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_close *>(fbb_buf));
       } else if (tag == FBB_TAG_unlink) {
