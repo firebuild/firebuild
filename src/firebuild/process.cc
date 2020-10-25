@@ -86,12 +86,16 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
 }
 
 int Process::handle_open(const std::string &ar_name, const int flags,
-                         const int fd, const int error) {
+                         const int fd, const int error, int fd_conn, const int ack_num) {
   const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
       wd() + "/" + ar_name;
 
   if (fd >= 0) {
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
+  }
+
+  if (ack_num != 0) {
+    ack_msg(fd_conn, ack_num);
   }
 
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
