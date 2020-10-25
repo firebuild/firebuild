@@ -1,6 +1,12 @@
 project(FireBuild C CXX)
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.9)
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_SUPPORT_ERROR)
+if(NOT IPO_SUPPORTED)
+  message(STATUS "IPO / LTO not supported: <${IPO_SUPPORT_ERROR}>")
+endif()
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
