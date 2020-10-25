@@ -34,5 +34,5 @@ add_executable(firebuild
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} xxhash)
 target_link_options(firebuild PUBLIC -Wno-array-bounds -Wno-strict-overflow)
-
+set_property(TARGET firebuild PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 add_dependencies(firebuild fbb_gen_files)
