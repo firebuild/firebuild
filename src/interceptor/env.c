@@ -278,7 +278,10 @@ void env_fixup(char **env, void *buf) {
   /* Fix up LD_PRELOAD if needed */
   if (ld_preload_needs_fixup(env)) {
     char *current_value = getenv_from(env, LD_PRELOAD);
-    int size = fixup_ld_preload(current_value, buf2);
+#ifndef NDEBUG
+    int size =
+#endif
+        fixup_ld_preload(current_value, buf2);
     assert(size > 0);
     *buf1++ = buf2;
     /* buf2 += size; */
