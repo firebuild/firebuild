@@ -14,7 +14,5 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  system(argv[1]);
-
-  return 0;
+  return system(argv[1]);
 }

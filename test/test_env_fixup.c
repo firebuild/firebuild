@@ -16,7 +16,5 @@ int main() {
   environ = myenv;
   setenv("BBB", "bbb", 0);
 
-  system("printenv");
-
-  return 0;
+  return system("printenv");
 }
