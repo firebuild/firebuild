@@ -21,7 +21,7 @@ setup() {
 
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
-    result=$(./run-firebuild -r -d all -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
+    result=$(./run-firebuild -r -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
     assert_streq "$result" "integration.bats"
   done
 }
