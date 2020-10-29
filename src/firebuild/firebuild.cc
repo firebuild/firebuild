@@ -44,12 +44,15 @@
 libconfig::Config * cfg;
 bool generate_report = false;
 
+struct event_base * ev_base = NULL;
+
 namespace {
 
 static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
 static char *fb_conn_string;
+
 evutil_socket_t listener;
 struct event *sigchild_event;
 
@@ -1021,8 +1024,8 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
   auto conn_ctx = new ConnectionContext();
   socklen_t slen = sizeof(remote);
   (void) event; /* unused */
+  (void) arg;   /* unused */
 
-  auto base = reinterpret_cast<struct event_base*>(arg);
   conn_ctx->proc = nullptr;
   conn_ctx->buf = NULL;
 
@@ -1033,7 +1036,7 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
   } else {
     struct bufferevent *bev;
     evutil_make_socket_nonblocking(fd);
-    bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+    bev = bufferevent_socket_new(ev_base, fd, BEV_OPT_CLOSE_ON_FREE);
     bufferevent_setcb(bev, ic_conn_readcb, NULL, ic_conn_errorcb, conn_ctx);
     bufferevent_enable(bev, EV_READ);
   }
@@ -1183,13 +1186,13 @@ int main(const int argc, char *argv[]) {
   }
   auto env_exec = get_sanitized_env();
 
-  auto base = event_base_new();;
+  ev_base = event_base_new();;
 
   /* Open listener socket before forking child to always let the child connect */
   listener = create_listener();
-  auto listener_event = event_new(base, listener, EV_READ|EV_PERSIST, accept_ic_conn, base);
+  auto listener_event = event_new(ev_base, listener, EV_READ|EV_PERSIST, accept_ic_conn, NULL);
   event_add(listener_event, NULL);
-  sigchild_event = event_new(base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
+  sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
   event_add(sigchild_event, NULL);
 
   /* Collect runaway children */
@@ -1224,12 +1227,14 @@ int main(const int argc, char *argv[]) {
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
 
-    // main loop for processing interceptor messages
-    event_base_dispatch(base);
+    /* Main loop for processing interceptor messages */
+    event_base_dispatch(ev_base);
+
+    /* Clean up remaining events and the event base. */
     evutil_closesocket(listener);
     event_free(listener_event);
     event_free(sigchild_event);
-    event_base_free(base);
+    event_base_free(ev_base);
   }
 
   if (!proc_tree->root()) {
