@@ -13,8 +13,6 @@ typedef struct msg_header_ {
   uint32_t ack_id;
 } msg_header;
 
-bool path_begins_with(const std::string& path, const std::string& prefix);
-
 void ack_msg(const int conn, const int ack_num);
 
 }  // namespace firebuild

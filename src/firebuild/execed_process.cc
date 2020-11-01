@@ -10,12 +10,12 @@
 
 #include <libconfig.h++>
 
+#include "firebuild/config.h"
 #include "firebuild/file_db.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/platform.h"
 #include "firebuild/utils.h"
 
-extern libconfig::Config * cfg;
 extern bool generate_report;
 
 namespace firebuild {
@@ -158,11 +158,9 @@ bool ExecedProcess::register_file_usage(const std::string &name,
                                         FileAction action,
                                         int flags,
                                         int error) {
-  libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
-  for (int i = 0; i < ignores.getLength(); i++) {
-    if (path_begins_with(name, ignores[i])) {
-      return true;
-    }
+  if (is_path_at_locations(name.c_str(), &ignore_locations)) {
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name);
+    return true;
   }
 
   FileUsage *fu;
@@ -206,11 +204,9 @@ bool ExecedProcess::register_file_usage(const std::string &name,
  */
 bool ExecedProcess::register_file_usage(const std::string &name,
                                         FileUsage fu_change) {
-  libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
-  for (int i = 0; i < ignores.getLength(); i++) {
-    if (path_begins_with(name, ignores[i])) {
-      return true;
-    }
+  if (is_path_at_locations(name.c_str(), &ignore_locations)) {
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name);
+    return true;
   }
 
   if (file_usages().count(name) > 0) {
