@@ -104,6 +104,9 @@ extern char *env_ld_library_path;
 /** Insert marker open()-s for strace, ltrace, etc. */
 extern bool insert_trace_markers;
 
+/** System locations to not ask ACK for when opening them. */
+extern string_array system_locations;
+
 /** Insert debug message */
 extern void insert_debug_msg(const char*);
 

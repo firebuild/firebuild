@@ -107,6 +107,8 @@ static bool ld_preload_needs_fixup(char **env) {
 }
 
 bool env_needs_fixup(char **env) {
+  /* FB_SYSTEM_LOCATIONS is not fixed up because it is not needed for correctness, just for
+   * improving performance a bit. */
   return fb_insert_trace_markers_needs_fixup(env) ||
       fb_socket_needs_fixup(env) ||
       ld_library_path_needs_fixup(env) ||

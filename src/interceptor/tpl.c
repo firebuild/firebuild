@@ -21,7 +21,8 @@
 {#  send_msg_on_error:   Whether to send the message (with errno) on  #}
 {#                       error (default: true) or only report success #}
 {#  send_msg_condition:  Custom condition to send message             #}
-{#  ack:                 Whether to ask for ack (default: false)      #}
+{#  ack_condition:       Whether to ask for ack 'true', 'false' or    #}
+{#                       '<condition>' (default: 'false')             #}
 {# ------------------------------------------------------------------ #}
 {# Jinja lacks native support for generating multiple files.          #}
 {# Work it around by running multiple times, each time with a         #}
@@ -280,10 +281,15 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     if (!success) fbb_{{ msg }}_set_error_no(&ic_msg, errno);
 ###             endif
 ###           endif
-
-###           if ack
-    /* Send and wait for ack */
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+###           if ack_condition
+    /* Sending ack is conditional */
+    if ({{ ack_condition }}) {
+      /* Send and wait for ack */
+      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    } else {
+      /* Send and go on, no ack */
+      fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+    }
 ###           else
     /* Send and go on, no ack */
     fb_fbb_send_msg(&ic_msg, fb_sv_conn);

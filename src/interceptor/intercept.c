@@ -44,6 +44,11 @@ pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
 /** Fast check for whether interceptor init has been run */
 bool ic_init_done = false;
 
+/** System locations to not ask ACK for when opening them. */
+string_array system_locations;
+/** System locations to not ask ACK for when opening them, as set in the environment variable. */
+char * system_locations_env_str;
+
 bool intercepting_enabled = true;
 
 /**
@@ -278,6 +283,28 @@ static int cmpstringpp(const void *p1, const void *p2) {
   return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
+/** Store file locations for which files open() does not need an ACK. */
+static void store_system_locations() {
+  char* env_system_locations = getenv("FB_SYSTEM_LOCATIONS");
+  string_array_init(&system_locations);
+  if (env_system_locations) {
+    system_locations_env_str = strdup(env_system_locations);
+    char *prefix = system_locations_env_str;
+    while (prefix) {
+      char *next_prefix = strchr(prefix, ':');
+      if (next_prefix) {
+        *next_prefix = '\0';
+        next_prefix++;
+      }
+      /* Skip "". */
+      if (*prefix != '\0') {
+        string_array_append(&system_locations, prefix);
+        prefix = next_prefix;
+      }
+    }
+  }
+}
+
 /** Add shared library's name to the file list */
 static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   string_array *array = (string_array *) data;
@@ -464,6 +491,8 @@ static void fb_ic_init() {
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
     insert_trace_markers = true;
   }
+
+  store_system_locations();
 
   /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay. */
   assert(SIGRTMAX <= 64);

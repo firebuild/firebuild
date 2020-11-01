@@ -115,6 +115,22 @@ static char** get_sanitized_env() {
     env_v.push_back(preset[i]);
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
+
+  std::string system_locations;
+  const libconfig::Setting& system_locations_setting = root["system_locations"];
+  for (int i = 0; i < system_locations_setting.getLength(); i++) {
+    std::string loc = system_locations_setting[i];
+    if (system_locations.length() == 0) {
+      system_locations.append(loc);
+    } else {
+      system_locations.append(":" + loc);
+    }
+  }
+  if (system_locations.length() > 0) {
+    env_v.push_back("FB_SYSTEM_LOCATIONS=" + std::string(system_locations));
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+  }
+
   env_v.push_back("LD_PRELOAD=libfbintercept.so");
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
