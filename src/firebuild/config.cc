@@ -3,6 +3,7 @@
 
 #include "firebuild/config.h"
 
+#include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
 
@@ -12,12 +13,15 @@
 #include <cstdio>
 #include <stdexcept>
 
+#include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
 #define GLOBAL_CONFIG "/etc/firebuild.conf"
 #define USER_CONFIG ".firebuild.conf"
 
 namespace firebuild {
+
+string_array ignore_locations;
 
 /** Parse configuration file
  *
@@ -173,6 +177,13 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
     fprintf(stderr, "--- Config:\n");
     cfg->write(stderr);
     fprintf(stderr, "--- End of config.\n");
+  }
+
+  /* Save portions of the configuration to separate variables for faster access. */
+  libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
+  string_array_init(&ignore_locations);
+  for (int i = 0; i < ignores.getLength(); i++) {
+    string_array_append(&ignore_locations, strdup(ignores[i].c_str()));
   }
 }
 

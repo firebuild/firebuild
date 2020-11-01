@@ -9,8 +9,11 @@
 
 #include <libconfig.h++>
 
+#include "common/firebuild_common.h"
+
 namespace firebuild {
 
+extern string_array ignore_locations;
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);
 
