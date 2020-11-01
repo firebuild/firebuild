@@ -6,6 +6,7 @@
 #define COMMON_FIREBUILD_COMMON_H_
 
 #include <limits.h>
+#include <stdbool.h>
 #include <sys/uio.h>
 
 
@@ -25,6 +26,7 @@ typedef struct {
 void string_array_init(string_array *array);
 void string_array_append(string_array *array, char *s);
 void string_array_deep_free(string_array *array);
+bool is_path_at_locations(const char *path, string_array *prefix_array);
 
 /**
  * wrapper for read() retrying on recoverable errors
