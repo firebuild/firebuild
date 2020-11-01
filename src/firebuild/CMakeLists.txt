@@ -7,6 +7,7 @@ set_source_files_properties(execed_process_cacher.cc PROPERTIES COMPILE_FLAGS "-
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
+pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 
 add_executable(firebuild
   config.cc
@@ -32,7 +33,7 @@ add_executable(firebuild
   ${PROTO_CACHE_SRCS}
   ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)
-target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} xxhash)
+target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash)
 target_link_options(firebuild PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_property(TARGET firebuild PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 add_dependencies(firebuild fbb_gen_files)
