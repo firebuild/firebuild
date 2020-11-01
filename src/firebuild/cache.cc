@@ -14,6 +14,7 @@
 
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
+#include "firebuild/hash_cache.h"
 
 namespace firebuild {
 
@@ -25,7 +26,7 @@ Cache::Cache(const std::string &base_dir) : base_dir_(base_dir) {
  * Copy the contents from an open file descriptor to another,
  * preferring advanced technologies like copy on write.
  */
-static bool copy_file(int fd_src, int fd_dst) {
+static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
   /* Try CoW first. */
   if (ioctl(fd_dst, FICLONE, fd_src) == 0) {
     /* CoW succeeded. Moo! */
@@ -33,36 +34,41 @@ static bool copy_file(int fd_src, int fd_dst) {
   }
 
   /* Try copy_file_range(). Gotta get the source file's size. */
-  struct stat64 st;
-  if (fstat64(fd_src, &st) == -1) {
-    perror("fstat");
-    return false;
-  } else if (!S_ISREG(st.st_mode)) {
+  struct stat64 st_local;
+  if (!st) {
+    st = &st_local;
+    if (fstat64(fd_src, st) == -1) {
+      perror("fstat");
+      return false;
+    }
+  }
+
+  if (!S_ISREG(st->st_mode)) {
     FB_DEBUG(FB_DEBUG_CACHING, "not a regular file");
     return false;
   }
 
-  if (copy_file_range(fd_src, NULL, fd_dst, NULL, st.st_size, 0) == st.st_size) {
+  if (copy_file_range(fd_src, NULL, fd_dst, NULL, st->st_size, 0) == st->st_size) {
     /* copy_file_range() succeeded. */
     return true;
   }
 
   /* Try mmap() and write(). */
   void *p = NULL;
-  if (st.st_size > 0) {
+  if (st->st_size > 0) {
     /* Zero bytes can't be mmapped, we're fine with p == NULL then. */
-    p = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd_src, 0);
+    p = mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd_src, 0);
   }
   if (p != MAP_FAILED) {
     // FIXME Do we need to handle short writes / EINTR?
     // FIXME Do we need to split large files into smaller writes?
-    if (write(fd_dst, p, st.st_size) == st.st_size) {
+    if (write(fd_dst, p, st->st_size) == st->st_size) {
       /* mmap() + write() succeeded. */
-      munmap(p, st.st_size);
+      munmap(p, st->st_size);
       return true;
     }
   }
-  munmap(p, st.st_size);
+  munmap(p, st->st_size);
 
   // FIXME Do we need to fallback to read() + write()? If so, may need to rewind fd_dst!!!
 
@@ -113,6 +119,12 @@ bool Cache::store_file(const std::string &path,
     return false;
   }
 
+  struct stat64 st;
+  if (fstat64(fd_src, &st) == -1) {
+    perror("fstat64");
+    return false;
+  }
+
   std::string tmpfile = base_dir_ + "/new.XXXXXX";
   char *tmpfile_c_writable = &*tmpfile.begin();  // hack against c_str()'s constness
   int fd_dst = mkstemp(tmpfile_c_writable);  // opens with O_RDWR
@@ -122,7 +134,7 @@ bool Cache::store_file(const std::string &path,
     return false;
   }
 
-  if (!copy_file(fd_src, fd_dst)) {
+  if (!copy_file(fd_src, fd_dst, &st)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to copy file");
     close(fd_src);
     close(fd_dst);
@@ -132,9 +144,10 @@ bool Cache::store_file(const std::string &path,
   close(fd_src);
 
   /* Copying complete. Compute checksum on the copy, to prevent cache
-   * corruption if someone is modifying the original file. */
+   * corruption if someone is modifying the original file.
+   * Also place this checksum in the hash cache as the one belonging to the original file. */
   Hash key;
-  if (!key.set_from_fd(fd_dst, NULL)) {
+  if (!hash_cache->get_hash(path, &key, NULL, fd_dst, &st, true)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd_dst);
     unlink(tmpfile.c_str());
