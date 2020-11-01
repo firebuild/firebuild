@@ -28,13 +28,38 @@ class HashCache {
  public:
   HashCache() {}
   ~HashCache();
-
-  bool get_hash(const std::string& path, Hash *hash, bool *is_dir = NULL);
+  /**
+   * Calculate hash of a file or directory on the path.
+   *
+   * If the hash is already present in the cache it is retrieved, unless fd is set to a valid fd.
+   * If fd is set, the hash is always recomputed and updated in the cache.
+   * @param path     file's path
+   * @param[out]     hash to retrive/calculate
+   * @param[out]     is_dir path is a dir
+   * @param fd       when set to a valid fd the file is read from there
+   * @param stat_ptr when fd is set this parameter is set to the fd's stat data
+   * @param force    always update the entry
+   */
+  bool get_hash(const std::string& path, Hash *hash, bool *is_dir = NULL, int fd = -1,
+                struct stat64 *stat_ptr = NULL, bool force = false);
 
  private:
   std::unordered_map<std::string, HashCacheEntry> db_ = {};
 
-  HashCacheEntry* get_entry(const std::string& path);
+  /**
+   * Calculate hash of a file or directory on the path.
+   *
+   * If the hash is already present in the cache it is retrieved, unless fd is set to a valid fd.
+   * If fd is set, the hash is always recomputed and updated in the cache.
+   * @param path     file's path
+   * @param[out]     hash to retrive/calculate
+   * @param[out]     is_dir path is a dir
+   * @param fd when  set to a valid fd the file is read from there
+   * @param stat_ptr when fd is set this parameter is set to the fd's stat data
+   * @param force    always update the entry
+   */
+  HashCacheEntry* get_entry(const std::string& path, int fd = -1, struct stat64 *stat_ptr = NULL,
+                            bool force = false);
 
   DISALLOW_COPY_AND_ASSIGN(HashCache);
 };
