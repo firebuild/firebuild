@@ -1,3 +1,4 @@
+
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
@@ -79,9 +80,10 @@ class ProcessTree {
   void export_profile2dot(FILE* stream);
   ExecedProcess* root() {return root_;}
   Process* pid2proc(int pid) {
-    try {
-      return pid2proc_.at(pid);
-    } catch (const std::out_of_range& oor) {
+    auto it = pid2proc_.find(pid);
+    if (it != pid2proc_.end()) {
+      return it->second;
+    } else {
       return NULL;
     }
   }
@@ -100,30 +102,34 @@ class ProcessTree {
     ppid2pending_parent_ack_[ppid] = {ack, sock};
   }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
-    try {
-      return &pid2fork_child_sock_.at(pid);
-    } catch (const std::out_of_range& oor) {
+    auto it = pid2fork_child_sock_.find(pid);
+    if (it != pid2fork_child_sock_.end()) {
+      return &it->second;
+    } else {
       return nullptr;
     }
   }
   const exec_child_sock* Pid2ExecChildSock(const int pid) {
-    try {
-      return &pid2exec_child_sock_.at(pid);
-    } catch (const std::out_of_range& oor) {
+    auto it = pid2exec_child_sock_.find(pid);
+    if (it != pid2exec_child_sock_.end()) {
+      return &it->second;
+    } else {
       return nullptr;
     }
   }
   const exec_child_sock* Pid2PosixSpawnChildSock(const int pid) {
-    try {
-      return &pid2posix_spawn_child_sock_.at(pid);
-    } catch (const std::out_of_range& oor) {
+    auto it = pid2posix_spawn_child_sock_.find(pid);
+    if (it != pid2posix_spawn_child_sock_.end()) {
+      return &it->second;
+    } else {
       return nullptr;
     }
   }
   const pending_parent_ack* PPid2ParentAck(const int ppid) {
-    try {
-      return &ppid2pending_parent_ack_.at(ppid);
-    } catch (const std::out_of_range& oor) {
+    auto it = ppid2pending_parent_ack_.find(ppid);
+    if (it != ppid2pending_parent_ack_.end()) {
+      return &it->second;
+    } else {
       return nullptr;
     }
   }

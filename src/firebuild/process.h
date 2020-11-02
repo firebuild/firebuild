@@ -136,9 +136,10 @@ class Process {
   void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
   std::shared_ptr<FileFD> get_fd(int fd) {
-    try {
-      return fds_->at(fd);
-    } catch (const std::out_of_range& oor) {
+    auto it = fds_->find(fd);
+    if (it != fds_->end()) {
+      return it->second;
+    } else {
       return nullptr;
     }
   }
