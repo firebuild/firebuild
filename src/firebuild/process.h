@@ -135,10 +135,11 @@ class Process {
   void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
   std::shared_ptr<FileFD> get_fd(int fd) {
-    try {
-      return fds_->at(fd);
-    } catch (const std::out_of_range& oor) {
+    assert(fds_);
+    if (fd < 0 || static_cast<unsigned int>(fd) >= fds_->size()) {
       return nullptr;
+    } else {
+      return (*fds_)[fd];
     }
   }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
