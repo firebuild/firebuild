@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "firebuild/debug.h"
+#include "firebuild/hex.h"
 
 namespace firebuild  {
 
@@ -209,14 +210,12 @@ std::string Hash::to_binary() const {
 /**
  * Get the lowercase hex representation.
  */
+
 std::string Hash::to_hex() const {
-  char hex[3];
   std::string ret;
-  ret.reserve(sizeof(arr_) * 2);
-  for (unsigned int i = 0; i < sizeof(arr_); i++) {
-    snprintf(hex, sizeof(hex), "%02x", (unsigned char)(arr_[i]));
-    ret += hex;
-  }
+  ret.resize(sizeof(arr_) * 2);
+  bin2hex(reinterpret_cast<const unsigned char*>(arr_), sizeof(arr_),
+          const_cast<char*>(ret.data()));
   return ret;
 }
 

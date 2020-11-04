@@ -24,20 +24,22 @@
   https://nachtimwald.com/legal/
  */
 
-char *bin2hex(const unsigned char *bin, size_t len)
-{
-	char   *out;
-	size_t  i;
+#ifndef FIREBUILD_HEX_H_
+#define FIREBUILD_HEX_H_
 
-	if (bin == NULL || len == 0)
-		return NULL;
+/* out must be pre-allocated with size > len * 2 */
+static inline char *bin2hex(const unsigned char *bin, size_t len, char *out) {
+  size_t  i;
 
-	out = malloc(len*2+1);
-	for (i=0; i<len; i++) {
-		out[i*2]   = "0123456789ABCDEF"[bin[i] >> 4];
-		out[i*2+1] = "0123456789ABCDEF"[bin[i] & 0x0F];
-	}
-	out[len*2] = '\0';
+  if (bin == NULL || len == 0)
+    return NULL;
 
-	return out;
+  for (i=0; i < len; i++) {
+    out[i*2]   = "0123456789ABCDEF"[bin[i] >> 4];
+    out[i*2+1] = "0123456789ABCDEF"[bin[i] & 0x0F];
+  }
+
+  return out;
 }
+
+#endif  // FIREBUILD_HEX_H_
