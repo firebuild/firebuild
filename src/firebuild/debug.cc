@@ -17,7 +17,6 @@ std::string pretty_print_string(const std::string& str) {
   for (unsigned char c : str) {
     if (c < 0x20 || c >= 0x7f) {
       ret += "\\";
-      // NOTE: Protobuf uses octal, but do we also want to?
       ret += ('0' + (c / 64));
       ret += ('0' + (c / 8 % 8));
       ret += ('0' + (c % 8));

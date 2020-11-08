@@ -15,6 +15,7 @@
 #include <xxhash.h>
 
 #include <algorithm>
+#include <cassert>
 #include <vector>
 
 #include "firebuild/debug.h"
@@ -52,17 +53,6 @@ void Hash::set_from_data(const void *data, ssize_t size) {
   /* Chop off the last 2 bits. They are not converted to base64 for simplicity, and we need to
    * be able to decode as well. */
   arr_[sizeof(arr_) - 1] &= ~0x03;
-}
-
-/**
- * Set the binary hash from the given protobuf's serialization.
- */
-void Hash::set_from_protobuf(const google::protobuf::MessageLite &msg) {
-  uint32_t msg_size = msg.ByteSize();
-  uint8_t *buf = new uint8_t[msg_size];
-  msg.SerializeWithCachedSizesToArray(buf);
-  set_from_data(reinterpret_cast<void *>(buf), msg_size);
-  delete[] buf;
 }
 
 /**
@@ -182,19 +172,16 @@ bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
 }
 
 /**
- * The inverse of to_binary(): Sets the binary hash value directly from the
- * given binary string. No hash computation takes place.
+ * Sets the binary hash value directly from the given binary array.
+ * No hash computation takes place.
  *
  * Returns true if succeeded, false if the input is not a valid binary hash.
  */
-bool Hash::set_hash_from_binary(const std::string &binary) {
-  if (binary.size() != sizeof(arr_)) {
-    return false;
-  }
+bool Hash::set_hash_from_binary(const uint8_t * const binary) {
   if (binary[sizeof(arr_) - 1] & 0x03) {
     return false;
   }
-  memcpy(arr_, binary.c_str(), sizeof(arr_));
+  memcpy(arr_, binary, sizeof(arr_));
   return true;
 }
 
@@ -245,11 +232,10 @@ bool Hash::set_hash_from_ascii(const std::string &ascii) {
 }
 
 /**
- * Get the raw binary representation, wrapped in std::string for
- * convenience (e.g. easy placement in a protobuf).
+ * Get the pointer to the raw binary representation.
  */
-std::string Hash::to_binary() const {
-  return std::string(reinterpret_cast<const char *>(arr_), sizeof(arr_));
+const uint8_t * Hash::to_binary() const {
+  return arr_;
 }
 
 /**

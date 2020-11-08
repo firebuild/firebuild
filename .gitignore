@@ -12,8 +12,7 @@ Doxyfile
 Makefile
 build/
 cmake_install.cmake
-fb-cache.pb.cc
-fb-cache.pb.h
+*_generated.h
 fbb.c
 fbb.h
 src/firebuild/firebuild

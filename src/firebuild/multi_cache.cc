@@ -28,14 +28,17 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#include <flatbuffers/minireflect.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <google/protobuf/text_format.h>
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#include "firebuild/cache_object_format_generated.h"
+#pragma GCC diagnostic pop
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
 
@@ -91,44 +94,47 @@ static std::string construct_cached_file_name(const std::string &base,
   return path + "/" + subkey.to_ascii();
 }
 
+/* Replacement for flatbuffers::FlatBufferToString(), but with quoted keys. */
+static std::string FlatBufferToStringQuoted(const uint8_t *buffer,
+                                            const flatbuffers::TypeTable *type_table,
+                                            bool multi_line = false,
+                                            bool vector_delimited = true) {
+  flatbuffers::ToStringVisitor tostring_visitor(multi_line ? "\n" : " ", true, "    ",
+                                                vector_delimited);
+  IterateFlatBuffer(buffer, type_table, &tostring_visitor);
+  return tostring_visitor.s;
+}
+
+
 /**
- * Store a protobuf (its serialization) in the protobuf cache.
+ * Store a serialized entry in multi-cache.
  *
  * @param key The key
- * @param msg The protobuf to store
+ * @param entry The entry to store
+ * @param entry_len length of the entry to store
  * @param debug_key Optionally the key as pb for debugging purposes
- * @param debug_header String prepended to debug lines
- * @param printer Protobuf printer to use for debugging, or NULL for the default
- * @param subkey_out Optionally store the subkey (hash of the protobuf) here
+ * @param subkey_out Optionally store the subkey (hash of the entry) here
  * @return Whether succeeded
  */
-bool MultiCache::store_protobuf(const Hash &key,
-                                const google::protobuf::Message &msg,
-                                const google::protobuf::Message *debug_key,
-                                const std::string &debug_header,
-                                const google::protobuf::TextFormat::Printer *printer,
-                                Hash *subkey_out) {
+bool MultiCache::store(const Hash &key,
+                       const uint8_t * const entry,
+                       const size_t entry_len,
+                       const uint8_t * const debug_key,
+                       Hash *subkey_out) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: storing protobuf, key " + key.to_ascii());
+    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: storing entry, key " + key.to_ascii());
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the key in the cache, for easier debugging. */
     std::string path_debug =
-        construct_cached_dir_name(base_dir_, key, true) + "/%_directory_debug.txt";
-    std::string pb_txt;
-
-    if (printer) {
-      /* Print using supplied printer. */
-      printer->PrintToString(*debug_key, &pb_txt);
-    } else {
-      /* Print using default printer. */
-      google::protobuf::TextFormat::PrintToString(*debug_key, &pb_txt);
-    }
+        construct_cached_dir_name(base_dir_, key, true) + "/%_directory_debug.json";
+    std::string debug_text =
+        FlatBufferToStringQuoted(debug_key, msg::ProcessFingerprintTypeTable(), true);
 
     int fd = creat(path_debug.c_str(), 0600);
-    if (write(fd, pb_txt.c_str(), pb_txt.size()) < 0) {
-      perror("store_protobuf");
+    if (write(fd, debug_text.c_str(), debug_text.size()) < 0) {
+      perror("store");
     }
     close(fd);
   }
@@ -141,29 +147,22 @@ bool MultiCache::store_protobuf(const Hash &key,
     return false;
   }
 
-  uint32_t msg_size = msg.ByteSize();
-  uint8_t *buf = new uint8_t[msg_size];
-  msg.SerializeWithCachedSizesToArray(buf);
-
   Hash subkey;
-  subkey.set_from_data(buf, msg_size);
+  subkey.set_from_data(entry, entry_len);
 
   // FIXME Do we need to handle short writes / EINTR?
   // FIXME Do we need to split large files into smaller writes?
-  auto written = write(fd_dst, buf, msg_size);
-  if (written != msg_size) {
+  auto written = write(fd_dst, entry, entry_len);
+  if (written < 0 || static_cast<size_t>(written) != entry_len) {
     if (written == -1) {
       perror("write");
     } else {
       FB_DEBUG(FB_DEBUG_CACHING, "short write");
     }
     close(fd_dst);
-    delete[] buf;
     return false;
   }
   close(fd_dst);
-
-  delete[] buf;
 
   std::string path_dst = construct_cached_file_name(base_dir_, key, subkey, true);
   if (rename(tmpfile.c_str(), path_dst.c_str()) == -1) {
@@ -182,23 +181,13 @@ bool MultiCache::store_protobuf(const Hash &key,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the value in the cache, for easier debugging. */
-    std::string path_debug = path_dst + "_debug.txt";
-    std::string pb_txt;
-
-    if (printer) {
-      /* Print using supplied printer. */
-      printer->PrintToString(msg, &pb_txt);
-    } else {
-      /* Print using default printer. */
-      google::protobuf::TextFormat::PrintToString(msg, &pb_txt);
-    }
+    std::string path_debug = path_dst + "_debug.json";
+    std::string entry_txt =
+        FlatBufferToStringQuoted(entry, firebuild::msg::ProcessInputsOutputsTypeTable(), true);
 
     int fd = creat(path_debug.c_str(), 0600);
-    if (write(fd, debug_header.c_str(), debug_header.size()) < 0) {
-      perror("store_protobuf");
-    }
-    if (write(fd, pb_txt.c_str(), pb_txt.size()) < 0) {
-      perror("store_protobuf");
+    if (write(fd, entry_txt.c_str(), entry_txt.size()) < 0) {
+      perror("store");
     }
     close(fd);
   }
@@ -206,18 +195,20 @@ bool MultiCache::store_protobuf(const Hash &key,
 }
 
 /**
- * Retrieve a protobuf from the protobuf cache.
+ * Retrieve an entry from the multi-cache.
  *
  * @param key The key
  * @param subkey The subkey
- * @param msg Where to store the protobuf
+ * @param[out] entry mmap()-ed cache entry. It is the caller's responsibility to munmap() it later.
+ * @param[out] entry_len entry's length in bytes
  * @return Whether succeeded
  */
-bool MultiCache::retrieve_protobuf(const Hash &key,
-                                   const Hash &subkey,
-                                   google::protobuf::MessageLite *msg) {
+bool MultiCache::retrieve(const Hash &key,
+                          const Hash &subkey,
+                          uint8_t ** entry,
+                          size_t * entry_len) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: retrieving protobuf, key "
+    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: retrieving entry, key "
              + key.to_ascii() + " subkey " + subkey.to_ascii());
   }
 
@@ -240,23 +231,22 @@ bool MultiCache::retrieve_protobuf(const Hash &key,
     return false;
   }
 
-  void *p = NULL;
+  uint8_t *p = NULL;
   if (st.st_size > 0) {
     /* Zero bytes can't be mmapped, we're fine with p == NULL then.
-     * Although a serialized protobuf probably can't be 0 bytes long. */
-    p = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+     * Although a serialized entry probably can't be 0 bytes long. */
+    p = reinterpret_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0));
     if (p == MAP_FAILED) {
       perror("mmap");
       close(fd);
       return false;
     }
   }
-
-  bool ret = msg->ParseFromArray(p, st.st_size);
-
-  munmap(p, st.st_size);
   close(fd);
-  return ret;
+
+  *entry_len = st.st_size;
+  *entry = p;
+  return true;
 }
 
 /**

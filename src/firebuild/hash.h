@@ -5,8 +5,7 @@
 #ifndef FIREBUILD_HASH_H_
 #define FIREBUILD_HASH_H_
 
-#include <google/protobuf/message_lite.h>
-
+#include <cstring>
 #include <string>
 
 namespace firebuild {
@@ -40,16 +39,15 @@ class Hash {
     return memcmp(&arr_, &src.arr_, hash_size_) != 0;
   }
 
-  static unsigned int hash_size() {return hash_size_;}
+  static size_t hash_size() {return hash_size_;}
 
   void set_from_data(const void *data, ssize_t size);
-  void set_from_protobuf(const google::protobuf::MessageLite &msg);
   bool set_from_fd(int fd, bool *is_dir_out);
   bool set_from_file(const std::string &filename, bool *is_dir_out = NULL);
 
-  bool set_hash_from_binary(const std::string &binary);
+  bool set_hash_from_binary(const uint8_t * const binary);
   bool set_hash_from_ascii(const std::string &ascii);
-  std::string to_binary() const;
+  const uint8_t * to_binary() const;
   std::string to_ascii() const;
 
  private:
@@ -60,7 +58,7 @@ class Hash {
   static char decode_map_[256];
 
   static const unsigned int hash_size_ = 16;
-  unsigned char arr_[hash_size_] = {};
+  uint8_t arr_[hash_size_] = {};
 
   static const unsigned int ascii_length_ = 21;  /* without the trailing '\0' */
 

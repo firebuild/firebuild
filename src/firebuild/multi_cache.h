@@ -4,9 +4,6 @@
 #ifndef FIREBUILD_MULTI_CACHE_H_
 #define FIREBUILD_MULTI_CACHE_H_
 
-#include <google/protobuf/message.h>
-#include <google/protobuf/text_format.h>
-
 #include <string>
 #include <vector>
 
@@ -19,19 +16,19 @@ class MultiCache {
   explicit MultiCache(const std::string &base_dir);
   ~MultiCache();
 
-  bool store_protobuf(const Hash &key,
-                      const google::protobuf::Message &msg,
-                      const google::protobuf::Message *debug_key,
-                      const std::string &debug_header,
-                      const google::protobuf::TextFormat::Printer *printer,
-                      Hash *subkey_out);
-  bool retrieve_protobuf(const Hash &key,
-                         const Hash &subkey,
-                         google::protobuf::MessageLite *msg);
+  bool store(const Hash &key,
+             const uint8_t * const entry,
+             const size_t entry_len,
+             const uint8_t * const debug_key,
+             Hash *subkey_out);
+  bool retrieve(const Hash &key,
+                const Hash &subkey,
+                uint8_t ** entry,
+                size_t * entry_len);
   std::vector<Hash> list_subkeys(const Hash &key);
 
  private:
-  /* Including the "pbs" subdir. */
+  /* Including the "objs" subdir. */
   std::string base_dir_;
 };
 

@@ -5,6 +5,7 @@
 #ifndef FIREBUILD_PROCESS_H_
 #define FIREBUILD_PROCESS_H_
 
+#include <cassert>
 #include <list>
 #include <memory>
 #include <set>

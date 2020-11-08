@@ -8,7 +8,7 @@ find . -name '*.gcno' | grep -v /gcov/ | while read f; do
 done
 
 lcov -q -c -d . --no-external -o gcov/tmp.info
-lcov -q -r gcov/tmp.info -o gcov/coverage-incl-tests.info '*.pb.*' '*/fbb.*' '*/interceptor/gen_*.*'
+lcov -q -r gcov/tmp.info -o gcov/coverage-incl-tests.info '*_generated.h' '*/fbb.*' '*/interceptor/gen_*.*'
 genhtml -o gcovhtml gcov/coverage-incl-tests.info
 lcov -q -r gcov/coverage-incl-tests.info -o gcov/coverage-excl-tests.info '*/test/*.c*'
 echo "Line coverage rate, excluding test files:"
