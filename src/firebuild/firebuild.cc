@@ -6,9 +6,8 @@
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
 #include <signal.h>
+#include <flatbuffers/flatbuffers.h>
 #include <getopt.h>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -30,6 +29,10 @@
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
 #include "firebuild/cache.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#include "firebuild/cache_object_format_generated.h"
+#pragma GCC diagnostic pop
 #include "firebuild/hash_cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/execed_process_cacher.h"
@@ -37,7 +40,6 @@
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
 #include "firebuild/utils.h"
-#include "firebuild/fb-cache.pb.h"
 #include "./fbb.h"
 
 /** global configuration */
@@ -58,7 +60,6 @@ struct event *sigchild_event;
 
 static int inherited_fd = -1;
 static int child_pid, child_ret = 1;
-static google::protobuf::io::FileOutputStream * error_fos;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
@@ -1173,7 +1174,7 @@ int main(const int argc, char *argv[]) {
     }
   }
   auto cache = new firebuild::Cache(cache_dir + "/blobs");
-  auto multi_cache = new firebuild::MultiCache(cache_dir + "/pbs");
+  auto multi_cache = new firebuild::MultiCache(cache_dir + "/objs");
   /* Like CCACHE_READONLY: Don't store new results in the cache. */
   bool no_store = (getenv("FIREBUILD_READONLY") != NULL);
   /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
@@ -1182,18 +1183,13 @@ int main(const int argc, char *argv[]) {
    * result in the same operation, but go through a slightly different
    * path (e.g. different tmp file name), and thus look different in
    * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
-   * more matches are found in the protobuf multicache. */
+   * more matches are found in the multicache. */
   bool no_fetch = (getenv("FIREBUILD_RECACHE") != NULL);
   cacher =
       new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, no_fetch,
                                          cfg->getRoot()["env_vars"]["fingerprint_skip"]);
   firebuild::hash_cache = new firebuild::HashCache();
 
-  // Verify that the version of the ProtoBuf library that we linked against is
-  // compatible with the version of the headers we compiled against.
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  error_fos = new google::protobuf::io::FileOutputStream(STDERR_FILENO);
   {
     char *pattern;
     if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {
@@ -1285,15 +1281,11 @@ int main(const int argc, char *argv[]) {
   unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
 
-  delete(error_fos);
   free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
   string_array_deep_free(&firebuild::ignore_locations);
   delete(cfg);
-
-  // Optional:  Delete all global objects allocated by libprotobuf.
-  google::protobuf::ShutdownProtobufLibrary();
 
   // keep Valgrind happy
   fclose(stdin);

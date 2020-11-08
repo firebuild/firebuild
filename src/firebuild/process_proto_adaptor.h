@@ -10,8 +10,7 @@
 
 namespace firebuild  {
   /**
-   * Converts ProtoBuf messages from monitored processes to calls to Process
-   * instances.
+   * Converts messages from monitored processes to calls to Process instances.
    * It is not a clean implementation of the GoF Adaptor pattern, but something
    * like that. The class itself is never instantiated, but groups a set of
    * static functions which accept a Process reference and an incoming ProtoBuf

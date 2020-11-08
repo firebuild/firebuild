@@ -1,13 +1,21 @@
-PROTOBUF_GENERATE_CPP(PROTO_CACHE_SRCS PROTO_CACHE_HDRS msg/fb-cache.proto)
-set_source_files_properties(${PROTO_CACHE_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-effc++ -Wno-unused-parameter -Wno-array-bounds")
 
 # GCC raises warning about the GCC-optimized code
-set_source_files_properties(execed_process_cacher.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
+set_source_files_properties(execed_process_cacher.cc multi_cache.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
+find_package(FlatBuffers REQUIRED)
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(JEMALLOC REQUIRED jemalloc)
+
+add_custom_command(
+  OUTPUT cache_object_format_generated.h
+  DEPENDS cache_object_format.fbs
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  COMMAND flatc -c --reflect-names ${CMAKE_CURRENT_SOURCE_DIR}/cache_object_format.fbs
+  COMMENT "Generating Cache FlatBuffers files")
+
+add_custom_target(flatbuffers_gen_files DEPENDS cache_object_format_generated.h)
 
 add_executable(firebuild
   config.cc
@@ -30,10 +38,8 @@ add_executable(firebuild
   cache.cc
   multi_cache.cc
   utils.cc
-  ${PROTO_CACHE_SRCS}
-  ${PROTO_CACHE_HDRS}
   $<TARGET_OBJECTS:common_objs>)
-target_link_libraries(firebuild ${PROTOBUF_LIBRARIES} ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash)
+target_link_libraries(firebuild ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash)
 target_link_options(firebuild PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_property(TARGET firebuild PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
-add_dependencies(firebuild fbb_gen_files)
+add_dependencies(firebuild fbb_gen_files flatbuffers_gen_files)

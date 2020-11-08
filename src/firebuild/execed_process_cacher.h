@@ -4,15 +4,21 @@
 #ifndef FIREBUILD_EXECED_PROCESS_CACHER_H_
 #define FIREBUILD_EXECED_PROCESS_CACHER_H_
 
+#include <flatbuffers/flatbuffers.h>
+
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <libconfig.h++>
 
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/hash.h"
-#include "firebuild/fb-cache.pb.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#include "firebuild/cache_object_format_generated.h"
+#pragma GCC diagnostic pop
 
 namespace firebuild {
 
@@ -29,9 +35,10 @@ class ExecedProcessCacher {
 
   void store(const ExecedProcess *proc);
 
-  msg::ProcessInputsOutputs *find_shortcut(const ExecedProcess *proc);
+  const msg::ProcessInputsOutputs *find_shortcut(const ExecedProcess *proc, uint8_t **inouts_buf,
+                                                 size_t *inouts_buf_len);
   bool apply_shortcut(ExecedProcess *proc,
-                      const msg::ProcessInputsOutputs& outputs);
+                      const msg::ProcessInputsOutputs* const outputs);
   bool shortcut(ExecedProcess *proc);
 
  private:
@@ -47,7 +54,7 @@ class ExecedProcessCacher {
   std::unordered_map<const ExecedProcess*, Hash> fingerprints_;
   /* The entire fingerprint of the processes handled by this cacher, for debugging
    * purposes, only if debugging is enabled. */
-  std::unordered_map<const ExecedProcess*, msg::ProcessFingerprint*> fingerprint_msgs_;
+  std::unordered_map<const ExecedProcess*, std::vector<unsigned char>> fingerprint_msgs_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessCacher);
 };

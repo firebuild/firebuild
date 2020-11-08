@@ -3,7 +3,7 @@ name: CI
 on: [pull_request]
 
 env:
-  BUILD_DEPS: cmake libconfig++-dev libevent-dev libprotobuf-dev protobuf-compiler libxxhash-dev libjemalloc-dev pkg-config python3-jinja2
+  BUILD_DEPS: cmake libconfig++-dev libevent-dev libflatbuffers-dev flatbuffers-compiler libxxhash-dev libjemalloc-dev pkg-config python3-jinja2
   TEST_DEPS: bats node-d3 graphviz moreutils
 jobs:
   build:
