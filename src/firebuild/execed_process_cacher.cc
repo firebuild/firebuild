@@ -5,6 +5,7 @@
 
 #include <unistd.h>
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -159,6 +160,15 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   }
 }
 
+struct file_file_usage {
+  const std::string* file;
+  const FileUsage* file_usage;
+};
+
+bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs) {
+  return *lhs.file < *rhs.file;
+}
+
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
   if (no_store_) {
     return;
@@ -170,11 +180,16 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
    * Construct the protobuf describing the initial and the final state
    * of them. */
   firebuild::msg::ProcessInputsOutputs pio;
-  std::map<std::string, FileUsage*> sorted_file_usages(proc->file_usages().begin(),
-                                                       proc->file_usages().end());
-  for (const auto& pair : sorted_file_usages) {
-    const std::string& filename = pair.first;
-    const FileUsage* fu = pair.second;
+
+  std::vector<file_file_usage> sorted_file_usages;
+  for (const auto& pair : proc->file_usages()) {
+    sorted_file_usages.push_back({&pair.first, pair.second});
+  }
+  std::sort(sorted_file_usages.begin(), sorted_file_usages.end(), file_file_usage_cmp);
+
+  for (const auto& ffu : sorted_file_usages) {
+    const std::string& filename = *ffu.file;
+    const FileUsage* fu = ffu.file_usage;
 
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
