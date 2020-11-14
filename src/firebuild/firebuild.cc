@@ -567,8 +567,6 @@ void proc_ic_msg(const void *fbb_buf,
           }
         }
 
-        std::vector<std::string> arg = fbb_posix_spawn_parent_get_arg(ic_msg);
-        proc->pop_expected_child_fds(arg, nullptr);
         proc->set_posix_spawn_pending(false);
 
         auto posix_spawn_child_sock = proc_tree->Pid2PosixSpawnChildSock(proc->pid());
@@ -586,6 +584,8 @@ void proc_ic_msg(const void *fbb_buf,
            * calls. This lets us detect a statically linked binary launched by posix_spawn(),
            * exactly the way we do at a regular exec*(), i.e. successfully wait*()ing for a child
            * that is in exec_pending state. */
+          std::vector<std::string> arg = fbb_posix_spawn_parent_get_arg(ic_msg);
+          proc->pop_expected_child_fds(arg, nullptr);
           fork_child->set_exec_pending(true);
         }
         /* In either case, ACK the "posix_spawn_parent" message, don't necessarily wait for the
