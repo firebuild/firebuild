@@ -426,13 +426,69 @@ void Process::set_wd(const std::string &ar_d) {
   add_wd(d);
 }
 
+static bool argv_matches_expectation(const std::vector<std::string>& actual,
+                                     const std::vector<std::string>& expected) {
+  /* When launching ["foo", "arg1"], the new process might be something like
+   * ["/bin/bash", "-e", "./foo", "arg1"].
+   *
+   * If the program name already contained a slash, or if it refers to a binary executable,
+   * it remains unchanged. If it didn't contain a slash and it refers to an interpreted file,
+   * it's replaced by an absolute or relative path containing at least one slash (e.g. "./foo").
+   *
+   * A single interpreter might only add one additional command line parameter, but there can be
+   * a chain of interpreters, so allow for arbitrarily many prepended parameters.
+   */
+  if (actual.size() < expected.size()) {
+    return false;
+  }
+
+  if (actual.size() == expected.size()) {
+    /* If the length is the same, exact match is required. */
+    return actual == expected;
+  }
+
+  /* If the length grew, check the expected arg0. */
+  int offset = actual.size() - expected.size();
+  if (expected[0].find('/') != std::string::npos) {
+    /* If it contained a slash, exact match is needed. */
+    if (actual[offset] != expected[0]) {
+      return false;
+    }
+  } else {
+    /* If it didn't contain a slash, it needed to get prefixed with some path. */
+    int expected_arg0_len = expected[0].length();
+    int actual_arg0_len = actual[offset].length();
+    /* Needs to be at least 1 longer. */
+    if (actual_arg0_len <= expected_arg0_len) {
+      return false;
+    }
+    /* See if the preceding character is a '/'. */
+    if (actual[offset][actual_arg0_len - expected_arg0_len - 1] != '/') {
+      return false;
+    }
+    /* See if the stuff after the '/' is the same. */
+    if (actual[offset].compare(actual_arg0_len - expected_arg0_len,
+                               expected_arg0_len, expected[0]) != 0) {
+      return false;
+    }
+  }
+
+  /* For the remaining parameters exact match is needed. */
+  for (unsigned int i = 1; i < expected.size(); i++) {
+    if (actual[offset + i] != expected[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
                                 const bool failed) {
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
-    if (expected_child_->argv() == argv) {
+    if (argv_matches_expectation(argv, expected_child_->argv())) {
       auto fds = expected_child_->fds();
       if (launch_type_p)
           *launch_type_p = expected_child_->launch_type();
