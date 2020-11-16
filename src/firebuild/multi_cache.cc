@@ -16,9 +16,9 @@
  * stored as separate file of a given directory. The list of subkeys is
  * retrieved by listing the directory.
  *
- * E.g. ProcessFingerprint1's hash in hex is "fingerprint1". Underneath
- * it there are two values: ProcessInputsOutputs1's hash in hex is
- * "inputsoutputs1",ProcessInputsOutputs2's hash in hex is
+ * E.g. ProcessFingerprint1's hash in ASCII is "fingerprint1". Underneath
+ * it there are two values: ProcessInputsOutputs1's hash in ASCII is
+ * "inputsoutputs1",ProcessInputsOutputs2's hash in ASCII is
  * "inputsoutputs2". The directory structure is:
  * - f/fi/fingerprint1/inputsoutputs1
  * - f/fi/fingerprint1/inputsoutputs2
@@ -50,14 +50,14 @@ MultiCache::MultiCache(const std::string &base_dir) : base_dir_(base_dir) {
  * stored, or read from. Optionally creates the necessary subdirectories
  * within the cache's base directory.
  *
- * Example: with base="base", key's hex representation being "key", and
+ * Example: with base="base", key's ASCII representation being "key", and
  * create_dirs=true, it creates the directories "base/k", "base/k/ke"
  * and "base/k/ke/key" and returns the latter.
  */
 static std::string construct_cached_dir_name(const std::string &base,
                                              const Hash &key,
                                              bool create_dirs) {
-  std::string key_str = key.to_hex();
+  std::string key_str = key.to_ascii();
   std::string path = base + "/" + key_str.substr(0, 1);
   if (create_dirs) {
     mkdir(path.c_str(), 0700);
@@ -78,8 +78,8 @@ static std::string construct_cached_dir_name(const std::string &base,
  * read from. Optionally creates the necessary subdirectories within the
  * cache's base directory.
  *
- * Example: with base="base", key's hex representation being "key",
- * subkey's hex representation being "subkey", and create_dirs=true, it
+ * Example: with base="base", key's ASCII representation being "key",
+ * subkey's ASCII representation being "subkey", and create_dirs=true, it
  * creates the directories "base/k", "base/k/ke" and "base/k/ke/key" and
  * returns "base/k/ke/key/subkey".
  */
@@ -88,7 +88,7 @@ static std::string construct_cached_file_name(const std::string &base,
                                               const Hash &subkey,
                                               bool create_dirs) {
   std::string path = construct_cached_dir_name(base, key, create_dirs);
-  return path + "/" + subkey.to_hex();
+  return path + "/" + subkey.to_ascii();
 }
 
 /**
@@ -109,7 +109,7 @@ bool MultiCache::store_protobuf(const Hash &key,
                                 const google::protobuf::TextFormat::Printer *printer,
                                 Hash *subkey_out) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: storing protobuf, key " + key.to_hex());
+    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: storing protobuf, key " + key.to_ascii());
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -177,7 +177,7 @@ bool MultiCache::store_protobuf(const Hash &key,
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + subkey.to_hex());
+    FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + subkey.to_ascii());
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -218,7 +218,7 @@ bool MultiCache::retrieve_protobuf(const Hash &key,
                                    google::protobuf::MessageLite *msg) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: retrieving protobuf, key "
-             + key.to_hex() + " subkey " + subkey.to_hex());
+             + key.to_ascii() + " subkey " + subkey.to_ascii());
   }
 
   std::string path = construct_cached_file_name(base_dir_, key, subkey, false);
@@ -278,7 +278,7 @@ std::vector<Hash> MultiCache::list_subkeys(const Hash &key) {
   Hash subkey;
   struct dirent *dirent;
   while ((dirent = readdir(dir)) != NULL) {
-    if (subkey.set_hash_from_hex(dirent->d_name)) {
+    if (subkey.set_hash_from_ascii(dirent->d_name)) {
       ret.push_back(subkey);
     }
   }

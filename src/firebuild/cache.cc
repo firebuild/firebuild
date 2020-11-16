@@ -80,14 +80,14 @@ static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
  * read from. Optionally creates the necessary subdirectories within the
  * cache's base directory.
  *
- * Example: with base="base", key's hex representation being "key", and
+ * Example: with base="base", key's ASCII representation being "key", and
  * create_dirs=true, it creates the directories "base/k" and "base/k/ke"
  * and returns "base/k/ke/key".
  */
 static std::string construct_cached_file_name(const std::string &base,
                                               const Hash &key,
                                               bool create_dirs) {
-  std::string key_str = key.to_hex();
+  std::string key_str = key.to_ascii();
   std::string path = base + "/" + key_str.substr(0, 1);
   if (create_dirs) {
     mkdir(path.c_str(), 0700);
@@ -163,7 +163,7 @@ bool Cache::store_file(const std::string &path,
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "  => " + key.to_hex());
+    FB_DEBUG(FB_DEBUG_CACHING, "  => " + key.to_ascii());
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -198,7 +198,7 @@ bool Cache::store_file(const std::string &path,
 bool Cache::retrieve_file(const Hash &key,
                           const std::string &path_dst) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "Cache: retrieving blob " + key.to_hex() + " => " + path_dst);
+    FB_DEBUG(FB_DEBUG_CACHING, "Cache: retrieving blob " + key.to_ascii() + " => " + path_dst);
   }
 
   std::string path_src = construct_cached_file_name(base_dir_, key, false);

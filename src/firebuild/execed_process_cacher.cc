@@ -18,7 +18,7 @@
 namespace firebuild {
 
 /**
- * A protobuf FieldValuePrinter that adds the hex hash to fields of
+ * A protobuf FieldValuePrinter that adds the ASCII hash to fields of
  * type "bytes" that happen to be exactly as long as our hashes, for
  * easier debugging.
  *
@@ -29,26 +29,22 @@ namespace firebuild {
  * False positives might happen at e.g. short filenames, that's okay.
  *
  * We could probably go for a solution that's aware of the exact meaning
- * of fields and really only adds the hex string for hashes. It would go
+ * of fields and really only adds the ASCII string for hashes. It would go
  * something like
  *     Printer::RegisterFieldValuePrinter(
  *         msg.GetDescriptor()->FindFieldByName("hash"), ...)
  * but then the exact message type we store would be hardwired to
  * MultiCache.
  */
-class ProtobufHashHexValuePrinter : public google::protobuf::TextFormat::FieldValuePrinter {
+class ProtobufHashAsciiValuePrinter : public google::protobuf::TextFormat::FieldValuePrinter {
  public:
   std::string PrintBytes(const std::string& val) const override {
     /* Call the base class to print as usual. */
     std::string ret = google::protobuf::TextFormat::FieldValuePrinter::PrintBytes(val);
-    /* Append the hex value if desirable. */
-    if (val.size() == Hash::hash_size()) {
-      ret += "  # ";
-      char buf[3];
-      for (unsigned int i = 0; i < Hash::hash_size(); i++) {
-        snprintf(buf, sizeof(buf), "%02x", (unsigned char)(val[i]));
-        ret += buf;
-      }
+    /* Append the ASCII value if desirable. */
+    Hash hash;
+    if (hash.set_hash_from_binary(val)) {
+      ret += "  # " + hash.to_ascii();
     }
     return ret;
   }
@@ -271,9 +267,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
     debug_msg = fingerprint_msgs_[proc];
 
-    const auto pb_hash_hex_value_printer = new ProtobufHashHexValuePrinter();
+    const auto pb_hash_ascii_value_printer = new ProtobufHashAsciiValuePrinter();
     printer = new google::protobuf::TextFormat::Printer();
-    printer->SetDefaultFieldValuePrinter(pb_hash_hex_value_printer);  /* takes ownership */
+    printer->SetDefaultFieldValuePrinter(pb_hash_ascii_value_printer);  /* takes ownership */
   }
 
   /* Store in the cache everything about this process. */
@@ -292,14 +288,14 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     bool is_dir;
     if (!hash_cache->get_hash(file.path(), &on_fs_hash, &is_dir) || is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_hex()
+               "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(file.path())
                + ": regular file expected but does not exist or something else found");
       return false;
     }
     in_cache_hash.set_hash_from_binary(file.hash());
     if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_ascii() + " mismatches e.g. at " +
                                   pretty_print_string(file.path()) + ": hash differs");
       return false;
     }
@@ -309,14 +305,14 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     bool is_dir;
     if (!hash_cache->get_hash(file.path(), &on_fs_hash, &is_dir) || !is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_hex()
+               "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(file.path())
                + ": directory expected but does not exist or something else found");
       return false;
     }
     in_cache_hash.set_hash_from_binary(file.hash());
     if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_hex() + " mismatches e.g. at " +
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_ascii() + " mismatches e.g. at " +
                                   pretty_print_string(file.path()) + ": hash differs");
       return false;
     }
@@ -324,7 +320,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const std::string& filename : pi.path_isreg()) {
     if (stat64(filename.c_str(), &st) == -1 || !S_ISREG(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_hex()
+               "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(filename)
                + ": regular file expected but does not exist or something else found");
       return false;
@@ -333,7 +329,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const std::string& filename : pi.path_isdir()) {
     if (stat64(filename.c_str(), &st) == -1 || !S_ISDIR(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_hex()
+               "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(filename)
                + ": directory expected but does not exist or something else found");
       return false;
@@ -342,7 +338,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const std::string& filename : pi.path_notexist_or_isreg_empty()) {
     if (stat64(filename.c_str(), &st) != -1 && (!S_ISREG(st.st_mode) || st.st_size > 0)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_hex()
+               "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(filename)
                + ": file expected to be missing or empty, non-empty file or something else found");
       return false;
@@ -351,7 +347,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const std::string& filename : pi.path_notexist()) {
     if (stat64(filename.c_str(), &st) != -1) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_hex()
+               "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(filename)
                + ": path expected to be missing, existing object is found");
       return false;
@@ -384,11 +380,11 @@ msg::ProcessInputsOutputs *ExecedProcessCacher::find_shortcut(const ExecedProces
   for (const Hash& subkey : subkeys) {
     if (!multi_cache_->retrieve_protobuf(fingerprint, subkey, &inouts)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   Cannot retrieve " + subkey.to_hex() + " from multicache, ignoring");
+               "│   Cannot retrieve " + subkey.to_ascii() + " from multicache, ignoring");
       continue;
     }
     if (!inouts.has_inputs() || pi_matches_fs(inouts.inputs(), subkey)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + subkey.to_hex() + " matches the file system");
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + subkey.to_ascii() + " matches the file system");
       count++;
       if (count == 1) {
         ret = new msg::ProcessInputsOutputs();
@@ -509,7 +505,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Trying to shortcut process:");
     if (proc->can_shortcut()) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   fingerprint = " + fingerprints_[proc].to_hex());
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   fingerprint = " + fingerprints_[proc].to_ascii());
     }
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + pretty_print_string(proc->executable()));
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + pretty_print_array(proc->args()));

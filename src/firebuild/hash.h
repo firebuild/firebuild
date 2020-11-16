@@ -1,4 +1,5 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
+/* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
 #ifndef FIREBUILD_HASH_H_
@@ -10,6 +11,22 @@
 
 namespace firebuild {
 
+/**
+ * A Hash object represents the binary hash of some blob,
+ * and provides methods to compute the hash, and convert to/from
+ * an ASCII representation that can be used in filenames.
+ *
+ * The binary hash is the first 126 bits of the XXH128 sum (i.e. the two
+ * low bits of the last byte are chopped off).
+ *
+ * The ASCII hash is the base64 representation of the binary hash, in
+ * 126/6 = 21 characters. The two non-alphanumeric characters of our
+ * base64 alphabet are '+' and '^'. No trailing '=' signs to denote the
+ * partial block.
+ *
+ * Command line equivalent:
+ * xxh128sum | xxd -r -p | base64 | cut -c1-21 | tr / ^
+ */
 class Hash {
  public:
   Hash()
@@ -31,14 +48,48 @@ class Hash {
   bool set_from_file(const std::string &filename, bool *is_dir_out = NULL);
 
   bool set_hash_from_binary(const std::string &binary);
-  bool set_hash_from_hex(const std::string &hex);
+  bool set_hash_from_ascii(const std::string &ascii);
   std::string to_binary() const;
-  std::string to_hex() const;
+  std::string to_ascii() const;
 
  private:
+  static void decode_block(uint32_t in, unsigned char *out);
+  static uint32_t encode_block(const unsigned char *in);
+
+  static unsigned char encode_map_[64];
+  static char decode_map_[256];
+
   static const unsigned int hash_size_ = 16;
-  char arr_[hash_size_] = {};
+  unsigned char arr_[hash_size_] = {};
+
+  static const unsigned int ascii_length_ = 21;  /* without the trailing '\0' */
+
+  /* This, along with the Hash::hash_maps_initializer_ definition in hash.cc,
+   * initializes the encode_map_ and decode_map_ arrays once at startup. */
+  class HashMapsInitializer {
+   public:
+    HashMapsInitializer() {
+      int i;
+      for (i = 0; i < 26; i++) {
+        encode_map_[i] = 'A' + i;
+      }
+      for (i = 0; i < 26; i++) {
+        encode_map_[26 + i] = 'a' + i;
+      }
+      for (i = 0; i < 10; i++) {
+        encode_map_[52 + i] = '0' + i;
+      }
+      encode_map_[62] = '+';
+      encode_map_[63] = '^';
+      memset(decode_map_, -1, 256);
+      for (int i = 0; i < 64; i++) {
+        decode_map_[encode_map_[i]] = i;
+      }
+    }
+  };
+  friend class HashMapsInitializer;
+  static HashMapsInitializer hash_maps_initializer_;
 };
 
-}  // namespace firebuild
-#endif  // FIREBUILD_HASH_H_
+}  /* namespace firebuild */
+#endif  /* FIREBUILD_HASH_H_ */
