@@ -30,19 +30,17 @@ void Pipe::add_fd1(int fd1_conn, std::vector<int>&& cache_fds) {
   assert(fd1_ends.count(fd1_conn) == 0);
   auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, pipe_fd1_read_cb, this);
   fd1_ends[fd1_conn] = new pipe_end({fd1_event, std::move(cache_fds)});
-  if (!send_only_mode_) {
-    event_add(fd1_event, NULL);
-  }
+  event_add(fd1_event, NULL);
 }
 
 static void pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
   (void) fd; /* unused */
   (void) what; /* FIXME! unused */
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  switch (pipe->send_buf()) {
+  switch (pipe->send_buf(NULL)) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
-      assert(pipe->send_only_mode());
+      assert(pipe->send_cb_enabled_mode());
       break;
     }
     case FB_PIPE_FD0_EPIPE: {
@@ -51,7 +49,7 @@ static void pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
       break;
     }
     case FB_PIPE_SUCCESS: {
-      assert(!pipe->send_only_mode());
+      assert(!pipe->send_cb_enabled_mode());
       if (pipe->buffer_empty() && pipe->fd1_ends.size() == 0) {
         pipe->finish();
       }
@@ -74,7 +72,7 @@ static void close_one_fd1(Pipe *pipe, int fd) {
       pipe->finish();
     } else {
       /* Let the pipe send out the remaining data. */
-      pipe->set_send_only_mode(true);
+      pipe->set_send_cb_enabled_mode(true);
     }
   }
 }
@@ -99,11 +97,10 @@ void Pipe::finish() {
 static void pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
   (void) what; /* FIXME! unused */
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  assert(pipe->buffer_empty());
   switch (pipe->forward(fd, false)) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
-      assert(pipe->send_only_mode());
+      assert(pipe->send_cb_enabled_mode());
       break;
     }
     case FB_PIPE_FD0_EPIPE: {
@@ -115,7 +112,7 @@ static void pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
       break;
     }
     case FB_PIPE_SUCCESS: {
-      assert(!pipe->send_only_mode());
+      assert(!pipe->send_cb_enabled_mode());
       break;
     }
     default:
@@ -123,27 +120,24 @@ static void pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
   }
 }
 
-void Pipe::set_send_only_mode(bool mode) {
+void Pipe::set_send_cb_enabled_mode(bool mode) {
   assert(fd0_event);
   if (mode) {
-    FB_DEBUG(FB_DEBUG_PIPE, "switching pipe to send only mode");
-    for (auto it : fd1_ends) {
-      event_del(it.second->ev);
-    }
+    FB_DEBUG(FB_DEBUG_PIPE, "switching pipe to send callback enabled mode");
     /* should try again writing when fd0 becomes writable */
     event_add(fd0_event, NULL);
   } else {
-    FB_DEBUG(FB_DEBUG_PIPE, "allowing pipe to read data again");
+    FB_DEBUG(FB_DEBUG_PIPE, "allowing pipe to read data again on all fd1s");
     for (auto it : fd1_ends) {
       event_add(it.second->ev, NULL);
     }
     /* should not try again writing fd0 until data arrives */
     event_del(fd0_event);
   }
-    send_only_mode_ = mode;
+  send_cb_enabled_mode_ = mode;
 }
 
-pipe_op_result Pipe::send_buf() {
+pipe_op_result Pipe::send_buf(struct event* trigger_fd0_event) {
   assert(fd0_event);
   if (!buffer_empty()) {
     // there is data to be forwarded
@@ -155,8 +149,12 @@ pipe_op_result Pipe::send_buf() {
                + std::to_string(fd0_conn));
       if (sent == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
-          /* this pipe should not receive more data */
-          set_send_only_mode(true);
+          /* Should not receive more data from this fd1 to avoid filling the buffer
+           * without limit. */
+          if (trigger_fd0_event) {
+            // xxx event_del(trigger_fd0_event);
+          }
+          set_send_cb_enabled_mode(true);
           return FB_PIPE_WOULDBLOCK;
         } else {
           if (errno == EPIPE) {
@@ -173,9 +171,9 @@ pipe_op_result Pipe::send_buf() {
       } else {
         if (buffer_empty()) {
           /* buffer emptied, pipe can receive more data */
-          if (send_only_mode_) {
+          if (send_cb_enabled_mode_) {
             /* this pipe can now receive more data */
-            set_send_only_mode(false);
+            set_send_cb_enabled_mode(false);
           }
         }
       }
@@ -194,14 +192,15 @@ pipe_op_result Pipe::forward(int fd1, bool drain) {
    * callbacks - which would just fill the buffer - until the buffer is emptied and the data is
    * sent.
    */
+  auto fd1_end = fd1_ends[fd1];
+  assert(fd1_end);
+  auto fd1_event = fd1_end->ev;
+  auto fd0_conn = event_get_fd(fd0_event);
+  auto cache_fds_size = fd1_end->cache_fds.size();
   do {
     int received;
     /* Try splice and tee first. */
     if (buffer_empty()) {
-      auto fd0_conn = event_get_fd(fd0_event);
-      auto fd1_end = fd1_ends[fd1];
-      assert(fd1_end);
-      auto cache_fds_size = fd1_end->cache_fds.size();
       do {
         /* Forward data first to block the reader less. */
         if (cache_fds_size > 0) {
@@ -244,17 +243,17 @@ pipe_op_result Pipe::forward(int fd1, bool drain) {
     if (received == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* Try emptying the buffer if there is any data to send. */
-        return send_buf();
+        return send_buf(fd1_event);
       } else {
         /* Try emptying the buffer if there is any data to send. */
-        send_buf();
+        send_buf(fd1_event);
         /* unexpected error, this fd1 connection can be closed irrespective to send_buf()'s
          * result */
         return FB_PIPE_FD1_EOF;
       }
     } else if (received == 0) {
       /* Try emptying the buffer if there is any data to send. */
-      send_buf();
+      send_buf(fd1_event);
       /* pipe end is closed */
       return FB_PIPE_FD1_EOF;
     } else {
@@ -278,7 +277,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain) {
           fb_writev(cache_fd, vec_out, n_vec);
         }
       }
-      send_ret = send_buf();
+      send_ret = send_buf(fd1_event);
     }
   } while ((!drain && send_ret != FB_PIPE_FD0_EPIPE) || send_ret == FB_PIPE_SUCCESS);
   if (send_ret == FB_PIPE_FD0_EPIPE) {

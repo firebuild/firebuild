@@ -68,30 +68,31 @@ typedef enum {
  * Pipe::forward():
  * - For the event-triggered method there is a libevent callback registered on each pipe end.
  *   fd0 and fd1 ends have different event handlers due fd0 can only be written to, and fd1-s can
- *   only be read. In Pipe's default state (send_only_mode_ == false) the fd1 ends' callback is
+ *   only be read. In Pipe's default state (send_cb_enabled_mode_ == false) the fd1 ends' callback is
  *   active and whenever there is incoming data on an fd1 end it is written to the fd0 end
  *   (and saved if the process the data came from can be shortcut). The data is not buffered if
  *   it can be immediately sent. In this mode fd0's callback is disabled.
  *
  *   If the incoming data can't be immediately sent via fd0 because fd0 would block
- *   the pipe enters send_only_mode_, enables the callback on fd0 to be notified when fd0 becomes
- *   writable again, and disables callbacks on fd1-s to not receive more data to the internal
- *   buffer (buf_), where the data in flight is saved.
+ *   the pipe enters send_cb_enabled_mode_, enables the callback on fd0 to be notified when fd0
+ *   becomes writable again, and disables the callback on the fd1 where the date was read from.
+ *   This prevents receiving more data from that pipe end to the internal buffer (buf_), where the
+ *   data in flight is saved.
  *
- *   In send_only_mode_ only writes to fd0 are triggered by fd events and the Pipe stays in this
+ *   In send_cb_enabled_mode_ only writes to fd0 are triggered by fd events and the Pipe stays in this
  *   mode until the internal buffer is emptied. Then the fd0 callback is disabled and all fd1
- *   callbacks are enabled again. send_only_mode_ is set to false.
+ *   callbacks are enabled again. send_cb_enabled_mode_ is set to false.
  *
  * - Pipe::forward(int fd1, bool drain) can be used to reading from an fd1 end with or without
  *   draining it. It tries to read once, or all the readable data in case of draining it.
- *   Pipe::forward() reads from fd1 irrespective to the send_only_mode_ state, possibly adding more
+ *   Pipe::forward() reads from fd1 irrespective to the send_cb_enabled_mode_ state, possibly adding more
  *   data to the already used buffer. Drain mode is used when trying to receive all sent
  *   data from a process that exec()-ed or terminated.
  *
  * Pipe ends lifecycle:
  * - Fd1 ends can be closed independently. When one fd1 end is closed the file descriptor is closed,
  *   the callback on it is disabled and freed. When the last fd1 is closed there may still be data
- *   in the buffer to send. In that case the pipe switches to send_only_mode_ and keeps forwarding
+ *   in the buffer to send. In that case the pipe switches to send_cb_enabled_mode_ and keeps forwarding
  *   the data to fd0 until all the data is sent or receives EPIPE on fd0. After either of those the
  *   whole Pipe can be finish()-ed, cleaning up all ends.
  * - When fd0 end is closed the whole Pipe can be finish()-ed discarding the buffered data. This is
@@ -122,14 +123,15 @@ class Pipe {
   void add_fd1(int fd1, std::vector<int>&& cache_fds);
   /**
    * Send contents of the buffer to the 'to' side
+   * @param trigger_fd1_event fd1 event that triggered this sending
    * @return send operation's result
    */
-  pipe_op_result send_buf();
+  pipe_op_result send_buf(struct event* trigger_fd1_event);
   bool buffer_empty() {
     return evbuffer_get_length(buf_) == 0;
   }
-  void set_send_only_mode(bool mode);
-  bool send_only_mode() {return send_only_mode_;}
+  void set_send_cb_enabled_mode(bool mode);
+  bool send_cb_enabled_mode() {return send_cb_enabled_mode_;}
   /**
    * Read from fd1 and try to forward it to fd0
    * @param fd1 connection to read from
@@ -142,7 +144,7 @@ class Pipe {
 
  private:
   /** Switch send only mode */
-  bool send_only_mode_ = false;
+  bool send_cb_enabled_mode_ = false;
   struct evbuffer * buf_;
   /** Shared self pointer to clean oneself up only after finish(). */
   std::shared_ptr<Pipe> shared_self_ptr_;

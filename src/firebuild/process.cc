@@ -106,7 +106,7 @@ void Process::forward_all_pipes() {
               break;
             } else if (!pipe->buffer_empty()) {
               /* There is still buffered data to send out. */
-              pipe->set_send_only_mode(true);
+              pipe->set_send_cb_enabled_mode(true);
               finished_with_pipe = true;
               break;
             }
