@@ -557,7 +557,9 @@ static void fb_ic_init() {
 
   for (char** cursor = env; *cursor != NULL; cursor++) {
     const char *fb_socket = "FB_SOCKET=";
-    if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0) {
+    const char *fb_system_locations = "FB_SYSTEM_LOCATIONS=";
+    if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0 &&
+        strncmp(*cursor, fb_system_locations, strlen(fb_system_locations)) != 0) {
       env_copy[env_copy_len++] = *cursor;
     }
   }
