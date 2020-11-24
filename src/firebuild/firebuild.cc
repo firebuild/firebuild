@@ -33,6 +33,7 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "firebuild/cache_object_format_generated.h"
 #pragma GCC diagnostic pop
+#include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/execed_process_cacher.h"
@@ -163,9 +164,10 @@ static char** get_sanitized_env() {
 /*
  * Check if either exe or arg0 matches any of the entries in the list.
  */
-static bool exe_matches_list(const std::string& exe,
+static bool exe_matches_list(const firebuild::FileName* exe_file,
                              const std::string& arg0,
                              const libconfig::Setting& list) {
+  std::string exe = exe_file->to_string();
   size_t pos = exe.rfind('/');
   std::string exe_base = exe.substr(pos == std::string::npos ? 0 : pos + 1);
   pos = arg0.rfind('/');

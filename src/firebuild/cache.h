@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 
 namespace firebuild {
@@ -15,10 +16,10 @@ class Cache {
   explicit Cache(const std::string &base_dir);
   ~Cache();
 
-  bool store_file(const std::string &path,
+  bool store_file(const FileName *path,
                   Hash *key_out);
   bool retrieve_file(const Hash &key,
-                     const std::string &path_dst);
+                     const FileName *path_dst);
 
  private:
   /* Including the "blobs" subdir. */

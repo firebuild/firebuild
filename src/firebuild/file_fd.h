@@ -10,6 +10,7 @@
 #include <string>
 
 #include "firebuild/file.h"
+#include "firebuild/file_name.h"
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
@@ -54,7 +55,7 @@ class FileFD {
       written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
       filename_(), opened_by_(o_fd->opened_by()) {}
   /** Constructor for fds obtained through opening files. */
-  FileFD(const std::string &f, int fd, int flags, Process * const p)
+  FileFD(const FileName* f, int fd, int flags, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
       read_(false), written_(false), open_(true), origin_fd_(NULL),
       filename_(f), opened_by_(p) {}
@@ -77,6 +78,7 @@ class FileFD {
   fd_origin origin_type() {return origin_type_;}
   bool read() {return read_;}
   bool written() {return written_;}
+  const FileName* filename() {return filename_;}
 
  private:
   int fd_;
@@ -88,7 +90,7 @@ class FileFD {
   /** file descriptor is open (valid) */
   bool open_ : 1;
   std::shared_ptr<FileFD> origin_fd_;
-  std::string filename_;
+  const FileName* filename_;
   /** Process that opened this file by name.
    *  Remains the same (doesn't get updated to the current process) at dup2() or alike.
    *  NULL if the topmost intercepted process already inherited it from the supervisor. */

@@ -12,6 +12,7 @@
  * Nonexisting files are not cached.
  */
 
+#include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 
 namespace firebuild {
@@ -28,11 +29,11 @@ HashCache *hash_cache;
  * @param force      always update the entry
  * @return           true on success, false on failure to get and update the file's hash
  */
-static bool update(const std::string& path, int fd, struct stat64 *stat_ptr, HashCacheEntry *entry,
+static bool update(const FileName* path, int fd, struct stat64 *stat_ptr, HashCacheEntry *entry,
                    bool force) {
   struct stat64 st_local, *st;
   st = stat_ptr ? stat_ptr : &st_local;
-  if (!stat_ptr && stat64(path.c_str(), st) == -1) {
+  if (!stat_ptr && stat64(path->c_str(), st) == -1) {
     return false;
   }
   if (!force &&
@@ -56,7 +57,7 @@ static bool update(const std::string& path, int fd, struct stat64 *stat_ptr, Has
   }
 }
 
-HashCacheEntry* HashCache::get_entry(const std::string& path, int fd, struct stat64 *stat_ptr,
+HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, struct stat64 *stat_ptr,
                                      bool force) {
   if (db_.count(path) > 0) {
     HashCacheEntry& entry = db_[path];
@@ -75,7 +76,7 @@ HashCacheEntry* HashCache::get_entry(const std::string& path, int fd, struct sta
   }
 }
 
-bool HashCache::get_hash(const std::string& path, Hash *hash, bool *is_dir, int fd,
+bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, int fd,
                          struct stat64 *stat_ptr, bool force) {
   HashCacheEntry *entry = get_entry(path, fd, stat_ptr, force);
   if (!entry) {

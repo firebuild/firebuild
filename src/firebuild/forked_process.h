@@ -27,14 +27,14 @@ class ForkedProcess : public Process {
   /**
    * Fail to change to a working directory
    */
-  void fail_wd(const std::string &d) {
+  void handle_fail_wd(const char * const d) {
     assert(parent() != NULL);
-    parent()->fail_wd(d);
+    parent()->handle_fail_wd(d);
   }
   /**
    * Record visited working directory
    */
-  void add_wd(const std::string &d) {
+  void add_wd(const FileName *d) {
     assert(parent() != NULL);
     parent()->add_wd(d);
   }

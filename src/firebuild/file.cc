@@ -13,7 +13,7 @@
 
 namespace firebuild {
 
-File::File(const std::string &p)
+File::File(const FileName* p)
     : mtimes_(), path_(p), exists_(false), hash_() {
 }
 
@@ -29,7 +29,7 @@ int File::update() {
 
   unsigned int i = 0;
   struct stat s;
-  char *tmp_path = strdup(path_.c_str());
+  char *tmp_path = strdup(path_->c_str());
   if (lstat(tmp_path, &s) == -1) {
     perror("lstat");
     free(tmp_path);
@@ -81,7 +81,7 @@ int File::update() {
 
 int File::is_changed() {
   int i = 0;
-  char *tmp_path = strdup(path_.c_str());
+  char *tmp_path = strdup(path_->c_str());
   struct stat s;
 
   if (lstat(tmp_path, &s) == -1) {

@@ -13,6 +13,7 @@
 #include <unistd.h>
 
 #include "firebuild/debug.h"
+#include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 #include "firebuild/hash_cache.h"
 
@@ -108,12 +109,12 @@ static std::string construct_cached_file_name(const std::string &base,
  * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
-bool Cache::store_file(const std::string &path,
+bool Cache::store_file(const FileName *path,
                        Hash *key_out) {
-  FB_DEBUG(FB_DEBUG_CACHING, "Cache: storing blob " + path);
+  FB_DEBUG(FB_DEBUG_CACHING, "Cache: storing blob " + path->to_string());
 
   /* Copy the file to a temporary one under the cache */
-  int fd_src = open(path.c_str(), O_RDONLY);
+  int fd_src = open(path->c_str(), O_RDONLY);
   if (fd_src == -1) {
     perror("open");
     return false;
@@ -169,7 +170,7 @@ bool Cache::store_file(const std::string &path,
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place meta info in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
-    std::string txt(pretty_print_timestamp() + "  Copied from " + path + "\n");
+    std::string txt(pretty_print_timestamp() + "  Copied from " + path->to_string() + "\n");
     int fd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(fd, txt.c_str(), txt.size()) < 0) {
       perror("Cache::store_file");
@@ -196,9 +197,10 @@ bool Cache::store_file(const std::string &path,
  * @return Whether succeeded
  */
 bool Cache::retrieve_file(const Hash &key,
-                          const std::string &path_dst) {
+                          const FileName *path_dst) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "Cache: retrieving blob " + key.to_ascii() + " => " + path_dst);
+    FB_DEBUG(FB_DEBUG_CACHING, "Cache: retrieving blob " + key.to_ascii() + " => "
+             + path_dst->to_string());
   }
 
   std::string path_src = construct_cached_file_name(base_dir_, key, false);
@@ -209,7 +211,7 @@ bool Cache::retrieve_file(const Hash &key,
     return false;
   }
 
-  int fd_dst = open(path_dst.c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0666);
+  int fd_dst = open(path_dst->c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0666);
   if (fd_dst == -1) {
     perror("open");
     close(fd_src);
@@ -220,7 +222,7 @@ bool Cache::retrieve_file(const Hash &key,
     FB_DEBUG(FB_DEBUG_CACHING, "copying failed");
     close(fd_src);
     close(fd_dst);
-    unlink(path_dst.c_str());
+    unlink(path_dst->c_str());
     return false;
   }
 

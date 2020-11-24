@@ -11,6 +11,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
 
@@ -40,11 +41,11 @@ class HashCache {
    * @param stat_ptr when fd is set this parameter is set to the fd's stat data
    * @param force    always update the entry
    */
-  bool get_hash(const std::string& path, Hash *hash, bool *is_dir = NULL, int fd = -1,
+  bool get_hash(const FileName* path, Hash *hash, bool *is_dir = NULL, int fd = -1,
                 struct stat64 *stat_ptr = NULL, bool force = false);
 
  private:
-  std::unordered_map<std::string, HashCacheEntry> db_ = {};
+  std::unordered_map<const FileName*, HashCacheEntry> db_ = {};
 
   /**
    * Calculate hash of a file or directory on the path.
@@ -58,7 +59,7 @@ class HashCache {
    * @param stat_ptr when fd is set this parameter is set to the fd's stat data
    * @param force    always update the entry
    */
-  HashCacheEntry* get_entry(const std::string& path, int fd = -1, struct stat64 *stat_ptr = NULL,
+  HashCacheEntry* get_entry(const FileName* path, int fd = -1, struct stat64 *stat_ptr = NULL,
                             bool force = false);
 
   DISALLOW_COPY_AND_ASSIGN(HashCache);

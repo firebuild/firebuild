@@ -20,6 +20,7 @@ add_custom_target(flatbuffers_gen_files DEPENDS cache_object_format_generated.h)
 add_executable(firebuild
   config.cc
   debug.cc
+  file_name.cc
   firebuild.cc
   process.cc
   execed_process.cc

@@ -4,6 +4,7 @@
 
 #include "firebuild/execed_process.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -44,8 +45,8 @@ static std::string escapeJsonString(const std::string& input) {
 }
 
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
-                             const std::string &cwd,
-                             const std::string &executable,
+                             const FileName *cwd,
+                             const FileName *executable,
                              Process * parent,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, cwd, parent, fds),
@@ -129,7 +130,7 @@ void ExecedProcess::do_finalize() {
  * In case of shortcutted processes, it's the shortcutting itself that
  * performs the file operations, no administration is necessary there.
  */
-void ExecedProcess::propagate_file_usage(const std::string &name,
+void ExecedProcess::propagate_file_usage(const FileName *name,
                                          const FileUsage &fu_change) {
   FileUsage *fu;
   if (file_usages().count(name) > 0) {
@@ -153,13 +154,13 @@ void ExecedProcess::propagate_file_usage(const std::string &name,
  * Looks at the contents of `actual_file`, but registers as if the event
  * happened to `name`.
  */
-bool ExecedProcess::register_file_usage(const std::string &name,
-                                        const std::string &actual_file,
+bool ExecedProcess::register_file_usage(const FileName *name,
+                                        const FileName *actual_file,
                                         FileAction action,
                                         int flags,
                                         int error) {
-  if (is_path_at_locations(name.c_str(), &ignore_locations)) {
-    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name);
+  if (is_path_at_locations(name->c_str(), &ignore_locations)) {
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name->to_string());
     return true;
   }
 
@@ -202,10 +203,10 @@ bool ExecedProcess::register_file_usage(const std::string &name,
  * See the other register_file_usage().
  * This one does not look at the file system, but instead registers the given fu_change.
  */
-bool ExecedProcess::register_file_usage(const std::string &name,
+bool ExecedProcess::register_file_usage(const FileName *name,
                                         FileUsage fu_change) {
-  if (is_path_at_locations(name.c_str(), &ignore_locations)) {
-    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name);
+  if (is_path_at_locations(name->c_str(), &ignore_locations)) {
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name->to_string());
     return true;
   }
 
@@ -280,8 +281,8 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "%s pid: %u,\n", indent, pid());
   fprintf(stream, "%s ppid: %u,\n", indent, ppid());
   fprintf(stream, "%s fb_pid: %u,\n", indent, fb_pid());
-  fprintf(stream, "%s cwd:\"%s\",\n", indent, cwd().c_str());
-  fprintf(stream, "%s exe:\"%s\",\n", indent, executable().c_str());
+  fprintf(stream, "%s cwd:\"%s\",\n", indent, cwd()->c_str());
+  fprintf(stream, "%s exe:\"%s\",\n", indent, executable()->c_str());
   fprintf(stream, "%s state: %u,\n", indent, state());
   if (!can_shortcut_) {
     fprintf(stream, "%s cant_sc_reason: \"%s\",\n",
@@ -305,56 +306,57 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s libs: [", indent);
   for (auto& lib : libs()) {
-    fprintf(stream, "\"%s\",", lib.c_str());
+    fprintf(stream, "\"%s\",", lib->c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s wds: [", indent);
   for (auto& wd : wds()) {
-    fprintf(stream, "\"%s\",", wd.c_str());
+    fprintf(stream, "\"%s\",", wd->c_str());
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s failed_wds: [", indent);
   for (auto& f_wd : failed_wds()) {
-    fprintf(stream, "\"%s\",", f_wd.c_str());
+    fprintf(stream, "\"%s\",", f_wd->c_str());
   }
   fprintf(stream, "],\n");
 
   // sort files before printing
-  std::map<std::string, FileUsage*> ordered_file_usages;
+  std::vector<file_file_usage> ordered_file_usages;
   for (auto& pair : file_usages()) {
-    ordered_file_usages[pair.first] =  pair.second;
+    ordered_file_usages.push_back({pair.first, pair.second});
   }
+  std::sort(ordered_file_usages.begin(), ordered_file_usages.end(), file_file_usage_cmp);
 
   fprintf(stream, "%s fcreated: [", indent);
-  for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() != ISREG_WITH_HASH && pair.second->written()) {
-      fprintf(stream, "\"%s\",", pair.first.c_str());
+  for (auto& ffu : ordered_file_usages) {
+    if (ffu.usage->initial_state() != ISREG_WITH_HASH && ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fmodified: [", indent);
-  for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() == ISREG_WITH_HASH && pair.second->written()) {
-      fprintf(stream, "\"%s\",", pair.first.c_str());
+  for (auto& ffu : ordered_file_usages) {
+    if (ffu.usage->initial_state() == ISREG_WITH_HASH && ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fread: [", indent);
-  for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() == ISREG_WITH_HASH && !pair.second->written()) {
-      fprintf(stream, "\"%s\",", pair.first.c_str());
+  for (auto& ffu : ordered_file_usages) {
+    if (ffu.usage->initial_state() == ISREG_WITH_HASH && !ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
   fprintf(stream, "],\n");
 
   fprintf(stream, "%s fnotf: [", indent);
-  for (auto& pair : ordered_file_usages) {
-    if (pair.second->initial_state() != ISREG_WITH_HASH && !pair.second->written()) {
-      fprintf(stream, "\"%s\",", pair.first.c_str());
+  for (auto& ffu : ordered_file_usages) {
+    if (ffu.usage->initial_state() != ISREG_WITH_HASH && !ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
   fprintf(stream, "],\n");

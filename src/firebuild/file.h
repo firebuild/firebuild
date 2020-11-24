@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
 
@@ -16,15 +17,15 @@ namespace firebuild {
 
 class File {
  public:
-  explicit File(const std::string &path);
+  explicit File(const FileName* path);
   int update();
   int is_changed();
-  std::string& path() {return path_;}
+  const FileName* path() {return path_;}
   Hash& hash() {return hash_;}
 
  private:
   std::vector<timespec> mtimes_;
-  std::string path_;
+  const FileName* path_;
   bool exists_;
   Hash hash_;
   int set_hash();

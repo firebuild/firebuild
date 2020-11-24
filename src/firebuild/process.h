@@ -69,7 +69,7 @@ typedef enum {
  */
 class Process {
  public:
-  Process(int pid, int ppid, const std::string &wd,
+  Process(int pid, int ppid, const FileName *wd,
           Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
@@ -92,8 +92,8 @@ class Process {
   int ppid() const {return ppid_;}
   int exit_status() const {return exit_status_;}
   void set_exit_status(const int e) {exit_status_ = e;}
-  std::string& wd() {return wd_;}
-  void set_wd(const std::string &d);
+  const FileName* wd() {return wd_;}
+  void handle_set_wd(const char * const d);
   int64_t utime_u() const {return utime_u_;}
   void set_utime_u(int64_t t) {utime_u_ = t;}
   int64_t stime_u() const {return stime_u_;}
@@ -166,7 +166,7 @@ class Process {
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
    */
-  int handle_open(const std::string &ar_name, const int flags,
+  int handle_open(const char * const ar_name, const int flags,
                   const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
 
   /**
@@ -192,21 +192,21 @@ class Process {
    * @param name relative or absolute file name
    * @param error error code of unlink()
    */
-  int handle_unlink(const std::string &name, const int error = 0);
+  int handle_unlink(const char * const name, const int error = 0);
 
   /**
    * Handle mkdir in the monitored process
    * @param name relative or absolute file name
    * @param error error code of mkdir()
    */
-  int handle_mkdir(const std::string &name, const int error = 0);
+  int handle_mkdir(const char * const name, const int error = 0);
 
   /**
    * Handle rmdir in the monitored process
    * @param name relative or absolute file name
    * @param error error code of rmdir()
    */
-  int handle_rmdir(const std::string &name, const int error = 0);
+  int handle_rmdir(const char * const name, const int error = 0);
 
   /**
    * Handle pipe() in the monitored process
@@ -237,7 +237,7 @@ class Process {
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int handle_rename(const std::string &old_ar_name, const std::string &new_ar_name,
+  int handle_rename(const char * const old_ar_name, const char * const new_ar_name,
                     const int error = 0);
 
   /**
@@ -247,7 +247,7 @@ class Process {
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int handle_symlink(const std::string &old_ar_name, const std::string &new_ar_name,
+  int handle_symlink(const char * const old_ar_name, const char * const new_ar_name,
                      const int error = 0);
 
   /**
@@ -297,12 +297,12 @@ class Process {
   /**
    * Fail to change to a working directory
    */
-  virtual void fail_wd(const std::string &d) = 0;
+  virtual void handle_fail_wd(const char * const d) = 0;
 
   /**
    * Record visited working directory
    */
-  virtual void add_wd(const std::string &d) = 0;
+  virtual void add_wd(const FileName *d) = 0;
 
   /** Propagate exit status upward through exec()-ed processes */
   virtual void propagate_exit_status(const int status) = 0;
@@ -366,7 +366,7 @@ class Process {
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
-  std::string wd_;  ///< Current working directory
+  const FileName* wd_;  ///< Current working directory
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
   std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   int64_t utime_u_;  ///< user time in microseconds as reported by getrusage()

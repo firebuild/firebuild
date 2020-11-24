@@ -14,6 +14,7 @@
 #include "firebuild/cache.h"
 #include "firebuild/multi_cache.h"
 #include "firebuild/execed_process.h"
+#include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"

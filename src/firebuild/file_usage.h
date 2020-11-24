@@ -66,10 +66,10 @@ class FileUsage {
   void set_unknown_err(int e) {unknown_err_ = e;}
 
   bool merge(const FileUsage& fu);
-  bool update_from_open_params(const std::string& filename,
+  bool update_from_open_params(const FileName* filename,
                                FileAction action, int flags, int err,
                                bool do_read);
-  bool open(const std::string& filename, int flags, int err, Hash **hashpp);
+  bool open(const FileName* filename, int flags, int err, Hash **hashpp);
 
 
  private:
@@ -121,6 +121,13 @@ class FileUsage {
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
 };
+
+struct file_file_usage {
+  const FileName* file;
+  const FileUsage* usage;
+};
+
+bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_FILE_USAGE_H_
