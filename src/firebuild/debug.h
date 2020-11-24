@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include "firebuild/file_name.h"
+
 namespace firebuild {
 
 /** Print error message */
@@ -53,6 +55,9 @@ extern int32_t debug_flags;
 int32_t parse_debug_flags(const std::string& str);
 
 std::string pretty_print_string(const std::string& str);
+inline std::string pretty_print_string(const FileName * str) {
+  return pretty_print_string(str->to_string());
+}
 
 std::string pretty_print_array(const std::vector<std::string>& arr,
                                const std::string& sep = ", ");

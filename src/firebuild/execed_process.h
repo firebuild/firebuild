@@ -11,7 +11,9 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 
+#include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -23,8 +25,8 @@ class ExecedProcessCacher;
 
 class ExecedProcess : public Process {
  public:
-  explicit ExecedProcess(const int pid, const int ppid, const std::string &cwd,
-                         const std::string &executable, Process * parent,
+  explicit ExecedProcess(const int pid, const int ppid, const FileName *cwd,
+                         const FileName *executable, Process * parent,
                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
@@ -34,25 +36,23 @@ class ExecedProcess : public Process {
   void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
   int64_t sum_stime_u() const {return sum_stime_u_;}
   void set_sum_stime_u(int64_t t) {sum_stime_u_ = t;}
-  const std::string& cwd() const {return cwd_;}
-  std::string& cwd() {return cwd_;}
-  const std::set<std::string>& wds() const {return wds_;}
-  std::set<std::string>& wds() {return wds_;}
-  const std::set<std::string>& failed_wds() const {return wds_;}
-  std::set<std::string>& failed_wds() {return failed_wds_;}
+  const FileName* cwd() const {return cwd_;}
+  const std::unordered_set<const FileName*>& wds() const {return wds_;}
+  const std::unordered_set<const FileName*>& wds() {return wds_;}
+  const std::unordered_set<const FileName*>& failed_wds() const {return wds_;}
+  std::unordered_set<const FileName*>& failed_wds() {return failed_wds_;}
   const std::vector<std::string>& args() const {return args_;}
   std::vector<std::string>& args() {return args_;}
   void set_args(const std::vector<std::string>& args) {args_ = args;}
   const std::vector<std::string>& env_vars() const {return env_vars_;}
   std::vector<std::string>& env_vars() {return env_vars_;}
   void set_env_vars(const std::vector<std::string>& env_vars) {env_vars_ = env_vars;}
-  const std::string& executable() const {return executable_;}
-  std::string& executable() {return executable_;}
-  const std::vector<std::string>& libs() const {return libs_;}
-  std::vector<std::string>& libs() {return libs_;}
-  void set_libs(const std::vector<std::string>& libs) {libs_ = libs;}
-  std::unordered_map<std::string, FileUsage*>& file_usages() {return file_usages_;}
-  const std::unordered_map<std::string, FileUsage*>& file_usages() const {return file_usages_;}
+  const FileName* executable() const {return executable_;}
+  std::vector<const FileName*>& libs() {return libs_;}
+  const std::vector<const FileName*>& libs() const {return libs_;}
+  void set_libs(std::vector<const FileName*> libs) {libs_ = libs;}
+  std::unordered_map<const FileName*, FileUsage*>& file_usages() {return file_usages_;}
+  const std::unordered_map<const FileName*, FileUsage*>& file_usages() const {return file_usages_;}
   void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
   void do_finalize();
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
@@ -60,22 +60,22 @@ class ExecedProcess : public Process {
                    const int64_t stime_u);
 
   void initialize();
-  void propagate_file_usage(const std::string &name,
+  void propagate_file_usage(const FileName *name,
                             const FileUsage &fu_change);
-  bool register_file_usage(const std::string &name, const std::string &actual_file,
+  bool register_file_usage(const FileName *name, const FileName *actual_file,
                            FileAction action, int flags, int error);
-  bool register_file_usage(const std::string &name, FileUsage fu_change);
+  bool register_file_usage(const FileName *name, FileUsage fu_change);
 
   /**
    * Fail to change to a working directory
    */
-  void fail_wd(const std::string &d) {
-    failed_wds_.insert(d);
+  void handle_fail_wd(const char * const d) {
+    failed_wds_.insert(FileName::Get(d));
   }
   /**
    * Record visited working directory
    */
-  void add_wd(const std::string &d) {
+  void add_wd(const FileName *d) {
     wds_.insert(d);
   }
 
@@ -92,7 +92,7 @@ class ExecedProcess : public Process {
       cant_shortcut_reason_ = reason;
       assert(cant_shortcut_proc_ == NULL);
       cant_shortcut_proc_ = p ? p : this;
-      FB_DEBUG(FB_DEBUG_PROC, "Command \"" + executable_
+      FB_DEBUG(FB_DEBUG_PROC, "Command \"" + std::string(executable_->c_str())
                + "\" can't be short-cut due to: " + reason);
     }
   }
@@ -114,22 +114,22 @@ class ExecedProcess : public Process {
   /// children
   int64_t sum_stime_u_ = 0;
   /// Directory the process exec()-started in
-  std::string cwd_;
+  const FileName* cwd_;
   /// Working directories visited by the process and all fork()-children
-  std::set<std::string> wds_;
+  std::unordered_set<const FileName*> wds_;
   /// Working directories the process and all fork()-children failed to
   /// chdir() to
-  std::set<std::string> failed_wds_;
+  std::unordered_set<const FileName*> failed_wds_;
   std::vector<std::string> args_;
   /// Environment variables in deterministic (sorted) order.
   std::vector<std::string> env_vars_;
-  std::string executable_;
+  const FileName* executable_;
   /// DSO-s loaded by the linker at process startup, in the same order.
   /// (DSO-s later loaded via dlopen(), and DSO-s of descendant processes
   /// are registered as regular file open operations.)
-  std::vector<std::string> libs_;
+  std::vector<const FileName*> libs_;
   /// File usage per path for p and f. c. (t.)
-  std::unordered_map<std::string, FileUsage*> file_usages_;
+  std::unordered_map<const FileName*, FileUsage*> file_usages_;
   void store_in_cache();
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";

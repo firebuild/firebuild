@@ -16,6 +16,7 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "firebuild/cache_object_format_generated.h"
 #pragma GCC diagnostic pop
+#include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 
 namespace firebuild {
@@ -60,7 +61,7 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   flatbuffers::FlatBufferBuilder builder(64*1024);
 
-  auto fp_cwd = builder.CreateString(proc->cwd());
+  auto fp_cwd = builder.CreateString(proc->cwd()->c_str());
   auto fp_args = builder.CreateVectorOfStrings(proc->args());
 
   std::vector<flatbuffers::Offset<flatbuffers::String>> fp_env_vec;
@@ -77,20 +78,21 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   if (!hash_cache->get_hash(proc->executable(), &hash)) {
     return false;
   }
-  auto file_path = builder.CreateString(proc->executable());
+  auto file_path = builder.CreateString(proc->executable()->c_str());
   auto file_hash =
       builder.CreateVector(hash.to_binary(), Hash::hash_size());
   auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
 
   std::vector<flatbuffers::Offset<msg::File>> fp_libs_vec;
-  for (auto& lib : proc->libs()) {
-    if (lib == "linux-vdso.so.1") {
+  const auto linux_vdso = FileName::Get("linux-vdso.so.1");
+  for (const auto lib : proc->libs()) {
+    if (lib == linux_vdso) {
       continue;
     }
     if (!hash_cache->get_hash(lib, &hash)) {
       return false;
     }
-    auto lib_path = builder.CreateString(lib);
+    auto lib_path = builder.CreateString(lib->c_str());
     auto lib_hash =
         builder.CreateVector(hash.to_binary(), Hash::hash_size());
     auto fp_lib = msg::CreateFile(builder, lib_path, lib_hash);
@@ -116,15 +118,6 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   if (FB_DEBUGGING(FB_DEBUG_CACHE) && fingerprint_msgs_.count(proc) > 0) {
     fingerprint_msgs_.erase(proc);
   }
-}
-
-struct file_file_usage {
-  const std::string* file;
-  const FileUsage* file_usage;
-};
-
-bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs) {
-  return *lhs.file < *rhs.file;
 }
 
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
@@ -154,13 +147,13 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   std::vector<file_file_usage> sorted_file_usages;
   for (const auto& pair : proc->file_usages()) {
-    sorted_file_usages.push_back({&pair.first, pair.second});
+    sorted_file_usages.push_back({pair.first, pair.second});
   }
   std::sort(sorted_file_usages.begin(), sorted_file_usages.end(), file_file_usage_cmp);
 
   for (const auto& ffu : sorted_file_usages) {
-    const std::string& filename = *ffu.file;
-    const FileUsage* fu = ffu.file_usage;
+    const auto filename = ffu.file;
+    const FileUsage* fu = ffu.usage;
 
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
@@ -169,30 +162,30 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         /* Nothing to do. */
         break;
       case ISREG_WITH_HASH: {
-        const auto path = builder.CreateString(filename);
+        const auto path = builder.CreateString(filename->c_str());
         const auto hash =
             builder.CreateVector(fu->initial_hash().to_binary(), Hash::hash_size());
         in_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash));
         break;
       }
       case ISREG:
-        in_path_isreg.push_back(builder.CreateString(filename));
+        in_path_isreg.push_back(builder.CreateString(filename->c_str()));
         break;
       case ISDIR_WITH_HASH: {
-        const auto path = builder.CreateString(filename);
+        const auto path = builder.CreateString(filename->c_str());
         const auto hash =
             builder.CreateVector(fu->initial_hash().to_binary(), Hash::hash_size());
         in_path_isdir_with_hash.push_back(msg::CreateFile(builder, path, hash));
         break;
       }
       case ISDIR:
-        in_path_isdir.push_back(builder.CreateString(filename));
+        in_path_isdir.push_back(builder.CreateString(filename->c_str()));
         break;
       case NOTEXIST_OR_ISREG_EMPTY:
-        in_path_notexist_or_isreg_empty.push_back(builder.CreateString(filename));
+        in_path_notexist_or_isreg_empty.push_back(builder.CreateString(filename->c_str()));
         break;
       case NOTEXIST:
-        in_path_notexist.push_back(builder.CreateString(filename));
+        in_path_notexist.push_back(builder.CreateString(filename->c_str()));
         break;
       default:
         assert(false);
@@ -204,7 +197,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     if (fu->written()) {
       Hash new_hash;
       struct stat st;
-      if (stat(filename.c_str(), &st) == 0) {
+      if (stat(filename->c_str(), &st) == 0) {
         if (S_ISREG(st.st_mode)) {
           /* TODO don't store and don't record if it was read with the same hash. */
           if (!cache_->store_file(filename, &new_hash)) {
@@ -212,7 +205,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
             return;
           }
-          const auto path = builder.CreateString(filename);
+          const auto path = builder.CreateString(filename->c_str());
           const auto hash =
               builder.CreateVector(new_hash.to_binary(), Hash::hash_size());
           // TODO(egmont) fail if setuid/setgid/sticky is set
@@ -222,7 +215,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
           out_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash, mtime, size,
                                                              mode));
         } else if (S_ISDIR(st.st_mode)) {
-          const auto path = builder.CreateString(filename);
+          const auto path = builder.CreateString(filename->c_str());
           /* File's default values. */
           const int hash = 0, mtime = 0, size = 0;
           // TODO(egmont) fail if setuid/setgid/sticky is set
@@ -233,7 +226,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         }
       } else {
         if (fu->initial_state() != NOTEXIST) {
-          out_path_notexist.push_back(builder.CreateString(filename));
+          out_path_notexist.push_back(builder.CreateString(filename->c_str()));
         }
       }
     }
@@ -276,7 +269,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& file : *pi.path_isreg_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
     bool is_dir;
-    const auto& path = file->path()->str();
+    const auto path = FileName::Get(file->path());
     if (!hash_cache->get_hash(path, &on_fs_hash, &is_dir) || is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_ascii()
@@ -295,7 +288,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& file : *pi.path_isdir_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
     bool is_dir;
-    const auto& path = file->path()->str();
+    const auto path = FileName::Get(file->path());
     if (!hash_cache->get_hash(path, &on_fs_hash, &is_dir) || !is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + fingerprint.to_ascii()
@@ -416,7 +409,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       assert(file->hash()->size() == Hash::hash_size());
       hash.set_hash_from_binary(file->hash()->data());
       FileUsage fu(ISREG_WITH_HASH, hash);
-      const auto& path = file->path()->str();
+      const auto path = FileName::Get(file->path());
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
     for (const auto& file : *inouts->inputs()->path_isdir_with_hash()) {
@@ -424,24 +417,24 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       assert(file->hash()->size() == Hash::hash_size());
       hash.set_hash_from_binary(file->hash()->data());
       FileUsage fu(ISDIR_WITH_HASH, hash);
-      const auto& path = file->path()->str();
+      const auto path = FileName::Get(file->path());
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
     for (const auto& filename : *inouts->inputs()->path_isreg()) {
       FileUsage fu(ISREG);
-      proc->parent_exec_point()->propagate_file_usage(filename->str(), fu);
+      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_isdir()) {
       FileUsage fu(ISDIR);
-      proc->parent_exec_point()->propagate_file_usage(filename->str(), fu);
+      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg_empty()) {
       FileUsage fu(NOTEXIST_OR_ISREG_EMPTY);
-      proc->parent_exec_point()->propagate_file_usage(filename->str(), fu);
+      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_notexist()) {
       FileUsage fu(NOTEXIST);
-      proc->parent_exec_point()->propagate_file_usage(filename->str(), fu);
+      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
   }
 
@@ -450,16 +443,16 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   fu.set_written(true);
 
   for (const auto& file : *inouts->outputs()->path_isdir()) {
-    const auto& path = file->path()->str();
+    const auto path = FileName::Get(file->path());
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + pretty_print_string(path));
     assert(file->mode() != -1);
-    mkdir(path.c_str(), file->mode());
+    mkdir(path->c_str(), file->mode());
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
   }
   for (const auto& file : *inouts->outputs()->path_isreg_with_hash()) {
-    const auto& path = file->path()->str();
+    const auto path = FileName::Get(file->path());
     FB_DEBUG(FB_DEBUG_SHORTCUT,
              "│   Fetching file from blobs cache: "
              + pretty_print_string(path));
@@ -471,7 +464,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     if (file->mode() != -1) {
       /* Refuse to apply setuid, setgid, sticky bit. */
       // FIXME warn on them, even when we store them.
-      chmod(path.c_str(), file->mode() & 0777);
+      chmod(path->c_str(), file->mode() & 0777);
     }
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(path, fu);
@@ -479,10 +472,10 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
   /* Walk backwards, so that inner contents are removed before the directory itself. */
   for (int i = inouts->outputs()->path_notexist()->size() - 1; i >= 0; i--) {
-    const std::string& filename = inouts->outputs()->path_notexist()->Get(i)->str();
+    const auto filename = FileName::Get(inouts->outputs()->path_notexist()->Get(i));
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file or directory: " + pretty_print_string(filename));
-    if (unlink(filename.c_str()) < 0 && errno == EISDIR) {
-      rmdir(filename.c_str());
+    if (unlink(filename->c_str()) < 0 && errno == EISDIR) {
+      rmdir(filename->c_str());
     }
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(filename, fu);

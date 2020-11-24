@@ -19,7 +19,7 @@ namespace firebuild {
 
 static int fb_pid_counter;
 
-Process::Process(const int pid, const int ppid, const std::string &wd,
+Process::Process(const int pid, const int ppid, const FileName *wd,
                  Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
@@ -85,10 +85,9 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
   return fds;
 }
 
-int Process::handle_open(const std::string &ar_name, const int flags,
+int Process::handle_open(const char * const ar_name, const int flags,
                          const int fd, const int error, int fd_conn, const int ack_num) {
-  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
-      wd() + "/" + ar_name;
+  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
 
   if (fd >= 0) {
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
@@ -100,7 +99,7 @@ int Process::handle_open(const std::string &ar_name, const int flags,
 
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
     disable_shortcutting_bubble_up("Could not register the opening of " +
-                                   pretty_print_string(name));
+                                   pretty_print_string(name->to_string()));
     return -1;
   }
 
@@ -158,9 +157,8 @@ int Process::handle_close(const int fd, const int error) {
   }
 }
 
-int Process::handle_unlink(const std::string &ar_name, const int error) {
-  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
-      wd() + "/" + ar_name;
+int Process::handle_unlink(const char * const ar_name, const int error) {
+  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
 
   if (!error) {
     FileUsage fu(ISREG);
@@ -175,9 +173,8 @@ int Process::handle_unlink(const std::string &ar_name, const int error) {
   return 0;
 }
 
-int Process::handle_mkdir(const std::string &ar_name, const int error) {
-  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
-      wd() + "/" + ar_name;
+int Process::handle_mkdir(const char * const ar_name, const int error) {
+  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
 
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, 0, error)) {
     disable_shortcutting_bubble_up("Could not register the directory creation of " +
@@ -188,9 +185,8 @@ int Process::handle_mkdir(const std::string &ar_name, const int error) {
   return 0;
 }
 
-int Process::handle_rmdir(const std::string &ar_name, const int error) {
-  const std::string name = platform::path_is_absolute(ar_name) ? ar_name :
-      wd() + "/" + ar_name;
+int Process::handle_rmdir(const char * const ar_name, const int error) {
+  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
 
   if (!error) {
     FileUsage fu(ISDIR);  // FIXME register that it's an _empty_ directory
@@ -272,16 +268,13 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   return 0;
 }
 
-int Process::handle_rename(const std::string &old_ar_name, const std::string &new_ar_name,
+int Process::handle_rename(const char * const old_ar_name, const char * const new_ar_name,
                            const int error) {
   if (error) {
     return 0;
   }
-
-  const std::string old_name = platform::path_is_absolute(old_ar_name) ? old_ar_name :
-      wd() + "/" + old_ar_name;
-  const std::string new_name = platform::path_is_absolute(new_ar_name) ? new_ar_name :
-      wd() + "/" + new_ar_name;
+  const FileName* old_name = FileName::GetAbsolute(wd(), old_ar_name);
+  const FileName* new_name = FileName::GetAbsolute(wd(), new_ar_name);
 
   /* It's tricky because the renaming has already happened, there's supposedly nothing
    * at the old filename. Yet we need to register that we read that file with its
@@ -307,7 +300,7 @@ int Process::handle_rename(const std::string &old_ar_name, const std::string &ne
   return 0;
 }
 
-int Process::handle_symlink(const std::string &old_ar_name, const std::string &new_ar_name,
+int Process::handle_symlink(const char * const old_ar_name, const char * const new_ar_name,
                             const int error) {
   if (!error) {
     disable_shortcutting_bubble_up("Process created a symlink (" +
@@ -418,12 +411,9 @@ void Process::handle_write(const int fd) {
                                          "Process wrote to inherited fd " + std::to_string(fd));
 }
 
-void Process::set_wd(const std::string &ar_d) {
-  const std::string d = platform::path_is_absolute(ar_d) ? ar_d :
-      wd_ + "/" + ar_d;
-  wd_ = d;
-
-  add_wd(d);
+void Process::handle_set_wd(const char * const ar_d) {
+  wd_ = FileName::GetAbsolute(wd(), ar_d);
+  add_wd(wd_);
 }
 
 static bool argv_matches_expectation(const std::vector<std::string>& actual,

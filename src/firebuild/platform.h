@@ -4,17 +4,17 @@
 #ifndef FIREBUILD_PLATFORM_H_
 #define FIREBUILD_PLATFORM_H_
 
-#include <string>
+#include <cstring>
 
 namespace firebuild {
 
 namespace platform {
 
-inline bool path_is_absolute(const std::string &p) {
+inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
 #else
-  if ((p.length() >= 1) && (p.at(0) == '/')) {
+  if ((strlen(p) >= 1) && (p[0] == '/')) {
     return true;
   } else {
     return false;

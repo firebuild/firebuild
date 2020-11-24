@@ -67,7 +67,7 @@ bool FileUsage::merge(const FileUsage& that) {
  * (or at least attempted to) for reading, and as such the initial
  * values are not changed; only the written property is updated.
  */
-bool FileUsage::update_from_open_params(const std::string& filename,
+bool FileUsage::update_from_open_params(const FileName* filename,
                                         FileAction action, int flags, int err,
                                         bool do_read) {
   if (!do_read) {
@@ -125,7 +125,7 @@ bool FileUsage::update_from_open_params(const std::string& filename,
              * created empty file from a previously empty one. If the file
              * is non-empty, we need to store its hash. */
             struct stat st;
-            if (stat(filename.c_str(), &st) == -1) {
+            if (stat(filename->c_str(), &st) == -1) {
               unknown_err_ = errno;
               return false;
             }
@@ -177,6 +177,10 @@ bool FileUsage::update_from_open_params(const std::string& filename,
     }
   }
   return true;
+}
+
+bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs) {
+  return strcmp(lhs.file->c_str(), rhs.file->c_str()) < 0;
 }
 
 }  // namespace firebuild

@@ -105,9 +105,9 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_write *w) {
 int ProcessPBAdaptor::msg(Process *p, const FBB_chdir *c) {
   const int error = fbb_chdir_get_error_no_with_fallback(c, 0);
   if (error == 0) {
-    p->set_wd(fbb_chdir_get_dir(c));
+    p->handle_set_wd(fbb_chdir_get_dir(c));
   } else {
-    p->fail_wd(fbb_chdir_get_dir(c));
+    p->handle_fail_wd(fbb_chdir_get_dir(c));
   }
   return 0;
 }

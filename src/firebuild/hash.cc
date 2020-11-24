@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "firebuild/debug.h"
+#include "firebuild/file_name.h"
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define OFF0  0  /* if a char x[4] is looked at as int32, x[0] is at this bit position */
@@ -146,13 +147,13 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
  * directory
  * @return Whether succeeded
  */
-bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
+bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
   int fd;
 
-  fd = open(filename.c_str(), O_RDONLY);
+  fd = open(filename->c_str(), O_RDONLY);
   if (fd == -1) {
     if (FB_DEBUGGING(FB_DEBUG_HASH)) {
-      FB_DEBUG(FB_DEBUG_HASH, "File " + filename);
+      FB_DEBUG(FB_DEBUG_HASH, "File " + filename->to_string());
       perror("open");
     }
     return false;
@@ -164,7 +165,7 @@ bool Hash::set_from_file(const std::string &filename, bool *is_dir_out) {
   }
 
   if (FB_DEBUGGING(FB_DEBUG_HASH)) {
-    FB_DEBUG(FB_DEBUG_HASH, "xxh64sum: " + filename + " => " + this->to_ascii());
+    FB_DEBUG(FB_DEBUG_HASH, "xxh64sum: " + filename->to_string() + " => " + this->to_ascii());
   }
 
   close(fd);
