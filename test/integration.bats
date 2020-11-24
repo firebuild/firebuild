@@ -95,6 +95,8 @@ setup() {
 
 @test "file operations" {
   for i in 1 2; do
+    # clean up before running the test
+    rm -rf test_directory/
     result=$(./run-firebuild -- ./test_file_ops)
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
