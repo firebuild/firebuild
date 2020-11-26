@@ -11,7 +11,7 @@ file_identifier "FBCO";
 // File state
 table File {
   // file path, absolute or relative
-  path:string;
+  path:string (key);
   // checksum (binary) of the file content, unset if file is not found
   hash:[ubyte];
   // TODO add alternate hash values generated after preprocessing the file

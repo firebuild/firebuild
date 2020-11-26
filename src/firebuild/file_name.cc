@@ -16,4 +16,8 @@ FileName::DbInitializer::DbInitializer() {
 
 FileName::DbInitializer FileName::db_initializer_;
 
+int FileNamePtrCompare(const FileName * const lhs, const FileName * const rhs) {
+  return strcmp(lhs->c_str(), rhs->c_str());
+}
+
 }  // namespace firebuild

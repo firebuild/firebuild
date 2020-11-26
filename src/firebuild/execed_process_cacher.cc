@@ -120,6 +120,17 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   }
 }
 
+static std::vector<flatbuffers::Offset<flatbuffers::String>>
+fns_to_sorted_offsets(std::vector<const FileName*>* fns, flatbuffers::FlatBufferBuilder* builder) {
+  std::vector<flatbuffers::Offset<flatbuffers::String>> ret;
+  std::qsort(fns->data(), fns->size(), sizeof(fns->data()[0]),
+             reinterpret_cast<int (*)(const void*, const void*)>(FileNamePtrCompare));
+  for (const auto& fn : *fns) {
+    ret.push_back(builder->CreateString(fn->c_str()));
+  }
+  return ret;
+}
+
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
   if (no_store_) {
     return;
@@ -134,26 +145,21 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   /* Inputs.*/
   std::vector<flatbuffers::Offset<msg::File>> in_path_isreg_with_hash;
-  std::vector<flatbuffers::Offset<flatbuffers::String>> in_path_isreg;
+  std::vector<const FileName*> in_path_isreg_fns;
   std::vector<flatbuffers::Offset<msg::File>> in_path_isdir_with_hash;
-  std::vector<flatbuffers::Offset<flatbuffers::String>> in_path_isdir,
-      in_path_notexist_or_isreg_empty,
-      in_path_notexist;
+  std::vector<const FileName*> in_path_isdir_fns,
+      in_path_notexist_or_isreg_empty_fns,
+      in_path_notexist_fns;
 
   /* Outputs.*/
   std::vector<flatbuffers::Offset<msg::File>> out_path_isreg_with_hash,
       out_path_isdir;
-  std::vector<flatbuffers::Offset<flatbuffers::String>> out_path_notexist;
+  std::vector<const FileName*> out_path_notexist_fns;
 
   std::vector<file_file_usage> sorted_file_usages;
   for (const auto& pair : proc->file_usages()) {
-    sorted_file_usages.push_back({pair.first, pair.second});
-  }
-  std::sort(sorted_file_usages.begin(), sorted_file_usages.end(), file_file_usage_cmp);
-
-  for (const auto& ffu : sorted_file_usages) {
-    const auto filename = ffu.file;
-    const FileUsage* fu = ffu.usage;
+    const auto filename = pair.first;
+    const FileUsage* fu = pair.second;
 
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
@@ -169,7 +175,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         break;
       }
       case ISREG:
-        in_path_isreg.push_back(builder.CreateString(filename->c_str()));
+        in_path_isreg_fns.push_back(filename);
         break;
       case ISDIR_WITH_HASH: {
         const auto path = builder.CreateString(filename->c_str());
@@ -179,13 +185,13 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         break;
       }
       case ISDIR:
-        in_path_isdir.push_back(builder.CreateString(filename->c_str()));
+        in_path_isdir_fns.push_back(filename);
         break;
       case NOTEXIST_OR_ISREG_EMPTY:
-        in_path_notexist_or_isreg_empty.push_back(builder.CreateString(filename->c_str()));
+        in_path_notexist_or_isreg_empty_fns.push_back(filename);
         break;
       case NOTEXIST:
-        in_path_notexist.push_back(builder.CreateString(filename->c_str()));
+        in_path_notexist_fns.push_back(filename);
         break;
       default:
         assert(false);
@@ -226,24 +232,31 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         }
       } else {
         if (fu->initial_state() != NOTEXIST) {
-          out_path_notexist.push_back(builder.CreateString(filename->c_str()));
+          out_path_notexist_fns.push_back(filename);
         }
       }
     }
   }
 
+  auto in_path_isreg = fns_to_sorted_offsets(&in_path_isreg_fns, &builder);
+  auto in_path_isdir = fns_to_sorted_offsets(&in_path_isdir_fns, &builder);
+  auto in_path_notexist_or_isreg_empty =
+      fns_to_sorted_offsets(&in_path_notexist_or_isreg_empty_fns, &builder);
+  auto in_path_notexist = fns_to_sorted_offsets(&in_path_notexist_fns, &builder);
+  auto out_path_notexist = fns_to_sorted_offsets(&out_path_notexist_fns, &builder);
+
   auto inputs =
       msg::CreateProcessInputs(builder,
-                               builder.CreateVector(in_path_isreg_with_hash),
+                               builder.CreateVectorOfSortedTables(&in_path_isreg_with_hash),
                                builder.CreateVector(in_path_isreg),
-                               builder.CreateVector(in_path_isdir_with_hash),
+                               builder.CreateVectorOfSortedTables(&in_path_isdir_with_hash),
                                builder.CreateVector(in_path_isdir),
                                builder.CreateVector(in_path_notexist_or_isreg_empty),
                                builder.CreateVector(in_path_notexist));
   auto outputs =
       msg::CreateProcessOutputs(builder,
-                                builder.CreateVector(out_path_isreg_with_hash),
-                                builder.CreateVector(out_path_isdir),
+                                builder.CreateVectorOfSortedTables(&out_path_isreg_with_hash),
+                                builder.CreateVectorOfSortedTables(&out_path_isdir),
                                 builder.CreateVector(out_path_notexist),
                                 proc->exit_status());
   // TODO(egmont) Add all sorts of other stuff
