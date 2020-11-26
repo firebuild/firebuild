@@ -61,7 +61,7 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   flatbuffers::FlatBufferBuilder builder(64*1024);
 
-  auto fp_cwd = builder.CreateString(proc->cwd()->c_str());
+  auto fp_cwd = builder.CreateString(proc->cwd()->c_str(), proc->cwd()->length());
   auto fp_args = builder.CreateVectorOfStrings(proc->args());
 
   std::vector<flatbuffers::Offset<flatbuffers::String>> fp_env_vec;
@@ -78,7 +78,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   if (!hash_cache->get_hash(proc->executable(), &hash)) {
     return false;
   }
-  auto file_path = builder.CreateString(proc->executable()->c_str());
+  auto file_path = builder.CreateString(proc->executable()->c_str(), proc->executable()->length());
   auto file_hash =
       builder.CreateVector(hash.to_binary(), Hash::hash_size());
   auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
@@ -92,7 +92,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     if (!hash_cache->get_hash(lib, &hash)) {
       return false;
     }
-    auto lib_path = builder.CreateString(lib->c_str());
+    auto lib_path = builder.CreateString(lib->c_str(), lib->length());
     auto lib_hash =
         builder.CreateVector(hash.to_binary(), Hash::hash_size());
     auto fp_lib = msg::CreateFile(builder, lib_path, lib_hash);
@@ -126,7 +126,7 @@ fns_to_sorted_offsets(std::vector<const FileName*>* fns, flatbuffers::FlatBuffer
   std::qsort(fns->data(), fns->size(), sizeof(fns->data()[0]),
              reinterpret_cast<int (*)(const void*, const void*)>(FileNamePtrCompare));
   for (const auto& fn : *fns) {
-    ret.push_back(builder->CreateString(fn->c_str()));
+    ret.push_back(builder->CreateString(fn->c_str(), fn->length()));
   }
   return ret;
 }
@@ -168,7 +168,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         /* Nothing to do. */
         break;
       case ISREG_WITH_HASH: {
-        const auto path = builder.CreateString(filename->c_str());
+        const auto path = builder.CreateString(filename->c_str(), filename->length());
         const auto hash =
             builder.CreateVector(fu->initial_hash().to_binary(), Hash::hash_size());
         in_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash));
@@ -178,7 +178,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         in_path_isreg_fns.push_back(filename);
         break;
       case ISDIR_WITH_HASH: {
-        const auto path = builder.CreateString(filename->c_str());
+        const auto path = builder.CreateString(filename->c_str(), filename->length());
         const auto hash =
             builder.CreateVector(fu->initial_hash().to_binary(), Hash::hash_size());
         in_path_isdir_with_hash.push_back(msg::CreateFile(builder, path, hash));
@@ -211,7 +211,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
             return;
           }
-          const auto path = builder.CreateString(filename->c_str());
+          const auto path = builder.CreateString(filename->c_str(), filename->length());
           const auto hash =
               builder.CreateVector(new_hash.to_binary(), Hash::hash_size());
           // TODO(egmont) fail if setuid/setgid/sticky is set
@@ -221,7 +221,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
           out_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash, mtime, size,
                                                              mode));
         } else if (S_ISDIR(st.st_mode)) {
-          const auto path = builder.CreateString(filename->c_str());
+          const auto path = builder.CreateString(filename->c_str(), filename->length());
           /* File's default values. */
           const int hash = 0, mtime = 0, size = 0;
           // TODO(egmont) fail if setuid/setgid/sticky is set

@@ -172,10 +172,10 @@ static inline const char *fbb_{{ msg }}_get_{{ var }}(const FBB_{{ msg }} *msg) 
   size_t rem_size = msg->{{ var }}_size;                                 \
   const char *s = (const char *)(msg) + sizeof(*msg){{ ns.offset_str }}; \
   while (rem_size > 0) {                                                 \
+    size_t s_length = strlen(s);                                         \
     loop_body                                                            \
-    size_t size = strlen(s) + 1;                                         \
-    rem_size -= size;                                                    \
-    s += size;                                                           \
+    rem_size -= s_length + 1;                                            \
+    s += s_length + 1;                                                   \
   }                                                                      \
 } while (0)
 
