@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "firebuild/platform.h"
 
@@ -35,6 +36,12 @@ class FileName {
    */
   static const FileName* GetAbsolute(const FileName * const dir, const char * const name,
                                      ssize_t length = -1);
+  /**
+   * Checks if a path semantically begins with the given subpath.
+   *
+   * Does string operations only, does not look at the file system.
+   */
+  bool is_at_locations(const std::vector<const FileName *> *locations) const;
 
  private:
   FileName(const char * const name, size_t length, bool copy_name)

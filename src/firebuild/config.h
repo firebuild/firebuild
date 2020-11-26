@@ -6,14 +6,16 @@
 
 #include <list>
 #include <string>
+#include <vector>
 
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
+#include "firebuild/file_name.h"
 
 namespace firebuild {
 
-extern string_array ignore_locations;
+extern std::vector<const FileName*> *ignore_locations;
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);
 
