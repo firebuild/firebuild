@@ -30,7 +30,7 @@ ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
   e->set_env_vars(env_vars);
 
   auto libs = e->libs();
-  for_s_in_fbb_scproc_query_libs(msg, {libs.push_back(FileName::Get(s));});
+  for_s_in_fbb_scproc_query_libs(msg, {libs.push_back(FileName::Get(s, s_length));});
 
   return e;
 }
