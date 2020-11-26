@@ -1286,7 +1286,7 @@ int main(const int argc, char *argv[]) {
   free(fb_conn_string);
   free(fb_tmp_dir);
   delete(proc_tree);
-  string_array_deep_free(&firebuild::ignore_locations);
+  delete(firebuild::ignore_locations);
   delete(cfg);
 
   // keep Valgrind happy

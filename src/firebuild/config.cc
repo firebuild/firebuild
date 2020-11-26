@@ -9,19 +9,22 @@
 
 #include <string>
 #include <iostream>
+#include <cassert>
 #include <cerrno>
 #include <cstdio>
 #include <stdexcept>
+#include <vector>
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/file_name.h"
 
 #define GLOBAL_CONFIG "/etc/firebuild.conf"
 #define USER_CONFIG ".firebuild.conf"
 
 namespace firebuild {
 
-string_array ignore_locations;
+std::vector<const FileName*> *ignore_locations = nullptr;
 
 /** Parse configuration file
  *
@@ -181,9 +184,10 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
 
   /* Save portions of the configuration to separate variables for faster access. */
   libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
-  string_array_init(&ignore_locations);
+  assert(!ignore_locations);
+  ignore_locations = new std::vector<const FileName *>();
   for (int i = 0; i < ignores.getLength(); i++) {
-    string_array_append(&ignore_locations, strdup(ignores[i].c_str()));
+    ignore_locations->push_back(FileName::Get(ignores[i].c_str()));
   }
 }
 
