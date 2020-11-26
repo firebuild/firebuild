@@ -83,7 +83,6 @@ jobs:
         sudo add-apt-repository -y ppa:rbalint/xxhash
         # work around breaking 18.04's make https://github.com/rbalint/fb/issues/174
         sudo apt-get -y install $BUILD_DEPS
-        sudo apt-get -y upgrade
     - name: rebuild self
       run: |
         tools/rebuild-self build
