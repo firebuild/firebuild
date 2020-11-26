@@ -57,6 +57,8 @@ struct FileNameHasher {
   }
 };
 
+int FileNamePtrCompare(const FileName * const lhs, const FileName * const rhs);
+
 inline const FileName* FileName::Get(const char * const name) {
   FileName tmp_file_name(name, false);
   auto it = db_->find(tmp_file_name);
