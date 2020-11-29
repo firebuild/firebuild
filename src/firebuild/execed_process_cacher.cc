@@ -90,7 +90,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     if (!hash_cache->get_hash(lib, &hash)) {
       return false;
     }
-    auto lib_path = builder.CreateString(proc->executable());
+    auto lib_path = builder.CreateString(lib);
     auto lib_hash =
         builder.CreateVector(hash.to_binary(), Hash::hash_size());
     auto fp_lib = msg::CreateFile(builder, lib_path, lib_hash);
