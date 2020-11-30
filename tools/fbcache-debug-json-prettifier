@@ -1,0 +1,51 @@
+#!/usr/bin/python3
+
+# Copyright (c) 2020 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# Rewrites the cache's *_debug.json files to be more readable:
+# - replaces the multi-line hash arrays with a base64 string;
+# - replaces decimal permissions with octal.
+#
+# In order to hook up to F3 in Midnight Commander, invoke Command ->
+# Edit extension file, and add this somewhere before the final default rule:
+#     regex/_debug\.json$
+#             View=%view{ascii} fbcache-debug-json-prettifier %f
+
+
+import base64
+import json
+import sys
+
+
+def fixup(node):
+  # Convert the "hash" array into an ASCII (base64) string
+  if type(node) == dict and "hash" in node and type(node["hash"]) == list and len(node["hash"]) == 16:
+    raw = b""
+    for num in node["hash"]:
+      raw += num.to_bytes(1, byteorder='little')
+    ascii = base64.b64encode(raw, altchars=b"+^")[:21].decode(encoding="ascii")
+    node["hash"] = ascii
+
+  # Convert "mode" to octal
+  if type(node) == dict and "mode" in node and type(node["mode"]) == int:
+    node["mode"] = oct(node["mode"])
+
+  # Recurse
+  if type(node) == dict:
+    for item in node:
+      fixup(node[item])
+  elif type(node) == list:
+    for item in node:
+      fixup(item)
+
+
+f = open(sys.argv[1], "r")
+input = f.read()
+f.close()
+
+node = json.loads(input)
+fixup(node)
+
+output = json.dumps(node, indent=4)
+print(output)
