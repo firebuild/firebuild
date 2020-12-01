@@ -29,7 +29,7 @@ ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
   std::vector<std::string> env_vars = fbb_scproc_query_get_env_var(msg);
   e->set_env_vars(env_vars);
 
-  auto libs = e->libs();
+  auto& libs = e->libs();
   for_s_in_fbb_scproc_query_libs(msg, {libs.push_back(FileName::Get(s, s_length));});
 
   return e;
