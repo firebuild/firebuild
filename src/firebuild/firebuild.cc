@@ -3,8 +3,6 @@
 
 
 #include <event2/event.h>
-#include <event2/buffer.h>
-#include <event2/bufferevent.h>
 #include <signal.h>
 #include <flatbuffers/flatbuffers.h>
 #include <getopt.h>
@@ -33,6 +31,7 @@
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "firebuild/cache_object_format_generated.h"
 #pragma GCC diagnostic pop
+#include "firebuild/connection_context.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 #include "firebuild/multi_cache.h"
@@ -190,8 +189,12 @@ static bool exe_matches_list(const firebuild::FileName* exe_file,
   return false;
 }
 
-static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
-                              firebuild::ProcessTree* proc_tree) {
+}  // namespace
+
+namespace firebuild {
+
+void accept_exec_child(ExecedProcess* proc, int fd_conn,
+                       ProcessTree* proc_tree) {
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
 
@@ -223,13 +226,17 @@ static void accept_exec_child(firebuild::ExecedProcess* proc, int fd_conn,
       fbb_scproc_resp_set_exit_status(&sv_msg, proc->exit_status());
     } else {
       fbb_scproc_resp_set_shortcut(&sv_msg, false);
-      if (firebuild::debug_flags != 0) {
-        fbb_scproc_resp_set_debug_flags(&sv_msg, firebuild::debug_flags);
+      if (debug_flags != 0) {
+        fbb_scproc_resp_set_debug_flags(&sv_msg, debug_flags);
       }
     }
 
     fbb_send(fd_conn, &sv_msg, 0);
 }
+
+}  // namespace firebuild
+
+namespace {
 
 static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
                               firebuild::Process** child_ref, int pid, int child_fd, int child_ack,
@@ -846,12 +853,6 @@ static void bump_limits() {
 
 }  // namespace
 
-struct ConnectionContext {
-  firebuild::Process * proc = nullptr;
-  /** Partial interceptor message including the FBB header */
-  struct evbuffer* buf = NULL;
-};
-
 /**
  * Create connection sockets for the interceptor
  */
@@ -880,78 +881,49 @@ static evutil_socket_t create_listener() {
   return listener;
 }
 
-static void ic_conn_readcb(struct bufferevent *bev, void *ctx) {
-  auto input = bufferevent_get_input(bev);
-  auto conn_ctx = reinterpret_cast<struct ConnectionContext*>(ctx);
+static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
+  (void) what; /* unused */
+  auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
   auto proc = conn_ctx->proc;
-  auto buf = conn_ctx->buf;
+  auto &buf = conn_ctx->buffer();
   size_t full_length;
-  struct evbuffer *full_msg_buffer;
-  firebuild::msg_header header;
-  struct evbuffer_iovec iovec;
+  const firebuild::msg_header * header;
+
+  int read_ret = buf.read(fd_conn, -1);
+  if (read_ret < 0) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      /* Try again later. */
+      return;
+    }
+  }
+  if (read_ret <= 0) {
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(fd_conn) +
+             std::string(" hung up"));
+    delete conn_ctx;
+    return;
+  }
 
   do {
-    if (buf && evbuffer_get_length(buf) > 0) {
-      /* Have partial message, more data needed. */
-      if (evbuffer_get_length(buf) < sizeof(header)) {
-        /* Even the header is incomplete, try making it full. */
-        ssize_t to_move = sizeof(header) - evbuffer_get_length(buf);
-        auto moved = evbuffer_remove_buffer(input, buf, to_move);
-        if (moved != to_move) {
-          /* Header is still incomplete, try again later. */
-          return;
-        }
-      }
-      evbuffer_copyout(buf, &header, sizeof(header));
-      /* Try to get enough data for the full message. */
-      full_length = sizeof(header) + header.msg_size;
-      ssize_t to_move = full_length - evbuffer_get_length(buf);
-      assert(to_move > 0);
-      auto moved = evbuffer_remove_buffer(input, buf, to_move);
-      if (moved == to_move) {
-        /* The whole message is ready. */
-        full_msg_buffer = buf;
-      } else {
-        /* Even more data needed. */
-        return;
-      }
+    if (buf.length() < sizeof(*header)) {
+      /* Header is still incomplete, try again later. */
+      return;
     } else {
-      /* No partial message, use input. */
-      if (evbuffer_get_length(input) >= sizeof(header)) {
-        evbuffer_copyout(input, &header, sizeof(header));
-        full_length = sizeof(header) + header.msg_size;
-        if (full_length <= evbuffer_get_length(input)) {
-          /* The whole message is ready. */
-          full_msg_buffer = input;
-        } else {
-          /* Message is incomplete, save the part that's ready. */
-          if (!buf) {
-            buf = conn_ctx->buf = evbuffer_new();
-          }
-          evbuffer_add_buffer(buf, input);
-          return;
-        }
-      } else {
-        /* Even the header is incomplete, more data needed. */
-        if (!buf) {
-          buf = conn_ctx->buf = evbuffer_new();
-        }
-        evbuffer_add_buffer(buf, input);
+      header = reinterpret_cast<const firebuild::msg_header*>(buf.data());
+      full_length = sizeof(*header) + header->msg_size;
+      if (buf.length() < full_length) {
+        /* Have partial message, more data is needed. */
         return;
       }
     }
 
-    evbuffer_pullup(full_msg_buffer, full_length);
-    evbuffer_peek(full_msg_buffer, -1, NULL, &iovec, 1);
-
-    int fd_conn = bufferevent_getfd(bev);
-    char *fbb_msg = reinterpret_cast<char*>(iovec.iov_base) + sizeof(header);
+    /* Have at least one full message. */
+    auto fbb_msg = buf.data() + sizeof(*header);
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(bufferevent_getfd(bev))
+      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(fd_conn)
                + std::string(": "));
-      if (header.ack_id) {
-        fprintf(stderr, "ack_num: %d\n", header.ack_id);
+      if (header->ack_id) {
+        fprintf(stderr, "ack_num: %d\n", header->ack_id);
       }
       fbb_debug(fbb_msg);
       fflush(stderr);
@@ -959,47 +931,13 @@ static void ic_conn_readcb(struct bufferevent *bev, void *ctx) {
 
     /* Process the messaage. */
     if (proc) {
-      proc_ic_msg(fbb_msg, header.ack_id, fd_conn, proc);
+      proc_ic_msg(fbb_msg, header->ack_id, fd_conn, proc);
     } else {
       /* Fist interceptor message */
-      proc_new_process_msg(fbb_msg, header.ack_id, fd_conn, &conn_ctx->proc);
+      proc_new_process_msg(fbb_msg, header->ack_id, fd_conn, &conn_ctx->proc);
     }
-    evbuffer_drain(full_msg_buffer, full_length);
-  } while (evbuffer_get_length(input) > 0);
-}
-
-static void ic_conn_errorcb(struct bufferevent *bev, int16_t error, void *ctx) {
-  auto conn_ctx = reinterpret_cast<ConnectionContext*>(ctx);
-  auto proc = conn_ctx->proc;
-  auto buf = conn_ctx->buf;
-
-  if (error & BEV_EVENT_EOF) {
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(bufferevent_getfd(bev)) +
-             std::string(" hung up"));
-  } else if (error & BEV_EVENT_ERROR) {
-    /* check errno to see what error occurred */
-    assert(0 && "BEV_EVENT_ERROR occurred");
-  } else if (error & BEV_EVENT_TIMEOUT) {
-    /* must be a timeout event handle, handle it */
-    /* ? TODO(rbalint) */
-  }
-
-  if (proc) {
-    auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
-    if (exec_child_sock) {
-      auto exec_child = exec_child_sock->incomplete_child;
-      exec_child->set_fds(proc->pass_on_fds());
-      accept_exec_child(exec_child, exec_child_sock->sock, proc_tree);
-      proc_tree->DropQueuedExecChild(proc->pid());
-    }
-    proc->finish();
-  }
-
-  if (buf) {
-    evbuffer_free(buf);
-  }
-  delete reinterpret_cast<ConnectionContext*>(ctx);
-  bufferevent_free(bev);
+    buf.discard(full_length);
+  } while (buf.length() > 0);
 }
 
 
@@ -1046,24 +984,19 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
 
 static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
   struct sockaddr_storage remote;
-  auto conn_ctx = new ConnectionContext();
   socklen_t slen = sizeof(remote);
   (void) event; /* unused */
   (void) arg;   /* unused */
 
-  conn_ctx->proc = nullptr;
-  conn_ctx->buf = NULL;
-
   int fd = accept(listener, (struct sockaddr*)&remote, &slen);
   if (fd < 0) {
     perror("accept");
-    delete conn_ctx;
   } else {
-    struct bufferevent *bev;
+    auto conn_ctx = new firebuild::ConnectionContext(proc_tree);
     evutil_make_socket_nonblocking(fd);
-    bev = bufferevent_socket_new(ev_base, fd, BEV_OPT_CLOSE_ON_FREE);
-    bufferevent_setcb(bev, ic_conn_readcb, NULL, ic_conn_errorcb, conn_ctx);
-    bufferevent_enable(bev, EV_READ);
+    auto ev = event_new(ev_base, fd, EV_READ | EV_PERSIST, ic_conn_readcb, conn_ctx);
+    conn_ctx->set_ev(ev);
+    event_add(ev, NULL);
   }
 }
 
