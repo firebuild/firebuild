@@ -74,7 +74,7 @@ void ExecedProcess::initialize() {
   if (parent_exec_point()) {
     parent_exec_point()->register_file_usage(executable(), executable(),
                                              FILE_ACTION_OPEN, O_RDONLY, 0);
-    for (auto& lib : libs()) {
+    for (const auto& lib : libs_) {
       parent_exec_point()->register_file_usage(lib, lib, FILE_ACTION_OPEN, O_RDONLY, 0);
     }
   }
@@ -102,15 +102,15 @@ void ExecedProcess::do_finalize() {
   }
 
   // free up process data that we no longer need
-  for (auto& fu : file_usages()) {
+  for (auto& fu : file_usages_) {
     delete fu.second;
   }
-  file_usages().clear();
+  file_usages_.clear();
   fds()->clear();
   if (!generate_report) {
     args().clear();
     env_vars().clear();
-    libs().clear();
+    libs_.clear();
   }
 
   // Call the base class's method
@@ -138,7 +138,7 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
     fu = it->second;
   } else {
     fu = new FileUsage();
-    file_usages()[name] = fu;
+    file_usages_[name] = fu;
   }
   /* Propagage change further if needed. */
   if (fu->merge(fu_change) && parent_exec_point()) {
@@ -193,7 +193,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
       delete fu;
       return false;
     }
-    file_usages()[name] = fu;
+    file_usages_[name] = fu;
     if (parent_exec_point()) {
       parent_exec_point()->propagate_file_usage(name, *fu);
     }
@@ -217,7 +217,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     it->second->merge(fu_change);
   } else {
     FileUsage *fu = new FileUsage(fu_change);
-    file_usages()[name] = fu;
+    file_usages_[name] = fu;
   }
   if (parent_exec_point()) {
     parent_exec_point()->propagate_file_usage(name, fu_change);
@@ -378,7 +378,7 @@ void ExecedProcess::export2js(const unsigned int level,
 }
 
 ExecedProcess::~ExecedProcess() {
-  for (auto& pair : file_usages()) {
+  for (auto& pair : file_usages_) {
     delete(pair.second);
   }
   if (cacher_) {
