@@ -133,8 +133,9 @@ void ExecedProcess::do_finalize() {
 void ExecedProcess::propagate_file_usage(const FileName *name,
                                          const FileUsage &fu_change) {
   FileUsage *fu;
-  if (file_usages().count(name) > 0) {
-    fu = file_usages()[name];
+  auto it = file_usages_.find(name);
+  if (it != file_usages_.end()) {
+    fu = it->second;
   } else {
     fu = new FileUsage();
     file_usages()[name] = fu;
@@ -165,13 +166,14 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   }
 
   FileUsage *fu;
-  if (file_usages().count(name) > 0) {
+  auto it = file_usages_.find(name);
+  if (it != file_usages_.end()) {
     /* The process already used this file. The initial state was already
      * recorded. We create a new FileUsage object which represents the
      * modifications to apply currently, which is at most the written_
      * flag, and then we propagate this upwards to be applied.
      */
-    fu = file_usages()[name];
+    fu = it->second;
     FileUsage *fu_change = new FileUsage();
     if (!fu_change->update_from_open_params(actual_file, action, flags, error, false)) {
       /* Error */
@@ -210,8 +212,9 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     return true;
   }
 
-  if (file_usages().count(name) > 0) {
-    file_usages()[name]->merge(fu_change);
+  auto it = file_usages_.find(name);
+  if (it != file_usages_.end()) {
+    it->second->merge(fu_change);
   } else {
     FileUsage *fu = new FileUsage(fu_change);
     file_usages()[name] = fu;
