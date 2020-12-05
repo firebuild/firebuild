@@ -90,6 +90,8 @@ class Process {
   virtual bool exec_started() const {return false;}
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
+  bool detect_runaway();
+  void set_runaway();
   int fb_pid() {return fb_pid_;}
   int pid() const {return pid_;}
   int ppid() const {return ppid_;}
@@ -408,9 +410,25 @@ class Process {
                                  unsigned int *nodeid);
 
   void set_on_finalized_ack(int id, int fd) {
-    on_finalized_ack_id_ = id;
-    on_finalized_ack_fd_ = fd;
+    /* Only one ACK can be pending. */
+    assert(!on_finalized_ack_set_ && !delayed_wait_ack_set_);
+    on_finalized_ack_set_ = true;
+    set_delayed_ack(id, fd);
   }
+  void set_delayed_wait_ack(int id, int fd) {
+    /* Only one ACK can be pending. */
+    assert(!on_finalized_ack_set_ && !delayed_wait_ack_set_);
+    delayed_wait_ack_set_ = true;
+    set_delayed_ack(id, fd);
+  }
+  void maybe_send_delayed_ack();
+  /** Process has at least one child that's not finalized nor runaway. */
+  bool all_children_finalized_or_runaway();
+
+  /**
+   * A process is runaway if itself or any of its ancestors became an orphan process, i.e.
+   * the orphan's parent process finished or terminated before the orphan itself. */
+  bool runaway_ :1;
 
   /* For debugging. */
   std::string pid_and_exec_count() const {return d(pid()) + "." + d(exec_count());}
@@ -436,6 +454,8 @@ class Process {
  private:
   Process *parent_;
   process_state state_ :2;
+  bool on_finalized_ack_set_ :1;
+  bool delayed_wait_ack_set_ :1;
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
@@ -472,9 +492,18 @@ class Process {
    *  sooner than the parent gets to "posix_spawn_parent". */
   bool posix_spawn_pending_ {false};
   Process * exec_child_;
-  bool any_child_not_finalized();
-  int on_finalized_ack_id_ = -1;
-  int on_finalized_ack_fd_ = -1;
+  /** ACK to be sent when the process is finalized or all not finalized children became runaway. */
+  int delayed_ack_id_ = -1;
+  int delayed_ack_fd_;
+  void set_delayed_ack(int id, int fd) {
+    delayed_ack_id_ = id;
+    delayed_ack_fd_ = fd;
+  }
+  void send_delayed_ack();
+  void send_pending_delayed_wait_ack();
+  void send_pending_on_finalized_ack();
+  bool all_children_finalized();
+  bool finalized_or_runaway();
   /**
    * Handle pipe creation in the monitored process
    * @param fd1 file descriptor to read (-1 if fd1 is not set)

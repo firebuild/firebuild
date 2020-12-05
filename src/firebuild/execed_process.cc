@@ -53,7 +53,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              Process * parent,
                              std::vector<std::shared_ptr<FileFD>>* fds)
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
-      can_shortcut_(true), was_shortcut_(false),
+      can_shortcut_(runaway_ ? false : true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
                                              ? parent->exec_point()
                                              : parent->exec_point()->next_shortcutable_ancestor())
@@ -74,6 +74,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     // clear a previous exit status, just in case an atexit handler performed the exec
     parent->set_exit_status(-1);
     parent->set_exec_child(this);
+    if (runaway_) {
+      disable_shortcutting_only_this("One of the ancestor processes exited after its parent");
+    }
   }
 }
 

@@ -174,6 +174,8 @@ setup() {
     if ! set | grep -q valgrind; then
       result=$(fakeroot ./run-firebuild -- id -u)
       assert_streq "$result" "0"
+      result=$(./run-firebuild -- fakeroot id -u)
+      assert_streq "$result" "0"
     fi
     result=$(./run-firebuild -- fakeroot id -u)
     assert_streq "$result" "0"

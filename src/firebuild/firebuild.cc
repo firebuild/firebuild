@@ -66,7 +66,7 @@ static char *fb_conn_string;
 int listener;
 
 static int bats_inherited_fd = -1;
-static int child_pid, child_ret = 1;
+static int child_pid, child_ret = -1;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
@@ -564,6 +564,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
 
   int tag = fbbcomm_serialized_get_tag(fbbcomm_buf);
   assert(proc);
+  assert(proc->state() != firebuild::FB_PROC_FINALIZED
+         && proc->state() != firebuild::FB_PROC_TERMINATED);
   switch (tag) {
     case FBBCOMM_TAG_fork_parent: {
       const FBBCOMM_Serialized_fork_parent *ic_msg =
@@ -821,13 +823,23 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         child->reset_file_fd_pipe_refs();
         child->maybe_finalize();
         /* Ack it straight away. */
-      } else if (child->state() != firebuild::FB_PROC_FINALIZED) {
+        break;
+      } else if (child->state() == firebuild::FB_PROC_FINALIZED) {
+        /* We can ACK straight away. */
+        break;
+      } else if (child->detect_runaway()) {
+        /* Child became runaway by calling setsid() for example. */
+        break;
+      } else if (child->state() == firebuild::FB_PROC_TERMINATED
+                 && child->all_children_finalized_or_runaway()) {
+        /* While the child itself is not finalized yet due to having runaway descendants the
+         * wait needs to be ACK-ed to avoid a deadlock. */
+        break;
+      } else {
         /* We haven't seen the process quitting yet. Defer sending the ACK. */
-        child->set_on_finalized_ack(ack_num, fd_conn);
+        child->set_delayed_wait_ack(ack_num, fd_conn);
         return;
       }
-      /* Else we can ACK straight away. */
-      break;
     }
     case FBBCOMM_TAG_pipe2: {
       auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_pipe2 *>(fbbcomm_buf);
@@ -1258,18 +1270,19 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
 }
 
 
-static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
-  TRACK(firebuild::FB_DEBUG_PROC, "pid=%d, status=%d, runaway=%s", pid, status, D(runaway));
-
+static void save_child_status(pid_t pid, int status, int * ret, const std::string& type) {
   if (WIFEXITED(status)) {
     *ret = WEXITSTATUS(status);
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(runaway ? "runaway" : "child")
-             + " process exited with status " + std::to_string(*ret) + ". ("
-             + d(proc_tree->pid2proc(pid)) + ")");
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, type +
+             + " process " + d(proc_tree->pid2proc(pid))
+             + " exited with status " + std::to_string(*ret) + ".");
   } else if (WIFSIGNALED(status)) {
-    fprintf(stderr, "%s process has been killed by signal %d",
-            runaway ? "Runaway" : "Child",
-            WTERMSIG(status));
+    *ret = WTERMSIG(status);
+    firebuild::fb_error(type + " process "+ std::to_string(pid)
+                        + " has been killed by signal" + std::to_string(*ret));
+  } else {
+    firebuild::fb_error(type + " process "+ std::to_string(pid)
+                        + " stopped with an unsupported status: " + std::to_string(status));
   }
 }
 
@@ -1307,15 +1320,22 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
   do {
     waitpid_ret = waitpid(-1, &status, WNOHANG);
     if (waitpid_ret == child_pid) {
-      save_child_status(waitpid_ret, status, &child_ret, false);
+      save_child_status(waitpid_ret, status, &child_ret, "top");
     } else if (waitpid_ret > 0) {
-      // TODO(rbalint) find runaway child's parent and possibly disable shortcutting
       int ret = -1;
-      save_child_status(waitpid_ret, status, &ret, true);
+      auto proc = proc_tree->pid2proc(waitpid_ret);
+      if (proc) {
+        proc->set_runaway();
+        proc->exec_point()->disable_shortcutting_bubble_up("Process exited after its parent");
+        proc->maybe_finalize();
+        save_child_status(waitpid_ret, status, &ret, "runaway");
+      } else {
+        save_child_status(waitpid_ret, status, &ret, "unknown");
+      }
     }
   } while (waitpid_ret > 0);
 
-  if (waitpid_ret < 0) {
+  if (waitpid_ret < 0 && child_ret != -1) {
     /* All children exited. Stop listening on the socket, and set listener to -1 to tell the main
      * epoll loop to quit. */
     epoll->del_fd(listener);

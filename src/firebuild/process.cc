@@ -25,9 +25,10 @@ static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
                  Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
-    : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
+    : runaway_(parent ? parent->runaway_ : false), parent_(parent), state_(FB_PROC_RUNNING),
+      on_finalized_ack_set_(false), delayed_wait_ack_set_(false), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
-      closed_fds_({}), fork_children_(), expected_child_(), exec_child_(NULL) {
+      closed_fds_({}), fork_children_(), expected_child_(), exec_child_(NULL), delayed_ack_fd_() {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
 
@@ -834,23 +835,137 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
   return nullptr;
 }
 
-bool Process::any_child_not_finalized() {
+void Process::set_runaway() {
+  if (!runaway_) {
+    runaway_ = true;
+    for (auto child : fork_children_) {
+      child->set_runaway();
+    }
+    if (exec_child()) {
+      exec_child()->set_runaway();
+    }
+    if (all_children_finalized_or_runaway()) {
+      send_pending_delayed_wait_ack();
+    }
+    /* Transitive parents may be waiting to have all children becoming finalized or runaway. */
+    auto transitive_parent = this;
+    while ((transitive_parent = transitive_parent->parent())) {
+      if (transitive_parent->detect_runaway()
+          && transitive_parent->all_children_finalized_or_runaway()) {
+        transitive_parent->send_pending_delayed_wait_ack();
+      }
+    }
+  }
+}
+
+bool Process::detect_runaway() {
+  if (!parent_) {
+    return false;
+  } else if (runaway_) {
+    return true;
+  } else {
+    char buf[32];
+#ifndef NDEBUG
+    int ret =
+#endif
+        snprintf(buf, sizeof(buf), "/proc/%d/stat", pid_);
+    assert(ret > 0);
+    auto proc_stat = fopen(buf, "r");
+    if (proc_stat) {
+      int ppid;
+      /* The closing ')' is consumed by %s. */
+      // FIXME(rbalint) fails with process names with embedded space
+      int ret = fscanf(proc_stat, "%*d (%*s %*c %d", &ppid);
+      if (ret != 1) {
+        fb_error("Could not read parent pid from " + std::string(buf));
+        return false;
+      }
+      if (ppid != parent_->pid_) {
+        set_runaway();
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      /* If the process already died, supervisor will get a SIGCHLD if it was a runaway process. */
+      return false;
+    }
+  }
+}
+
+bool Process::finalized_or_runaway() {
+  if (state_ == FB_PROC_FINALIZED || detect_runaway()) {
+    return true;
+  }
+
+  if (state_ == FB_PROC_TERMINATED) {
+    /* There can be runaway processes with terminated (exec) parents which were not runaway.
+     * Those are not finalized until the last process in the chain terminates, but should be
+     * treated as runaway processes.*/
+    return all_children_finalized_or_runaway();
+  } else {
+    return false;
+  }
+}
+
+bool Process::all_children_finalized() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   if (exec_pending_ || pending_popen_child_) {
-    return true;
-  }
-  if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
-    /* The exec child is not yet finalized. We're not ready to finalize either. */
-    return true;
+    return false;
   }
 
-  for (auto fork_child : fork_children_) {
-    if (fork_child->state_ != FB_PROC_FINALIZED) {
-      return true;
+  if (exec_child() && exec_child()->state_ != FB_PROC_FINALIZED) {
+    return false;
+  }
+
+  for (auto child : fork_children_) {
+    if (child->state_ != FB_PROC_FINALIZED) {
+      return false;
     }
   }
-  return false;
+
+  return true;
+}
+
+bool Process::all_children_finalized_or_runaway() {
+  if (exec_pending_ || pending_popen_child_) {
+    return false;
+  }
+
+  if (exec_child() && !exec_child()->finalized_or_runaway()) {
+    return false;
+  }
+
+  for (auto child : fork_children_) {
+    if (!child->finalized_or_runaway()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void Process::send_delayed_ack() {
+  assert(on_finalized_ack_set_  || delayed_wait_ack_set_);
+  assert(delayed_ack_fd_ != -1 && delayed_ack_id_ != -1);
+  ack_msg(delayed_ack_fd_, delayed_ack_id_);
+  delayed_ack_id_ = -1;
+  delayed_ack_fd_ = -1;
+}
+
+void Process::send_pending_delayed_wait_ack() {
+  if (delayed_wait_ack_set_) {
+    send_delayed_ack();
+    delayed_wait_ack_set_ = false;
+  }
+}
+
+void Process::send_pending_on_finalized_ack() {
+  if (on_finalized_ack_set_) {
+    send_delayed_ack();
+    on_finalized_ack_set_ = false;
+  }
 }
 
 /**
@@ -861,9 +976,8 @@ void Process::do_finalize() {
 
   /* Now we can ack the previous system()'s second message,
    * or a pending pclose() or wait*(). */
-  if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_ != -1) {
-    ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
-  }
+  send_pending_on_finalized_ack();
+  send_pending_delayed_wait_ack();
 
   reset_file_fd_pipe_refs();
 
@@ -881,8 +995,12 @@ void Process::maybe_finalize() {
   if (state() != FB_PROC_TERMINATED) {
     return;
   }
-  if (any_child_not_finalized()) {
-    /* A child is yet to be finalized. We're not ready to finalize. */
+  if (!all_children_finalized()) {
+    /* A child is yet to be finalized. We're not ready to finalize, but may be ready to send wait
+     * ACK if there is one pending. */
+    if (delayed_wait_ack_set_ && all_children_finalized_or_runaway()) {
+      send_pending_delayed_wait_ack();
+    }
     return;
   }
   drain_all_pipes();
