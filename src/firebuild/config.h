@@ -11,11 +11,15 @@
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
+#include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
 
 namespace firebuild {
 
 extern std::vector<const FileName*> *ignore_locations;
+extern ExeMatcher* blacklist_matcher;
+extern ExeMatcher* skip_cache_matcher;
+
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);
 
