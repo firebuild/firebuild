@@ -17,6 +17,7 @@
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
 
 #define GLOBAL_CONFIG "/etc/firebuild.conf"
@@ -25,6 +26,9 @@
 namespace firebuild {
 
 std::vector<const FileName*> *ignore_locations = nullptr;
+
+ExeMatcher* blacklist_matcher = nullptr;
+ExeMatcher* skip_cache_matcher = nullptr;
 
 /** Parse configuration file
  *
@@ -188,6 +192,20 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   ignore_locations = new std::vector<const FileName *>();
   for (int i = 0; i < ignores.getLength(); i++) {
     ignore_locations->push_back(FileName::Get(ignores[i].c_str()));
+  }
+
+  libconfig::Setting& blacklist = cfg->getRoot()["processes"]["blacklist"];
+  assert(!blacklist_matcher);
+  blacklist_matcher = new ExeMatcher();
+  for (int i = 0; i < blacklist.getLength(); i++) {
+    blacklist_matcher->add(blacklist[i]);
+  }
+
+  libconfig::Setting& skip_cache = cfg->getRoot()["processes"]["skip_cache"];
+  assert(!skip_cache_matcher);
+  skip_cache_matcher = new ExeMatcher();
+  for (int i = 0; i < skip_cache.getLength(); i++) {
+    skip_cache_matcher->add(skip_cache[i]);
   }
 }
 

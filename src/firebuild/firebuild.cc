@@ -30,6 +30,7 @@
 #include "firebuild/cache_object_format_generated.h"
 #pragma GCC diagnostic pop
 #include "firebuild/connection_context.h"
+#include "firebuild/exe_matcher.h"
 #include "firebuild/fd.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
@@ -160,36 +161,6 @@ static char** get_sanitized_env() {
   return ret_env;
 }
 
-/*
- * Check if either exe or arg0 matches any of the entries in the list.
- */
-static bool exe_matches_list(const firebuild::FileName* exe_file,
-                             const std::string& arg0,
-                             const libconfig::Setting& list) {
-  std::string exe = exe_file->to_string();
-  size_t pos = exe.rfind('/');
-  std::string exe_base = exe.substr(pos == std::string::npos ? 0 : pos + 1);
-  pos = arg0.rfind('/');
-  std::string arg0_base = arg0.substr(pos == std::string::npos ? 0 : pos + 1);
-
-  for (int i = 0; i < list.getLength(); i++) {
-    const std::string& entry = list[i];
-    if (entry.find('/') == std::string::npos) {
-      /* If the entry doesn't contain a '/', only the basename needs to match. */
-      if (entry == exe_base || entry == arg0_base) {
-        return true;
-      }
-    } else {
-      /* If the entry contains a '/', it needs to be an exact string match. */
-      if (entry == exe || entry == arg0) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-
 static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd, string_array* fifo_fds) {
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
@@ -233,18 +204,16 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
     proc->initialize();
 
     /* Check for executables that are known not to be shortcuttable. */
-    if (exe_matches_list(proc->executable(),
-                         proc->args().size() > 0 ? proc->args()[0] : "",
-                         cfg->getRoot()["processes"]["blacklist"])) {
+    if (blacklist_matcher->match(proc->executable(),
+                                proc->args().size() > 0 ? proc->args()[0] : "")) {
       proc->disable_shortcutting_bubble_up("Executable blacklisted");
     }
 
     /* If we still potentially can, and prefer to cache / shortcut this process,
      * register the cacher object and calculate the process's fingerprint. */
     if (proc->can_shortcut() &&
-        !exe_matches_list(proc->executable(),
-                          proc->args().size() > 0 ? proc->args()[0] : "",
-                          cfg->getRoot()["processes"]["skip_cache"])) {
+        !skip_cache_matcher->match(proc->executable(),
+                                  proc->args().size() > 0 ? proc->args()[0] : "")) {
       proc->set_cacher(cacher);
       if (!cacher->fingerprint(proc)) {
         proc->disable_shortcutting_bubble_up("Could not fingerprint the process");
