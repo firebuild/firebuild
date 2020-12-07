@@ -124,9 +124,15 @@ class ExecedProcess : public Process {
    * @param reason reason for can't being short-cut
    * @param p process the event preventing shortcutting happened in, or
    *     omitted for the current process
+   * @param shortcutable_ancestor this ancestor will be the nearest shortcutable ancestor
+   *        for all visited execed processes after this call
+   *        (when shortcutable_ancestor_is_set is true)
+   * @param shortcutable_ancestor_is_set the shortcutable_ancestor is computed
    */
-  void disable_shortcutting_bubble_up_to_excl(const ExecedProcess *stop, const std::string& reason,
-                                              const ExecedProcess *p = NULL);
+  void disable_shortcutting_bubble_up_to_excl(ExecedProcess *stop, const std::string& reason,
+                                              const ExecedProcess *p = NULL,
+                                              ExecedProcess *shortcutable_ancestor = nullptr,
+                                              bool shortcutable_ancestor_is_set = false);
   /**
    * Process and parents (transitively) can't be short-cut because it performed
    * calls preventing that.
@@ -154,6 +160,10 @@ class ExecedProcess : public Process {
  private:
   bool can_shortcut_:1;
   bool was_shortcut_:1;
+  /** If points to this (self), the process can be shortcut.
+      Otherwise the process itself is not shortcutable, but the ancestor is, if the ancestor's
+      maybe_shortcutable_ancestor points at itself, etc. */
+  ExecedProcess * maybe_shortcutable_ancestor_;
   /// Sum of user time in microseconds for all forked but not exec()-ed children
   int64_t sum_utime_u_ = 0;
   /// Sum of system time in microseconds for all forked but not exec()-ed
