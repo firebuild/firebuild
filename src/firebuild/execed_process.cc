@@ -51,6 +51,10 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
+      maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
+                                             ? parent->exec_point()
+                                             : parent->exec_point()->maybe_shortcutable_ancestor_)
+                                   : nullptr),
       sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_(), created_pipes_(), cacher_(NULL), exec_count_(1) {
@@ -354,9 +358,12 @@ bool ExecedProcess::shortcut() {
   }
 }
 
-void ExecedProcess::disable_shortcutting_bubble_up_to_excl(const ExecedProcess *stop,
-                                                           const std::string& reason,
-                                                           const ExecedProcess *p) {
+void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
+    ExecedProcess *stop,
+    const std::string& reason,
+    const ExecedProcess *p,
+    ExecedProcess *shortcutable_ancestor,
+    bool shortcutable_ancestor_is_set) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "stop=%s, reason=%s, source=%s",
          D(stop), D(reason), D(p));
 
@@ -367,8 +374,23 @@ void ExecedProcess::disable_shortcutting_bubble_up_to_excl(const ExecedProcess *
     p = this;
   }
   disable_shortcutting_only_this(reason, p);
+  if (maybe_shortcutable_ancestor_ == nullptr) {
+    /* Shortcutting is already disabled for all transitive exec parents. */
+    return;
+  }
+  if (!shortcutable_ancestor_is_set) {
+    /* Move maybe_shortcutable_ancestor_ only upwards. */
+    shortcutable_ancestor = stop;
+    while (shortcutable_ancestor != nullptr && !shortcutable_ancestor->can_shortcut()) {
+      shortcutable_ancestor = shortcutable_ancestor->maybe_shortcutable_ancestor_;
+    }
+    shortcutable_ancestor_is_set = true;
+  }
+  maybe_shortcutable_ancestor_ = shortcutable_ancestor;
+
   if (parent_exec_point()) {
-    parent_exec_point()->disable_shortcutting_bubble_up_to_excl(stop, reason, p);
+    parent_exec_point()->disable_shortcutting_bubble_up_to_excl(
+        stop, reason, p, shortcutable_ancestor, shortcutable_ancestor_is_set);
   }
 }
 
