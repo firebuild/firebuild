@@ -148,6 +148,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   std::vector<const FileName*> in_path_isreg_fns;
   std::vector<flatbuffers::Offset<msg::File>> in_path_isdir_with_hash;
   std::vector<const FileName*> in_path_isdir_fns,
+      in_path_notexist_or_isreg_fns,
       in_path_notexist_or_isreg_empty_fns,
       in_path_notexist_fns;
 
@@ -164,7 +165,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
     switch (fu->initial_state()) {
-      case DONTCARE:
+      case DONTKNOW:
         /* Nothing to do. */
         break;
       case ISREG_WITH_HASH: {
@@ -186,6 +187,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       }
       case ISDIR:
         in_path_isdir_fns.push_back(filename);
+        break;
+      case NOTEXIST_OR_ISREG:
+        in_path_notexist_or_isreg_fns.push_back(filename);
         break;
       case NOTEXIST_OR_ISREG_EMPTY:
         in_path_notexist_or_isreg_empty_fns.push_back(filename);
@@ -240,6 +244,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   auto in_path_isreg = fns_to_sorted_offsets(&in_path_isreg_fns, &builder);
   auto in_path_isdir = fns_to_sorted_offsets(&in_path_isdir_fns, &builder);
+  auto in_path_notexist_or_isreg =
+      fns_to_sorted_offsets(&in_path_notexist_or_isreg_fns, &builder);
   auto in_path_notexist_or_isreg_empty =
       fns_to_sorted_offsets(&in_path_notexist_or_isreg_empty_fns, &builder);
   auto in_path_notexist = fns_to_sorted_offsets(&in_path_notexist_fns, &builder);
@@ -251,6 +257,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
                                builder.CreateVector(in_path_isreg),
                                builder.CreateVectorOfSortedTables(&in_path_isdir_with_hash),
                                builder.CreateVector(in_path_isdir),
+                               builder.CreateVector(in_path_notexist_or_isreg),
                                builder.CreateVector(in_path_notexist_or_isreg_empty),
                                builder.CreateVector(in_path_notexist));
   auto outputs =
@@ -332,6 +339,15 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
                "│   " + fingerprint.to_ascii()
                + " mismatches e.g. at " + pretty_print_string(filename->str())
                + ": directory expected but does not exist or something else found");
+      return false;
+    }
+  }
+  for (const auto& filename : *pi.path_notexist_or_isreg()) {
+    if (stat64(filename->c_str(), &st) != -1 && !S_ISREG(st.st_mode)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + fingerprint.to_ascii()
+               + " mismatches e.g. at " + pretty_print_string(filename->str())
+               + ": file expected to be missing or regular, something else found");
       return false;
     }
   }
@@ -439,6 +455,10 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     }
     for (const auto& filename : *inouts->inputs()->path_isdir()) {
       FileUsage fu(ISDIR);
+      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
+    }
+    for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg()) {
+      FileUsage fu(NOTEXIST_OR_ISREG);
       proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg_empty()) {

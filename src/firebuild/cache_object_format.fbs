@@ -71,6 +71,7 @@ table ProcessInputs {
   path_isreg:[string];
   path_isdir_with_hash:[File];
   path_isdir:[string];
+  path_notexist_or_isreg:[string];
   path_notexist_or_isreg_empty:[string];
   path_notexist:[string];
 

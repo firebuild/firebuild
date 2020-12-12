@@ -15,16 +15,19 @@
 namespace firebuild {
 
 typedef enum {
-  /** We don't care if the file or directory existed before or not, and what its
-   *  contents were (used only temporarily while building up our data structures). */
-  DONTCARE,
+  /** We don't have any information about this file yet (used only temporarily
+   *  while building up our data structures). */
+  DONTKNOW,
   /** We know and care that the file or directory did not exist before (e.g. an
-   *  open(O_EXCL) or a mkdir() succeeded). */
+   *  open(O_CREAT|O_WRONLY|O_EXCL) or a mkdir() succeeded). */
   NOTEXIST,
   /** We know and care that the file either did not exist before, or was
-   *  a zero sized regular file (but we do not know which of these, because e.g.
-   *  a creat() a.k.a. open(O_CREAT|O_WRONLY|O_TRUNC) succeeded). */
+   *  a zero sized regular file (but we do not know which of these, because
+   *  an open(O_CREAT|O_WRONLY) succeeded and resulted in a zero length file). */
   NOTEXIST_OR_ISREG_EMPTY,
+  /** We know and care that the file either did not exist before, or was a
+   *  regular file (e.g. a creat() a.k.a. open(O_CREAT|O_WRONLY|O_TRUNC) succeeded). */
+  NOTEXIST_OR_ISREG,
   /** We know and care that the regular file existed before, but don't care
    *  about its previous contents (e.g. an open(O_WRONLY|O_TRUNC) succeeded). */
   ISREG,
@@ -55,7 +58,7 @@ class FileUsage {
       written_(false), stat_changed_(true), unknown_err_(0) {}
   explicit FileUsage(FileInitialState initial_state) :
       FileUsage(initial_state, Hash()) {}
-  FileUsage() : FileUsage(DONTCARE) {}
+  FileUsage() : FileUsage(DONTKNOW) {}
 
   FileInitialState initial_state() const {return initial_state_;}
   const Hash& initial_hash() const {return initial_hash_;}

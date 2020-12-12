@@ -38,7 +38,7 @@ namespace firebuild {
  */
 bool FileUsage::merge(const FileUsage& that) {
   bool changed = false;
-  if (initial_state_ == DONTCARE) {
+  if (initial_state_ == DONTKNOW) {
     if (initial_state_ != that.initial_state_) {
       initial_state_ = that.initial_state_;
       changed = true;
@@ -108,9 +108,9 @@ bool FileUsage::update_from_open_params(const FileName* filename,
              * it's too late now to figure that out). */
             initial_state_ = ISREG;
           } else {
-            /* B: The old contents could have been anything (including no
-             * such file yet), we don't care since we truncated. Keep
-             * initial_state_ = DONTCARE. */
+            /* B: The old contents could have been any regular file, or
+             * even no such file (but not e.g. a directory). */
+            initial_state_ = NOTEXIST_OR_ISREG;
           }
         } else {
           if (!(flags & O_CREAT)) {
