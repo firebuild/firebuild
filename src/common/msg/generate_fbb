@@ -196,11 +196,11 @@ gen_fbb([
 
   ("rename", [
     # old dir file descriptor for renameat[2]()
-    (OPTIONAL, "int32_t", "oldfd"),
+    (OPTIONAL, "int32_t", "olddirfd"),
     # path to old file
     (OPTIONAL, STRING, "oldpath"),
     # new dir file descriptor for renameat[2]()
-    (OPTIONAL, "int32_t", "newfd"),
+    (OPTIONAL, "int32_t", "newdirfd"),
     # path to new file
     (OPTIONAL, STRING, "newpath"),
     # flags for renmaeat2()

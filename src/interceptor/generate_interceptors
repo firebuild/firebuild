@@ -344,10 +344,10 @@ generate("int", "rmdir", "const char *pathname")
 
 # Intercept the rename family
 generate("int", "rename", "const char *oldpath, const char *newpath")
-generate("int", "renameat", "int oldfd, const char *oldpath, int newfd, const char *newpath",
+generate("int", "renameat", "int olddirfd, const char *oldpath, int newdirfd, const char *newpath",
          msg="rename",
          ack_condition="true")
-generate("int", "renameat2", "int oldfd, const char *oldpath, int newfd, const char *newpath, unsigned int flags",
+generate("int", "renameat2", "int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags",
          msg="rename",
          ack_condition="true")
 

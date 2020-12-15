@@ -85,9 +85,14 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
   return fds;
 }
 
-int Process::handle_open(const char * const ar_name, const int flags,
+int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
                          const int fd, const int error, int fd_conn, const int ack_num) {
-  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
+  const FileName* name = get_absolute(dirfd, ar_name);
+  if (!name) {
+    // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
+    disable_shortcutting_bubble_up("Invalid dirfd passed to openat()");
+    return -1;
+  }
 
   if (fd >= 0) {
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
@@ -157,8 +162,13 @@ int Process::handle_close(const int fd, const int error) {
   }
 }
 
-int Process::handle_unlink(const char * const ar_name, const int error) {
-  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
+int Process::handle_unlink(const int dirfd, const char * const ar_name, const int error) {
+  const FileName* name = get_absolute(dirfd, ar_name);
+  if (!name) {
+    // FIXME don't disable shortcutting if unlinkat() failed due to the invalid dirfd
+    disable_shortcutting_bubble_up("Invalid dirfd passed to unlinkat()");
+    return -1;
+  }
 
   if (!error) {
     FileUsage fu(ISREG);
@@ -173,8 +183,13 @@ int Process::handle_unlink(const char * const ar_name, const int error) {
   return 0;
 }
 
-int Process::handle_mkdir(const char * const ar_name, const int error) {
-  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
+int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int error) {
+  const FileName* name = get_absolute(dirfd, ar_name);
+  if (!name) {
+    // FIXME don't disable shortcutting if mkdirat() failed due to the invalid dirfd
+    disable_shortcutting_bubble_up("Invalid dirfd passed to mkdirat()");
+    return -1;
+  }
 
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, 0, error)) {
     disable_shortcutting_bubble_up("Could not register the directory creation of " +
@@ -186,7 +201,8 @@ int Process::handle_mkdir(const char * const ar_name, const int error) {
 }
 
 int Process::handle_rmdir(const char * const ar_name, const int error) {
-  const FileName* name = FileName::GetAbsolute(wd(), ar_name);
+  const FileName* name = get_absolute(AT_FDCWD, ar_name);
+  assert(name);
 
   if (!error) {
     FileUsage fu(ISDIR);  // FIXME register that it's an _empty_ directory
@@ -268,13 +284,19 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   return 0;
 }
 
-int Process::handle_rename(const char * const old_ar_name, const char * const new_ar_name,
+int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
+                           const int newdirfd, const char * const new_ar_name,
                            const int error) {
   if (error) {
     return 0;
   }
-  const FileName* old_name = FileName::GetAbsolute(wd(), old_ar_name);
-  const FileName* new_name = FileName::GetAbsolute(wd(), new_ar_name);
+  const FileName* old_name = get_absolute(olddirfd, old_ar_name);
+  const FileName* new_name = get_absolute(newdirfd, new_ar_name);
+  if (!old_name || !new_name) {
+    // FIXME don't disable shortcutting if renameat() failed due to the invalid dirfd
+    disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
+    return -1;
+  }
 
   /* It's tricky because the renaming has already happened, there's supposedly nothing
    * at the old filename. Yet we need to register that we read that file with its
@@ -300,10 +322,11 @@ int Process::handle_rename(const char * const old_ar_name, const char * const ne
   return 0;
 }
 
-int Process::handle_symlink(const char * const old_ar_name, const char * const new_ar_name,
+int Process::handle_symlink(const char * const old_ar_name,
+                            const int newdirfd, const char * const new_ar_name,
                             const int error) {
   if (!error) {
-    disable_shortcutting_bubble_up("Process created a symlink (" +
+    disable_shortcutting_bubble_up("Process created a symlink ([" + std::to_string(newdirfd) + "]" +
                                    pretty_print_string(new_ar_name) + " -> " +
                                    pretty_print_string(old_ar_name) + ")");
     return -1;
@@ -412,7 +435,8 @@ void Process::handle_write(const int fd) {
 }
 
 void Process::handle_set_wd(const char * const ar_d) {
-  wd_ = FileName::GetAbsolute(wd(), ar_d);
+  wd_ = get_absolute(AT_FDCWD, ar_d);
+  assert(wd_);
   add_wd(wd_);
 }
 

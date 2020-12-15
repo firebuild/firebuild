@@ -158,7 +158,54 @@ class Process {
   }
 
   /**
+   * Return the resolved absolute pathname, based on the given dirfd directory (possibly AT_FDCWD
+   * for the current directory). Return nullptr if the path is relative and dirfd is invalid.
+   */
+  inline const FileName* get_absolute(const int dirfd,
+                                      const char * const name, ssize_t length = -1) {
+    if (platform::path_is_absolute(name)) {
+      return FileName::Get(name, length);
+    } else {
+      char on_stack_buf[2048], *buf;
+
+      const FileName* dir;
+      if (dirfd == AT_FDCWD) {
+        dir = wd();
+      } else {
+        std::shared_ptr<FileFD> ffd = get_fd(dirfd);
+        if (ffd) {
+          dir = ffd->filename();
+          if (!dir) {
+            return nullptr;
+          }
+        } else {
+          return nullptr;
+        }
+      }
+
+      const size_t on_stack_buffer_size = sizeof(on_stack_buf);
+      const ssize_t name_length = (length == -1) ? strlen(name) : length;
+      const size_t total_buf_len = dir->length() + 1 + name_length + 1;
+      if (on_stack_buffer_size < total_buf_len) {
+        buf = reinterpret_cast<char *>(malloc(total_buf_len));
+      } else {
+        buf = reinterpret_cast<char *>(on_stack_buf);
+      }
+      memcpy(buf, dir->c_str(), dir->length());
+      buf[dir->length()] = '/';
+      memcpy(buf + dir->length() + 1, name, name_length);
+      buf[total_buf_len - 1] = '\0';
+      const FileName* ret = FileName::Get(buf, total_buf_len - 1);
+      if (on_stack_buffer_size < total_buf_len) {
+        free(buf);
+      }
+      return ret;
+    }
+  }
+
+  /**
    * Handle file opening in the monitored process
+   * @param dirfd the dirfd of openat(), or AT_FDCWD
    * @param ar_name relative or absolute file name
    * @param flags flags of open()
    * @param fd the return value, or -1 if file was dlopen()ed successfully
@@ -166,7 +213,7 @@ class Process {
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
    */
-  int handle_open(const char * const ar_name, const int flags,
+  int handle_open(const int dirfd, const char * const ar_name, const int flags,
                   const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
 
   /**
@@ -189,17 +236,19 @@ class Process {
 
   /**
    * Handle unlink in the monitored process
+   * @param dirfd the dirfd of unlinkat(), or AT_FDCWD
    * @param name relative or absolute file name
    * @param error error code of unlink()
    */
-  int handle_unlink(const char * const name, const int error = 0);
+  int handle_unlink(const int dirfd, const char * const name, const int error = 0);
 
   /**
    * Handle mkdir in the monitored process
+   * @param dirfd the dirfd of mkdirat(), or AT_FDCWD
    * @param name relative or absolute file name
    * @param error error code of mkdir()
    */
-  int handle_mkdir(const char * const name, const int error = 0);
+  int handle_mkdir(const int dirfd, const char * const name, const int error = 0);
 
   /**
    * Handle rmdir in the monitored process
@@ -232,22 +281,27 @@ class Process {
 
   /**
    * Handle rename()
+   * @param olddirfd the olddirfd of renameat(), or AT_FDCWD
    * @param old_ar_name old relative or absolute file name
+   * @param newdirfd the newdirfd of renameat(), or AT_FDCWD
    * @param new_ar_name new relative or absolute file name
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int handle_rename(const char * const old_ar_name, const char * const new_ar_name,
+  int handle_rename(const int olddirfd, const char * const old_ar_name,
+                    const int newdirfd, const char * const new_ar_name,
                     const int error = 0);
 
   /**
    * Handle symlink()
    * @param old_ar_name old relative or absolute file name
+   * @param newdirfd the newdirfd of symlinkat(), or AT_FDCWD
    * @param new_ar_name new relative or absolute file name
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int handle_symlink(const char * const old_ar_name, const char * const new_ar_name,
+  int handle_symlink(const char * const old_ar_name,
+                     const int newdirfd, const char * const new_ar_name,
                      const int error = 0);
 
   /**

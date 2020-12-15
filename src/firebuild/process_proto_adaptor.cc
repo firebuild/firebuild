@@ -8,14 +8,17 @@
 
 namespace firebuild {
 int ProcessPBAdaptor::msg(Process *p, const FBB_open *o, int fd_conn, const int ack_num) {
+  const int dirfd = fbb_open_get_dirfd_with_fallback(o, AT_FDCWD);
   int error = fbb_open_get_error_no_with_fallback(o, 0);
   int ret = fbb_open_get_ret_with_fallback(o, -1);
-  return p->handle_open(fbb_open_get_file(o), fbb_open_get_flags(o), ret, error, fd_conn, ack_num);
+  return p->handle_open(dirfd, fbb_open_get_file(o), fbb_open_get_flags(o),
+                        ret, error, fd_conn, ack_num);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo, int fd_conn, const int ack_num) {
   if (!fbb_dlopen_has_error_no(dlo) && fbb_dlopen_has_absolute_filename(dlo)) {
-    return p->handle_open(fbb_dlopen_get_absolute_filename(dlo), O_RDONLY, -1, 0, fd_conn, ack_num);
+    return p->handle_open(AT_FDCWD, fbb_dlopen_get_absolute_filename(dlo),
+                          O_RDONLY, -1, 0, fd_conn, ack_num);
   } else {
     std::string filename = fbb_dlopen_has_absolute_filename(dlo) ?
                            fbb_dlopen_get_absolute_filename(dlo) : "NULL";
@@ -30,13 +33,15 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_close *c) {
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_unlink *u) {
+  const int dirfd = fbb_unlink_get_dirfd_with_fallback(u, AT_FDCWD);
   const int error = fbb_unlink_get_error_no_with_fallback(u, 0);
-  return p->handle_unlink(fbb_unlink_get_pathname(u), error);
+  return p->handle_unlink(dirfd, fbb_unlink_get_pathname(u), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_mkdir *m) {
+  const int dirfd = fbb_mkdir_get_dirfd_with_fallback(m, AT_FDCWD);
   const int error = fbb_mkdir_get_error_no_with_fallback(m, 0);
-  return p->handle_mkdir(fbb_mkdir_get_pathname(m), error);
+  return p->handle_mkdir(dirfd, fbb_mkdir_get_pathname(m), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_rmdir *r) {
@@ -64,13 +69,17 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_dup *d) {
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_rename *r) {
+  const int olddirfd = fbb_rename_get_olddirfd_with_fallback(r, AT_FDCWD);
+  const int newdirfd = fbb_rename_get_newdirfd_with_fallback(r, AT_FDCWD);
   const int error = fbb_rename_get_error_no_with_fallback(r, 0);
-  return p->handle_rename(fbb_rename_get_oldpath(r), fbb_rename_get_newpath(r), error);
+  return p->handle_rename(olddirfd, fbb_rename_get_oldpath(r),
+                          newdirfd, fbb_rename_get_newpath(r), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_symlink *s) {
+  const int newdirfd = fbb_symlink_get_newdirfd_with_fallback(s, AT_FDCWD);
   const int error = fbb_symlink_get_error_no_with_fallback(s, 0);
-  return p->handle_symlink(fbb_symlink_get_oldpath(s), fbb_symlink_get_newpath(s), error);
+  return p->handle_symlink(fbb_symlink_get_oldpath(s), newdirfd, fbb_symlink_get_newpath(s), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBB_fcntl *f) {

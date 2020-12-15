@@ -530,7 +530,7 @@ void proc_ic_msg(const void *fbb_buf,
             sscanf(file_action.c_str(), "o %d %d %*d %n", &fd, &flags, &filename_offset);
             const char *path = file_action.c_str() + filename_offset;
             fork_child->handle_force_close(fd);
-            fork_child->handle_open(path, flags, fd, 0);
+            fork_child->handle_open(AT_FDCWD, path, flags, fd, 0);
             break;
           }
           case 'c': {
