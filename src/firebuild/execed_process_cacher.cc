@@ -61,7 +61,7 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   flatbuffers::FlatBufferBuilder builder(64*1024);
 
-  auto fp_cwd = builder.CreateString(proc->cwd()->c_str(), proc->cwd()->length());
+  auto fp_wd = builder.CreateString(proc->initial_wd()->c_str(), proc->initial_wd()->length());
   auto fp_args = builder.CreateVectorOfStrings(proc->args());
 
   std::vector<flatbuffers::Offset<flatbuffers::String>> fp_env_vec;
@@ -100,7 +100,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   }
   auto fp_libs = builder.CreateVector(fp_libs_vec);
 
-  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_libs, fp_args, fp_env, fp_cwd);
+  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_libs, fp_args, fp_env, fp_wd);
   builder.Finish(fp);
   hash.set_from_data(builder.GetBufferPointer(), builder.GetSize());
 

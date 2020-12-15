@@ -45,13 +45,13 @@ static std::string escapeJsonString(const std::string& input) {
 }
 
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
-                             const FileName *cwd,
+                             const FileName *initial_wd,
                              const FileName *executable,
                              Process * parent,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
-    : Process(pid, ppid, cwd, parent, fds),
+    : Process(pid, ppid, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
-      sum_utime_u_(0), sum_stime_u_(0), cwd_(cwd),
+      sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_(), cacher_(NULL) {
   if (parent != NULL) {
@@ -284,7 +284,7 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "%s pid: %u,\n", indent, pid());
   fprintf(stream, "%s ppid: %u,\n", indent, ppid());
   fprintf(stream, "%s fb_pid: %u,\n", indent, fb_pid());
-  fprintf(stream, "%s cwd:\"%s\",\n", indent, cwd()->c_str());
+  fprintf(stream, "%s initial_wd:\"%s\",\n", indent, initial_wd()->c_str());
   fprintf(stream, "%s exe:\"%s\",\n", indent, executable()->c_str());
   fprintf(stream, "%s state: %u,\n", indent, state());
   if (!can_shortcut_) {
