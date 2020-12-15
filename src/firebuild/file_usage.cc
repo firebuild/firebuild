@@ -79,14 +79,7 @@ bool FileUsage::update_from_open_params(const FileName* filename,
 
   if (!err) {
     if (action == FILE_ACTION_OPEN) {
-      if (flags & O_DIRECTORY) {
-        /* opendir() or alike */
-        if (!hash_cache->get_hash(filename, &initial_hash_)) {
-          unknown_err_ = errno;
-          return false;
-        }
-        initial_state_ = ISDIR_WITH_HASH;
-      } else if (is_write(flags)) {
+      if (is_write(flags)) {
         /* If successfully opened for writing:
          *
          *     trunc   creat   excl
@@ -142,12 +135,14 @@ bool FileUsage::update_from_open_params(const FileName* filename,
         }
         written_ = true;
       } else {
-        /* The file was successfully opened for reading only. */
-        if (!hash_cache->get_hash(filename, &initial_hash_)) {
+        /* The file or directory was successfully opened for reading only.
+         * Note that a plain open() can open a directory for reading, even without O_DIRECTORY. */
+        bool is_dir;
+        if (!hash_cache->get_hash(filename, &initial_hash_, &is_dir)) {
           unknown_err_ = errno;
           return false;
         }
-        initial_state_ = ISREG_WITH_HASH;
+        initial_state_ = is_dir ? ISDIR_WITH_HASH : ISREG_WITH_HASH;
       }
     } else if (action == FILE_ACTION_MKDIR) {
       initial_state_ = NOTEXIST;
