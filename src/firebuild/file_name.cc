@@ -48,8 +48,8 @@ bool FileName::is_at_locations(const std::vector<const FileName *> *locations) c
   return false;
 }
 
-int FileNamePtrCompare(const FileName * const lhs, const FileName * const rhs) {
-  return strcmp(lhs->c_str(), rhs->c_str());
+int FileNamePtrPtrCompare(const FileName * const * const lhs, const FileName * const * const rhs) {
+  return strcmp((*lhs)->c_str(), (*rhs)->c_str());
 }
 
 }  // namespace firebuild
