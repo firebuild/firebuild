@@ -51,7 +51,7 @@ table ProcessFingerprint {
   // and sorted to a deterministic order
   env:[string];
   // The initial working directory
-  cwd:string (required);
+  wd:string (required);
   // special purpose file descriptors, not having file name
   //optional stdin:File;
   //optional stdout:File;

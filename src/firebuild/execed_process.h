@@ -25,7 +25,7 @@ class ExecedProcessCacher;
 
 class ExecedProcess : public Process {
  public:
-  explicit ExecedProcess(const int pid, const int ppid, const FileName *cwd,
+  explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
                          const FileName *executable, Process * parent,
                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~ExecedProcess();
@@ -36,7 +36,7 @@ class ExecedProcess : public Process {
   void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
   int64_t sum_stime_u() const {return sum_stime_u_;}
   void set_sum_stime_u(int64_t t) {sum_stime_u_ = t;}
-  const FileName* cwd() const {return cwd_;}
+  const FileName* initial_wd() const {return initial_wd_;}
   const std::unordered_set<const FileName*>& wds() const {return wds_;}
   const std::unordered_set<const FileName*>& wds() {return wds_;}
   const std::unordered_set<const FileName*>& failed_wds() const {return wds_;}
@@ -114,7 +114,7 @@ class ExecedProcess : public Process {
   /// children
   int64_t sum_stime_u_ = 0;
   /// Directory the process exec()-started in
-  const FileName* cwd_;
+  const FileName* initial_wd_;
   /// Working directories visited by the process and all fork()-children
   std::unordered_set<const FileName*> wds_;
   /// Working directories the process and all fork()-children failed to
