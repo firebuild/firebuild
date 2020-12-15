@@ -691,6 +691,10 @@ void proc_ic_msg(const void *fbb_buf,
       ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_chdir *>(fbb_buf));
       break;
     }
+    case FBB_TAG_fchdir: {
+      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_fchdir *>(fbb_buf));
+      break;
+    }
     case FBB_TAG_read: {
       ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_read *>(fbb_buf));
       break;
@@ -706,7 +710,6 @@ void proc_ic_msg(const void *fbb_buf,
     case FBB_TAG_faccessat:
     case FBB_TAG_fb_debug:
     case FBB_TAG_fb_error:
-    case FBB_TAG_fchdir:
     case FBB_TAG_fchmod:
     case FBB_TAG_fchown:
     case FBB_TAG_fcloseall:

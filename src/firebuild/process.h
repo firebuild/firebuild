@@ -94,6 +94,7 @@ class Process {
   void set_exit_status(const int e) {exit_status_ = e;}
   const FileName* wd() {return wd_;}
   void handle_set_wd(const char * const d);
+  void handle_set_fwd(const int fd);
   int64_t utime_u() const {return utime_u_;}
   void set_utime_u(int64_t t) {utime_u_ = t;}
   int64_t stime_u() const {return stime_u_;}

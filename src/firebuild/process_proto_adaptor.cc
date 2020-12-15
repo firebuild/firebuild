@@ -121,4 +121,12 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_chdir *c) {
   return 0;
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBB_fchdir *f) {
+  const int error = fbb_fchdir_get_error_no_with_fallback(f, 0);
+  if (error == 0) {
+    p->handle_set_fwd(fbb_fchdir_get_fd(f));
+  }
+  return 0;
+}
+
 }  // namespace firebuild

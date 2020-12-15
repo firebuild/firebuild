@@ -34,6 +34,7 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBB_read *r);
   static int msg(Process *p, const FBB_write *w);
   static int msg(Process *p, const FBB_chdir *c);
+  static int msg(Process *p, const FBB_fchdir *f);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
