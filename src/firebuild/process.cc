@@ -440,6 +440,20 @@ void Process::handle_set_wd(const char * const ar_d) {
   add_wd(wd_);
 }
 
+void Process::handle_set_fwd(const int fd) {
+  std::shared_ptr<FileFD> ffd = get_fd(fd);
+  if (!ffd) {
+    disable_shortcutting_bubble_up("Process successfully fchdir()'ed to (" +
+                                   std::to_string(fd) +
+                                   ") which is known to be closed, which means interception"
+                                   " missed at least one open()");
+    return;
+  }
+  wd_ = ffd->filename();
+  assert(wd_);
+  add_wd(wd_);
+}
+
 static bool argv_matches_expectation(const std::vector<std::string>& actual,
                                      const std::vector<std::string>& expected) {
   /* When launching ["foo", "arg1"], the new process might be something like
