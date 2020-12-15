@@ -53,7 +53,7 @@ class FileFD {
   FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
       written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
-      filename_(), opened_by_(o_fd->opened_by()) {}
+      filename_(o_fd->filename()), opened_by_(o_fd->opened_by()) {}
   /** Constructor for fds obtained through opening files. */
   FileFD(const FileName* f, int fd, int flags, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),

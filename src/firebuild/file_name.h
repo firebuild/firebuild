@@ -32,11 +32,6 @@ class FileName {
     return Get(name->c_str(), name->size());
   }
   /**
-   * Prepend dir to name (using the directory separator) if name is not absolute, otherwise return name.
-   */
-  static const FileName* GetAbsolute(const FileName * const dir, const char * const name,
-                                     ssize_t length = -1);
-  /**
    * Checks if a path semantically begins with the given subpath.
    *
    * Does string operations only, does not look at the file system.
@@ -88,32 +83,6 @@ inline const FileName* FileName::Get(const char * const name, ssize_t length = -
   } else {
     /* Not found, add a copy to the set. */
     return &*db_->insert(tmp_file_name).first;
-  }
-}
-
-inline const FileName* FileName::GetAbsolute(const FileName * const dir, const char * const name,
-                                             ssize_t length) {
-  if (platform::path_is_absolute(name)) {
-    return Get(name, length);
-  } else {
-    char on_stack_buf[2048], *buf;
-    const size_t on_stack_buffer_size = sizeof(on_stack_buf);
-    const ssize_t name_length = (length == -1) ? strlen(name) : length;
-    const size_t total_buf_len = dir->length_ + 1 + name_length + 1;
-    if (on_stack_buffer_size < total_buf_len) {
-      buf = reinterpret_cast<char *>(malloc(total_buf_len));
-    } else {
-      buf = reinterpret_cast<char *>(on_stack_buf);
-    }
-    memcpy(buf, dir->name_, dir->length_);
-    buf[dir->length_] = '/';
-    memcpy(buf + dir->length_ + 1, name, name_length);
-    buf[total_buf_len - 1] = '\0';
-    const FileName* ret = Get(buf, total_buf_len - 1);
-    if (on_stack_buffer_size < total_buf_len) {
-      free(buf);
-    }
-    return ret;
   }
 }
 
