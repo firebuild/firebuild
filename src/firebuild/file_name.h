@@ -78,7 +78,7 @@ struct FileNameHasher {
   }
 };
 
-int FileNamePtrCompare(const FileName * const lhs, const FileName * const rhs);
+int FileNamePtrPtrCompare(const FileName * const * const lhs, const FileName * const * const rhs);
 
 inline const FileName* FileName::Get(const char * const name, ssize_t length = -1) {
   FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false);
