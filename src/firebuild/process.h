@@ -239,9 +239,17 @@ class Process {
    * Handle unlink in the monitored process
    * @param dirfd the dirfd of unlinkat(), or AT_FDCWD
    * @param name relative or absolute file name
+   * @param flags flags passed to unlinkat()
    * @param error error code of unlink()
    */
-  int handle_unlink(const int dirfd, const char * const name, const int error = 0);
+  int handle_unlink(const int dirfd, const char * const name, const int flags, const int error = 0);
+
+  /**
+   * Handle rmdir in the monitored process
+   * @param name relative or absolute file name
+   * @param error error code of rmdir()
+   */
+  int handle_rmdir(const char * const name, const int error = 0);
 
   /**
    * Handle mkdir in the monitored process
@@ -250,13 +258,6 @@ class Process {
    * @param error error code of mkdir()
    */
   int handle_mkdir(const int dirfd, const char * const name, const int error = 0);
-
-  /**
-   * Handle rmdir in the monitored process
-   * @param name relative or absolute file name
-   * @param error error code of rmdir()
-   */
-  int handle_rmdir(const char * const name, const int error = 0);
 
   /**
    * Handle pipe() in the monitored process
