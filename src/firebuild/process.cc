@@ -162,7 +162,8 @@ int Process::handle_close(const int fd, const int error) {
   }
 }
 
-int Process::handle_unlink(const int dirfd, const char * const ar_name, const int error) {
+int Process::handle_unlink(const int dirfd, const char * const ar_name,
+                           const int flags, const int error) {
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if unlinkat() failed due to the invalid dirfd
@@ -171,16 +172,21 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const in
   }
 
   if (!error) {
-    FileUsage fu(ISREG);
+    // FIXME When a directory is removed, register that it was an _empty_ directory
+    FileUsage fu(flags & AT_REMOVEDIR ? ISDIR : ISREG);
     fu.set_written(true);
     if (!exec_point()->register_file_usage(name, fu)) {
-      disable_shortcutting_bubble_up("Could not register the unlinking of " +
+      disable_shortcutting_bubble_up("Could not register the unlink or rmdir of " +
                                      pretty_print_string(name));
       return -1;
     }
   }
 
   return 0;
+}
+
+int Process::handle_rmdir(const char * const ar_name, const int error) {
+  return handle_unlink(AT_FDCWD, ar_name, AT_REMOVEDIR, error);
 }
 
 int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int error) {
@@ -195,23 +201,6 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
     disable_shortcutting_bubble_up("Could not register the directory creation of " +
                                    pretty_print_string(name));
     return -1;
-  }
-
-  return 0;
-}
-
-int Process::handle_rmdir(const char * const ar_name, const int error) {
-  const FileName* name = get_absolute(AT_FDCWD, ar_name);
-  assert(name);
-
-  if (!error) {
-    FileUsage fu(ISDIR);  // FIXME register that it's an _empty_ directory
-    fu.set_written(true);
-    if (!exec_point()->register_file_usage(name, fu)) {
-      disable_shortcutting_bubble_up("Could not register the rmdir of " +
-                                     pretty_print_string(name));
-      return -1;
-    }
   }
 
   return 0;
