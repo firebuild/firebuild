@@ -159,50 +159,11 @@ class Process {
   }
 
   /**
-   * Return the resolved absolute pathname, based on the given dirfd directory (possibly AT_FDCWD
-   * for the current directory). Return nullptr if the path is relative and dirfd is invalid.
+   * Return the resolved and canonicalized absolute pathname, based on the given dirfd directory
+   * (possibly AT_FDCWD for the current directory). Return nullptr if the path is relative and
+   * dirfd is invalid.
    */
-  inline const FileName* get_absolute(const int dirfd,
-                                      const char * const name, ssize_t length = -1) {
-    if (platform::path_is_absolute(name)) {
-      return FileName::Get(name, length);
-    } else {
-      char on_stack_buf[2048], *buf;
-
-      const FileName* dir;
-      if (dirfd == AT_FDCWD) {
-        dir = wd();
-      } else {
-        std::shared_ptr<FileFD> ffd = get_fd(dirfd);
-        if (ffd) {
-          dir = ffd->filename();
-          if (!dir) {
-            return nullptr;
-          }
-        } else {
-          return nullptr;
-        }
-      }
-
-      const size_t on_stack_buffer_size = sizeof(on_stack_buf);
-      const ssize_t name_length = (length == -1) ? strlen(name) : length;
-      const size_t total_buf_len = dir->length() + 1 + name_length + 1;
-      if (on_stack_buffer_size < total_buf_len) {
-        buf = reinterpret_cast<char *>(malloc(total_buf_len));
-      } else {
-        buf = reinterpret_cast<char *>(on_stack_buf);
-      }
-      memcpy(buf, dir->c_str(), dir->length());
-      buf[dir->length()] = '/';
-      memcpy(buf + dir->length() + 1, name, name_length);
-      buf[total_buf_len - 1] = '\0';
-      const FileName* ret = FileName::Get(buf, total_buf_len - 1);
-      if (on_stack_buffer_size < total_buf_len) {
-        free(buf);
-      }
-      return ret;
-    }
-  }
+  const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length = -1);
 
   /**
    * Handle file opening in the monitored process
