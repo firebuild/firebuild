@@ -443,6 +443,131 @@ void Process::handle_set_fwd(const int fd) {
   add_wd(wd_);
 }
 
+/**
+ * Canonicalize the filename in place.
+ *
+ * String operation only, does not look at the actual file system.
+ * Removes double slashes, trailing slashes (except if the entire path is "/")
+ * and "." components.
+ * Preserves ".." components, since they might point elsewhere if a symlink led to
+ * its containing directory.
+ * See #401 for further details and gotchas.
+ *
+ * Returns the length of the canonicalized path.
+ */
+static inline size_t canonicalize_path(char *path) {
+  char *src = path, *dst = path;  /* dst <= src all the time */
+  bool add_slash = true;
+
+  if (path[0] == '\0') return 0;
+
+  if (!(path[0] == '.' && path[1] == '/')) {
+    char *a = strstr(path, "//");
+    char *b = strstr(path, "/./");
+    if (a == NULL && b == NULL) {
+      /* This is the quick code path for most of the well-behaved paths:
+       * doesn't start with "./", doesn't contain "//" or "/./".
+       * If a path passes this check then the only thing that might need
+       * fixing is a trailing "/" or "/.". */
+      int len = strlen(path);
+      if (len >= 2 && path[len - 1] == '.' && path[len - 2] == '/') {
+        /* Strip the final "." if the path ends in "/.". */
+        len--;
+        path[len] = '\0';
+      }
+      if (len >= 2 && path[len - 1] == '/') {
+        /* Strip the final "/" if the path ends in "/" and that's not the entire path. */
+        len--;
+        path[len] = '\0';
+      }
+      /* The quick code path is done here. */
+      return len;
+    }
+    /* Does not start with "./", but contains at least a "//" or "/./".
+     * Everything is fine up to that point. Fast forward src and dst. */
+    if (a != NULL && b != NULL) {
+      src = dst = a < b ? a : b;
+    } else if (a != NULL) {
+      src = dst = a;
+    } else {
+      src = dst = b;
+    }
+  } else {
+    /* Starts with "./", needs fixing from the beginning. */
+    src++;
+    add_slash = false;  /* Don't add "/" to dst when skipping the first one(s) in src. */
+  }
+
+  while (src[0] != '\0') {
+    /* Skip through a possible run of slashes and non-initial "." components, e.g. "//././". */
+    if (src[0] == '/') {
+      while (src[0] == '/' || (src[0] == '.' && (src[1] == '/' || src[1] == '\0'))) src++;
+      if (add_slash) {
+        *dst++ = '/';
+      }
+    }
+    /* Handle a regular (not ".") component. */
+    while (src[0] != '/' && src[0] != '\0') {
+      *dst++ = *src++;
+    }
+    add_slash = true;
+  }
+
+  /* If got empty path then it should be a "." instead. */
+  if (dst == path) {
+    *dst++ = '.';
+  }
+  /* Strip trailing slash, except if the entire path is "/". */
+  if (dst > path + 1 && dst[-1] == '/') {
+    dst--;
+  }
+
+  *dst = '\0';
+  return dst - path;
+}
+
+const FileName* Process::get_absolute(const int dirfd, const char * const name, ssize_t length) {
+  if (platform::path_is_absolute(name)) {
+    return FileName::Get(name, length);
+  } else {
+    char on_stack_buf[2048], *buf;
+
+    const FileName* dir;
+    if (dirfd == AT_FDCWD) {
+      dir = wd();
+    } else {
+      std::shared_ptr<FileFD> ffd = get_fd(dirfd);
+      if (ffd) {
+        dir = ffd->filename();
+        if (!dir) {
+          return nullptr;
+        }
+      } else {
+        return nullptr;
+      }
+    }
+
+    const size_t on_stack_buffer_size = sizeof(on_stack_buf);
+    const ssize_t name_length = (length == -1) ? strlen(name) : length;
+    const size_t total_buf_len = dir->length() + 1 + name_length + 1;
+    if (on_stack_buffer_size < total_buf_len) {
+      buf = reinterpret_cast<char *>(malloc(total_buf_len));
+    } else {
+      buf = reinterpret_cast<char *>(on_stack_buf);
+    }
+    memcpy(buf, dir->c_str(), dir->length());
+    buf[dir->length()] = '/';
+    memcpy(buf + dir->length() + 1, name, name_length);
+    buf[total_buf_len - 1] = '\0';
+    const size_t canonicalized_len = canonicalize_path(buf);
+    const FileName* ret = FileName::Get(buf, canonicalized_len);
+    if (on_stack_buffer_size < total_buf_len) {
+      free(buf);
+    }
+    return ret;
+  }
+}
+
 static bool argv_matches_expectation(const std::vector<std::string>& actual,
                                      const std::vector<std::string>& expected) {
   /* When launching ["foo", "arg1"], the new process might be something like
@@ -610,5 +735,48 @@ void Process::export2js_recurse(const unsigned int level, FILE* stream,
 
 Process::~Process() {
 }
+
+
+#if 0  /* unittests for canonicalize_path() */
+
+/* Macro so that assert() reports useful line numbers. */
+#define test(A, B) { \
+  char *str = strdup(A); \
+  canonicalize_path(str); \
+  if (strcmp(str, B)) { \
+    fprintf(stderr, "Error:  input: %s\n", A); \
+    fprintf(stderr, "     expected: %s\n", B); \
+    fprintf(stderr, "  got instead: %s\n", str); \
+  } \
+}
+
+int main() {
+  test("/", "/");
+  test("/etc/hosts", "/etc/hosts");
+  test("/usr/include/vte-2.91/vte/vteterminal.h", "/usr/include/vte-2.91/vte/vteterminal.h");
+  test("/usr/bin/", "/usr/bin");
+  test("/usr/bin/.", "/usr/bin");
+  test("/usr/./bin", "/usr/bin");
+  test("/./usr/bin", "/usr/bin");
+  test("//", "/");
+  test("", "");
+  test(".", ".");
+  test("/.", "/");
+  test("./", ".");
+  test("/./././", "/");
+  test("./././.", ".");
+  test("//foo//bar//", "/foo/bar");
+  test("/././foo/././bar/././", "/foo/bar");
+  test("///.//././/.///foo//.//bar//.", "/foo/bar");
+  test("////foo/../bar", "/foo/../bar");
+  test("/foo/bar/../../../../../", "/foo/bar/../../../../..");
+  test("/.foo/.bar/..quux", "/.foo/.bar/..quux");
+  test("foo", "foo");
+  test("foo/bar", "foo/bar");
+  test("././foo/./bar/./.", "foo/bar");
+}
+
+#endif  /* unittests for canonicalize_path() */
+
 
 }  // namespace firebuild
