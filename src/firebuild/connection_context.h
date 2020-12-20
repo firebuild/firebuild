@@ -37,8 +37,9 @@ class ConnectionContext {
       proc->finish();
     }
     assert(ev_);
-    close(event_get_fd(ev_));
+    evutil_socket_t conn = event_get_fd(ev_);
     event_free(ev_);
+    close(conn);
   }
   void set_ev(struct event* ev) {ev_ = ev;}
   LinearBuffer& buffer() {return buffer_;}
