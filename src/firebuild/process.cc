@@ -455,7 +455,7 @@ void Process::handle_set_fwd(const int fd) {
  *
  * Returns the length of the canonicalized path.
  */
-static inline size_t canonicalize_path(char *path) {
+static inline size_t canonicalize_path(char *path, size_t original_length) {
   char *src = path, *dst = path;  /* dst <= src all the time */
   bool add_slash = true;
 
@@ -469,7 +469,7 @@ static inline size_t canonicalize_path(char *path) {
        * doesn't start with "./", doesn't contain "//" or "/./".
        * If a path passes this check then the only thing that might need
        * fixing is a trailing "/" or "/.". */
-      int len = strlen(path);
+      size_t len = original_length;
       if (len >= 2 && path[len - 1] == '.' && path[len - 2] == '/') {
         /* Strip the final "." if the path ends in "/.". */
         len--;
@@ -559,7 +559,7 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name, 
     buf[dir->length()] = '/';
     memcpy(buf + dir->length() + 1, name, name_length);
     buf[total_buf_len - 1] = '\0';
-    const size_t canonicalized_len = canonicalize_path(buf);
+    const size_t canonicalized_len = canonicalize_path(buf, total_buf_len - 1);
     const FileName* ret = FileName::Get(buf, canonicalized_len);
     if (on_stack_buffer_size < total_buf_len) {
       free(buf);
