@@ -25,9 +25,7 @@ namespace firebuild {
 
 class ExecedProcessCacher {
  public:
-  ExecedProcessCacher(BlobCache *blob_cache,
-                      ObjCache *obj_cache,
-                      bool no_store,
+  ExecedProcessCacher(bool no_store,
                       bool no_fetch,
                       const libconfig::Setting& envs_skip);
 
@@ -45,8 +43,6 @@ class ExecedProcessCacher {
  private:
   bool env_fingerprintable(const std::string& name_and_value) const;
 
-  BlobCache *blob_cache_;
-  ObjCache *obj_cache_;
   bool no_store_;
   bool no_fetch_;
   const libconfig::Setting& envs_skip_;

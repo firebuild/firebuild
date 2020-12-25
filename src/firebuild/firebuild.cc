@@ -1177,8 +1177,8 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  auto blob_cache = new firebuild::BlobCache(cache_dir + "/blobs");
-  auto obj_cache = new firebuild::ObjCache(cache_dir + "/objs");
+  firebuild::blob_cache = new firebuild::BlobCache(cache_dir + "/blobs");
+  firebuild::obj_cache = new firebuild::ObjCache(cache_dir + "/objs");
   /* Like CCACHE_READONLY: Don't store new results in the cache. */
   bool no_store = (getenv("FIREBUILD_READONLY") != NULL);
   /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
@@ -1190,7 +1190,7 @@ int main(const int argc, char *argv[]) {
    * more matches are found in the objcache. */
   bool no_fetch = (getenv("FIREBUILD_RECACHE") != NULL);
   cacher =
-      new firebuild::ExecedProcessCacher(blob_cache, obj_cache, no_store, no_fetch,
+      new firebuild::ExecedProcessCacher(no_store, no_fetch,
                                          cfg->getRoot()["env_vars"]["fingerprint_skip"]);
   firebuild::hash_cache = new firebuild::HashCache();
 
