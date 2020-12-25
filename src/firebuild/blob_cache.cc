@@ -19,6 +19,9 @@
 
 namespace firebuild {
 
+/* singleton */
+BlobCache *blob_cache;
+
 BlobCache::BlobCache(const std::string &base_dir) : base_dir_(base_dir) {
   mkdir(base_dir_.c_str(), 0700);
 }

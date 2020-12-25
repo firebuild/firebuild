@@ -32,5 +32,8 @@ class ObjCache {
   std::string base_dir_;
 };
 
+/* singleton */
+extern ObjCache *obj_cache;
+
 }  // namespace firebuild
 #endif  // FIREBUILD_OBJ_CACHE_H_

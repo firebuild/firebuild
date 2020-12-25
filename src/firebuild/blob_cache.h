@@ -26,5 +26,8 @@ class BlobCache {
   std::string base_dir_;
 };
 
+/* singleton */
+extern BlobCache *blob_cache;
+
 }  // namespace firebuild
 #endif  // FIREBUILD_BLOB_CACHE_H_
