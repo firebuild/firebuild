@@ -1,7 +1,7 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-#include "firebuild/cache.h"
+#include "firebuild/blob_cache.h"
 
 #include <fcntl.h>
 #include <linux/fs.h>
@@ -19,7 +19,7 @@
 
 namespace firebuild {
 
-Cache::Cache(const std::string &base_dir) : base_dir_(base_dir) {
+BlobCache::BlobCache(const std::string &base_dir) : base_dir_(base_dir) {
   mkdir(base_dir_.c_str(), 0700);
 }
 
@@ -109,9 +109,9 @@ static std::string construct_cached_file_name(const std::string &base,
  * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
-bool Cache::store_file(const FileName *path,
-                       Hash *key_out) {
-  FB_DEBUG(FB_DEBUG_CACHING, "Cache: storing blob " + path->to_string());
+bool BlobCache::store_file(const FileName *path,
+                           Hash *key_out) {
+  FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + path->to_string());
 
   /* Copy the file to a temporary one under the cache */
   int fd_src = open(path->c_str(), O_RDONLY);
@@ -173,7 +173,7 @@ bool Cache::store_file(const FileName *path,
     std::string txt(pretty_print_timestamp() + "  Copied from " + path->to_string() + "\n");
     int fd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(fd, txt.c_str(), txt.size()) < 0) {
-      perror("Cache::store_file");
+      perror("BlobCache::store_file");
     }
     close(fd);
   }
@@ -196,10 +196,10 @@ bool Cache::store_file(const FileName *path,
  * @param path_dst Where to place the file
  * @return Whether succeeded
  */
-bool Cache::retrieve_file(const Hash &key,
-                          const FileName *path_dst) {
+bool BlobCache::retrieve_file(const Hash &key,
+                              const FileName *path_dst) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "Cache: retrieving blob " + key.to_ascii() + " => "
+    FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + key.to_ascii() + " => "
              + path_dst->to_string());
   }
 

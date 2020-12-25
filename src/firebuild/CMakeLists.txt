@@ -1,6 +1,6 @@
 
 # GCC raises warning about the GCC-optimized code
-set_source_files_properties(execed_process_cacher.cc multi_cache.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
+set_source_files_properties(execed_process_cacher.cc obj_cache.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
 find_package(FlatBuffers REQUIRED)
 find_package(LibConfig REQUIRED)
@@ -36,8 +36,8 @@ add_executable(firebuild
   file_db.cc
   file_usage.cc
   file_usage_db.cc
-  cache.cc
-  multi_cache.cc
+  blob_cache.cc
+  obj_cache.cc
   utils.cc
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash)

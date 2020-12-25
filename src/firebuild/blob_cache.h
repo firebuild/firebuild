@@ -1,8 +1,8 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_CACHE_H_
-#define FIREBUILD_CACHE_H_
+#ifndef FIREBUILD_BLOB_CACHE_H_
+#define FIREBUILD_BLOB_CACHE_H_
 
 #include <string>
 
@@ -11,10 +11,10 @@
 
 namespace firebuild {
 
-class Cache {
+class BlobCache {
  public:
-  explicit Cache(const std::string &base_dir);
-  ~Cache();
+  explicit BlobCache(const std::string &base_dir);
+  ~BlobCache();
 
   bool store_file(const FileName *path,
                   Hash *key_out);
@@ -27,4 +27,4 @@ class Cache {
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_CACHE_H_
+#endif  // FIREBUILD_BLOB_CACHE_H_
