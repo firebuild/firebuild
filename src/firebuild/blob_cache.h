@@ -4,6 +4,10 @@
 #ifndef FIREBUILD_BLOB_CACHE_H_
 #define FIREBUILD_BLOB_CACHE_H_
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <string>
 
 #include "firebuild/file_name.h"
@@ -17,7 +21,9 @@ class BlobCache {
   ~BlobCache();
 
   bool store_file(const FileName *path,
-                  Hash *key_out);
+                  Hash *key_out,
+                  int fd = -1,
+                  struct stat64 *st = NULL);
   bool retrieve_file(const Hash &key,
                      const FileName *path_dst);
 

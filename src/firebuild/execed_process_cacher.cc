@@ -203,35 +203,45 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
      * and also record it in pb's "outputs". This actually needs to
      * compute the checksums now. */
     if (fu->written()) {
-      Hash new_hash;
-      struct stat st;
-      if (stat(filename->c_str(), &st) == 0) {
-        if (S_ISREG(st.st_mode)) {
-          /* TODO don't store and don't record if it was read with the same hash. */
-          if (!blob_cache->store_file(filename, &new_hash)) {
-            /* unexpected error, now what? */
-            FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
-            return;
+      int fd = open(filename->c_str(), O_RDONLY);
+      if (fd >= 0) {
+        Hash new_hash;
+        struct stat64 st;
+        if (fstat64(fd, &st) == 0) {
+          if (S_ISREG(st.st_mode)) {
+            /* TODO don't store and don't record if it was read with the same hash. */
+            if (!hash_cache->store_and_get_hash(filename, &new_hash, fd, &st)) {
+              /* unexpected error, now what? */
+              FB_DEBUG(FB_DEBUG_CACHING,
+                       "Could not store blob in cache, not writing shortcut info");
+              return;
+            }
+            const auto path = builder.CreateString(filename->c_str(), filename->length());
+            const auto hash =
+                builder.CreateVector(new_hash.to_binary(), Hash::hash_size());
+            // TODO(egmont) fail if setuid/setgid/sticky is set
+            /* File's default values. */
+            const int mtime = 0, size = 0;
+            int mode = st.st_mode & 07777;
+            out_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash, mtime, size,
+                                                               mode));
+          } else if (S_ISDIR(st.st_mode)) {
+            const auto path = builder.CreateString(filename->c_str(), filename->length());
+            /* File's default values. */
+            const int hash = 0, mtime = 0, size = 0;
+            // TODO(egmont) fail if setuid/setgid/sticky is set
+            const int mode = st.st_mode & 07777;
+            out_path_isdir.push_back(msg::CreateFile(builder, path, hash, mtime, size, mode));
+          } else {
+            // TODO(egmont) handle other types of entries
           }
-          const auto path = builder.CreateString(filename->c_str(), filename->length());
-          const auto hash =
-              builder.CreateVector(new_hash.to_binary(), Hash::hash_size());
-          // TODO(egmont) fail if setuid/setgid/sticky is set
-          /* File's default values. */
-          const int mtime = 0, size = 0;
-          int mode = st.st_mode & 07777;
-          out_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash, mtime, size,
-                                                             mode));
-        } else if (S_ISDIR(st.st_mode)) {
-          const auto path = builder.CreateString(filename->c_str(), filename->length());
-          /* File's default values. */
-          const int hash = 0, mtime = 0, size = 0;
-          // TODO(egmont) fail if setuid/setgid/sticky is set
-          const int mode = st.st_mode & 07777;
-          out_path_isdir.push_back(msg::CreateFile(builder, path, hash, mtime, size, mode));
         } else {
-          // TODO(egmont) handle other types of entries
+          perror("fstat");
+          if (fu->initial_state() != NOTEXIST) {
+            out_path_notexist_fns.push_back(filename);
+          }
         }
+        close(fd);
       } else {
         if (fu->initial_state() != NOTEXIST) {
           out_path_notexist_fns.push_back(filename);

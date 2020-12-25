@@ -8,14 +8,10 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
-#include "firebuild/hash_cache.h"
 
 namespace firebuild {
 
@@ -104,54 +100,73 @@ static std::string construct_cached_file_name(const std::string &base,
 }
 
 /**
- * Store the given file in the blob cache, with its hash as the key.
- *
+ * Store the given regular file in the blob cache, with its hash as the key.
  * Uses advanced technologies, such as copy on write, if available.
+ *
+ * If fd >= 0 then that is used as the data source, the path is only used for debugging.
+ * If st != NULL then it contains the file's stat info.
  *
  * @param path The file to place in the cache
  * @param key_out Optionally store the key (hash) here
+ * @param fd_src Optionally the opened file descriptor to copy
+ * @param stat_ptr Optionally the file's parameters already stat()'ed
  * @return Whether succeeded
  */
 bool BlobCache::store_file(const FileName *path,
-                           Hash *key_out) {
+                           Hash *key_out,
+                           int fd_src,
+                           struct stat64 *stat_ptr) {
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + path->to_string());
 
-  /* Copy the file to a temporary one under the cache */
-  int fd_src = open(path->c_str(), O_RDONLY);
+  bool close_fd_src = false;
   if (fd_src == -1) {
-    perror("open");
-    return false;
+    fd_src = open(path->c_str(), O_RDONLY);
+    if (fd_src == -1) {
+      perror("open");
+      return false;
+    }
+    close_fd_src = true;
   }
 
-  struct stat64 st;
-  if (fstat64(fd_src, &st) == -1) {
+  struct stat64 st_local, *st;
+  st = stat_ptr ? stat_ptr : &st_local;
+  if (!stat_ptr && (fd_src >= 0 ? fstat64(fd_src, st) : stat64(path->c_str(), st)) == -1) {
     perror("fstat64");
+    if (close_fd_src) {
+      close(fd_src);
+    }
     return false;
   }
 
+  /* Copy the file to a temporary one under the cache */
   std::string tmpfile = base_dir_ + "/new.XXXXXX";
   char *tmpfile_c_writable = &*tmpfile.begin();  // hack against c_str()'s constness
   int fd_dst = mkstemp(tmpfile_c_writable);  // opens with O_RDWR
   if (fd_dst == -1) {
     perror("mkstemp");
-    close(fd_src);
+    if (close_fd_src) {
+      close(fd_src);
+    }
     return false;
   }
 
-  if (!copy_file(fd_src, fd_dst, &st)) {
+  if (!copy_file(fd_src, fd_dst, st)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to copy file");
-    close(fd_src);
+    if (close_fd_src) {
+      close(fd_src);
+    }
     close(fd_dst);
     unlink(tmpfile.c_str());
     return false;
   }
-  close(fd_src);
+  if (close_fd_src) {
+    close(fd_src);
+  }
 
   /* Copying complete. Compute checksum on the copy, to prevent cache
-   * corruption if someone is modifying the original file.
-   * Also place this checksum in the hash cache as the one belonging to the original file. */
+   * corruption if someone is modifying the original file. */
   Hash key;
-  if (!hash_cache->get_hash(path, &key, NULL, fd_dst, &st, true)) {
+  if (!key.set_from_fd(fd_dst, NULL)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd_dst);
     unlink(tmpfile.c_str());
