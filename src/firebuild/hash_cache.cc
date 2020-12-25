@@ -33,7 +33,7 @@ static bool update(const FileName* path, int fd, struct stat64 *stat_ptr, HashCa
                    bool force) {
   struct stat64 st_local, *st;
   st = stat_ptr ? stat_ptr : &st_local;
-  if (!stat_ptr && stat64(path->c_str(), st) == -1) {
+  if (!stat_ptr && (fd >= 0 ? fstat64(fd, st) : stat64(path->c_str(), st)) == -1) {
     return false;
   }
   if (!force &&
