@@ -11,8 +11,8 @@
 #include <vector>
 #include <libconfig.h++>
 
-#include "firebuild/cache.h"
-#include "firebuild/multi_cache.h"
+#include "firebuild/blob_cache.h"
+#include "firebuild/obj_cache.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
@@ -25,8 +25,8 @@ namespace firebuild {
 
 class ExecedProcessCacher {
  public:
-  ExecedProcessCacher(Cache *cache,
-                      MultiCache *multi_cache,
+  ExecedProcessCacher(BlobCache *blob_cache,
+                      ObjCache *obj_cache,
                       bool no_store,
                       bool no_fetch,
                       const libconfig::Setting& envs_skip);
@@ -45,8 +45,8 @@ class ExecedProcessCacher {
  private:
   bool env_fingerprintable(const std::string& name_and_value) const;
 
-  Cache *cache_;
-  MultiCache *multi_cache_;
+  BlobCache *blob_cache_;
+  ObjCache *obj_cache_;
   bool no_store_;
   bool no_fetch_;
   const libconfig::Setting& envs_skip_;

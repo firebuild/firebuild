@@ -1,8 +1,8 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_MULTI_CACHE_H_
-#define FIREBUILD_MULTI_CACHE_H_
+#ifndef FIREBUILD_OBJ_CACHE_H_
+#define FIREBUILD_OBJ_CACHE_H_
 
 #include <string>
 #include <vector>
@@ -11,10 +11,10 @@
 
 namespace firebuild {
 
-class MultiCache {
+class ObjCache {
  public:
-  explicit MultiCache(const std::string &base_dir);
-  ~MultiCache();
+  explicit ObjCache(const std::string &base_dir);
+  ~ObjCache();
 
   bool store(const Hash &key,
              const uint8_t * const entry,
@@ -33,4 +33,4 @@ class MultiCache {
 };
 
 }  // namespace firebuild
-#endif  // FIREBUILD_MULTI_CACHE_H_
+#endif  // FIREBUILD_OBJ_CACHE_H_

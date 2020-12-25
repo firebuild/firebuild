@@ -28,12 +28,12 @@ namespace firebuild {
  * of multiple ExecedProcesses which potentially come from / go to the
  * same cache.
  */
-ExecedProcessCacher::ExecedProcessCacher(Cache *cache,
-                                         MultiCache *multi_cache,
+ExecedProcessCacher::ExecedProcessCacher(BlobCache *blob_cache,
+                                         ObjCache *obj_cache,
                                          bool no_store,
                                          bool no_fetch,
                                          const libconfig::Setting& envs_skip) :
-    cache_(cache), multi_cache_(multi_cache), no_store_(no_store), no_fetch_(no_fetch),
+    blob_cache_(blob_cache), obj_cache_(obj_cache), no_store_(no_store), no_fetch_(no_fetch),
     envs_skip_(envs_skip), fingerprints_(), fingerprint_msgs_() { }
 
 /**
@@ -210,7 +210,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       if (stat(filename->c_str(), &st) == 0) {
         if (S_ISREG(st.st_mode)) {
           /* TODO don't store and don't record if it was read with the same hash. */
-          if (!cache_->store_file(filename, &new_hash)) {
+          if (!blob_cache_->store_file(filename, &new_hash)) {
             /* unexpected error, now what? */
             FB_DEBUG(FB_DEBUG_CACHING, "Could not store blob in cache, not writing shortcut info");
             return;
@@ -277,7 +277,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
-  multi_cache_->store(fingerprint, builder.GetBufferPointer(), builder.GetSize(), debug_msg, NULL);
+  obj_cache_->store(fingerprint, builder.GetBufferPointer(), builder.GetSize(), debug_msg, NULL);
 }
 
 /**
@@ -390,14 +390,14 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
-  std::vector<Hash> subkeys = multi_cache_->list_subkeys(fingerprint);
+  std::vector<Hash> subkeys = obj_cache_->list_subkeys(fingerprint);
   if (subkeys.empty()) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
   }
   for (const Hash& subkey : subkeys) {
-    if (!multi_cache_->retrieve(fingerprint, subkey, inouts_buf, inouts_buf_len)) {
+    if (!obj_cache_->retrieve(fingerprint, subkey, inouts_buf, inouts_buf_len)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   Cannot retrieve " + subkey.to_ascii() + " from multicache, ignoring");
+               "│   Cannot retrieve " + subkey.to_ascii() + " from objcache, ignoring");
       continue;
     }
     auto inouts = msg::GetProcessInputsOutputs(*inouts_buf);
@@ -492,7 +492,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     Hash hash;
     assert(file->hash()->size() == Hash::hash_size());
     hash.set_hash_from_binary(file->hash()->data());
-    cache_->retrieve_file(hash, path);
+    blob_cache_->retrieve_file(hash, path);
     /* mode is -1 by default in flatbuffers */
     if (file->mode() != -1) {
       /* Refuse to apply setuid, setgid, sticky bit. */

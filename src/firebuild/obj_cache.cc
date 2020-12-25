@@ -2,7 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 /*
- * multi-cache is a weird caching structure where a key can contain
+ * obj-cache is a weird caching structure where a key can contain
  * multiple values. More precisely, a key contains a list of subkeys,
  * and a (key, subkey) pair points to a value.
  *
@@ -24,7 +24,7 @@
  * - f/fi/fingerprint1/inputsoutputs2
  */
 
-#include "firebuild/multi_cache.h"
+#include "firebuild/obj_cache.h"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -44,7 +44,7 @@
 
 namespace firebuild {
 
-MultiCache::MultiCache(const std::string &base_dir) : base_dir_(base_dir) {
+ObjCache::ObjCache(const std::string &base_dir) : base_dir_(base_dir) {
   mkdir(base_dir_.c_str(), 0700);
 }
 
@@ -107,7 +107,7 @@ static std::string FlatBufferToStringQuoted(const uint8_t *buffer,
 
 
 /**
- * Store a serialized entry in multi-cache.
+ * Store a serialized entry in obj-cache.
  *
  * @param key The key
  * @param entry The entry to store
@@ -116,13 +116,13 @@ static std::string FlatBufferToStringQuoted(const uint8_t *buffer,
  * @param subkey_out Optionally store the subkey (hash of the entry) here
  * @return Whether succeeded
  */
-bool MultiCache::store(const Hash &key,
-                       const uint8_t * const entry,
-                       const size_t entry_len,
-                       const uint8_t * const debug_key,
-                       Hash *subkey_out) {
+bool ObjCache::store(const Hash &key,
+                     const uint8_t * const entry,
+                     const size_t entry_len,
+                     const uint8_t * const debug_key,
+                     Hash *subkey_out) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: storing entry, key " + key.to_ascii());
+    FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: storing entry, key " + key.to_ascii());
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -195,7 +195,7 @@ bool MultiCache::store(const Hash &key,
 }
 
 /**
- * Retrieve an entry from the multi-cache.
+ * Retrieve an entry from the obj-cache.
  *
  * @param key The key
  * @param subkey The subkey
@@ -203,12 +203,12 @@ bool MultiCache::store(const Hash &key,
  * @param[out] entry_len entry's length in bytes
  * @return Whether succeeded
  */
-bool MultiCache::retrieve(const Hash &key,
-                          const Hash &subkey,
-                          uint8_t ** entry,
-                          size_t * entry_len) {
+bool ObjCache::retrieve(const Hash &key,
+                        const Hash &subkey,
+                        uint8_t ** entry,
+                        size_t * entry_len) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "MultiCache: retrieving entry, key "
+    FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: retrieving entry, key "
              + key.to_ascii() + " subkey " + subkey.to_ascii());
   }
 
@@ -256,7 +256,7 @@ bool MultiCache::retrieve(const Hash &key,
  *
  * // FIXME replace with some iterator-like approach?
  */
-std::vector<Hash> MultiCache::list_subkeys(const Hash &key) {
+std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
   std::vector<Hash> ret;
   std::string path = construct_cached_dir_name(base_dir_, key, false);
 

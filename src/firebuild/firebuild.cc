@@ -26,7 +26,7 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
-#include "firebuild/cache.h"
+#include "firebuild/blob_cache.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Weffc++"
 #include "firebuild/cache_object_format_generated.h"
@@ -34,7 +34,7 @@
 #include "firebuild/connection_context.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
-#include "firebuild/multi_cache.h"
+#include "firebuild/obj_cache.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
@@ -1177,20 +1177,20 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  auto cache = new firebuild::Cache(cache_dir + "/blobs");
-  auto multi_cache = new firebuild::MultiCache(cache_dir + "/objs");
+  auto blob_cache = new firebuild::BlobCache(cache_dir + "/blobs");
+  auto obj_cache = new firebuild::ObjCache(cache_dir + "/objs");
   /* Like CCACHE_READONLY: Don't store new results in the cache. */
   bool no_store = (getenv("FIREBUILD_READONLY") != NULL);
   /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
    * potentially store new ones. Note however that it might decrease the
-   * multicache hit ratio: new entries might be stored that eventually
+   * objcache hit ratio: new entries might be stored that eventually
    * result in the same operation, but go through a slightly different
    * path (e.g. different tmp file name), and thus look different in
    * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
-   * more matches are found in the multicache. */
+   * more matches are found in the objcache. */
   bool no_fetch = (getenv("FIREBUILD_RECACHE") != NULL);
   cacher =
-      new firebuild::ExecedProcessCacher(cache, multi_cache, no_store, no_fetch,
+      new firebuild::ExecedProcessCacher(blob_cache, obj_cache, no_store, no_fetch,
                                          cfg->getRoot()["env_vars"]["fingerprint_skip"]);
   firebuild::hash_cache = new firebuild::HashCache();
 
