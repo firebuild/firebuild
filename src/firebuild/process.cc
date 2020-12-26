@@ -102,6 +102,12 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
     ack_msg(fd_conn, ack_num);
   }
 
+  if (!error && !exec_point()->register_parent_directory(name)) {
+    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
+                                   pretty_print_string(name));
+    return -1;
+  }
+
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
     disable_shortcutting_bubble_up("Could not register the opening of " +
                                    pretty_print_string(name->to_string()));
@@ -172,6 +178,12 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
   }
 
   if (!error) {
+    if (!exec_point()->register_parent_directory(name)) {
+      disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
+                                     pretty_print_string(name));
+      return -1;
+    }
+
     // FIXME When a directory is removed, register that it was an _empty_ directory
     FileUsage fu(flags & AT_REMOVEDIR ? ISDIR : ISREG);
     fu.set_written(true);
@@ -194,6 +206,12 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
   if (!name) {
     // FIXME don't disable shortcutting if mkdirat() failed due to the invalid dirfd
     disable_shortcutting_bubble_up("Invalid dirfd passed to mkdirat()");
+    return -1;
+  }
+
+  if (!error && !exec_point()->register_parent_directory(name)) {
+    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
+                                   pretty_print_string(name));
     return -1;
   }
 
@@ -279,11 +297,23 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   if (error) {
     return 0;
   }
+
   const FileName* old_name = get_absolute(olddirfd, old_ar_name);
   const FileName* new_name = get_absolute(newdirfd, new_ar_name);
   if (!old_name || !new_name) {
     // FIXME don't disable shortcutting if renameat() failed due to the invalid dirfd
     disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
+    return -1;
+  }
+
+  if (!exec_point()->register_parent_directory(old_name)) {
+    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
+                                   pretty_print_string(old_name));
+    return -1;
+  }
+  if (!exec_point()->register_parent_directory(new_name)) {
+    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
+                                   pretty_print_string(new_name));
     return -1;
   }
 

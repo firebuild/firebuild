@@ -225,6 +225,28 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   return true;
 }
 
+/**
+ * Register that the parent (a.k.a. dirname) of the given path does exist and is a directory, and
+ * bubbles it upwards to the root. See #259 for rationale.
+ * To be called on the exec_point of a non-shortcutted process when something is successfully done
+ * to the given file.
+ */
+bool ExecedProcess::register_parent_directory(const FileName *name) {
+  /* name is canonicalized, so just simply strip the last component */
+  std::string parent_name = name->to_string();
+  size_t slash_pos = parent_name.rfind('/');
+  if (slash_pos == 0) {
+    /* don't bother registering "/" */
+    return true;
+  } else if (slash_pos == std::string::npos) {
+    return false;
+  }
+  parent_name.resize(slash_pos);
+
+  FileUsage fu_change(ISDIR);
+  return register_file_usage(FileName::Get(parent_name), fu_change);
+}
+
 /* Find and apply shortcut */
 bool ExecedProcess::shortcut() {
   if (can_shortcut() && cacher_) {
