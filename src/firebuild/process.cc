@@ -298,11 +298,36 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
     return 0;
   }
 
+  /*
+   * Note: rename() is different from "mv" in at least two aspects:
+   *
+   * - Can't move to a containing directory, e.g.
+   *     rename("/home/user/file.txt", "/tmp");  // or "/tmp/"
+   *   fails, you have to specify the full new name like
+   *     rename("/home/user/file.txt", "/tmp/file.txt");
+   *   instead.
+   *
+   * - If the source is a directory then the target can be an empty directory,
+   *   which will be atomically removed beforehand. E.g. if "mytree" is a directory then
+   *     mkdir("/tmp/target");
+   *     rename("mytree", "/tmp/target");
+   *   will result in the former "mytree/file.txt" becoming "/tmp/target/file.txt",
+   *   with no "mytree" component. "target" has to be an empty directory for this to work.
+   */
+
   const FileName* old_name = get_absolute(olddirfd, old_ar_name);
   const FileName* new_name = get_absolute(newdirfd, new_ar_name);
   if (!old_name || !new_name) {
     // FIXME don't disable shortcutting if renameat() failed due to the invalid dirfd
     disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
+    return -1;
+  }
+
+  struct stat64 st;
+  if (lstat64(new_name->c_str(), &st) < 0 ||
+      !S_ISREG(st.st_mode)) {
+    disable_shortcutting_bubble_up("Could not register the renaming of non-regular file " +
+                                   pretty_print_string(old_name));
     return -1;
   }
 
