@@ -108,7 +108,21 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
       *is_dir_out = true;
     }
 
-    DIR *dir = fdopendir(fd);
+    /* Quoting fdopendir(3):
+     *   "After a successful call to fdopendir(), fd is used internally by the
+     *   implementation, and should not otherwise be used by the application."
+     * and closedir(3):
+     *   "A successful call to closedir() also closes the underlying file descriptor"
+     *
+     * It would be an unconventional and hard to use API for this method to close the passed fd.
+     * Not calling closedir() on the other hand could leave garbage in the memory, and
+     * the caller of this method directly calling close() would also go against the manpage.
+     * If we call closedir() and the caller also calls a failing close() then it's prone to
+     * raceable errors if one day we go multithreaded or so.
+     *
+     * So work on a duplicated fd and eventually close that, while keeping the original fd opened.
+     */
+    DIR *dir = fdopendir(dup(fd));
     if (dir == NULL) {
       FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of directory: fdopendir failed");
       return false;
