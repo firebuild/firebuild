@@ -65,6 +65,7 @@ class ExecedProcess : public Process {
   bool register_file_usage(const FileName *name, const FileName *actual_file,
                            FileAction action, int flags, int error);
   bool register_file_usage(const FileName *name, FileUsage fu_change);
+  bool register_parent_directory(const FileName *name);
 
   /**
    * Fail to change to a working directory

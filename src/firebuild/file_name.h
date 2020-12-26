@@ -31,6 +31,9 @@ class FileName {
   static const FileName* Get(const flatbuffers::String * const name) {
     return Get(name->c_str(), name->size());
   }
+  static const FileName* Get(const std::string& name) {
+    return Get(name.c_str(), name.size());
+  }
   /**
    * Checks if a path semantically begins with the given subpath.
    *
