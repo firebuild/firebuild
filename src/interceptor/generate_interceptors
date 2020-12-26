@@ -278,7 +278,8 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
          msg_skip_fields=["mode"],
          msg_add_fields=["fbb_open_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
                          "fbb_open_set_mode(&ic_msg, 0666);",
-                         "if (success) fbb_open_set_ret(&ic_msg, fd);"])
+                         "if (success) fbb_open_set_ret(&ic_msg, fd);"],
+         ack_condition="!is_path_at_locations(file, &system_locations)")
 
 # Intercept freopen
 # FIXME implement in the supervisor. Note that the behavior heavily depends on filename's nullness.
@@ -306,15 +307,13 @@ generate("int", "memfd_create", "const char *name, unsigned int flags",
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.
 generate("int", "close", "int fd",
-         before_lines=["if (i_am_intercepting) clear_file_state(fd);"],
-         ack_condition="true")
+         before_lines=["if (i_am_intercepting) clear_file_state(fd);"])
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
                        "if (i_am_intercepting) clear_file_state(fd);"],
          msg="close",
          msg_skip_fields=["stream"],
-         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"])
 
 skip("fcloseall")  # Only closes the high level streams, not the underlying fds.
 
@@ -323,13 +322,12 @@ generate("DIR *", "opendir", "const char *file",
          msg="open",
          msg_add_fields=["fbb_open_set_flags(&ic_msg, O_RDONLY | O_CLOEXEC | O_DIRECTORY);",
                          "if (success) fbb_open_set_ret(&ic_msg, ic_orig_dirfd(ret));"],
-         ack_condition="true")
+         ack_condition="!is_path_at_locations(file, &system_locations)")
 generate("int", "closedir", "DIR *dirp",
          before_lines=["int fd = safe_dirfd(dirp); /* save it here, we can't do dirfd() after the closedir() */"],
          msg="close",
          msg_skip_fields=["dirp"],
-         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"])
 # FIXME implement scandir(at)(64)
 
 generate("int", "mkdir", "const char *pathname, mode_t mode")
