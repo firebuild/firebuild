@@ -30,21 +30,57 @@ class LinearBuffer {
   size_t length() const {return length_;}
   /** Append to the data in the buffer. */
   ssize_t read(evutil_socket_t fd, ssize_t howmuch) {
-    if (howmuch < 0) {
-      howmuch = readable_bytes(fd);
-      if (howmuch <= 0) {
-        return howmuch;
+    assert(howmuch != 0);
+    if (howmuch >= 0) {
+      /* Read at most the specified amount, in one step. (Note: fd is nonblocking.) */
+      ensure_space(howmuch);
+      auto received = ::recv(fd, &buffer_[data_start_offset_ + length_], howmuch, 0);
+      if (received > 0) {
+        length_ += received;
       }
+      return received;
+    } else {
+      /* Read as much as we can. (Note: fd is nonblocking.)
+       * Try to use as few system calls as possible on average, see #417.
+       * So, begin with a reasonably large recv() that will most often result in a short recv()
+       * and then this is the only syscall we needed to perform. */
+      ensure_space(8 * 1024);
+      /* Now we have at least 8kB of free space to read to, but maybe even more.
+       * Try to read as much as we can, it cannot hurt. */
+      const ssize_t attempt1 = size_ - data_start_offset_ - length_;
+      auto received1 = ::recv(fd, &buffer_[data_start_offset_ + length_], attempt1, 0);
+      if (received1 <= 0) {
+        /* EOF, or nothing to read right now, or other error. */
+        return received1;
+      }
+      length_ += received1;
+      if (received1 < attempt1) {
+        /* Short read: return what we already have. */
+        return received1;
+      }
+      /* Full read: need to continue reading.
+       * We could expand the buffer and read in a loop until we have everything. But maybe let's
+       * just query the incoming data size and read the rest in one step, using two syscalls. */
+      const ssize_t attempt2 = readable_bytes(fd);
+      if (attempt2 <= 0) {
+        /* EOF, or nothing to read right now, or other error. Don't report this, report what we
+         * read in the previous step. */
+        return received1;
+      }
+      ensure_space(attempt2);
+      auto received2 = ::recv(fd, &buffer_[data_start_offset_ + length_], attempt2, 0);
+      if (received2 <= 0) {
+        /* EOF, or nothing to read right now, or other error. Don't report this, report what we
+         * read in the previous step. Or can we assert that this never happens? */
+        return received1;
+      }
+      length_ += received2;
+      return received1 + received2;
     }
-    ensure_space(howmuch);
-    auto received = ::recv(fd, &buffer_[data_start_offset_ + length_], howmuch, 0);
-    if (received > 0) {
-      length_ += received;
-    }
-    return received;
   }
   /** Discard howmuch bytes from the beginning of the data. */
   void discard(const size_t howmuch) {
+    assert(howmuch <= length_);
     length_ -= howmuch;
     if (length_ == 0) {
       data_start_offset_ = 0;
@@ -66,7 +102,7 @@ class LinearBuffer {
       memmove(buffer_, buffer_ + data_start_offset_, length_);
       data_start_offset_ = 0;
     }
-    size_t const needed_size = data_start_offset_ + length_ + howmuch;
+    const size_t needed_size = data_start_offset_ + length_ + howmuch;
     if (size_ < needed_size) {
       size_t new_size = (needed_size > size_ * 2) ? needed_size : size_ * 2;
       buffer_ = reinterpret_cast<char*>(realloc(buffer_, new_size));
