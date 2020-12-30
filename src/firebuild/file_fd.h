@@ -60,6 +60,7 @@ class FileFD {
       read_(false), written_(false), open_(true), origin_fd_(NULL),
       filename_(f), opened_by_(p) {}
   FileFD(FileFD&) = default;
+  FileFD(const FileFD&) = default;
   FileFD& operator= (const FileFD&) = default;
   int last_err() {return last_err_;}
   void set_last_err(int err) {last_err_ = err;}
@@ -67,7 +68,7 @@ class FileFD {
   Process * opened_by() {return opened_by_;}
   bool open() {return open_;}
   void set_open(bool o) {open_ = o;}
-  bool cloexec() {return curr_flags_ & O_CLOEXEC;}
+  bool cloexec() const {return curr_flags_ & O_CLOEXEC;}
   void set_cloexec(bool value) {
     if (value) {
       curr_flags_ |= O_CLOEXEC;
@@ -78,7 +79,7 @@ class FileFD {
   fd_origin origin_type() {return origin_type_;}
   bool read() {return read_;}
   bool written() {return written_;}
-  const FileName* filename() {return filename_;}
+  const FileName* filename() const {return filename_;}
 
  private:
   int fd_;
