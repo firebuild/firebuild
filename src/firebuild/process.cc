@@ -8,6 +8,8 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <utility>
+
 #include "firebuild/file.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
@@ -78,8 +80,14 @@ void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> f
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
   auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
   for (unsigned int i = 0; i < fds_->size(); i++) {
-    if (fds_->at(i) && !(execed &&(*fds_)[i]->cloexec())) {
-      add_filefd(fds, i, std::make_shared<FileFD>(*fds_->at(i).get()));
+    auto const &file_fd_shared_ptr = fds_->at(i);
+    if (file_fd_shared_ptr) {
+      const FileFD& raw_file_fd = *file_fd_shared_ptr.get();
+      if (!(execed && raw_file_fd.cloexec())) {
+        /* The operations on the fds in the new process don't affect the fds in the parent,
+         * thus create a copy of the parent's FileFD pointed to by a new shared pointer. */
+        add_filefd(fds, i, std::make_shared<FileFD>(raw_file_fd));
+      }
     }
   }
   return fds;
@@ -126,11 +134,13 @@ int Process::handle_force_close(const int fd) {
 }
 
 int Process::handle_close(const int fd, const int error) {
+  FileFD* file_fd = get_fd(fd);
+
   if (error == EIO) {
     // IO prevents shortcutting
     disable_shortcutting_bubble_up("IO error closing fd " + std::to_string(fd));
     return -1;
-  } else if (error == 0 && !get_fd(fd)) {
+  } else if (error == 0 && !file_fd) {
     // closing an unknown fd successfully prevents shortcutting
     disable_shortcutting_bubble_up("Process closed an unknown fd (" +
                                    std::to_string(fd) + ") successfully, which means "
@@ -139,31 +149,32 @@ int Process::handle_close(const int fd, const int error) {
   } else if (error == EBADF) {
     // Process closed an fd unknown to it. Who cares?
     return 0;
-  } else if (!get_fd(fd)) {
-    // closing an unknown fd with not EBADF prevents shortcutting
-    disable_shortcutting_bubble_up("Process closed an unknown fd (" +
-                                   std::to_string(fd) + ") successfully, which means "
-                                   "interception missed at least one open()");
-    return -1;
   } else {
-    if ((*fds_)[fd]->open() == true) {
-      (*fds_)[fd]->set_open(false);
-      if ((*fds_)[fd]->last_err() != error) {
-        (*fds_)[fd]->set_last_err(error);
-      }
-      // remove from open fds
-      closed_fds_.push_back((*fds_)[fd]);
-      (*fds_)[fd].reset();
-      return 0;
-    } else if (((*fds_)[fd]->last_err() == EINTR) && (error == 0)) {
-      // previous close got interrupted but the current one succeeded
-      (*fds_)[fd].reset();
-      return 0;
+    if (!file_fd) {
+      // closing an unknown fd with not EBADF prevents shortcutting
+      disable_shortcutting_bubble_up("Process closed an unknown fd (" +
+                                     std::to_string(fd) + ") successfully, which means "
+                                     "interception missed at least one open()");
+      return -1;
     } else {
-      // already closed, it may be an error
-      // TODO(rbalint) debug
-      (*fds_)[fd].reset();
-      return 0;
+      if (file_fd->open() == true) {
+        file_fd->set_open(false);
+        if (file_fd->last_err() != error) {
+          file_fd->set_last_err(error);
+        }
+        /* Remove from open fds. The (*fds_)[fd].reset() is performed by the move. */
+        closed_fds_.push_back(std::move((*fds_)[fd]));
+        return 0;
+      } else if ((file_fd->last_err() == EINTR) && (error == 0)) {
+        // previous close got interrupted but the current one succeeded
+        (*fds_)[fd].reset();
+        return 0;
+      } else {
+        // already closed, it may be an error
+        // TODO(rbalint) debug
+        (*fds_)[fd].reset();
+        return 0;
+      }
     }
   }
 }
@@ -485,7 +496,7 @@ void Process::handle_set_wd(const char * const ar_d) {
 }
 
 void Process::handle_set_fwd(const int fd) {
-  std::shared_ptr<FileFD> ffd = get_fd(fd);
+  const FileFD* ffd = get_fd(fd);
   if (!ffd) {
     disable_shortcutting_bubble_up("Process successfully fchdir()'ed to (" +
                                    std::to_string(fd) +
@@ -591,7 +602,7 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name, 
     if (dirfd == AT_FDCWD) {
       dir = wd();
     } else {
-      std::shared_ptr<FileFD> ffd = get_fd(dirfd);
+      const FileFD* ffd = get_fd(dirfd);
       if (ffd) {
         dir = ffd->filename();
         if (!dir) {
