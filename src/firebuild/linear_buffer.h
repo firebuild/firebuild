@@ -104,8 +104,8 @@ class LinearBuffer {
     }
     const size_t needed_size = data_start_offset_ + length_ + howmuch;
     if (size_ < needed_size) {
-      size_t new_size = (needed_size > size_ * 2) ? needed_size : size_ * 2;
-      buffer_ = reinterpret_cast<char*>(realloc(buffer_, new_size));
+      size_ = (needed_size > size_ * 2) ? needed_size : size_ * 2;
+      buffer_ = reinterpret_cast<char*>(realloc(buffer_, size_));
     }
   }
   ssize_t readable_bytes(evutil_socket_t fd) {
