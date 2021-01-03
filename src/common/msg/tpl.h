@@ -169,7 +169,7 @@ static inline const char *fbb_{{ msg }}_get_{{ var }}(const FBB_{{ msg }} *msg) 
 
 ###     elif type == STRINGARRAY
 #define for_s_in_fbb_{{ msg }}_{{ var }}(msg, loop_body) do {            \
-  size_t rem_size = msg->{{ var }}_size;                                 \
+  ssize_t rem_size = msg->{{ var }}_size;                                \
   const char *s = (const char *)(msg) + sizeof(*msg){{ ns.offset_str }}; \
   while (rem_size > 0) {                                                 \
     size_t s_length = strlen(s);                                         \
@@ -177,6 +177,7 @@ static inline const char *fbb_{{ msg }}_get_{{ var }}(const FBB_{{ msg }} *msg) 
     rem_size -= s_length + 1;                                            \
     s += s_length + 1;                                                   \
   }                                                                      \
+  assert(rem_size == 0);                                                 \
 } while (0)
 
 #ifdef __cplusplus
