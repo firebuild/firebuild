@@ -17,7 +17,7 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
   // add as fork child of parent
   if (parent) {
     exec_point_ = parent->exec_point();
-    parent->children().push_back(this);
+    parent->fork_children().push_back(this);
   } else {
     fb_error("impossible: Process without known fork parent\n");
   }

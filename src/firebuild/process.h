@@ -107,8 +107,8 @@ class Process {
   bool posix_spawn_pending() {return posix_spawn_pending_;}
   void set_exec_child(Process *p) {exec_child_ = p;}
   Process* exec_child() const {return exec_child_;}
-  std::vector<Process*>& children() {return children_;}
-  const std::vector<Process*>& children() const {return children_;}
+  std::vector<Process*>& fork_children() {return fork_children_;}
+  const std::vector<Process*>& fork_children() const {return fork_children_;}
   void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
   ExecedProcess *system_child() const {return system_child_;}
   void set_expected_child(ExecedProcessEnv *ec) {
@@ -392,7 +392,7 @@ class Process {
   /** Sum of user and system time in microseconds for all forked and exec()-ed
       children */
   int64_t aggr_time_ = 0;
-  std::vector<Process*> children_;  ///< children of the process
+  std::vector<Process*> fork_children_;  ///< children of the process
   /// the latest system() child
   ExecedProcess *system_child_ {NULL};
   /// for popen()ed children: client fd -> process mapping
