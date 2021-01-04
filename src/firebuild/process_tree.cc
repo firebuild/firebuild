@@ -71,8 +71,8 @@ profile_collect_cmds(const Process &p,
     }
     (*cmds)[ec->args()[0]].count += 1;
   }
-  for (auto& child : p.children()) {
-    profile_collect_cmds(*child, cmds, ancestors);
+  for (auto& fork_child : p.fork_children()) {
+    profile_collect_cmds(*fork_child, cmds, ancestors);
   }
 }
 
@@ -93,8 +93,8 @@ void ProcessTree::build_profile(const Process &p,
   if (p.exec_child() != NULL) {
     build_profile(*p.exec_child(), ancestors);
   }
-  for (auto& child : p.children()) {
-    build_profile(*child, ancestors);
+  for (auto& fork_child : p.fork_children()) {
+    build_profile(*fork_child, ancestors);
   }
 
   if (first_visited) {

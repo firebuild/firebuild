@@ -25,7 +25,7 @@ Process::Process(const int pid, const int ppid, const FileName *wd,
                  Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
-      closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), children_(),
+      closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), fork_children_(),
       expected_child_(), exec_child_(NULL) {
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
@@ -60,8 +60,8 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
                          int64_t *const sum_stime_u) {
   (*sum_utime_u) += utime_u_;
   (*sum_stime_u) += stime_u_;
-  for (unsigned int i = 0; i < children_.size(); i++) {
-    children_[i]->sum_rusage(sum_utime_u, sum_stime_u);
+  for (unsigned int i = 0; i < fork_children_.size(); i++) {
+    fork_children_[i]->sum_rusage(sum_utime_u, sum_stime_u);
   }
 }
 
@@ -728,8 +728,8 @@ bool Process::any_child_not_finalized() {
     return true;
   }
 
-  for (auto child : children_) {
-    if (child->state_ != FB_PROC_FINALIZED) {
+  for (auto fork_child : fork_children_) {
+    if (fork_child->state_ != FB_PROC_FINALIZED) {
       return true;
     }
   }
@@ -782,8 +782,8 @@ int64_t Process::sum_rusage_recurse() {
   if (exec_child_ != NULL) {
     aggr_time_ += exec_child_->sum_rusage_recurse();
   }
-  for (auto& child : children_) {
-    aggr_time_ += child->sum_rusage_recurse();
+  for (auto& fork_child : fork_children_) {
+    aggr_time_ += fork_child->sum_rusage_recurse();
   }
   return aggr_time_;
 }
@@ -793,8 +793,8 @@ void Process::export2js_recurse(const unsigned int level, FILE* stream,
   if (exec_child() != NULL) {
     exec_child_->export2js_recurse(level + 1, stream, nodeid);
   }
-  for (auto& child : children_) {
-    child->export2js_recurse(level, stream, nodeid);
+  for (auto& fork_child : fork_children_) {
+    fork_child->export2js_recurse(level, stream, nodeid);
   }
 }
 
