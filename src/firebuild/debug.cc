@@ -114,6 +114,8 @@ static struct flag available_flags[] = {
   { "cache",             FB_DEBUG_CACHE },
   { "caching",           FB_DEBUG_CACHING },
   { "shortcut",          FB_DEBUG_SHORTCUT },
+  { "function",          FB_DEBUG_FUNC },
+  { "func",              FB_DEBUG_FUNC },
   { NULL, 0 }
 };
 
@@ -180,5 +182,9 @@ int32_t parse_debug_flags(const std::string& str) {
   }
   return flags;
 }
+
+#ifndef NDEBUG
+int MethodTracker::level_ = 0;
+#endif
 
 }  // namespace firebuild

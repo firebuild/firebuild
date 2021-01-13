@@ -31,7 +31,8 @@ set(TENTATIVE_C_CXX_FLAGS
   -Woverflow
   -Weffc++
 #  -Wlogical-op clang does not like that
-  -Wredundant-decls)
+  -Wredundant-decls
+  -Wno-format-zero-length)
 
 foreach(FLAG ${TENTATIVE_C_CXX_FLAGS})
   string(MAKE_C_IDENTIFIER "C_FLAG_VALID_${FLAG}" V)

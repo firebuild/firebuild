@@ -9,20 +9,26 @@
 
 #include <cstring>
 
+#include "firebuild/debug.h"
 #include "firebuild/hash_cache.h"
 
 namespace firebuild {
 
 File::File(const FileName* p)
     : mtimes_(), path_(p), exists_(false), hash_() {
+  TRACK(FB_DEBUG_PROC, "this=%s, path=%s", D(this), D(p));
 }
 
 
 int File::set_hash() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   return hash_cache->get_hash(path_, &hash_);
 }
 
 int File::update() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   if (!this->set_hash()) {
     return -1;
   }
@@ -80,6 +86,8 @@ int File::update() {
 #endif
 
 int File::is_changed() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   int i = 0;
   char *tmp_path = strdup(path_->c_str());
   struct stat s;

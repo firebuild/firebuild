@@ -29,15 +29,21 @@ ProcessTree::~ProcessTree() {
 }
 
 void ProcessTree::insert_process(Process *p) {
+  TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
+
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
 }
 
 void ProcessTree::insert(Process *p) {
+  TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
+
   insert_process(p);
 }
 
 void ProcessTree::insert(ExecedProcess *p) {
+  TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
+
   if (root_ == NULL) {
     root_ = p;
   } else if (p->parent() == NULL) {

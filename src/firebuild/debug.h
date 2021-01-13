@@ -4,6 +4,9 @@
 #ifndef FIREBUILD_DEBUG_H_
 #define FIREBUILD_DEBUG_H_
 
+#include <stdarg.h>
+#include <string.h>
+
 #include <string>
 #include <vector>
 
@@ -32,7 +35,10 @@ enum {
   FB_DEBUG_CACHING      = 1 << 7,
   /* Shortcutting */
   FB_DEBUG_SHORTCUT     = 1 << 8,
+  /* Entering and leaving functions */
+  FB_DEBUG_FUNC         = 1 << 10,
 };
+
 
 /**
  * Test if debugging this kind of events is enabled.
@@ -88,6 +94,51 @@ std::string d(const std::vector<std::string>& arr,
 
 /** Get a human-readable timestamp according to local time. */
 std::string pretty_timestamp();
+
+#ifdef NDEBUG
+#define TRACK(flag, fmt, ...)
+#else
+/* Track entering/leaving the function (or any brace-block of code)
+ * if either "func" or any of the given flags is being debugged. */
+#define TRACK(flag, fmt, ...) \
+  firebuild::MethodTracker method_tracker(flag, __func__, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+
+class MethodTracker {
+ public:
+  MethodTracker(int flag, const char *func, const char *file, int line, const char *fmt, ...)
+      __attribute__((format(printf, 6, 7)))
+      : flag_(flag | FB_DEBUG_FUNC), func_(func) {
+    if (FB_DEBUGGING(flag_)) {
+      const char *last_slash = strrchr(file, '/');
+      if (last_slash) {
+        file = last_slash + 1;
+      }
+      char buf[1024];
+      int run1 = snprintf(buf, sizeof(buf), "%*s-> %s()  [%s:%d]  ",
+                          2 * level_, "", func, file, line);
+      va_list ap;
+      va_start(ap, fmt);
+      vsnprintf(buf + run1, sizeof(buf) - run1, fmt, ap);
+      va_end(ap);
+      FB_DEBUG(flag_, buf);
+      level_++;
+    }
+  }
+  ~MethodTracker() {
+    if (FB_DEBUGGING(flag_)) {
+      level_--;
+      char buf[1024];
+      snprintf(buf, sizeof(buf), "%*s<- %s()", 2 * level_, "", func_.c_str());
+      FB_DEBUG(flag_, buf);
+    }
+  }
+
+ private:
+  int flag_;
+  std::string func_;
+  static int level_;
+};
+#endif  /* NDEBUG */
 
 }  // namespace firebuild
 #endif  // FIREBUILD_DEBUG_H_
