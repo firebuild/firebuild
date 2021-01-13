@@ -52,4 +52,19 @@ int FileNamePtrPtrCompare(const FileName * const * const lhs, const FileName * c
   return strcmp((*lhs)->c_str(), (*rhs)->c_str());
 }
 
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const FileName& fn, const int level) {
+  (void)level;  /* unused */
+  return d(fn.to_string());
+}
+std::string d(const FileName *fn, const int level) {
+  if (fn) {
+    return d(*fn, level);
+  } else {
+    return "[FileName NULL]";
+  }
+}
+
 }  // namespace firebuild

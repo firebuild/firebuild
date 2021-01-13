@@ -7,8 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "firebuild/file_name.h"
-
 namespace firebuild {
 
 /** Print error message */
@@ -54,16 +52,42 @@ extern int32_t debug_flags;
 
 int32_t parse_debug_flags(const std::string& str);
 
-std::string pretty_print_string(const std::string& str);
-inline std::string pretty_print_string(const FileName * str) {
-  return pretty_print_string(str->to_string());
+inline std::string d(int value) {
+  return std::to_string(value);
+}
+inline std::string d(long value) {  /* NOLINT(runtime/int) */
+  return std::to_string(value);
+}
+inline std::string d(long long value) {  /* NOLINT(runtime/int) */
+  return std::to_string(value);
+}
+inline std::string d(unsigned int value) {
+  return std::to_string(value);
+}
+inline std::string d(unsigned long value) {  /* NOLINT(runtime/int) */
+  return std::to_string(value);
+}
+inline std::string d(unsigned long long value) {  /* NOLINT(runtime/int) */
+  return std::to_string(value);
 }
 
-std::string pretty_print_array(const std::vector<std::string>& arr,
-                               const std::string& sep = ", ");
+inline std::string d(bool value) {
+  return value ? "true" : "false";
+}
+
+std::string d(const std::string& str);
+std::string d(const char *str);
+
+std::string d(const std::vector<std::string>& arr,
+              const std::string& sep = ", ");
+
+/* Convenience wrapper around our various d(...) debugging functions.
+ * Instead of returning a std::string, as done by d(), this gives the raw C char* pointer
+ * which is valid only inside the expression where D() is called. */
+#define D(var) firebuild::d(var).c_str()
 
 /** Get a human-readable timestamp according to local time. */
-std::string pretty_print_timestamp();
+std::string pretty_timestamp();
 
 }  // namespace firebuild
 #endif  // FIREBUILD_DEBUG_H_

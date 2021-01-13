@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "firebuild/debug.h"
 #include "firebuild/platform.h"
 
 namespace firebuild {
@@ -88,6 +89,12 @@ inline const FileName* FileName::Get(const char * const name, ssize_t length = -
     return &*db_->insert(tmp_file_name).first;
   }
 }
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const FileName& fn, const int level = 0);
+std::string d(const FileName *fn, const int level = 0);
 
 }  // namespace firebuild
 

@@ -188,7 +188,7 @@ bool BlobCache::store_file(const FileName *path,
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place meta info in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
-    std::string txt(pretty_print_timestamp() + "  Copied from " + path->to_string() + "\n");
+    std::string txt(pretty_timestamp() + "  Copied from " + path->to_string() + "\n");
     int fd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(fd, txt.c_str(), txt.size()) < 0) {
       perror("BlobCache::store_file");
