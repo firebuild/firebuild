@@ -254,9 +254,9 @@ bool ExecedProcess::shortcut() {
   } else {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Shortcutting disabled:");
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + pretty_print_string(executable()));
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + pretty_print_array(args()));
-    /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + pretty_print_array(env_vars())); */
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + d(executable()));
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + d(args()));
+    /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + d(env_vars())); */
     FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
     return false;
   }

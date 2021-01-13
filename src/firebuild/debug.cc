@@ -12,7 +12,7 @@ namespace firebuild {
  * Get a human friendly representation of a string, inside double
  * quotes, for debugging purposes.
  */
-std::string pretty_print_string(const std::string& str) {
+std::string d(const std::string& str) {
   std::string ret = "\"";
   for (unsigned char c : str) {
     if (c < 0x20 || c >= 0x7f) {
@@ -32,6 +32,18 @@ std::string pretty_print_string(const std::string& str) {
 }
 
 /**
+ * Get a human friendly representation of a C string, inside double
+ * quotes, for debugging purposes.
+ */
+std::string d(const char *str) {
+  if (str) {
+    return d(std::string(str));
+  } else {
+    return "NULL";
+  }
+}
+
+/**
  * Get a human friendly representation of an array of strings, like:
  *
  *   ["item1", "item2", "item3"]
@@ -43,15 +55,15 @@ std::string pretty_print_string(const std::string& str) {
  * should put the required number of spaces in the separator, to achieve
  * the desired indentation level.
  */
-std::string pretty_print_array(const std::vector<std::string>& arr,
-                               const std::string& sep) {
+std::string d(const std::vector<std::string>& arr,
+              const std::string& sep) {
   std::string res = "[";
   bool add_sep = false;
   for (const auto &val : arr) {
     if (add_sep) {
       res += sep;
     }
-    res += pretty_print_string(val);
+    res += d(val);
     add_sep = true;
   }
   res += "]";
@@ -68,7 +80,7 @@ std::string pretty_print_array(const std::vector<std::string>& arr,
  *
  *   2019-12-31 23:59:59.999999 +0100
  */
-std::string pretty_print_timestamp() {
+std::string pretty_timestamp() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   time_t t = tv.tv_sec;

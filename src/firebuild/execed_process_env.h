@@ -49,7 +49,11 @@ class ExecedProcessEnv {
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessEnv);
 };
 
-std::string to_string(ExecedProcessEnv const&);
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const ExecedProcessEnv& env, const int level = 0);
+std::string d(const ExecedProcessEnv *env, const int level = 0);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_EXECED_PROCESS_ENV_H_

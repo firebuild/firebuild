@@ -20,8 +20,19 @@ void ExecedProcessEnv::set_sh_c_command(const std::string &cmd) {
   argv_.push_back(cmd);
 }
 
-std::string to_string(ExecedProcessEnv const &pp) {
-  return pretty_print_array(pp.argv());
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const ExecedProcessEnv& env, const int level) {
+  (void)level;  /* unused */
+  return d(env.argv());
+}
+std::string d(const ExecedProcessEnv *env, const int level) {
+  if (env) {
+    return d(*env, level);
+  } else {
+    return "[ExecedProcessEnv NULL]";
+  }
 }
 
 }  // namespace firebuild
