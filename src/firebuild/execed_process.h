@@ -32,6 +32,7 @@ class ExecedProcess : public Process {
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
   const ExecedProcess* exec_point() const {return this;}
+  virtual int exec_count() const {return exec_count_;}
   int64_t sum_utime_u() const {return sum_utime_u_;}
   void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
   int64_t sum_stime_u() const {return sum_stime_u_;}
@@ -106,6 +107,12 @@ class ExecedProcess : public Process {
   void export2js_recurse(const unsigned int level, FILE* stream,
                          unsigned int *nodeid);
 
+  std::string args_to_short_string() const;
+  /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
+   * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+   * See #431 for design and rationale. */
+  virtual std::string d_internal(const int level = 0) const;
+
  private:
   bool can_shortcut_:1;
   bool was_shortcut_:1;
@@ -140,6 +147,8 @@ class ExecedProcess : public Process {
   /// NULL if we prefer not to (although probably could)
   /// cache / shortcut this process.
   ExecedProcessCacher *cacher_;
+  /// Number of execve() hops since the closest ForkedProcess ancestor, for debugging
+  int exec_count_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 

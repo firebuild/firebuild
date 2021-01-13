@@ -967,7 +967,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
   }
   if (read_ret <= 0) {
     FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(fd_conn) +
-             std::string(" hung up"));
+             " hung up (" + d(proc) + ")");
     delete conn_ctx;
     return;
   }
@@ -989,8 +989,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     auto fbb_msg = buf.data() + sizeof(*header);
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(fd_conn)
-               + std::string(": "));
+      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(fd_conn) + ": (" + d(proc) + ")");
       if (header->ack_id) {
         fprintf(stderr, "ack_num: %d\n", header->ack_id);
       }
@@ -1010,11 +1009,12 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
 }
 
 
-static void save_child_status(int status, int * ret, bool runaway) {
+static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
   if (WIFEXITED(status)) {
     *ret = WEXITSTATUS(status);
     FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(runaway ? "runaway" : "child")
-             + " process exited with status " + std::to_string(*ret) + ".");
+             + " process exited with status " + std::to_string(*ret) + ". ("
+             + d(proc_tree->pid2proc(pid)) + ")");
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "%s process has been killed by signal %d",
             runaway ? "Runaway" : "Child",
@@ -1036,11 +1036,11 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   do {
     waitpid_ret = waitpid(-1, &status, WNOHANG);
     if (waitpid_ret == child_pid) {
-      save_child_status(status, &child_ret, false);
+      save_child_status(waitpid_ret, status, &child_ret, false);
     } else if (waitpid_ret > 0) {
       // TODO(rbalint) find runaway child's parent and possibly disable shortcutting
       int ret = -1;
-      save_child_status(status, &ret, true);
+      save_child_status(waitpid_ret, status, &ret, true);
     }
   } while (waitpid_ret > 0);
   if (waitpid_ret < 0) {
