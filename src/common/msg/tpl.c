@@ -104,6 +104,20 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
 
 /************************************************/
 
+/* lookup array for the message name of a particular message tag */
+static const char *fbb_tag_to_string_array[] = {
+### for (msg, _) in msgs
+  "{{ msg }}",
+### endfor
+};
+
+/* get the tag as string for any message */
+const char *fbb_tag_string(const void *msg) {
+  int tag = * ((int *) msg);
+  assert(tag >= 0 && tag < FBB_TAG_NEXT);
+  return fbb_tag_to_string_array[tag];
+}
+
 /* lookup array for the debugger function of a particular message tag */
 static void (*fbb_debuggers_array[])(const void *) = {
 ### for (msg, _) in msgs

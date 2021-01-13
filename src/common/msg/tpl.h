@@ -224,6 +224,9 @@ static inline {{ type }} fbb_{{ msg }}_get_{{ var }}_with_fallback(const FBB_{{ 
 
 /************************************************/
 
+/* get the tag as string for any message */
+const char *fbb_tag_string(const void *msg);
+
 /* debug any message */
 void fbb_debug(const void *msg);
 
