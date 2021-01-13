@@ -167,7 +167,7 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
   fd = open(filename->c_str(), O_RDONLY);
   if (fd == -1) {
     if (FB_DEBUGGING(FB_DEBUG_HASH)) {
-      FB_DEBUG(FB_DEBUG_HASH, "File " + filename->to_string());
+      FB_DEBUG(FB_DEBUG_HASH, "File " + d(filename));
       perror("open");
     }
     return false;
@@ -179,7 +179,7 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
   }
 
   if (FB_DEBUGGING(FB_DEBUG_HASH)) {
-    FB_DEBUG(FB_DEBUG_HASH, "xxh64sum: " + filename->to_string() + " => " + this->to_ascii());
+    FB_DEBUG(FB_DEBUG_HASH, "xxh64sum: " + d(filename) + " => " + d(this));
   }
 
   close(fd);
@@ -292,6 +292,21 @@ std::string Hash::to_ascii() const {
   *(ret_c_str + 20) = encode_map_[arr_[15] >> 2];
 
   return ret;
+}
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const Hash& hash, const int level) {
+  (void)level;  /* unused */
+  return hash.to_ascii();
+}
+std::string d(const Hash *hash, const int level) {
+  if (hash) {
+    return d(*hash, level);
+  } else {
+    return "[Hash NULL]";
+  }
 }
 
 }  /* namespace firebuild */

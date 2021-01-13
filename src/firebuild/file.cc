@@ -127,4 +127,20 @@ int File::is_changed() {
   return 0;
 }
 
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const File& f, const int level) {
+  (void)level;  /* unused */
+  return std::string("[File path=") + d(f.path()) + ", exists=" + d(f.exists()) +
+      (f.exists() ? ", hash=" + d(f.hash()) : "");
+}
+std::string d(const File *f, const int level) {
+  if (f) {
+    return d(*f, level);
+  } else {
+    return "[File NULL]";
+  }
+}
+
 }  // namespace firebuild

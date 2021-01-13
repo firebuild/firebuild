@@ -20,8 +20,9 @@ class File {
   explicit File(const FileName* path);
   int update();
   int is_changed();
-  const FileName* path() {return path_;}
-  Hash& hash() {return hash_;}
+  const FileName* path() const {return path_;}
+  bool exists() const {return exists_;}
+  const Hash& hash() const {return hash_;}
 
  private:
   std::vector<timespec> mtimes_;
@@ -31,6 +32,12 @@ class File {
   int set_hash();
   DISALLOW_COPY_AND_ASSIGN(File);
 };
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const File& f, const int level = 0);
+std::string d(const File *f, const int level = 0);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_FILE_H_

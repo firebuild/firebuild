@@ -116,7 +116,7 @@ bool BlobCache::store_file(const FileName *path,
                            Hash *key_out,
                            int fd_src,
                            struct stat64 *stat_ptr) {
-  FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + path->to_string());
+  FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
   bool close_fd_src = false;
   if (fd_src == -1) {
@@ -182,13 +182,13 @@ bool BlobCache::store_file(const FileName *path,
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "  => " + key.to_ascii());
+    FB_DEBUG(FB_DEBUG_CACHING, "  => " + d(key));
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place meta info in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
-    std::string txt(pretty_timestamp() + "  Copied from " + path->to_string() + "\n");
+    std::string txt(pretty_timestamp() + "  Copied from " + d(path) + "\n");
     int fd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(fd, txt.c_str(), txt.size()) < 0) {
       perror("BlobCache::store_file");
@@ -217,8 +217,7 @@ bool BlobCache::store_file(const FileName *path,
 bool BlobCache::retrieve_file(const Hash &key,
                               const FileName *path_dst) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + key.to_ascii() + " => "
-             + path_dst->to_string());
+    FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + d(key) + " => " + d(path_dst));
   }
 
   std::string path_src = construct_cached_file_name(base_dir_, key, false);

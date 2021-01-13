@@ -178,4 +178,59 @@ bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs)
   return strcmp(lhs.file->c_str(), rhs.file->c_str()) < 0;
 }
 
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const FileUsage& fu, const int level) {
+  (void)level;  /* unused */
+  return std::string("[FileUsage initial_state=") +
+      file_initial_state_to_string(fu.initial_state()) +
+      (fu.initial_state() == ISREG_WITH_HASH || fu.initial_state() == ISDIR_WITH_HASH ?
+          ", hash=" + d(fu.initial_hash()) : "") +
+      ", written=" + d(fu.written()) + "]";
+}
+std::string d(const FileUsage *fu, const int level) {
+  if (fu) {
+    return d(*fu, level);
+  } else {
+    return "[FileUsage NULL]";
+  }
+}
+
+const char *file_initial_state_to_string(FileInitialState state) {
+  switch (state) {
+    case DONTKNOW:
+      return "dontknow";
+    case NOTEXIST:
+      return "notexist";
+    case NOTEXIST_OR_ISREG_EMPTY:
+      return "notexist_or_isreg_empty";
+    case NOTEXIST_OR_ISREG:
+      return "notexist_or_isreg";
+    case ISREG:
+      return "isreg";
+    case ISREG_WITH_HASH:
+      return "isreg_with_hash";
+    case ISDIR:
+      return "isdir";
+    case ISDIR_WITH_HASH:
+      return "isdir_with_hash";
+    default:
+      assert(0 && "unknown state");
+      return "UNKNOWN";
+  }
+}
+
+const char *file_action_to_string(FileAction action) {
+  switch (action) {
+    case FILE_ACTION_OPEN:
+      return "open";
+    case FILE_ACTION_MKDIR:
+      return "mkdir";
+    default:
+      assert(0 && "unknown action");
+      return "UNKNOWN";
+  }
+}
+
 }  // namespace firebuild

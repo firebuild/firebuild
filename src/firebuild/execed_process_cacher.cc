@@ -300,7 +300,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     const auto path = FileName::Get(file->path());
     if (!hash_cache->get_hash(path, &on_fs_hash, &is_dir) || is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(path)
                + ": regular file expected but does not exist or something else found");
       return false;
@@ -308,7 +308,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     assert(file->hash()->size() == Hash::hash_size());
     in_cache_hash.set_hash_from_binary(file->hash()->data());
     if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_ascii() + " mismatches e.g. at " +
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
                                   d(path) + ": hash differs");
       return false;
     }
@@ -319,7 +319,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     const auto path = FileName::Get(file->path());
     if (!hash_cache->get_hash(path, &on_fs_hash, &is_dir) || !is_dir) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(path)
                + ": directory expected but does not exist or something else found");
       return false;
@@ -327,7 +327,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     assert(file->hash()->size() == Hash::hash_size());
     in_cache_hash.set_hash_from_binary(file->hash()->data());
     if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + fingerprint.to_ascii() + " mismatches e.g. at " +
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
                                   d(path) + ": hash differs");
       return false;
     }
@@ -335,7 +335,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& filename : *pi.path_isreg()) {
     if (stat64(filename->c_str(), &st) == -1 || !S_ISREG(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename->str())
                + ": regular file expected but does not exist or something else found");
       return false;
@@ -344,7 +344,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& filename : *pi.path_isdir()) {
     if (stat64(filename->c_str(), &st) == -1 || !S_ISDIR(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename->str())
                + ": directory expected but does not exist or something else found");
       return false;
@@ -353,7 +353,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& filename : *pi.path_notexist_or_isreg()) {
     if (stat64(filename->c_str(), &st) != -1 && !S_ISREG(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename->str())
                + ": file expected to be missing or regular, something else found");
       return false;
@@ -362,7 +362,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& filename : *pi.path_notexist_or_isreg_empty()) {
     if (stat64(filename->c_str(), &st) != -1 && (!S_ISREG(st.st_mode) || st.st_size > 0)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename->str())
                + ": file expected to be missing or empty, non-empty file or something else found");
       return false;
@@ -371,7 +371,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
   for (const auto& filename : *pi.path_notexist()) {
     if (stat64(filename->c_str(), &st) != -1) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + fingerprint.to_ascii()
+               "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename->str())
                + ": path expected to be missing, existing object is found");
       return false;
@@ -405,12 +405,12 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
   for (const Hash& subkey : subkeys) {
     if (!obj_cache->retrieve(fingerprint, subkey, inouts_buf, inouts_buf_len)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   Cannot retrieve " + subkey.to_ascii() + " from objcache, ignoring");
+               "│   Cannot retrieve " + d(subkey) + " from objcache, ignoring");
       continue;
     }
     auto inouts = msg::GetProcessInputsOutputs(*inouts_buf);
     if (!inouts->inputs() || pi_matches_fs(*inouts->inputs(), subkey)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + subkey.to_ascii() + " matches the file system");
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
       count++;
       if (count == 1) {
         ret = inouts;
@@ -549,7 +549,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Trying to shortcut process:");
     if (proc->can_shortcut()) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   fingerprint = " + fingerprints_[proc].to_ascii());
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   fingerprint = " + d(fingerprints_[proc]));
     }
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + d(proc->executable()));
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + d(proc->args()));

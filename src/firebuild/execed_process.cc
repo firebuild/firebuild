@@ -162,7 +162,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
                                         int flags,
                                         int error) {
   if (name->is_at_locations(ignore_locations)) {
-    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name->to_string());
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
   }
 
@@ -209,7 +209,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
 bool ExecedProcess::register_file_usage(const FileName *name,
                                         FileUsage fu_change) {
   if (name->is_at_locations(ignore_locations)) {
-    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + name->to_string());
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
   }
 
