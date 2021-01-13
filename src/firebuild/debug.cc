@@ -16,10 +16,10 @@ std::string pretty_print_string(const std::string& str) {
   std::string ret = "\"";
   for (unsigned char c : str) {
     if (c < 0x20 || c >= 0x7f) {
-      ret += "\\";
-      ret += ('0' + (c / 64));
-      ret += ('0' + (c / 8 % 8));
-      ret += ('0' + (c % 8));
+      const char *hex = "0123456789ABCDEF";
+      ret += "\\x";
+      ret += hex[c / 16];
+      ret += hex[c % 16];
     } else if (c == '\\' || c == '"') {
       ret += "\\";
       ret += c;
