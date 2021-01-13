@@ -116,6 +116,7 @@ static struct flag available_flags[] = {
   { "shortcut",          FB_DEBUG_SHORTCUT },
   { "function",          FB_DEBUG_FUNC },
   { "func",              FB_DEBUG_FUNC },
+  { "fd",                FB_DEBUG_FD },
   { NULL, 0 }
 };
 

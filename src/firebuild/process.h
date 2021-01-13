@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "firebuild/fd.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -176,7 +177,7 @@ class Process {
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
    */
   int handle_open(const int dirfd, const char * const ar_name, const int flags,
-                  const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
+                  const int fd, const int error = 0, FD fd_conn = {}, int ack_num = 0);
 
   /**
    * Handle file closure in the monitored process
@@ -371,7 +372,7 @@ class Process {
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
-  void set_on_finalized_ack(int id, int fd) {
+  void set_on_finalized_ack(int id, FD fd) {
     on_finalized_ack_id_ = id;
     on_finalized_ack_fd_ = fd;
   }
@@ -444,7 +445,7 @@ class Process {
   void add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                   const int fd, std::shared_ptr<FileFD> ffd);
   int on_finalized_ack_id_ = -1;
-  int on_finalized_ack_fd_ = -1;
+  FD on_finalized_ack_fd_ = {};
   DISALLOW_COPY_AND_ASSIGN(Process);
 };
 

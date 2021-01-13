@@ -13,10 +13,14 @@
 #include <unordered_map>
 #include <vector>
 
+#include "firebuild/fd.h"
 #include "firebuild/process.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/cxx_lang_utils.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
 
 namespace firebuild {
 
@@ -36,7 +40,7 @@ struct cmd_prof {
 /** Connection of a waiting fork() child process*/
 struct fork_child_sock {
   /** Connection fork child is waiting on */
-  int sock;
+  FD sock;
   /** PID of fork parent */
   int ppid;
   /** ACK number the process is waiting for */
@@ -48,7 +52,7 @@ struct fork_child_sock {
 /** Connection of a waiting exec() child process*/
 struct exec_child_sock {
   /** Connection exec() child is waiting on */
-  int sock;
+  FD sock;
   /** Child data without fds filled */
   ExecedProcess* incomplete_child;
 };
@@ -58,7 +62,7 @@ struct pending_parent_ack {
   /** ACK number the parent is waiting for */
   int ack_num;
   /** Connection system/popen/posix_spawn parent is waiting on */
-  int sock;
+  FD sock;
 };
 
 class ProcessTree {
@@ -83,17 +87,17 @@ class ProcessTree {
       return NULL;
     }
   }
-  void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
+  void QueueForkChild(int pid, FD sock, int ppid, int ack_num, Process **fork_child_ref) {
     assert(!Pid2ForkChildSock(pid));
     pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
   }
-  void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
+  void QueueExecChild(int pid, FD sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
   }
-  void QueuePosixSpawnChild(int pid, int sock, ExecedProcess* incomplete_child) {
+  void QueuePosixSpawnChild(int pid, FD sock, ExecedProcess* incomplete_child) {
     pid2posix_spawn_child_sock_[pid] = {sock, incomplete_child};
   }
-  void QueueParentAck(int ppid, int ack, int sock) {
+  void QueueParentAck(int ppid, int ack, FD sock) {
     assert(!PPid2ParentAck(ppid));
     ppid2pending_parent_ack_[ppid] = {ack, sock};
   }
@@ -171,4 +175,7 @@ class ProcessTree {
 };
 
 }  // namespace firebuild
+
+#pragma GCC diagnostic pop
+
 #endif  // FIREBUILD_PROCESS_TREE_H_

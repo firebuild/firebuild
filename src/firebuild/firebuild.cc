@@ -32,6 +32,7 @@
 #include "firebuild/cache_object_format_generated.h"
 #pragma GCC diagnostic pop
 #include "firebuild/connection_context.h"
+#include "firebuild/fd.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 #include "firebuild/obj_cache.h"
@@ -193,9 +194,9 @@ static bool exe_matches_list(const firebuild::FileName* exe_file,
 
 namespace firebuild {
 
-void accept_exec_child(ExecedProcess* proc, int fd_conn,
+void accept_exec_child(ExecedProcess* proc, FD fd_conn,
                        ProcessTree* proc_tree) {
-    TRACK(FB_DEBUG_PROC, "proc=%s, fd_conn=%d", D(proc), fd_conn);
+    TRACK(FB_DEBUG_PROC, "proc=%s, fd_conn=%s", D(proc), D(fd_conn));
 
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
@@ -233,19 +234,19 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
     }
 
-    fbb_send(fd_conn, &sv_msg, 0);
+    fbb_send(fd_conn.fd(), &sv_msg, 0);
 }
 
 }  // namespace firebuild
 
 namespace {
 
-static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
-                              firebuild::Process** child_ref, int pid, int child_fd, int child_ack,
-                              firebuild::ProcessTree* proc_tree) {
+static void accept_fork_child(firebuild::Process* parent, firebuild::FD parent_fd, int parent_ack,
+                              firebuild::Process** child_ref, int pid, firebuild::FD child_fd,
+                              int child_ack, firebuild::ProcessTree* proc_tree) {
   TRACK(firebuild::FB_DEBUG_PROC,
-        "parent_fd=%d, parent_ack=%d, parent=%s pid=%d child_fd=%d child_ack=%d",
-        parent_fd, parent_ack, D(parent), pid, child_fd, child_ack);
+        "parent_fd=%s, parent_ack=%d, parent=%s pid=%d child_fd=%s child_ack=%d",
+        D(parent_fd), parent_ack, D(parent), pid, D(child_fd), child_ack);
 
   auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
   proc_tree->insert(proc);
@@ -258,9 +259,9 @@ static void accept_fork_child(firebuild::Process* parent, int parent_fd, int par
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
  */
-void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
+void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, firebuild::FD fd_conn,
                           firebuild::Process** new_proc) {
-  TRACK(firebuild::FB_DEBUG_PROC, "fd_conn=%d, ack_id=%d", fd_conn, ack_id);
+  TRACK(firebuild::FB_DEBUG_PROC, "fd_conn=%s, ack_id=%d", D(fd_conn), ack_id);
 
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   if (tag == FBB_TAG_scproc_query) {
@@ -392,10 +393,10 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
 
 void proc_ic_msg(const void *fbb_buf,
                  uint32_t ack_num,
-                 int fd_conn,
+                 firebuild::FD fd_conn,
                  firebuild::Process* proc) {
-  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%d, tag=%s, ack_num=%d, proc=%s",
-        fd_conn, fbb_tag_string(fbb_buf), ack_num, D(proc));
+  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%s, tag=%s, ack_num=%d, proc=%s",
+        D(fd_conn), fbb_tag_string(fbb_buf), ack_num, D(proc));
 
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   assert(proc);
@@ -962,16 +963,18 @@ static evutil_socket_t create_listener() {
 }
 
 static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
-  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%d", fd_conn);
-
-  (void) what; /* unused */
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
+  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%d, ctx=%s", fd_conn, D(conn_ctx));
+
+  (void) fd_conn; /* unused in prod build */
+  (void) what; /* unused */
+  assert(conn_ctx->fd().fd() == fd_conn);  /* makes sure that FD's seq is correct */
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
   size_t full_length;
   const firebuild::msg_header * header;
 
-  int read_ret = buf.read(fd_conn, -1);
+  int read_ret = buf.read(conn_ctx->fd(), -1);
   if (read_ret < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       /* Try again later. */
@@ -979,7 +982,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     }
   }
   if (read_ret <= 0) {
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + std::to_string(fd_conn) +
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + d(conn_ctx->fd()) +
              " hung up (" + d(proc) + ")");
     delete conn_ctx;
     return;
@@ -1002,7 +1005,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     auto fbb_msg = buf.data() + sizeof(*header);
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + std::to_string(fd_conn) + ": (" + d(proc) + ")");
+      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + d(conn_ctx->fd()) + ": (" + d(proc) + ")");
       if (header->ack_id) {
         fprintf(stderr, "ack_num: %d\n", header->ack_id);
       }
@@ -1012,10 +1015,10 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
 
     /* Process the messaage. */
     if (proc) {
-      proc_ic_msg(fbb_msg, header->ack_id, fd_conn, proc);
+      proc_ic_msg(fbb_msg, header->ack_id, conn_ctx->fd(), proc);
     } else {
       /* Fist interceptor message */
-      proc_new_process_msg(fbb_msg, header->ack_id, fd_conn, &conn_ctx->proc);
+      proc_new_process_msg(fbb_msg, header->ack_id, conn_ctx->fd(), &conn_ctx->proc);
     }
     buf.discard(full_length);
   } while (buf.length() > 0);
@@ -1080,7 +1083,7 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
   if (fd < 0) {
     perror("accept");
   } else {
-    auto conn_ctx = new firebuild::ConnectionContext(proc_tree);
+    auto conn_ctx = new firebuild::ConnectionContext(proc_tree, fd);
     evutil_make_socket_nonblocking(fd);
     auto ev = event_new(ev_base, fd, EV_READ | EV_PERSIST, ic_conn_readcb, conn_ctx);
     conn_ctx->set_ev(ev);

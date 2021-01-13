@@ -100,10 +100,10 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
 }
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
-                         const int fd, const int error, int fd_conn, const int ack_num) {
+                         const int fd, const int error, FD fd_conn, const int ack_num) {
   TRACK(FB_DEBUG_PROC,
-        "this=%s, dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%d, ack_num=%d",
-        D(this), dirfd, D(ar_name), flags, fd, error, fd_conn, ack_num);
+        "this=%s, dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
+        D(this), dirfd, D(ar_name), flags, fd, error, D(fd_conn), ack_num);
 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
@@ -781,7 +781,7 @@ void Process::do_finalize() {
 
   /* Now we can ack the previous system()'s second message,
    * or a pending pclose() or wait*(). */
-  if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_ != -1) {
+  if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_.fd() != -1) {
     ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
   }
 

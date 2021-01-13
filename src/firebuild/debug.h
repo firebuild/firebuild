@@ -37,6 +37,8 @@ enum {
   FB_DEBUG_SHORTCUT     = 1 << 8,
   /* Entering and leaving functions */
   FB_DEBUG_FUNC         = 1 << 10,
+  /* Tracking the server-side file descriptors */
+  FB_DEBUG_FD           = 1 << 11,
 };
 
 
