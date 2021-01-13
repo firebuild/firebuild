@@ -91,5 +91,11 @@ class Hash {
   static HashMapsInitializer hash_maps_initializer_;
 };
 
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const Hash& hash, const int level = 0);
+std::string d(const Hash *hash, const int level = 0);
+
 }  /* namespace firebuild */
 #endif  /* FIREBUILD_HASH_H_ */

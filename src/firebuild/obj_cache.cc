@@ -125,7 +125,7 @@ bool ObjCache::store(const Hash &key,
                      const uint8_t * const debug_key,
                      Hash *subkey_out) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: storing entry, key " + key.to_ascii());
+    FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: storing entry, key " + d(key));
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -179,7 +179,7 @@ bool ObjCache::store(const Hash &key,
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + subkey.to_ascii());
+    FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + d(subkey));
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -212,7 +212,7 @@ bool ObjCache::retrieve(const Hash &key,
                         size_t * entry_len) {
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: retrieving entry, key "
-             + key.to_ascii() + " subkey " + subkey.to_ascii());
+             + d(key) + " subkey " + d(subkey));
   }
 
   std::string path = construct_cached_file_name(base_dir_, key, subkey, false);

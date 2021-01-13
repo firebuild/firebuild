@@ -132,5 +132,13 @@ struct file_file_usage {
 
 bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs);
 
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const FileUsage& fu, const int level = 0);
+std::string d(const FileUsage *fu, const int level = 0);
+const char *file_initial_state_to_string(FileInitialState state);
+const char *file_action_to_string(FileAction action);
+
 }  // namespace firebuild
 #endif  // FIREBUILD_FILE_USAGE_H_
