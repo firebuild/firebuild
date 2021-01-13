@@ -43,6 +43,8 @@ Hash::HashMapsInitializer Hash::hash_maps_initializer_;
  * Set the binary hash from the given buffer.
  */
 void Hash::set_from_data(const void *data, ssize_t size) {
+  TRACK(FB_DEBUG_HASH, "");
+
   /* xxhash's doc says:
    * "Streaming functions [...] is slower than single-call functions, due to state management."
    * Let's take the faster path. */
@@ -68,6 +70,8 @@ void Hash::set_from_data(const void *data, ssize_t size) {
  * @return Whether succeeded
  */
 bool Hash::set_from_fd(int fd, bool *is_dir_out) {
+  TRACK(FB_DEBUG_HASH, "fd=%d", fd);
+
   struct stat64 st;
   if (fstat64(fd, &st) == -1) {
     perror("fstat");
@@ -162,6 +166,8 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
  * @return Whether succeeded
  */
 bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
+  TRACK(FB_DEBUG_HASH, "filename=%s", D(filename));
+
   int fd;
 
   fd = open(filename->c_str(), O_RDONLY);
@@ -193,6 +199,8 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
  * Returns true if succeeded, false if the input is not a valid binary hash.
  */
 bool Hash::set_hash_from_binary(const uint8_t * const binary) {
+  TRACK(FB_DEBUG_HASH, "");
+
   if (binary[sizeof(arr_) - 1] & 0x03) {
     return false;
   }

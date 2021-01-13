@@ -195,6 +195,8 @@ namespace firebuild {
 
 void accept_exec_child(ExecedProcess* proc, int fd_conn,
                        ProcessTree* proc_tree) {
+    TRACK(FB_DEBUG_PROC, "proc=%s, fd_conn=%d", D(proc), fd_conn);
+
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
 
@@ -241,6 +243,10 @@ namespace {
 static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
                               firebuild::Process** child_ref, int pid, int child_fd, int child_ack,
                               firebuild::ProcessTree* proc_tree) {
+  TRACK(firebuild::FB_DEBUG_PROC,
+        "parent_fd=%d, parent_ack=%d, parent=%s pid=%d child_fd=%d child_ack=%d",
+        parent_fd, parent_ack, D(parent), pid, child_fd, child_ack);
+
   auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
   proc_tree->insert(proc);
   *child_ref = proc;
@@ -254,6 +260,8 @@ static void accept_fork_child(firebuild::Process* parent, int parent_fd, int par
  */
 void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
                           firebuild::Process** new_proc) {
+  TRACK(firebuild::FB_DEBUG_PROC, "fd_conn=%d, ack_id=%d", fd_conn, ack_id);
+
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   if (tag == FBB_TAG_scproc_query) {
     const FBB_scproc_query *ic_msg = reinterpret_cast<const FBB_scproc_query *>(fbb_buf);
@@ -386,6 +394,9 @@ void proc_ic_msg(const void *fbb_buf,
                  uint32_t ack_num,
                  int fd_conn,
                  firebuild::Process* proc) {
+  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%d, tag=%s, ack_num=%d, proc=%s",
+        fd_conn, fbb_tag_string(fbb_buf), ack_num, D(proc));
+
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   assert(proc);
   switch (tag) {
@@ -951,6 +962,8 @@ static evutil_socket_t create_listener() {
 }
 
 static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
+  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%d", fd_conn);
+
   (void) what; /* unused */
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
   auto proc = conn_ctx->proc;
@@ -1010,6 +1023,8 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
 
 
 static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
+  TRACK(firebuild::FB_DEBUG_PROC, "pid=%d, status=%d, runaway=%s", pid, status, D(runaway));
+
   if (WIFEXITED(status)) {
     *ret = WEXITSTATUS(status);
     FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(runaway ? "runaway" : "child")
@@ -1025,6 +1040,8 @@ static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
 
 /** Stop listener on SIGCHLD */
 static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
+  TRACK(firebuild::FB_DEBUG_PROC, "");
+
   auto listener_event = reinterpret_cast<struct event *>(arg);
   (void)fd;
   (void)what;
@@ -1052,6 +1069,8 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
 
 
 static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
+  TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
+
   struct sockaddr_storage remote;
   socklen_t slen = sizeof(remote);
   (void) event; /* unused */

@@ -27,6 +27,8 @@ Process::Process(const int pid, const int ppid, const FileName *wd,
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), fork_children_(),
       expected_child_(), exec_child_(NULL) {
+  TRACK(FB_DEBUG_PROC, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
+
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
     add_filefd(fds_, STDIN_FILENO,
@@ -67,6 +69,8 @@ void Process::sum_rusage(int64_t * const sum_utime_u,
 
 void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                          int fd, std::shared_ptr<FileFD> ffd) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+
   if (fds->size() <= static_cast<unsigned int>(fd)) {
     fds->resize(fd + 1, nullptr);
   }
@@ -78,6 +82,8 @@ void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> f
 }
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
+  TRACK(FB_DEBUG_PROC, "this=%s, execed=%s", D(this), D(execed));
+
   auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
   for (unsigned int i = 0; i < fds_->size(); i++) {
     auto const &file_fd_shared_ptr = fds_->at(i);
@@ -95,6 +101,10 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
                          const int fd, const int error, int fd_conn, const int ack_num) {
+  TRACK(FB_DEBUG_PROC,
+        "this=%s, dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%d, ack_num=%d",
+        D(this), dirfd, D(ar_name), flags, fd, error, fd_conn, ack_num);
+
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
@@ -126,6 +136,8 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
 
 /* close that fd if open, silently ignore if not open */
 int Process::handle_force_close(const int fd) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+
   if (get_fd(fd)) {
     return handle_close(fd, 0);
   }
@@ -133,6 +145,8 @@ int Process::handle_force_close(const int fd) {
 }
 
 int Process::handle_close(const int fd, const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d, error=%d", D(this), fd, error);
+
   FileFD* file_fd = get_fd(fd);
 
   if (error == EIO) {
@@ -178,6 +192,9 @@ int Process::handle_close(const int fd, const int error) {
 
 int Process::handle_unlink(const int dirfd, const char * const ar_name,
                            const int flags, const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, dirfd=%d, ar_name=%s, flags=%d, error=%d",
+        D(this), dirfd, D(ar_name), flags, error);
+
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if unlinkat() failed due to the invalid dirfd
@@ -205,10 +222,15 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
 }
 
 int Process::handle_rmdir(const char * const ar_name, const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, ar_name=%s, error=%d", D(this), D(ar_name), error);
+
   return handle_unlink(AT_FDCWD, ar_name, AT_REMOVEDIR, error);
 }
 
 int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, dirfd=%d, ar_name=%s, error=%d",
+        D(this), dirfd, D(ar_name), error);
+
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if mkdirat() failed due to the invalid dirfd
@@ -232,6 +254,9 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
 
 int Process::handle_pipe(const int fd1, const int fd2, const int flags,
                          const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd1=%d, fd2=%d, flags=%d, error=%d",
+        D(this), fd1, fd2, flags, error);
+
   if (error) {
     return 0;
   }
@@ -259,6 +284,9 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
 
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
                          const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, oldfd=%d, newfd=%d, flags=%d, error=%d",
+        D(this), oldfd, newfd, flags, error);
+
   switch (error) {
     case EBADF:
     case EBUSY:
@@ -297,6 +325,10 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
                            const int newdirfd, const char * const new_ar_name,
                            const int error) {
+  TRACK(FB_DEBUG_PROC,
+        "this=%s, olddirfd=%d, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
+        D(this), olddirfd, D(old_ar_name), newdirfd, D(new_ar_name), error);
+
   if (error) {
     return 0;
   }
@@ -370,6 +402,9 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
 int Process::handle_symlink(const char * const old_ar_name,
                             const int newdirfd, const char * const new_ar_name,
                             const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
+        D(this), D(old_ar_name), newdirfd, D(new_ar_name), error);
+
   if (!error) {
     disable_shortcutting_bubble_up("Process created a symlink ([" + d(newdirfd) + "]" +
                                    d(new_ar_name) + " -> " + d(old_ar_name) + ")");
@@ -379,6 +414,8 @@ int Process::handle_symlink(const char * const old_ar_name,
 }
 
 int Process::handle_clear_cloexec(const int fd) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully cleared cloexec on fd (" + d(fd) +
                                    ") which is known to be closed, which means interception"
@@ -391,6 +428,9 @@ int Process::handle_clear_cloexec(const int fd) {
 
 int Process::handle_fcntl(const int fd, const int cmd, const int arg,
                           const int ret, const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d, cmd=%d, arg=%d, ret=%d, error=%d",
+        D(this), fd, cmd, arg, ret, error);
+
   switch (cmd) {
     case F_DUPFD:
       return handle_dup3(fd, ret, 0, error);
@@ -415,6 +455,8 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
 
 int Process::handle_ioctl(const int fd, const int cmd,
                           const int ret, const int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d, cmd=%d, ret=%d, error=%d", D(this), fd, cmd, ret, error);
+
   (void) ret;
 
   switch (cmd) {
@@ -447,6 +489,8 @@ int Process::handle_ioctl(const int fd, const int cmd,
 }
 
 void Process::handle_read(const int fd) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully read from (" + d(fd) +
                                    ") which is known to be closed, which means interception"
@@ -460,6 +504,8 @@ void Process::handle_read(const int fd) {
 }
 
 void Process::handle_write(const int fd) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully wrote to (" + d(fd) +
                                    ") which is known to be closed, which means interception"
@@ -473,12 +519,16 @@ void Process::handle_write(const int fd) {
 }
 
 void Process::handle_set_wd(const char * const ar_d) {
+  TRACK(FB_DEBUG_PROC, "this=%s, ar_d=%s", D(this), ar_d);
+
   wd_ = get_absolute(AT_FDCWD, ar_d);
   assert(wd_);
   add_wd(wd_);
 }
 
 void Process::handle_set_fwd(const int fd) {
+  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+
   const FileFD* ffd = get_fd(fd);
   if (!ffd) {
     disable_shortcutting_bubble_up("Process successfully fchdir()'ed to (" + d(fd) +
@@ -504,6 +554,8 @@ void Process::handle_set_fwd(const int fd) {
  * Returns the length of the canonicalized path.
  */
 static inline size_t canonicalize_path(char *path, size_t original_length) {
+  TRACK(FB_DEBUG_PROC, "path=%s, original_length=%ld", D(path), original_length);
+
   char *src = path, *dst = path;  /* dst <= src all the time */
   bool add_slash = true;
 
@@ -575,6 +627,8 @@ static inline size_t canonicalize_path(char *path, size_t original_length) {
 }
 
 const FileName* Process::get_absolute(const int dirfd, const char * const name, ssize_t length) {
+  TRACK(FB_DEBUG_PROC, "this=%s, dirfd=%d, name=%s, length=%ld", D(this), dirfd, D(name), length);
+
   if (platform::path_is_absolute(name)) {
     return FileName::Get(name, length);
   } else {
@@ -676,6 +730,8 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
                                 const bool failed) {
+  TRACK(FB_DEBUG_PROC, "this=%s, failed=%s", D(this), D(failed));
+
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
     if (argv_matches_expectation(argv, expected_child_->argv())) {
@@ -699,6 +755,8 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
 }
 
 bool Process::any_child_not_finalized() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   if (exec_pending_ || pending_popen_child_) {
     return true;
   }
@@ -719,6 +777,8 @@ bool Process::any_child_not_finalized() {
  * Finalize the current process.
  */
 void Process::do_finalize() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   /* Now we can ack the previous system()'s second message,
    * or a pending pclose() or wait*(). */
   if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_ != -1) {
@@ -734,6 +794,8 @@ void Process::do_finalize() {
  * bubble it up.
  */
 void Process::maybe_finalize() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   if (state() != FB_PROC_TERMINATED) {
     return;
   }
@@ -748,6 +810,8 @@ void Process::maybe_finalize() {
 }
 
 void Process::finish() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   if (FB_DEBUGGING(FB_DEBUG_PROC) && expected_child_) {
     FB_DEBUG(FB_DEBUG_PROC, "Expected system()/popen()/posix_spawn() children that did not appear"
                             " (e.g. posix_spawn() failed in the pre-exec or exec step):");

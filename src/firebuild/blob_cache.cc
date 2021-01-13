@@ -116,6 +116,8 @@ bool BlobCache::store_file(const FileName *path,
                            Hash *key_out,
                            int fd_src,
                            struct stat64 *stat_ptr) {
+  TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d", D(path), fd_src);
+
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
   bool close_fd_src = false;
@@ -216,6 +218,8 @@ bool BlobCache::store_file(const FileName *path,
  */
 bool BlobCache::retrieve_file(const Hash &key,
                               const FileName *path_dst) {
+  TRACK(FB_DEBUG_CACHING, "key=%s, path_dst=%s", D(key), D(path_dst));
+
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + d(key) + " => " + d(path_dst));
   }

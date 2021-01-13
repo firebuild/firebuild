@@ -54,6 +54,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       libs_(), file_usages_(), cacher_(NULL), exec_count_(1) {
+  TRACK(FB_DEBUG_PROC, "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
+        pid, ppid, D(initial_wd), D(executable), D(parent));
+
   if (parent != NULL) {
     exec_count_ = parent->exec_count() + 1;
     // add as exec child of parent
@@ -70,6 +73,8 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
  * ExecedProcess in the ProcessTree.
  */
 void ExecedProcess::initialize() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   /* Propagate the opening of the executable and libraries upwards as
    * regular file open events. */
   if (parent_exec_point()) {
@@ -82,6 +87,8 @@ void ExecedProcess::initialize() {
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {
+  TRACK(FB_DEBUG_PROC, "this=%s, status=%d", D(this), status);
+
   if (parent()) {
     parent()->set_exit_status(status);
     parent()->propagate_exit_status(status);
@@ -90,6 +97,9 @@ void ExecedProcess::propagate_exit_status(const int status) {
 
 void ExecedProcess::exit_result(const int status, const int64_t utime_u,
                                 const int64_t stime_u) {
+  TRACK(FB_DEBUG_PROC, "this=%s, status=%d, utime_u=%ld, stime_u=%ld",
+        D(this), status, utime_u, stime_u);
+
   // store results for this process
   Process::exit_result(status, utime_u, stime_u);
   // propagate to parents exec()-ed this FireBuild process
@@ -97,6 +107,8 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
 }
 
 void ExecedProcess::do_finalize() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   // store data for shortcutting
   if (cacher_ && !was_shortcut() && can_shortcut()) {
     cacher_->store(this);
@@ -133,6 +145,8 @@ void ExecedProcess::do_finalize() {
  */
 void ExecedProcess::propagate_file_usage(const FileName *name,
                                          const FileUsage &fu_change) {
+  TRACK(FB_DEBUG_PROC, "this=%s, name=%s, fu_change=%s", D(this), D(name), D(fu_change));
+
   FileUsage *fu;
   auto it = file_usages_.find(name);
   if (it != file_usages_.end()) {
@@ -161,6 +175,9 @@ bool ExecedProcess::register_file_usage(const FileName *name,
                                         FileAction action,
                                         int flags,
                                         int error) {
+  TRACK(FB_DEBUG_PROC, "this=%s, name=%s, actual_file=%s, flags=%d, error=%d",
+        D(this), D(name), D(actual_file), flags, error);
+
   if (name->is_at_locations(ignore_locations)) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
@@ -208,6 +225,8 @@ bool ExecedProcess::register_file_usage(const FileName *name,
  */
 bool ExecedProcess::register_file_usage(const FileName *name,
                                         FileUsage fu_change) {
+  TRACK(FB_DEBUG_PROC, "this=%s, name=%s, fu_change=%s", D(this), D(name), D(fu_change));
+
   if (name->is_at_locations(ignore_locations)) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
@@ -233,6 +252,8 @@ bool ExecedProcess::register_file_usage(const FileName *name,
  * to the given file.
  */
 bool ExecedProcess::register_parent_directory(const FileName *name) {
+  TRACK(FB_DEBUG_PROC, "this=%s, name=%s", D(this), D(name));
+
   /* name is canonicalized, so just simply strip the last component */
   std::string parent_name = name->to_string();
   size_t slash_pos = parent_name.rfind('/');
@@ -250,6 +271,8 @@ bool ExecedProcess::register_parent_directory(const FileName *name) {
 
 /* Find and apply shortcut */
 bool ExecedProcess::shortcut() {
+  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+
   if (can_shortcut() && cacher_) {
     return cacher_->shortcut(this);
   } else {

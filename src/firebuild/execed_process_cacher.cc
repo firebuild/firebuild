@@ -57,6 +57,8 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
  * Also store fingerprint_msgs_ if debugging is enabled.
  */
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
+  TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
+
   flatbuffers::FlatBufferBuilder builder(64*1024);
 
   auto fp_wd = builder.CreateString(proc->initial_wd()->c_str(), proc->initial_wd()->length());
@@ -130,6 +132,8 @@ fns_to_sorted_offsets(std::vector<const FileName*>* fns, flatbuffers::FlatBuffer
 }
 
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
+  TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
+
   if (no_store_) {
     return;
   }
@@ -293,6 +297,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
  * current contents.
  */
 static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint) {
+  TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
+
   struct stat64 st;
   for (const auto& file : *pi.path_isreg_with_hash()) {
     Hash on_fs_hash, in_cache_hash;
@@ -393,6 +399,8 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
 const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const ExecedProcess *proc,
                                                                     uint8_t **inouts_buf,
                                                                     size_t *inouts_buf_len) {
+  TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
+
   const msg::ProcessInputsOutputs *ret = NULL;
   int count = 0;
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
@@ -440,6 +448,8 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
  */
 bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                                          const msg::ProcessInputsOutputs* const inouts) {
+  TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
+
   if (proc->parent_exec_point()) {
     for (const auto& file : *inouts->inputs()->path_isreg_with_hash()) {
       Hash hash;
@@ -536,6 +546,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
  * Returns if it succeeded.
  */
 bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
+  TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
+
   if (no_fetch_) {
     return false;
   }

@@ -124,6 +124,8 @@ bool ObjCache::store(const Hash &key,
                      const size_t entry_len,
                      const uint8_t * const debug_key,
                      Hash *subkey_out) {
+  TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
+
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: storing entry, key " + d(key));
   }
@@ -210,6 +212,8 @@ bool ObjCache::retrieve(const Hash &key,
                         const Hash &subkey,
                         uint8_t ** entry,
                         size_t * entry_len) {
+  TRACK(FB_DEBUG_CACHING, "key=%s, subkey=%s", D(key), D(subkey));
+
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: retrieving entry, key "
              + d(key) + " subkey " + d(subkey));
@@ -260,6 +264,8 @@ bool ObjCache::retrieve(const Hash &key,
  * // FIXME replace with some iterator-like approach?
  */
 std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
+  TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
+
   std::vector<Hash> ret;
   std::string path = construct_cached_dir_name(base_dir_, key, false);
 

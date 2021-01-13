@@ -15,6 +15,8 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, parent ? parent->wd() : FileName::Get(""), parent, fds) {
+  TRACK(FB_DEBUG_PROC, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
+
   // add as fork child of parent
   if (parent) {
     exec_point_ = parent->exec_point();
