@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "firebuild/fd.h"
+
 namespace firebuild {
 
 typedef struct msg_header_ {
@@ -13,7 +15,7 @@ typedef struct msg_header_ {
   uint32_t ack_id;
 } msg_header;
 
-void ack_msg(const int conn, const int ack_num);
+void ack_msg(const FD conn, const int ack_num);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_UTILS_H_
