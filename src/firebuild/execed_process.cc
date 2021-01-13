@@ -53,8 +53,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       can_shortcut_(true), was_shortcut_(false),
       sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), cacher_(NULL) {
+      libs_(), file_usages_(), cacher_(NULL), exec_count_(1) {
   if (parent != NULL) {
+    exec_count_ = parent->exec_count() + 1;
     // add as exec child of parent
     parent->set_exec_pending(false);
     parent->set_state(FB_PROC_TERMINATED);
@@ -397,6 +398,46 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_time());
   fprintf(stream, "%s sum_utime_u: %lu,\n", indent, sum_utime_u());
   fprintf(stream, "%s sum_stime_u: %lu,\n", indent, sum_stime_u());
+}
+
+/* For debugging, a short imprecise reminder of the command line. Omits the path to the
+ * executable, and strips off the middle. Does not escape or quote. */
+std::string ExecedProcess::args_to_short_string() const {
+  const int max_len = 65;
+  if (args().size() == 0) {
+    return "";
+  }
+  size_t slash_pos = args()[0].rfind('/');
+  std::string str;
+  if (slash_pos == std::string::npos) {
+    str = args()[0];
+  } else {
+    str = args()[0].substr(slash_pos + 1);
+  }
+  for (size_t i = 1; i < args().size(); i++) {
+    str += " ";
+    str += args()[i];
+  }
+  if (str.length() <= max_len) {
+    return str;
+  } else {
+    const int one_run = max_len / 2 - 5;
+    return str.substr(0, one_run) + "[...]" + str.substr(str.length() - one_run);
+  }
+}
+
+/* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string ExecedProcess::d_internal(const int level) const {
+  if (level > 0) {
+    /* brief */
+    return Process::d_internal(level);
+  } else {
+    /* verbose */
+    return "[ExecedProcess " + pid_and_exec_count() + ", " + state_string() + ", " +
+        d(args_to_short_string()) + "]";
+  }
 }
 
 ExecedProcess::~ExecedProcess() {

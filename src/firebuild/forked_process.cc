@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "firebuild/file_name.h"
+#include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/debug.h"
 
@@ -20,6 +21,20 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
     parent->fork_children().push_back(this);
   } else {
     fb_error("impossible: Process without known fork parent\n");
+  }
+}
+
+/* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string ForkedProcess::d_internal(const int level) const {
+  if (level > 0) {
+    /* brief */
+    return Process::d_internal(level);
+  } else {
+    /* verbose */
+    return "[ForkedProcess " + pid_and_exec_count() + ", " + state_string() + ", parent " +
+        parent()->pid_and_exec_count() + ", " + d(exec_point()->args_to_short_string()) + "]";
   }
 }
 

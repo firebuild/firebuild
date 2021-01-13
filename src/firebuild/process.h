@@ -376,6 +376,31 @@ class Process {
     on_finalized_ack_fd_ = fd;
   }
 
+  /* For debugging: The "age" of a given PID, i.e. how many execve() hops happened to it.
+   * 0 for a ForkedProcess, 1 for its first ExecedProcess child, 2 for the execed child of
+   * that one, etc. -1 temporarily while constructing a Process object. */
+  virtual int exec_count() const {return -1;}
+  /* For debugging. */
+  std::string pid_and_exec_count() const {return d(pid()) + "." + d(exec_count());}
+  /* For debugging. */
+  std::string state_string() const {
+    switch (state_) {
+      case FB_PROC_RUNNING:
+        return "running";
+      case FB_PROC_TERMINATED:
+        return "terminated";
+      case FB_PROC_FINALIZED:
+        return "finalized";
+      default:
+        assert(0 && "unknown state");
+        return "UNKNOWN";
+    }
+  }
+  /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
+   * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+   * See #431 for design and rationale. */
+  virtual std::string d_internal(const int level = 0) const;
+
  private:
   Process *parent_;
   process_state state_ :2;
@@ -426,6 +451,12 @@ class Process {
 inline bool Process::operator == (Process const & p) const {
   return (p.fb_pid_ == fb_pid_);
 }
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const Process& p, const int level = 0);
+std::string d(const Process *p, const int level = 0);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_PROCESS_H_

@@ -24,6 +24,7 @@ class ForkedProcess : public Process {
                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   ExecedProcess* exec_point() {return exec_point_;}
   const ExecedProcess* exec_point() const {return exec_point_;}
+  virtual int exec_count() const {return 0;}
   /**
    * Fail to change to a working directory
    */
@@ -43,6 +44,11 @@ class ForkedProcess : public Process {
     set_aggr_time(utime_u() + stime_u());
     return Process::sum_rusage_recurse();
   }
+
+  /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
+   * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+   * See #431 for design and rationale. */
+  virtual std::string d_internal(const int level = 0) const;
 
  private:
   ExecedProcess *exec_point_ {};
