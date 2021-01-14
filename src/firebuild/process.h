@@ -343,18 +343,7 @@ class Process {
    *     omitted for the current process
    */
   void disable_shortcutting_bubble_up_to_excl(const Process *stop, const std::string& reason,
-                                              const Process *p = NULL) {
-    if (this == stop) {
-      return;
-    }
-    if (p == NULL) {
-      p = this;
-    }
-    disable_shortcutting_only_this(reason, p);
-    if (parent()) {
-      parent()->disable_shortcutting_bubble_up_to_excl(stop, reason, p);
-    }
-  }
+                                              const Process *p = NULL);
 
   /**
    * Process and parents (transitively) can't be short-cut because it performed
@@ -363,9 +352,7 @@ class Process {
    * @param p process the event preventing shortcutting happened in, or
    *     omitted for the current process
    */
-  void disable_shortcutting_bubble_up(const std::string& reason, const Process *p = NULL) {
-    disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
-  }
+  void disable_shortcutting_bubble_up(const std::string& reason, const Process *p = NULL);
 
   virtual int64_t sum_rusage_recurse();
 

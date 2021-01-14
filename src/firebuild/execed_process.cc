@@ -286,6 +286,20 @@ bool ExecedProcess::shortcut() {
   }
 }
 
+void ExecedProcess::disable_shortcutting_only_this(const std::string &reason, const Process *p) {
+  TRACK(FB_DEBUG_PROC, "this=%s, reason=%s, source=%s", D(this), D(reason), D(p));
+
+  if (can_shortcut_) {
+    can_shortcut_ = false;
+    assert(cant_shortcut_reason_ == "");
+    cant_shortcut_reason_ = reason;
+    assert(cant_shortcut_proc_ == NULL);
+    cant_shortcut_proc_ = p ? p : this;
+    FB_DEBUG(FB_DEBUG_PROC, "Command " + d(executable_->c_str())
+             + " can't be short-cut due to: " + reason + ", " + d(this));
+  }
+}
+
 int64_t ExecedProcess::sum_rusage_recurse() {
   int64_t aggr_time = utime_u() + stime_u();
   sum_utime_u_ = 0;

@@ -821,6 +821,29 @@ void Process::finish() {
   maybe_finalize();
 }
 
+void Process::disable_shortcutting_bubble_up_to_excl(const Process *stop, const std::string& reason,
+                                                     const Process *p) {
+  TRACK(FB_DEBUG_PROC, "this=%s, stop=%s, reason=%s, source=%s",
+        D(this), D(stop), D(reason), D(p));
+
+  if (this == stop) {
+    return;
+  }
+  if (p == NULL) {
+    p = this;
+  }
+  disable_shortcutting_only_this(reason, p);
+  if (parent()) {
+    parent()->disable_shortcutting_bubble_up_to_excl(stop, reason, p);
+  }
+}
+
+void Process::disable_shortcutting_bubble_up(const std::string& reason, const Process *p) {
+  TRACK(FB_DEBUG_PROC, "this=%s, reason=%s, source=%s", D(this), D(reason), D(p));
+
+  disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
+}
+
 int64_t Process::sum_rusage_recurse() {
   if (exec_child_ != NULL) {
     aggr_time_ += exec_child_->sum_rusage_recurse();
