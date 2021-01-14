@@ -16,9 +16,6 @@
 #include <libgen.h>
 
 #include <string>
-#include <iostream>
-#include <cerrno>
-#include <cstdio>
 #include <stdexcept>
 #include <libconfig.h++>
 
@@ -1334,12 +1331,12 @@ namespace firebuild {
 
 /** Print error message */
 extern void fb_error(const std::string &msg) {
-  std::cerr << "FireBuild error: " << msg << std::endl;
+  fprintf(stderr, "FireBuild error: %s\n", msg.c_str());
 }
 
 /** Print debug message if debug level is at least lvl */
 extern void fb_debug(const std::string &msg) {
-  std::cerr << msg << std::endl;
+  fprintf(stderr, "%s\n", msg.c_str());
 }
 
 int32_t debug_flags = 0;
