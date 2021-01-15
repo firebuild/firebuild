@@ -250,5 +250,45 @@ class MethodTrackerX {
 };
 #endif  /* NDEBUG */
 
+#ifndef NDEBUG
+/*
+ * Like an "assert(a op b)" statement, "assert_cmp(a, op, b)" makes sure that the "a op b" condition
+ * is true. Note the required commas. Example: "assert_cmp(foo, >=, 0)".
+ *
+ * In case of failure, prints both values.
+ *
+ * Based on the idea of GLib's g_assert_cmp*(). With C++'s overloading we can do better, though.
+ *
+ * The two values can be of any type that's printable using d() and comparable, and accordingly,
+ * they are indeed printed using d() if the comparison fails.
+ *
+ * Note: because d(NULL) doesn't work, you can't do "assert_cmp(p, ==, NULL)" or
+ * "assert_cmp(p, !=, NULL)". For the former, use our "assert_null(p)". For the latter, use the
+ * standard "assert(p)".
+ */
+#define assert_cmp(a, op, b) do { \
+  if (!(a op b)) { \
+    std::string source = #a " " #op " " #b; \
+    std::string actual = firebuild::d(a) + " " + #op + " " + firebuild::d(b); \
+    fprintf(stderr, "Assertion `%s': `%s' failed.\n", source.c_str(), actual.c_str()); \
+    assert(0 && "see previous message"); \
+  } \
+} while (0)
+/*
+ * Like an assert(p == NULL), but if fails then prints the value using d().
+ */
+#define assert_null(p) do { \
+  if (p != NULL) { \
+    std::string source = #p " != NULL"; \
+    std::string actual = firebuild::d(p) + " != NULL"; \
+    fprintf(stderr, "Assertion `%s': `%s' failed.\n", source.c_str(), actual.c_str()); \
+    assert(0 && "see previous message"); \
+  } \
+} while (0)
+#else
+#define assert_cmp(a, op, b)
+#define assert_null(p)
+#endif  /* NDEBUG */
+
 }  // namespace firebuild
 #endif  // FIREBUILD_DEBUG_H_

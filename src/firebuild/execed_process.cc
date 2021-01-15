@@ -292,9 +292,9 @@ void ExecedProcess::disable_shortcutting_only_this(const std::string &reason, co
 
   if (can_shortcut_) {
     can_shortcut_ = false;
-    assert(cant_shortcut_reason_ == "");
+    assert_cmp(cant_shortcut_reason_, ==, "");
     cant_shortcut_reason_ = reason;
-    assert(cant_shortcut_proc_ == NULL);
+    assert_null(cant_shortcut_proc_);
     cant_shortcut_proc_ = p ? p : this;
     FB_DEBUG(FB_DEBUG_PROC, "Command " + d(executable_->c_str())
              + " can't be short-cut due to: " + reason + ", " + d(this));

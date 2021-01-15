@@ -311,7 +311,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
                + ": regular file expected but does not exist or something else found");
       return false;
     }
-    assert(file->hash()->size() == Hash::hash_size());
+    assert_cmp(file->hash()->size(), ==, Hash::hash_size());
     in_cache_hash.set_hash_from_binary(file->hash()->data());
     if (on_fs_hash != in_cache_hash) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
@@ -330,7 +330,7 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
                + ": directory expected but does not exist or something else found");
       return false;
     }
-    assert(file->hash()->size() == Hash::hash_size());
+    assert_cmp(file->hash()->size(), ==, Hash::hash_size());
     in_cache_hash.set_hash_from_binary(file->hash()->data());
     if (on_fs_hash != in_cache_hash) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
@@ -453,7 +453,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   if (proc->parent_exec_point()) {
     for (const auto& file : *inouts->inputs()->path_isreg_with_hash()) {
       Hash hash;
-      assert(file->hash()->size() == Hash::hash_size());
+      assert_cmp(file->hash()->size(), ==, Hash::hash_size());
       hash.set_hash_from_binary(file->hash()->data());
       FileUsage fu(ISREG_WITH_HASH, hash);
       const auto path = FileName::Get(file->path());
@@ -461,7 +461,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     }
     for (const auto& file : *inouts->inputs()->path_isdir_with_hash()) {
       Hash hash;
-      assert(file->hash()->size() == Hash::hash_size());
+      assert_cmp(file->hash()->size(), ==, Hash::hash_size());
       hash.set_hash_from_binary(file->hash()->data());
       FileUsage fu(ISDIR_WITH_HASH, hash);
       const auto path = FileName::Get(file->path());
@@ -496,7 +496,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   for (const auto& file : *inouts->outputs()->path_isdir()) {
     const auto path = FileName::Get(file->path());
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
-    assert(file->mode() != -1);
+    assert_cmp(file->mode(), !=, -1);
     mkdir(path->c_str(), file->mode());
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(path, fu);
@@ -508,7 +508,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
              "│   Fetching file from blobs cache: "
              + d(path));
     Hash hash;
-    assert(file->hash()->size() == Hash::hash_size());
+    assert_cmp(file->hash()->size(), ==, Hash::hash_size());
     hash.set_hash_from_binary(file->hash()->data());
     blob_cache->retrieve_file(hash, path);
     /* mode is -1 by default in flatbuffers */

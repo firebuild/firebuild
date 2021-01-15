@@ -14,6 +14,7 @@
 #include <string>
 
 #include "firebuild/cxx_lang_utils.h"
+#include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/fd.h"
 #include "firebuild/linear_buffer.h"
@@ -42,7 +43,7 @@ class ConnectionContext {
     }
     assert(ev_);
     evutil_socket_t conn = event_get_fd(ev_);
-    assert(conn == fd_.fd());
+    assert_cmp(conn, ==, fd_.fd());
     event_free(ev_);
     fd_.close();
     close(conn);
