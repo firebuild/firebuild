@@ -282,7 +282,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, firebuild::FD fd
       /* This PID was already seen, i.e. this process is the result of an exec*(),
        * or a posix_spawn*() where we've already seen and processed the
        * "posix_spawn_parent" message. */
-      assert(parent->state() != firebuild::FB_PROC_FINALIZED);
+      assert_cmp(parent->state(), !=, firebuild::FB_PROC_FINALIZED);
       if (parent->state() == firebuild::FB_PROC_TERMINATED) {
         fds = parent->pass_on_fds();
       } else {
@@ -300,7 +300,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, firebuild::FD fd
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
       unix_parent = proc_tree->pid2proc(ppid);
-      assert(unix_parent != NULL);
+      assert(unix_parent);
 
       /* Verify that the child was expected and get inherited fds. */
       std::vector<std::string> args = fbb_scproc_query_get_arg(ic_msg);
@@ -351,13 +351,13 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, firebuild::FD fd
     } else if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
       if (unix_parent->pending_popen_fd() != -1) {
         /* The popen_parent message has already arrived. Take a note of the fd -> child mapping. */
-        assert(!unix_parent->pending_popen_child());
+        assert_null(unix_parent->pending_popen_child());
         unix_parent->AddPopenedProcess(unix_parent->pending_popen_fd(), proc);
         unix_parent->set_pending_popen_fd(-1);
       } else {
         /* The popen_parent message has not yet arrived.
          * Remember the new child, the handler of the popen_parent message will need it. */
-        assert(!unix_parent->pending_popen_child());
+        assert_null(unix_parent->pending_popen_child());
         unix_parent->set_pending_popen_child(proc);
       }
     }
@@ -429,7 +429,7 @@ void proc_ic_msg(const void *fbb_buf,
     }
     case FBB_TAG_system: {
       const FBB_system *ic_msg = reinterpret_cast<const FBB_system *>(fbb_buf);
-      assert(!proc->system_child());
+      assert_null(proc->system_child());
       // system(cmd) launches a child of argv = ["sh", "-c", cmd]
       auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
       // FIXME what if !has_cmd() ?
@@ -455,8 +455,8 @@ void proc_ic_msg(const void *fbb_buf,
     }
     case FBB_TAG_popen: {
       const FBB_popen *ic_msg = reinterpret_cast<const FBB_popen *>(fbb_buf);
-      assert(!proc->pending_popen_child());
-      assert(proc->pending_popen_fd() == -1);
+      assert_null(proc->pending_popen_child());
+      assert_cmp(proc->pending_popen_fd(), ==, -1);
       // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
       auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
       // FIXME what if !has_cmd() ?
@@ -470,13 +470,13 @@ void proc_ic_msg(const void *fbb_buf,
       if (proc->has_expected_child()) {
         /* The child hasn't appeared yet. Defer sending the ACK and setting up
          * the fd -> child mapping. */
-        assert(!proc->pending_popen_child());
+        assert_null(proc->pending_popen_child());
         proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
         proc->set_pending_popen_fd(fbb_popen_parent_get_fd(ic_msg));
         return;
       }
       /* The child has already appeared. Take a note of the fd -> child mapping. */
-      assert(proc->pending_popen_fd() == -1);
+      assert_cmp(proc->pending_popen_fd(), ==, -1);
       assert(proc->pending_popen_child());
       proc->AddPopenedProcess(fbb_popen_parent_get_fd(ic_msg), proc->pending_popen_child());
       proc->set_pending_popen_child(NULL);
@@ -965,7 +965,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
 
   (void) fd_conn; /* unused in prod build */
   (void) what; /* unused */
-  assert(conn_ctx->fd().fd() == fd_conn);  /* makes sure that FD's seq is correct */
+  assert_cmp(conn_ctx->fd().fd(), ==, fd_conn);  /* makes sure that FD's seq is correct */
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
   size_t full_length;

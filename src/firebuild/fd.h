@@ -72,7 +72,7 @@ class FD {
             fd_to_age_[fd_].opened && fd_to_age_[fd_].seq == seq_);
   }
   static void ensure_fd_in_array(int fd) {
-    assert(fd >= 0);
+    assert_cmp(fd, >=, 0);
     if (fd_to_age_.size() <= (size_t) fd) {
       fd_to_age_.resize(fd + 1, {.seq = 0, .opened = false});
     }

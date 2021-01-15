@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "firebuild/debug.h"
 #include "firebuild/fd.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
@@ -113,7 +114,7 @@ class Process {
   void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
   ExecedProcess *system_child() const {return system_child_;}
   void set_expected_child(ExecedProcessEnv *ec) {
-    assert(!expected_child_);
+    assert_null(expected_child_);
     expected_child_ = ec;
   }
   ExecedProcess *pending_popen_child() const {return pending_popen_child_;}
@@ -153,7 +154,7 @@ class Process {
     fd2popen_child_[fd] = proc;
   }
   ExecedProcess *PopPopenedProcess(int fd) {
-    assert(fd2popen_child_.count(fd) > 0);
+    assert_cmp(fd2popen_child_.count(fd), >, 0);
     ExecedProcess *ret = fd2popen_child_[fd];
     fd2popen_child_.erase(fd);
     return ret;

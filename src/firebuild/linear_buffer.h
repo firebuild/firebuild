@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "firebuild/cxx_lang_utils.h"
+#include "firebuild/debug.h"
 
 namespace firebuild {
 
@@ -32,7 +33,7 @@ class LinearBuffer {
   ssize_t read(FD fd, ssize_t howmuch) {
     TRACK(FB_DEBUG_COMM, "fd=%s", D(fd));
 
-    assert(howmuch != 0);
+    assert_cmp(howmuch, !=, 0);
     if (howmuch >= 0) {
       /* Read at most the specified amount, in one step. (Note: fd is nonblocking.) */
       ensure_space(howmuch);
@@ -84,7 +85,7 @@ class LinearBuffer {
   void discard(const size_t howmuch) {
     TRACK(FB_DEBUG_COMM, "howmuch=%ld", howmuch);
 
-    assert(howmuch <= length_);
+    assert_cmp(howmuch, <=, length_);
     length_ -= howmuch;
     if (length_ == 0) {
       data_start_offset_ = 0;
@@ -101,7 +102,7 @@ class LinearBuffer {
   void ensure_space(ssize_t howmuch) {
     TRACK(FB_DEBUG_COMM, "howmuch=%ld", howmuch);
 
-    assert(howmuch >= 0);
+    assert_cmp(howmuch, >=, 0);
     if (data_start_offset_ > 256 * 1024) {
       /* In the unlucky case of not processing all the data for many read cycles move it to the
        * beginning to the buffer to don't inflate the buffer unnecessarily. */

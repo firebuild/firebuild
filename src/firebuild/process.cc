@@ -785,7 +785,7 @@ void Process::do_finalize() {
     ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
   }
 
-  assert(state() == FB_PROC_TERMINATED);
+  assert_cmp(state(), ==, FB_PROC_TERMINATED);
   set_state(FB_PROC_FINALIZED);
 }
 

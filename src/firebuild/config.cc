@@ -184,7 +184,7 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
 
   /* Save portions of the configuration to separate variables for faster access. */
   libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
-  assert(!ignore_locations);
+  assert_null(ignore_locations);
   ignore_locations = new std::vector<const FileName *>();
   for (int i = 0; i < ignores.getLength(); i++) {
     ignore_locations->push_back(FileName::Get(ignores[i].c_str()));
