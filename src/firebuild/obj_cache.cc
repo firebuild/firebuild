@@ -248,6 +248,11 @@ bool ObjCache::retrieve(const Hash &key,
       close(fd);
       return false;
     }
+  } else {
+    fb_error("0-sized cache entry: " + path);
+    assert(st.st_size <= 0);
+    close(fd);
+    return false;
   }
   close(fd);
 
