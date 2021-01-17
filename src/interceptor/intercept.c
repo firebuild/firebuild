@@ -92,7 +92,7 @@ void wrapper_signal_handler_1arg(int signum) {
   if (thread_signal_danger_zone_depth > 0) {
     snprintf(debug_msg, sizeof(debug_msg), "signal %d arrived in danger zone, delaying\n", signum);
     insert_debug_msg(debug_msg);
-    thread_delayed_signals_bitmap |= (1LL << (signum - 1));
+    thread_delayed_signals_bitmap |= (1LLU << (signum - 1));
     return;
   }
 
@@ -120,7 +120,7 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   if (thread_signal_danger_zone_depth > 0) {
     snprintf(debug_msg, sizeof(debug_msg), "signal %d arrived in danger zone, delaying\n", signum);
     insert_debug_msg(debug_msg);
-    thread_delayed_signals_bitmap |= (1LL << (signum - 1));
+    thread_delayed_signals_bitmap |= (1LLU << (signum - 1));
     // FIXME(egmont) stash "info"
     return;
   }
@@ -146,10 +146,10 @@ void thread_raise_delayed_signals() {
   /* Execute the delayed signals, by re-raising them. */
   char debug_msg[256];
   for (int signum = 1; signum <= SIGRTMAX; signum++) {
-    if (thread_delayed_signals_bitmap & (1LL << (signum - 1))) {
+    if (thread_delayed_signals_bitmap & (1LLU << (signum - 1))) {
       snprintf(debug_msg, sizeof(debug_msg), "raising delayed signal %d\n", signum);
       insert_debug_msg(debug_msg);
-      thread_delayed_signals_bitmap &= ~(1LL << (signum - 1));
+      thread_delayed_signals_bitmap &= ~(1LLU << (signum - 1));
       raise(signum);
     }
   }
