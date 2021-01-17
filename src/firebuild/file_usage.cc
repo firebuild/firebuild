@@ -38,7 +38,7 @@ namespace firebuild {
  * @return if the merge caused a change in "this"
  */
 bool FileUsage::merge(const FileUsage& that) {
-  TRACK(FB_DEBUG_PROC, "this=%s, that=%s", D(this), D(that));
+  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "that=%s", D(that));
 
   bool changed = false;
   if (initial_state_ == DONTKNOW) {
@@ -73,8 +73,9 @@ bool FileUsage::merge(const FileUsage& that) {
 bool FileUsage::update_from_open_params(const FileName* filename,
                                         FileAction action, int flags, int err,
                                         bool do_read) {
-  TRACK(FB_DEBUG_PROC, "this=%s, filename=%s, action=%s, flags=%d, err=%d, do_read=%s",
-        D(this), D(filename), file_action_to_string(action), flags, err, D(do_read));
+  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this,
+         "filename=%s, action=%s, flags=%d, err=%d, do_read=%s",
+         D(filename), file_action_to_string(action), flags, err, D(do_read));
 
   if (!do_read) {
     if ((action == FILE_ACTION_MKDIR || is_write(flags)) && !err) {

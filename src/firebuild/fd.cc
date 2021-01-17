@@ -18,7 +18,7 @@ FD FD::open(int fd) {
 }
 
 void FD::close() {
-  TRACK(FB_DEBUG_FD, "this=%s", D(this));
+  TRACKX(FB_DEBUG_FD, 1, 0, FD, this, "");
 
   assert(is_valid());
   fd_to_age_[fd_].opened = false;
