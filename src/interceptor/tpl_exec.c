@@ -68,20 +68,20 @@
     /* Set for exec*p*() */
     fbb_execv_set_with_p(&ic_msg, true);
     char *path_env;
-    size_t confstr_len = 0;
+    size_t confstr_buf_len = 0;
     if ((path_env = getenv("PATH"))) {
       fbb_execv_set_path(&ic_msg, path_env);
     } else {
       /* We have to fall back as described in man execvp.
        * This code is for glibc >= 2.24. For older versions
        * we'd need to prepend ".:", see issue 153. */
-      confstr_len = ic_orig_confstr(_CS_PATH, NULL, 0);
+      confstr_buf_len = ic_orig_confstr(_CS_PATH, NULL, 0);
     }
     /* Use the stack rather than the heap, make sure it lives
      * until we send the message. */
-    char path_confstr[confstr_len];
-    if (confstr_len > 0) {
-      ic_orig_confstr(_CS_PATH, path_confstr, confstr_len);
+    if (confstr_buf_len > 0) {
+      char *path_confstr = alloca(confstr_buf_len);
+      ic_orig_confstr(_CS_PATH, path_confstr, confstr_buf_len);
       fbb_execv_set_path(&ic_msg, path_confstr);
     }
 ###   endif
