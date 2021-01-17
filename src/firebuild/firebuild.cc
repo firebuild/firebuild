@@ -1243,7 +1243,10 @@ int main(const int argc, char *argv[]) {
   if ((child_pid = fork()) == 0) {
     int i;
     // intercepted process
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstrict-overflow"
     char* argv_exec[argc - optind + 1];
+#pragma GCC diagnostic pop
 
     // we don't need that
     evutil_closesocket(listener);
