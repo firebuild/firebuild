@@ -114,7 +114,7 @@ jobs:
         sudo apt-get build-dep vte2.91
     - name: build-in-tree
       run: |
-        cmake -DCMAKE_C_FLAGS=-O3 -DCMAKE_CXX_FLAGS=-O3 .
+        cmake -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
         make -j2
         make check
     - name: build-vte
