@@ -185,7 +185,7 @@ int32_t parse_debug_flags(const std::string& str) {
 }
 
 #ifndef NDEBUG
-int MethodTracker::level_ = 0;
+int method_tracker_level = 0;
 #endif
 
 }  // namespace firebuild

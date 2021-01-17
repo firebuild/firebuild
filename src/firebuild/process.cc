@@ -27,7 +27,7 @@ Process::Process(const int pid, const int ppid, const FileName *wd,
       pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), fork_children_(),
       expected_child_(), exec_child_(NULL) {
-  TRACK(FB_DEBUG_PROC, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
+  TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 
   if (!fds_) {
     fds_ = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
@@ -82,7 +82,7 @@ void Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> f
 }
 
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
-  TRACK(FB_DEBUG_PROC, "this=%s, execed=%s", D(this), D(execed));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "execed=%s", D(execed));
 
   auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
   for (unsigned int i = 0; i < fds_->size(); i++) {
@@ -101,9 +101,9 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
                          const int fd, const int error, FD fd_conn, const int ack_num) {
-  TRACK(FB_DEBUG_PROC,
-        "this=%s, dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
-        D(this), dirfd, D(ar_name), flags, fd, error, D(fd_conn), ack_num);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
+         dirfd, D(ar_name), flags, fd, error, D(fd_conn), ack_num);
 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
@@ -136,7 +136,7 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
 
 /* close that fd if open, silently ignore if not open */
 int Process::handle_force_close(const int fd) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (get_fd(fd)) {
     return handle_close(fd, 0);
@@ -145,7 +145,7 @@ int Process::handle_force_close(const int fd) {
 }
 
 int Process::handle_close(const int fd, const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d, error=%d", D(this), fd, error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, error=%d", fd, error);
 
   FileFD* file_fd = get_fd(fd);
 
@@ -192,8 +192,8 @@ int Process::handle_close(const int fd, const int error) {
 
 int Process::handle_unlink(const int dirfd, const char * const ar_name,
                            const int flags, const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, dirfd=%d, ar_name=%s, flags=%d, error=%d",
-        D(this), dirfd, D(ar_name), flags, error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, flags=%d, error=%d",
+         dirfd, D(ar_name), flags, error);
 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
@@ -222,14 +222,14 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
 }
 
 int Process::handle_rmdir(const char * const ar_name, const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, ar_name=%s, error=%d", D(this), D(ar_name), error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_name=%s, error=%d", D(ar_name), error);
 
   return handle_unlink(AT_FDCWD, ar_name, AT_REMOVEDIR, error);
 }
 
 int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, dirfd=%d, ar_name=%s, error=%d",
-        D(this), dirfd, D(ar_name), error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, error=%d",
+         dirfd, D(ar_name), error);
 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
@@ -254,8 +254,8 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
 
 int Process::handle_pipe(const int fd1, const int fd2, const int flags,
                          const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd1=%d, fd2=%d, flags=%d, error=%d",
-        D(this), fd1, fd2, flags, error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd1=%d, fd2=%d, flags=%d, error=%d",
+         fd1, fd2, flags, error);
 
   if (error) {
     return 0;
@@ -284,8 +284,8 @@ int Process::handle_pipe(const int fd1, const int fd2, const int flags,
 
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
                          const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, oldfd=%d, newfd=%d, flags=%d, error=%d",
-        D(this), oldfd, newfd, flags, error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "oldfd=%d, newfd=%d, flags=%d, error=%d",
+         oldfd, newfd, flags, error);
 
   switch (error) {
     case EBADF:
@@ -325,9 +325,9 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
                            const int newdirfd, const char * const new_ar_name,
                            const int error) {
-  TRACK(FB_DEBUG_PROC,
-        "this=%s, olddirfd=%d, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
-        D(this), olddirfd, D(old_ar_name), newdirfd, D(new_ar_name), error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "olddirfd=%d, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
+         olddirfd, D(old_ar_name), newdirfd, D(new_ar_name), error);
 
   if (error) {
     return 0;
@@ -402,8 +402,9 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
 int Process::handle_symlink(const char * const old_ar_name,
                             const int newdirfd, const char * const new_ar_name,
                             const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
-        D(this), D(old_ar_name), newdirfd, D(new_ar_name), error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
+         D(old_ar_name), newdirfd, D(new_ar_name), error);
 
   if (!error) {
     disable_shortcutting_bubble_up("Process created a symlink ([" + d(newdirfd) + "]" +
@@ -414,7 +415,7 @@ int Process::handle_symlink(const char * const old_ar_name,
 }
 
 int Process::handle_clear_cloexec(const int fd) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully cleared cloexec on fd (" + d(fd) +
@@ -428,8 +429,8 @@ int Process::handle_clear_cloexec(const int fd) {
 
 int Process::handle_fcntl(const int fd, const int cmd, const int arg,
                           const int ret, const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d, cmd=%d, arg=%d, ret=%d, error=%d",
-        D(this), fd, cmd, arg, ret, error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, cmd=%d, arg=%d, ret=%d, error=%d",
+         fd, cmd, arg, ret, error);
 
   switch (cmd) {
     case F_DUPFD:
@@ -455,7 +456,8 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
 
 int Process::handle_ioctl(const int fd, const int cmd,
                           const int ret, const int error) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d, cmd=%d, ret=%d, error=%d", D(this), fd, cmd, ret, error);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, cmd=%d, ret=%d, error=%d",
+         fd, cmd, ret, error);
 
   (void) ret;
 
@@ -489,7 +491,7 @@ int Process::handle_ioctl(const int fd, const int cmd,
 }
 
 void Process::handle_read(const int fd) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully read from (" + d(fd) +
@@ -504,7 +506,7 @@ void Process::handle_read(const int fd) {
 }
 
 void Process::handle_write(const int fd) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
     disable_shortcutting_bubble_up("Process successfully wrote to (" + d(fd) +
@@ -519,7 +521,7 @@ void Process::handle_write(const int fd) {
 }
 
 void Process::handle_set_wd(const char * const ar_d) {
-  TRACK(FB_DEBUG_PROC, "this=%s, ar_d=%s", D(this), ar_d);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_d=%s", ar_d);
 
   wd_ = get_absolute(AT_FDCWD, ar_d);
   assert(wd_);
@@ -527,7 +529,7 @@ void Process::handle_set_wd(const char * const ar_d) {
 }
 
 void Process::handle_set_fwd(const int fd) {
-  TRACK(FB_DEBUG_PROC, "this=%s, fd=%d", D(this), fd);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   const FileFD* ffd = get_fd(fd);
   if (!ffd) {
@@ -627,7 +629,8 @@ static inline size_t canonicalize_path(char *path, size_t original_length) {
 }
 
 const FileName* Process::get_absolute(const int dirfd, const char * const name, ssize_t length) {
-  TRACK(FB_DEBUG_PROC, "this=%s, dirfd=%d, name=%s, length=%ld", D(this), dirfd, D(name), length);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, name=%s, length=%ld",
+         dirfd, D(name), length);
 
   if (platform::path_is_absolute(name)) {
     return FileName::Get(name, length);
@@ -730,7 +733,7 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
                                 const bool failed) {
-  TRACK(FB_DEBUG_PROC, "this=%s, failed=%s", D(this), D(failed));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "failed=%s", D(failed));
 
   std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
@@ -755,7 +758,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
 }
 
 bool Process::any_child_not_finalized() {
-  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   if (exec_pending_ || pending_popen_child_) {
     return true;
@@ -777,7 +780,7 @@ bool Process::any_child_not_finalized() {
  * Finalize the current process.
  */
 void Process::do_finalize() {
-  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   /* Now we can ack the previous system()'s second message,
    * or a pending pclose() or wait*(). */
@@ -794,7 +797,7 @@ void Process::do_finalize() {
  * bubble it up.
  */
 void Process::maybe_finalize() {
-  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   if (state() != FB_PROC_TERMINATED) {
     return;
@@ -810,7 +813,7 @@ void Process::maybe_finalize() {
 }
 
 void Process::finish() {
-  TRACK(FB_DEBUG_PROC, "this=%s", D(this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   if (FB_DEBUGGING(FB_DEBUG_PROC) && expected_child_) {
     FB_DEBUG(FB_DEBUG_PROC, "Expected system()/popen()/posix_spawn() children that did not appear"
@@ -823,8 +826,8 @@ void Process::finish() {
 
 void Process::disable_shortcutting_bubble_up_to_excl(const Process *stop, const std::string& reason,
                                                      const Process *p) {
-  TRACK(FB_DEBUG_PROC, "this=%s, stop=%s, reason=%s, source=%s",
-        D(this), D(stop), D(reason), D(p));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "stop=%s, reason=%s, source=%s",
+         D(stop), D(reason), D(p));
 
   if (this == stop) {
     return;
@@ -839,7 +842,7 @@ void Process::disable_shortcutting_bubble_up_to_excl(const Process *stop, const 
 }
 
 void Process::disable_shortcutting_bubble_up(const std::string& reason, const Process *p) {
-  TRACK(FB_DEBUG_PROC, "this=%s, reason=%s, source=%s", D(this), D(reason), D(p));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
 
   disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
 }

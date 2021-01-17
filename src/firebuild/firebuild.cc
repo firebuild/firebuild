@@ -193,7 +193,7 @@ namespace firebuild {
 
 void accept_exec_child(ExecedProcess* proc, FD fd_conn,
                        ProcessTree* proc_tree) {
-    TRACK(FB_DEBUG_PROC, "proc=%s, fd_conn=%s", D(proc), D(fd_conn));
+    TRACKX(FB_DEBUG_PROC, 1, 1, Process, proc, "fd_conn=%s", D(fd_conn));
 
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
@@ -392,8 +392,8 @@ void proc_ic_msg(const void *fbb_buf,
                  uint32_t ack_num,
                  firebuild::FD fd_conn,
                  firebuild::Process* proc) {
-  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%s, tag=%s, ack_num=%d, proc=%s",
-        D(fd_conn), fbb_tag_string(fbb_buf), ack_num, D(proc));
+  TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
+         D(fd_conn), fbb_tag_string(fbb_buf), ack_num);
 
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   assert(proc);
