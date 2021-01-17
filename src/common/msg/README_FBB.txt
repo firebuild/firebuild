@@ -29,12 +29,14 @@ The transfer protocol
     │ bools               │    │               │
     │ has_* for optionals │    ├ FBB_foobar    │
     │ string sizes        │    │               │
-    │ stringarray sizes   │    │               ├ payload
-    │ ...                 │    │               │
+    │ stringarray sizes   │    │               │
+    │ ...                 │    │               ├ payload
     ├─────────────────────┤    ┘               │
     │ string1 '\0'        │                    │
     │ string2 '\0'        │                    │
     │ ...                 │                    │
+    ├─────────────────────┤                    │
+    │ padding (optional)  │                    │
     └─────────────────────┘                    ┘
 
 For the header, namely "length" and "ack_id", refer to
@@ -71,6 +73,10 @@ any). Missing optional strings are skipped. For string arrays, each
 string is laid out, one after the other. That is, each string, including
 the missing ones too, and each string array, occupies exactly as many
 bytes as mentioned in its corresponding "size" field.
+
+If the message length is not a multiple of 8 bytes, padding is appended to
+to fix that. This allows the supervisor to read multiple messages sequentially
+from a buffer without having to fix misalignment.
 
 
 Constructing and sending a message
