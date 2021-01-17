@@ -123,6 +123,8 @@ jobs:
         meson build
         cd ../test
         ./run-firebuild ninja -j8 -C ../vte2.91-*/build
+        ninja -C ../vte2.91-*/build clean
+        ./run-firebuild ninja -j8 -C ../vte2.91-*/build
 
   style-checks:
     runs-on: ubuntu-20.04
