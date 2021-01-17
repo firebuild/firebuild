@@ -27,7 +27,10 @@ class LinearBuffer {
       : size_(8 * 1024), buffer_(reinterpret_cast<char *>(malloc(size_))), data_start_offset_(0),
         length_(0) {}
   ~LinearBuffer() {free(buffer_);}
-  const char * data() const {return &buffer_[data_start_offset_];}
+  const char * data() const {
+    assert(reinterpret_cast<uintptr_t>(&buffer_[data_start_offset_]) % 8 == 0);
+    return &buffer_[data_start_offset_];
+  }
   size_t length() const {return length_;}
   /** Append to the data in the buffer. */
   ssize_t read(FD fd, ssize_t howmuch) {

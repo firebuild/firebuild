@@ -67,7 +67,7 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
   }
 ###     endif
 ###   endfor
-  struct iovec iov[3 + string_count];
+  struct iovec iov[3 + string_count + 1 /* for optional padding */ ];
   uint32_t payload_length = sizeof(msgbldr->wire);
   iov[0].iov_base = &payload_length;
   iov[0].iov_len = sizeof(payload_length);
@@ -76,6 +76,7 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
   iov[2].iov_base = (/* non-const */ void *) &msgbldr->wire;
   iov[2].iov_len = sizeof(msgbldr->wire);
   int iovcnt = 3;
+  uint64_t padding = 0;
 ###   for (req, type, var) in fields
 ###     if type == STRING
   if (msgbldr->wire.{{ var }}_size > 0) {
@@ -97,6 +98,14 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
   }
 ###     endif
 ###   endfor
+  uint32_t padding_length = 8 - payload_length % 8;
+  if (padding_length != 8) {
+    iov[iovcnt].iov_base = &padding;
+    iov[iovcnt].iov_len = padding_length;
+    iovcnt++;
+    payload_length += padding_length;
+  }
+  assert(payload_length % 8 == 0);
   fb_writev(fd, iov, iovcnt);
 }
 
