@@ -285,8 +285,6 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
         }
         fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
       } else {
-        /* There may be incoming data from the parent, drain it. */
-        parent->drain_all_pipes();
         /* parent forked, thus a new set of fds is needed to track outputs */
         // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
         // without writing to it
@@ -297,6 +295,8 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
           auto pipe = file_fd->pipe();
           if (pipe) {
             assert(!pipe->finished());
+            /* There may be incoming data from the parent, drain it. */
+            pipe->drain_fd1_ends();
             auto fd = file_fd->fd();
             /* parent's same fd is backed by a pipe, not closed or backed by a file */
             int fifo_fd = make_fifo_fd_conn(proc, fd, &fifo_fds);
