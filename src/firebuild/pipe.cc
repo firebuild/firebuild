@@ -345,7 +345,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
                POLLHUP set. Thus the interceptor hasn't opened the other end yet. */
             FB_DEBUG(FB_DEBUG_PIPE, "interceptor has not opened the other end of fd: "
                      + std::to_string(fd1) + " yet");
-            ret = FB_PIPE_FD1_ENOTCONN;
+            ret = FB_PIPE_WOULDBLOCK;
             /* There could still be data in the buffer from an other fd1, continue with trying to
              * send it. */
           } else {
@@ -442,9 +442,6 @@ void Pipe::drain_fd1_ends() {
           finished_with_pipe = true;
           break;
         }
-        case FB_PIPE_FD1_ENOTCONN:
-          /* The interceptor hasn't opened the other end yet, move on to next fd1. */
-          [[fallthrough]];
         case FB_PIPE_FINISHED:
           [[fallthrough]];
         default:

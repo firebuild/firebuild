@@ -42,8 +42,6 @@ typedef enum {
   FB_PIPE_FD0_EPIPE,
   /** One of pipe's fd1 reached EOF */
   FB_PIPE_FD1_EOF,
-  /** One of pipe's fd1 is not opened yet on the interceptor's side */
-  FB_PIPE_FD1_ENOTCONN,
   /** The pipe end can accept more data */
   FB_PIPE_SUCCESS,
   /** Pipe is already finished, it is not operational. */
