@@ -155,12 +155,15 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
 
   FileUsage *fu;
-  auto it = file_usages_.find(name);
-  if (it != file_usages_.end()) {
-    fu = it->second;
+  {
+    /* Don't keep the iterator open. */
+    auto it = file_usages_.find(name);
+    if (it != file_usages_.end()) {
+      fu = it->second;
   } else {
-    fu = new FileUsage();
-    file_usages_[name] = fu;
+      fu = new FileUsage();
+      file_usages_[name] = fu;
+    }
   }
   /* Propagage change further if needed. */
   if (fu->merge(fu_change) && parent_exec_point()) {
@@ -190,15 +193,20 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     return true;
   }
 
-  FileUsage *fu;
-  auto it = file_usages_.find(name);
-  if (it != file_usages_.end()) {
+  FileUsage *fu = nullptr;
+  {
+    /* Don't keep the iterator open. */
+    auto it = file_usages_.find(name);
+    if (it != file_usages_.end()) {
+      fu = it->second;
+    }
+  }
+  if (fu) {
     /* The process already used this file. The initial state was already
      * recorded. We create a new FileUsage object which represents the
      * modifications to apply currently, which is at most the written_
      * flag, and then we propagate this upwards to be applied.
      */
-    fu = it->second;
     FileUsage *fu_change = new FileUsage();
     if (!fu_change->update_from_open_params(actual_file, action, flags, error, false)) {
       /* Error */
@@ -239,11 +247,18 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     return true;
   }
 
-  auto it = file_usages_.find(name);
-  if (it != file_usages_.end()) {
-    it->second->merge(fu_change);
+  FileUsage *fu = nullptr;
+  {
+    /* Don't keep the iterator open. */
+    auto it = file_usages_.find(name);
+    if (it != file_usages_.end()) {
+      fu = it->second;
+    }
+  }
+  if (fu) {
+    fu->merge(fu_change);
   } else {
-    FileUsage *fu = new FileUsage(fu_change);
+    fu = new FileUsage(fu_change);
     file_usages_[name] = fu;
   }
   if (parent_exec_point()) {
