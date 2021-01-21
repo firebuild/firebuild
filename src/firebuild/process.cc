@@ -61,6 +61,8 @@ std::shared_ptr<FileFD>
 Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
                     int fd,
                     std::shared_ptr<FileFD> ffd) {
+  TRACK(FB_DEBUG_PROC, "fd=%d", fd);
+
   if (fds->size() <= static_cast<unsigned int>(fd)) {
     fds->resize(fd + 1, nullptr);
   }
@@ -73,10 +75,14 @@ Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
 }
 
 void Process::add_pipe(std::shared_ptr<Pipe> pipe) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "pipe=%s", D(pipe.get()));
+
   exec_point()->add_pipe(pipe);
 }
 
 void Process::drain_all_pipes() {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
+
   for (auto file_fd : *fds_) {
     if (!file_fd || ((file_fd->flags() & O_ACCMODE) != O_WRONLY)) {
       continue;

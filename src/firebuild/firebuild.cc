@@ -273,8 +273,7 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
 #else
           auto pipe = (new Pipe(fd, fifo_fd, proc, std::vector<int>()))->shared_ptr();
 #endif
-          FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + std::to_string(fd)
-                   + ", fd1: " + std::to_string(fifo_fd));
+          FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", fd1: " + d(fifo_fd));
           /* Top level inherited fds are special, they should not be closed. */
           pipe->set_keep_fd0_open();
           proc_tree->insert_inherited(pipe);
@@ -303,8 +302,8 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
             // FIXME(rbalint) add cache fds
             auto cache_fds = std::vector<int>();
             pipe->add_fd1(fifo_fd, std::move(cache_fds));
-            FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ std::to_string(fd)
-                     + " as new fd1: " + std::to_string(fifo_fd) + " of " + pipe->to_string());
+            FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(fd)
+                     + " as new fd1: " + d(fifo_fd) + " of " + d(pipe.get()));
           }
         }
         fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);

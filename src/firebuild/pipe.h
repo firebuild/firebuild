@@ -159,6 +159,7 @@ class Pipe {
   void set_send_only_mode(bool mode);
   bool send_only_mode() {return send_only_mode_;}
   void set_keep_fd0_open() {keep_fd0_open_ = true;}
+  int id() const {return id_;}
   const Process * creator() const {return creator_;}
   /**
    * Read from fd1 and try to forward it to fd0
@@ -176,10 +177,10 @@ class Pipe {
   bool finished() const {
     return !fd0_event;
   }
-  /** Pretty print pipe */
-  std::string to_string() const;
 
  private:
+  /* Unique Pipe ID, for debugging */
+  int id_;
   /** Switch send only mode */
   bool send_only_mode_:1;
   bool keep_fd0_open_:1;
@@ -198,11 +199,19 @@ class Pipe {
   std::shared_ptr<Pipe> shared_self_ptr_;
   /** The process that created this pipe */
   Process* creator_;
+
+  static int id_counter_;
   static void pipe_fd0_write_cb(evutil_socket_t fd, int16_t what, void *arg);
   static void pipe_fd1_read_cb(evutil_socket_t fd, int16_t what, void *arg);
   void close_one_fd1(int fd);
   DISALLOW_COPY_AND_ASSIGN(Pipe);
 };
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const Pipe& pipe, const int level = 0);
+std::string d(const Pipe *pipe, const int level = 0);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_PIPE_H_

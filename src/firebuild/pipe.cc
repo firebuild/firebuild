@@ -16,12 +16,13 @@
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/process.h"
 
 namespace firebuild {
 
-class Process;
-
 static void maybe_finish(Pipe* pipe) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "");
+
   if (!pipe->finished()) {
     if (pipe->fd1_ends.size() == 0) {
       if (pipe->buffer_empty()) {
@@ -35,6 +36,8 @@ static void maybe_finish(Pipe* pipe) {
 
 struct Fd0Deleter {
   void operator()(Pipe* pipe) const {
+    TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "");
+
     /* The last FileFD referencing the pipe's fd1 ends is gone, which means all processes that
      * could write to this pipe terminated. */
     pipe->reset_fd0_ptrs_self_ptr_();
@@ -44,6 +47,8 @@ struct Fd0Deleter {
 
 struct Fd1Deleter {
   void operator()(Pipe* pipe) const {
+    TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "");
+
     /* The last FileFD referencing the pipe's fd0 ends is gone, which means all processes that
      * could read from this pipe terminated. */
     pipe->reset_fd1_ptrs_self_ptr_();
@@ -54,10 +59,12 @@ struct Fd1Deleter {
 
 Pipe::Pipe(int fd0_conn, int fd1_conn, Process* creator, std::vector<int>&& cache_fds)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
-      fd1_ends(), send_only_mode_(false), keep_fd0_open_(false),
+      fd1_ends(), id_(id_counter_++), send_only_mode_(false), keep_fd0_open_(false),
       fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false), buf_(evbuffer_new()),
       fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
       shared_self_ptr_(this), creator_(creator) {
+  TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%d, creator=%s", fd0_conn, D(creator));
+
   add_fd1(fd1_conn, std::move(cache_fds));
 }
 
@@ -76,6 +83,8 @@ std::shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
 }
 
 void Pipe::add_fd1(int fd1_conn, std::vector<int>&& cache_fds) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%d", fd1_conn);
+
   assert(fd1_ends.count(fd1_conn) == 0);
   auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, Pipe::pipe_fd1_read_cb, this);
   fd1_ends[fd1_conn] = new pipe_end({fd1_event, std::move(cache_fds), false});
@@ -85,9 +94,11 @@ void Pipe::add_fd1(int fd1_conn, std::vector<int>&& cache_fds) {
 }
 
 void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
+  auto pipe = reinterpret_cast<Pipe*>(arg);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%d", fd);
+
   (void) fd; /* unused */
   (void) what; /* FIXME! unused */
-  auto pipe = reinterpret_cast<Pipe*>(arg);
   switch (pipe->send_buf()) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -114,6 +125,8 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
 }
 
 void Pipe::close_one_fd1(int fd) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd=%d", fd);
+
   auto fd1_end = fd1_ends[fd];
   assert(fd1_end);
   fd1_ends.erase(fd);
@@ -133,15 +146,17 @@ void Pipe::close_one_fd1(int fd) {
 }
 
 void Pipe::finish() {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
+
   if (finished()) {
     assert(!shared_self_ptr_);
     return;
   }
 
-  FB_DEBUG(FB_DEBUG_PIPE, "cleaning up " + to_string());
+  FB_DEBUG(FB_DEBUG_PIPE, "cleaning up " + d(this));
   // clean up all events
   for (auto it : fd1_ends) {
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1 fd: " + std::to_string(it.first));
+    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1 fd: " + d(it.first));
     event_free(it.second->ev);
     close(it.first);
     delete it.second;
@@ -155,7 +170,7 @@ void Pipe::finish() {
 
   if (!keep_fd0_open_) {
     auto fd0 = event_get_fd(fd0_event);
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0 fd: " + std::to_string(fd0));
+    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0 fd: " + d(fd0));
     event_free(fd0_event);
     close(fd0);
   } else {
@@ -166,8 +181,10 @@ void Pipe::finish() {
 }
 
 void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
-  (void) what; /* FIXME! unused */
   auto pipe = reinterpret_cast<Pipe*>(arg);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%d", fd);
+
+  (void) what; /* FIXME! unused */
   switch (pipe->forward(fd, false, true)) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -192,16 +209,18 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
 }
 
 void Pipe::set_send_only_mode(const bool mode) {
+  TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "mode=%s", D(mode));
+
   assert(!finished());
   if (mode) {
-    FB_DEBUG(FB_DEBUG_PIPE, "switching " + to_string() + " to send only mode");
+    FB_DEBUG(FB_DEBUG_PIPE, "switching " + d(this) + " to send only mode");
     for (auto it : fd1_ends) {
       event_del(it.second->ev);
     }
     /* should try again writing when fd0 becomes writable */
     event_add(fd0_event, NULL);
   } else {
-    FB_DEBUG(FB_DEBUG_PIPE, "allowing " + to_string() + " to read data again");
+    FB_DEBUG(FB_DEBUG_PIPE, "allowing " + d(this) + " to read data again");
     for (auto it : fd1_ends) {
       event_add(it.second->ev, NULL);
     }
@@ -212,6 +231,8 @@ void Pipe::set_send_only_mode(const bool mode) {
 }
 
 pipe_op_result Pipe::send_buf() {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
+
   assert(!finished());
   if (!buffer_empty()) {
     /* There is data to be forwarded. */
@@ -219,8 +240,8 @@ pipe_op_result Pipe::send_buf() {
     ssize_t sent;
     do {
       sent = evbuffer_write(buf_, fd0_conn);
-      FB_DEBUG(FB_DEBUG_PIPE, "sent " + std::to_string(sent) + " bytes via fd: "
-               + std::to_string(fd0_conn) + " of " + to_string());
+      FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(sent) + " bytes via fd: "
+               + d(fd0_conn) + " of " + d(this));
       if (sent == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
           /* This pipe should not receive more data. */
@@ -254,6 +275,9 @@ pipe_op_result Pipe::send_buf() {
 }
 
 pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1=%d, drain=%s, in_callback=%s",
+         fd1, D(drain), D(in_callback));
+
   pipe_op_result send_ret;
   if (finished()) {
     return FB_PIPE_FINISHED;
@@ -283,8 +307,8 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             /* EOF of other error on one of the fds, let the slow path figure that out. */
             break;
           } else {
-            FB_DEBUG(FB_DEBUG_PIPE, "sent " + std::to_string(received) + " bytes from fd: "
-                     + std::to_string(fd1) + "to fd: " + std::to_string(fd0_conn) + " using tee");
+            FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes from fd: "
+                     + d(fd1) + "to fd: " + d(fd0_conn) + " using tee");
             /* Save the data. */
             size_t i;
             for (i = 0; i < cache_fds_size - 1; i++) {
@@ -306,8 +330,8 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             /* EOF of other error on one of the fds, let the slow path figure that out. */
             break;
           } else {
-            FB_DEBUG(FB_DEBUG_PIPE, "sent " + std::to_string(received) + " bytes to fd: "
-                     + std::to_string(fd0_conn) + " using splice");
+            FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes to fd: "
+                     + d(fd0_conn) + " using splice");
           }
         }
 
@@ -344,7 +368,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             /* In case of EOF the pipe has been hung up, therefore poll() would have returned 1 with
                POLLHUP set. Thus the interceptor hasn't opened the other end yet. */
             FB_DEBUG(FB_DEBUG_PIPE, "interceptor has not opened the other end of fd: "
-                     + std::to_string(fd1) + " yet");
+                     + d(fd1) + " yet");
             ret = FB_PIPE_WOULDBLOCK;
             /* There could still be data in the buffer from an other fd1, continue with trying to
              * send it. */
@@ -367,8 +391,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       /* pipe end is closed */
       return ret;
     } else {
-      FB_DEBUG(FB_DEBUG_PIPE, "received " + std::to_string(received) + " bytes from fd: "
-               + std::to_string(fd1));
+      FB_DEBUG(FB_DEBUG_PIPE, "received " + d(received) + " bytes from fd: " + d(fd1));
       if (fd1_end->cache_fds.size() > 0) {
         /* Save the data keeping it in the buffer, too. */
         ssize_t bufsize = evbuffer_get_length(buf_);
@@ -403,6 +426,8 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
 }
 
 void Pipe::drain_fd1_ends() {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
+
   if (!finished()) {
     /* One round of forwarding should be enough, since the parent can't perform a
      * new write() after the exec() and the forwarding drains the data in flight. */
@@ -454,17 +479,33 @@ void Pipe::drain_fd1_ends() {
   }
 }
 
-std::string Pipe::to_string() const {
-  if (!finished()) {
-    std::string ret = "pipe with fd1 fds:";
-    for (const auto& it : fd1_ends) {
-      ret += " " + std::to_string(it.first);
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const Pipe& pipe, const int level) {
+  std::string ret = "[Pipe #" + d(pipe.id());
+  if (!pipe.finished()) {
+    ret += ", fd1 fds:";
+    for (const auto& it : pipe.fd1_ends) {
+      ret += " " + d(it.first);
     }
-    ret += ", fd0 fd: " + std::to_string(event_get_fd(fd0_event));
-    return ret;
+    ret += ", fd0 fd: " + d(event_get_fd(pipe.fd0_event));
   } else {
-    return "finished pipe";
+    ret += ", finished";
+  }
+  ret += ", creator=" + d(pipe.creator(), level + 1);
+  ret += "]";
+  return ret;
+}
+std::string d(const Pipe *pipe, const int level) {
+  if (pipe) {
+    return d(*pipe, level);
+  } else {
+    return "[Pipe NULL]";
   }
 }
+
+/* Global counter, so that each Pipe object gets a unique ID. */
+int Pipe::id_counter_ = 0;
 
 }  // namespace firebuild
