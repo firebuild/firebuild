@@ -305,10 +305,11 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
   /* Scan-build reports a false leak for the correct code. This is used only in static
    * analysis. It is broken because all shared pointers to the Pipe must be copies of
    * the shared self pointer stored in it. */
-  auto pipe = std::make_shared<Pipe>(fd0_conn, fd1_conn, this, std::move(cache_fds));
+  auto pipe = std::make_shared<Pipe>(fd0_conn, this);
 #else
-  auto pipe = (new Pipe(fd0_conn, fd1_conn, this, std::move(cache_fds)))->shared_ptr();
+  auto pipe = (new Pipe(fd0_conn, this))->shared_ptr();
 #endif
+  pipe->add_fd1(fd1_conn, std::move(cache_fds));
   add_filefd(fds_, fd0, std::make_shared<FileFD>(
       fd0, (flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this));
   add_filefd(fds_, fd1, std::make_shared<FileFD>(

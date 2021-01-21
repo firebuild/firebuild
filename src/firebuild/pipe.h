@@ -121,7 +121,7 @@ typedef enum {
  */
 class Pipe {
  public:
-  Pipe(int fd0_conn, int fd1_conn, Process* creator, std::vector<int>&& cache_fds);
+  Pipe(int fd0_conn, Process* creator);
   ~Pipe() {evbuffer_free(buf_);}
 
   /**

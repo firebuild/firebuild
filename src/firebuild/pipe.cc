@@ -57,15 +57,13 @@ struct Fd1Deleter {
 };
 
 
-Pipe::Pipe(int fd0_conn, int fd1_conn, Process* creator, std::vector<int>&& cache_fds)
+Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
       fd1_ends(), id_(id_counter_++), send_only_mode_(false), keep_fd0_open_(false),
       fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false), buf_(evbuffer_new()),
       fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
       shared_self_ptr_(this), creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%d, creator=%s", fd0_conn, D(creator));
-
-  add_fd1(fd1_conn, std::move(cache_fds));
 }
 
 std::shared_ptr<Pipe> Pipe::fd0_shared_ptr() {
