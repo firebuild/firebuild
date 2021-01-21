@@ -106,7 +106,7 @@ std::string pretty_timestamp();
 #define TRACK(...)
 #define TRACKX(...)
 #else
-/* Global, shared across MethodTracker and all MethodTrackerX<T>s, for nice indentation */
+/* Global, shared across all MethodTracker<T>s, for nice indentation */
 extern int method_tracker_level;
 
 /**
@@ -118,48 +118,8 @@ extern int method_tracker_level;
  * @param ... The additional parameters for printf
  */
 #define TRACK(flag, fmt, ...) \
-  firebuild::MethodTracker method_tracker(__func__, __FILE__, __LINE__, flag, fmt, ##__VA_ARGS__)
-
-class MethodTracker {
- public:
-  MethodTracker(const char *func, const char *file, int line, int flag, const char *fmt, ...)
-      __attribute__((format(printf, 6, 7)))
-      : func_(func), file_(file), line_(line), flag_(flag | FB_DEBUG_FUNC) {
-    if (FB_DEBUGGING(flag_)) {
-      const char *last_slash = strrchr(file_, '/');
-      if (last_slash) {
-        file_ = last_slash + 1;
-      }
-      char buf[1024];
-      int offset = snprintf(buf, sizeof(buf), "%*s-> %s()  (%s:%d)%s",
-                            2 * method_tracker_level, "", func_, file_, line_,
-                            fmt[0] ? "  " : "");
-      va_list ap;
-      va_start(ap, fmt);
-      vsnprintf(buf + offset, sizeof(buf) - offset, fmt, ap);
-      va_end(ap);
-      FB_DEBUG(flag_, buf);
-      method_tracker_level++;
-    }
-  }
-  ~MethodTracker() {
-    if (FB_DEBUGGING(flag_)) {
-      method_tracker_level--;
-      char buf[1024];
-      snprintf(buf, sizeof(buf), "%*s<- %s()  (%s:%d)",
-               2 * method_tracker_level, "", func_, file_, line_);
-      FB_DEBUG(flag_, buf);
-    }
-  }
-
- private:
-  const char *func_;
-  const char *file_;
-  int line_;
-  int flag_;
-
-  DISALLOW_COPY_AND_ASSIGN(MethodTracker);
-};
+  firebuild::MethodTracker<void> method_tracker(__func__, __FILE__, __LINE__, flag, 0, 0, \
+                                                "", NULL, NULL, fmt, ##__VA_ARGS__)
 
 /**
  * Track entering and leaving a function (or any brace-block of code).
@@ -184,21 +144,20 @@ class MethodTracker {
 #define TRACKX(flag, print_obj_on_enter, print_obj_on_leave, classname, obj_ptr, fmt, ...) \
   /* Find the address of the correct ovedloaded d() method belonging to obj_ptr. */ \
   /* Needs to happen in the context of the macro's caller, because debug.h doesn't see the */ \
-  /* specific d() method, so d() inside MethodTrackerX() would pick the one taking a boolean. */ \
+  /* specific d() method, so d() inside MethodTracker() would pick the one taking a boolean. */ \
   std::string (*resolved_d)(const classname *, int) = &firebuild::d; \
-  firebuild::MethodTrackerX<classname> method_tracker(__func__, __FILE__, __LINE__, \
-                                                      flag, \
-                                                      print_obj_on_enter, print_obj_on_leave, \
-                                                      #obj_ptr, obj_ptr, resolved_d, \
-                                                      fmt, ##__VA_ARGS__)
+  firebuild::MethodTracker<classname> method_tracker(__func__, __FILE__, __LINE__, flag, \
+                                                     print_obj_on_enter, print_obj_on_leave, \
+                                                     #obj_ptr, obj_ptr, resolved_d, \
+                                                     fmt, ##__VA_ARGS__)
 
 template <typename T>
-class MethodTrackerX {
+class MethodTracker {
  public:
-  MethodTrackerX(const char *func, const char *file, int line,
-                 int flag, bool print_obj_on_enter, bool print_obj_on_leave,
-                 const char *obj_name, const T *obj_ptr, std::string (*resolved_d)(const T *, int),
-                 const char *fmt, ...)
+  MethodTracker(const char *func, const char *file, int line,
+                int flag, bool print_obj_on_enter, bool print_obj_on_leave,
+                const char *obj_name, const T *obj_ptr, std::string (*resolved_d)(const T *, int),
+                const char *fmt, ...)
       __attribute__((format(printf, 11, 12)))
       : func_(func), file_(file), line_(line),
         flag_(flag | FB_DEBUG_FUNC), print_obj_on_leave_(print_obj_on_leave),
@@ -224,7 +183,7 @@ class MethodTrackerX {
       method_tracker_level++;
     }
   }
-  ~MethodTrackerX() {
+  ~MethodTracker() {
     if (FB_DEBUGGING(flag_)) {
       method_tracker_level--;
       char buf[1024];
@@ -248,7 +207,7 @@ class MethodTrackerX {
   const T *obj_ptr_;
   std::string (*resolved_d_)(const T *, int);
 
-  DISALLOW_COPY_AND_ASSIGN(MethodTrackerX<T>);
+  DISALLOW_COPY_AND_ASSIGN(MethodTracker<T>);
 };
 #endif  /* NDEBUG */
 
