@@ -36,6 +36,14 @@ ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
   auto& libs = e->libs();
   for_s_in_fbb_scproc_query_libs(msg, {libs.push_back(FileName::Get(s, s_length));});
 
+  /* Debug the full command line, env vars etc. */
+  FB_DEBUG(FB_DEBUG_PROC, "Created ExecedProcess " + d(e, 1) + " with:");
+  FB_DEBUG(FB_DEBUG_PROC, "- exe = " + d(e->executable()));
+  FB_DEBUG(FB_DEBUG_PROC, "- arg = " + d(e->args()));
+  FB_DEBUG(FB_DEBUG_PROC, "- cwd = " + d(e->initial_wd()));
+  FB_DEBUG(FB_DEBUG_PROC, "- env = " + d(e->env_vars()));
+  FB_DEBUG(FB_DEBUG_PROC, "- lib = " + d(fbb_scproc_query_get_libs(msg)));
+
   return e;
 }
 
