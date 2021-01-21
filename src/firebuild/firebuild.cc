@@ -269,10 +269,11 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
           /* Scan-build reports a false leak for the correct code. This is used only in static
            * analysis. It is broken because all shared pointers to the Pipe must be copies of
            * the shared self pointer stored in it. */
-          auto pipe = std::make_shared<Pipe>(fd, fifo_fd, proc, std::vector<int>());
+          auto pipe = std::make_shared<Pipe>(fd, proc);
 #else
-          auto pipe = (new Pipe(fd, fifo_fd, proc, std::vector<int>()))->shared_ptr();
+          auto pipe = (new Pipe(fd, proc))->shared_ptr();
 #endif
+          pipe->add_fd1(fifo_fd, std::vector<int>());
           FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", fd1: " + d(fifo_fd));
           /* Top level inherited fds are special, they should not be closed. */
           pipe->set_keep_fd0_open();
