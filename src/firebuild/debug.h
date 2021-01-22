@@ -168,17 +168,19 @@ class MethodTracker {
         file_ = last_slash + 1;
       }
       char buf[1024];
-      int offset = snprintf(buf, sizeof(buf), "%*s-> %s()  (%s:%d)%s",
-                            2 * method_tracker_level, "", func_, file_, line_,
-                            print_obj_on_enter || fmt[0] ? "  " : "");
-      if (print_obj_on_enter) {
+      size_t offset = snprintf(buf, sizeof(buf), "%*s-> %s()  (%s:%d)%s",
+                               2 * method_tracker_level, "", func_, file_, line_,
+                               print_obj_on_enter || fmt[0] ? "  " : "");
+      if (print_obj_on_enter && offset < sizeof(buf)) {
         offset += snprintf(buf + offset, sizeof(buf) - offset, "%s=%s%s",
                            obj_name_, ((*resolved_d_)(obj_ptr_, 0)).c_str(), fmt[0] ? ", " : "");
       }
-      va_list ap;
-      va_start(ap, fmt);
-      vsnprintf(buf + offset, sizeof(buf) - offset, fmt, ap);
-      va_end(ap);
+      if (offset < sizeof(buf)) {
+        va_list ap;
+        va_start(ap, fmt);
+        vsnprintf(buf + offset, sizeof(buf) - offset, fmt, ap);
+        va_end(ap);
+      }
       FB_DEBUG(flag_, buf);
       method_tracker_level++;
     }
@@ -187,9 +189,9 @@ class MethodTracker {
     if (FB_DEBUGGING(flag_)) {
       method_tracker_level--;
       char buf[1024];
-      int offset = snprintf(buf, sizeof(buf), "%*s<- %s()  (%s:%d)",
-                            2 * method_tracker_level, "", func_, file_, line_);
-      if (print_obj_on_leave_) {
+      size_t offset = snprintf(buf, sizeof(buf), "%*s<- %s()  (%s:%d)",
+                               2 * method_tracker_level, "", func_, file_, line_);
+      if (print_obj_on_leave_ && offset < sizeof(buf)) {
         snprintf(buf + offset, sizeof(buf) - offset, "  %s=%s",
                  obj_name_, ((*resolved_d_)(obj_ptr_, 0)).c_str());
       }
