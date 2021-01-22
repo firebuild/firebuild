@@ -13,6 +13,40 @@
 
 namespace firebuild {
 
+ProcessTree::ProcessTree()
+    : inherited_fds_(std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
+      inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
+      pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
+      cmd_profs_() {
+  TRACK(FB_DEBUG_PROCTREE, "");
+
+  // TODO(rbalint) support other inherited fds
+  /* Create the FileFD representing stdin of the top process. */
+  Process::add_filefd(inherited_fds_, STDIN_FILENO,
+                      std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
+
+  /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
+  for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
+    /* The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
+#ifdef __clang_analyzer__
+    /* Scan-build reports a false leak for the correct code. This is used only in static
+     * analysis. It is broken because all shared pointers to the Pipe must be copies of
+     * the shared self pointer stored in it. */
+    auto pipe = std::make_shared<Pipe>(fd, NULL);
+#else
+    auto pipe = (new Pipe(fd, NULL))->shared_ptr();
+#endif
+    FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0 fd: " + d(fd));
+    /* Top level inherited fds are special, they should not be closed. */
+    pipe->set_keep_fd0_open();
+    inherited_fd_pipes_.insert(pipe);
+
+    std::shared_ptr<FileFD> file_fd =
+        Process::add_filefd(inherited_fds_, fd, std::make_shared<FileFD>(fd, O_WRONLY));
+    file_fd->set_pipe(pipe->fd1_shared_ptr());
+  }
+}
+
 ProcessTree::~ProcessTree() {
   // clean up all processes
   for (auto& pair : fb_pid2proc_) {

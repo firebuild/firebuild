@@ -257,58 +257,29 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
       fbb_scproc_resp_set_exit_status(&sv_msg, proc->exit_status());
     } else {
       fbb_scproc_resp_set_shortcut(&sv_msg, false);
-      auto parent = proc->parent();
-      if (!parent) {
-        /* top process*/
-        // TODO(rbalint) support other inherited fds
-        for (auto fd : proc_tree->inherited_fds()) {
+      /* parent forked, thus a new set of fds is needed to track outputs */
+      // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
+      // without writing to it
+      for (auto file_fd : *proc->fds()) {
+        if (!file_fd || (file_fd->flags() & O_ACCMODE) != O_WRONLY) {
+          continue;
+        }
+        auto pipe = file_fd->pipe();
+        if (pipe) {
+          assert(!pipe->finished());
+          /* There may be incoming data from the parent, drain it. */
+          pipe->drain_fd1_ends();
+          auto fd = file_fd->fd();
+          /* parent's same fd is backed by a pipe, not closed or backed by a file */
           int fifo_fd = make_fifo_fd_conn(proc, fd, &fifo_fds);
-          // TODO(rbalint) add cache_fd
-          /* The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
-#ifdef __clang_analyzer__
-          /* Scan-build reports a false leak for the correct code. This is used only in static
-           * analysis. It is broken because all shared pointers to the Pipe must be copies of
-           * the shared self pointer stored in it. */
-          auto pipe = std::make_shared<Pipe>(fd, proc);
-#else
-          auto pipe = (new Pipe(fd, proc))->shared_ptr();
-#endif
-          pipe->add_fd1(fifo_fd, std::vector<int>());
-          FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", fd1: " + d(fifo_fd));
-          /* Top level inherited fds are special, they should not be closed. */
-          pipe->set_keep_fd0_open();
-          proc_tree->insert_inherited(pipe);
-          /* the FileFD is already created */
-          auto file_fd = proc->get_fd(fd);
-          assert(file_fd);
-          file_fd->set_pipe(pipe->fd1_shared_ptr());
+          // FIXME(rbalint) add cache fds
+          auto cache_fds = std::vector<int>();
+          pipe->add_fd1(fifo_fd, std::move(cache_fds));
+          FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(fd)
+                   + " as new fd1: " + d(fifo_fd) + " of " + d(pipe.get()));
         }
-        fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
-      } else {
-        /* parent forked, thus a new set of fds is needed to track outputs */
-        // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
-        // without writing to it
-        for (auto file_fd : *proc->fds()) {
-          if (!file_fd || (file_fd->flags() & O_ACCMODE) != O_WRONLY) {
-            continue;
-          }
-          auto pipe = file_fd->pipe();
-          if (pipe) {
-            assert(!pipe->finished());
-            /* There may be incoming data from the parent, drain it. */
-            pipe->drain_fd1_ends();
-            auto fd = file_fd->fd();
-            /* parent's same fd is backed by a pipe, not closed or backed by a file */
-            int fifo_fd = make_fifo_fd_conn(proc, fd, &fifo_fds);
-            // FIXME(rbalint) add cache fds
-            auto cache_fds = std::vector<int>();
-            pipe->add_fd1(fifo_fd, std::move(cache_fds));
-            FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(fd)
-                     + " as new fd1: " + d(fifo_fd) + " of " + d(pipe.get()));
-          }
-        }
-        fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
       }
+      fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
       if (debug_flags != 0) {
         fbb_scproc_resp_set_debug_flags(&sv_msg, debug_flags);
       }
@@ -380,13 +351,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, firebuild::FD fd
       }
     } else if (ppid == getpid()) {
       /* This is the first intercepted process. */
-      firebuild::Process::add_filefd(fds, STDIN_FILENO, std::make_shared<firebuild::FileFD>(
-          STDIN_FILENO, O_RDONLY));
-      for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
-        firebuild::Process::add_filefd(
-            fds, fd, std::make_shared<firebuild::FileFD>(
-                fd, O_WRONLY));
-      }
+      fds = proc_tree->inherited_fds();
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
@@ -1208,7 +1173,6 @@ int main(const int argc, char *argv[]) {
 
   // init global data
   cfg = new libconfig::Config();
-  proc_tree = new firebuild::ProcessTree();
 
   // parse options
   setenv("POSIXLY_CORRECT", "1", true);
@@ -1341,6 +1305,9 @@ int main(const int argc, char *argv[]) {
   event_add(listener_event, NULL);
   sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
   event_add(sigchild_event, NULL);
+
+  /* This creates some Pipe objects, so needs ev_base being set up. */
+  proc_tree = new firebuild::ProcessTree();
 
   /* Collect runaway children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);

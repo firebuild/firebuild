@@ -197,7 +197,8 @@ class Pipe {
   std::shared_ptr<Pipe> fd1_ptrs_held_self_ptr_;
   /** Shared self pointer kept until the pipe is finish()-ed */
   std::shared_ptr<Pipe> shared_self_ptr_;
-  /** The process that created this pipe */
+  /** The process that created this pipe, or NULL if it represents a pipe or terminal line
+   *  inherited from the external world. */
   Process* creator_;
 
   static int id_counter_;

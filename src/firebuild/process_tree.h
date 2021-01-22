@@ -70,19 +70,11 @@ struct pending_parent_ack {
 
 class ProcessTree {
  public:
-  ProcessTree()
-      : inherited_fds_(), inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
-        pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
-        cmd_profs_() {
-    for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
-      inherited_fds_.push_back(fd);
-    }
-  }
+  ProcessTree();
   ~ProcessTree();
 
-  std::vector<int>& inherited_fds() {return inherited_fds_;}
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds() {return inherited_fds_;}
   void insert(Process *p);
-  void insert_inherited(std::shared_ptr<Pipe> p) {inherited_fd_pipes_.push_back(p);}
   void insert(ExecedProcess *p);
   static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
@@ -157,8 +149,14 @@ class ProcessTree {
 
  private:
   ExecedProcess *root_ = NULL;
-  std::vector<int> inherited_fds_;
-  std::vector<std::shared_ptr<Pipe>> inherited_fd_pipes_;
+  /** This is somewhat analogous to Process::fds_, although cannot change over time.
+   *  Represents the fds the root process inherits from the external context.
+   *  (The newly execed top process inherits this set here from the ProcessTree,
+   *  while a newly execed non-top process inherits its parent's fds_.) */
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds_;
+  /** The pipes (or terminal lines) inherited from the external world,
+   *  each represented by a Pipe object created by this ProcessTree. */
+  std::unordered_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
