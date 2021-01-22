@@ -13,6 +13,7 @@
 #include "firebuild/file.h"
 #include "firebuild/file_name.h"
 #include "firebuild/cxx_lang_utils.h"
+#include "firebuild/pipe.h"
 
 namespace firebuild {
 #define FD_ORIGIN_ENUM {                                                \
@@ -61,7 +62,11 @@ class FileFD {
       : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
         written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
         filename_(o_fd->filename()), pipe_(o_fd->pipe_),
-        opened_by_(o_fd->opened_by()) {}
+        opened_by_(o_fd->opened_by()) {
+    if (pipe_) {
+      pipe_->handle_dup(o_fd.get(), this);
+    }
+  }
   /** Constructor for fds obtained through opening files. */
   FileFD(const FileName* f, int fd, int flags, Process * const p)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
@@ -91,6 +96,9 @@ class FileFD {
   const FileName* filename() const {return filename_;}
   void set_pipe(std::shared_ptr<Pipe> pipe) {
     assert((origin_type_ == FD_ORIGIN_ROOT && !pipe_) || pipe_);
+    if (pipe_) {
+      pipe_->handle_close(this);
+    }
     pipe_ = pipe;
   }
   std::shared_ptr<Pipe> pipe() {return pipe_;}

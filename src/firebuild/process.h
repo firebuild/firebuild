@@ -147,6 +147,14 @@ class Process {
       return (*fds_)[fd].get();
     }
   }
+  std::shared_ptr<FileFD> get_shared_fd(int fd) {
+    assert(fds_);
+    if (fd < 0 || static_cast<unsigned int>(fd) >= fds_->size()) {
+      return nullptr;
+    } else {
+      return (*fds_)[fd];
+    }
+  }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
   void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
   /** Add add ffd FileFD* to open fds */
@@ -162,6 +170,7 @@ class Process {
   void reset_file_fd_pipe_refs() {
     for (auto& file_fd : *fds_) {
       if (file_fd && file_fd->pipe()) {
+        file_fd->pipe()->drain_fd1_end(file_fd.get());
         file_fd->set_pipe(nullptr);
       }
     }

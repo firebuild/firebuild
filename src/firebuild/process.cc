@@ -89,7 +89,7 @@ void Process::drain_all_pipes() {
     }
     auto pipe = file_fd->pipe().get();
     if (pipe) {
-      pipe->drain_fd1_ends();
+      pipe->drain_fd1_end(file_fd.get());
     }
   }
 }
@@ -193,9 +193,8 @@ int Process::handle_close(const int fd, const int error) {
         closed_fds_.push_back(std::move((*fds_)[fd]));
         auto pipe = file_fd->pipe().get();
         if (pipe) {
-          /* There may be data pending, drain it. */
-          // TODO(rbalint) drain only this fd
-          pipe->drain_fd1_ends();
+          /* There may be data pending, drain it and register closure. */
+          pipe->handle_close(file_fd);
           file_fd->set_pipe(nullptr);
         }
         return 0;
@@ -294,6 +293,7 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
         "which means interception missed at least one close()");
     return std::shared_ptr<Pipe>(nullptr);
   }
+
   if (get_fd(fd1)) {
     // we already have this fd, probably missed a close()
     exec_point()->disable_shortcutting_bubble_up(
@@ -315,12 +315,12 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
 #else
   auto pipe = (new Pipe(fd0_conn, this))->shared_ptr();
 #endif
-  pipe->add_fd1(fd1_conn, std::move(cache_fds));
   add_filefd(fds_, fd0, std::make_shared<FileFD>(
       fd0, (flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this));
-  add_filefd(fds_, fd1, std::make_shared<FileFD>(
-      fd1, (flags & ~O_ACCMODE) | O_WRONLY, pipe->fd1_shared_ptr(), this));
-
+  auto ffd1 =
+      std::make_shared<FileFD>(fd1, (flags & ~O_ACCMODE) | O_WRONLY, pipe->fd1_shared_ptr(), this);
+  add_filefd(fds_, fd1, ffd1);
+  pipe->add_fd1(fd1_conn, ffd1.get(), std::move(cache_fds));
   return pipe;
 }
 

@@ -16,6 +16,7 @@
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/file_fd.h"
 #include "firebuild/process.h"
 
 namespace firebuild {
@@ -24,7 +25,7 @@ static void maybe_finish(Pipe* pipe) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "");
 
   if (!pipe->finished()) {
-    if (pipe->fd1_ends.size() == 0) {
+    if (pipe->conn2fd1_ends.size() == 0) {
       if (pipe->buffer_empty()) {
         pipe->finish();
       } else {
@@ -59,9 +60,9 @@ struct Fd1Deleter {
 
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
-      fd1_ends(), id_(id_counter_++), send_only_mode_(false), keep_fd0_open_(false),
-      fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false), buf_(),
-      fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
+      conn2fd1_ends(), ffd2fd1_ends(), id_(id_counter_++), send_only_mode_(false),
+      keep_fd0_open_(false), fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
+      buf_(), fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
       shared_self_ptr_(this), creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%d, creator=%s", fd0_conn, D(creator));
 }
@@ -80,13 +81,15 @@ std::shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
   return std::shared_ptr<Pipe>(this, Fd1Deleter());
 }
 
-void Pipe::add_fd1(int fd1_conn, std::vector<int>&& cache_fds) {
+void Pipe::add_fd1(int fd1_conn, FileFD* file_fd, std::vector<int>&& cache_fds) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%d", fd1_conn);
 
-  assert(fd1_ends.count(fd1_conn) == 0);
+  assert(conn2fd1_ends.count(fd1_conn) == 0);
   assert(!finished());
   auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, Pipe::pipe_fd1_read_cb, this);
-  fd1_ends[fd1_conn] = new pipe_end({fd1_event, std::move(cache_fds), false});
+  auto fd1_end  = new pipe_end({fd1_event, {file_fd}, std::move(cache_fds), false});
+  conn2fd1_ends[fd1_conn] = fd1_end;
+  ffd2fd1_ends[file_fd] = fd1_end;
   if (!send_only_mode_) {
     event_add(fd1_event, NULL);
   }
@@ -110,7 +113,7 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
       break;
     }
     case FB_PIPE_SUCCESS: {
-      if (pipe->buffer_empty() && pipe->fd1_ends.size() == 0
+      if (pipe->buffer_empty() && pipe->conn2fd1_ends.size() == 0
           && !pipe->fd1_ptrs_held_self_ptr_) {
         /* There are no active fd1 ends nor fd1 references to this pipe. There can't be any more
          * incoming data. */
@@ -126,13 +129,16 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
 void Pipe::close_one_fd1(int fd) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd=%d", fd);
 
-  auto fd1_end = fd1_ends[fd];
+  auto fd1_end = conn2fd1_ends[fd];
   assert(fd1_end);
-  fd1_ends.erase(fd);
+  for (auto file_fd : fd1_end->file_fds) {
+    ffd2fd1_ends.erase(file_fd);
+  }
+  conn2fd1_ends.erase(fd);
   event_free(fd1_end->ev);
   close(fd);
   delete(fd1_end);
-  if (fd1_ends.size() == 0) {
+  if (conn2fd1_ends.size() == 0) {
     if (buffer_empty()) {
       if (!fd1_ptrs_held_self_ptr_) {
         finish();
@@ -141,6 +147,32 @@ void Pipe::close_one_fd1(int fd) {
       /* Let the pipe send out the remaining data. */
       set_send_only_mode(true);
     }
+  }
+}
+
+void Pipe::handle_close(FileFD* file_fd) {
+  pipe_end* fd1_end = get_fd1_end(file_fd);
+  /* The close message may be processed later than detecting the closure of the pipe end, but
+   * when close arrives earlier the end needs to be drained and closed. */
+  if (fd1_end) {
+    if (fd1_end->file_fds.size() == 1) {
+      /* This was the last open fd, it is safe to drain it. */
+      drain_fd1_end(file_fd);
+    } else {
+      ffd2fd1_ends.erase(file_fd);
+      fd1_end->file_fds.erase(file_fd);
+    }
+  }
+}
+
+void Pipe::handle_dup(FileFD* old_file_fd, FileFD* new_file_fd) {
+  pipe_end* fd1_end = get_fd1_end(old_file_fd);
+  /* The dup message may be processed later than detecting the closure of the pipe end,
+   * but when a dup arrives and there is an associated end the end should be associated
+   * with the new FileFD, too. */
+  if (fd1_end) {
+    ffd2fd1_ends[new_file_fd] = fd1_end;
+    fd1_end->file_fds.insert(new_file_fd);
   }
 }
 
@@ -154,13 +186,14 @@ void Pipe::finish() {
 
   FB_DEBUG(FB_DEBUG_PIPE, "cleaning up " + d(this));
   // clean up all events
-  for (auto it : fd1_ends) {
+  for (auto it : conn2fd1_ends) {
     FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d(it.first));
     event_free(it.second->ev);
     close(it.first);
     delete it.second;
   }
-  fd1_ends.clear();
+  conn2fd1_ends.clear();
+  ffd2fd1_ends.clear();
 
   pipe_op_result send_ret;
   do {
@@ -214,14 +247,13 @@ void Pipe::set_send_only_mode(const bool mode) {
   assert(!finished());
   if (mode) {
     FB_DEBUG(FB_DEBUG_PIPE, "switching " + d(this) + " to send only mode");
-    for (auto it : fd1_ends) {
+    for (auto it : conn2fd1_ends) {
       event_del(it.second->ev);
     }
     /* should try again writing when fd0 becomes writable */
     event_add(fd0_event, NULL);
   } else {
-    FB_DEBUG(FB_DEBUG_PIPE, "allowing " + d(this) + " to read data again");
-    for (auto it : fd1_ends) {
+    for (auto it : conn2fd1_ends) {
       event_add(it.second->ev, NULL);
     }
     /* Should not be woken up by fd0 staying writable until data arrives. */
@@ -249,6 +281,7 @@ pipe_op_result Pipe::send_buf() {
           return FB_PIPE_WOULDBLOCK;
         } else {
           if (errno == EPIPE) {
+            FB_DEBUG(FB_DEBUG_PIPE, "ret: FB_PIPE_FD0_EPIPE");
             return FB_PIPE_FD0_EPIPE;
           } else {
             // TODO(rbalint) handle some errors
@@ -284,7 +317,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
     return FB_PIPE_FINISHED;
   }
 
-  auto fd1_end = fd1_ends[fd1];
+  auto fd1_end = conn2fd1_ends[fd1];
   assert(fd1_end);
 
   /* This loop tries to forward as much data as possible without blocking using the fast tee()
@@ -405,64 +438,46 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       }
       send_ret = send_buf();
     }
-  } while ((drain && (send_ret != FB_PIPE_FD0_EPIPE && send_ret != FB_PIPE_WOULDBLOCK))
-           || send_ret == FB_PIPE_SUCCESS);
+  } while ((drain && (send_ret != FB_PIPE_FD0_EPIPE))
+           || (!drain && send_ret == FB_PIPE_SUCCESS));
   if (send_ret == FB_PIPE_FD0_EPIPE) {
     return FB_PIPE_FD0_EPIPE;
   }
   /* sending is blocked */
-  assert(fd1_ends.size() > 0);
+  assert(conn2fd1_ends.size() > 0);
   return FB_PIPE_WOULDBLOCK;
 }
 
-void Pipe::drain_fd1_ends() {
+void Pipe::drain_fd1_end(FileFD* file_fd) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
 
-  if (!finished()) {
-    /* One round of forwarding should be enough, since the parent can't perform a
-     * new write() after the exec() and the forwarding drains the data in flight. */
-    // TODO(rbalint) forward only on fds coming from this process.
-    for (std::unordered_map<int, pipe_end *>::iterator it = fd1_ends.begin();
-         it != fd1_ends.end();) {
-      bool finished_with_pipe = false;
-      auto fd1_end = it->second;
-      auto ev = fd1_end->ev;
-      assert(ev);
-      int fd = it->first;
-      auto res = forward(fd, true, false);
-      switch (res) {
-        case FB_PIPE_FD1_EOF: {
-          /* This part is almost identical to close_one_fd1(), but here close_one_fd1() can't
-           * be used because the iteration must continue if the pipe was not cleaned up.
-           * Close_one_fd1() would modify fd1_ends and invalidate the iterator. */
-          it = fd1_ends.erase(it);
-          event_free(ev);
-          close(fd);
-          delete(fd1_end);
-          if (fd1_ends.size() == 0 && !buffer_empty()) {
-            /* There is still buffered data to send out. */
-            set_send_only_mode(true);
-            finished_with_pipe = true;
-          }
-          break;
-        }
-        case FB_PIPE_FD0_EPIPE: {
-          if (fd0_event) {
-            /* Clean up pipe. */
-            finish();
-          }
-          finished_with_pipe = true;
-          break;
-        }
-        case FB_PIPE_FINISHED:
-          [[fallthrough]];
-        default:
-          it++;
-      }
-      if (finished_with_pipe) {
-        break;
-      }
+  if (finished()) {
+    return;
+  }
+  auto fd1_end = ffd2fd1_ends[file_fd];
+  if (!fd1_end) {
+    return;
+  }
+  auto ev = fd1_end->ev;
+  assert(ev);
+  int fd = event_get_fd(ev);
+  switch (forward(fd, true, false)) {
+    case FB_PIPE_FD1_EOF: {
+      /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
+         function. */
+      close_one_fd1(fd);
+      break;
     }
+    case FB_PIPE_FD0_EPIPE: {
+      if (fd0_event) {
+        /* Clean up pipe. */
+        finish();
+      }
+      break;
+    }
+    default:
+      ffd2fd1_ends.erase(file_fd);
+      fd1_end->file_fds.erase(file_fd);
   }
 }
 
@@ -473,7 +488,7 @@ std::string d(const Pipe& pipe, const int level) {
   std::string ret = "[Pipe #" + d(pipe.id());
   if (!pipe.finished()) {
     ret += ", fd1s:";
-    for (const auto& it : pipe.fd1_ends) {
+    for (const auto& it : pipe.conn2fd1_ends) {
       ret += " " + d(it.first);
     }
     ret += ", fd0: " + d(event_get_fd(pipe.fd0_event));

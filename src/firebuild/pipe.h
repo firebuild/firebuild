@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -23,11 +24,14 @@ extern event_base * ev_base;
 
 namespace firebuild {
 
+class FileFD;
 class Process;
 
 typedef struct _pipe_end {
   /** Event listening on the pipe end */
   struct event* ev;
+  /* FileFDs associated with this pipe end keeping a(n fd1) reference to this pipe. */
+  std::unordered_set<FileFD*> file_fds;
   /** Cache files to save the captured data to */
   std::vector<int> cache_fds;
   bool known_to_be_opened;
@@ -58,7 +62,7 @@ typedef enum {
  * A Pipe may have multiple source file descriptors (fd1-s), that could be written to by multiple
  * Processes, due to dup(), fork() and alike. Each of them are converted to a separate named pipe
  * towards the supervisor, because it needs to record which process wrote the data.
- * The supervisor-side file descriptors of these channels are tracked in fd1_ends, via the
+ * The supervisor-side file descriptors of these channels are tracked in conn2fd1_ends, via the
  * add_fd1() helper method.
  *
  * The fd0 and fd1 naming in the supervisor reflects that in the intercepted programs those ends
@@ -141,10 +145,22 @@ class Pipe {
    * Cleaned up and set to nullptr in finish() only.
    */
   struct event * fd0_event;
-  /** Fd1 ends indexed by local connection file descriptor */
-  std::unordered_map<int, pipe_end *> fd1_ends;
+  /**
+   * Fd1 ends indexed by local connection file descriptor.
+   * During fd1 end's lifetime this maps the supervisor-side connections to the fd1 end.
+   * When and EOF is detected and the fd1 end is cleaned up and the connection is closed
+   * the pipe_end reference is also removed from this map. */
+  std::unordered_map<int, pipe_end *> conn2fd1_ends;
+  /**
+   * Fd1 ends indexed by FileFD (pointer)
+   * During fd1 end's lifetime this maps the intercepted process' file descriptor as tracked in
+   * the supervisor to fd1 ends.
+   * When and EOF is detected and the fd1 end is cleaned up the pipe_end reference is also removed
+   * from this map. The FileFD can still be tracked as being open, because the message about the
+   * close() or dup() may arrive later than the EOF being detected. */
+  std::unordered_map<FileFD*, pipe_end *> ffd2fd1_ends;
 
-  void add_fd1(int fd1, std::vector<int>&& cache_fds);
+  void add_fd1(int fd1, FileFD*, std::vector<int>&& cache_fds);
   /**
    * Send contents of the buffer to the 'to' side
    * @return send operation's result
@@ -168,7 +184,20 @@ class Pipe {
    * @return result of the read or write operation, whichever could be executed last
    */
   pipe_op_result forward(int fd1, bool drain, bool in_callback);
-  void drain_fd1_ends();
+  /**
+   * Drain one fd1 end corresponding to file_fd and remove file_fd references from ffd2fd1_ends and
+   * fd1 end's file_fds if they were present.
+   *
+   * @return if file_fd references are (possibly earlier) removed from the pipe
+   */
+  void drain_fd1_end(FileFD* file_fd);
+  /**
+   * Handle closing a pipe end file descriptor in the intercepted process.
+   *
+   * Also drain the pipe end if this was the last open fd.
+   */
+  void handle_close(FileFD* file_fd);
+  void handle_dup(FileFD* old_file_fd, FileFD* new_file_fd);
   /** Close all ends of the pipe */
   void finish();
   /** All ends are closed and the pipe is not functional anymore, just exists because there are
@@ -203,6 +232,14 @@ class Pipe {
   static int id_counter_;
   static void pipe_fd0_write_cb(evutil_socket_t fd, int16_t what, void *arg);
   static void pipe_fd1_read_cb(evutil_socket_t fd, int16_t what, void *arg);
+  pipe_end* get_fd1_end(FileFD* file_fd) {
+    auto it = ffd2fd1_ends.find(file_fd);
+    if (it != ffd2fd1_ends.end()) {
+      return it->second;
+    } else {
+      return nullptr;
+    }
+  }
   void close_one_fd1(int fd);
   DISALLOW_COPY_AND_ASSIGN(Pipe);
 };
