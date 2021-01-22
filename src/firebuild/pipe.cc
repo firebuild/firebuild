@@ -154,7 +154,7 @@ void Pipe::finish() {
   FB_DEBUG(FB_DEBUG_PIPE, "cleaning up " + d(this));
   // clean up all events
   for (auto it : fd1_ends) {
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1 fd: " + d(it.first));
+    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d(it.first));
     event_free(it.second->ev);
     close(it.first);
     delete it.second;
@@ -168,7 +168,7 @@ void Pipe::finish() {
 
   if (!keep_fd0_open_) {
     auto fd0 = event_get_fd(fd0_event);
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0 fd: " + d(fd0));
+    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d(fd0));
     event_free(fd0_event);
     close(fd0);
   } else {
@@ -483,11 +483,11 @@ void Pipe::drain_fd1_ends() {
 std::string d(const Pipe& pipe, const int level) {
   std::string ret = "[Pipe #" + d(pipe.id());
   if (!pipe.finished()) {
-    ret += ", fd1 fds:";
+    ret += ", fd1s:";
     for (const auto& it : pipe.fd1_ends) {
       ret += " " + d(it.first);
     }
-    ret += ", fd0 fd: " + d(event_get_fd(pipe.fd0_event));
+    ret += ", fd0: " + d(event_get_fd(pipe.fd0_event));
   } else {
     ret += ", finished";
   }
