@@ -413,8 +413,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       }
       send_ret = send_buf();
     }
-  } while ((drain && (send_ret != FB_PIPE_FD0_EPIPE && send_ret != FB_PIPE_WOULDBLOCK))
-           || send_ret == FB_PIPE_SUCCESS);
+  } while ((drain && send_ret != FB_PIPE_FD0_EPIPE) || send_ret == FB_PIPE_SUCCESS);
   if (send_ret == FB_PIPE_FD0_EPIPE) {
     return FB_PIPE_FD0_EPIPE;
   }
