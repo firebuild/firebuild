@@ -15,7 +15,7 @@ add_custom_command(
 
 add_custom_target(fbb_gen_files ALL DEPENDS fbb.c fbb.h)
 
-add_library(common_objs OBJECT common/firebuild_common.c fbb.c)
+add_library(common_objs OBJECT common/firebuild_common.c common/shmq.c fbb.c)
 
 add_subdirectory(interceptor)
 add_subdirectory(firebuild)
