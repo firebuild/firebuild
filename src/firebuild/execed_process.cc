@@ -87,6 +87,51 @@ void ExecedProcess::initialize() {
       parent_exec_point()->register_file_usage(lib, lib, FILE_ACTION_OPEN, O_RDONLY, 0);
     }
   }
+
+  /* Find the inherited outbound pipes.
+   * Group them according to which fds belongs to the same pipe and which to different.
+   * E.g. if fd 1 & 2 point to the same pipe and fd 3 to another one then build up [[1, 2], [3]].
+   * The outer list (according to the lowest fd) and the inner lists are all sorted. */
+  std::vector<inherited_pipe_t> inherited_pipes;
+  /* This iterates over the fds in increasing order. */
+  for (auto file_fd : *fds()) {
+    std::shared_ptr<Pipe> pipe;
+    if (!file_fd || (file_fd->flags() & O_ACCMODE) != O_WRONLY || !(pipe = file_fd->pipe())) {
+      continue;
+    }
+    bool found = false;
+    for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
+      if (pipe.get() == get_fd(inherited_pipe.fds[0])->pipe().get()) {
+        inherited_pipe.fds.push_back(file_fd->fd());
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      inherited_pipe_t inherited_pipe;
+      inherited_pipe.pipe = pipe;
+      inherited_pipe.fds.push_back(file_fd->fd());
+      inherited_pipes.push_back(inherited_pipe);
+    }
+  }
+  set_inherited_pipes(inherited_pipes);
+
+  if (FB_DEBUGGING(FB_DEBUG_PROC)) {
+    FB_DEBUG(FB_DEBUG_PROC, "Client-side fds of pipes are:");
+    for (const inherited_pipe_t& inherited_pipe : inherited_pipes) {
+      std::string arr = "  [";
+      bool add_sep = false;
+      for (int fd : inherited_pipe.fds) {
+        if (add_sep) {
+          arr += ", ";
+        }
+        add_sep = true;
+        arr += std::to_string(fd);
+      }
+      arr += "]";
+      FB_DEBUG(FB_DEBUG_PROC, arr);
+    }
+  }
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {
@@ -123,6 +168,7 @@ void ExecedProcess::do_finalize() {
   }
   file_usages_.clear();
   fds()->clear();
+  inherited_pipes_.clear();
   if (!generate_report) {
     args().clear();
     env_vars().clear();
