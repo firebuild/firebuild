@@ -24,6 +24,22 @@ namespace firebuild {
 
 class ExecedProcessCacher;
 
+/**
+ * Represents one outgoing pipe that this process inherited.
+ *
+ * The structure always refers to how things were when the process started,
+ * it isn't modified later as the process does various things with its file descriptors.
+ *
+ * A pipe might have multiple file descriptors, as per dup() and friends.
+ * They are stored in ascending order. There's at least one fd.
+ */
+typedef struct inherited_pipe_ {
+  /* The client-side file descriptor numbers, sorted */
+  std::vector<int> fds {};
+  /* The Pipe */
+  std::shared_ptr<Pipe> pipe {};
+} inherited_pipe_t;
+
 class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
@@ -69,6 +85,10 @@ class ExecedProcess : public Process {
   bool register_file_usage(const FileName *name, FileUsage fu_change);
   bool register_parent_directory(const FileName *name);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
+  std::vector<inherited_pipe_t> inherited_pipes() {return inherited_pipes_;}
+  const std::vector<inherited_pipe_t> inherited_pipes() const {return inherited_pipes_;}
+  void set_inherited_pipes(std::vector<inherited_pipe_t> inherited_pipes)
+      {inherited_pipes_ = inherited_pipes;}
 
   /**
    * Fail to change to a working directory
@@ -134,6 +154,13 @@ class ExecedProcess : public Process {
    * Pipes created by this process.
    */
   std::unordered_set<std::shared_ptr<Pipe>> created_pipes_ = {};
+  /**
+   * The outbound pipes this process had at startup.
+   * Each such pipe might have multiple client-side file descriptors (see dup() and friends),
+   * they are in sorted order. Also, this inherited_pipes_ array is sorted according to the
+   * first (lowest) fd for each inherited pipe.
+   */
+  std::vector<inherited_pipe_t> inherited_pipes_ = {};
   void store_in_cache();
   /// Reason for this process can't be short-cut
   std::string cant_shortcut_reason_ = "";

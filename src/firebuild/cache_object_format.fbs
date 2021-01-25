@@ -33,6 +33,11 @@ table Dir {
   entry:[string];
 }
 
+table PipeFds {
+  // Client-side fds pointing to the same pipe
+  fd:[int];
+}
+
 // Properties of a process that are known when it starts up, and are
 // expected to be the same across identical launches. These take a key
 // part in deciding whether it can be shortcutted. This includes command
@@ -52,6 +57,8 @@ table ProcessFingerprint {
   env:[string];
   // The initial working directory
   wd:string (required);
+  // For each outbound pipe, this contains the client-side fds
+  outbound_pipe:[PipeFds];
   // special purpose file descriptors, not having file name
   //optional stdin:File;
   //optional stdout:File;

@@ -25,25 +25,49 @@ ProcessTree::ProcessTree()
   Process::add_filefd(inherited_fds_, STDIN_FILENO,
                       std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
 
-  /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
+  /* Create the Pipes and FileFDs representing stdout and stderr of the top process.
+   * Check if stdout and stderr point to the same place. kcmp() is not universally
+   * available, so do a back-n-forth fcntl() on one and see if it drags the other with it.
+   * See https://unix.stackexchange.com/questions/191967.
+   * Share the same Pipe object, or use two different Pipes depending on the outcome. */
+  // FIXME Make this more generic, for all the received pipes / terminal outputs.
+  // FIXME With shim support we can't safely toggle the fcntl flags as it might affect other
+  // processes. Use kcmp() or /proc instead.
+  int flags1 = fcntl(STDOUT_FILENO, F_GETFL);
+  int flags2a = fcntl(STDERR_FILENO, F_GETFL);
+  fcntl(STDOUT_FILENO, F_SETFL, flags1 ^ O_NONBLOCK);
+  int flags2b = fcntl(STDERR_FILENO, F_GETFL);
+  fcntl(STDOUT_FILENO, F_SETFL, flags1);
+  FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
+                                                   "Top level stdout and stderr are distinct");
+
+  std::shared_ptr<Pipe> pipe;
   for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
-    /* The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
+    if (fd == STDERR_FILENO && flags2a != flags2b) {
+      /* stdout and stderr point to the same location (changing one's flags did change the
+       * other's). Reuse the Pipe object that we created in the loop's first iteration. */
+    } else {
+      /* Create a new Pipe for this file descriptor.
+       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
 #ifdef __clang_analyzer__
-    /* Scan-build reports a false leak for the correct code. This is used only in static
-     * analysis. It is broken because all shared pointers to the Pipe must be copies of
-     * the shared self pointer stored in it. */
-    auto pipe = std::make_shared<Pipe>(fd, NULL);
+      /* Scan-build reports a false leak for the correct code. This is used only in static
+       * analysis. It is broken because all shared pointers to the Pipe must be copies of
+       * the shared self pointer stored in it. */
+      pipe = std::make_shared<Pipe>(fd, NULL);
 #else
-    auto pipe = (new Pipe(fd, NULL))->shared_ptr();
+      pipe = (new Pipe(fd, NULL))->shared_ptr();
 #endif
-    FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0 fd: " + d(fd));
-    /* Top level inherited fds are special, they should not be closed. */
-    pipe->set_keep_fd0_open();
-    inherited_fd_pipes_.insert(pipe);
+      FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
+      /* Top level inherited fds are special, they should not be closed. */
+      pipe->set_keep_fd0_open();
+      inherited_fd_pipes_.insert(pipe);
+
+      pipe = pipe->fd1_shared_ptr();  /* might be needed for the second iteration of the loop */
+    }
 
     std::shared_ptr<FileFD> file_fd =
         Process::add_filefd(inherited_fds_, fd, std::make_shared<FileFD>(fd, O_WRONLY));
-    file_fd->set_pipe(pipe->fd1_shared_ptr());
+    file_fd->set_pipe(pipe);
   }
 }
 

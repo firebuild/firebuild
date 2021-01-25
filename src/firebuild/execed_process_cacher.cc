@@ -83,6 +83,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       builder.CreateVector(hash.to_binary(), Hash::hash_size());
   auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
 
+  /* The linked libraries */
   std::vector<flatbuffers::Offset<msg::File>> fp_libs_vec;
   const auto linux_vdso = FileName::Get("linux-vdso.so.1");
   for (const auto lib : proc->libs()) {
@@ -100,7 +101,21 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   }
   auto fp_libs = builder.CreateVector(fp_libs_vec);
 
-  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_libs, fp_args, fp_env, fp_wd);
+  /* The inherited pipes */
+  std::vector<flatbuffers::Offset<msg::PipeFds>> fp_pipefds_vec;
+  for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+    std::vector<int> fds;
+    for (int fd : inherited_pipe.fds) {
+      fds.push_back(fd);
+    }
+    auto fp_fds = builder.CreateVector(fds);
+    auto fp_pipefds = msg::CreatePipeFds(builder, fp_fds);
+    fp_pipefds_vec.push_back(fp_pipefds);
+  }
+  auto fp_pipefds = builder.CreateVector(fp_pipefds_vec);
+
+  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_libs,
+                                          fp_args, fp_env, fp_wd, fp_pipefds);
   builder.Finish(fp);
   hash.set_from_data(builder.GetBufferPointer(), builder.GetSize());
 

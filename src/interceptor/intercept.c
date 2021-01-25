@@ -481,24 +481,36 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
   int reopen_fd, reopen_flags, fifo_name_offset;
   sscanf(fd_fifo_str, "%d:%d %n", &reopen_fd, &reopen_flags, &fifo_name_offset);
   const char* reopen_fd_fifo = fd_fifo_str + fifo_name_offset;
-  /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
-   * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
-   * Pipe fd1 end is cleaned up. */
-  int tmp_fd = ic_orig_open(reopen_fd_fifo, O_NONBLOCK | O_RDONLY);
-  int fd = ic_orig_open(reopen_fd_fifo, reopen_flags | O_WRONLY);
-  ic_orig_close(tmp_fd);
-  assert(fd != -1 && "reopening fd failed");
-  if (fd != reopen_fd) {
-    /* dup2, because fds to be reopened can't have O_CLOEXEC */
+  /* reopen_fd_fifo is either a full path for the file to reopen, or an integer
+   * for the fd to dup2(). */
+  if (reopen_fd_fifo[0] == '/') {
+    /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
+     * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
+     * Pipe fd1 end is cleaned up. */
+    int tmp_fd = ic_orig_open(reopen_fd_fifo, O_NONBLOCK | O_RDONLY);
+    int fd = ic_orig_open(reopen_fd_fifo, reopen_flags | O_WRONLY);
+    ic_orig_close(tmp_fd);
+    assert(fd != -1 && "reopening fd failed");
+    if (fd != reopen_fd) {
+      /* dup2, because fds to be reopened can't have O_CLOEXEC */
+#ifndef NDEBUG
+      int dup2_ret =
+#endif
+          ic_orig_dup2(fd, reopen_fd);
+      assert(dup2_ret == reopen_fd);
+      ic_orig_close(fd);
+    }
+    /* the fifo is opened on both ends, there is no need for the file */
+    ic_orig_unlink(reopen_fd_fifo);
+  } else {
+    int fd;
+    sscanf(reopen_fd_fifo, "%d", &fd);
 #ifndef NDEBUG
     int dup2_ret =
 #endif
         ic_orig_dup2(fd, reopen_fd);
     assert(dup2_ret == reopen_fd);
-    ic_orig_close(fd);
   }
-  /* the fifo is opened on both ends, there is no need for the file */
-  ic_orig_unlink(reopen_fd_fifo);
 }
 
 /**  Set up the main supervisor connection */

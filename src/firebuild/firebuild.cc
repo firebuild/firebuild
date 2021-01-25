@@ -260,23 +260,25 @@ void accept_exec_child(ExecedProcess* proc, FD fd_conn,
       /* parent forked, thus a new set of fds is needed to track outputs */
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
-      for (auto file_fd : *proc->fds()) {
-        if (!file_fd || (file_fd->flags() & O_ACCMODE) != O_WRONLY) {
-          continue;
-        }
-        auto pipe = file_fd->pipe();
-        if (pipe) {
-          assert(!pipe->finished());
-          /* There may be incoming data from the parent, drain it. */
-          pipe->drain_fd1_ends();
-          auto fd = file_fd->fd();
-          /* parent's same fd is backed by a pipe, not closed or backed by a file */
-          int fifo_fd = make_fifo_fd_conn(proc, fd, &fifo_fds);
-          // FIXME(rbalint) add cache fds
-          auto cache_fds = std::vector<int>();
-          pipe->add_fd1(fifo_fd, std::move(cache_fds));
-          FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(fd)
-                   + " as new fd1: " + d(fifo_fd) + " of " + d(pipe.get()));
+      for (inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+        /* There may be incoming data from the parent, drain it. */
+        inherited_pipe.pipe->drain_fd1_ends();
+        /* For the lowest fd, create a new named pipe */
+        int fifo_fd = make_fifo_fd_conn(proc, inherited_pipe.fds[0], &fifo_fds);
+        // FIXME(rbalint) add cache fds
+        auto cache_fds = std::vector<int>();
+        inherited_pipe.pipe->add_fd1(fifo_fd, std::move(cache_fds));
+        FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_pipe.fds[0])
+                 + " as new fd1: " + d(fifo_fd) + " of " + d(inherited_pipe.pipe.get()));
+
+        /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
+        for (size_t i = 1; i < inherited_pipe.fds.size(); i++) {
+          char *fifo_params;
+          if (asprintf(&fifo_params, "%d:%d %d",
+                       inherited_pipe.fds[i], 0, inherited_pipe.fds[0]) == -1) {
+            perror("asprintf");
+          }
+          string_array_append(&fifo_fds, fifo_params);
         }
       }
       fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
