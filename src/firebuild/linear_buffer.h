@@ -17,6 +17,7 @@
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
+#include "firebuild/fd.h"
 
 namespace firebuild {
 
@@ -27,19 +28,20 @@ class LinearBuffer {
         length_(0) {}
   ~LinearBuffer() {free(buffer_);}
   const char * data() const {
-    assert(reinterpret_cast<uintptr_t>(&buffer_[data_start_offset_]) % 8 == 0);
     return &buffer_[data_start_offset_];
   }
   size_t length() const {return length_;}
   /** Append to the data in the buffer. */
   ssize_t read(FD fd, ssize_t howmuch) {
     TRACK(FB_DEBUG_COMM, "fd=%s", D(fd));
-
+    return read(fd.fd(), howmuch);
+  }
+  ssize_t read(evutil_socket_t fd, ssize_t howmuch) {
     assert_cmp(howmuch, !=, 0);
     if (howmuch >= 0) {
       /* Read at most the specified amount, in one step. (Note: fd is nonblocking.) */
       ensure_space(howmuch);
-      auto received = ::read(fd.fd(), &buffer_[data_start_offset_ + length_], howmuch);
+      auto received = ::read(fd, &buffer_[data_start_offset_ + length_], howmuch);
       if (received > 0) {
         length_ += received;
       }
@@ -53,7 +55,7 @@ class LinearBuffer {
       /* Now we have at least 8kB of free space to read to, but maybe even more.
        * Try to read as much as we can, it cannot hurt. */
       const ssize_t attempt1 = size_ - data_start_offset_ - length_;
-      auto received1 = ::read(fd.fd(), &buffer_[data_start_offset_ + length_], attempt1);
+      auto received1 = ::read(fd, &buffer_[data_start_offset_ + length_], attempt1);
       if (received1 <= 0) {
         /* EOF, or nothing to read right now, or other error. */
         return received1;
@@ -73,7 +75,7 @@ class LinearBuffer {
         return received1;
       }
       ensure_space(attempt2);
-      auto received2 = ::read(fd.fd(), &buffer_[data_start_offset_ + length_], attempt2);
+      auto received2 = ::read(fd, &buffer_[data_start_offset_ + length_], attempt2);
       if (received2 <= 0) {
         /* EOF, or nothing to read right now, or other error. Don't report this, report what we
          * read in the previous step. Or can we assert that this never happens? */
@@ -117,11 +119,9 @@ class LinearBuffer {
       buffer_ = reinterpret_cast<char*>(realloc(buffer_, size_));
     }
   }
-  ssize_t readable_bytes(FD fd) {
-    TRACK(FB_DEBUG_COMM, "fd=%s", D(fd));
-
+  ssize_t readable_bytes(evutil_socket_t fd) {
     int n;
-    if (ioctl(fd.fd(), FIONREAD, &n) < 0) {
+    if (ioctl(fd, FIONREAD, &n) < 0) {
       return -1;
     } else {
       return n;

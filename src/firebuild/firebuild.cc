@@ -1399,12 +1399,6 @@ int main(const int argc, char *argv[]) {
   exit(child_ret);
 }
 
-/** wrapper for writev() retrying on recoverable errors */
-ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
-  FB_READV_WRITEV(writev, fd, iov, iovcnt);
-}
-
-
 namespace firebuild {
 
 /** Print error message */
