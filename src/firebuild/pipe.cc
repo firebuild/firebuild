@@ -84,6 +84,7 @@ void Pipe::add_fd1(int fd1_conn, std::vector<int>&& cache_fds) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%d", fd1_conn);
 
   assert(fd1_ends.count(fd1_conn) == 0);
+  assert(!finished());
   auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, Pipe::pipe_fd1_read_cb, this);
   fd1_ends[fd1_conn] = new pipe_end({fd1_event, std::move(cache_fds), false});
   if (!send_only_mode_) {
@@ -438,16 +439,13 @@ void Pipe::drain_fd1_ends() {
           event_free(ev);
           close(fd);
           delete(fd1_end);
-          if (fd1_ends.size() > 0) {
-            break;
-          } else if (!buffer_empty()) {
+          if (fd1_ends.size() == 0 && !buffer_empty()) {
             /* There is still buffered data to send out. */
             set_send_only_mode(true);
             finished_with_pipe = true;
-            break;
           }
+          break;
         }
-          [[fallthrough]];
         case FB_PIPE_FD0_EPIPE: {
           if (fd0_event) {
             /* Clean up pipe. */
