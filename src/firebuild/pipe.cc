@@ -60,7 +60,7 @@ struct Fd1Deleter {
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
       fd1_ends(), id_(id_counter_++), send_only_mode_(false), keep_fd0_open_(false),
-      fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false), buf_(evbuffer_new()),
+      fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false), buf_(),
       fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
       shared_self_ptr_(this), creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%d, creator=%s", fd0_conn, D(creator));
@@ -183,7 +183,8 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%d", fd);
 
   (void) what; /* FIXME! unused */
-  switch (pipe->forward(fd, false, true)) {
+  auto result = pipe->forward(fd, false, true);
+  switch (result) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
       assert(pipe->send_only_mode());
@@ -237,7 +238,7 @@ pipe_op_result Pipe::send_buf() {
     auto fd0_conn = event_get_fd(fd0_event);
     ssize_t sent;
     do {
-      sent = evbuffer_write(buf_, fd0_conn);
+      sent = write(fd0_conn, buf_.data(), buf_.length());
       FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(sent) + " bytes via fd: "
                + d(fd0_conn) + " of " + d(this));
       if (sent == -1) {
@@ -259,6 +260,7 @@ pipe_op_result Pipe::send_buf() {
         assert(0 && "fd0_conn is closed, but not with EPIPE error");
         return FB_PIPE_FD0_EPIPE;
       } else {
+        buf_.discard(sent);
         if (buffer_empty()) {
           /* Buffer emptied, pipe can receive more data. */
           if (send_only_mode_) {
@@ -338,7 +340,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       } while (received > 0);
     }
     /* Read one round to the buffer and try to send it. */
-    received = evbuffer_read(buf_, fd1, -1);
+    received = buf_.read(fd1, -1);
     if (received == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         /* Try emptying the buffer if there is any data to send. */
@@ -392,23 +394,12 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       FB_DEBUG(FB_DEBUG_PIPE, "received " + d(received) + " bytes from fd: " + d(fd1));
       if (fd1_end->cache_fds.size() > 0) {
         /* Save the data keeping it in the buffer, too. */
-        ssize_t bufsize = evbuffer_get_length(buf_);
+        ssize_t bufsize = buf_.length();
         assert(bufsize >= received);
-        /* The data to be saved is at the end of the buffer. */
-        struct evbuffer_ptr pos;
-        evbuffer_ptr_set(buf_, &pos, bufsize - received, EVBUFFER_PTR_SET);
-        auto n_vec = evbuffer_peek(buf_, received, &pos, NULL, 0);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-overflow"
-        struct evbuffer_iovec vec_out[n_vec];
-#pragma GCC diagnostic pop
+        /* The data to be saved now is at the end of the buffer. */
+        const char * buf_to_save = buf_.data() + bufsize - received;
         for (auto cache_fd : fd1_end->cache_fds) {
-#ifndef NDEBUG
-          auto copied_out =
-#endif
-              evbuffer_peek(buf_, received, &pos, vec_out, n_vec);
-          assert(copied_out == received);
-          fb_writev(cache_fd, vec_out, n_vec);
+          fb_write(cache_fd, buf_to_save, received);
         }
       }
       send_ret = send_buf();

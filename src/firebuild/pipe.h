@@ -4,7 +4,6 @@
 #ifndef FIREBUILD_PIPE_H_
 #define FIREBUILD_PIPE_H_
 
-#include <event2/buffer.h>
 #include <event2/event.h>
 #include <limits.h>
 #include <unistd.h>
@@ -17,6 +16,8 @@
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
+#include "firebuild/fd.h"
+#include "firebuild/linear_buffer.h"
 
 extern event_base * ev_base;
 
@@ -122,8 +123,6 @@ typedef enum {
 class Pipe {
  public:
   Pipe(int fd0_conn, Process* creator);
-  ~Pipe() {evbuffer_free(buf_);}
-
   /**
    * Shared_ptr of this Pipe for fd0-side references.
    */
@@ -152,7 +151,7 @@ class Pipe {
    */
   pipe_op_result send_buf();
   bool buffer_empty() {
-    return evbuffer_get_length(buf_) == 0;
+    return buf_.length() == 0;
   }
   void reset_fd0_ptrs_self_ptr_() {fd0_ptrs_held_self_ptr_.reset();}
   void reset_fd1_ptrs_self_ptr_() {fd1_ptrs_held_self_ptr_.reset();}
@@ -186,7 +185,7 @@ class Pipe {
   bool keep_fd0_open_:1;
   bool fd0_shared_ptr_generated_:1;
   bool fd1_shared_ptr_generated_:1;
-  struct evbuffer * buf_;
+  LinearBuffer buf_;
   /**
    * Shared self pointer used by fd0 references to clean oneself up only after finish() and keep
    * track of fd0 references separately . */

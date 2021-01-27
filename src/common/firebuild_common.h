@@ -36,6 +36,13 @@ bool is_path_at_locations(const char *path, string_array *prefix_array);
 ssize_t fb_read(int fd, void *buf, size_t count);
 
 /**
+ * wrapper for write() retrying on recoverable errors
+ *
+ * It is implemented differently in supervisor and interceptor
+ */
+ssize_t fb_write(int fd, const void *buf, size_t count);
+
+/**
  * wrapper for writev() retrying on recoverable errors
  *
  * It is implemented differently in supervisor and interceptor

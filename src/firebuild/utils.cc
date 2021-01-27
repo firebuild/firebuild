@@ -10,6 +10,16 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
+/** wrapper for writev() retrying on recoverable errors */
+ssize_t fb_write(int fd, const void *buf, size_t count) {
+  FB_READ_WRITE(write, fd, buf, count);
+}
+
+/** wrapper for writev() retrying on recoverable errors */
+ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
+  FB_READV_WRITEV(writev, fd, iov, iovcnt);
+}
+
 namespace firebuild {
 
 /**
