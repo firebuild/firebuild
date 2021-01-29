@@ -10,7 +10,6 @@
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 
 #include <event2/event.h>
 
@@ -40,7 +39,7 @@ class LinearBuffer {
     if (howmuch >= 0) {
       /* Read at most the specified amount, in one step. (Note: fd is nonblocking.) */
       ensure_space(howmuch);
-      auto received = ::recv(fd.fd(), &buffer_[data_start_offset_ + length_], howmuch, 0);
+      auto received = ::read(fd.fd(), &buffer_[data_start_offset_ + length_], howmuch);
       if (received > 0) {
         length_ += received;
       }
@@ -48,13 +47,13 @@ class LinearBuffer {
     } else {
       /* Read as much as we can. (Note: fd is nonblocking.)
        * Try to use as few system calls as possible on average, see #417.
-       * So, begin with a reasonably large recv() that will most often result in a short recv()
+       * So, begin with a reasonably large read() that will most often result in a short read()
        * and then this is the only syscall we needed to perform. */
       ensure_space(8 * 1024);
       /* Now we have at least 8kB of free space to read to, but maybe even more.
        * Try to read as much as we can, it cannot hurt. */
       const ssize_t attempt1 = size_ - data_start_offset_ - length_;
-      auto received1 = ::recv(fd.fd(), &buffer_[data_start_offset_ + length_], attempt1, 0);
+      auto received1 = ::read(fd.fd(), &buffer_[data_start_offset_ + length_], attempt1);
       if (received1 <= 0) {
         /* EOF, or nothing to read right now, or other error. */
         return received1;
@@ -74,7 +73,7 @@ class LinearBuffer {
         return received1;
       }
       ensure_space(attempt2);
-      auto received2 = ::recv(fd.fd(), &buffer_[data_start_offset_ + length_], attempt2, 0);
+      auto received2 = ::read(fd.fd(), &buffer_[data_start_offset_ + length_], attempt2);
       if (received2 <= 0) {
         /* EOF, or nothing to read right now, or other error. Don't report this, report what we
          * read in the previous step. Or can we assert that this never happens? */
