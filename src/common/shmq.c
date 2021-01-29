@@ -87,6 +87,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -139,10 +140,10 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **msg_ptr) {
   reader->tail_message_peeked = true;
 
   /* Maybe the area containing the message header (h[3] in the example) isn't mapped yet. */
-  size_t required_size = header_location + shmq_message_header_size();
-  if (reader->size < required_size) {
+  size_t ensure_buffer_size = header_location + shmq_message_header_size();
+  if (reader->size < ensure_buffer_size) {
     size_t old_size = reader->size;
-    do { reader->size *= 2; } while (reader->size < required_size);
+    do { reader->size *= 2; } while (reader->size < ensure_buffer_size);
     reader->buf = mremap(reader->buf, old_size, reader->size, MREMAP_MAYMOVE);
   }
 
@@ -150,10 +151,10 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **msg_ptr) {
   int32_t len = ((shmq_message_header_t *)(reader->buf + header_location))->len;
 
   /* Maybe the message (msg[3] in the example) or the following pointer (p[3]) isn't mapped yet. */
-  required_size = shmq_reader_message_end_location(reader, header_location) + shmq_next_message_pointer_size();
-  if (reader->size < required_size) {
+  ensure_buffer_size = shmq_reader_message_end_location(reader, header_location) + shmq_next_message_pointer_size();
+  if (reader->size < ensure_buffer_size) {
     size_t old_size = reader->size;
-    do { reader->size *= 2; } while (reader->size < required_size);
+    do { reader->size *= 2; } while (reader->size < ensure_buffer_size);
     reader->buf = mremap(reader->buf, old_size, reader->size, MREMAP_MAYMOVE);
   }
 
@@ -274,8 +275,8 @@ void shmq_writer_init(shmq_writer_t *writer, const char *name) {
   writer->chunk[0].tail = shmq_global_header_size();
   writer->chunk[0].head = shmq_global_header_size() + shmq_next_message_pointer_size();
 
-  writer->previous_head_location = -1;
-  writer->new_header_location = -1;
+  writer->next_state = -1;
+  writer->next_message_location = writer->next_message_len = -1;
 }
 
 void shmq_writer_fini(shmq_writer_t *writer) {
@@ -289,8 +290,8 @@ void shmq_writer_fini(shmq_writer_t *writer) {
   // FIXME maybe shm_unlink() too, just in case the reader didn't appear?
 }
 
-/**
- * Free up the area already consumed by the reader.
+/*
+ * Internal helper: Free up the area already consumed by the reader.
  */
 static void shmq_writer_advance_tail(shmq_writer_t *writer) {
   int32_t tail = ((shmq_global_header_t *)(writer->buf))->tail_location;
@@ -309,51 +310,100 @@ static void shmq_writer_advance_tail(shmq_writer_t *writer) {
   writer->chunk[0].tail = tail;
 }
 
+/*
+ * The total room required for a message's head, body and the next message pointer.
+ */
+static inline int32_t shmq_writer_needed_room(int32_t len) {
+  return shmq_message_header_size() + roundup8(len) + shmq_next_message_pointer_size();
+}
+
+/*
+ * Internal helper: Find room for a message of a given size. Ignores if a message is already being
+ * constructed, so can be used both to find room for a new message, and for growing the room for one
+ * that's under construction.
+ */
+static void shmq_writer_find_room_for_message(shmq_writer_t *writer, int32_t len) {
+  int32_t needed_room = shmq_writer_needed_room(len);
+
+  /* See if a state change will be necessary. */
+  if (writer->state == 1 && needed_room <= writer->chunk[0].tail - shmq_global_header_size()) {
+    /* State 1 -> 2 transition. */
+    writer->next_message_location = shmq_global_header_size();
+    writer->next_state = 2;
+  } else if (writer->state == 2 && needed_room > writer->chunk[0].tail - writer->chunk[1].head) {
+    /* State 2 -> 3 transition. */
+    writer->next_message_location = writer->chunk[0].head;
+    writer->next_state = 3;
+  } else {
+    /* No state change. */
+    writer->next_message_location = writer->chunk[shmq_writer_nr_chunks(writer) - 1].head;
+    writer->next_state = writer->state;
+  }
+  writer->next_message_len = len;
+
+  /* We've figured out where the message will go. Now make sure the shm is big enough. */
+  size_t ensure_buffer_size = writer->next_message_location + needed_room;
+  if (writer->size < ensure_buffer_size) {
+    size_t old_size = writer->size;
+    do {
+      writer->size *= 2;
+    } while (writer->size < ensure_buffer_size);
+    ftruncate(writer->fd, writer->size);  /* Grow the backing virtual file. */
+    writer->buf = mremap(writer->buf, old_size, writer->size, MREMAP_MAYMOVE);
+  }
+}
+
 /**
  * Find a place for a message of len bytes, which then can be constructed here in place by the caller.
  */
 char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len) {
-  /* This assertion and assignment guarantee that new_message and add_message() are called
+  /* This assertion and assignment guarantee that new_message() and add_message() are called
    * alternatingly. */
-  assert(writer->previous_head_location == -1);
-  writer->previous_head_location = writer->chunk[shmq_writer_nr_chunks(writer) - 1].head;
+  assert(writer->next_state == -1);
 
   shmq_writer_advance_tail(writer);
-
-  /* Now we've potentially "freed up" some area. Time to find a contiguous slot for the forthcoming
-   * message and its accompanying technical data. */
-  int32_t needed_bytes = shmq_message_header_size() + roundup8(len) + shmq_next_message_pointer_size();
-
-  /* See if a state change is necessary, create a new empty chunk in that case. */
-  if (writer->state == 1 && needed_bytes <= writer->chunk[0].tail - shmq_global_header_size()) {
-    writer->chunk[1].head = writer->chunk[1].tail = shmq_global_header_size();
-    writer->state = 2;
-  } else if (writer->state == 2 && needed_bytes > writer->chunk[0].tail - writer->chunk[1].head) {
-    writer->chunk[2].head = writer->chunk[2].tail = writer->chunk[0].head;
-    writer->state = 3;
-  }
-
-  /* Append to the last (possibly just created) chunk. */
-  writer->new_header_location = writer->chunk[shmq_writer_nr_chunks(writer) - 1].head;
-  writer->chunk[shmq_writer_nr_chunks(writer) - 1].head += needed_bytes;
-
-  /* We've figured out where the new message will go. Now make sure the shm is big enough. */
-  size_t required_size = writer->new_header_location + needed_bytes;
-  if (writer->size < required_size) {
-    size_t old_size = writer->size;
-    do {
-      writer->size *= 2;
-    } while (writer->size < required_size);
-    ftruncate(writer->fd, writer->size);  /* Grow the backing virtual file. */
-    writer->buf = mremap(writer->buf, old_size, writer->size, MREMAP_MAYMOVE);
-  }
-
-  /* Initiaize the new message's header and the pointer to the next (future) message. */
-  ((shmq_message_header_t *)(writer->buf + writer->new_header_location))->len = len;
-  ((shmq_next_message_pointer_t *)(writer->buf + shmq_writer_message_end_location(writer, writer->new_header_location)))->next_message_location = -1;
+  shmq_writer_find_room_for_message(writer, len);
 
   /* Return the location of the message body, to be filled in by the caller. */
-  return writer->buf + writer->new_header_location + shmq_message_header_size();
+  return writer->buf + writer->next_message_location + shmq_message_header_size();
+}
+
+/**
+ * Resize the message that's currently being created.
+ */
+char *shmq_writer_resize_message(shmq_writer_t *writer, int32_t len) {
+  /* Calling this method only makes sense after a new_message() but before its add_message(). */
+  assert(writer->next_state != -1);
+
+  if (len <= writer->next_message_len) {
+    /* Message shrinks or stays the same. Leave it in place. */
+    writer->next_message_len = len;
+  } else {
+    /* Message grows.
+     *
+     * TODO Let's see if we can grow in place, to avoid a memmove().
+     * Ideally we would advance the tail first, to increase the chance.
+     * It's already a bit tricky without advance_tail(), but after an advance_tail() 
+     * it becomes really complicated, since state and next_state might have a combination that's
+     * not possible without resizes, e.g. from a former state==2 the new message caused to enter
+     * next_state==3, and then the tail advancing made it state==1.
+     *
+     * Avoid this aforementioned complexity for now. Just see where this message would go now if it
+     * was a brand new message.
+     */
+    int32_t old_next_message_location = writer->next_message_location;
+    int32_t old_next_message_len = writer->next_message_len;
+
+    shmq_writer_advance_tail(writer);
+    shmq_writer_find_room_for_message(writer, len);
+
+    memmove(writer->buf + writer->next_message_location + shmq_message_header_size(),
+            writer->buf + old_next_message_location + shmq_message_header_size(),
+            roundup8(old_next_message_len));
+  }
+
+  /* Return the location of the message body, to be filled in by the caller. */
+  return writer->buf + writer->next_message_location + shmq_message_header_size();
 }
 
 /**
@@ -362,11 +412,27 @@ char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len) {
 void shmq_writer_add_message(shmq_writer_t *writer) {
   /* This assertion, and the assignment below guarantee that new_message and add_message() are
    * called alternatingly. */
-  assert(writer->previous_head_location >= shmq_global_header_size() + shmq_next_message_pointer_size());
+  assert(writer->next_state != -1);
 
-  /* Just flip one address to add the new message to the linked list, that's all we need to do. */
-  ((shmq_next_message_pointer_t *)(writer->buf + writer->previous_head_location - shmq_next_message_pointer_size()))->next_message_location =
-      writer->new_header_location;
+  /* Write the new message's header and the pointer to the next (future) message. */
+  ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->len = writer->next_message_len;
+  ((shmq_next_message_pointer_t *)(writer->buf + shmq_writer_message_end_location(writer, writer->next_message_location)))->next_message_location = -1;
 
-  writer->previous_head_location = -1;
+  /* Link it up from the previous message, so that the reader can see it. */
+  ((shmq_next_message_pointer_t *)(writer->buf + writer->chunk[shmq_writer_nr_chunks(writer) - 1].head - shmq_next_message_pointer_size()))->next_message_location =
+      writer->next_message_location;
+
+  /* Adjust the state and the chunks. */
+  if (writer->next_state != writer->state) {
+    /* State 1->2 change starting chunk[1], or state 2->3 change starting chunk[2]. */
+    writer->chunk[writer->state].tail = writer->next_message_location;
+    writer->chunk[writer->state].head = writer->next_message_location + shmq_writer_needed_room(writer->next_message_len);
+  } else {
+    /* No state change, append to the head chunk. */
+    writer->chunk[shmq_writer_nr_chunks(writer) - 1].head += shmq_writer_needed_room(writer->next_message_len);
+  }
+  writer->state = writer->next_state;
+
+  writer->next_state = -1;
+  writer->next_message_location = writer->next_message_len = -1;
 }

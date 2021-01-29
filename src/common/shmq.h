@@ -65,15 +65,15 @@ typedef struct {
   char *buf;
   int fd;
   /* The layout's state, possible values are 1..4. */
-  int state;
+  int state, next_state;
   /* The interval(s) actually used by the data stored in the queue. Exactly nr_chunks() are used,
    * starting at chunk[0] representing the stream's tail. */
   struct {
     int32_t tail;
     int32_t head;
   } chunk[3];
-  int32_t previous_head_location;
-  int32_t new_header_location;
+  int32_t next_message_location;
+  int32_t next_message_len;
 } shmq_writer_t;
 
 
