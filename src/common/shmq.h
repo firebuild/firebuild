@@ -10,6 +10,7 @@
 
 #define SHMQ_INITIAL_SIZE 4096
 
+/* Round up a nonnegative number to the nearest multiple of 8. */
 #ifndef roundup8
 #define roundup8(x) ((x + 7) & ~0x07)
 #endif
@@ -36,6 +37,11 @@ static inline int shmq_global_header_size() {return roundup8(sizeof(shmq_global_
 static inline int shmq_message_header_size() {return roundup8(sizeof(shmq_message_header_t));}
 static inline int shmq_next_message_pointer_size() {return roundup8(sizeof(shmq_next_message_pointer_t));}
 
+/* The overall size occupied by a message's head, body, and the next message pointer. */
+static inline int shmq_message_overall_size(int32_t len) {
+  return shmq_message_header_size() + roundup8(len) + shmq_next_message_pointer_size();
+}
+
 
 typedef struct {
   size_t size;
@@ -46,18 +52,8 @@ typedef struct {
 
 void shmq_reader_init(shmq_reader_t *reader, const char *name);
 void shmq_reader_fini(shmq_reader_t *reader);
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **msg_ptr);
+int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr);
 void shmq_reader_discard_tail(shmq_reader_t *reader);
-
-
-// FIXME dedup!
-static inline int32_t shmq_reader_message_end_location(const shmq_reader_t *reader, int32_t header_location) {
-  assert(header_location >= shmq_global_header_size());
-  assert(header_location % 8 == 0);
-
-  int32_t len = ((shmq_message_header_t *)(reader->buf + header_location))->len;
-  return header_location + shmq_message_header_size() + roundup8(len);
-}
 
 
 typedef struct {
@@ -85,15 +81,6 @@ void shmq_writer_add_message(shmq_writer_t *writer);
 static inline int shmq_writer_nr_chunks(const shmq_writer_t *writer) {
   static const int state_to_nr_chunks[5] = {0, 1, 2, 3, 2};
   return state_to_nr_chunks[writer->state];
-}
-
-// FIXME dedup!
-static inline int32_t shmq_writer_message_end_location(const shmq_writer_t *writer, int32_t header_location) {
-  assert(header_location >= shmq_global_header_size());
-  assert(header_location % 8 == 0);
-
-  int32_t len = ((shmq_message_header_t *)(writer->buf + header_location))->len;
-  return header_location + shmq_message_header_size() + roundup8(len);
 }
 
 #endif  // COMMON_FIREBUILD_SHMQ_H_
