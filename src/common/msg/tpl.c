@@ -109,6 +109,69 @@ static void fbb_{{ msg }}_send(int fd, const void *msgbldr_void, uint32_t ack_id
   fb_writev(fd, iov, iovcnt);
 }
 
+/* get the serialized size of a '{{ msg }}', without header or padding */
+static size_t fbb_{{ msg }}_get_size(const void *msgbldr_void) {
+  const FBB_Builder_{{ msg }} *msgbldr = (const FBB_Builder_{{ msg }} *) msgbldr_void;
+  (void) msgbldr;  /* might be unused */
+
+  /* verify that required fields were set */
+###   for (req, type, var) in fields
+###     if req == REQUIRED
+###       if type in [STRING, STRINGARRAY]
+  assert(msgbldr->{{ var }} != NULL);
+###       else
+  assert(msgbldr->has_{{ var }});
+###       endif
+###     endif
+###   endfor
+  /* size of the core structure */
+  size_t size = sizeof(FBB_{{ msg }});
+  /* additinal size of strings and string arrays */
+###   for (req, type, var) in fields
+###     if type in [STRING, STRINGARRAY]
+  size += msgbldr->wire.{{ var }}_size;
+###     endif
+###   endfor
+  return size;
+}
+
+/* serialize a '{{ msg }}', without header or padding */
+static void fbb_{{ msg }}_serialize(const void *msgbldr_void, char *dst) {
+  const FBB_Builder_{{ msg }} *msgbldr = (const FBB_Builder_{{ msg }} *) msgbldr_void;
+
+  /* verify that required fields were set */
+###   for (req, type, var) in fields
+###     if req == REQUIRED
+###       if type in [STRING, STRINGARRAY]
+  assert(msgbldr->{{ var }} != NULL);
+###       else
+  assert(msgbldr->has_{{ var }});
+###       endif
+###     endif
+###   endfor
+
+  memcpy(dst, &msgbldr->wire, sizeof(msgbldr->wire));
+  size_t off = sizeof(msgbldr->wire);
+
+###   for (req, type, var) in fields
+###     if type == STRING
+  memcpy(dst + off, msgbldr->{{ var }}, msgbldr->wire.{{ var }}_size);
+  off += msgbldr->wire.{{ var }}_size;
+###     elif type == STRINGARRAY
+  {
+    char * const *p = msgbldr->{{ var }};
+    while (*p) {
+      int size = strlen(*p) + 1;
+      memcpy(dst + off, *p, size);
+      off += size;
+      p++;
+    }
+  }
+###     endif
+###   endfor
+  assert(off == fbb_{{ msg }}_get_size(msgbldr_void));
+}
+
 ### endfor
 
 /************************************************/
@@ -164,5 +227,44 @@ void fbb_send(int fd, const void *msgbldr, uint32_t ack_id) {
     iov[1].iov_base = &ack_id;
     iov[1].iov_len = sizeof(ack_id);
     fb_writev(fd, iov, 2);
+  }
+}
+
+/* lookup array for the get_size function of a particular message tag */
+static size_t (*fbb_get_sizes_array[])(const void *) = {
+### for (msg, _) in msgs
+  fbb_{{ msg }}_get_size,
+### endfor
+};
+
+/* get the size of any message */
+size_t fbb_get_size(const void *msgbldr) {
+  if (msgbldr != NULL) {
+    /* invoke the particular sender for this message type */
+    int tag = * ((int *) msgbldr);
+    assert(tag >= 0 && tag < FBB_TAG_NEXT);
+    return (*fbb_get_sizes_array[tag])(msgbldr);
+  } else {
+    /* empty message */
+    return 0;
+  }
+}
+
+/* lookup array for the serialize function of a particular message tag */
+static void (*fbb_serializers_array[])(const void *, char *) = {
+### for (msg, _) in msgs
+  fbb_{{ msg }}_serialize,
+### endfor
+};
+
+/* serialize any message */
+void fbb_serialize(const void *msgbldr, char *dst) {
+  if (msgbldr != NULL) {
+    /* invoke the particular sender for this message type */
+    int tag = * ((int *) msgbldr);
+    assert(tag >= 0 && tag < FBB_TAG_NEXT);
+    (*fbb_serializers_array[tag])(msgbldr, dst);
+  } else {
+    /* empty message, nothing to do */
   }
 }
