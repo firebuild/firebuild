@@ -356,12 +356,13 @@ namespace {
 
 static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
                               firebuild::Process** child_ref, int pid, int child_fd,
-                              int child_ack, firebuild::ProcessTree* proc_tree) {
+                              int child_ack, const char *shmq_name, firebuild::ProcessTree* proc_tree) {
   TRACK(firebuild::FB_DEBUG_PROC,
         "parent_fd=%s, parent_ack=%d, parent=%s pid=%d child_fd=%s child_ack=%d",
         D_FD(parent_fd), parent_ack, D(parent), pid, D_FD(child_fd), child_ack);
 
   auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
+  shmq_reader_init(proc->shmq_reader(), shmq_name);
   proc_tree->insert(proc);
   *child_ref = proc;
   firebuild::ack_msg(parent_fd, parent_ack);
@@ -441,6 +442,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
             firebuild::ProcessFactory::getExecedProcess(
                 ic_msg, nullptr, nullptr);
         proc_tree->QueuePosixSpawnChild(ppid, fd_conn, proc);
+        shmq_reader_init(proc->shmq_reader(), fbb_scproc_query_get_shmq_name(ic_msg));
         *new_proc = proc;
         return;
       }
@@ -517,6 +519,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     const FBB_fork_child *ic_msg = reinterpret_cast<const FBB_fork_child *>(fbb_buf);
     auto pid = fbb_fork_child_get_pid(ic_msg);
     auto ppid = fbb_fork_child_get_ppid(ic_msg);
+    const char *shmq_name = fbb_fork_child_get_shmq_name(ic_msg);
     auto pending_ack = proc_tree->PPid2ParentAck(ppid);
     /* The supervisor needs up to date information about the fork parent in the ProcessTree
      * when the child Process is created. To ensure having up to date information all the
@@ -525,13 +528,13 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
      */
     if (!pending_ack) {
       /* queue fork_child data and delay processing messages on this socket */
-      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, new_proc);
+      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, std::string(shmq_name), new_proc);
     } else {
       auto pproc = proc_tree->pid2proc(ppid);
       assert(pproc);
       /* record new process */
       accept_fork_child(pproc, pending_ack->sock, pending_ack->ack_num,
-                        new_proc, pid, fd_conn, ack_id, proc_tree);
+                        new_proc, pid, fd_conn, ack_id, shmq_name, proc_tree);
       proc_tree->DropParentAck(ppid);
     }
   }
@@ -569,7 +572,7 @@ void proc_ic_msg(const void *fbb_buf,
         /* record new child process */
         accept_fork_child(proc, fd_conn, ack_num,
                           fork_child_sock->fork_child_ref, child_pid, fork_child_sock->sock,
-                          fork_child_sock->ack_num, proc_tree);
+                          fork_child_sock->ack_num, fork_child_sock->shmq_name.c_str(), proc_tree);
         proc_tree->DropQueuedForkChild(child_pid);
       }
       return;

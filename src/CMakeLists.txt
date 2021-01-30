@@ -2,6 +2,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 set_source_files_properties(common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC")
+set_source_files_properties(common/shmq.c PROPERTIES COMPILE_FLAGS "-fPIC")
 set_source_files_properties(fbb.c PROPERTIES COMPILE_FLAGS "-fPIC")
 
 add_custom_command(

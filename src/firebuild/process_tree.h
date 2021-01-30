@@ -22,6 +22,9 @@
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/utils.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+
 namespace firebuild {
 
 struct subcmd_prof {
@@ -45,6 +48,8 @@ struct fork_child_sock {
   int ppid;
   /** ACK number the process is waiting for */
   int ack_num;
+  /** FIXME */
+  std::string shmq_name;
   /** Location to save child's pointer to after it is created */
   Process** fork_child_ref;
 };
@@ -86,9 +91,9 @@ class ProcessTree {
       return NULL;
     }
   }
-  void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
+  void QueueForkChild(int pid, int sock, int ppid, int ack_num, std::string shmq_name, Process **fork_child_ref) {
     assert(!Pid2ForkChildSock(pid));
-    pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
+    pid2fork_child_sock_[pid] = {sock, ppid, ack_num, shmq_name, fork_child_ref};
   }
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
@@ -197,4 +202,7 @@ class ProcessTree {
 };
 
 }  // namespace firebuild
+
+#pragma GCC diagnostic pop
+
 #endif  // FIREBUILD_PROCESS_TREE_H_
