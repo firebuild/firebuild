@@ -8,6 +8,10 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define SHMQ_INITIAL_SIZE 4096
 
 /* Round up a nonnegative number to the nearest multiple of 8. */
@@ -83,5 +87,9 @@ static inline int shmq_writer_nr_chunks(const shmq_writer_t *writer) {
   static const int state_to_nr_chunks[5] = {0, 1, 2, 3, 2};
   return state_to_nr_chunks[writer->state];
 }
+
+#ifdef __cplusplus
+}  /* extern "C" */
+#endif
 
 #endif  // COMMON_FIREBUILD_SHMQ_H_

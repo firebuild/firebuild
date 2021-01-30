@@ -554,20 +554,13 @@ void fb_init_supervisor_conn(const char *shmq_name) {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
     fb_conn_string_len = strlen(fb_conn_string);
   } else {
-//    shmq_writer_fini(&fb_shmq);
+    shmq_writer_fini(&fb_shmq);
   }
   // reconnect to supervisor
   ic_orig_close(fb_sv_conn);
   fb_sv_conn = fb_connect_supervisor(-1);
 
-ic_orig_write(2, "A1\n", 3);
-ic_orig_write(2, "A2\n", 3);
-ic_orig_write(2, "A3\n", 3);
-ic_orig_write(2, "A4\n", 3);
-usleep(10 + ic_init_dlsyms_done);
   shmq_writer_init(&fb_shmq, shmq_name);
-ic_orig_write(2, "B1\n", 3);
-ic_orig_write(2, "B2\n", 3);
 
   intercepting_enabled = intercepting_enabled_save;
 }

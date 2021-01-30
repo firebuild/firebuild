@@ -30,6 +30,7 @@
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
+#include "common/shmq.h"
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
 #include "firebuild/blob_cache.h"
@@ -508,6 +509,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
         return;
       }
     }
+    shmq_reader_init(proc->shmq_reader(), fbb_scproc_query_get_shmq_name(ic_msg));
     accept_exec_child(proc, fd_conn, proc_tree);
     *new_proc = proc;
 

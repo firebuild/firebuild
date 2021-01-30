@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <boost/smart_ptr/shared_ptr.hpp>
 
+#include "common/shmq.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
@@ -416,6 +417,8 @@ class Process {
    * See #431 for design and rationale. */
   virtual std::string d_internal(const int level = 0) const;
 
+  shmq_reader_t *shmq_reader() {return &shmq_reader_;}
+
  private:
   Process *parent_;
   process_state state_ :2;
@@ -459,6 +462,7 @@ class Process {
   bool any_child_not_finalized();
   int on_finalized_ack_id_ = -1;
   int on_finalized_ack_fd_ = -1;
+  shmq_reader_t shmq_reader_ = {};
   /**
    * Handle pipe creation in the monitored process
    * @param fd1 file descriptor to read (-1 if fd1 is not set)

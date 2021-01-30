@@ -97,6 +97,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 extern int (*ic_orig_ftruncate) (int, off_t);
 
 
@@ -460,3 +465,7 @@ void shmq_writer_add_message(shmq_writer_t *writer) {
   writer->next_state = -1;
   writer->next_message_location = writer->next_message_len = -1;
 }
+
+#ifdef __cplusplus
+}  /* extern "C" */
+#endif
