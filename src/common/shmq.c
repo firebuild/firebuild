@@ -124,7 +124,7 @@ void shmq_reader_init(shmq_reader_t *reader, const char *name) {
   /* As opposed to shmq_writer, shmq_reader can now close the file descriptor, it won't need it. */
   close(fd);
 
-  shm_unlink(name);
+//  shm_unlink(name);
 
   reader->tail_message_peeked = false;
 }
@@ -148,13 +148,13 @@ void shmq_reader_fini(shmq_reader_t *reader) {
  *
  * Returns -1 if the queue is empty.
  */
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr) {
+int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr, int32_t *ack_id) {
   /* The location of p[2] according to the example. */
   int32_t tail_location = ((shmq_global_header_t *)(reader->buf))->tail_location;
   assert(tail_location % 8 == 0);
 
   /* Where p[2] points to, i.e. the location of mh[3] according to the example. */
-  int32_t header_location = *(int32_t *)(reader->buf + tail_location);
+  int32_t header_location = ((shmq_next_message_pointer_t *)(reader->buf + tail_location))->next_message_location;
   if (header_location < 0) {
     return -1;  /* Empty queue. */
   }
@@ -183,6 +183,7 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_p
 
   /* Store the raw pointer to the message blob, return the length. */
   *message_body_ptr = reader->buf + header_location + shmq_message_header_size();
+  *ack_id = ((shmq_message_header_t *)(reader->buf + header_location))->ack_id;
   return len;
 }
 
@@ -445,7 +446,7 @@ void shmq_writer_add_message(shmq_writer_t *writer) {
 
   /* Write the new message's header and the pointer to the next (future) message. */
   ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->len = writer->next_message_len;
-  ((shmq_next_message_pointer_t *)(writer->buf + shmq_message_header_size() + roundup8(writer->next_message_len)))->next_message_location = -1;
+  ((shmq_next_message_pointer_t *)(writer->buf + writer->next_message_location + shmq_message_header_size() + roundup8(writer->next_message_len)))->next_message_location = -1;
 
   /* Link it up from the previous message, so that the reader can see it. */
   ((shmq_next_message_pointer_t *)(writer->buf + writer->chunk[shmq_writer_nr_chunks(writer) - 1].head - shmq_next_message_pointer_size()))->next_message_location =

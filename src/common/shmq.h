@@ -57,7 +57,7 @@ typedef struct {
 
 void shmq_reader_init(shmq_reader_t *reader, const char *name);
 void shmq_reader_fini(shmq_reader_t *reader);
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr);
+int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr, int32_t *ack_id);
 void shmq_reader_discard_tail(shmq_reader_t *reader);
 
 

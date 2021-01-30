@@ -77,6 +77,7 @@ extern pthread_mutex_t ic_global_lock;
 /** Send message, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
 void fb_fbb_send_msg(void *ic_msg, int fd);
+void fb_fbb_send_msg2(void *ic_msg, int fd);
 
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */

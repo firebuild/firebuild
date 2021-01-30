@@ -547,6 +547,17 @@ void proc_ic_msg(const void *fbb_buf,
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   assert(proc);
   switch (tag) {
+    case FBB_TAG_shmq: {
+      /* This is a weird temporary hack. shmq messages can only arrive via the socket, and mean
+       * to check the shared memory instead. Do so. */
+      const char *ptr;
+      int32_t ack_num;  // fixme shadows func param
+      int len = shmq_reader_peek_tail(proc->shmq_reader(), &ptr, &ack_num);
+      assert(len > 0);
+      proc_ic_msg(ptr, ack_num, fd_conn, proc);
+      shmq_reader_discard_tail(proc->shmq_reader());
+      return;
+    }
     case FBB_TAG_fork_parent: {
       const FBB_fork_parent *ic_msg = reinterpret_cast<const FBB_fork_parent *>(fbb_buf);
       auto child_pid = fbb_fork_parent_get_pid(ic_msg);

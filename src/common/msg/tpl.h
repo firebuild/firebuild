@@ -240,6 +240,12 @@ void fbb_debug(const void *msg);
 /* send any message */
 void fbb_send(int fd, const void *msgbldr, uint32_t ack_id);
 
+/* get the size of any message */
+size_t fbb_get_size(const void *msgbldr);
+
+/* serialize any message */
+void fbb_serialize(const void *msgbldr, char *dst);
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
