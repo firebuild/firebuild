@@ -373,12 +373,16 @@ static void shmq_writer_find_place_for_message(shmq_writer_t *writer, int32_t le
 /**
  * Find a place for a message of len bytes, which then can be constructed here in place by the caller.
  */
-char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len) {
+char *shmq_writer_new_message(shmq_writer_t *writer, int32_t ack_id, int32_t len) {
   /* Assert that new_message() and add_message() are called alternatingly. */
   assert(writer->next_state == -1);
 
   shmq_writer_advance_tail(writer);
   shmq_writer_find_place_for_message(writer, len);
+
+  /* Don't store the length here yet, it's more convenient to keep it in
+   * shmq_writer's next_message_len, and might change. Store the ACK ID though. */
+  ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->ack_id = ack_id;
 
   /* Return the location of the message body, to be filled in by the caller. */
   return writer->buf + writer->next_message_location + shmq_message_header_size();
@@ -408,7 +412,7 @@ char *shmq_writer_resize_message(shmq_writer_t *writer, int32_t len) {
     shmq_writer_advance_tail(writer);
     shmq_writer_find_place_for_message(writer, len);
 
-    /* Move the header too, one day it might contain custom data that we want to preserve. */
+    /* Move the message header and body. */
     memmove(writer->buf + writer->next_message_location,
             writer->buf + old_next_message_location,
             roundup8(shmq_message_header_size() + old_next_message_len));

@@ -26,6 +26,7 @@ typedef struct {
 
 typedef struct {
   int32_t len;
+  int32_t ack_id;
 } shmq_message_header_t;
 
 typedef struct {
@@ -75,7 +76,7 @@ typedef struct {
 
 void shmq_writer_init(shmq_writer_t *writer, const char *name);
 void shmq_writer_fini(shmq_writer_t *writer);
-char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len);
+char *shmq_writer_new_message(shmq_writer_t *writer, int32_t ack_id, int32_t len);
 void shmq_writer_add_message(shmq_writer_t *writer);
 
 static inline int shmq_writer_nr_chunks(const shmq_writer_t *writer) {
