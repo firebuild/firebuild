@@ -290,7 +290,7 @@ void shmq_reader_discard_tail(shmq_reader_t *reader) {
  */
 void shmq_writer_init(shmq_writer_t *writer, const char *name) {
   assert(name[0] == '/');
-  writer->fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0666);
+  writer->fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
   assert(writer->fd != -1);
 
   writer->size = SHMQ_INITIAL_SIZE;
