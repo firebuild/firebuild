@@ -15,6 +15,7 @@
 /* debug a received '{{ msg }}' message */
 static void fbb_{{ msg }}_debug(const void *msg_void) {
   const FBB_{{ msg }} *msg = (const FBB_{{ msg }} *) msg_void;
+  (void) msg;  /* might be unused */
 
   fprintf(stderr, "{{ msg }} {\n");
 ###   for (req, type, var) in fields
