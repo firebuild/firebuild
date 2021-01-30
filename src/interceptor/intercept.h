@@ -96,6 +96,7 @@ extern int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
 /** Fast check for whether interceptor init has been run */
 extern bool ic_init_done;
+extern bool ic_init_dlsyms_done;
 
 extern bool intercepting_enabled;
 
@@ -212,6 +213,7 @@ inline void thread_signal_danger_zone_leave() {
   }
 }
 
+extern void fb_ic_load_dlsyms();
 extern void fb_ic_load() __attribute__((constructor));
 extern void handle_exit(const int status);
 void *pthread_start_routine_wrapper(void *routine_and_arg);

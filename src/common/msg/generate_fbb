@@ -92,6 +92,8 @@ gen_fbb([
     (OPTIONAL, STRINGARRAY, "libs"),
     # interceptor's version
     (OPTIONAL, STRING, "version"),
+    # name of the shared memory message queue
+    (REQUIRED, STRING, "shmq_name"),
   ]),
 
   # FireBuild supervisor's response with details of shortcutting.
@@ -678,6 +680,8 @@ gen_fbb([
     (REQUIRED, "int64_t", "pid"),
     # process parent id
     (REQUIRED, "int64_t", "ppid"),
+    # name of the shared memory message queue
+    (REQUIRED, STRING, "shmq_name"),
   ]),
 
   # process that called fork()

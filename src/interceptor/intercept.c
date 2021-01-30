@@ -13,11 +13,13 @@
 #include <sys/un.h>
 #include <sys/resource.h>
 #include <spawn.h>
+#include <time.h>
 
 #include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/interceptors.h"
 #include "common/firebuild_common.h"
+#include "common/shmq.h"
 
 static void fb_ic_cleanup() __attribute__((destructor));
 
@@ -41,15 +43,18 @@ size_t fb_conn_string_len = 0;
 
 /** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
+shmq_writer_t fb_shmq;
 
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
 /** Control for running the initialization exactly once */
 pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
+pthread_once_t ic_init_dlsyms_control = PTHREAD_ONCE_INIT;
 
 /** Fast check for whether interceptor init has been run */
 bool ic_init_done = false;
+bool ic_init_dlsyms_done = false;
 
 /** System locations to not ask ACK for when opening them. */
 string_array system_locations;
@@ -370,14 +375,20 @@ static void atfork_child_handler(void) {
     clear_all_file_states();
     ic_pid = ic_orig_getpid();
 
+    char shmq_name[100];
+    struct timespec now;
+    ic_orig_clock_gettime(CLOCK_REALTIME, &now);
+    snprintf(shmq_name, sizeof(shmq_name), "/firebuild-%d-%ld-%09ld.shm", ic_orig_getpid(), now.tv_sec, now.tv_nsec);
+
     /* Reconnect to supervisor */
-    fb_init_supervisor_conn();
+    fb_init_supervisor_conn(shmq_name);
 
     /* Inform the supervisor about who we are */
     FBB_Builder_fork_child ic_msg;
     fbb_fork_child_init(&ic_msg);
     fbb_fork_child_set_pid(&ic_msg, ic_pid);
     fbb_fork_child_set_ppid(&ic_msg, getppid());
+    fbb_fork_child_set_shmq_name(&ic_msg, shmq_name);
     fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 }
@@ -535,20 +546,58 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
 }
 
 /**  Set up the main supervisor connection */
-void fb_init_supervisor_conn() {
+void fb_init_supervisor_conn(const char *shmq_name) {
+  bool intercepting_enabled_save = intercepting_enabled;
+  intercepting_enabled = false;
+
   if (fb_conn_string == NULL) {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
     fb_conn_string_len = strlen(fb_conn_string);
+  } else {
+//    shmq_writer_fini(&fb_shmq);
   }
   // reconnect to supervisor
   ic_orig_close(fb_sv_conn);
   fb_sv_conn = fb_connect_supervisor(-1);
+
+ic_orig_write(2, "A1\n", 3);
+ic_orig_write(2, "A2\n", 3);
+ic_orig_write(2, "A3\n", 3);
+ic_orig_write(2, "A4\n", 3);
+usleep(10 + ic_init_dlsyms_done);
+  shmq_writer_init(&fb_shmq, shmq_name);
+ic_orig_write(2, "B1\n", 3);
+ic_orig_write(2, "B2\n", 3);
+
+  intercepting_enabled = intercepting_enabled_save;
 }
 
 /**
- * Initialize interceptor's data structures and sync with supervisor
+ * Initialize the ic_orig_*() method pointers.
+ *
+ * Initializing the interceptor is a two-pass process, this is pass 1.
+ *
+ * Two passes are needed to break a circular dependency. Prior to connecting to the supervisor we
+ * create shared memory and semaphores. These calls reside in external libraries and call back to
+ * open() and few others under the hood, which are then caught by us. We need to be able to call
+ * their original versions then. That is, we need a state where the ic_orig_*() method pointers are
+ * already initialized with the dlsym() lookup result, while the shared memory and the semaphores
+ * aren't created yet.
+ */
+static void fb_ic_init_dlsyms() {
+  init_interceptors();
+  ic_init_dlsyms_done = true;
+}
+
+/**
+ * Initialize interceptor's data structures and sync with supervisor.
+ *
+ * Initializing the interceptor is a two-pass process, this is pass 1 + 2.
+ *
+ * See the pass 1 at fb_ic_init_dlsyms() for explanation.
  */
 static void fb_ic_init() {
+  fb_ic_init_dlsyms();
   ic_orig_getrusage(RUSAGE_SELF, &initial_rusage);
 
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
@@ -561,8 +610,6 @@ static void fb_ic_init() {
   assert(SIGRTMAX <= 64);
   /* Can't declare orig_signal_handlers as an array because SIGRTMAX isn't a constant */
   orig_signal_handlers = (void (**)(void)) calloc(SIGRTMAX + 1, sizeof (void (*)(void)));
-
-  init_interceptors();
 
   assert(thread_intercept_on == NULL);
   thread_intercept_on = "init";
@@ -586,7 +633,12 @@ static void fb_ic_init() {
     env_ld_library_path = strdup(llp);
   }
 
-  fb_init_supervisor_conn();
+  char shmq_name[100];
+  struct timespec now;
+  ic_orig_clock_gettime(CLOCK_REALTIME, &now);
+  snprintf(shmq_name, sizeof(shmq_name), "/firebuild-%d-%ld-%09ld.shm", ic_orig_getpid(), now.tv_sec, now.tv_nsec);
+
+  fb_init_supervisor_conn(shmq_name);
 
   pthread_atfork(NULL, NULL, atfork_child_handler);
   on_exit(on_exit_handler, NULL);
@@ -653,6 +705,7 @@ static void fb_ic_init() {
   string_array_init(&libs);
   dl_iterate_phdr(shared_libs_cb, &libs);
   fbb_scproc_query_set_libs(&ic_msg, libs.p);
+  fbb_scproc_query_set_shmq_name(&ic_msg, shmq_name);
 
   fbb_send(fb_sv_conn, &ic_msg, 0);
 
@@ -699,6 +752,23 @@ static void fb_ic_init() {
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
   ic_init_done = true;
+}
+
+/**
+ * FIXME
+ */
+void fb_ic_load_dlsyms() {
+  if (!ic_init_dlsyms_done) {
+    int (*orig_pthread_once)(pthread_once_t *, void (*)(void)) = dlsym(RTLD_NEXT, "pthread_once");
+    if (orig_pthread_once) {
+      /* Symbol found means that we are linked to libpthread. Use its method to guarantee that we
+       * initialize exactly once. */
+      (*orig_pthread_once)(&ic_init_dlsyms_control, fb_ic_init_dlsyms);
+    } else  {
+      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded. */
+      fb_ic_init_dlsyms();
+    }
+  }
 }
 
 /**

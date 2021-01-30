@@ -89,3 +89,9 @@ std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
 }
 
 }  // namespace firebuild
+
+extern "C" {
+/* Needed to link shmq into the supervisor. */
+int ic_orig_ftruncate(int fd, off_t length) {return ftruncate(fd, length);}
+ssize_t ic_orig_write(int fd, const void *buf, size_t count) {return write(fd, buf, count);}
+}

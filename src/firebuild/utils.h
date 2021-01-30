@@ -23,4 +23,5 @@ std::string make_fifo(int fd, int flags, int pid, const char *fb_conn_string,
                       int *fifo_name_offset);
 
 }  // namespace firebuild
+
 #endif  // FIREBUILD_UTILS_H_

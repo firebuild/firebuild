@@ -176,7 +176,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   int saved_errno = errno;
 ###     endif
 
-  if (!ic_init_done) fb_ic_load();
+  if (i_am_intercepting) {
+    if (!ic_init_done) fb_ic_load();
+  } else {
+    if (!ic_init_dlsyms_done) fb_ic_load_dlsyms();
+  }
 
   if (insert_trace_markers) {
     char debug_buf[256];

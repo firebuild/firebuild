@@ -97,6 +97,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+extern int (*ic_orig_ftruncate) (int, off_t);
 
 
 /**
@@ -104,6 +105,8 @@
  *
  * name must be a unique name for this shared memory segment (the same name that was earlier passed
  * to shmq_writer_init()), and must begin with a '/'.
+ *
+ * If used in the interceptor, must be called with intercepting_enabled == false.
  */
 void shmq_reader_init(shmq_reader_t *reader, const char *name) {
   assert(name[0] == '/');
@@ -123,6 +126,8 @@ void shmq_reader_init(shmq_reader_t *reader, const char *name) {
 
 /**
  * Destroy an shmq reader.
+ *
+ * If used in the interceptor, must be called with intercepting_enabled == false.
  */
 void shmq_reader_fini(shmq_reader_t *reader) {
   munmap(reader->buf, reader->size);
@@ -280,6 +285,8 @@ void shmq_reader_discard_tail(shmq_reader_t *reader) {
  *
  * name must be a unique name for this shared memory segment (the same name that will later be
  * passed to shmq_reader_init() too), and must begin with a '/'.
+ *
+ * If used in the interceptor, must be called with intercepting_enabled == false.
  */
 void shmq_writer_init(shmq_writer_t *writer, const char *name) {
   assert(name[0] == '/');
@@ -287,7 +294,7 @@ void shmq_writer_init(shmq_writer_t *writer, const char *name) {
   assert(writer->fd != -1);
 
   writer->size = SHMQ_INITIAL_SIZE;
-  ftruncate(writer->fd, writer->size);  /* Grow the backing virtual file. */
+  ic_orig_ftruncate(writer->fd, writer->size);  /* Grow the backing virtual file. */
   writer->buf = mmap(NULL, writer->size, PROT_READ | PROT_WRITE, MAP_SHARED, writer->fd, 0);
 
   ((shmq_next_message_pointer_t *)(writer->buf + shmq_global_header_size()))->next_message_location = -1;
@@ -303,6 +310,8 @@ void shmq_writer_init(shmq_writer_t *writer, const char *name) {
 
 /**
  * Destroy an shmq writer.
+ *
+ * If used in the interceptor, must be called with intercepting_enabled == false.
  */
 void shmq_writer_fini(shmq_writer_t *writer) {
   munmap(writer->buf, writer->size);
@@ -365,7 +374,7 @@ static void shmq_writer_find_place_for_message(shmq_writer_t *writer, int32_t le
   if (writer->size < ensure_buffer_size) {
     size_t old_size = writer->size;
     do { writer->size *= 2; } while (writer->size < ensure_buffer_size);
-    ftruncate(writer->fd, writer->size);  /* Grow the backing virtual file. */
+    ic_orig_ftruncate(writer->fd, writer->size);  /* Grow the backing virtual file. */
     writer->buf = mremap(writer->buf, old_size, writer->size, MREMAP_MAYMOVE);
   }
 }
