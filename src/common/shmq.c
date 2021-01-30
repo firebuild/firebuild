@@ -408,9 +408,10 @@ char *shmq_writer_resize_message(shmq_writer_t *writer, int32_t len) {
     shmq_writer_advance_tail(writer);
     shmq_writer_find_place_for_message(writer, len);
 
-    memmove(writer->buf + writer->next_message_location + shmq_message_header_size(),
-            writer->buf + old_next_message_location + shmq_message_header_size(),
-            roundup8(old_next_message_len));
+    /* Move the header too, one day it might contain custom data that we want to preserve. */
+    memmove(writer->buf + writer->next_message_location,
+            writer->buf + old_next_message_location,
+            roundup8(shmq_message_header_size() + old_next_message_len));
   }
 
   /* Return the location of the message body, to be filled in by the caller. */
