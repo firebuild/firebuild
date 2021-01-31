@@ -438,10 +438,9 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       }
       send_ret = send_buf();
     }
-  } while ((drain && (send_ret != FB_PIPE_FD0_EPIPE))
-           || (!drain && send_ret == FB_PIPE_SUCCESS));
-  if (send_ret == FB_PIPE_FD0_EPIPE) {
-    return FB_PIPE_FD0_EPIPE;
+  } while (drain && (send_ret != FB_PIPE_FD0_EPIPE));
+  if (send_ret == FB_PIPE_FD0_EPIPE || send_ret == FB_PIPE_SUCCESS) {
+    return send_ret;
   }
   /* sending is blocked */
   assert(conn2fd1_ends.size() > 0);
