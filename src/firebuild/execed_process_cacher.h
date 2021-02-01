@@ -8,6 +8,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <libconfig.h++>
 
@@ -45,7 +46,7 @@ class ExecedProcessCacher {
 
   bool no_store_;
   bool no_fetch_;
-  const libconfig::Setting& envs_skip_;
+  std::unordered_set<std::string> envs_skip_;
 
   /* The hashed fingerprint of the processes handled by this cacher. */
   std::unordered_map<const ExecedProcess*, Hash> fingerprints_;

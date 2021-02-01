@@ -32,24 +32,22 @@ ExecedProcessCacher::ExecedProcessCacher(bool no_store,
                                          bool no_fetch,
                                          const libconfig::Setting& envs_skip) :
     no_store_(no_store), no_fetch_(no_fetch),
-    envs_skip_(envs_skip), fingerprints_(), fingerprint_msgs_() { }
+    envs_skip_(), fingerprints_(), fingerprint_msgs_() {
+  for (int i = 0; i < envs_skip.getLength(); i++) {
+    envs_skip_.insert(envs_skip[i]);
+  }
+}
 
 /**
  * Helper for fingerprint() to decide which env vars matter
  */
 bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value) const {
   /* Strip off the "=value" part. */
-  std::string name = name_and_value.substr(0, name_and_value.find('='));
+  const std::string name = name_and_value.substr(0, name_and_value.find('='));
 
   /* Env vars to skip, taken from the config files.
    * Note: FB_SOCKET is already filtered out in the interceptor. */
-  for (int i = 0; i < envs_skip_.getLength(); i++) {
-    std::string item = envs_skip_[i];
-    if (name == item) {
-      return false;
-    }
-  }
-  return true;
+  return envs_skip_.find(name) == envs_skip_.end();
 }
 
 /**
