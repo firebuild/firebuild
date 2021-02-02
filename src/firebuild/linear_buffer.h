@@ -31,7 +31,17 @@ class LinearBuffer {
     return &buffer_[data_start_offset_];
   }
   size_t length() const {return length_;}
-  /** Append to the data in the buffer. */
+  /**
+   * Read data from fd and append it to the buffer.
+   *
+   * Note that in howmuch < 0 case the input buffer may not contain all the data the writer on
+   * the other side has written.
+   *
+   * @param fd file descriptior to read from
+   * @param howmuch number of bytes to be read, or in case howmuch is < 0, then read all bytes from
+   *        the input buffer
+   * @return number of bytes read
+   */
   ssize_t read(FD fd, ssize_t howmuch) {
     TRACK(FB_DEBUG_COMM, "fd=%s", D(fd));
     return read(fd.fd(), howmuch);
