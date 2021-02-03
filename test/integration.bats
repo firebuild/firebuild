@@ -70,8 +70,9 @@ setup() {
 
 @test "parallel sleeps" {
   for i in 1 2; do
-    # TODO (rbalint) firebuild needs to handle many parallel processes
-    result=$(./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait $(jobs -p)')
+    # Valgrind ignores the limit bumped internally in firebuild
+    # See: https://bugs.kde.org/show_bug.cgi?id=432508
+    result=$(set | grep -q valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait $(jobs -p)')
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
   done
