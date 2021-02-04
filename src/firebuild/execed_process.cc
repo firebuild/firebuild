@@ -216,8 +216,12 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
     }
   }
   /* Propagage change further if needed. */
-  if (fu->merge(fu_change) && parent_exec_point()) {
-    parent_exec_point()->propagate_file_usage(name, fu_change);
+  if (fu->merge(fu_change)) {
+    ExecedProcess *next_ancestor =
+        generate_report ? parent_exec_point() : maybe_shortcutable_ancestor_;
+    if (next_ancestor) {
+      next_ancestor->propagate_file_usage(name, fu_change);
+    }
   }
 }
 
@@ -237,6 +241,16 @@ bool ExecedProcess::register_file_usage(const FileName *name,
                                         int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, actual_file=%s, flags=%d, error=%d",
          D(name), D(actual_file), flags, error);
+
+  if (!can_shortcut_ && !generate_report) {
+    /* Register at the first shortcutable ancestor instead. */
+    if (maybe_shortcutable_ancestor_) {
+      return maybe_shortcutable_ancestor_->register_file_usage(name, actual_file, action, flags,
+                                                               error);
+    } else {
+      return true;
+    }
+  }
 
   if (name->is_at_locations(ignore_locations)) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
