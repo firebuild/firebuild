@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "firebuild/execed_process.h"
+
 namespace firebuild {
 int ProcessPBAdaptor::msg(Process *p, const FBB_open *o, FD fd_conn, const int ack_num) {
   const int dirfd = fbb_open_get_dirfd_with_fallback(o, AT_FDCWD);
@@ -22,7 +24,7 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo, FD fd_conn, const i
   } else {
     std::string filename = fbb_dlopen_has_absolute_filename(dlo) ?
                            fbb_dlopen_get_absolute_filename(dlo) : "NULL";
-    p->disable_shortcutting_bubble_up("Process failed to dlopen() " + filename);
+    p->exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() " + filename);
     return 0;
   }
 }

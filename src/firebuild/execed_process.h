@@ -109,7 +109,33 @@ class ExecedProcess : public Process {
   bool shortcut();
 
   virtual void propagate_exit_status(const int status);
-  virtual void disable_shortcutting_only_this(const std::string &reason, const Process *p = NULL);
+  /**
+   * This particular process can't be short-cut because it performed calls preventing that.
+   * @param reason reason for can't being short-cut
+   * @param p process the event preventing shortcutting happened in, or
+   *     omitted for the current process
+   */
+  virtual void disable_shortcutting_only_this(const std::string &reason,
+                                              const ExecedProcess *p = NULL);
+  /**
+   * Process and parents (transitively) up to (excluding) "stop" can't be short-cut because
+   * it performed calls preventing that.
+   * @param stop Stop before this process
+   * @param reason reason for can't being short-cut
+   * @param p process the event preventing shortcutting happened in, or
+   *     omitted for the current process
+   */
+  void disable_shortcutting_bubble_up_to_excl(const ExecedProcess *stop, const std::string& reason,
+                                              const ExecedProcess *p = NULL);
+  /**
+   * Process and parents (transitively) can't be short-cut because it performed
+   * calls preventing that.
+   * @param reason reason for can't being short-cut
+   * @param p process the event preventing shortcutting happened in, or
+   *     omitted for the current process
+   */
+  void disable_shortcutting_bubble_up(const std::string& reason, const ExecedProcess *p = NULL);
+
   bool was_shortcut() const {return was_shortcut_;}
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
   virtual int64_t sum_rusage_recurse();

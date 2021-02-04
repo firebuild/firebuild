@@ -121,7 +121,7 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
-    disable_shortcutting_bubble_up("Invalid dirfd passed to openat()");
+    exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to openat()");
     return -1;
   }
 
@@ -134,13 +134,13 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
   }
 
   if (!error && !exec_point()->register_parent_directory(name)) {
-    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
-                                   d(name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the implicit parent directory of " + d(name));
     return -1;
   }
 
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
-    disable_shortcutting_bubble_up("Could not register the opening of " + d(name));
+    exec_point()->disable_shortcutting_bubble_up("Could not register the opening of " + d(name));
     return -1;
   }
 
@@ -164,12 +164,13 @@ int Process::handle_close(const int fd, const int error) {
 
   if (error == EIO) {
     // IO prevents shortcutting
-    disable_shortcutting_bubble_up("IO error closing fd " + d(fd));
+    exec_point()->disable_shortcutting_bubble_up("IO error closing fd " + d(fd));
     return -1;
   } else if (error == 0 && !file_fd) {
     // closing an unknown fd successfully prevents shortcutting
-    disable_shortcutting_bubble_up("Process closed an unknown fd (" + d(fd) + ") successfully, "
-                                   "which means interception missed at least one open()");
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process closed an unknown fd (" + d(fd) + ") successfully, "
+        "which means interception missed at least one open()");
     return -1;
   } else if (error == EBADF) {
     // Process closed an fd unknown to it. Who cares?
@@ -178,8 +179,9 @@ int Process::handle_close(const int fd, const int error) {
   } else {
     if (!file_fd) {
       // closing an unknown fd with not EBADF prevents shortcutting
-      disable_shortcutting_bubble_up("Process closed an unknown fd (" + d(fd) + ") successfully, "
-                                     "which means interception missed at least one open()");
+      exec_point()->disable_shortcutting_bubble_up(
+          "Process closed an unknown fd (" + d(fd) + ") successfully, "
+          "which means interception missed at least one open()");
       return -1;
     } else {
       if (file_fd->open() == true) {
@@ -219,14 +221,14 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if unlinkat() failed due to the invalid dirfd
-    disable_shortcutting_bubble_up("Invalid dirfd passed to unlinkat()");
+    exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to unlinkat()");
     return -1;
   }
 
   if (!error) {
     if (!exec_point()->register_parent_directory(name)) {
-      disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
-                                     d(name));
+      exec_point()->disable_shortcutting_bubble_up(
+          "Could not register the implicit parent directory of " + d(name));
       return -1;
     }
 
@@ -234,7 +236,8 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
     FileUsage fu(flags & AT_REMOVEDIR ? ISDIR : ISREG);
     fu.set_written(true);
     if (!exec_point()->register_file_usage(name, fu)) {
-      disable_shortcutting_bubble_up("Could not register the unlink or rmdir of " + d(name));
+      exec_point()->disable_shortcutting_bubble_up(
+          "Could not register the unlink or rmdir of " + d(name));
       return -1;
     }
   }
@@ -255,18 +258,19 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
     // FIXME don't disable shortcutting if mkdirat() failed due to the invalid dirfd
-    disable_shortcutting_bubble_up("Invalid dirfd passed to mkdirat()");
+    exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to mkdirat()");
     return -1;
   }
 
   if (!error && !exec_point()->register_parent_directory(name)) {
-    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
-                                   d(name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the implicit parent directory of " + d(name));
     return -1;
   }
 
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, 0, error)) {
-    disable_shortcutting_bubble_up("Could not register the directory creation of " + d(name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the directory creation of " + d(name));
     return -1;
   }
 
@@ -285,14 +289,16 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
   // validate fd-s
   if (get_fd(fd0)) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting_bubble_up("Process created an fd (" + d(fd0) + ") which is known to be "
-                                   "open, which means interception missed at least one close()");
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process created an fd (" + d(fd0) + ") which is known to be open, "
+        "which means interception missed at least one close()");
     return std::shared_ptr<Pipe>(nullptr);
   }
   if (get_fd(fd1)) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting_bubble_up("Process created an fd (" + d(fd1) + ") which is known to be "
-                                   "open, which means interception missed at least one close()");
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process created an fd (" + d(fd1) + ") which is known to be open, "
+        "which means interception missed at least one close()");
     return std::shared_ptr<Pipe>(nullptr);
   }
 
@@ -340,8 +346,9 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   // validate fd-s
   if (!get_fd(oldfd)) {
     // we already have this fd, probably missed a close()
-    disable_shortcutting_bubble_up("Process created an fd (" + d(oldfd) + ") which is known to be "
-                                   "open, which means interception missed at least one close()");
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process created an fd (" + d(oldfd) + ") which is known to be open, "
+        "which means interception missed at least one close()");
     return -1;
   }
 
@@ -390,26 +397,26 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   const FileName* new_name = get_absolute(newdirfd, new_ar_name);
   if (!old_name || !new_name) {
     // FIXME don't disable shortcutting if renameat() failed due to the invalid dirfd
-    disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
+    exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
     return -1;
   }
 
   struct stat64 st;
   if (lstat64(new_name->c_str(), &st) < 0 ||
       !S_ISREG(st.st_mode)) {
-    disable_shortcutting_bubble_up("Could not register the renaming of non-regular file " +
-                                   d(old_name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the renaming of non-regular file " + d(old_name));
     return -1;
   }
 
   if (!exec_point()->register_parent_directory(old_name)) {
-    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
-                                   d(old_name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the implicit parent directory of " + d(old_name));
     return -1;
   }
   if (!exec_point()->register_parent_directory(new_name)) {
-    disable_shortcutting_bubble_up("Could not register the implicit parent directory of " +
-                                   d(new_name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the implicit parent directory of " + d(new_name));
     return -1;
   }
 
@@ -421,14 +428,16 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
 
   /* Register the opening for reading at the old location */
   if (!exec_point()->register_file_usage(old_name, new_name, FILE_ACTION_OPEN, O_RDONLY, error)) {
-    disable_shortcutting_bubble_up("Could not register the renaming from " + d(old_name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the renaming from " + d(old_name));
     return -1;
   }
 
   /* Register the opening for writing at the new location */
   if (!exec_point()->register_file_usage(new_name, new_name,
                                          FILE_ACTION_OPEN, O_CREAT|O_WRONLY|O_TRUNC, error)) {
-    disable_shortcutting_bubble_up("Could not register the renaming to " + d(new_name));
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the renaming to " + d(new_name));
     return -1;
   }
 
@@ -443,8 +452,9 @@ int Process::handle_symlink(const char * const old_ar_name,
          D(old_ar_name), newdirfd, D(new_ar_name), error);
 
   if (!error) {
-    disable_shortcutting_bubble_up("Process created a symlink ([" + d(newdirfd) + "]" +
-                                   d(new_ar_name) + " -> " + d(old_ar_name) + ")");
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process created a symlink "
+        "([" + d(newdirfd) + "]" + d(new_ar_name) + " -> " + d(old_ar_name) + ")");
     return -1;
   }
   return 0;
@@ -454,9 +464,9 @@ int Process::handle_clear_cloexec(const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
-    disable_shortcutting_bubble_up("Process successfully cleared cloexec on fd (" + d(fd) +
-                                   ") which is known to be closed, which means interception"
-                                   " missed at least one open()");
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process successfully cleared cloexec on fd (" + d(fd) + ") which is known to be closed, "
+        "which means interception missed at least one open()");
     return -1;
   }
   (*fds_)[fd]->set_cloexec(false);
@@ -476,16 +486,16 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
     case F_SETFD:
       if (error == 0) {
         if (!get_fd(fd)) {
-          disable_shortcutting_bubble_up("Process successfully fcntl'ed on fd (" + d(fd) +
-                                         ") which is known to be closed, which means interception"
-                                         " missed at least one open()");
+          exec_point()->disable_shortcutting_bubble_up(
+              "Process successfully fcntl'ed on fd (" + d(fd) + ") which is known to be closed, "
+              "which means interception missed at least one open()");
           return -1;
         }
         (*fds_)[fd]->set_cloexec(arg & FD_CLOEXEC);
       }
       return 0;
     default:
-      disable_shortcutting_bubble_up("Process executed unsupported fcntl " + d(cmd));
+      exec_point()->disable_shortcutting_bubble_up("Process executed unsupported fcntl " + d(cmd));
       return 0;
   }
 }
@@ -501,9 +511,9 @@ int Process::handle_ioctl(const int fd, const int cmd,
     case FIOCLEX:
       if (error == 0) {
         if (!get_fd(fd)) {
-          disable_shortcutting_bubble_up("Process successfully ioctl'ed on fd (" + d(fd) +
-                                         ") which is known to be closed, which means interception"
-                                         " missed at least one open()");
+          exec_point()->disable_shortcutting_bubble_up(
+              "Process successfully ioctl'ed on fd (" + d(fd) + ") which is known to be closed, "
+              "which means interception missed at least one open()");
           return -1;
         }
         (*fds_)[fd]->set_cloexec(true);
@@ -512,16 +522,16 @@ int Process::handle_ioctl(const int fd, const int cmd,
     case FIONCLEX:
       if (error == 0) {
         if (!get_fd(fd)) {
-          disable_shortcutting_bubble_up("Process successfully ioctl'ed on fd (" + d(fd) +
-                                         ") which is known to be closed, which means interception"
-                                         " missed at least one open()");
+          exec_point()->disable_shortcutting_bubble_up(
+              "Process successfully ioctl'ed on fd (" + d(fd) + ") which is known to be closed, "
+              "which means interception missed at least one open()");
           return -1;
         }
         (*fds_)[fd]->set_cloexec(false);
       }
       return 0;
     default:
-      disable_shortcutting_bubble_up("Process executed unsupported ioctl " + d(cmd));
+      exec_point()->disable_shortcutting_bubble_up("Process executed unsupported ioctl " + d(cmd));
       return 0;
   }
 }
@@ -530,30 +540,32 @@ void Process::handle_read(const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
-    disable_shortcutting_bubble_up("Process successfully read from (" + d(fd) +
+    exec_point()->disable_shortcutting_bubble_up("Process successfully read from (" + d(fd) +
                                    ") which is known to be closed, which means interception"
                                    " missed at least one open()");
     return;
   }
   /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
    * i.e. the file was opened by the current process. */
-  disable_shortcutting_bubble_up_to_excl((*fds_)[fd]->opened_by(),
-                                         "Process read from inherited fd " + d(fd));
+  Process* opened_by = (*fds_)[fd]->opened_by();
+  exec_point()->disable_shortcutting_bubble_up_to_excl(
+      opened_by ? opened_by->exec_point() : nullptr, "Process read from inherited fd " + d(fd));
 }
 
 void Process::handle_write(const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
-    disable_shortcutting_bubble_up("Process successfully wrote to (" + d(fd) +
+    exec_point()->disable_shortcutting_bubble_up("Process successfully wrote to (" + d(fd) +
                                    ") which is known to be closed, which means interception"
                                    " missed at least one open()");
     return;
   }
   /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
    * i.e. the file was opened by the current process. */
-  disable_shortcutting_bubble_up_to_excl((*fds_)[fd]->opened_by(),
-                                         "Process wrote to inherited fd " + d(fd));
+  Process* opened_by = (*fds_)[fd]->opened_by();
+  exec_point()->disable_shortcutting_bubble_up_to_excl(
+      opened_by ? opened_by->exec_point() : nullptr, "Process wrote to inherited fd " + d(fd));
 }
 
 void Process::handle_set_wd(const char * const ar_d) {
@@ -569,7 +581,7 @@ void Process::handle_set_fwd(const int fd) {
 
   const FileFD* ffd = get_fd(fd);
   if (!ffd) {
-    disable_shortcutting_bubble_up("Process successfully fchdir()'ed to (" + d(fd) +
+    exec_point()->disable_shortcutting_bubble_up("Process successfully fchdir()'ed to (" + d(fd) +
                                    ") which is known to be closed, which means interception"
                                    " missed at least one open()");
     return;
@@ -781,13 +793,14 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
       expected_child_ = nullptr;
       return fds;
     } else {
-      disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child appeared: " +
-                                     d(argv) + " while waiting for: " + d(expected_child_));
+      exec_point()->disable_shortcutting_bubble_up(
+          "Unexpected system/popen/posix_spawn child appeared: " + d(argv) + " "
+          "while waiting for: " + d(expected_child_));
     }
     delete(expected_child_);
     expected_child_ = nullptr;
   } else {
-    disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child " +
+    exec_point()->disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child " +
                                    std::string(failed ? "failed: " : "appeared: ") + d(argv));
   }
   return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
@@ -868,29 +881,6 @@ void Process::finish() {
 
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();
-}
-
-void Process::disable_shortcutting_bubble_up_to_excl(const Process *stop, const std::string& reason,
-                                                     const Process *p) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "stop=%s, reason=%s, source=%s",
-         D(stop), D(reason), D(p));
-
-  if (this == stop) {
-    return;
-  }
-  if (p == NULL) {
-    p = this;
-  }
-  disable_shortcutting_only_this(reason, p);
-  if (parent()) {
-    parent()->disable_shortcutting_bubble_up_to_excl(stop, reason, p);
-  }
-}
-
-void Process::disable_shortcutting_bubble_up(const std::string& reason, const Process *p) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
-
-  disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
 }
 
 int64_t Process::sum_rusage_recurse() {

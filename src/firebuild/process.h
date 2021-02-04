@@ -345,35 +345,6 @@ class Process {
   /** Propagate exit status upward through exec()-ed processes */
   virtual void propagate_exit_status(const int status) = 0;
 
-  /**
-   * This particular process can't be short-cut because it performed calls preventing that.
-   * @param reason reason for can't being short-cut
-   * @param p process the event preventing shortcutting happened in, or
-   *     omitted for the current process
-   */
-  virtual void disable_shortcutting_only_this(const std::string& reason, const Process *p = NULL)
-      = 0;
-
-  /**
-   * Process and parents (transitively) up to (excluding) "stop" can't be short-cut because
-   * it performed calls preventing that.
-   * @param stop Stop before this process
-   * @param reason reason for can't being short-cut
-   * @param p process the event preventing shortcutting happened in, or
-   *     omitted for the current process
-   */
-  void disable_shortcutting_bubble_up_to_excl(const Process *stop, const std::string& reason,
-                                              const Process *p = NULL);
-
-  /**
-   * Process and parents (transitively) can't be short-cut because it performed
-   * calls preventing that.
-   * @param reason reason for can't being short-cut
-   * @param p process the event preventing shortcutting happened in, or
-   *     omitted for the current process
-   */
-  void disable_shortcutting_bubble_up(const std::string& reason, const Process *p = NULL);
-
   virtual int64_t sum_rusage_recurse();
 
   virtual void export2js_recurse(const unsigned int level, FILE* stream,

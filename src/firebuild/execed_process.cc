@@ -354,7 +354,33 @@ bool ExecedProcess::shortcut() {
   }
 }
 
-void ExecedProcess::disable_shortcutting_only_this(const std::string &reason, const Process *p) {
+void ExecedProcess::disable_shortcutting_bubble_up_to_excl(const ExecedProcess *stop,
+                                                           const std::string& reason,
+                                                           const ExecedProcess *p) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "stop=%s, reason=%s, source=%s",
+         D(stop), D(reason), D(p));
+
+  if (this == stop) {
+    return;
+  }
+  if (p == NULL) {
+    p = this;
+  }
+  disable_shortcutting_only_this(reason, p);
+  if (parent_exec_point()) {
+    parent_exec_point()->disable_shortcutting_bubble_up_to_excl(stop, reason, p);
+  }
+}
+
+void ExecedProcess::disable_shortcutting_bubble_up(const std::string& reason,
+                                                   const ExecedProcess *p) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
+
+  disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
+}
+
+void ExecedProcess::disable_shortcutting_only_this(const std::string &reason,
+                                                   const ExecedProcess *p) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
 
   if (can_shortcut_) {
