@@ -644,7 +644,7 @@ void proc_ic_msg(const void *fbb_buf,
         /* If the supervisor believes an exec is pending in a child proces while the parent
          * actually successfully waited for the child, it means that the child didn't sign in to
          * the supervisor, presumably because it is statically linked. See #324 for details. */
-        child->disable_shortcutting_bubble_up(
+        child->exec_point()->disable_shortcutting_bubble_up(
             "Process did not sign in to supervisor, perhaps statically linked or failed to link");
         /* Need to also clear the exec_pending state for Process::any_child_not_finalized()
          * and finalize this never-seen process. */
