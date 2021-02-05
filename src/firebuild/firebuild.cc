@@ -1323,6 +1323,8 @@ int main(const int argc, char *argv[]) {
     evutil_closesocket(listener);
     event_free(listener_event);
     event_free(sigchild_event);
+    /* Finish all top pipes before event_base_free() frees all their events. */
+    proc_tree->FinishInheritedFdPipes();
     event_base_free(ev_base);
   }
 

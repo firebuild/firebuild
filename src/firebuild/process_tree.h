@@ -147,6 +147,11 @@ class ProcessTree {
     ppid2pending_parent_ack_.erase(ppid);
   }
 
+  void FinishInheritedFdPipes() {
+    for (auto& pipe : inherited_fd_pipes_) {
+      pipe->finish();
+    }
+  }
  private:
   ExecedProcess *root_ = NULL;
   /** This is somewhat analogous to Process::fds_, although cannot change over time.
