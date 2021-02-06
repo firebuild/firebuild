@@ -178,21 +178,24 @@ setup() {
   done
 }
 
+@test "popen() a statically linked binary and a normal one" {
+  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_popen ./test_static r)
+    assert_streq "$result" "I am statically linked."
+    assert_streq "$(strip_stderr stderr)" ""
+    result=$(./run-firebuild -- bash -c "echo -e 'bar\nfoo\nbar' | ./test_cmd_popen 'grep foo' w")
+    assert_streq "$result" "foo"
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
 @test "fork() + exec() a statically linked binary" {
   ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_cmd_fork_exec ./test_static)
-    assert_streq "$result" "I am statically linked."
-    assert_streq "$(strip_stderr stderr)" ""
-  done
-}
-
-@test "popen() a statically linked binary" {
-  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
-
-  for i in 1 2; do
-    result=$(./run-firebuild -- ./test_cmd_popen ./test_static)
     assert_streq "$result" "I am statically linked."
     assert_streq "$(strip_stderr stderr)" ""
   done

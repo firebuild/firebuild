@@ -122,13 +122,27 @@ class Process {
     assert(!pending_popen_child_ || !proc);
     pending_popen_child_ = proc;
   }
+  int pending_popen_child_conn() const {return pending_popen_child_conn_;}
+  void set_pending_popen_child_conn(int child_conn) {
+    pending_popen_child_conn_ = child_conn;
+  }
   int pending_popen_fd() const {return pending_popen_fd_;}
   void set_pending_popen_fd(int fd) {
     pending_popen_fd_ = fd;
   }
+  char *pending_popen_fifo() const {return pending_popen_fifo_;}
+  void set_pending_popen_fifo(char *fifo) {
+    free(pending_popen_fifo_);
+    pending_popen_fifo_ = fifo;
+  }
+  int pending_popen_type_flags() const {return pending_popen_type_flags_;}
+  void set_pending_popen_type_flags(int flags) {
+    pending_popen_type_flags_ = flags;
+  }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&,
                          LaunchType *launch_type_p,
+                         int *type_flags_p = nullptr,
                          const bool failed = false);
   bool has_expected_child () {return expected_child_ ? true : false;}
   virtual void do_finalize();
@@ -176,9 +190,8 @@ class Process {
     }
   }
 
-  void AddPopenedProcess(int fd, ExecedProcess *proc) {
-    fd2popen_child_[fd] = proc;
-  }
+  void AddPopenedProcess(int fd, const char* fifo, ExecedProcess *proc, int type_flags);
+
   ExecedProcess *PopPopenedProcess(int fd) {
     assert_cmp(fd2popen_child_.count(fd), >, 0);
     ExecedProcess *ret = fd2popen_child_[fd];
@@ -250,16 +263,16 @@ class Process {
 
   /**
    * Handle pipe() in the monitored process
-   * @param fd1 file descriptor to read
+   * @param fd1 file descriptor to read (-1 if fd1 is not set)
    * @param fd2 file descriptor to write
    * @param flags flags passed in pipe2()
    * @param error error code
-   * @param fd0_conn connection to write to intercepted pipe's fd[0]
-   * @param fd1_conn connection to read from intercepted pipe's fd[1]
+   * @param fd0_fifo fifo to write to intercepted pipe's fd[0]
+   * @param fd1_fifo fifo to read from intercepted pipe's fd[1] (NULL if not set)
    * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
    */
   std::shared_ptr<Pipe> handle_pipe(const int fd1, const int fd2, const int flags,
-                                    const int error, int fd0_conn, int fd1_conn);
+                                    const int error, const char *fd0_fifo, const char *fd1_fifo);
 
   /**
    * Handle dup(), dup2() or dup3() in the monitored process
@@ -412,8 +425,11 @@ class Process {
   std::unordered_map<int, ExecedProcess *> fd2popen_child_ {};
   /// if the popen()ed child has appeared, but the popen_parent messages hasn't:
   ExecedProcess *pending_popen_child_ {NULL};
+  int pending_popen_child_conn_ {-1};
+  int pending_popen_type_flags_ {0};
   /// if the popen_parent message has arrived, but the popen()ed child hasn't:
   int pending_popen_fd_ {-1};
+  char *pending_popen_fifo_ {nullptr};
   /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
   ExecedProcessEnv *expected_child_;
   /** Set upon an "execv" message, cleared upon "scproc_query" (i.e. new dynamically linked process

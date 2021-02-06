@@ -112,6 +112,30 @@ int intercept_fopen_mode_to_open_flags_helper(const char * mode) {
   return flags;
 }
 
+int popen_type_to_flags(const char * type) {
+  int type_flags = 0;
+  for (const char *c = type; c != NULL && *c != '\0'; c++) {
+    switch (*c) {
+      case 'w': {
+        type_flags |= O_WRONLY;
+        break;
+      }
+      case 'r': {
+        type_flags |= O_RDONLY;
+        break;
+      }
+      case 'e': {
+        type_flags |= O_CLOEXEC;
+        break;
+      }
+      default:
+        /* Popen will return -1 due to the unknown type. */
+        break;
+    }
+  }
+  return type_flags;
+}
+
 void clear_file_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].read = false;

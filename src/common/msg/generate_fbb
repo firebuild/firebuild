@@ -506,13 +506,15 @@ gen_fbb([
   ("popen", [
     # command
     (OPTIONAL, STRING, "cmd"),
-    # type
-    (OPTIONAL, STRING, "type"),
+    # type, represented as flags
+    (REQUIRED, "int32_t", "type_flags"),
   ]),
 
   ("popen_parent", [
     # return value
     (REQUIRED, "int32_t", "fd"),
+    # fifo
+    (OPTIONAL, STRING, "fifo"),
   ]),
 
   ("popen_failed", [

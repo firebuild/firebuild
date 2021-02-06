@@ -300,6 +300,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
 
     ::firebuild::Process *unix_parent = NULL;
     firebuild::LaunchType launch_type = firebuild::LAUNCH_TYPE_OTHER;
+    int type_flags;
 
     firebuild::Process *parent = NULL;
     auto fds = std::make_shared<std::vector<std::shared_ptr<firebuild::FileFD>>>();
@@ -337,7 +338,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
 
       /* Verify that the child was expected and get inherited fds. */
       std::vector<std::string> args = fbb_scproc_query_get_arg(ic_msg);
-      fds = unix_parent->pop_expected_child_fds(args, &launch_type);
+      fds = unix_parent->pop_expected_child_fds(args, &launch_type, &type_flags);
 
       if (unix_parent->posix_spawn_pending()) {
         /* This is a posix_spawn*() child, but we haven't yet seen and processed the
@@ -359,6 +360,12 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       /* Add a ForkedProcess for the forked child we never directly saw. */
       parent = new firebuild::ForkedProcess(pid, ppid, unix_parent, fds);
 
+      if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
+        /* The new exec child should not inherit the fd connected to the unix_parent's popen()-ed
+         * stream */
+        int child_fileno = (type_flags & O_ACCMODE) == O_WRONLY ? STDIN_FILENO : STDOUT_FILENO;
+        parent->handle_close(child_fileno, 0);
+      }
       /* For the intermediate ForkedProcess where posix_spawn()'s file_actions were executed,
        * we still had all the fds, even the close-on-exec ones. Now it's time to close them. */
       fds = parent->pass_on_fds();
@@ -367,11 +374,9 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       // FIXME set exec_child_ ???
       proc_tree->insert(parent);
 
-      /* Now we can ack the previous popen()/posix_spawn()'s second message. */
-      auto pending_ack = proc_tree->PPid2ParentAck(unix_parent->pid());
-      if (pending_ack) {
-        firebuild::ack_msg(pending_ack->sock, pending_ack->ack_num);
-        proc_tree->DropParentAck(unix_parent->pid());
+      /* Now we can ack the previous posix_spawn()'s second message. */
+      if (launch_type == firebuild::LAUNCH_TYPE_OTHER) {
+        proc_tree->AckParent(unix_parent->pid());
       }
     }
 
@@ -385,13 +390,20 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       if (unix_parent->pending_popen_fd() != -1) {
         /* The popen_parent message has already arrived. Take a note of the fd -> child mapping. */
         assert_null(unix_parent->pending_popen_child());
-        unix_parent->AddPopenedProcess(unix_parent->pending_popen_fd(), proc);
+        unix_parent->AddPopenedProcess(unix_parent->pending_popen_fd(),
+                                       unix_parent->pending_popen_fifo(), proc, type_flags);
+        proc_tree->AckParent(unix_parent->pid());
         unix_parent->set_pending_popen_fd(-1);
+        unix_parent->set_pending_popen_fifo(nullptr);
       } else {
         /* The popen_parent message has not yet arrived.
-         * Remember the new child, the handler of the popen_parent message will need it. */
+         * Remember the new child, the handler of the popen_parent message will need to accept it. */
         assert_null(unix_parent->pending_popen_child());
         unix_parent->set_pending_popen_child(proc);
+        unix_parent->set_pending_popen_child_conn(fd_conn);
+        unix_parent->set_pending_popen_type_flags(type_flags);
+        *new_proc = proc;
+        return;
       }
     }
     accept_exec_child(proc, fd_conn, proc_tree);
@@ -490,30 +502,42 @@ void proc_ic_msg(const void *fbb_buf,
       const FBB_popen *ic_msg = reinterpret_cast<const FBB_popen *>(fbb_buf);
       assert_null(proc->pending_popen_child());
       assert_cmp(proc->pending_popen_fd(), ==, -1);
-      // popen(cmd) launches a child of argv = ["sh", "-c", cmd]
-      auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
+      int type_flags = fbb_popen_get_type_flags(ic_msg);
+      auto fds = proc->pass_on_fds(false);
+      /* popen(cmd) launches a child of argv = ["sh", "-c", cmd] */
+      auto expected_child = new ::firebuild::ExecedProcessEnv(fds);
       // FIXME what if !has_cmd() ?
       expected_child->set_sh_c_command(fbb_popen_get_cmd(ic_msg));
       expected_child->set_launch_type(firebuild::LAUNCH_TYPE_POPEN);
+      expected_child->set_type_flags(type_flags);
       proc->set_expected_child(expected_child);
       break;
     }
     case FBB_TAG_popen_parent: {
       const FBB_popen_parent *ic_msg = reinterpret_cast<const FBB_popen_parent *>(fbb_buf);
+      int fd = fbb_popen_parent_get_fd(ic_msg);
+      const char *fifo =
+          fbb_popen_parent_has_fifo(ic_msg) ? fbb_popen_parent_get_fifo(ic_msg) : nullptr;
       if (proc->has_expected_child()) {
         /* The child hasn't appeared yet. Defer sending the ACK and setting up
          * the fd -> child mapping. */
         assert_null(proc->pending_popen_child());
         proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
-        proc->set_pending_popen_fd(fbb_popen_parent_get_fd(ic_msg));
+        proc->set_pending_popen_fd(fd);
+        proc->set_pending_popen_fifo(fifo ? strdup(fifo) : nullptr);
         return;
+      } else {
+        /* The child has already appeared. Take a note of the fd -> child mapping. */
+        firebuild::ExecedProcess *child = proc->pending_popen_child();
+        int child_conn = proc->pending_popen_child_conn();
+        assert(child);
+        assert_cmp(child_conn, !=, -1);
+        proc->AddPopenedProcess(fd, fifo, child, proc->pending_popen_type_flags());
+        proc->set_pending_popen_child(NULL);
+        proc->set_pending_popen_child_conn(-1);
+        proc->set_pending_popen_type_flags(0);
+        accept_exec_child(child, child_conn, proc_tree);
       }
-      /* The child has already appeared. Take a note of the fd -> child mapping. */
-      assert_cmp(proc->pending_popen_fd(), ==, -1);
-      assert(proc->pending_popen_child());
-      proc->AddPopenedProcess(fbb_popen_parent_get_fd(ic_msg), proc->pending_popen_child());
-      proc->set_pending_popen_child(NULL);
-      // FIXME(egmont) Connect pipe's end with child
       break;
     }
     case FBB_TAG_popen_failed: {
@@ -521,14 +545,14 @@ void proc_ic_msg(const void *fbb_buf,
       // FIXME what if !has_cmd() ?
       proc->pop_expected_child_fds(
           std::vector<std::string>({"sh", "-c", fbb_popen_failed_get_cmd(ic_msg)}),
-          nullptr,
-          true);
+          nullptr, nullptr, true);
       break;
     }
     case FBB_TAG_pclose: {
       const FBB_pclose *ic_msg = reinterpret_cast<const FBB_pclose *>(fbb_buf);
       if (!fbb_pclose_has_error_no(ic_msg)) {
-        // FIXME(egmont) proc->handle_close(fbb_pclose_get_fd(ic_msg), 0);
+        /* pclose() is essentially an fclose() first, and then a waitpid() */
+        proc->handle_close(fbb_pclose_get_fd(ic_msg), 0);
         firebuild::ExecedProcess *child = proc->PopPopenedProcess(fbb_pclose_get_fd(ic_msg));
         assert(child);
         if (child->state() != firebuild::FB_PROC_FINALIZED) {
@@ -638,7 +662,7 @@ void proc_ic_msg(const void *fbb_buf,
       const FBB_posix_spawn_failed *ic_msg =
           reinterpret_cast<const FBB_posix_spawn_failed *>(fbb_buf);
       std::vector<std::string> arg = fbb_posix_spawn_failed_get_arg(ic_msg);
-      proc->pop_expected_child_fds(arg, nullptr, true);
+      proc->pop_expected_child_fds(arg, nullptr, nullptr, true);
       proc->set_posix_spawn_pending(false);
       break;
     }
@@ -670,17 +694,12 @@ void proc_ic_msg(const void *fbb_buf,
       auto *ic_msg = reinterpret_cast<const FBB_pipe2 *>(fbb_buf);
       const int fd0 = fbb_pipe2_get_fd0_with_fallback(ic_msg, -1);
       const int fd1 = fbb_pipe2_get_fd1_with_fallback(ic_msg, -1);
-      auto fd0_fifo = fbb_pipe2_has_fd0_fifo(ic_msg) ? fbb_pipe2_get_fd0_fifo(ic_msg) : "";
-      auto fd1_fifo = fbb_pipe2_has_fd1_fifo(ic_msg) ? fbb_pipe2_get_fd1_fifo(ic_msg) : "";
-      int fd0_conn = open(fd0_fifo, O_WRONLY | O_NONBLOCK);
-      assert(fd0_conn != -1 && "opening fd0_fifo failed");
-      firebuild::bump_fd_age(fd0_conn);
-      int fd1_conn = open(fd1_fifo, O_NONBLOCK | O_RDONLY);
-      assert(fd1_conn != -1 && "opening fd1_fifo failed");
-      firebuild::bump_fd_age(fd1_conn);
+      auto fd0_fifo = fbb_pipe2_has_fd0_fifo(ic_msg) ? fbb_pipe2_get_fd0_fifo(ic_msg) : nullptr;
+      auto fd1_fifo = fbb_pipe2_has_fd1_fifo(ic_msg) ? fbb_pipe2_get_fd1_fifo(ic_msg) : nullptr;
+      assert(fd0_fifo && fd1_fifo);
       const int flags = fbb_pipe2_get_flags_with_fallback(ic_msg, 0);
       const int error = fbb_pipe2_get_error_no_with_fallback(ic_msg, 0);
-      auto pipe = proc->handle_pipe(fd0, fd1, flags, error, fd0_conn, fd1_conn);
+      auto pipe = proc->handle_pipe(fd0, fd1, flags, error, fd0_fifo, fd1_fifo);
       if (pipe) {
         proc->add_pipe(pipe);
       }

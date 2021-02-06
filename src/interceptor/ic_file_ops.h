@@ -12,6 +12,7 @@
 #include "interceptor/interceptors.h"
 
 int intercept_fopen_mode_to_open_flags_helper(const char * mode);
+int popen_type_to_flags(const char * type);
 void clear_file_state(const int fd);
 void clear_all_file_states();
 void copy_file_state(const int to_fd, const int from_fd);
