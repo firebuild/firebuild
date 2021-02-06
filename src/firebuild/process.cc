@@ -112,6 +112,25 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
   return fds;
 }
 
+void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, int type_flags) {
+  /* The stdin/stdout of the child needs to be conected to parent's fd */
+  int child_fileno = (type_flags & O_ACCMODE) == O_WRONLY ? STDIN_FILENO : STDOUT_FILENO;
+  if (child_fileno == STDOUT_FILENO) {
+    /* Since only fd0 is passed only fd0's FileFD inherits O_CLOEXEC from type_flags. */
+    auto pipe = handle_pipe(fd, -1, type_flags, 0, fifo, nullptr);
+    auto ffd1 = std::make_shared<FileFD>(child_fileno, O_WRONLY, pipe->fd1_shared_ptr(),
+                                         proc->parent_);
+
+    (*proc->parent_->fds_)[child_fileno] = ffd1;
+    (*proc->fds_)[child_fileno] = ffd1;
+    add_pipe(pipe);
+  } else {
+    assert(!fifo);
+  }
+
+  fd2popen_child_[fd] = proc;
+}
+
 int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
                          const int fd, const int error, int fd_conn, const int ack_num) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
@@ -277,9 +296,11 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
 }
 
 std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const int flags,
-                                           const int error, int fd0_conn, int fd1_conn) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd0=%d, fd1=%d, flags=%d, error=%d",
-         fd0, fd1, flags, error);
+                                           const int error, const char *fd0_fifo,
+                                           const char *fd1_fifo) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "fd0=%d, fd1=%d, flags=%d, error=%d, fd0_fifo=%s, fd1_fifo=%s",
+         fd0, fd1, flags, error, fd0_fifo, fd1_fifo);
 
   if (error) {
     return std::shared_ptr<Pipe>(nullptr);
@@ -294,7 +315,7 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
     return std::shared_ptr<Pipe>(nullptr);
   }
 
-  if (get_fd(fd1)) {
+  if (fd1 != -1 && get_fd(fd1)) {
     // we already have this fd, probably missed a close()
     exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd (" + d(fd1) + ") which is known to be open, "
@@ -302,11 +323,11 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
     return std::shared_ptr<Pipe>(nullptr);
   }
 
-  assert(fd0_conn != -1 && "connection to pipe's fd[0] is not valid");
-  assert(fd1_conn != -1 && "connection to pipe's fd[1] is not valid");
+  assert(fd0_fifo);
+  int fd0_conn = open(fd0_fifo, O_WRONLY | O_NONBLOCK);
+  assert(fd0_conn != -1 && "opening fd0_fifo failed");
+  firebuild::bump_fd_age(fd0_conn);
 
-  // TODO(rbalint) open cache files for fd1 and pass that
-  auto cache_fds = std::vector<int>();
 #ifdef __clang_analyzer__
   /* Scan-build reports a false leak for the correct code. This is used only in static
    * analysis. It is broken because all shared pointers to the Pipe must be copies of
@@ -317,10 +338,19 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
 #endif
   add_filefd(fds_, fd0, std::make_shared<FileFD>(
       fd0, (flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this));
-  auto ffd1 =
-      std::make_shared<FileFD>(fd1, (flags & ~O_ACCMODE) | O_WRONLY, pipe->fd1_shared_ptr(), this);
-  add_filefd(fds_, fd1, ffd1);
-  pipe->add_fd1(fd1_conn, ffd1.get(), std::move(cache_fds));
+  /* Fd1_fifo may not be set. */
+  if (fd1_fifo) {
+    int fd1_conn = open(fd1_fifo, O_NONBLOCK | O_RDONLY);
+    assert(fd1_conn != -1 && "opening fd1_fifo failed");
+    firebuild::bump_fd_age(fd1_conn);
+    auto ffd1 = std::make_shared<FileFD>(fd1, (flags & ~O_ACCMODE) | O_WRONLY,
+                                         pipe->fd1_shared_ptr(),
+                                         this);
+    add_filefd(fds_, fd1, ffd1);
+    // TODO(rbalint) open cache files for fd1 and pass that
+    auto cache_fds = std::vector<int>();
+    pipe->add_fd1(fd1_conn, ffd1.get(), std::move(cache_fds));
+  }
   return pipe;
 }
 
@@ -780,6 +810,7 @@ static bool argv_matches_expectation(const std::vector<std::string>& actual,
 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
+                                int *type_flags_p,
                                 const bool failed) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "failed=%s", D(failed));
 
@@ -789,6 +820,8 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
       auto fds = expected_child_->fds();
       if (launch_type_p)
           *launch_type_p = expected_child_->launch_type();
+      if (type_flags_p)
+          *type_flags_p = expected_child_->type_flags();
       delete(expected_child_);
       expected_child_ = nullptr;
       return fds;
@@ -912,8 +945,8 @@ std::string Process::d_internal(const int level) const {
 }
 
 Process::~Process() {
+  free(pending_popen_fifo_);
 }
-
 
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.

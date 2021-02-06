@@ -20,6 +20,7 @@
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/cxx_lang_utils.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -142,7 +143,13 @@ class ProcessTree {
   void DropParentAck(const int ppid) {
     ppid2pending_parent_ack_.erase(ppid);
   }
-
+  void AckParent(const int ppid) {
+    const pending_parent_ack *ack = PPid2ParentAck(ppid);
+    if (ack) {
+      ack_msg(ack->sock, ack->ack_num);
+      DropParentAck(ppid);
+    }
+  }
   void FinishInheritedFdPipes() {
     for (auto& pipe : inherited_fd_pipes_) {
       pipe->finish();

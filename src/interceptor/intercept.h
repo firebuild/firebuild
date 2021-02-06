@@ -12,6 +12,7 @@
 #define _GNU_SOURCE 1
 #endif
 
+#include <bits/types/FILE.h>
 #include <dlfcn.h>
 #include <link.h>
 #include <pthread.h>

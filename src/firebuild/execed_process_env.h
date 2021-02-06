@@ -35,6 +35,8 @@ class ExecedProcessEnv {
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
   void set_launch_type(LaunchType value) {launch_type_ = value;}
   LaunchType launch_type() const {return launch_type_;}
+  void set_type_flags(int type_flags) {type_flags_ = type_flags;}
+  int type_flags() const {return type_flags_;}
 
   void set_sh_c_command(const std::string&);
 
@@ -42,6 +44,8 @@ class ExecedProcessEnv {
   std::vector<std::string> argv_;
   /// Whether it's launched via system() or popen() or other
   LaunchType launch_type_;
+  /// popen(command, type)'s type encoded as O_WRONLY | O_RDONLY | O_CLOEXEC flags
+  int type_flags_;
   /// File descriptor states intherited from parent
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
   // TODO(egmont) add envp ?
