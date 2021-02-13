@@ -12,7 +12,8 @@ namespace firebuild {
  * Get a human friendly representation of a string, inside double
  * quotes, for debugging purposes.
  */
-std::string d(const std::string& str) {
+std::string d(const std::string& str, const int level) {
+  (void)level;  /* unused */
   std::string ret = "\"";
   for (unsigned char c : str) {
     if (c < 0x20 || c >= 0x7f) {
@@ -33,41 +34,14 @@ std::string d(const std::string& str) {
 
 /**
  * Get a human friendly representation of a C string, inside double
- * quotes, for debugging purposes.
+ * quotes (unless NULL), for debugging purposes.
  */
-std::string d(const char *str) {
+std::string d(const char *str, const int level) {
   if (str) {
-    return d(std::string(str));
+    return d(std::string(str), level);
   } else {
     return "NULL";
   }
-}
-
-/**
- * Get a human friendly representation of an array of strings, like:
- *
- *   ["item1", "item2", "item3"]
- *
- * for debugging purposes.
- *
- * A custom separator instead of the default ", " can be specified, in
- * order to print each item in a separate line. In this case the caller
- * should put the required number of spaces in the separator, to achieve
- * the desired indentation level.
- */
-std::string d(const std::vector<std::string>& arr,
-              const std::string& sep) {
-  std::string res = "[";
-  bool add_sep = false;
-  for (const auto &val : arr) {
-    if (add_sep) {
-      res += sep;
-    }
-    res += d(val);
-    add_sep = true;
-  }
-  res += "]";
-  return res;
 }
 
 /**
