@@ -89,7 +89,7 @@ class ProcessTree {
     }
   }
   void QueueForkChild(int pid, FD sock, int ppid, int ack_num, Process **fork_child_ref) {
-    assert_null(Pid2ForkChildSock(pid));
+    assert(!Pid2ForkChildSock(pid));
     pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
   }
   void QueueExecChild(int pid, FD sock, ExecedProcess* incomplete_child) {
@@ -99,7 +99,7 @@ class ProcessTree {
     pid2posix_spawn_child_sock_[pid] = {sock, incomplete_child};
   }
   void QueueParentAck(int ppid, int ack, FD sock) {
-    assert_null(PPid2ParentAck(ppid));
+    assert(!PPid2ParentAck(ppid));
     ppid2pending_parent_ack_[ppid] = {ack, sock};
   }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
