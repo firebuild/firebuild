@@ -156,6 +156,7 @@ class Process {
     }
   }
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
+  const std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() const {return fds_;}
   void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
   /** Add add ffd FileFD* to open fds */
   static std::shared_ptr<FileFD>
