@@ -602,8 +602,8 @@ std::string ExecedProcess::d_internal(const int level) const {
     return Process::d_internal(level);
   } else {
     /* verbose */
-    return "[ExecedProcess " + pid_and_exec_count() + ", " + state_string() + ", " +
-        d(args_to_short_string()) + "]";
+    return "{ExecedProcess " + pid_and_exec_count() + ", " + state_string() + ", " +
+        d(args_to_short_string()) + "}";
   }
 }
 

@@ -35,8 +35,8 @@ std::string ForkedProcess::d_internal(const int level) const {
     return Process::d_internal(level);
   } else {
     /* verbose */
-    return "[ForkedProcess " + pid_and_exec_count() + ", " + state_string() + ", parent " +
-        parent()->pid_and_exec_count() + ", " + d(exec_point()->args_to_short_string()) + "]";
+    return "{ForkedProcess " + pid_and_exec_count() + ", " + state_string() + ", parent " +
+        parent()->pid_and_exec_count() + ", " + d(exec_point()->args_to_short_string()) + "}";
   }
 }
 

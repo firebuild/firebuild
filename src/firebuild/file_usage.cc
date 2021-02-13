@@ -190,17 +190,17 @@ bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs)
  * See #431 for design and rationale. */
 std::string d(const FileUsage& fu, const int level) {
   (void)level;  /* unused */
-  return std::string("[FileUsage initial_state=") +
+  return std::string("{FileUsage initial_state=") +
       file_initial_state_to_string(fu.initial_state()) +
       (fu.initial_state() == ISREG_WITH_HASH || fu.initial_state() == ISDIR_WITH_HASH ?
           ", hash=" + d(fu.initial_hash()) : "") +
-      ", written=" + d(fu.written()) + "]";
+      ", written=" + d(fu.written()) + "}";
 }
 std::string d(const FileUsage *fu, const int level) {
   if (fu) {
     return d(*fu, level);
   } else {
-    return "[FileUsage NULL]";
+    return "{FileUsage NULL}";
   }
 }
 

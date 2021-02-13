@@ -908,7 +908,7 @@ void Process::export2js_recurse(const unsigned int level, FILE* stream,
  * See #431 for design and rationale. */
 std::string Process::d_internal(const int level) const {
   (void)level;  /* unused */
-  return "[Process " + pid_and_exec_count() + "]";
+  return "{Process " + pid_and_exec_count() + "}";
 }
 
 Process::~Process() {
@@ -925,7 +925,7 @@ std::string d(const Process *p, const int level) {
   if (p) {
     return d(*p, level);
   } else {
-    return "[Process NULL]";
+    return "{Process NULL}";
   }
 }
 

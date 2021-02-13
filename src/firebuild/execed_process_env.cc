@@ -31,7 +31,7 @@ std::string d(const ExecedProcessEnv *env, const int level) {
   if (env) {
     return d(*env, level);
   } else {
-    return "[ExecedProcessEnv NULL]";
+    return "{ExecedProcessEnv NULL}";
   }
 }
 

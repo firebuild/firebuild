@@ -313,7 +313,7 @@ std::string d(const Hash *hash, const int level) {
   if (hash) {
     return d(*hash, level);
   } else {
-    return "[Hash NULL]";
+    return "{Hash NULL}";
   }
 }
 

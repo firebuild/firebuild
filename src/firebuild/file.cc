@@ -140,14 +140,14 @@ int File::is_changed() {
  * See #431 for design and rationale. */
 std::string d(const File& f, const int level) {
   (void)level;  /* unused */
-  return std::string("[File path=") + d(f.path()) + ", exists=" + d(f.exists()) +
-      (f.exists() ? ", hash=" + d(f.hash()) : "");
+  return std::string("{File path=") + d(f.path()) + ", exists=" + d(f.exists()) +
+      (f.exists() ? ", hash=" + d(f.hash()) : "") + "}";
 }
 std::string d(const File *f, const int level) {
   if (f) {
     return d(*f, level);
   } else {
-    return "[File NULL]";
+    return "{File NULL}";
   }
 }
 
