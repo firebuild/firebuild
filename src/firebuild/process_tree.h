@@ -152,6 +152,7 @@ class ProcessTree {
       pipe->finish();
     }
   }
+
  private:
   ExecedProcess *root_ = NULL;
   /** This is somewhat analogous to Process::fds_, although cannot change over time.
