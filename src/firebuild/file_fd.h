@@ -75,10 +75,10 @@ class FileFD {
   FileFD(FileFD&) = default;
   FileFD(const FileFD&) = default;
   FileFD& operator= (const FileFD&) = default;
-  int fd() {return fd_;}
+  int fd() const {return fd_;}
   int last_err() {return last_err_;}
   void set_last_err(int err) {last_err_ = err;}
-  int flags() {return curr_flags_;}
+  int flags() const {return curr_flags_;}
   Process * opened_by() {return opened_by_;}
   bool open() {return open_;}
   void set_open(bool o) {open_ = o;}
@@ -102,6 +102,7 @@ class FileFD {
     pipe_ = pipe;
   }
   std::shared_ptr<Pipe> pipe() {return pipe_;}
+  const std::shared_ptr<Pipe> pipe() const {return pipe_;}
 
  private:
   int fd_;
@@ -120,6 +121,12 @@ class FileFD {
    *  NULL if the topmost intercepted process already inherited it from the supervisor. */
   Process* opened_by_;
 };
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const FileFD& ffd, const int level = 0);
+std::string d(const FileFD *ffd, const int level = 0);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_FILE_FD_H_

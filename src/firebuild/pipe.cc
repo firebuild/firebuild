@@ -485,16 +485,18 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
  * See #431 for design and rationale. */
 std::string d(const Pipe& pipe, const int level) {
   std::string ret = "{Pipe #" + d(pipe.id());
-  if (!pipe.finished()) {
-    ret += ", fd1s:";
-    for (const auto& it : pipe.conn2fd1_ends) {
-      ret += " " + d(it.first);
+  if (level <= 0) {
+    if (!pipe.finished()) {
+      ret += ", fd1s:";
+      for (const auto& it : pipe.conn2fd1_ends) {
+        ret += " " + d(it.first);
+      }
+      ret += ", fd0: " + d(event_get_fd(pipe.fd0_event));
+    } else {
+      ret += ", finished";
     }
-    ret += ", fd0: " + d(event_get_fd(pipe.fd0_event));
-  } else {
-    ret += ", finished";
+    ret += ", creator=" + d(pipe.creator(), level + 1);
   }
-  ret += ", creator=" + d(pipe.creator(), level + 1);
   ret += "}";
   return ret;
 }
