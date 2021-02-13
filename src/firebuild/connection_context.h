@@ -67,13 +67,13 @@ class ConnectionContext {
  * See #431 for design and rationale. */
 inline std::string d(const ConnectionContext& ctx, const int level = 0) {
   (void)level;  /* unused */
-  return "[ConnectionContext fd=" + d(ctx.fd()) + ", proc=" + d(ctx.proc) + "]";
+  return "{ConnectionContext fd=" + d(ctx.fd()) + ", proc=" + d(ctx.proc) + "}";
 }
 inline std::string d(const ConnectionContext *ctx, const int level = 0) {
   if (ctx) {
     return d(*ctx, level);
   } else {
-    return "[ConnectionContext NULL]";
+    return "{ConnectionContext NULL}";
   }
 }
 

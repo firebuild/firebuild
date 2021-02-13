@@ -484,7 +484,7 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
 std::string d(const Pipe& pipe, const int level) {
-  std::string ret = "[Pipe #" + d(pipe.id());
+  std::string ret = "{Pipe #" + d(pipe.id());
   if (!pipe.finished()) {
     ret += ", fd1s:";
     for (const auto& it : pipe.conn2fd1_ends) {
@@ -495,14 +495,14 @@ std::string d(const Pipe& pipe, const int level) {
     ret += ", finished";
   }
   ret += ", creator=" + d(pipe.creator(), level + 1);
-  ret += "]";
+  ret += "}";
   return ret;
 }
 std::string d(const Pipe *pipe, const int level) {
   if (pipe) {
     return d(*pipe, level);
   } else {
-    return "[Pipe NULL]";
+    return "{Pipe NULL}";
   }
 }
 

@@ -63,7 +63,7 @@ std::string d(const FileName *fn, const int level) {
   if (fn) {
     return d(*fn, level);
   } else {
-    return "[FileName NULL]";
+    return "{FileName NULL}";
   }
 }
 
