@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -64,34 +65,75 @@ extern int32_t debug_flags;
 
 int32_t parse_debug_flags(const std::string& str);
 
-inline std::string d(int value) {
+inline std::string d(int value, const int level = 0) {
+  (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(long value) {  /* NOLINT(runtime/int) */
+inline std::string d(long value, const int level = 0) {  /* NOLINT(runtime/int) */
+  (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(long long value) {  /* NOLINT(runtime/int) */
+inline std::string d(long long value, const int level = 0) {  /* NOLINT(runtime/int) */
+  (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(unsigned int value) {
+inline std::string d(unsigned int value, const int level = 0) {
+  (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(unsigned long value) {  /* NOLINT(runtime/int) */
+inline std::string d(unsigned long value, const int level = 0) {  /* NOLINT(runtime/int) */
+  (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(unsigned long long value) {  /* NOLINT(runtime/int) */
+inline std::string d(unsigned long long value, const int level = 0) {  /* NOLINT(runtime/int) */
+  (void)level;  /* unused */
   return std::to_string(value);
 }
 
-inline std::string d(bool value) {
+inline std::string d(bool value, const int level = 0) {
+  (void)level;  /* unused */
   return value ? "true" : "false";
 }
 
-std::string d(const std::string& str);
-std::string d(const char *str);
+std::string d(const std::string& str, const int level = 0);
+std::string d(const char *str, const int level = 0);
 
-std::string d(const std::vector<std::string>& arr,
-              const std::string& sep = ", ");
+/**
+ * Get a human friendly representation of an array of anything that is d()-debuggable,
+ * enclosed in square brackets, separated by commas, like:
+ *
+ *   [item1, item2, item3]
+ */
+template <typename T>
+inline std::string d(const std::vector<T>& arr, const int level = 0) {
+  std::string res = "[";
+  bool add_sep = false;
+  for (const T& val : arr) {
+    if (add_sep) {
+      res += ", ";
+    }
+    res += d(val, level);
+    add_sep = true;
+  }
+  res += "]";
+  return res;
+}
+template <typename T>
+inline std::string d(const std::vector<T> *arr, const int level = 0) {
+  if (arr) {
+    return d(*arr, level);
+  } else {
+    return "{std::vector NULL}";
+  }
+}
+
+/**
+ * Debug a shared_ptr of anything that is d()-debuggable.
+ */
+template <typename T>
+inline std::string d(const std::shared_ptr<T>& ptr, const int level = 0) {
+  return d(ptr.get(), level);
+}
 
 /* Convenience wrapper around our various d(...) debugging functions.
  * Instead of returning a std::string, as done by d(), this gives the raw C char* pointer
