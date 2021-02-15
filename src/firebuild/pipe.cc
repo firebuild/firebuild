@@ -64,7 +64,7 @@ Pipe::Pipe(int fd0_conn, Process* creator)
       keep_fd0_open_(false), fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
       buf_(), fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
       shared_self_ptr_(this), creator_(creator) {
-  TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%d, creator=%s", fd0_conn, D(creator));
+  TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%s, creator=%s", D_FD(fd0_conn), D(creator));
 }
 
 std::shared_ptr<Pipe> Pipe::fd0_shared_ptr() {
@@ -82,7 +82,7 @@ std::shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
 }
 
 void Pipe::add_fd1(int fd1_conn, FileFD* file_fd, std::vector<int>&& cache_fds) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%d", fd1_conn);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s", D_FD(fd1_conn));
 
   assert(conn2fd1_ends.count(fd1_conn) == 0);
   assert(!finished());
@@ -97,7 +97,7 @@ void Pipe::add_fd1(int fd1_conn, FileFD* file_fd, std::vector<int>&& cache_fds) 
 
 void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%d", fd);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
 
   (void) fd; /* unused */
   (void) what; /* FIXME! unused */
@@ -127,7 +127,7 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
 }
 
 void Pipe::close_one_fd1(int fd) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd=%d", fd);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd=%s", D_FD(fd));
 
   auto fd1_end = conn2fd1_ends[fd];
   assert(fd1_end);
@@ -187,7 +187,7 @@ void Pipe::finish() {
   FB_DEBUG(FB_DEBUG_PIPE, "cleaning up " + d(this));
   // clean up all events
   for (auto it : conn2fd1_ends) {
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d(it.first));
+    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d_fd(it.first));
     event_free(it.second->ev);
     close(it.first);
     delete it.second;
@@ -202,7 +202,7 @@ void Pipe::finish() {
 
   if (!keep_fd0_open_) {
     auto fd0 = event_get_fd(fd0_event);
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d(fd0));
+    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d_fd(fd0));
     event_free(fd0_event);
     close(fd0);
   } else {
@@ -214,7 +214,7 @@ void Pipe::finish() {
 
 void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%d", fd);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
 
   (void) what; /* FIXME! unused */
   auto result = pipe->forward(fd, false, true);
@@ -273,7 +273,7 @@ pipe_op_result Pipe::send_buf() {
     do {
       sent = write(fd0_conn, buf_.data(), buf_.length());
       FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(sent) + " bytes via fd: "
-               + d(fd0_conn) + " of " + d(this));
+               + d_fd(fd0_conn) + " of " + d(this));
       if (sent == -1) {
         if (errno == EAGAIN || errno == EWOULDBLOCK) {
           /* This pipe should not receive more data. */
@@ -309,8 +309,8 @@ pipe_op_result Pipe::send_buf() {
 }
 
 pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1=%d, drain=%s, in_callback=%s",
-         fd1, D(drain), D(in_callback));
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1=%s, drain=%s, in_callback=%s",
+         D_FD(fd1), D(drain), D(in_callback));
 
   pipe_op_result send_ret;
   if (finished()) {
@@ -342,7 +342,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             break;
           } else {
             FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes from fd: "
-                     + d(fd1) + "to fd: " + d(fd0_conn) + " using tee");
+                     + d_fd(fd1) + "to fd: " + d_fd(fd0_conn) + " using tee");
             /* Save the data. */
             size_t i;
             for (i = 0; i < cache_fds_size - 1; i++) {
@@ -365,7 +365,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             break;
           } else {
             FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes to fd: "
-                     + d(fd0_conn) + " using splice");
+                     + d_fd(fd0_conn) + " using splice");
           }
         }
 
@@ -402,7 +402,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             /* In case of EOF the pipe has been hung up, therefore poll() would have returned 1 with
                POLLHUP set. Thus the interceptor hasn't opened the other end yet. */
             FB_DEBUG(FB_DEBUG_PIPE, "interceptor has not opened the other end of fd: "
-                     + d(fd1) + " yet");
+                     + d_fd(fd1) + " yet");
             ret = FB_PIPE_WOULDBLOCK;
             /* There could still be data in the buffer from an other fd1, continue with trying to
              * send it. */
@@ -425,7 +425,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       /* pipe end is closed */
       return ret;
     } else {
-      FB_DEBUG(FB_DEBUG_PIPE, "received " + d(received) + " bytes from fd: " + d(fd1));
+      FB_DEBUG(FB_DEBUG_PIPE, "received " + d(received) + " bytes from fd: " + d_fd(fd1));
       if (fd1_end->cache_fds.size() > 0) {
         /* Save the data keeping it in the buffer, too. */
         ssize_t bufsize = buf_.length();
@@ -489,9 +489,9 @@ std::string d(const Pipe& pipe, const int level) {
     if (!pipe.finished()) {
       ret += ", fd1s:";
       for (const auto& it : pipe.conn2fd1_ends) {
-        ret += " " + d(it.first);
+        ret += " " + d_fd(it.first);
       }
-      ret += ", fd0: " + d(event_get_fd(pipe.fd0_event));
+      ret += ", fd0: " + d_fd(event_get_fd(pipe.fd0_event));
     } else {
       ret += ", finished";
     }

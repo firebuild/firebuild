@@ -17,7 +17,6 @@
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
-#include "firebuild/fd.h"
 #include "firebuild/linear_buffer.h"
 
 extern event_base * ev_base;

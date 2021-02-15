@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include <cassert>
 #include <memory>
 #include <string>
 #include <vector>
@@ -42,8 +43,6 @@ enum {
   FB_DEBUG_PIPE         = 1 << 9,
   /* Entering and leaving functions */
   FB_DEBUG_FUNC         = 1 << 10,
-  /* Tracking the server-side file descriptors */
-  FB_DEBUG_FD           = 1 << 11,
 };
 
 
@@ -139,6 +138,40 @@ inline std::string d(const std::shared_ptr<T>& ptr, const int level = 0) {
  * Instead of returning a std::string, as done by d(), this gives the raw C char* pointer
  * which is valid only inside the expression where D() is called. */
 #define D(var) firebuild::d(var).c_str()
+
+
+#ifndef NDEBUG
+/* The age of each fd, for debugging purposes. */
+extern std::vector<int> fd_ages;
+#endif
+
+/* Increase the "age" of a given fd. */
+inline void bump_fd_age(int fd) {
+  (void)fd;  /* unused in non-debug build */
+#ifndef NDEBUG
+  if (fd >= static_cast<ssize_t>(fd_ages.size())) {
+    fd_ages.resize(fd + 1);
+  }
+  fd_ages[fd]++;
+#endif
+}
+
+/* Debug a file descriptor number.
+ * If its age hasn't been bumped then report the number only, e.g. "7".
+ * If its age has been bumped then report the fd number and with its age, e.g. "7.1", "7.2" etc. */
+inline std::string d_fd(int fd) {
+#ifndef NDEBUG
+  if (fd >= 0 && fd < static_cast<ssize_t>(fd_ages.size()) && fd_ages[fd] > 0) {
+    return std::to_string(fd) + "." + std::to_string(fd_ages[fd]);
+  }
+#endif
+  return std::to_string(fd);
+}
+
+/* Convenience wrapper around our d_fd().
+ * Instead of returning a std::string, as done by d_fd(), this gives the raw C char* pointer
+ * which is valid only inside the expression where D_FD() is called. */
+#define D_FD(fd) firebuild::d_fd(fd).c_str()
 
 /** Get a human-readable timestamp according to local time. */
 std::string pretty_timestamp();
