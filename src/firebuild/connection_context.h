@@ -16,20 +16,18 @@
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
-#include "firebuild/fd.h"
 #include "firebuild/linear_buffer.h"
 #include "firebuild/process.h"
 #include "firebuild/process_tree.h"
 
 namespace firebuild {
 
-extern void accept_exec_child(ExecedProcess* proc, FD fd_conn,
+extern void accept_exec_child(ExecedProcess* proc, int fd_conn,
                               ProcessTree* proc_tree);
 
 class ConnectionContext {
  public:
-  explicit ConnectionContext(ProcessTree *proc_tree, int fd)
-      : buffer_(), proc_tree_(proc_tree), fd_(FD::open(fd)) {}
+  explicit ConnectionContext(ProcessTree *proc_tree) : buffer_(), proc_tree_(proc_tree) {}
   ~ConnectionContext() {
     if (proc) {
       auto exec_child_sock = proc_tree_->Pid2ExecChildSock(proc->pid());
@@ -43,12 +41,9 @@ class ConnectionContext {
     }
     assert(ev_);
     evutil_socket_t conn = event_get_fd(ev_);
-    assert_cmp(conn, ==, fd_.fd());
     event_free(ev_);
-    fd_.close();
     close(conn);
   }
-  FD fd() const {return fd_;}
   void set_ev(struct event* ev) {ev_ = ev;}
   LinearBuffer& buffer() {return buffer_;}
   Process * proc = nullptr;
@@ -57,7 +52,6 @@ class ConnectionContext {
   /** Partial interceptor message including the FBB header */
   LinearBuffer buffer_;
   ProcessTree *proc_tree_;
-  FD fd_;
   struct event* ev_ = nullptr;
   DISALLOW_COPY_AND_ASSIGN(ConnectionContext);
 };
@@ -67,7 +61,7 @@ class ConnectionContext {
  * See #431 for design and rationale. */
 inline std::string d(const ConnectionContext& ctx, const int level = 0) {
   (void)level;  /* unused */
-  return "{ConnectionContext fd=" + d(ctx.fd()) + ", proc=" + d(ctx.proc) + "}";
+  return "{ConnectionContext proc=" + d(ctx.proc) + "}";
 }
 inline std::string d(const ConnectionContext *ctx, const int level = 0) {
   if (ctx) {

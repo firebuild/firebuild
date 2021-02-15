@@ -5,7 +5,6 @@
 #define FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
 
 #include "./fbb.h"
-#include "firebuild/fd.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 
@@ -19,8 +18,8 @@ namespace firebuild  {
    */
 class ProcessPBAdaptor {
  public:
-  static int msg(Process *p, const FBB_open *o, FD fd_conn, int ack_num);
-  static int msg(Process *p, const FBB_dlopen *dlo, FD fd_conn, int ack_num);
+  static int msg(Process *p, const FBB_open *o, int fd_conn, int ack_num);
+  static int msg(Process *p, const FBB_dlopen *dlo, int fd_conn, int ack_num);
   static int msg(Process *p, const FBB_close *c);
   static int msg(Process *p, const FBB_unlink *u);
   static int msg(Process *p, const FBB_rmdir *r);

@@ -17,7 +17,6 @@
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
-#include "firebuild/fd.h"
 
 namespace firebuild {
 
@@ -42,11 +41,9 @@ class LinearBuffer {
    *        the input buffer
    * @return number of bytes read
    */
-  ssize_t read(FD fd, ssize_t howmuch) {
-    TRACK(FB_DEBUG_COMM, "fd=%s", D(fd));
-    return read(fd.fd(), howmuch);
-  }
   ssize_t read(evutil_socket_t fd, ssize_t howmuch) {
+    TRACK(FB_DEBUG_COMM, "fd=%s, howmuch=%ld", D_FD(fd), howmuch);
+
     assert_cmp(howmuch, !=, 0);
     if (howmuch >= 0) {
       /* Read at most the specified amount, in one step. (Note: fd is nonblocking.) */

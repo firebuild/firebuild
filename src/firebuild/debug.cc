@@ -91,7 +91,6 @@ static struct flag available_flags[] = {
   { "pipe",              FB_DEBUG_PIPE },
   { "function",          FB_DEBUG_FUNC },
   { "func",              FB_DEBUG_FUNC },
-  { "fd",                FB_DEBUG_FD },
   { NULL, 0 }
 };
 
@@ -160,6 +159,7 @@ int32_t parse_debug_flags(const std::string& str) {
 }
 
 #ifndef NDEBUG
+std::vector<int> fd_ages;
 int method_tracker_level = 0;
 #endif
 
