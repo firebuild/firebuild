@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <flatbuffers/flatbuffers.h>
 #include <getopt.h>
+#include <semaphore.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -66,9 +67,11 @@ static char datadir[] = FIREBUILD_DATADIR;
 
 static char *fb_tmp_dir;
 static char *fb_conn_string;
+static char *fb_sema_string;
 
 evutil_socket_t listener;
 struct event *sigchild_event;
+sem_t *sema;
 
 static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
@@ -155,6 +158,7 @@ static char** get_sanitized_env() {
     env_v.push_back("LD_PRELOAD=libfbintercept.so");
   }
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
+  env_v.push_back("FB_SEMAPHORE=" + std::string(fb_sema_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
 
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
@@ -1429,6 +1433,7 @@ int main(const int argc, char *argv[]) {
     }
     fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket").c_str());
   }
+  fb_sema_string = strdup((std::string("/firebuild.FIXME.") + std::to_string(getpid())).c_str());
   auto env_exec = get_sanitized_env();
 
   ev_base = event_base_new();
@@ -1441,6 +1446,8 @@ int main(const int argc, char *argv[]) {
   event_add(listener_event, NULL);
   sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
   event_add(sigchild_event, NULL);
+
+  sema = sem_open(fb_sema_string, O_CREAT|O_EXCL, 0600, 0);
 
   /* This creates some Pipe objects, so needs ev_base being set up. */
   proc_tree = new firebuild::ProcessTree();
@@ -1505,6 +1512,8 @@ int main(const int argc, char *argv[]) {
 
   unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
+  sem_close(sema);
+  sem_unlink(fb_sema_string);
 
   if (running_under_valgrind()) {
     /* keep Valgrind happy */
@@ -1517,6 +1526,7 @@ int main(const int argc, char *argv[]) {
     }
 
     free(fb_conn_string);
+    free(fb_sema_string);
     free(fb_tmp_dir);
     delete(proc_tree);
     delete(firebuild::ignore_locations);

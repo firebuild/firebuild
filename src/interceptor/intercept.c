@@ -45,6 +45,12 @@ size_t fb_conn_string_len = 0;
 int fb_sv_conn = -1;
 shmq_writer_t fb_shmq;
 
+/** Semaphore string to supervisor */
+char * fb_sema_string = NULL;
+
+/** Semaphore to supervisor */
+sem_t * fb_sv_sema = NULL;
+
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
@@ -592,12 +598,16 @@ void fb_init_supervisor_conn(const char *shmq_name) {
   if (fb_conn_string == NULL) {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
     fb_conn_string_len = strlen(fb_conn_string);
+    fb_sema_string = strdup(getenv("FB_SEMAPHORE"));
   } else {
     shmq_writer_fini(&fb_shmq);
+    sem_close(fb_sv_sema);
   }
+
   // reconnect to supervisor
   ic_orig_close(fb_sv_conn);
   fb_sv_conn = fb_connect_supervisor(-1);
+  fb_sv_sema = sem_open(fb_sema_string, 0);
 
   shmq_writer_init(&fb_shmq, shmq_name);
 
@@ -711,8 +721,10 @@ static void fb_ic_init() {
 
   for (char** cursor = env; *cursor != NULL; cursor++) {
     const char *fb_socket = "FB_SOCKET=";
+    const char *fb_sema = "FB_SEMAPHORE=";
     const char *fb_system_locations = "FB_SYSTEM_LOCATIONS=";
     if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0 &&
+        strncmp(*cursor, fb_sema, strlen(fb_sema)) != 0 &&
         strncmp(*cursor, fb_system_locations, strlen(fb_system_locations)) != 0) {
       env_copy[env_copy_len++] = *cursor;
     }

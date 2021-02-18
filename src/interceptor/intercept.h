@@ -17,6 +17,7 @@
 #include <link.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <spawn.h>
@@ -91,6 +92,12 @@ extern size_t fb_conn_string_len;
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
+
+/** Semaphore string to supervisor */
+extern char * fb_sema_string;
+
+/** Semaphore to supervisor */
+sem_t * fb_sv_sema;
 
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 extern int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
