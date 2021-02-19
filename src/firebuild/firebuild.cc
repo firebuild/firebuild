@@ -552,12 +552,15 @@ void proc_ic_msg(const void *fbb_buf,
   TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
          D_FD(fd_conn), fbb_tag_string(fbb_buf), ack_num);
 
+  (void) fd_conn;  // FIXME remove
+
   assert(proc);
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   if (tag == FBB_TAG_shmq) {
     /* This is a weird temporary hack. shmq messages can only arrive via the socket, and mean
      * to check the shared memory instead. Do so. */
     int len = shmq_reader_peek_tail(proc->shmq_reader(), (const char **) &fbb_buf);
+    (void) len;
     assert(len > 0);
     tag = *reinterpret_cast<const int *>(fbb_buf);
   }

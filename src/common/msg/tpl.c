@@ -153,6 +153,7 @@ static void fbb_{{ msg }}_serialize(const void *msgbldr_void, char *dst) {
 
   memcpy(dst, &msgbldr->wire, sizeof(msgbldr->wire));
   size_t off = sizeof(msgbldr->wire);
+  (void) off;  /* might be unused */
 
 ###   for (req, type, var) in fields
 ###     if type == STRING
