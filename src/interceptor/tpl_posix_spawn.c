@@ -20,7 +20,7 @@
 ###   endif
     fbb_posix_spawn_set_arg(&ic_msg, argv);
     fbb_posix_spawn_set_env(&ic_msg, envp);
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
@@ -51,13 +51,13 @@
         fbb_posix_spawn_parent_set_file_actions(&ic_msg, p->p);
       }
       fbb_posix_spawn_parent_set_pid(&ic_msg, *pid);
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
     } else {
       FBB_Builder_posix_spawn_failed ic_msg;
       fbb_posix_spawn_failed_init(&ic_msg);
       fbb_posix_spawn_failed_set_arg(&ic_msg, argv);
       fbb_posix_spawn_failed_set_error_no(&ic_msg, saved_errno);
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
     }
     pthread_mutex_unlock(&ic_system_popen_lock);
   }

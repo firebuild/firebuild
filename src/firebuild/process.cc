@@ -137,10 +137,10 @@ void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, i
 }
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
-                         const int fd, const int error, int fd_conn, const int ack_num) {
+                         const int fd, const int error, const bool early_ack) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
-         dirfd, D(ar_name), flags, fd, error, D_FD(fd_conn), ack_num);
+         "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, early_ack=%s",
+         dirfd, D(ar_name), flags, fd, error, D(early_ack));
 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
@@ -153,8 +153,9 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
     add_filefd(fds_, fd, boost::make_local_shared<FileFD>(name, fd, flags, this));
   }
 
-  if (ack_num != 0) {
-    ack_msg(fd_conn, ack_num);
+  if (early_ack) {
+//    ack_msg(fd_conn, ack_num);
+    shmq_reader_maybe_send_early_ack(shmq_reader());
   }
 
   if (!error && !exec_point()->register_parent_directory(name)) {
@@ -880,8 +881,8 @@ void Process::do_finalize() {
 
   /* Now we can ack the previous system()'s second message,
    * or a pending pclose() or wait*(). */
-  if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_ != -1) {
-    ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
+  if (on_finalized_ack_proc_) {
+    ack_msg(on_finalized_ack_proc_);
   }
 
   reset_file_fd_pipe_refs();

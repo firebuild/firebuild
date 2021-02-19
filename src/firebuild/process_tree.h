@@ -65,9 +65,10 @@ struct exec_child_sock {
 /** ACK a parent process is waiting for when the child appears */
 struct pending_parent_ack {
   /** ACK number the parent is waiting for */
-  int ack_num;
+//  int ack_num;
   /** Connection system/popen/posix_spawn parent is waiting on */
-  int sock;
+//  int sock;
+  Process *proc;
 };
 
 class ProcessTree {
@@ -101,9 +102,9 @@ class ProcessTree {
   void QueuePosixSpawnChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2posix_spawn_child_sock_[pid] = {sock, incomplete_child};
   }
-  void QueueParentAck(int ppid, int ack, int sock) {
+  void QueueParentAck(int ppid, Process *proc) {
     assert(!PPid2ParentAck(ppid));
-    ppid2pending_parent_ack_[ppid] = {ack, sock};
+    ppid2pending_parent_ack_[ppid] = {proc};
   }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
     auto it = pid2fork_child_sock_.find(pid);
@@ -152,7 +153,7 @@ class ProcessTree {
   void AckParent(const int ppid) {
     const pending_parent_ack *ack = PPid2ParentAck(ppid);
     if (ack) {
-      ack_msg(ack->sock, ack->ack_num);
+      ack_msg(ack->proc);
       DropParentAck(ppid);
     }
   }

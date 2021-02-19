@@ -5,6 +5,7 @@
 #define COMMON_FIREBUILD_SHMQ_H_
 
 #include <assert.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -20,6 +21,8 @@ extern "C" {
 #endif
 
 typedef struct {
+  /* The semaphore for ACKing a message. */
+  sem_t ack_sem;
   /* The offset of the oldest pointer, e.g. the address of p[2] in shmq.c's example. */
   /* Updated by the reader */
   volatile int32_t tail_location;
@@ -30,7 +33,7 @@ typedef struct {
 
 typedef struct {
   int32_t len;
-  int32_t ack_id;
+  bool ack_needed;
 } shmq_message_header_t;
 
 typedef struct {
@@ -52,12 +55,15 @@ typedef struct {
   size_t size;
   char *buf;
   bool tail_message_peeked;
+  bool ack_needed;
+  bool ack_sent;
 } shmq_reader_t;
 
 
 void shmq_reader_init(shmq_reader_t *reader, const char *name);
 void shmq_reader_fini(shmq_reader_t *reader);
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr, int32_t *ack_id);
+int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr);
+void shmq_reader_maybe_send_early_ack(shmq_reader_t *reader);
 void shmq_reader_discard_tail(shmq_reader_t *reader);
 
 
@@ -80,8 +86,9 @@ typedef struct {
 
 void shmq_writer_init(shmq_writer_t *writer, const char *name);
 void shmq_writer_fini(shmq_writer_t *writer);
-char *shmq_writer_new_message(shmq_writer_t *writer, int32_t ack_id, int32_t len);
-void shmq_writer_add_message(shmq_writer_t *writer);
+char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len);
+void shmq_writer_send_message(shmq_writer_t *writer, bool ack_needed);
+void shmq_writer_wait_for_ack(shmq_writer_t *writer);
 
 static inline int shmq_writer_nr_chunks(const shmq_writer_t *writer) {
   static const int state_to_nr_chunks[5] = {0, 1, 2, 3, 2};

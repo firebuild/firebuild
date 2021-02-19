@@ -9,18 +9,18 @@
 #include "firebuild/execed_process.h"
 
 namespace firebuild {
-int ProcessPBAdaptor::msg(Process *p, const FBB_open *o, int fd_conn, const int ack_num) {
+int ProcessPBAdaptor::msg(Process *p, const FBB_open *o) {
   const int dirfd = fbb_open_get_dirfd_with_fallback(o, AT_FDCWD);
   int error = fbb_open_get_error_no_with_fallback(o, 0);
   int ret = fbb_open_get_ret_with_fallback(o, -1);
   return p->handle_open(dirfd, fbb_open_get_file(o), fbb_open_get_flags(o),
-                        ret, error, fd_conn, ack_num);
+                        ret, error, true);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo, int fd_conn, const int ack_num) {
+int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo) {
   if (!fbb_dlopen_has_error_no(dlo) && fbb_dlopen_has_absolute_filename(dlo)) {
     return p->handle_open(AT_FDCWD, fbb_dlopen_get_absolute_filename(dlo),
-                          O_RDONLY, -1, 0, fd_conn, ack_num);
+                          O_RDONLY, -1, 0, false);
   } else {
     std::string filename = fbb_dlopen_has_absolute_filename(dlo) ?
                            fbb_dlopen_get_absolute_filename(dlo) : "NULL";

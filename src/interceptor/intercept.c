@@ -284,9 +284,9 @@ void fb_fbb_send_msg2(void *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
   size_t size = fbb_get_size(ic_msg);
-  char *where = shmq_writer_new_message(&fb_shmq, 0, size);
+  char *where = shmq_writer_new_message(&fb_shmq, size);
   fbb_serialize(ic_msg, where);
-  shmq_writer_add_message(&fb_shmq);
+  shmq_writer_send_message(&fb_shmq, false);
 
   FBB_Builder_shmq ic_msg_empty;
   fbb_shmq_init(&ic_msg_empty);
@@ -315,19 +315,19 @@ void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd) {
 void fb_fbb_send_msg_and_check_ack2(void *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
-  uint32_t ack_num = get_next_ack_id();
   size_t size = fbb_get_size(ic_msg);
-  char *where = shmq_writer_new_message(&fb_shmq, ack_num, size);
+  char *where = shmq_writer_new_message(&fb_shmq, size);
   fbb_serialize(ic_msg, where);
-  shmq_writer_add_message(&fb_shmq);
+  shmq_writer_send_message(&fb_shmq, true);
 
   FBB_Builder_shmq ic_msg_empty;
   fbb_shmq_init(&ic_msg_empty);
   fbb_send(fd, &ic_msg_empty, 0);
 
-  uint32_t ack_num_resp = 0;
-  fb_recv_msg(&ack_num_resp, NULL, fd);
-  assert(ack_num_resp == ack_num);
+//  uint32_t ack_num_resp = 0;
+//  fb_recv_msg(&ack_num_resp, NULL, fd);
+//  assert(ack_num_resp == ack_num);
+  shmq_writer_wait_for_ack(&fb_shmq);
 
   thread_signal_danger_zone_leave();
 }
@@ -481,7 +481,7 @@ void handle_exit(const int status) {
     fbb_exit_set_stime_u(&ic_msg,
         (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
 
     if (i_locked) {
       thread_signal_danger_zone_enter();

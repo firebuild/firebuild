@@ -1183,7 +1183,7 @@ generate("int", "waitid", "idtype_t idtype, id_t id, siginfo_t *infop, int optio
          ack_condition="true")
 
 # Intercept the exec family
-generate("int", ["execlp"], "const char *file, const char *arg, ...",
+generate("int", ["execl", "execlp"], "const char *file, const char *arg, ...",
          tpl="exec")
 # Note: execlpe exists on some systems, but not in glibc
 generate("int", "execle", "const char *file, const char *arg, ...",

@@ -18,7 +18,7 @@
     FBB_Builder_write ic_msg;
     fbb_write_init(&ic_msg);
     fbb_write_set_fd(&ic_msg, fd);
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
   }
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].written = true;

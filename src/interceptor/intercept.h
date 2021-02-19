@@ -83,6 +83,7 @@ void fb_fbb_send_msg2(void *ic_msg, int fd);
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
 void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd);
+void fb_fbb_send_msg_and_check_ack2(void *ic_msg, int fd);
 
 /** Connection string to supervisor */
 extern char * fb_conn_string;

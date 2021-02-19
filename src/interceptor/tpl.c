@@ -290,7 +290,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     /* Sending ack is conditional */
     if ({{ ack_condition }}) {
       /* Send and wait for ack */
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
     } else {
       /* Send and go on, no ack */
       fb_fbb_send_msg2(&ic_msg, fb_sv_conn);

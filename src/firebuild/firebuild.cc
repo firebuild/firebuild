@@ -358,18 +358,18 @@ void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,
 
 namespace {
 
-static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
+static void accept_fork_child(firebuild::Process* parent,
                               firebuild::Process** child_ref, int pid, int child_fd,
                               int child_ack, const char *shmq_name, firebuild::ProcessTree* proc_tree) {
-  TRACK(firebuild::FB_DEBUG_PROC,
-        "parent_fd=%s, parent_ack=%d, parent=%s pid=%d child_fd=%s child_ack=%d",
-        D_FD(parent_fd), parent_ack, D(parent), pid, D_FD(child_fd), child_ack);
+//  TRACK(firebuild::FB_DEBUG_PROC,
+//        "parent_fd=%s, parent_ack=%d, parent=%s pid=%d child_fd=%s child_ack=%d",
+//        D_FD(parent_fd), parent_ack, D(parent), pid, D_FD(child_fd), child_ack);
 
   auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
   shmq_reader_init(proc->shmq_reader(), shmq_name);
   proc_tree->insert(proc);
   *child_ref = proc;
-  firebuild::ack_msg(parent_fd, parent_ack);
+  firebuild::ack_msg(parent);
   firebuild::ack_msg(child_fd, child_ack);
 }
 
@@ -537,7 +537,8 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       auto pproc = proc_tree->pid2proc(ppid);
       assert(pproc);
       /* record new process */
-      accept_fork_child(pproc, pending_ack->sock, pending_ack->ack_num,
+      assert(pproc == pending_ack->proc); // ???
+      accept_fork_child(pproc,
                         new_proc, pid, fd_conn, ack_id, shmq_name, proc_tree);
       proc_tree->DropParentAck(ppid);
     }
@@ -551,19 +552,18 @@ void proc_ic_msg(const void *fbb_buf,
   TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
          D_FD(fd_conn), fbb_tag_string(fbb_buf), ack_num);
 
-  int tag = *reinterpret_cast<const int *>(fbb_buf);
   assert(proc);
+  int tag = *reinterpret_cast<const int *>(fbb_buf);
+  if (tag == FBB_TAG_shmq) {
+    /* This is a weird temporary hack. shmq messages can only arrive via the socket, and mean
+     * to check the shared memory instead. Do so. */
+    int len = shmq_reader_peek_tail(proc->shmq_reader(), (const char **) &fbb_buf);
+    assert(len > 0);
+    tag = *reinterpret_cast<const int *>(fbb_buf);
+  }
+
   switch (tag) {
     case FBB_TAG_shmq: {
-      /* This is a weird temporary hack. shmq messages can only arrive via the socket, and mean
-       * to check the shared memory instead. Do so. */
-      const char *ptr;
-      int32_t ack_num;  // fixme shadows func param
-      int len = shmq_reader_peek_tail(proc->shmq_reader(), &ptr, &ack_num);
-      assert(len > 0);
-      proc_ic_msg(ptr, ack_num, fd_conn, proc);
-      shmq_reader_discard_tail(proc->shmq_reader());
-      return;
     }
     case FBB_TAG_fork_parent: {
       const FBB_fork_parent *ic_msg = reinterpret_cast<const FBB_fork_parent *>(fbb_buf);
@@ -571,12 +571,13 @@ void proc_ic_msg(const void *fbb_buf,
       auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
       if (!fork_child_sock) {
         /* wait for child */
-        proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
+        proc_tree->QueueParentAck(proc->pid(), proc);
       } else {
         /* record new child process */
-        accept_fork_child(proc, fd_conn, ack_num,
-                          fork_child_sock->fork_child_ref, child_pid, fork_child_sock->sock,
-                          fork_child_sock->ack_num, fork_child_sock->shmq_name.c_str(), proc_tree);
+        accept_fork_child(proc,
+                          fork_child_sock->fork_child_ref, child_pid,
+                          fork_child_sock->sock, fork_child_sock->ack_num,
+                          fork_child_sock->shmq_name.c_str(), proc_tree);
         proc_tree->DropQueuedForkChild(child_pid);
       }
       return;
@@ -612,8 +613,9 @@ void proc_ic_msg(const void *fbb_buf,
          * couldn't send us the system_ret message), but the supervisor
          * hasn't seen this event yet. Thus we have to slightly defer
          * sending the ACK. */
-        proc->system_child()->set_on_finalized_ack(ack_num, fd_conn);
+        proc->system_child()->set_on_finalized_ack(proc);
         proc->set_system_child(NULL);
+        shmq_reader_discard_tail(proc->shmq_reader());
         return;
       }
       /* Can be ACK'd straight away. */
@@ -644,9 +646,10 @@ void proc_ic_msg(const void *fbb_buf,
         /* The child hasn't appeared yet. Defer sending the ACK and setting up
          * the fd -> child mapping. */
         assert_null(proc->pending_popen_child());
-        proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
+        proc_tree->QueueParentAck(proc->pid(), proc);
         proc->set_pending_popen_fd(fd);
         proc->set_pending_popen_fifo(fifo ? strdup(fifo) : nullptr);
+        shmq_reader_discard_tail(proc->shmq_reader());
         return;
       } else {
         /* The child has already appeared. Take a note of the fd -> child mapping. */
@@ -679,7 +682,8 @@ void proc_ic_msg(const void *fbb_buf,
         assert(child);
         if (child->state() != firebuild::FB_PROC_FINALIZED) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
-          child->set_on_finalized_ack(ack_num, fd_conn);
+          child->set_on_finalized_ack(proc);
+          shmq_reader_discard_tail(proc->shmq_reader());
           return;
         }
         /* Else we can ACK straight away. */
@@ -717,7 +721,7 @@ void proc_ic_msg(const void *fbb_buf,
             sscanf(file_action.c_str(), "o %d %d %*d %n", &fd, &flags, &filename_offset);
             const char *path = file_action.c_str() + filename_offset;
             fork_child->handle_force_close(fd);
-            fork_child->handle_open(AT_FDCWD, path, flags, fd, 0);
+            fork_child->handle_open(AT_FDCWD, path, flags, fd, false);
             break;
           }
           case 'c': {
@@ -806,7 +810,8 @@ void proc_ic_msg(const void *fbb_buf,
         /* Ack it straight away. */
       } else if (child->state() != firebuild::FB_PROC_FINALIZED) {
         /* We haven't seen the process quitting yet. Defer sending the ACK. */
-        child->set_on_finalized_ack(ack_num, fd_conn);
+        child->set_on_finalized_ack(proc);
+        shmq_reader_discard_tail(proc->shmq_reader());
         return;
       }
       /* Else we can ACK straight away. */
@@ -837,15 +842,15 @@ void proc_ic_msg(const void *fbb_buf,
       break;
     }
     case FBB_TAG_open: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_open *>(fbb_buf),
-                                         fd_conn, ack_num);
+      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_open *>(fbb_buf));
       /* ACK is sent by the msg handler if needed. */
+      shmq_reader_discard_tail(proc->shmq_reader());
       return;
     }
     case FBB_TAG_dlopen: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf),
-                                         fd_conn, ack_num);
+      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf));
       /* ACK is sent by the msg handler if needed. */
+      shmq_reader_discard_tail(proc->shmq_reader());
       return;
     }
     case FBB_TAG_close: {
@@ -946,8 +951,9 @@ void proc_ic_msg(const void *fbb_buf,
     }
   }
 
+  shmq_reader_discard_tail(proc->shmq_reader());
   if (ack_num != 0) {
-    firebuild::ack_msg(fd_conn, ack_num);
+//    firebuild::ack_msg(fd_conn, ack_num);
   }
 }
 

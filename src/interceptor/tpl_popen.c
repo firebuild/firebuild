@@ -21,7 +21,7 @@
     fbb_popen_init(&ic_msg);
     fbb_popen_set_cmd(&ic_msg, cmd);
     fbb_popen_set_type_flags(&ic_msg, type_flags);
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
@@ -74,7 +74,7 @@
          mode blocks until the other end is opened, too (see fifo(7)) */
       int tmp_fifo_fd = ic_orig_open(fd_fifo, type_flags | O_NONBLOCK);
       assert(tmp_fifo_fd != -1);
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
       ic_orig_fcntl(tmp_fifo_fd, F_SETFL, ic_orig_fcntl(ret_fileno, F_GETFL));
 #ifndef NDEBUG
       int dup2_ret =
@@ -91,7 +91,7 @@
       FBB_Builder_popen_failed ic_msg;
       fbb_popen_failed_init(&ic_msg);
       fbb_popen_failed_set_error_no(&ic_msg, saved_errno);
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
     }
     pthread_mutex_unlock(&ic_system_popen_lock);
   }

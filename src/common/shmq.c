@@ -14,15 +14,22 @@
  * Primitives for the writer:
  * - allocate room for the next message of a given size (which then can be constructed in place),
  * - grow the area for the message under construction,
- * - add this message to the queue's tail.
+ * - add this message to the queue's tail, with or without requesting an ACK,
+ * - wait for the ACK.
  * (Starting a new message and adding it to the queue have to be made in alternating order).
  *
  * Primitives for the reader:
  * - check if there's a message in the queue, and access the one at the queue's head if any,
- * - pop (discard) the message from the queue's head.
+ * - optinally send an early ACK,
+ * - pop (discard) the message from the queue's head and automatically ACK it if necessary.
  *
- * Notifying the reader that there's new message available has to happen via means outside of shmq,
- * e.g. using a semaphore.
+ * ACKing is done using a semaphore in the "backward" direction, i.e. from the reader to the writer.
+ * This happens completely hidden inside shmq, the caller doesn't have to care at all.
+ *
+ * Notifying the reader that there's new message available has to happen outside of shmq. This is
+ * because probably you want to use a semaphore for this purpose, and the reading process probably
+ * has multiple shmq readers, which then have to share the same notification semaphore since you
+ * cannot wait for multiple semaphores in parallel.
  */
 
 /*
@@ -90,6 +97,7 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -124,9 +132,11 @@ void shmq_reader_init(shmq_reader_t *reader, const char *name) {
   /* As opposed to shmq_writer, shmq_reader can now close the file descriptor, it won't need it. */
   close(fd);
 
-//  shm_unlink(name);
+  shm_unlink(name);
 
   reader->tail_message_peeked = false;
+  reader->ack_needed = false;
+  reader->ack_sent = false;
 }
 
 /**
@@ -139,16 +149,15 @@ void shmq_reader_fini(shmq_reader_t *reader) {
   reader->buf = NULL;
 }
 
-
 /**
  * Get the next message, i.e. the message at the tail of the queue. Leaves the message in the queue.
  *
  * Returns the message's length, and stores the pointer to the beginning of the message blob.
- * This memory region containing the blob is valid until discard_tail() is called.
+ * This memory region containing the blob is valid until shmq_reader_discard_tail() is called.
  *
  * Returns -1 if the queue is empty.
  */
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr, int32_t *ack_id) {
+int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr) {
   /* The location of p[2] according to the example. */
   int32_t tail_location = ((shmq_global_header_t *)(reader->buf))->tail_location;
   assert(tail_location % 8 == 0);
@@ -170,8 +179,10 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_p
     reader->buf = mremap(reader->buf, old_size, reader->size, MREMAP_MAYMOVE);
   }
 
-  /* Read the message length. */
+  /* Read the message length and other metadata. */
   int32_t len = ((shmq_message_header_t *)(reader->buf + header_location))->len;
+  reader->ack_needed = ((shmq_message_header_t *)(reader->buf + header_location))->ack_needed;
+  reader->ack_sent = false;
 
   /* Maybe the message body (mb[3] in the example) or the following pointer (p[3]) isn't mapped yet. */
   ensure_buffer_size = header_location + shmq_message_overall_size(len);
@@ -183,21 +194,43 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_p
 
   /* Store the raw pointer to the message blob, return the length. */
   *message_body_ptr = reader->buf + header_location + shmq_message_header_size();
-  *ack_id = ((shmq_message_header_t *)(reader->buf + header_location))->ack_id;
   return len;
 }
 
+/**
+ * If the message requires to be ACKed and hasn't been so, send this ACK now. Otherwise do nothing.
+ *
+ * Must have been preceded by shmq_reader_peek_tail() call for this message. You wouldn't want to
+ * ACK a message you haven't seen, would you?
+ *
+ * It's not necessary to call this method, shmq_reader_discard_tail() will automatically ACK the
+ * message if required.
+ *
+ * This is an optional early ACK, meaning that the message isn't dropped from the queue yet, it
+ * still remains valid in the memory for further use, until shmq_reader_discard_tail() is called.
+ * However, sending it early might allow the message's sender to continue doing its job sooner.
+ */
+void shmq_reader_maybe_send_early_ack(shmq_reader_t *reader) {
+  assert(reader->tail_message_peeked);
+
+  if (reader->ack_needed && !reader->ack_sent) {
+    sem_post(&((shmq_global_header_t *)(reader->buf))->ack_sem);
+    reader->ack_sent = true;
+  }
+}
 
 /**
  * Discard the message at the queue's tail.
  *
- * Must have been preceded by a peek_tail() call for this message, otherwise the required memory
- * area might not be mapped yet, and we don't want to bother with mremap()'ing here. You wouldn't
- * want to discard a message you haven't seen, would you?
+ * Must have been preceded by shmq_reader_peek_tail() call for this message (otherwise the required
+ * memory area might not be mapped yet, and we don't want to bother with mremap()'ing here). You
+ * wouldn't want to discard a message you haven't seen, would you?
+ *
+ * If the message requires to be ACKed, and it hasn't already been ACKed via
+ * shmq_reader_maybe_send_early_ack(), then this method automatically sends the ACK now.
  */
 void shmq_reader_discard_tail(shmq_reader_t *reader) {
   assert(reader->tail_message_peeked);
-  reader->tail_message_peeked = false;
 
   /* The location of p[2] according to the example. */
   int32_t tail_location = ((shmq_global_header_t *)(reader->buf))->tail_location;
@@ -215,6 +248,13 @@ void shmq_reader_discard_tail(shmq_reader_t *reader) {
    * This value will be seen by the writer so that it knows it can reuse this memory segment of
    * p[2], mh[3] and mb[3]. */
   ((shmq_global_header_t *)(reader->buf))->tail_location = message_location + shmq_message_header_size() + roundup8(len);
+
+  /* Finally, send the ACK now, if needed. (This is not an "early" ACK here, the method name was
+   * chosen for external callers.) Do this as the last step, so that if the caller is super fast
+   * placing the next message, it'll more likely have room for that without reallocing. */
+  shmq_reader_maybe_send_early_ack(reader);
+
+  reader->tail_message_peeked = false;
 }
 
 
@@ -305,6 +345,7 @@ void shmq_writer_init(shmq_writer_t *writer, const char *name) {
 
   ((shmq_next_message_pointer_t *)(writer->buf + shmq_global_header_size()))->next_message_location = -1;
   ((shmq_global_header_t *)(writer->buf))->tail_location = shmq_global_header_size();
+  sem_init(&((shmq_global_header_t *)(writer->buf))->ack_sem, 1, 0);
 
   writer->state = 1;
   writer->chunk[0].tail = shmq_global_header_size();
@@ -326,6 +367,8 @@ void shmq_writer_fini(shmq_writer_t *writer) {
   /* As opposed to shmq_reader, shmq_writer needs to keep the fd opened to grow the underlying shm
    * file (ftruncate()) when needed. Close it now that we're done. */
   close(writer->fd);
+
+  sem_destroy(&((shmq_global_header_t *)(writer->buf))->ack_sem);
 
   // FIXME maybe shm_unlink() too, just in case the reader didn't appear?
 }
@@ -388,16 +431,12 @@ static void shmq_writer_find_place_for_message(shmq_writer_t *writer, int32_t le
 /**
  * Find a place for a message of len bytes, which then can be constructed here in place by the caller.
  */
-char *shmq_writer_new_message(shmq_writer_t *writer, int32_t ack_id, int32_t len) {
+char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len) {
   /* Assert that new_message() and add_message() are called alternatingly. */
   assert(writer->next_state == -1);
 
   shmq_writer_advance_tail(writer);
   shmq_writer_find_place_for_message(writer, len);
-
-  /* Don't store the length here yet, it's more convenient to keep it in
-   * shmq_writer's next_message_len, and might change. Store the ACK ID though. */
-  ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->ack_id = ack_id;
 
   /* Return the location of the message body, to be filled in by the caller. */
   return writer->buf + writer->next_message_location + shmq_message_header_size();
@@ -440,12 +479,13 @@ char *shmq_writer_resize_message(shmq_writer_t *writer, int32_t len) {
 /**
  * Add the constructed message to the queue.
  */
-void shmq_writer_add_message(shmq_writer_t *writer) {
+void shmq_writer_send_message(shmq_writer_t *writer, bool ack_needed) {
   /* Assert that new_message() and add_message() are called alternatingly. */
   assert(writer->next_state != -1);
 
   /* Write the new message's header and the pointer to the next (future) message. */
   ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->len = writer->next_message_len;
+  ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->ack_needed = ack_needed;
   ((shmq_next_message_pointer_t *)(writer->buf + writer->next_message_location + shmq_message_header_size() + roundup8(writer->next_message_len)))->next_message_location = -1;
 
   /* Link it up from the previous message, so that the reader can see it. */
@@ -465,6 +505,10 @@ void shmq_writer_add_message(shmq_writer_t *writer) {
 
   writer->next_state = -1;
   writer->next_message_location = writer->next_message_len = -1;
+}
+
+void shmq_writer_wait_for_ack(shmq_writer_t *writer) {
+  sem_wait(&((shmq_global_header_t *)(writer->buf))->ack_sem);
 }
 
 #ifdef __cplusplus
