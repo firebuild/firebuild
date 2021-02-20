@@ -843,14 +843,16 @@ void proc_ic_msg(const void *fbb_buf,
     case FBB_TAG_open: {
       ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_open *>(fbb_buf));
       /* ACK is sent by the msg handler if needed. */
-      shmq_reader_discard_tail(proc->shmq_reader());
-      return;
+//      shmq_reader_discard_tail(proc->shmq_reader());
+//      return;
+      break;
     }
     case FBB_TAG_dlopen: {
       ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf));
       /* ACK is sent by the msg handler if needed. */
-      shmq_reader_discard_tail(proc->shmq_reader());
-      return;
+//      shmq_reader_discard_tail(proc->shmq_reader());
+//      return;
+      break;
     }
     case FBB_TAG_close: {
       ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_close *>(fbb_buf));
