@@ -3,6 +3,7 @@
 
 
 #include <event2/event.h>
+#include <event2/thread.h>
 #include <signal.h>
 #include <flatbuffers/flatbuffers.h>
 #include <getopt.h>
@@ -1518,9 +1519,16 @@ int main(const int argc, char *argv[]) {
   fb_sema_string = strdup((std::string("/firebuild.FIXME.") + std::to_string(getpid())).c_str());
   auto env_exec = get_sanitized_env();
 
-  ev_base = event_base_new();
+  if (evthread_use_pthreads() != 0) {
+    firebuild::fb_error("libevent doesn't support pthreads");
+    exit(EXIT_FAILURE);
+  }
+  evthread_enable_lock_debugging();
+  ev_base = event_base_new();;
   /* Use two priority queues, the lowe priority queue (1) is for timers. */
   event_base_priority_init(ev_base, 2);
+
+fprintf(stderr, "big mutex = %p\n", &big_mutex);
 
   /* Open listener socket before forking child to always let the child connect */
   listener = create_listener();

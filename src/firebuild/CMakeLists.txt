@@ -8,7 +8,7 @@ find_package(FlatBuffers REQUIRED)
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
-pkg_check_modules(LIBEVENT REQUIRED libevent)
+pkg_check_modules(LIBEVENT REQUIRED libevent libevent_pthreads)
 pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 
 add_custom_command(
