@@ -618,7 +618,6 @@ void proc_ic_msg(const void *fbb_buf,
          * sending the ACK. */
         proc->system_child()->set_on_finalized_ack(proc);
         proc->set_system_child(NULL);
-        shmq_reader_discard_tail(proc->shmq_reader());
         return;
       }
       /* Can be ACK'd straight away. */
@@ -652,7 +651,6 @@ void proc_ic_msg(const void *fbb_buf,
         proc_tree->QueueParentAck(proc->pid(), proc);
         proc->set_pending_popen_fd(fd);
         proc->set_pending_popen_fifo(fifo ? strdup(fifo) : nullptr);
-        shmq_reader_discard_tail(proc->shmq_reader());
         return;
       } else {
         /* The child has already appeared. Take a note of the fd -> child mapping. */
@@ -686,7 +684,6 @@ void proc_ic_msg(const void *fbb_buf,
         if (child->state() != firebuild::FB_PROC_FINALIZED) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
           child->set_on_finalized_ack(proc);
-          shmq_reader_discard_tail(proc->shmq_reader());
           return;
         }
         /* Else we can ACK straight away. */
@@ -814,7 +811,6 @@ void proc_ic_msg(const void *fbb_buf,
       } else if (child->state() != firebuild::FB_PROC_FINALIZED) {
         /* We haven't seen the process quitting yet. Defer sending the ACK. */
         child->set_on_finalized_ack(proc);
-        shmq_reader_discard_tail(proc->shmq_reader());
         return;
       }
       /* Else we can ACK straight away. */
