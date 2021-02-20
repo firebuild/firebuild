@@ -96,6 +96,7 @@
 #include "common/shmq.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <semaphore.h>
 #include <stdbool.h>
@@ -137,6 +138,7 @@ void shmq_reader_init(shmq_reader_t *reader, const char *name) {
   reader->tail_message_peeked = false;
   reader->ack_needed = false;
   reader->ack_sent = false;
+  reader->seq = 0;
 }
 
 /**
@@ -184,6 +186,10 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_p
   reader->ack_needed = ((shmq_message_header_t *)(reader->buf + header_location))->ack_needed;
   reader->ack_sent = false;
 
+  int32_t seq = ((shmq_message_header_t *)(reader->buf + header_location))->seq;
+  assert(seq == reader->seq + 1);
+  reader->seq = seq;
+
   /* Maybe the message body (mb[3] in the example) or the following pointer (p[3]) isn't mapped yet. */
   ensure_buffer_size = header_location + shmq_message_overall_size(len);
     if (reader->size < ensure_buffer_size) {
@@ -214,6 +220,8 @@ void shmq_reader_maybe_send_early_ack(shmq_reader_t *reader) {
   assert(reader->tail_message_peeked);
 
   if (reader->ack_needed && !reader->ack_sent) {
+    ((shmq_global_header_t *)(reader->buf))->ack_seq = reader->seq;
+    ((shmq_global_header_t *)(reader->buf))->ack_count++;
     sem_post(&((shmq_global_header_t *)(reader->buf))->ack_sem);
     reader->ack_sent = true;
   }
@@ -346,6 +354,8 @@ void shmq_writer_init(shmq_writer_t *writer, const char *name) {
   ((shmq_next_message_pointer_t *)(writer->buf + shmq_global_header_size()))->next_message_location = -1;
   ((shmq_global_header_t *)(writer->buf))->tail_location = shmq_global_header_size();
   sem_init(&((shmq_global_header_t *)(writer->buf))->ack_sem, 1, 0);
+  ((shmq_global_header_t *)(writer->buf))->ack_count = 0;
+  ((shmq_global_header_t *)(writer->buf))->ack_seq = 0;
 
   writer->state = 1;
   writer->chunk[0].tail = shmq_global_header_size();
@@ -353,6 +363,8 @@ void shmq_writer_init(shmq_writer_t *writer, const char *name) {
 
   writer->next_state = -1;
   writer->next_message_location = writer->next_message_len = -1;
+  writer->seq = 0;
+  writer->ack_recv_count = 0;
 }
 
 /**
@@ -438,6 +450,8 @@ char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len) {
   shmq_writer_advance_tail(writer);
   shmq_writer_find_place_for_message(writer, len);
 
+  writer->seq++;
+
   /* Return the location of the message body, to be filled in by the caller. */
   return writer->buf + writer->next_message_location + shmq_message_header_size();
 }
@@ -486,6 +500,7 @@ void shmq_writer_send_message(shmq_writer_t *writer, bool ack_needed) {
   /* Write the new message's header and the pointer to the next (future) message. */
   ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->len = writer->next_message_len;
   ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->ack_needed = ack_needed;
+  ((shmq_message_header_t *)(writer->buf + writer->next_message_location))->seq = writer->seq;
   ((shmq_next_message_pointer_t *)(writer->buf + writer->next_message_location + shmq_message_header_size() + roundup8(writer->next_message_len)))->next_message_location = -1;
 
   /* Link it up from the previous message, so that the reader can see it. */
@@ -507,8 +522,18 @@ void shmq_writer_send_message(shmq_writer_t *writer, bool ack_needed) {
   writer->next_message_location = writer->next_message_len = -1;
 }
 
+/**
+ * Must be called exactly once for each message that was sent with ack_needed=true, before starting to construct the next message.
+ */
 void shmq_writer_wait_for_ack(shmq_writer_t *writer) {
-  sem_wait(&((shmq_global_header_t *)(writer->buf))->ack_sem);
+  int ret;
+  do {
+    ret = sem_wait(&((shmq_global_header_t *)(writer->buf))->ack_sem);
+  } while (ret == -1 && errno == EINTR);
+
+  writer->ack_recv_count++;
+  assert(((shmq_global_header_t *)(writer->buf))->ack_seq == writer->seq);
+  assert(((shmq_global_header_t *)(writer->buf))->ack_count == writer->ack_recv_count);
 }
 
 #ifdef __cplusplus

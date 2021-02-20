@@ -26,14 +26,22 @@ typedef struct {
   /* The offset of the oldest pointer, e.g. the address of p[2] in shmq.c's example. */
   /* Updated by the reader */
   volatile int32_t tail_location;
+  /* Number of messages ACKed so far, i.e. number of sem_post()s, for debugging. */
+  int32_t ack_count;
+  /* Seq number of the last ACKed message, for debugging. */
+  int32_t ack_seq;
   /* Padding, so that if we continue with fields that are updated by the writer then an
    * 8-byte boundary separates it from the field updated by the reader. */
   int32_t padding;
 } shmq_global_header_t;
 
 typedef struct {
+  /* Body length, in bytes, without padding. */
   int32_t len;
+  /* Whether the message is to be ACKed. */
   bool ack_needed;
+  /* Sequential number, starting from 1, for debugging. */
+  int32_t seq;
 } shmq_message_header_t;
 
 typedef struct {
@@ -57,6 +65,7 @@ typedef struct {
   bool tail_message_peeked;
   bool ack_needed;
   bool ack_sent;
+  int32_t seq;
 } shmq_reader_t;
 
 
@@ -81,6 +90,8 @@ typedef struct {
   } chunk[3];
   int32_t next_message_location;
   int32_t next_message_len;
+  int32_t seq;
+  int32_t ack_recv_count;
 } shmq_writer_t;
 
 
