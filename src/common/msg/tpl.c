@@ -157,10 +157,12 @@ static void fbb_{{ msg }}_serialize(const void *msgbldr_void, char *dst) {
 
 ###   for (req, type, var) in fields
 ###     if type == STRING
-  memcpy(dst + off, msgbldr->{{ var }}, msgbldr->wire.{{ var }}_size);
-  off += msgbldr->wire.{{ var }}_size;
+  if (msgbldr->wire.{{ var }}_size > 0) {
+    memcpy(dst + off, msgbldr->{{ var }}, msgbldr->wire.{{ var }}_size);
+    off += msgbldr->wire.{{ var }}_size;
+  }
 ###     elif type == STRINGARRAY
-  {
+  if (msgbldr->wire.{{ var }}_size > 0) {
     char * const *p = msgbldr->{{ var }};
     while (*p) {
       int size = strlen(*p) + 1;
