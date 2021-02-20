@@ -930,6 +930,7 @@ void Process::finish() {
     reset_file_fd_pipe_refs();
   }
 
+//  proc_tree->remove_running_process(this);
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();
 }

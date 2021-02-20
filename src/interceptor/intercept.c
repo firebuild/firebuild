@@ -292,6 +292,8 @@ void fb_fbb_send_msg2(void *ic_msg, int fd) {
   fbb_shmq_init(&ic_msg_empty);
   fbb_send(fd, &ic_msg_empty, 0);
 
+  sem_post(fb_sv_sema);
+
   thread_signal_danger_zone_leave();
 }
 
@@ -323,6 +325,8 @@ void fb_fbb_send_msg_and_check_ack2(void *ic_msg, int fd) {
   FBB_Builder_shmq ic_msg_empty;
   fbb_shmq_init(&ic_msg_empty);
   fbb_send(fd, &ic_msg_empty, 0);
+
+  sem_post(fb_sv_sema);
 
 //  uint32_t ack_num_resp = 0;
 //  fb_recv_msg(&ack_num_resp, NULL, fd);

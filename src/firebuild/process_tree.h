@@ -165,6 +165,12 @@ class ProcessTree {
     inherited_fd_pipes_.clear();
   }
 
+  void remove_running_process(Process *proc) {
+    assert_cmp(running_processes_.count(proc), >, 0);
+    running_processes_.erase(proc);
+  }
+
+
  private:
   ExecedProcess *root_ = NULL;
   /** This is somewhat analogous to Process::fds_, although cannot change over time.
@@ -186,6 +192,9 @@ class ProcessTree {
    *  we get to this point in the parent. The key is the parent's pid. */
   std::unordered_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
   std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
+  /** The set of processes in FB_PROC_RUNNING state. These are the ones whose shmq area
+   *  we look at for new messages. */
+  std::unordered_set<Process *> running_processes_;
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds

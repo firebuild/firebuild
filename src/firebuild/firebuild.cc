@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <flatbuffers/flatbuffers.h>
 #include <getopt.h>
+#include <pthread.h>
 #include <semaphore.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
@@ -1295,6 +1296,18 @@ static bool running_under_valgrind() {
   }
 }
 
+void *thread2_code(void *arg) {
+  (void)arg;  /* unused */
+
+  while (true) {
+    /* Wait for notification about a new message. */
+    sem_wait(sema);
+    /* There's no meta data for semaphores, we don't know which intercepted process it came from.
+     * Scan all the running processes, and handle whichever messages we see. */
+
+    fprintf(stderr, "*sem*\n"); // FIXME
+  }
+}
 
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
@@ -1487,24 +1500,48 @@ int main(const int argc, char *argv[]) {
     execvpe(argv[optind], argv_exec, env_exec);
     perror("Executing build command failed");
     exit(EXIT_FAILURE);
-  } else {
-    // supervisor process
-
-    bump_limits();
-    /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
-    signal(SIGPIPE, SIG_IGN);
-
-    /* Main loop for processing interceptor messages */
-    event_base_dispatch(ev_base);
-
-    /* Clean up remaining events and the event base. */
-    evutil_closesocket(listener);
-    event_free(listener_event);
-    event_free(sigchild_event);
-    /* Finish all top pipes before event_base_free() frees all their events. */
-    proc_tree->FinishInheritedFdPipes();
-    event_base_free(ev_base);
   }
+
+  /* Supervisor process */
+
+  bump_limits();
+  /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
+  signal(SIGPIPE, SIG_IGN);
+
+  /*
+   * We use two different communication channels for each process that we track: a socket (file
+   * descriptor), as well shmq where the message itself is placed in shared memory, and semaphores
+   * control the flow.
+   *
+   * The socket is needed for two reasons. One is to negotiate where the shm will be (it would be
+   * extremely complicated, if possible at all, for the two parties to know the shm name without
+   * coordinating it first, and to synchronize the creating and the opening of this shm). The other
+   * is to know when the process quits, perhaps unexpectedly (we see EOF on the socket, something
+   * which we don't get notified of over shm).
+   *
+   * Shmq is used for the rest for performance reasons, it is noticeably faster than the socket.
+   *
+   * Unfortunately there's no API to wait for either a socket event, or a semaphore event. We
+   * overcome this by having two threads, one listening for each kind. They lock a common mutex to
+   * make sure they run mutually exclusively. This restriction might get somewhat loosened one day.
+   */
+  pthread_t thread2;
+  thread2 = pthread_create(&thread2, NULL, thread2_code, NULL);
+
+  /* Main loop for processing interceptor messages */
+  event_base_dispatch(ev_base);
+
+  /* If the main event loop has quit, we don't need to process shmqs anymore either. */
+  pthread_cancel(thread2);
+  pthread_join(thread2, NULL);
+
+  /* Clean up remaining events and the event base. */
+  evutil_closesocket(listener);
+  event_free(listener_event);
+  event_free(sigchild_event);
+  /* Finish all top pipes before event_base_free() frees all their events. */
+  proc_tree->FinishInheritedFdPipes();
+  event_base_free(ev_base);
 
   if (!proc_tree->root()) {
     fprintf(stderr, "ERROR: Could not collect any information about the build "
