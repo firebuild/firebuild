@@ -129,6 +129,8 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
 
+  pthread_mutex_lock(&big_mutex);
+
   (void) fd; /* unused */
   (void) what; /* FIXME! unused */
   switch (pipe->send_buf()) {
@@ -154,6 +156,8 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
     default:
       assert(0 && "unexpected result from send_buf()");
   }
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 void Pipe::close_one_fd1(int fd) {
@@ -258,6 +262,8 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
 
+  pthread_mutex_lock(&big_mutex);
+
   (void) what; /* FIXME! unused */
   auto result = pipe->forward(fd, false, true);
   switch (result) {
@@ -281,6 +287,8 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
     default:
       assert(0 && "unexpected result from forward()");
   }
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 /**

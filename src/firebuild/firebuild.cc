@@ -61,6 +61,7 @@ libconfig::Config * cfg;
 bool generate_report = false;
 
 struct event_base * ev_base = NULL;
+pthread_mutex_t big_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 namespace {
 
@@ -1163,6 +1164,8 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
   TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%s, ctx=%s", D_FD(fd_conn), D(conn_ctx));
 
+  pthread_mutex_lock(&big_mutex);
+
   (void) what; /* unused */
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
@@ -1173,6 +1176,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
   if (read_ret < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       /* Try again later. */
+      pthread_mutex_unlock(&big_mutex);
       return;
     }
   }
@@ -1197,18 +1201,21 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     }
 
     delete conn_ctx;
+    pthread_mutex_unlock(&big_mutex);
     return;
   }
 
   do {
     if (buf.length() < sizeof(*header)) {
       /* Header is still incomplete, try again later. */
+      pthread_mutex_unlock(&big_mutex);
       return;
     } else {
       header = reinterpret_cast<const firebuild::msg_header*>(buf.data());
       full_length = sizeof(*header) + header->msg_size;
       if (buf.length() < full_length) {
         /* Have partial message, more data is needed. */
+        pthread_mutex_unlock(&big_mutex);
         return;
       }
     }
@@ -1234,6 +1241,8 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     }
     buf.discard(full_length);
   } while (buf.length() > 0);
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 
@@ -1256,6 +1265,8 @@ static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
 /** Stop listener on SIGCHLD */
 static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   TRACK(firebuild::FB_DEBUG_PROC, "");
+
+  pthread_mutex_lock(&big_mutex);
 
   auto listener_event = reinterpret_cast<struct event *>(arg);
   (void)fd;
@@ -1280,11 +1291,15 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
     event_del(sigchild_event);
     event_del(listener_event);
   }
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 
 static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
   TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
+
+  pthread_mutex_lock(&big_mutex);
 
   struct sockaddr_storage remote;
   socklen_t slen = sizeof(remote);
@@ -1302,6 +1317,8 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
     conn_ctx->set_ev(ev);
     event_add(ev, NULL);
   }
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 static bool running_under_valgrind() {
@@ -1319,6 +1336,9 @@ void *thread2_code(void *arg) {
   while (true) {
     /* Wait for notification about a new message. (This is a thread cancellation point.) */
     sem_wait(sema);
+
+    /* Need exclusivity with the other thread reading from the sockets. */
+    pthread_mutex_lock(&big_mutex);
 
     /* There's no meta data for semaphores, we don't know which intercepted process it came from.
      * Scan all the running processes, and handle whichever messages we see. */
@@ -1338,6 +1358,8 @@ void *thread2_code(void *arg) {
         proc_ic_msg(fbb_msg, -2, -2, proc);
       }
     }
+
+    pthread_mutex_unlock(&big_mutex);
   }
 }
 
