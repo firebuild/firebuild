@@ -281,6 +281,8 @@ void fb_fbb_send_msg(void *ic_msg, int fd) {
 /** Send message, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
 void fb_fbb_send_msg2(void *ic_msg, int fd) {
+  (void)fd;  // FIXME
+
   thread_signal_danger_zone_enter();
 
   size_t size = fbb_get_size(ic_msg);
@@ -288,9 +290,9 @@ void fb_fbb_send_msg2(void *ic_msg, int fd) {
   fbb_serialize(ic_msg, where);
   shmq_writer_send_message(&fb_shmq, false);
 
-  FBB_Builder_shmq ic_msg_empty;
-  fbb_shmq_init(&ic_msg_empty);
-  fbb_send(fd, &ic_msg_empty, 0);
+//  FBB_Builder_shmq ic_msg_empty;
+//  fbb_shmq_init(&ic_msg_empty);
+//  fbb_send(fd, &ic_msg_empty, 0);
 
   sem_post(fb_sv_sema);
 
@@ -315,6 +317,8 @@ void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd) {
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
 void fb_fbb_send_msg_and_check_ack2(void *ic_msg, int fd) {
+  (void)fd;  // FIXME
+
   thread_signal_danger_zone_enter();
 
   size_t size = fbb_get_size(ic_msg);
@@ -322,9 +326,9 @@ void fb_fbb_send_msg_and_check_ack2(void *ic_msg, int fd) {
   fbb_serialize(ic_msg, where);
   shmq_writer_send_message(&fb_shmq, true);
 
-  FBB_Builder_shmq ic_msg_empty;
-  fbb_shmq_init(&ic_msg_empty);
-  fbb_send(fd, &ic_msg_empty, 0);
+//  FBB_Builder_shmq ic_msg_empty;
+//  fbb_shmq_init(&ic_msg_empty);
+//  fbb_send(fd, &ic_msg_empty, 0);
 
   sem_post(fb_sv_sema);
 

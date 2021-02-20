@@ -169,7 +169,7 @@ class ProcessTree {
     assert_cmp(running_processes_.count(proc), >, 0);
     running_processes_.erase(proc);
   }
-
+  std::unordered_set<Process *> running_processes() {return running_processes_;}
 
  private:
   ExecedProcess *root_ = NULL;

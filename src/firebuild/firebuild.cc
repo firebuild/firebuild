@@ -1300,12 +1300,20 @@ void *thread2_code(void *arg) {
   (void)arg;  /* unused */
 
   while (true) {
-    /* Wait for notification about a new message. */
+    /* Wait for notification about a new message. (This is a thread cancellation point.) */
     sem_wait(sema);
+
     /* There's no meta data for semaphores, we don't know which intercepted process it came from.
      * Scan all the running processes, and handle whichever messages we see. */
-
-    fprintf(stderr, "*sem*\n"); // FIXME
+    for (firebuild::Process *proc : proc_tree->running_processes()) {
+      if (proc->state() == firebuild::FB_PROC_RUNNING) {
+        const char *message;
+        auto len = shmq_reader_peek_tail(proc->shmq_reader(), &message);
+        if (len >= 0) {
+          proc_ic_msg(message, -2, -2, proc);
+        }
+      }
+    }
   }
 }
 
