@@ -126,10 +126,10 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
 }
 
 void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
+  pthread_mutex_lock(&big_mutex);
+
   auto pipe = reinterpret_cast<Pipe*>(arg);
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
-
-  pthread_mutex_lock(&big_mutex);
 
   (void) fd; /* unused */
   (void) what; /* FIXME! unused */
@@ -259,10 +259,10 @@ void Pipe::finish() {
 }
 
 void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
+  pthread_mutex_lock(&big_mutex);
+
   auto pipe = reinterpret_cast<Pipe*>(arg);
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
-
-  pthread_mutex_lock(&big_mutex);
 
   (void) what; /* FIXME! unused */
   auto result = pipe->forward(fd, false, true);

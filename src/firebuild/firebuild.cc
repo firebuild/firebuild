@@ -1161,10 +1161,10 @@ static evutil_socket_t create_listener() {
 }
 
 static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
+  pthread_mutex_lock(&big_mutex);
+
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
   TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%s, ctx=%s", D_FD(fd_conn), D(conn_ctx));
-
-  pthread_mutex_lock(&big_mutex);
 
   (void) what; /* unused */
   auto proc = conn_ctx->proc;
@@ -1264,9 +1264,9 @@ static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
 
 /** Stop listener on SIGCHLD */
 static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
-  TRACK(firebuild::FB_DEBUG_PROC, "");
-
   pthread_mutex_lock(&big_mutex);
+
+  TRACK(firebuild::FB_DEBUG_PROC, "");
 
   auto listener_event = reinterpret_cast<struct event *>(arg);
   (void)fd;
@@ -1297,9 +1297,9 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
 
 
 static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
-  TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
-
   pthread_mutex_lock(&big_mutex);
+
+  TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
 
   struct sockaddr_storage remote;
   socklen_t slen = sizeof(remote);
@@ -1330,6 +1330,35 @@ static bool running_under_valgrind() {
   }
 }
 
+/* Helper of thread2_code(), primarily factored out to have nice TRACK() debugging. */
+void handle_shmq_messages() {
+  /* Need exclusivity with the other thread reading from the sockets. */
+  pthread_mutex_lock(&big_mutex);
+
+  TRACK(firebuild::FB_DEBUG_COMM, "");
+
+  /* There's no meta data for semaphores, we don't know which intercepted process it came from.
+   * Scan all the running processes, and handle whichever messages we see. */
+  for (firebuild::Process *proc : proc_tree->running_processes()) {
+    if (proc->state() == firebuild::FB_PROC_RUNNING &&
+        proc->shmq_reader() &&
+        shmq_reader_has_message(proc->shmq_reader())) {
+      const char *fbb_msg;
+      shmq_reader_get_message(proc->shmq_reader(), &fbb_msg);
+
+      if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+        FB_DEBUG(firebuild::FB_DEBUG_COMM, "shmq for " + d(proc));
+        fbb_debug(fbb_msg);
+        fflush(stderr);
+      }
+
+      proc_ic_msg(fbb_msg, -2, -2, proc);
+    }
+  }
+
+  pthread_mutex_unlock(&big_mutex);
+}
+
 void *thread2_code(void *arg) {
   (void)arg;  /* unused */
 
@@ -1337,29 +1366,8 @@ void *thread2_code(void *arg) {
     /* Wait for notification about a new message. (This is a thread cancellation point.) */
     sem_wait(sema);
 
-    /* Need exclusivity with the other thread reading from the sockets. */
-    pthread_mutex_lock(&big_mutex);
-
-    /* There's no meta data for semaphores, we don't know which intercepted process it came from.
-     * Scan all the running processes, and handle whichever messages we see. */
-    for (firebuild::Process *proc : proc_tree->running_processes()) {
-      if (proc->state() == firebuild::FB_PROC_RUNNING &&
-          proc->shmq_reader() &&
-          shmq_reader_has_message(proc->shmq_reader())) {
-        const char *fbb_msg;
-        shmq_reader_get_message(proc->shmq_reader(), &fbb_msg);
-
-        if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-          FB_DEBUG(firebuild::FB_DEBUG_COMM, "shmq for " + d(proc));
-          fbb_debug(fbb_msg);
-          fflush(stderr);
-        }
-
-        proc_ic_msg(fbb_msg, -2, -2, proc);
-      }
-    }
-
-    pthread_mutex_unlock(&big_mutex);
+    /* Process some messages. */
+    handle_shmq_messages();
   }
 }
 
