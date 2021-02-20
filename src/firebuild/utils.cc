@@ -68,7 +68,7 @@ void ack_msg(Process *proc) {
 
 //  FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + d(ack_num));
 //  fbb_send(conn, NULL, ack_num);
-  shmq_reader_discard_tail(proc->shmq_reader());
+  shmq_reader_message_done(proc->shmq_reader());
 //  FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 

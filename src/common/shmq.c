@@ -19,7 +19,8 @@
  * (Starting a new message and adding it to the queue have to be made in alternating order).
  *
  * Primitives for the reader:
- * - check if there's a message in the queue, and access the one at the queue's head if any,
+ * - check if there's a message in the queue,
+ * - get the next message,
  * - optinally send an early ACK,
  * - pop (discard) the message from the queue's head and automatically ACK it if necessary.
  *
@@ -135,7 +136,7 @@ void shmq_reader_init(shmq_reader_t *reader, const char *name) {
 
   shm_unlink(name);
 
-  reader->tail_message_peeked = false;
+  reader->tail_message_read = false;
   reader->ack_needed = false;
   reader->ack_sent = false;
   reader->seq = 0;
@@ -152,26 +153,46 @@ void shmq_reader_fini(shmq_reader_t *reader) {
 }
 
 /**
- * Get the next message, i.e. the message at the tail of the queue. Leaves the message in the queue.
+ * Check if there's a message in the queue.
  *
- * Returns the message's length, and stores the pointer to the beginning of the message blob.
- * This memory region containing the blob is valid until shmq_reader_discard_tail() is called.
- *
- * Returns -1 if the queue is empty.
+ * If a message has been read using shmq_reader_get_message(), but hasn't been discarded from the
+ * queue using shmq_reader_message_done() yet, then this method returns false. This is useful for
+ * checking which shmq has a new message to be processed, automatically skipping the ones that are
+ * on hold, for delayed processing.
  */
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr) {
+bool shmq_reader_has_message(shmq_reader_t *reader) {
+  if (reader->tail_message_read) {
+    return false;
+  }
+
   /* The location of p[2] according to the example. */
   int32_t tail_location = ((shmq_global_header_t *)(reader->buf))->tail_location;
   assert(tail_location % 8 == 0);
 
   /* Where p[2] points to, i.e. the location of mh[3] according to the example. */
   int32_t header_location = ((shmq_next_message_pointer_t *)(reader->buf + tail_location))->next_message_location;
-  if (header_location < 0) {
-    return -1;  /* Empty queue. */
-  }
+
+  return header_location >= 0;
+}
+
+/**
+ * Get the next message, i.e. the message at the tail of the queue.
+ *
+ * Must be called only if a preceding shmq_reader_has_message() call returned true.
+ *
+ * Returns the message's length, and stores the pointer to the beginning of the message blob.
+ * This memory region containing the blob is valid until shmq_reader_message_done() is called.
+ */
+int32_t shmq_reader_get_message(shmq_reader_t *reader, const char **message_body_ptr) {
+  /* The location of p[2] according to the example. */
+  int32_t tail_location = ((shmq_global_header_t *)(reader->buf))->tail_location;
+  assert(tail_location % 8 == 0);
+
+  /* Where p[2] points to, i.e. the location of mh[3] according to the example. */
+  int32_t header_location = ((shmq_next_message_pointer_t *)(reader->buf + tail_location))->next_message_location;
   assert(header_location >= shmq_global_header_size());
   assert(header_location % 8 == 0);
-  reader->tail_message_peeked = true;
+  reader->tail_message_read = true;
 
   /* Maybe the message header (mh[3] in the example) isn't mapped yet. */
   size_t ensure_buffer_size = header_location + shmq_message_header_size();
@@ -206,18 +227,18 @@ int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_p
 /**
  * If the message requires to be ACKed and hasn't been so, send this ACK now. Otherwise do nothing.
  *
- * Must have been preceded by shmq_reader_peek_tail() call for this message. You wouldn't want to
+ * Must have been preceded by shmq_reader_get_message() call for this message. You wouldn't want to
  * ACK a message you haven't seen, would you?
  *
- * It's not necessary to call this method, shmq_reader_discard_tail() will automatically ACK the
+ * It's not necessary to call this method, shmq_reader_message_done() will automatically ACK the
  * message if required.
  *
  * This is an optional early ACK, meaning that the message isn't dropped from the queue yet, it
- * still remains valid in the memory for further use, until shmq_reader_discard_tail() is called.
+ * still remains valid in the memory for further use, until shmq_reader_message_done() is called.
  * However, sending it early might allow the message's sender to continue doing its job sooner.
  */
 void shmq_reader_maybe_send_early_ack(shmq_reader_t *reader) {
-  assert(reader->tail_message_peeked);
+  assert(reader->tail_message_read);
 
   if (reader->ack_needed && !reader->ack_sent) {
     ((shmq_global_header_t *)(reader->buf))->ack_seq = reader->seq;
@@ -230,15 +251,15 @@ void shmq_reader_maybe_send_early_ack(shmq_reader_t *reader) {
 /**
  * Discard the message at the queue's tail.
  *
- * Must have been preceded by shmq_reader_peek_tail() call for this message (otherwise the required
+ * Must have been preceded by shmq_reader_get_message() call for this message (otherwise the required
  * memory area might not be mapped yet, and we don't want to bother with mremap()'ing here). You
  * wouldn't want to discard a message you haven't seen, would you?
  *
  * If the message requires to be ACKed, and it hasn't already been ACKed via
  * shmq_reader_maybe_send_early_ack(), then this method automatically sends the ACK now.
  */
-void shmq_reader_discard_tail(shmq_reader_t *reader) {
-  assert(reader->tail_message_peeked);
+void shmq_reader_message_done(shmq_reader_t *reader) {
+  assert(reader->tail_message_read);
 
   /* The location of p[2] according to the example. */
   int32_t tail_location = ((shmq_global_header_t *)(reader->buf))->tail_location;
@@ -262,7 +283,7 @@ void shmq_reader_discard_tail(shmq_reader_t *reader) {
    * placing the next message, it'll more likely have room for that without reallocing. */
   shmq_reader_maybe_send_early_ack(reader);
 
-  reader->tail_message_peeked = false;
+  reader->tail_message_read = false;
 }
 
 

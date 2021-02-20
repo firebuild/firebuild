@@ -62,7 +62,7 @@ static inline int shmq_message_overall_size(int32_t len) {
 typedef struct {
   size_t size;
   char *buf;
-  bool tail_message_peeked;
+  bool tail_message_read;
   bool ack_needed;
   bool ack_sent;
   int32_t seq;
@@ -71,9 +71,10 @@ typedef struct {
 
 void shmq_reader_init(shmq_reader_t *reader, const char *name);
 void shmq_reader_fini(shmq_reader_t *reader);
-int32_t shmq_reader_peek_tail(shmq_reader_t *reader, const char **message_body_ptr);
+bool shmq_reader_has_message(shmq_reader_t *reader);
+int32_t shmq_reader_get_message(shmq_reader_t *reader, const char **message_body_ptr);
 void shmq_reader_maybe_send_early_ack(shmq_reader_t *reader);
-void shmq_reader_discard_tail(shmq_reader_t *reader);
+void shmq_reader_message_done(shmq_reader_t *reader);
 
 
 typedef struct {

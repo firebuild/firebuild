@@ -560,7 +560,7 @@ void proc_ic_msg(const void *fbb_buf,
   if (tag == FBB_TAG_shmq) {
     /* This is a weird temporary hack. shmq messages can only arrive via the socket, and mean
      * to check the shared memory instead. Do so. */
-    int len = shmq_reader_peek_tail(proc->shmq_reader(), (const char **) &fbb_buf);
+    int len = shmq_reader_get_message(proc->shmq_reader(), (const char **) &fbb_buf);
     (void) len;
     assert(len > 0);
     tag = *reinterpret_cast<const int *>(fbb_buf);
@@ -953,7 +953,7 @@ void proc_ic_msg(const void *fbb_buf,
     }
   }
 
-  shmq_reader_discard_tail(proc->shmq_reader());
+  shmq_reader_message_done(proc->shmq_reader());
   if (ack_num != 0) {
 //    firebuild::ack_msg(fd_conn, ack_num);
   }
@@ -1179,6 +1179,23 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
   if (read_ret <= 0) {
     FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + firebuild::d_fd(fd_conn) +
              " hung up (" + d(proc) + ")");
+
+    /* There might be some messages waiting for us in shmq. Process them. */
+    while (proc->state() == firebuild::FB_PROC_RUNNING &&
+          proc->shmq_reader() &&
+          shmq_reader_has_message(proc->shmq_reader())) {
+      const char *fbb_msg;
+      shmq_reader_get_message(proc->shmq_reader(), &fbb_msg);
+
+      if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+        FB_DEBUG(firebuild::FB_DEBUG_COMM, "(after eof) shmq for " + d(proc));
+        fbb_debug(fbb_msg);
+        fflush(stderr);
+      }
+
+      proc_ic_msg(fbb_msg, -2, -2, proc);
+    }
+
     delete conn_ctx;
     return;
   }
@@ -1306,12 +1323,19 @@ void *thread2_code(void *arg) {
     /* There's no meta data for semaphores, we don't know which intercepted process it came from.
      * Scan all the running processes, and handle whichever messages we see. */
     for (firebuild::Process *proc : proc_tree->running_processes()) {
-      if (proc->state() == firebuild::FB_PROC_RUNNING) {
-        const char *message;
-        auto len = shmq_reader_peek_tail(proc->shmq_reader(), &message);
-        if (len >= 0) {
-          proc_ic_msg(message, -2, -2, proc);
+      if (proc->state() == firebuild::FB_PROC_RUNNING &&
+          proc->shmq_reader() &&
+          shmq_reader_has_message(proc->shmq_reader())) {
+        const char *fbb_msg;
+        shmq_reader_get_message(proc->shmq_reader(), &fbb_msg);
+
+        if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+          FB_DEBUG(firebuild::FB_DEBUG_COMM, "shmq for " + d(proc));
+          fbb_debug(fbb_msg);
+          fflush(stderr);
         }
+
+        proc_ic_msg(fbb_msg, -2, -2, proc);
       }
     }
   }
