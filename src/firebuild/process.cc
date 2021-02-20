@@ -153,6 +153,9 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
     add_filefd(fds_, fd, boost::make_local_shared<FileFD>(name, fd, flags, this));
   }
 
+  /* For open() and dlopen() we send the ACK as soon as possible.
+   * However, for the initially loaded libraries we can't do this over shmq because the message
+   * arrives on the socket, plus it includes multiple files, plus there's even more thing to do. */
   if (early_ack) {
 //    ack_msg(fd_conn, ack_num);
     shmq_reader_maybe_send_early_ack(shmq_reader());
