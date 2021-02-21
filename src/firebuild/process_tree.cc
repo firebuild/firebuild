@@ -103,8 +103,9 @@ void ProcessTree::insert_process(Process *p) {
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
 
-  assert_cmp(p->state(), ==, FB_PROC_RUNNING);
-  running_processes_.insert(p);
+  if (p->state() == FB_PROC_RUNNING) {
+    running_processes_.insert(p);
+  }
 }
 
 void ProcessTree::insert(Process *p) {

@@ -15,10 +15,13 @@
 #include "firebuild/file.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/platform.h"
+#include "firebuild/process_tree.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"
 #include "firebuild/utils.h"
+
+extern firebuild::ProcessTree *proc_tree;
 
 namespace firebuild {
 
@@ -930,7 +933,7 @@ void Process::finish() {
     reset_file_fd_pipe_refs();
   }
 
-//  proc_tree->remove_running_process(this);
+  proc_tree->remove_running_process(this);
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();
 }

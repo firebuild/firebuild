@@ -61,6 +61,8 @@
 libconfig::Config * cfg;
 bool generate_report = false;
 
+firebuild::ProcessTree *proc_tree;
+
 struct event_base * ev_base = NULL;
 pthread_mutex_t big_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -80,7 +82,6 @@ static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
-static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;
 
 static void usage() {
@@ -713,6 +714,7 @@ void proc_ic_msg(const void *fbb_buf,
       auto pid = fbb_posix_spawn_parent_get_pid(ic_msg);
       auto fork_parent_fds = proc->pass_on_fds(false);
       auto fork_child = firebuild::ProcessFactory::getForkedProcess(pid, proc);
+      fork_child->set_state(firebuild::FB_PROC_TERMINATED);
       proc_tree->insert(fork_child);
 
       /* The actual forked process might perform some file operations according to
@@ -785,7 +787,6 @@ void proc_ic_msg(const void *fbb_buf,
         proc->pop_expected_child_fds(arg, nullptr);
         fork_child->set_exec_pending(true);
       }
-      fork_child->set_state(firebuild::FB_PROC_TERMINATED);
       /* In either case, ACK the "posix_spawn_parent" message, don't necessarily wait for the
        * child to appear. */
       break;
