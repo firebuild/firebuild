@@ -1525,11 +1525,11 @@ int main(const int argc, char *argv[]) {
   fb_sema_string = strdup((std::string("/firebuild.FIXME.") + std::to_string(getpid())).c_str());
   auto env_exec = get_sanitized_env();
 
-  if (evthread_use_pthreads() != 0) {
-    firebuild::fb_error("libevent doesn't support pthreads");
-    exit(EXIT_FAILURE);
-  }
-  evthread_enable_lock_debugging();
+//  if (evthread_use_pthreads() != 0) {
+//    firebuild::fb_error("libevent doesn't support pthreads");
+//    exit(EXIT_FAILURE);
+//  }
+//  evthread_enable_lock_debugging();
   ev_base = event_base_new();;
   /* Use two priority queues, the lowe priority queue (1) is for timers. */
   event_base_priority_init(ev_base, 2);
