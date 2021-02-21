@@ -127,7 +127,7 @@ static size_t fbb_{{ msg }}_get_size(const void *msgbldr_void) {
 ###   endfor
   /* size of the core structure */
   size_t size = sizeof(FBB_{{ msg }});
-  /* additinal size of strings and string arrays */
+  /* additional size of strings and string arrays */
 ###   for (req, type, var) in fields
 ###     if type in [STRING, STRINGARRAY]
   size += msgbldr->wire.{{ var }}_size;
