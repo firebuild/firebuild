@@ -167,9 +167,14 @@ setup() {
     result=$(./run-firebuild -- ./test_env_fixup)
     echo "$result" | grep -qx "AAA=aaa"
     echo "$result" | grep -qx "BBB=bbb"
-    echo "$result" | grep -qx "LD_PRELOAD=LIBXXX.SO LIBYYY.SO libfbintercept.so"
+    echo "$result" | grep -qx "LD_PRELOAD=  LIBXXX.SO  libfbintercept.so  LIBYYY.SO  "
     strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBXXX.SO' from LD_PRELOAD cannot be preloaded"
     strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBYYY.SO' from LD_PRELOAD cannot be preloaded"
+    # Valgrind finds an error in fakeroot https://bugs.debian.org/983272
+    if ! set | grep -q valgrind; then
+      result=$(fakeroot ./run-firebuild -- id -u)
+      assert_streq "$result" "0"
+    fi
   done
 }
 

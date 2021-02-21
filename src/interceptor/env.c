@@ -85,25 +85,16 @@ static bool ld_preload_needs_fixup(char **env) {
     return true;
   }
 
-  /* "libfbintercept.so" has to occur exactly once, at the very end (see #155). */
-  int current_value_len = strlen(current_value);
-
-  /* Is the current value long enough? */
-  if (current_value_len < LIBFBINTERCEPT_SO_LEN) {
-    return true;
-  }
-  /* Does the current value end in "libfbintercept.so"? */
-  if (strcmp(current_value + current_value_len - LIBFBINTERCEPT_SO_LEN, LIBFBINTERCEPT_SO) != 0) {
-    return true;
-  }
-  /* If the current value is longer, is "libfbintercept.so" preceded by a separator (' ' or ':')? */
-  if (current_value_len > LIBFBINTERCEPT_SO_LEN &&
-      (current_value[current_value_len - LIBFBINTERCEPT_SO_LEN - 1] != ' ' &&
-       current_value[current_value_len - LIBFBINTERCEPT_SO_LEN - 1] != ':')) {
-    return true;
+  const char *loc = strstr(current_value, LIBFBINTERCEPT_SO);
+  if (loc) {
+    const char *loc_end = loc + LIBFBINTERCEPT_SO_LEN;
+    if ((loc == current_value || *(loc - 1) == ':' || *(loc - 1) == ' ')
+        && (*loc_end == '\0' || *loc_end == ':' || *loc_end == ' ')) {
+      return false;
+    }
   }
 
-  return false;
+  return true;
 }
 
 bool env_needs_fixup(char **env) {
@@ -191,8 +182,10 @@ static int fixup_ld_library_path(const char *current_value, char *p) {
  * (including the "LD_PRELOAD=" prefix) at @p.
  * The desired value depends on the @current_value.
  *
- * Removes libfbintercept.so from the middle, and appends it to the end.
- * See #155 why appending is the right thing to do.
+ * Appends libfbintercept.so to the end, if needed.
+ * (The intercepted program removed libfbintercept.so from LD_PRELOAD and added something,
+ * presumably its own library instead of _prepending_ its own library. The fix is thus _appending_
+ * libfbintercept.so to pretend that the program did the proper prepending.)
  *
  * Returns the number of bytes placed (including the trailing NUL).
  */
@@ -202,27 +195,8 @@ static int fixup_ld_preload(const char *current_value, char *p) {
   if (current_value == NULL) {
     sprintf(p, "%s=%s%n", LD_PRELOAD, LIBFBINTERCEPT_SO, &offset);  /* NOLINT */
   } else {
-    sprintf(p, "%s=%n", LD_PRELOAD, &offset);  /* NOLINT */
-    while (current_value[0] != '\0') {
-      /* Skip separators */
-      current_value += strspn(current_value, " :");
-      if (current_value[0] == '\0') {
-        break;
-      }
-      /* Get the next entry */
-      size_t len = strcspn(current_value, " :");
-      /* Is it different from "libfbintercept.so"? */
-      if (len < LIBFBINTERCEPT_SO_LEN &&
-          strcmp(current_value + len - LIBFBINTERCEPT_SO_LEN, LIBFBINTERCEPT_SO) != 0) {
-        /* Yup, let's copy it */
-        sprintf(p + offset, "%.*s ", (int) len, current_value);  /* NOLINT */
-        offset += len + 1;
-      }
-      current_value += len;
-    }
-    /* Append ourselves */
-    sprintf(p + offset, LIBFBINTERCEPT_SO);  /* NOLINT */
-    offset += LIBFBINTERCEPT_SO_LEN;
+    /* Append the library. */
+    sprintf(p, "%s=%s:%s%n", LD_PRELOAD, current_value, LIBFBINTERCEPT_SO, &offset);  /* NOLINT */
   }
   return offset + 1;
 }
