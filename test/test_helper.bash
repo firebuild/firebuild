@@ -1,5 +1,5 @@
 #!/bin/bash
-export LD_LIBRARY_PATH=$(realpath ../src/interceptor)
+export LD_LIBRARY_PATH=$(realpath ../src/interceptor):$LD_LIBRARY_PATH
 export PATH=$(realpath ../src/firebuild):$PATH
 export FIREBUILD_CACHE_DIR=$(realpath ./test_cache_dir)
 export GCOV_PREFIX=$(realpath ..)/gcov
