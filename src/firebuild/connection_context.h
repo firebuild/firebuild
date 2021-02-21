@@ -23,7 +23,8 @@
 namespace firebuild {
 
 extern void accept_exec_child(ExecedProcess* proc, int fd_conn,
-                              ProcessTree* proc_tree);
+                              ProcessTree* proc_tree, int pending_popen_fd = -1,
+                              const char* pending_popen_fifo = nullptr, int popen_type_flags = 0);
 
 class ConnectionContext {
  public:

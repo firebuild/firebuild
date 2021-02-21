@@ -26,7 +26,7 @@ extern char **environ;
 
 int main() {
   int fd;
-  FILE *f;
+  FILE *f, *f2;
   pid_t pid;
   siginfo_t info;
 
@@ -61,7 +61,16 @@ int main() {
     perror("popen" LOC);
     exit(1);
   }
+  /* Run popen again to excercise supervisor tracking f to be closed in the new child. */
+  if ((f2 = popen("exec touch test_wait_pclose.txt", "r")) == NULL) {
+    perror("popen" LOC);
+    exit(1);
+  }
   if (pclose(f) != 0) {
+    perror("pclose" LOC);
+    exit(1);
+  }
+  if (pclose(f2) != 0) {
     perror("pclose" LOC);
     exit(1);
   }

@@ -44,23 +44,24 @@ class FileFD {
  public:
   /** Constructor for fds inherited from the supervisor (stdin, stdout, stderr). */
   FileFD(int fd, int flags)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), read_(false),
-        written_(false), open_(fd_ >= 0), origin_fd_(NULL),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), close_on_popen_(false),
+        read_(false), written_(false), open_(fd_ >= 0), origin_fd_(NULL),
         filename_(), pipe_(), opened_by_(NULL) {}
   /** Constructor for fds backed by internal memory. */
   FileFD(int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL), read_(false),
-        written_(false), open_(fd_ >= 0), origin_fd_(NULL),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL), close_on_popen_(false),
+        read_(false), written_(false), open_(fd_ >= 0), origin_fd_(NULL),
         filename_(), pipe_(), opened_by_(p) {}
-  /** Constructor for fds backed by a pipe. */
-  FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_PIPE), read_(false),
-        written_(false), open_(fd_ >= 0), origin_fd_(NULL),
+  /** Constructor for fds backed by a pipe including ones created by popen(). */
+  FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process * const p,
+         bool close_on_popen = false)
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_PIPE), close_on_popen_(close_on_popen),
+        read_(false), written_(false), open_(fd_ >= 0), origin_fd_(NULL),
         filename_(), pipe_(pipe), opened_by_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
   FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
-      : fd_(fd), curr_flags_(flags), origin_type_(o), read_(false),
-        written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
+      : fd_(fd), curr_flags_(flags), origin_type_(o), close_on_popen_(false),
+        read_(false), written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
         filename_(o_fd->filename()), pipe_(o_fd->pipe_),
         opened_by_(o_fd->opened_by()) {
     if (pipe_) {
@@ -69,7 +70,7 @@ class FileFD {
   }
   /** Constructor for fds obtained through opening files. */
   FileFD(const FileName* f, int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN), close_on_popen_(false),
         read_(false), written_(false), open_(true), origin_fd_(NULL),
         filename_(f), pipe_(), opened_by_(p) {}
   FileFD(FileFD&) = default;
@@ -91,6 +92,8 @@ class FileFD {
     }
   }
   fd_origin origin_type() {return origin_type_;}
+  bool close_on_popen() const {return close_on_popen_;}
+  void set_close_on_popen(bool c) {close_on_popen_ = c;}
   bool read() {return read_;}
   bool written() {return written_;}
   const FileName* filename() const {return filename_;}
@@ -109,6 +112,7 @@ class FileFD {
   int curr_flags_;
   int last_err_ = 0;
   fd_origin origin_type_ : 3;
+  bool close_on_popen_ : 1;
   bool read_ : 1;
   bool written_ : 1;
   /** file descriptor is open (valid) */

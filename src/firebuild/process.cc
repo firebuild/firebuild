@@ -106,6 +106,10 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
         /* The operations on the fds in the new process don't affect the fds in the parent,
          * thus create a copy of the parent's FileFD pointed to by a new shared pointer. */
         add_filefd(fds, i, std::make_shared<FileFD>(raw_file_fd));
+        if (execed && raw_file_fd.close_on_popen()) {
+          /* The newly exec()-ed process will not close inherited popen()-ed fds on pclose() */
+          (*fds)[i]->set_close_on_popen(false);
+        }
       }
     }
   }
@@ -117,7 +121,8 @@ void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, i
   int child_fileno = (type_flags & O_ACCMODE) == O_WRONLY ? STDIN_FILENO : STDOUT_FILENO;
   if (child_fileno == STDOUT_FILENO) {
     /* Since only fd0 is passed only fd0's FileFD inherits O_CLOEXEC from type_flags. */
-    auto pipe = handle_pipe(fd, -1, type_flags, 0, fifo, nullptr);
+    auto pipe = handle_pipe_internal(fd, -1, type_flags, 0 /* fd1_flags */, 0, fifo, nullptr,
+                                     true, false, this);
     auto ffd1 = std::make_shared<FileFD>(child_fileno, O_WRONLY, pipe->fd1_shared_ptr(),
                                          proc->parent_);
 
@@ -125,6 +130,8 @@ void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, i
     (*proc->fds_)[child_fileno] = ffd1;
     add_pipe(pipe);
   } else {
+    /* child_fileno == STDIN_FILENO */
+    /* Create the pipe later, in accept_exec_child(). */
     assert(!fifo);
   }
 
@@ -295,21 +302,24 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
   return 0;
 }
 
-std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const int flags,
-                                           const int error, const char *fd0_fifo,
-                                           const char *fd1_fifo) {
+std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1,
+                                                    const int fd0_flags, const int fd1_flags,
+                                                    const int error, const char *fd0_fifo,
+                                                    const char *fd1_fifo, bool fd0_close_on_popen,
+                                                    bool fd1_close_on_popen,  Process *fd0_proc) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "fd0=%d, fd1=%d, flags=%d, error=%d, fd0_fifo=%s, fd1_fifo=%s",
-         fd0, fd1, flags, error, fd0_fifo, fd1_fifo);
+         "fd0=%d, fd1=%d, fd0_flags=%d, fd1_flags=%d, error=%d, fd0_fifo=%s, fd1_fifo=%s,"
+         " fd0_proc=%s",
+         fd0, fd1, fd0_flags, fd1_flags, error, fd0_fifo, fd1_fifo, D(fd0_proc));
 
   if (error) {
     return std::shared_ptr<Pipe>(nullptr);
   }
 
   // validate fd-s
-  if (get_fd(fd0)) {
+  if (fd0_proc->get_fd(fd0)) {
     // we already have this fd, probably missed a close()
-    exec_point()->disable_shortcutting_bubble_up(
+    fd0_proc->exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd (" + d(fd0) + ") which is known to be open, "
         "which means interception missed at least one close()");
     return std::shared_ptr<Pipe>(nullptr);
@@ -336,16 +346,17 @@ std::shared_ptr<Pipe> Process::handle_pipe(const int fd0, const int fd1, const i
 #else
   auto pipe = (new Pipe(fd0_conn, this))->shared_ptr();
 #endif
-  add_filefd(fds_, fd0, std::make_shared<FileFD>(
-      fd0, (flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this));
+  fd0_proc->add_filefd(fd0_proc->fds_, fd0, std::make_shared<FileFD>(
+      fd0, (fd0_flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), fd0_proc,
+      fd0_close_on_popen));
   /* Fd1_fifo may not be set. */
   if (fd1_fifo) {
     int fd1_conn = open(fd1_fifo, O_NONBLOCK | O_RDONLY);
     assert(fd1_conn != -1 && "opening fd1_fifo failed");
     firebuild::bump_fd_age(fd1_conn);
-    auto ffd1 = std::make_shared<FileFD>(fd1, (flags & ~O_ACCMODE) | O_WRONLY,
+    auto ffd1 = std::make_shared<FileFD>(fd1, (fd1_flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
-                                         this);
+                                         this, fd1_close_on_popen);
     add_filefd(fds_, fd1, ffd1);
     // TODO(rbalint) open cache files for fd1 and pass that
     auto cache_fds = std::vector<int>();

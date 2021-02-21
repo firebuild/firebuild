@@ -161,23 +161,15 @@ static char** get_sanitized_env() {
 }
 
 static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd, string_array* fifo_fds) {
-  struct timespec time;
-  clock_gettime(CLOCK_REALTIME, &time);
-  char* fifo_params, *fifo;
   int fifo_name_offset;
-  if (asprintf(&fifo_params, "%d:%d %n%s-%d-%d-%09ld-%09ld",
-               fd, 0, &fifo_name_offset, fb_conn_string, fd, proc->pid(),
-               time.tv_sec, time.tv_nsec) == -1) {
-    perror("asprintf");
-  }
-  fifo = fifo_params + fifo_name_offset;
-  int ret = mkfifo(fifo, 0666);
-  if (ret == -1) {
-    perror("could not create fifo");
-    return ret;
+  char * fifo_params =
+      firebuild::make_fifo(fd, O_WRONLY, proc->pid(), fb_conn_string, &fifo_name_offset);
+  if (!fifo_params) {
+    return -1;
   }
   string_array_append(fifo_fds, fifo_params);
-  ret = open(fifo, O_NONBLOCK | O_RDONLY);
+  char *fifo = fifo_params + fifo_name_offset;
+  int ret = open(fifo, O_NONBLOCK | O_RDONLY);
   if (ret == -1) {
     perror("could not open fifo for intercepting bytes written to the pipe");
     assert(0);
@@ -192,11 +184,17 @@ static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd, string_arra
 namespace firebuild {
 
 void accept_exec_child(ExecedProcess* proc, int fd_conn,
-                       ProcessTree* proc_tree) {
+                       ProcessTree* proc_tree, int pending_popen_stdin_fd,
+                       const char* pending_popen_stdin_fifo, int popen_type_flags) {
     TRACKX(FB_DEBUG_PROC, 1, 1, Process, proc, "fd_conn=%s", D_FD(fd_conn));
+
+    /* The pipe for popen(..., "r") has been created earlier. */
+    assert(!pending_popen_stdin_fifo || (popen_type_flags & O_ACCMODE) == O_WRONLY);
 
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
+    int fifo_name_offset;
+    char * fifo_params = nullptr;
     string_array fifo_fds;
     string_array_init(&fifo_fds);
 
@@ -221,7 +219,8 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     }
 
     /* Try to shortcut the process. */
-    if (proc->shortcut()) {
+    bool shortcutting_succeeded = proc->shortcut();
+    if (shortcutting_succeeded) {
       fbb_scproc_resp_set_shortcut(&sv_msg, true);
       fbb_scproc_resp_set_exit_status(&sv_msg, proc->exit_status());
     } else {
@@ -243,7 +242,6 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
         /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
         for (size_t i = 1; i < inherited_pipe.fds.size(); i++) {
-          char *fifo_params;
           if (asprintf(&fifo_params, "%d:%d %d",
                        inherited_pipe.fds[i], 0, inherited_pipe.fds[0]) == -1) {
             perror("asprintf");
@@ -251,6 +249,14 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
           string_array_append(&fifo_fds, fifo_params);
         }
       }
+      if (pending_popen_stdin_fifo) {
+        /* Needed for opening STDIN in child for popen(..., "w") */
+        fifo_params = firebuild::make_fifo(STDIN_FILENO, O_RDONLY, proc->pid(), fb_conn_string,
+                                           &fifo_name_offset);
+        assert(fifo_params);
+        string_array_append(&fifo_fds, fifo_params);
+      }
+
       fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
       if (debug_flags != 0) {
         fbb_scproc_resp_set_debug_flags(&sv_msg, debug_flags);
@@ -258,7 +264,43 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     }
 
     fbb_send(fd_conn, &sv_msg, 0);
+
+    if (pending_popen_stdin_fifo) {
+      if (shortcutting_succeeded) {
+        /* Shortcutting is not supported when the process read data on any file descriptor thus
+         * it did not read from STDIN either. It is safe to skip setting up the pipe. */
+      } else {
+        assert(pending_popen_stdin_fd != -1);
+        char *fifo = fifo_params + fifo_name_offset;
+        /* This open blocks until the interceptor opens the other end. */
+        int tmp_fd0_conn = open(fifo, O_WRONLY);
+        /* Create the pipe. */
+        auto pipe =
+            proc->parent()->parent()->popen_wronly_pipe(pending_popen_stdin_fd, popen_type_flags,
+                                                        fifo, pending_popen_stdin_fifo, proc);
+        if (pipe) {
+          proc->parent()->parent()->add_pipe(pipe);
+        }
+        /* The pipe reopened the connection in non-blocking mode. This fd is now obsolete. */
+        close(tmp_fd0_conn);
+        /* The fifo is open on both ends, the file is not needed anymore, either. */
+        unlink(fifo);
+      }
+    }
     string_array_deep_free(&fifo_fds);
+}
+
+void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,
+                        Process* unix_parent, int fd, const char* fifo) {
+  /* With popen(..., "r") the pipe is created in AddPopenedProcess(), while with "w"
+     accept_exec_child() opens it to avoid having a pipe with no fd0. */
+  if ((type_flags & O_ACCMODE) == O_RDONLY) {
+    unix_parent->AddPopenedProcess(fd, fifo, proc, type_flags);
+    accept_exec_child(proc, fd_conn, proc_tree);
+  } else {
+    unix_parent->AddPopenedProcess(fd, nullptr, proc, type_flags);
+    accept_exec_child(proc, fd_conn, proc_tree, fd, fifo, type_flags);
+  }
 }
 
 }  // namespace firebuild
@@ -360,6 +402,17 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
          * stream */
         int child_fileno = (type_flags & O_ACCMODE) == O_WRONLY ? STDIN_FILENO : STDOUT_FILENO;
         parent->handle_close(child_fileno, 0);
+
+        /* The new exec child also does not inherit parent's popen()-ed fds.
+         * See: glibc/libio/iopopen.c:
+         *  POSIX states popen shall ensure that any streams from previous popen()
+         *  calls that remain open in the parent process should be closed in the new
+         *  child process. [...] */
+        for (auto& file_fd : *parent->fds()) {
+          if (file_fd && file_fd->close_on_popen()) {
+            parent->handle_close(file_fd->fd());
+          }
+        }
       }
       /* For the intermediate ForkedProcess where posix_spawn()'s file_actions were executed,
        * we still had all the fds, even the close-on-exec ones. Now it's time to close them. */
@@ -385,11 +438,13 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       if (unix_parent->pending_popen_fd() != -1) {
         /* The popen_parent message has already arrived. Take a note of the fd -> child mapping. */
         assert_null(unix_parent->pending_popen_child());
-        unix_parent->AddPopenedProcess(unix_parent->pending_popen_fd(),
-                                       unix_parent->pending_popen_fifo(), proc, type_flags);
+        accept_popen_child(proc, fd_conn, type_flags, unix_parent,
+                           unix_parent->pending_popen_fd(), unix_parent->pending_popen_fifo());
         proc_tree->AckParent(unix_parent->pid());
         unix_parent->set_pending_popen_fd(-1);
         unix_parent->set_pending_popen_fifo(nullptr);
+        *new_proc = proc;
+        return;
       } else {
         /* The popen_parent message has not yet arrived.
          * Remember the new child, the handler of the popen_parent message will need to accept it. */
@@ -527,11 +582,11 @@ void proc_ic_msg(const void *fbb_buf,
         int child_conn = proc->pending_popen_child_conn();
         assert(child);
         assert_cmp(child_conn, !=, -1);
-        proc->AddPopenedProcess(fd, fifo, child, proc->pending_popen_type_flags());
+        int type_flags = proc->pending_popen_type_flags();
+        accept_popen_child(child, child_conn, type_flags, proc, fd, fifo);
         proc->set_pending_popen_child(NULL);
         proc->set_pending_popen_child_conn(-1);
         proc->set_pending_popen_type_flags(0);
-        accept_exec_child(child, child_conn, proc_tree);
       }
       break;
     }
@@ -546,8 +601,8 @@ void proc_ic_msg(const void *fbb_buf,
     case FBB_TAG_pclose: {
       const FBB_pclose *ic_msg = reinterpret_cast<const FBB_pclose *>(fbb_buf);
       if (!fbb_pclose_has_error_no(ic_msg)) {
-        /* pclose() is essentially an fclose() first, and then a waitpid() */
-        proc->handle_close(fbb_pclose_get_fd(ic_msg), 0);
+        /* pclose() is essentially an fclose() first, then a waitpid(), but the interceptor
+         * sends an extra close message in advance thus here the fd is already tracked as closed. */
         firebuild::ExecedProcess *child = proc->PopPopenedProcess(fbb_pclose_get_fd(ic_msg));
         assert(child);
         if (child->state() != firebuild::FB_PROC_FINALIZED) {

@@ -29,8 +29,8 @@
       assert(ret == 0 && "mkfifo(fd1_fifo, 0666) failed");
     }
 
-    /* send fifos to supervisor to open them first there because opening in blocking
-     mode blocks until the other end is opened, too (see fifo(7)) */
+    /* Send fifos to supervisor to open them there because opening in blocking
+       mode blocks until the other end is opened, too (see fifo(7)). */
     pipefd[0] = ic_orig_open(fd0_fifo, (flags & ~O_ACCMODE) | O_RDONLY | O_NONBLOCK);
     assert(pipefd[0] != -1);
     /* open fd1 for reading just to not block in opening for writing */

@@ -263,16 +263,35 @@ class Process {
 
   /**
    * Handle pipe() in the monitored process
-   * @param fd1 file descriptor to read (-1 if fd1 is not set)
-   * @param fd2 file descriptor to write
+   * @param fd0 file descriptor to read
+   * @param fd1 file descriptor to write (-1 if fd1 is not set)
    * @param flags flags passed in pipe2()
    * @param error error code
    * @param fd0_fifo fifo to write to intercepted pipe's fd[0]
    * @param fd1_fifo fifo to read from intercepted pipe's fd[1] (NULL if not set)
    * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
    */
-  std::shared_ptr<Pipe> handle_pipe(const int fd1, const int fd2, const int flags,
-                                    const int error, const char *fd0_fifo, const char *fd1_fifo);
+  std::shared_ptr<Pipe> handle_pipe(const int fd0, const int fd1, const int flags,
+                                    const int error, const char *fd0_fifo, const char *fd1_fifo) {
+    return handle_pipe_internal(fd0, fd1, flags, flags, error, fd0_fifo, fd1_fifo, false, false,
+                                this);
+  }
+
+  /**
+   * Create pipe for popen(..., "w")
+   * @param fd1 file descriptor to write
+   * @param type_flags popen()'s type encoded as flags
+   * @param fd0_fifo fifo to write to STDIN of the intercepted child process
+   * @param fd1_fifo fifo to read from intercepted parent process
+   * @param fd0_proc child process to attach fd0 to
+   * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
+   */
+  std::shared_ptr<Pipe> popen_wronly_pipe(const int fd1, const int type_flags,
+                                          const char *fd0_fifo, const char *fd1_fifo,
+                                          Process *fd0_proc) {
+    return handle_pipe_internal(STDIN_FILENO, fd1, type_flags & ~O_CLOEXEC, type_flags, 0, fd0_fifo,
+                                fd1_fifo, false, true, fd0_proc);
+  }
 
   /**
    * Handle dup(), dup2() or dup3() in the monitored process
@@ -446,6 +465,24 @@ class Process {
   bool any_child_not_finalized();
   int on_finalized_ack_id_ = -1;
   int on_finalized_ack_fd_ = -1;
+  /**
+   * Handle pipe creation in the monitored process
+   * @param fd1 file descriptor to read (-1 if fd1 is not set)
+   * @param fd2 file descriptor to write
+   * @param flags flags passed in pipe2()
+   * @param error error code
+   * @param fd0_fifo fifo to write to intercepted pipe's fd[0]
+   * @param fd1_fifo fifo to read from intercepted pipe's fd[1] (NULL if not set)
+   * @param origin FD_ORIGIN_PIPE or FD_ORIGIN_POPEN when created by pipe() or popen() respectively
+   * @param fd0_proc child process to attach fd0 to
+   * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
+   */
+  std::shared_ptr<Pipe> handle_pipe_internal(const int fd1, const int fd2,
+                                             const int fd0_flags, const int fd1_flags,
+                                             const int error, const char *fd0_fifo,
+                                             const char *fd1_fifo, bool fd0_close_on_popen,
+                                             bool fd1_close_on_popen, Process *fd0_proc);
+
   DISALLOW_COPY_AND_ASSIGN(Process);
 };
 
