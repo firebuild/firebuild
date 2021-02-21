@@ -126,7 +126,7 @@ extern int (*ic_orig_ftruncate) (int, off_t);
 void shmq_reader_init(shmq_reader_t *reader, const char *name) {
   assert(name[0] == '/');
 
-  int fd = shm_open(name, O_RDWR | O_EXCL, 0);
+  int fd = shm_open(name, O_RDWR, 0);
   assert(fd != -1);
 
   reader->size = SHMQ_INITIAL_SIZE;

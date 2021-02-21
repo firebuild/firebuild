@@ -161,7 +161,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###       for (type, name) in types_and_names
 {# It is ugly to check for the variable name to end with "fd", but is simple and works well in practice. #}
 ###         if type == "int" and name[-2:] == "fd"
-  if ({{ name }} == fb_sv_conn) { errno = EBADF; return -1; }
+  if ({{ name }} == fb_sv_conn || {{ name }} == fb_shmq.fd) { errno = EBADF; return -1; }
 ###         endif
 ###       endfor
 ###     endblock

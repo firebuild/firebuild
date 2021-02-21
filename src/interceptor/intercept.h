@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 
 #include "common/firebuild_common.h"
+#include "common/shmq.h"
 
 /** A poor man's (plain C) implementation of a hashmap:
  *  posix_spawn_file_actions_t -> char**
@@ -93,6 +94,7 @@ extern size_t fb_conn_string_len;
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
+extern shmq_writer_t fb_shmq;
 
 /** Semaphore string to supervisor */
 extern char * fb_sema_string;
