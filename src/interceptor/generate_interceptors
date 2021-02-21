@@ -307,13 +307,17 @@ generate("int", "memfd_create", "const char *name, unsigned int flags",
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.
 generate("int", "close", "int fd",
-         before_lines=["if (i_am_intercepting) clear_file_state(fd);"])
+         before_lines=["if (i_am_intercepting) clear_file_state(fd);"],
+         channel="socket",
+         ack_condition="true")
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
                        "if (i_am_intercepting) clear_file_state(fd);"],
          msg="close",
          msg_skip_fields=["stream"],
-         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"])
+         msg_add_fields=["fbb_close_set_fd(&ic_msg, fd);"],
+         channel="socket",
+         ack_condition="true")
 
 skip("fcloseall")  # Only closes the high level streams, not the underlying fds.
 
@@ -948,6 +952,7 @@ generate("int", "pipe", "int pipefd[2]",
                              "  ic_orig_unlink(fd1_fifo);",
                              "  ic_orig_close(tmp_fd);",
                              "}"],
+         channel="socket",
          ack_condition="true")
 generate("int", "pipe2", "int pipefd[2], int flags",
          tpl="pipe",
@@ -970,6 +975,7 @@ generate("int", "pipe2", "int pipefd[2], int flags",
                              "  ic_orig_unlink(fd1_fifo);",
                              "  ic_orig_close(tmp_fd);",
                              "}"],
+         channel="socket",
          ack_condition="true")
 
 # Intercept the truncate family
@@ -1082,11 +1088,14 @@ generate("int", "system", "const char *cmd",
 
 # Intercept popen and pclose
 generate("FILE *", "popen", "const char *cmd, const char *type",
-         tpl="popen")
+         tpl="popen",
+         channel="socket",
+         ack_condition="true")
 generate("int", "pclose", "FILE *stream",
          tpl="pclose",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbb_pclose_set_fd(&ic_msg, fd);"],
+         channel="socket",
          ack_condition="true")
 
 # Intercept the posix_spawn family

@@ -555,8 +555,6 @@ void proc_ic_msg(const void *fbb_buf,
   TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
          D_FD(fd_conn), fbb_tag_string(fbb_buf), ack_num);
 
-  (void) fd_conn;  // FIXME remove
-
   assert(proc);
   int tag = *reinterpret_cast<const int *>(fbb_buf);
   if (tag == FBB_TAG_shmq) {
@@ -570,6 +568,11 @@ void proc_ic_msg(const void *fbb_buf,
 
   switch (tag) {
     case FBB_TAG_shmq: {
+      assert(0 && "boo");
+    }
+    case FBB_TAG_barrier: {
+      /* just ack */
+      break;
     }
     case FBB_TAG_fork_parent: {
       const FBB_fork_parent *ic_msg = reinterpret_cast<const FBB_fork_parent *>(fbb_buf);
@@ -955,9 +958,12 @@ void proc_ic_msg(const void *fbb_buf,
     }
   }
 
-  shmq_reader_message_done(proc->shmq_reader());
-  if (ack_num != 0) {
-//    firebuild::ack_msg(fd_conn, ack_num);
+  if (fd_conn < 0) {
+    shmq_reader_message_done(proc->shmq_reader());
+  } else {
+    if (ack_num != 0) {
+      firebuild::ack_msg(fd_conn, ack_num);
+    }
   }
 }
 

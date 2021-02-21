@@ -23,6 +23,8 @@
 {#  send_msg_condition:  Custom condition to send message             #}
 {#  ack_condition:       Whether to ask for ack 'true', 'false' or    #}
 {#                       '<condition>' (default: 'false')             #}
+{#  channel:             Whether to send the message over 'shmq' or   #}
+{#                       'socket' (default: 'shmq')                   #}
 {#  after_send_lines:    Things to place after sending msg            #}
 {# ------------------------------------------------------------------ #}
 {# Jinja lacks native support for generating multiple files.          #}
@@ -44,6 +46,9 @@
 ### endif
 ### if global_lock is not defined
 ###   set global_lock = 'before'
+### endif
+### if channel is not defined
+###   set channel = 'shmq'
 ### endif
 {#                                                                    #}
 {# --- Template for 'decl.h' ---------------------------------------- #}
@@ -251,6 +256,13 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###         if msg
   /* Maybe notify the supervisor */
   if (i_am_intercepting && {{ send_msg_condition }}) {
+###           if channel != 'shmq'
+    /* Barrier over shmq, before sending the message on the socket */
+    FBB_Builder_barrier ic_msg_barrier;
+    fbb_barrier_init(&ic_msg_barrier);
+    fb_fbb_send_msg_and_check_ack2(&ic_msg_barrier, fb_sv_conn);
+###           endif
+
     FBB_Builder_{{ msg }} ic_msg;
     fbb_{{ msg }}_init(&ic_msg);
 
@@ -290,14 +302,26 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     /* Sending ack is conditional */
     if ({{ ack_condition }}) {
       /* Send and wait for ack */
+###             if channel == 'shmq'
       fb_fbb_send_msg_and_check_ack2(&ic_msg, fb_sv_conn);
+###             else
+      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+###             endif
     } else {
       /* Send and go on, no ack */
+###             if channel == 'shmq'
       fb_fbb_send_msg2(&ic_msg, fb_sv_conn);
+###             else
+      fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+###             endif
     }
 ###           else
     /* Send and go on, no ack */
+###             if channel == 'shmq'
     fb_fbb_send_msg2(&ic_msg, fb_sv_conn);
+###             else
+    fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+###             endif
 ###           endif
   }
 ###         endif

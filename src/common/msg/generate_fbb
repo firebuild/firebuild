@@ -72,6 +72,9 @@ gen_fbb([
   # Temporary placeholder telling the supervisor to check shmq.
   ("shmq", []),
 
+  # Empty message to flush the queue.
+  ("barrier", []),
+
   # interceptor library queries FireBuild supervisor if it can shortcut execution of the process
   ("scproc_query", [
     # process id
