@@ -1,0 +1,12 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: firebuild
+Upstream-Contact: info@firebuild.io
+Source: https://firebuild.io
+
+Files: *
+Copyright: 2013-2021 Balint Reczey
+                     Interri Kft.
+License: All-rights-reserved
+
+License: All-rights-reserved
+ This project is an unpublished work. All rights reserved.

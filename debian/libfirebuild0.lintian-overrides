@@ -1,0 +1,4 @@
+# The shared library is preloaded and should not be linked with where the dev package would be useful
+libfirebuild0: non-dev-pkg-with-shlib-symlink *
+# TODO Maybe the names could be consolidated
+libfirebuild0: package-name-doesnt-match-sonames libfbintercept0
