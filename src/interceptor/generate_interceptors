@@ -1084,7 +1084,7 @@ generate("int", "system", "const char *cmd",
 generate("FILE *", "popen", "const char *cmd, const char *type",
          tpl="popen")
 generate("int", "pclose", "FILE *stream",
-         before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the pclose() */"],
+         tpl="pclose",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbb_pclose_set_fd(&ic_msg, fd);"],
          ack_condition="true")

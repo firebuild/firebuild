@@ -484,12 +484,18 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
   /* reopen_fd_fifo is either a full path for the file to reopen, or an integer
    * for the fd to dup2(). */
   if (reopen_fd_fifo[0] == '/') {
-    /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
-     * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
-     * Pipe fd1 end is cleaned up. */
-    int tmp_fd = ic_orig_open(reopen_fd_fifo, O_NONBLOCK | O_RDONLY);
-    int fd = ic_orig_open(reopen_fd_fifo, reopen_flags | O_WRONLY);
-    ic_orig_close(tmp_fd);
+    int fd;
+    if ((reopen_flags & O_ACCMODE) == O_WRONLY) {
+      /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
+       * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
+       * Pipe fd1 end is cleaned up. */
+      int tmp_fd = ic_orig_open(reopen_fd_fifo, O_NONBLOCK | O_RDONLY);
+      fd = ic_orig_open(reopen_fd_fifo, reopen_flags);
+      ic_orig_close(tmp_fd);
+    } else {
+      /* O_RDONLY */
+      fd = ic_orig_open(reopen_fd_fifo, reopen_flags);
+    }
     assert(fd != -1 && "reopening fd failed");
     if (fd != reopen_fd) {
       /* dup2, because fds to be reopened can't have O_CLOEXEC */
@@ -500,8 +506,12 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
       assert(dup2_ret == reopen_fd);
       ic_orig_close(fd);
     }
-    /* the fifo is opened on both ends, there is no need for the file */
-    ic_orig_unlink(reopen_fd_fifo);
+    if ((reopen_flags & O_ACCMODE) == O_WRONLY) {
+      /* The fifo is opened on both ends, there is no need for the file. */
+      ic_orig_unlink(reopen_fd_fifo);
+    } else {
+      /* The fifo has to be kept because the supervisor opens it later. */
+    }
   } else {
     int fd;
     sscanf(reopen_fd_fifo, "%d", &fd);
