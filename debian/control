@@ -1,0 +1,34 @@
+Source: firebuild
+Section: devel
+Priority: optional
+Maintainer: Balint Reczey <balint@balintreczey.hu>
+Build-Depends: bats,
+               cmake,
+               debhelper-compat (= 12),
+               flatbuffers-compiler,
+               graphviz,
+               help2man,
+               libconfig++-dev,
+               libevent-dev,
+               libflatbuffers-dev,
+               libjemalloc-dev,
+               libxxhash-dev,
+               moreutils,
+               node-d3,
+               python3-jinja2
+Standards-Version: 4.4.1
+Homepage: https://firebuild.org
+Rules-Requires-Root: no
+
+Package: firebuild
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Build analyzer and catalyst
+ Firebuild analyzes the build process and speeds them up.
+
+Package: libfirebuild0
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Build analyzer and catalyst - shared libraries
+ Firebuild analyzes the build process and speeds them up.
