@@ -1339,11 +1339,13 @@ static bool running_under_valgrind() {
 }
 
 /* Helper of thread2_code(), primarily factored out to have nice TRACK() debugging. */
-void handle_shmq_messages() {
+bool handle_shmq_messages() {
   /* Need exclusivity with the other thread reading from the sockets. */
   pthread_mutex_lock(&big_mutex);
 
   TRACK(firebuild::FB_DEBUG_COMM, "");
+
+  bool ret = false;
 
   /* There's no meta data for semaphores, we don't know which intercepted process it came from.
    * Scan all the running processes, and handle whichever messages we see. */
@@ -1361,10 +1363,12 @@ void handle_shmq_messages() {
       }
 
       proc_ic_msg(fbb_msg, -2, -2, proc);
+      ret = true;
     }
   }
 
   pthread_mutex_unlock(&big_mutex);
+  return ret;
 }
 
 void *thread2_code(void *arg) {
@@ -1374,8 +1378,14 @@ void *thread2_code(void *arg) {
     /* Wait for notification about a new message. (This is a thread cancellation point.) */
     sem_wait(sema);
 
+    /* Don't unexpectedly cancel this thread while handling messages. */
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
     /* Process some messages. */
     handle_shmq_messages();
+
+    /* Okay to cancel the thread. */
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
   }
 }
 
@@ -1608,9 +1618,11 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
   /* Main loop for processing interceptor messages */
   event_base_dispatch(ev_base);
 
-  /* If the main event loop has quit, we don't need to process shmqs anymore either. */
+  /* The main event loop has quit. Stop the thread that processes the shmqs. */
   pthread_cancel(thread2);
   pthread_join(thread2, NULL);
+  /* Any remaining messages to process? */
+  while (handle_shmq_messages()) {}
 
   /* Clean up remaining events and the event base. */
   evutil_closesocket(listener);
