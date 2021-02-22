@@ -4,6 +4,9 @@ function(add_test_binary TEST_BINARY)
   add_dependencies(check "${TEST_BINARY}")
 endfunction()
 
+file(COPY integration.bats run-firebuild test_helper.bash test_parallel_make.Makefile test_symbols
+  DESTINATION "${CMAKE_BINARY_DIR}/test")
+
 add_test(bats-integration ./integration.bats)
 
 add_custom_target(check ctest -V)

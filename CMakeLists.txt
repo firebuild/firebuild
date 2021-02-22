@@ -79,3 +79,6 @@ endif(COVERAGE)
 
 add_custom_target(style-check
   cpplint --recursive ${CMAKE_SOURCE_DIR}/src/ ${CMAKE_SOURCE_DIR}/test/)
+
+file(COPY etc/firebuild.conf
+  DESTINATION "${CMAKE_BINARY_DIR}/etc")
