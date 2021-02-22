@@ -30,8 +30,8 @@ jobs:
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug .
         make -j2
+        make check
     - name: test
-      # tests don't run with out of tree builds at the moment
       run: |
         make check
         test/close_fds_exec make valgrind-check
