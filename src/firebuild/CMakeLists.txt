@@ -46,3 +46,5 @@ target_link_libraries(firebuild ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${J
 target_link_options(firebuild PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_property(TARGET firebuild PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 add_dependencies(firebuild fbb_gen_files flatbuffers_gen_files)
+
+install(TARGETS firebuild DESTINATION bin)

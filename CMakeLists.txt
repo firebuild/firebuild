@@ -10,6 +10,7 @@ endif()
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
+include(GNUInstallDirs)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
@@ -82,3 +83,5 @@ add_custom_target(style-check
 
 file(COPY etc/firebuild.conf
   DESTINATION "${CMAKE_BINARY_DIR}/etc")
+
+install(FILES etc/firebuild.conf DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
