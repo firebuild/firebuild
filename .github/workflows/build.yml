@@ -7,6 +7,7 @@ env:
   TEST_DEPS: bats node-d3 graphviz moreutils fakeroot
 jobs:
   build:
+    needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -44,6 +45,8 @@ jobs:
         make check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
   scan-build:
+    # wait for clang-build because scan-build fails if the former fails
+    needs: [style-checks, clang-build]
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -59,6 +62,7 @@ jobs:
         scan-build-9 cmake .
         scan-build-9 --status-bugs make -j2
   clang-build:
+    needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -74,6 +78,7 @@ jobs:
         # the interceptor does not work when building it with Clang, thus make check always fails
         make -j2
   rebuild-self:
+    needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -101,6 +106,7 @@ jobs:
         time ./run-firebuild make -j8 -C ../build all
 
   build-other-projects:
+    needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -128,6 +134,7 @@ jobs:
         ./run-firebuild ninja -j8 -C ../vte2.91-*/build
 
   build-deb:
+    needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
