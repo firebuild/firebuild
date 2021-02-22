@@ -127,6 +127,21 @@ jobs:
         ninja -C ../vte2.91-*/build clean
         ./run-firebuild ninja -j8 -C ../vte2.91-*/build
 
+  build-deb:
+    runs-on: ubuntu-20.04
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        sudo add-apt-repository -y ppa:rbalint/xxhash
+        sudo apt-get build-dep .
+    - name: deb
+      run: |
+        dpkg-buildpackage -us -uc
+        sudo apt-get install ../*.deb
+        firebuild -- ls
+
   style-checks:
     runs-on: ubuntu-20.04
     timeout-minutes: 10
