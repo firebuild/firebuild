@@ -53,3 +53,5 @@ add_dependencies(fbintercept gen_files fbb_gen_files)
 target_link_libraries(fbintercept dl)
 target_link_options(fbintercept PUBLIC -Wno-strict-overflow)
 set_property(TARGET fbintercept PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
+
+install(TARGETS fbintercept DESTINATION ${CMAKE_INSTALL_LIBDIR})
