@@ -40,7 +40,7 @@ add_custom_command (
 
 add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c)
 
-add_library(fbintercept MODULE
+add_library(fbintercept SHARED
   env.c
   ic_file_ops.c
   ic_redirect_only.c
@@ -50,8 +50,10 @@ add_library(fbintercept MODULE
 
 add_dependencies(fbintercept gen_files fbb_gen_files)
 
+set_target_properties(fbintercept PROPERTIES
+  INTERPROCEDURAL_OPTIMIZATION True
+  VERSION "0.0.0" SOVERSION 0)
 target_link_libraries(fbintercept dl)
 target_link_options(fbintercept PUBLIC -Wno-strict-overflow)
-set_property(TARGET fbintercept PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 
 install(TARGETS fbintercept DESTINATION ${CMAKE_INSTALL_LIBDIR})
