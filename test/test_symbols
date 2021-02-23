@@ -51,10 +51,12 @@ else
 fi
 
 # Get the list of libc, libdl and libpthread symbols
+# TODO(rbalint) provide properly versioned symbols in lifbintercept
 libs=$(LD_PRELOAD=libpthread.so ldd "$binary_dir/src/interceptor/libfbintercept.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
 nm -D $libs | \
   grep ' [TWi] ' | \
   cut -d' ' -f3- | \
+  sed 's/\(.*\)@@\(.*\)/\1@@\2\n\1/' | \
   LC_ALL=C sort > libc-symbols.txt
 
 # Get the list of extra ones
