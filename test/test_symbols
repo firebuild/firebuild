@@ -32,7 +32,7 @@ nm -D "$binary_dir/src/interceptor/libfbintercept.so" | \
   cut -d' ' -f3- | \
   grep -v '^__gcov_' | \
   grep -v '^mangle_path$' | \
-  LC_ALL=C sort > public-symbols.txt
+  LC_ALL=C sort | uniq > public-symbols.txt
 
 # Gather and sort the allowed public symbols
 { cat "$binary_dir/src/interceptor/gen_list.txt"; echo "$additional_allowed_symbols"; } | \
@@ -50,12 +50,17 @@ else
   status=1
 fi
 
-# Get the list of libc, libdl and libpthread symbols
+# Get the list of libc, libdl and libpthread symbols.
+
+# Some symbols have been removed from glibc
+known_extra="stime
+ustat"
 # TODO(rbalint) provide properly versioned symbols in lifbintercept
 libs=$(LD_PRELOAD=libpthread.so ldd "$binary_dir/src/interceptor/libfbintercept.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
-nm -D $libs | \
-  grep ' [TWi] ' | \
-  cut -d' ' -f3- | \
+(nm -D $libs | \
+     grep ' [TWi] ' | \
+     cut -d' ' -f3- ; \
+     echo "$known_extra") | \
   sed 's/\(.*\)@@\(.*\)/\1@@\2\n\1/' | \
   LC_ALL=C sort > libc-symbols.txt
 
