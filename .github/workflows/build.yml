@@ -144,17 +144,13 @@ jobs:
 
   style-checks:
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 2
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
       run: |
-        sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo apt-get -y install $BUILD_DEPS python3-pip
         # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
         pip3 install cpplint==1.5.4
-    - name: configure
-      run: cmake .
     - name: style-check
-      run: env PATH=$HOME/.local/bin:$PATH make style-check
+      run: env PATH=$HOME/.local/bin:$PATH cpplint --recursive src test
 
