@@ -1379,6 +1379,11 @@ void *thread2_code(void *arg) {
     sem_wait(sema);
 
     /* Don't unexpectedly cancel this thread while handling messages. */
+    // FIXME is this needed? Perhaps not.
+    // When we see an EOF on a socket, we handle the remaining shmq messages first, and then proceed
+    // to handle the EOF. So when all the processes quit and libevent's main loop quits too, we know
+    // that this thread doesn't do any work anymore.
+    // FIXME Is this really true with runaway processes in the game?
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
     /* Process some messages. */
@@ -1621,7 +1626,7 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
   /* The main event loop has quit. Stop the thread that processes the shmqs. */
   pthread_cancel(thread2);
   pthread_join(thread2, NULL);
-  /* Any remaining messages to process? */
+  /* Any remaining messages to process? FIXME can this happen??? Probably not. */
   while (handle_shmq_messages()) {}
 
   /* Clean up remaining events and the event base. */
