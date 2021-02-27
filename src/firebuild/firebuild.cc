@@ -1564,6 +1564,12 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
   /* This creates some Pipe objects, so needs ev_base being set up. */
   proc_tree = new firebuild::ProcessTree();
 
+  /* Block sigchld for now. */
+  sigset_t sigset_sigchld;
+  sigemptyset(&sigset_sigchld);
+  sigaddset(&sigset_sigchld, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &sigset_sigchld, NULL);
+
   /* Collect runaway children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
 
@@ -1575,6 +1581,9 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
 #pragma GCC diagnostic ignored "-Wstrict-overflow"
     char* argv_exec[argc - optind + 1];
 #pragma GCC diagnostic pop
+
+    /* Unblock sigchld for the child. */
+    sigprocmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
 
     // we don't need that
     evutil_closesocket(listener);
@@ -1619,6 +1628,9 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
    */
   pthread_t thread2;
   thread2 = pthread_create(&thread2, NULL, thread2_code, NULL);
+
+  /* Unblock sigchld in this thread. */
+  pthread_sigmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
 
   /* Main loop for processing interceptor messages */
   event_base_dispatch(ev_base);
