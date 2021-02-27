@@ -104,7 +104,7 @@ void ProcessTree::insert_process(Process *p) {
   pid2proc_[p->pid()] = p;
 
   if (p->state() == FB_PROC_RUNNING) {
-    running_processes_.push_back(p);
+    running_processes_.insert(running_processes_.begin(), p);
   }
 }
 

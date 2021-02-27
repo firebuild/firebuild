@@ -1345,8 +1345,6 @@ bool handle_shmq_messages() {
 
   TRACK(firebuild::FB_DEBUG_COMM, "");
 
-  bool ret = false;
-
   /* There's no meta data for semaphores, we don't know which intercepted process it came from.
    * Scan all the running processes, and handle whichever messages we see. */
   for (firebuild::Process *proc : proc_tree->running_processes()) {
@@ -1362,12 +1360,13 @@ bool handle_shmq_messages() {
       }
 
       proc_ic_msg(fbb_msg, -2, -2, proc);
-      ret = true;
+      pthread_mutex_unlock(&big_mutex);
+      return true;
     }
   }
 
   pthread_mutex_unlock(&big_mutex);
-  return ret;
+  return false;
 }
 
 void *thread2_code(void *arg) {
