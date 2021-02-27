@@ -166,10 +166,11 @@ class ProcessTree {
   }
 
   void remove_running_process(Process *proc) {
-    assert_cmp(running_processes_.count(proc), >, 0);
-    running_processes_.erase(proc);
+    auto pos = std::find(running_processes_.begin(), running_processes_.end(), proc);
+    assert(pos != running_processes_.end());
+    running_processes_.erase(pos);
   }
-  std::unordered_set<Process *> running_processes() {return running_processes_;}
+  const std::vector<Process *>& running_processes() const {return running_processes_;}
 
  private:
   ExecedProcess *root_ = NULL;
@@ -194,7 +195,7 @@ class ProcessTree {
   std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
   /** The set of processes in FB_PROC_RUNNING state. These are the ones whose shmq area
    *  we look at for new messages. */
-  std::unordered_set<Process *> running_processes_;
+  std::vector<Process *> running_processes_;
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds

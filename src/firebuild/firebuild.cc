@@ -1350,8 +1350,7 @@ bool handle_shmq_messages() {
   /* There's no meta data for semaphores, we don't know which intercepted process it came from.
    * Scan all the running processes, and handle whichever messages we see. */
   for (firebuild::Process *proc : proc_tree->running_processes()) {
-    if (proc->state() == firebuild::FB_PROC_RUNNING &&
-        proc->shmq_reader() &&
+    if (proc->shmq_reader() &&
         shmq_reader_has_message(proc->shmq_reader())) {
       const char *fbb_msg;
       shmq_reader_get_message(proc->shmq_reader(), &fbb_msg);
