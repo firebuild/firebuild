@@ -10,6 +10,7 @@
 
 #include <utility>
 
+#include "common/firebuild_common.h"
 #include "firebuild/file.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
@@ -84,7 +85,7 @@ void Process::drain_all_pipes() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   for (auto file_fd : *fds_) {
-    if (!file_fd || ((file_fd->flags() & O_ACCMODE) != O_WRONLY)) {
+    if (!file_fd || !is_wronly(file_fd->flags())) {
       continue;
     }
     auto pipe = file_fd->pipe().get();
@@ -118,7 +119,7 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
 
 void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, int type_flags) {
   /* The stdin/stdout of the child needs to be conected to parent's fd */
-  int child_fileno = (type_flags & O_ACCMODE) == O_WRONLY ? STDIN_FILENO : STDOUT_FILENO;
+  int child_fileno = is_wronly(type_flags) ? STDIN_FILENO : STDOUT_FILENO;
   if (child_fileno == STDOUT_FILENO) {
     /* Since only fd0 is passed only fd0's FileFD inherits O_CLOEXEC from type_flags. */
     auto pipe = handle_pipe_internal(fd, -1, type_flags, 0 /* fd1_flags */, 0, fifo, nullptr,

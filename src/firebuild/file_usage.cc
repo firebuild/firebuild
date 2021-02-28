@@ -14,18 +14,12 @@
 
 #include "firebuild/file_usage.h"
 
-#include <fcntl.h>
 #include <sys/stat.h>
 
+#include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
 #include "firebuild/hash_cache.h"
-
-// static inline bool is_rdonly(int flags) { return ((flags & O_ACCMODE) == O_RDONLY); }
-static inline bool is_wronly(int flags) { return ((flags & O_ACCMODE) == O_WRONLY); }
-static inline bool is_rdwr(int flags)   { return ((flags & O_ACCMODE) == O_RDWR); }
-// static inline bool is_read(int flags)   { return (is_rdonly(flags) || is_rdwr(flags)); }
-static inline bool is_write(int flags)  { return (is_wronly(flags) || is_rdwr(flags)); }
 
 namespace firebuild {
 
