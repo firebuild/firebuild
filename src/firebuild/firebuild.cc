@@ -194,7 +194,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     TRACKX(FB_DEBUG_PROC, 1, 1, Process, proc, "fd_conn=%s", D_FD(fd_conn));
 
     /* The pipe for popen(..., "r") has been created earlier. */
-    assert(!pending_popen_stdin_fifo || (popen_type_flags & O_ACCMODE) == O_WRONLY);
+    assert(!pending_popen_stdin_fifo || is_wronly(popen_type_flags));
 
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
@@ -299,7 +299,7 @@ void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,
                         Process* unix_parent, int fd, const char* fifo) {
   /* With popen(..., "r") the pipe is created in AddPopenedProcess(), while with "w"
      accept_exec_child() opens it to avoid having a pipe with no fd0. */
-  if ((type_flags & O_ACCMODE) == O_RDONLY) {
+  if (is_rdonly(type_flags)) {
     unix_parent->AddPopenedProcess(fd, fifo, proc, type_flags);
     accept_exec_child(proc, fd_conn, proc_tree);
   } else {
@@ -405,7 +405,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
         /* The new exec child should not inherit the fd connected to the unix_parent's popen()-ed
          * stream */
-        int child_fileno = (type_flags & O_ACCMODE) == O_WRONLY ? STDIN_FILENO : STDOUT_FILENO;
+        int child_fileno = is_wronly(type_flags) ? STDIN_FILENO : STDOUT_FILENO;
         parent->handle_close(child_fileno, 0);
 
         /* The new exec child also does not inherit parent's popen()-ed fds.

@@ -485,7 +485,7 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
    * for the fd to dup2(). */
   if (reopen_fd_fifo[0] == '/') {
     int fd;
-    if ((reopen_flags & O_ACCMODE) == O_WRONLY) {
+    if (is_wronly(reopen_flags)) {
       /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
        * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
        * Pipe fd1 end is cleaned up. */
@@ -506,7 +506,7 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
       assert(dup2_ret == reopen_fd);
       ic_orig_close(fd);
     }
-    if ((reopen_flags & O_ACCMODE) == O_WRONLY) {
+    if (is_wronly(reopen_flags)) {
       /* The fifo is opened on both ends, there is no need for the file. */
       ic_orig_unlink(reopen_fd_fifo);
     } else {

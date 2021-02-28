@@ -5,6 +5,7 @@
 #ifndef COMMON_FIREBUILD_COMMON_H_
 #define COMMON_FIREBUILD_COMMON_H_
 
+#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <sys/uio.h>
@@ -27,6 +28,12 @@ void string_array_init(string_array *array);
 void string_array_append(string_array *array, char *s);
 void string_array_deep_free(string_array *array);
 bool is_path_at_locations(const char *path, string_array *prefix_array);
+
+static inline bool is_rdonly(int flags) { return ((flags & O_ACCMODE) == O_RDONLY); }
+static inline bool is_wronly(int flags) { return ((flags & O_ACCMODE) == O_WRONLY); }
+static inline bool is_rdwr(int flags)   { return ((flags & O_ACCMODE) == O_RDWR); }
+// static inline bool is_read(int flags)   { return (is_rdonly(flags) || is_rdwr(flags)); }
+static inline bool is_write(int flags)  { return (is_wronly(flags) || is_rdwr(flags)); }
 
 /**
  * wrapper for read() retrying on recoverable errors
@@ -125,4 +132,4 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
     }                                                                   \
   }
 
-#endif  /* COMMON_FIREBUILD_COMMON_H_ */
+#endif  // COMMON_FIREBUILD_COMMON_H_

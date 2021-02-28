@@ -65,7 +65,7 @@
       }
       fbb_popen_parent_set_fd(&ic_msg, ret_fileno);
       fbb_popen_parent_set_fifo(&ic_msg, fd_fifo);
-      if ((type_flags & O_ACCMODE) == O_WRONLY) {
+      if (is_wronly(type_flags)) {
         /* The returned fd will be connected to the child's stdin. */
         /* Open fd1 for reading just to not block in opening for writing. */
         tmp_rdonly_fd = ic_orig_open(fd_fifo, O_RDONLY | O_NONBLOCK);
@@ -83,7 +83,7 @@
       assert(dup2_ret == ret_fileno);
       /* The pipe will be kept open by ret_fileno, tmp_fifo_fd is not needed anymore. */
       ic_orig_close(tmp_fifo_fd);
-      if ((type_flags & O_ACCMODE) == O_WRONLY) {
+      if (is_wronly(type_flags)) {
         /* This fd is not needed either. */
         ic_orig_close(tmp_rdonly_fd);
       }
