@@ -1625,7 +1625,10 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
    * make sure they run mutually exclusively. This restriction might get somewhat loosened one day.
    */
   pthread_t thread2;
-  thread2 = pthread_create(&thread2, NULL, thread2_code, NULL);
+  if (pthread_create(&thread2, NULL, thread2_code, NULL) != 0) {
+    perror("pthread_create");
+    exit(EXIT_FAILURE);
+  }
 
   /* Unblock sigchld in this thread. */
   pthread_sigmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
@@ -1634,8 +1637,14 @@ fprintf(stderr, "big mutex = %p\n", &big_mutex);
   event_base_dispatch(ev_base);
 
   /* The main event loop has quit. Stop the thread that processes the shmqs. */
-  pthread_cancel(thread2);
-  pthread_join(thread2, NULL);
+  if (pthread_cancel(thread2) != 0) {
+    perror("pthread_cancel");
+    exit(EXIT_FAILURE);
+  }
+  if (pthread_join(thread2, NULL) != 0) {
+    perror("pthread_join");
+    exit(EXIT_FAILURE);
+  }
   /* Any remaining messages to process? FIXME can this happen??? Probably not. */
   while (handle_shmq_messages()) {}
 
