@@ -64,7 +64,7 @@ static bool update(const FileName* path, int fd, struct stat64 *stat_ptr, HashCa
      * file in the blob cache. So use blob_cache's methods which in turn will compute the hash.
      * The file needs to be a regular file, cannot be a directory. */
     entry->is_dir = false;
-    bool ret = blob_cache->store_file(path, &entry->hash, fd, st);
+    bool ret = blob_cache->store_file(path, fd, st, &entry->hash);
     if (ret) {
       entry->is_stored = true;
     }

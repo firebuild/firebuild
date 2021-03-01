@@ -21,9 +21,9 @@ class BlobCache {
   ~BlobCache();
 
   bool store_file(const FileName *path,
-                  Hash *key_out,
-                  int fd = -1,
-                  struct stat64 *st = NULL);
+                  int fd_src,
+                  struct stat64 *stat_ptr,
+                  Hash *key_out);
   bool retrieve_file(const Hash &key,
                      const FileName *path_dst);
 

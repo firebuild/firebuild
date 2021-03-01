@@ -107,15 +107,15 @@ static std::string construct_cached_file_name(const std::string &base,
  * If st != NULL then it contains the file's stat info.
  *
  * @param path The file to place in the cache
- * @param key_out Optionally store the key (hash) here
  * @param fd_src Optionally the opened file descriptor to copy
  * @param stat_ptr Optionally the file's parameters already stat()'ed
+ * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
 bool BlobCache::store_file(const FileName *path,
-                           Hash *key_out,
                            int fd_src,
-                           struct stat64 *stat_ptr) {
+                           struct stat64 *stat_ptr,
+                           Hash *key_out) {
   TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d", D(path), fd_src);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
