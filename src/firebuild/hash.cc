@@ -64,29 +64,32 @@ void Hash::set_from_data(const void *data, ssize_t size) {
  *
  * If fd is a directory, its sorted listing is hashed.
  *
+ * If stat_ptr is not NULL then it must contain fd's stat data. This can save an fstat() call.
+ *
  * @param fd The file descriptor
- * @param is_dir_out Optionally store here whether fd refers to a
- * directory
+ * @param stat_ptr Optionally the stat data of fd
+ * @param is_dir_out Optionally store here whether fd refers to a directory
  * @return Whether succeeded
  */
-bool Hash::set_from_fd(int fd, bool *is_dir_out) {
+bool Hash::set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "fd=%d", fd);
 
-  struct stat64 st;
-  if (fstat64(fd, &st) == -1) {
+  struct stat64 st_local, *st;
+  st = stat_ptr ? stat_ptr : &st_local;
+  if (!stat_ptr && fstat64(fd, st) == -1) {
     perror("fstat");
     return false;
   }
 
-  if (S_ISREG(st.st_mode)) {
+  if (S_ISREG(st->st_mode)) {
     /* Compute the hash of a regular file. */
     if (is_dir_out != NULL) {
       *is_dir_out = false;
     }
 
     void *map_addr;
-    if (st.st_size > 0) {
-      map_addr = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    if (st->st_size > 0) {
+      map_addr = mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd, 0);
       if (map_addr == MAP_FAILED) {
         FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of regular file: mmap failed");
         return false;
@@ -96,14 +99,14 @@ bool Hash::set_from_fd(int fd, bool *is_dir_out) {
       map_addr = NULL;
     }
 
-    set_from_data(map_addr, st.st_size);
+    set_from_data(map_addr, st->st_size);
 
-    if (st.st_size > 0) {
-      munmap(map_addr, st.st_size);
+    if (st->st_size > 0) {
+      munmap(map_addr, st->st_size);
     }
     return true;
 
-  } else if (S_ISDIR(st.st_mode)) {
+  } else if (S_ISDIR(st->st_mode)) {
     /* Compute the hash of a directory. Its listing is sorted, and
      * concatenated using '\0' as a terminator after each entry. Then
      * this string is hashed. */
@@ -179,7 +182,7 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
     return false;
   }
 
-  if (!set_from_fd(fd, is_dir_out)) {
+  if (!set_from_fd(fd, NULL, is_dir_out)) {
     close(fd);
     return false;
   }

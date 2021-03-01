@@ -75,7 +75,7 @@ static bool update(const FileName* path, int fd, struct stat64 *stat_ptr, HashCa
     if (fd == -1) {
       return entry->hash.set_from_file(path, &entry->is_dir);
     } else {
-      return entry->hash.set_from_fd(fd, &entry->is_dir);
+      return entry->hash.set_from_fd(fd, st, &entry->is_dir);
     }
   }
 }

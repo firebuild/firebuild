@@ -168,7 +168,9 @@ bool BlobCache::store_file(const FileName *path,
   /* Copying complete. Compute checksum on the copy, to prevent cache
    * corruption if someone is modifying the original file. */
   Hash key;
-  if (!key.set_from_fd(fd_dst, NULL)) {
+  /* Note that st belongs to fd_src, but we use it for fd_dst because the file type (regular file)
+   * and the size are the same, and the rest are irrelevant. */
+  if (!key.set_from_fd(fd_dst, st, NULL)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd_dst);
     unlink(tmpfile.c_str());

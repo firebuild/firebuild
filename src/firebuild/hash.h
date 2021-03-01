@@ -5,6 +5,8 @@
 #ifndef FIREBUILD_HASH_H_
 #define FIREBUILD_HASH_H_
 
+#include <sys/stat.h>
+
 #include <cstring>
 #include <string>
 
@@ -44,7 +46,7 @@ class Hash {
   static size_t hash_size() {return hash_size_;}
 
   void set_from_data(const void *data, ssize_t size);
-  bool set_from_fd(int fd, bool *is_dir_out);
+  bool set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out);
   bool set_from_file(const FileName *filename, bool *is_dir_out = NULL);
 
   bool set_hash_from_binary(const uint8_t * const binary);
