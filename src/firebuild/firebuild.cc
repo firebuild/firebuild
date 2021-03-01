@@ -223,6 +223,13 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
     }
 
+    std::vector<inherited_pipe_t> inherited_pipes = proc->inherited_pipes();
+    for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
+      /* There may be incoming data from the parent, drain it. Do it before trying to shortcut. */
+      auto file_fd = proc->get_shared_fd(inherited_pipe.fds[0]);
+      inherited_pipe.pipe->drain_fd1_end(file_fd.get());
+    }
+
     /* Try to shortcut the process. */
     bool shortcutting_succeeded = proc->shortcut();
     if (shortcutting_succeeded) {
@@ -233,10 +240,8 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       /* parent forked, thus a new set of fds is needed to track outputs */
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
-      for (inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
-        /* There may be incoming data from the parent, drain it. */
+      for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
         auto file_fd = proc->get_shared_fd(inherited_pipe.fds[0]);
-        inherited_pipe.pipe->drain_fd1_end(file_fd.get());
         /* For the lowest fd, create a new named pipe */
         int fifo_fd = make_fifo_fd_conn(proc, inherited_pipe.fds[0], &fifo_fds);
         // FIXME(rbalint) add cache fds
