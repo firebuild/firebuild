@@ -22,10 +22,10 @@ namespace firebuild {
 
 static int fb_pid_counter;
 
-Process::Process(const int pid, const int ppid, const FileName *wd,
+Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
                  Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
-      pid_(pid), ppid_(ppid), exit_status_(-1), wd_(wd), fds_(fds),
+      pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), fork_children_(),
       expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
@@ -957,6 +957,8 @@ std::string Process::d_internal(const int level) const {
 }
 
 Process::~Process() {
+  TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
+
   free(pending_popen_fifo_);
 }
 

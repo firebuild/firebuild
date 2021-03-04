@@ -71,7 +71,7 @@ typedef enum {
  */
 class Process {
  public:
-  Process(int pid, int ppid, const FileName *wd,
+  Process(int pid, int ppid, int exec_count, const FileName *wd,
           Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
@@ -92,6 +92,7 @@ class Process {
   int fb_pid() {return fb_pid_;}
   int pid() const {return pid_;}
   int ppid() const {return ppid_;}
+  int exec_count() const {return exec_count_;}
   int exit_status() const {return exit_status_;}
   void set_exit_status(const int e) {exit_status_ = e;}
   const FileName* wd() {return wd_;}
@@ -396,10 +397,6 @@ class Process {
     on_finalized_ack_fd_ = fd;
   }
 
-  /* For debugging: The "age" of a given PID, i.e. how many execve() hops happened to it.
-   * 0 for a ForkedProcess, 1 for its first ExecedProcess child, 2 for the execed child of
-   * that one, etc. -1 temporarily while constructing a Process object. */
-  virtual int exec_count() const {return -1;}
   /* For debugging. */
   std::string pid_and_exec_count() const {return d(pid()) + "." + d(exec_count());}
   /* For debugging. */
@@ -427,6 +424,10 @@ class Process {
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
+  /** For debugging: The "age" of a given PID, i.e. how many execve() hops happened to it.
+   *  0 for a ForkedProcess, 1 for its first ExecedProcess child, 2 for the execed child of
+   *  that one, etc. -1 temporarily while constructing a Process object. */
+  int exec_count_;
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   const FileName* wd_;  ///< Current working directory
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors

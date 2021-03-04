@@ -126,6 +126,7 @@ typedef enum {
 class Pipe {
  public:
   Pipe(int fd0_conn, Process* creator);
+  ~Pipe();
   /**
    * Shared_ptr of this Pipe for fd0-side references.
    */

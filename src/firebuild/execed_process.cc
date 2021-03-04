@@ -49,7 +49,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *executable,
                              Process * parent,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
-    : Process(pid, ppid, initial_wd, parent, fds),
+    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
                                              ? parent->exec_point()
@@ -57,14 +57,13 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                                    : nullptr),
       sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), created_pipes_(), cacher_(NULL), exec_count_(1) {
+      libs_(), file_usages_(), created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
          pid, ppid, D(initial_wd), D(executable), D(parent));
 
   if (parent != NULL) {
     assert(parent->state() == FB_PROC_TERMINATED);
-    exec_count_ = parent->exec_count() + 1;
     // add as exec child of parent
     parent->set_exec_pending(false);
     parent->reset_file_fd_pipe_refs();
@@ -608,6 +607,8 @@ std::string ExecedProcess::d_internal(const int level) const {
 }
 
 ExecedProcess::~ExecedProcess() {
+  TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
+
   for (auto& pair : file_usages_) {
     delete(pair.second);
   }
