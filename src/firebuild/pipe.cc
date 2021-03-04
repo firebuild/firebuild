@@ -67,6 +67,10 @@ Pipe::Pipe(int fd0_conn, Process* creator)
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%s, creator=%s", D_FD(fd0_conn), D(creator));
 }
 
+Pipe::~Pipe() {
+  TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "");
+}
+
 std::shared_ptr<Pipe> Pipe::fd0_shared_ptr() {
   assert(!fd0_shared_ptr_generated_);
   fd0_ptrs_held_self_ptr_ = shared_self_ptr_;

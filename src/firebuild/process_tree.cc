@@ -72,6 +72,8 @@ ProcessTree::ProcessTree()
 }
 
 ProcessTree::~ProcessTree() {
+  TRACK(FB_DEBUG_PROCTREE, "");
+
   // clean up all processes
   for (auto& pair : fb_pid2proc_) {
     delete(pair.second);

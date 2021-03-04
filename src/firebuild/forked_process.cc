@@ -14,7 +14,7 @@ namespace firebuild {
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
-    : Process(pid, ppid, parent ? parent->wd() : FileName::Get(""), parent, fds) {
+    : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 
   // add as fork child of parent
@@ -24,6 +24,10 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
   } else {
     fb_error("impossible: Process without known fork parent\n");
   }
+}
+
+ForkedProcess::~ForkedProcess() {
+  TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 }
 
 /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.

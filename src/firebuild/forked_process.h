@@ -22,9 +22,9 @@ class ForkedProcess : public Process {
  public:
   explicit ForkedProcess(const int pid, const int ppid, Process* parent,
                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  virtual ~ForkedProcess();
   ExecedProcess* exec_point() {return exec_point_;}
   const ExecedProcess* exec_point() const {return exec_point_;}
-  virtual int exec_count() const {return 0;}
   /**
    * Fail to change to a working directory
    */
