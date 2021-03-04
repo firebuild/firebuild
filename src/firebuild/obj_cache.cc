@@ -144,11 +144,15 @@ bool ObjCache::store(const Hash &key,
     close(fd);
   }
 
-  std::string tmpfile = base_dir_ + "/new.XXXXXX";
-  char *tmpfile_c_writable = &*tmpfile.begin();  // hack against c_str()'s constness
-  int fd_dst = mkstemp(tmpfile_c_writable);  // opens with O_RDWR
+  char *tmpfile;
+  if (asprintf(&tmpfile, "%s/new.XXXXXX", base_dir_.c_str()) < 0) {
+    perror("asprintf");
+    return false;
+  }
+  int fd_dst = mkstemp(tmpfile);  /* opens with O_RDWR */
   if (fd_dst == -1) {
     perror("mkstemp");
+    free(tmpfile);
     return false;
   }
 
@@ -165,16 +169,19 @@ bool ObjCache::store(const Hash &key,
       FB_DEBUG(FB_DEBUG_CACHING, "short write");
     }
     close(fd_dst);
+    free(tmpfile);
     return false;
   }
   close(fd_dst);
 
   std::string path_dst = construct_cached_file_name(base_dir_, key, subkey, true);
-  if (rename(tmpfile.c_str(), path_dst.c_str()) == -1) {
+  if (rename(tmpfile, path_dst.c_str()) == -1) {
     perror("rename");
-    unlink(tmpfile.c_str());
+    unlink(tmpfile);
+    free(tmpfile);
     return false;
   }
+  free(tmpfile);
 
   if (subkey_out != NULL) {
     *subkey_out = subkey;
