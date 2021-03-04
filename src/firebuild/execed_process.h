@@ -30,14 +30,15 @@ class ExecedProcessCacher;
  * The structure always refers to how things were when the process started,
  * it isn't modified later as the process does various things with its file descriptors.
  *
+ * Accordingly, it does not hold a pointer to the Pipe object, since that one might go away
+ * while we still need to keep this structure.
+ *
  * A pipe might have multiple file descriptors, as per dup() and friends.
  * They are stored in ascending order. There's at least one fd.
  */
 typedef struct inherited_pipe_ {
   /* The client-side file descriptor numbers, sorted */
   std::vector<int> fds {};
-  /* The Pipe */
-  std::shared_ptr<Pipe> pipe {};
 } inherited_pipe_t;
 
 class ExecedProcess : public Process {
