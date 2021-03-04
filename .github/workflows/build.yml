@@ -30,8 +30,7 @@ jobs:
     - name: build-in-tree
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug .
-        make -j2
-        make check
+        make -j2 check
     - name: test
       run: |
         make check
@@ -41,8 +40,7 @@ jobs:
       run: |
         git clean -dxf
         cmake -DCOVERAGE=1 .
-        make -j2
-        make check coverage-info
+        make -j2 check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
   scan-build:
     # wait for clang-build because scan-build fails if the former fails
@@ -121,8 +119,7 @@ jobs:
     - name: build-in-tree
       run: |
         cmake -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
-        make -j2
-        make check
+        make -j2 check
     - name: build-vte
       run: |
         apt-get source vte2.91
