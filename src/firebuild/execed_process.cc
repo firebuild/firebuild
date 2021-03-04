@@ -113,7 +113,6 @@ void ExecedProcess::initialize() {
     }
     if (!found) {
       inherited_pipe_t inherited_pipe;
-      inherited_pipe.pipe = pipe;
       inherited_pipe.fds.push_back(file_fd->fd());
       inherited_pipes.push_back(inherited_pipe);
     }

@@ -227,7 +227,9 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
       /* There may be incoming data from the parent, drain it. Do it before trying to shortcut. */
       auto file_fd = proc->get_shared_fd(inherited_pipe.fds[0]);
-      inherited_pipe.pipe->drain_fd1_end(file_fd.get());
+      auto pipe = file_fd->pipe();
+      assert(pipe);
+      pipe->drain_fd1_end(file_fd.get());
     }
 
     /* Try to shortcut the process. */
@@ -242,13 +244,15 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       // without writing to it
       for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
         auto file_fd = proc->get_shared_fd(inherited_pipe.fds[0]);
+        auto pipe = file_fd->pipe();
+        assert(pipe);
         /* For the lowest fd, create a new named pipe */
         int fifo_fd = make_fifo_fd_conn(proc, inherited_pipe.fds[0], &fifo_fds);
         // FIXME(rbalint) add cache fds
         auto cache_fds = std::vector<int>();
-        inherited_pipe.pipe->add_fd1(fifo_fd, file_fd.get(), std::move(cache_fds));
+        pipe->add_fd1(fifo_fd, file_fd.get(), std::move(cache_fds));
         FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_pipe.fds[0])
-                 + " as new fd1: " + d(fifo_fd) + " of " + d(inherited_pipe.pipe.get()));
+                 + " as new fd1: " + d(fifo_fd) + " of " + d(pipe));
 
         /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
         for (size_t i = 1; i < inherited_pipe.fds.size(); i++) {
