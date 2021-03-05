@@ -210,9 +210,9 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     proc->initialize();
 
     /* Check for executables that are known not to be shortcuttable. */
-    if (blacklist_matcher->match(proc->executable(),
+    if (dont_shortcut_matcher->match(proc->executable(),
                                 proc->args().size() > 0 ? proc->args()[0] : "")) {
-      proc->disable_shortcutting_bubble_up("Executable blacklisted");
+      proc->disable_shortcutting_bubble_up("Executable set to be not shortcut");
     }
 
     /* Check for executables that we prefer not to shortcut. */
