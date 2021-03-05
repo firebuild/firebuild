@@ -154,7 +154,7 @@ class ProcessTree {
     for (auto& pipe : inherited_fd_pipes_) {
       pipe->finish();
     }
-    /* Destruct these Pipe objects, by dropping the last reference. */
+    /* Destruct these Pipe objects, and in turn their recorders, by dropping the last reference. */
     inherited_fd_pipes_.clear();
   }
 

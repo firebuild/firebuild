@@ -16,6 +16,7 @@
 #include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
 #include "firebuild/pipe.h"
+#include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
@@ -39,6 +40,8 @@ class ExecedProcessCacher;
 typedef struct inherited_pipe_ {
   /* The client-side file descriptor numbers, sorted */
   std::vector<int> fds {};
+  /* The recorder of the traffic, as seen from this exec point */
+  std::shared_ptr<PipeRecorder> recorder {};
 } inherited_pipe_t;
 
 class ExecedProcess : public Process {

@@ -425,6 +425,12 @@ void ExecedProcess::disable_shortcutting_only_this(const std::string &reason,
     cant_shortcut_proc_ = p ? p : this;
     FB_DEBUG(FB_DEBUG_PROC, "Command " + d(executable_->c_str())
              + " can't be short-cut due to: " + reason + ", " + d(this));
+
+    for (const inherited_pipe_t& inherited_pipe : inherited_pipes_) {
+      if (inherited_pipe.recorder) {
+        inherited_pipe.recorder->deactivate();
+      }
+    }
   }
 }
 

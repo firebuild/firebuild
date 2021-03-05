@@ -23,6 +23,7 @@ add_executable(firebuild
   file_name.cc
   firebuild.cc
   pipe.cc
+  pipe_recorder.cc
   process.cc
   execed_process.cc
   execed_process_cacher.cc

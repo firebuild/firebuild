@@ -18,12 +18,14 @@
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
 #include "firebuild/linear_buffer.h"
+#include "firebuild/pipe_recorder.h"
 
 extern event_base * ev_base;
 
 namespace firebuild {
 
 class FileFD;
+class ExecedProcess;
 class Process;
 
 typedef struct _pipe_end {
@@ -32,7 +34,7 @@ typedef struct _pipe_end {
   /* FileFDs associated with this pipe end keeping a(n fd1) reference to this pipe. */
   std::unordered_set<FileFD*> file_fds;
   /** Cache files to save the captured data to */
-  std::vector<int> cache_fds;
+  std::vector<std::shared_ptr<PipeRecorder>> recorders;
   bool known_to_be_opened;
 } pipe_end;
 
@@ -62,7 +64,7 @@ typedef enum {
  * Processes, due to dup(), fork() and alike. Each of them are converted to a separate named pipe
  * towards the supervisor, because it needs to record which process wrote the data.
  * The supervisor-side file descriptors of these channels are tracked in conn2fd1_ends, via the
- * add_fd1() helper method.
+ * add_fd1_and_proc() helper method.
  *
  * The fd0 and fd1 naming in the supervisor reflects that in the intercepted programs those ends
  * are connected to the pipefd[0] and pipefd[1] of pipe()'s output parameter. See pipe(2).
@@ -159,8 +161,18 @@ class Pipe {
    * from this map. The FileFD can still be tracked as being open, because the message about the
    * close() or dup() may arrive later than the EOF being detected. */
   std::unordered_map<FileFD*, pipe_end *> ffd2fd1_ends;
+  /**
+   * PipeRecorders indexed by ExecedProcess (pointer)
+   *
+   * For a given exec point, tells which PipeRecorders record(ed) the subset of the Pipe
+   * corresponding to the given ExecProcess.
+   * Somewhat similar to conn2fd1_ends and ffd2fd1_ends, but this one has to live on until the
+   * process is stored in the cache, when pipe_end might no longer be around. Used for track the
+   * recorders across an exec(), as well as storing in the cache what a process wrote to a pipe. */
+  std::unordered_map<ExecedProcess *, std::vector<std::shared_ptr<PipeRecorder>>> proc2recorders;
 
-  void add_fd1(int fd1, FileFD*, std::vector<int>&& cache_fds);
+  void add_fd1_and_proc(int fd1, FileFD*, ExecedProcess *proc,
+                        std::vector<std::shared_ptr<PipeRecorder>> recorders);
   /**
    * Send contents of the buffer to the 'to' side
    * @return send operation's result
@@ -205,6 +217,9 @@ class Pipe {
   bool finished() const {
     return !fd0_event;
   }
+
+  /** Add data from the given fd to the buffer. */
+  void add_data_from_fd(int fd, size_t len);
 
  private:
   /* Unique Pipe ID, for debugging */

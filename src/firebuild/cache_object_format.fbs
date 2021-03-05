@@ -38,6 +38,14 @@ table PipeFds {
   fd:[int];
 }
 
+table PipeData {
+  // fd at the time the process started, the lowest one if dup()'ed to
+  // multiple fds
+  fd:int;
+  // Checksum (binary) of the written data
+  hash:[ubyte];
+}
+
 // Properties of a process that are known when it starts up, and are
 // expected to be the same across identical launches. These take a key
 // part in deciding whether it can be shortcutted. This includes command
@@ -108,6 +116,9 @@ table ProcessOutputs {
   // link, symlink
   // chown, chmod
   // etc.
+
+  // Data written to inherited pipes
+  pipe_data:[PipeData];
 
   exit_status:int;
 }

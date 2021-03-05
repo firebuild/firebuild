@@ -17,6 +17,7 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_fd.h"
+#include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
 
 namespace firebuild {
@@ -60,7 +61,7 @@ struct Fd1Deleter {
 
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
-      conn2fd1_ends(), ffd2fd1_ends(), id_(id_counter_++), send_only_mode_(false),
+      conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), send_only_mode_(false),
       keep_fd0_open_(false), fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
       buf_(), fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
       shared_self_ptr_(this), creator_(creator) {
@@ -85,18 +86,21 @@ std::shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
   return std::shared_ptr<Pipe>(this, Fd1Deleter());
 }
 
-void Pipe::add_fd1(int fd1_conn, FileFD* file_fd, std::vector<int>&& cache_fds) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s", D_FD(fd1_conn));
+void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
+                            std::vector<std::shared_ptr<PipeRecorder>> recorders) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s, proc=%s, #recorders=%ld",
+         D_FD(fd1_conn), D(proc), recorders.size());
 
   assert(conn2fd1_ends.count(fd1_conn) == 0);
   assert(!finished());
   auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, Pipe::pipe_fd1_read_cb, this);
-  auto fd1_end  = new pipe_end({fd1_event, {file_fd}, std::move(cache_fds), false});
+  auto fd1_end = new pipe_end({fd1_event, {file_fd}, recorders, false});
   conn2fd1_ends[fd1_conn] = fd1_end;
   ffd2fd1_ends[file_fd] = fd1_end;
   if (!send_only_mode_) {
     event_add(fd1_event, NULL);
   }
+  proc2recorders[proc] = recorders;
 }
 
 void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
@@ -245,6 +249,18 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
   }
 }
 
+/**
+ * Flip whether we wish to only send data from the Pipe's buffer (which we want if the buffer is
+ * nonempty) or if we wish to read (and probably immediately send that). Also configure libevent
+ * accordingly.
+ *
+ * Note: This method can't be called if the current Pipe represents one of regular files the top
+ * process inherited for writing. E.g. if you execute:
+ *   firebuild command args > outfile
+ * then care has to be taken not to call this method on "outfile".
+ * This is because libevent's event_add() and friends, and their underlying epoll_ctl() don't
+ * support regular files.
+ */
 void Pipe::set_send_only_mode(const bool mode) {
   TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "mode=%s", D(mode));
 
@@ -266,6 +282,13 @@ void Pipe::set_send_only_mode(const bool mode) {
   send_only_mode_ = mode;
 }
 
+/**
+ * Try to send some of the data that's in the buffers. Also flips send_only_mode (and thus
+ * configures libevent) according to whether further sending is needed.
+ *
+ * The Pipe might represent a regular file that the top process inherited for writing. In this case
+ * this method should successfully write the entire buffer, and thus not call set_send_only_mode().
+ */
 pipe_op_result Pipe::send_buf() {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
 
@@ -336,10 +359,10 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
     /* Try splice and tee first. */
     if (buffer_empty()) {
       auto fd0_conn = event_get_fd(fd0_event);
-      auto cache_fds_size = fd1_end->cache_fds.size();
       do {
         /* Forward data first to block the reader less. */
-        if (cache_fds_size > 0) {
+        if (PipeRecorder::has_active_recorder(fd1_end->recorders)) {
+          /* We want to record the data. Forward it using tee() which will leave it in the pipe. */
           received = tee(fd1, fd0_conn, SIZE_MAX, SPLICE_F_NONBLOCK);
           if (received == -1 || received == 0) {
             /* EOF of other error on one of the fds, let the slow path figure that out. */
@@ -347,22 +370,12 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
           } else {
             FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes from fd: "
                      + d_fd(fd1) + "to fd: " + d_fd(fd0_conn) + " using tee");
-            /* Save the data. */
-            size_t i;
-            for (i = 0; i < cache_fds_size - 1; i++) {
-#ifndef NDEBUG
-              ssize_t saved =
-#endif
-                  tee(fd1, fd1_end->cache_fds[i], received, 0);
-              assert(saved == received);
-            }
-#ifndef NDEBUG
-            ssize_t saved =
-#endif
-                splice(fd1, NULL, fd1_end->cache_fds[i], NULL, received, 0);
-            assert(saved == received);
+            /* Save the data, consuming it from the pipe. */
+            PipeRecorder::record_data_from_unix_pipe(fd1_end->recorders, fd1, received);
           }
         } else {
+          /* We do not want to record the data. Forward it using splice() which consumes it from the
+           * pipe. */
           received = splice(fd1, NULL, fd0_conn, NULL, SIZE_MAX, SPLICE_F_NONBLOCK);
           if (received == -1 || received == 0) {
             /* EOF of other error on one of the fds, let the slow path figure that out. */
@@ -430,16 +443,13 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       return ret;
     } else {
       FB_DEBUG(FB_DEBUG_PIPE, "received " + d(received) + " bytes from fd: " + d_fd(fd1));
-      if (fd1_end->cache_fds.size() > 0) {
-        /* Save the data keeping it in the buffer, too. */
-        ssize_t bufsize = buf_.length();
-        assert(bufsize >= received);
-        /* The data to be saved now is at the end of the buffer. */
-        const char * buf_to_save = buf_.data() + bufsize - received;
-        for (auto cache_fd : fd1_end->cache_fds) {
-          fb_write(cache_fd, buf_to_save, received);
-        }
-      }
+      /* Locate the new data in the buffer. */
+      ssize_t bufsize = buf_.length();
+      assert(bufsize >= received);
+      const char * buf_to_save = buf_.data() + bufsize - received;
+      /* Record it. */
+      PipeRecorder::record_data_from_buffer(fd1_end->recorders, buf_to_save, received);
+      /* Try to send it, too. */
       send_ret = send_buf();
     }
   } while (drain && (send_ret != FB_PIPE_FD0_EPIPE));
@@ -481,6 +491,19 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
     default:
       ffd2fd1_ends.erase(file_fd);
       fd1_end->file_fds.erase(file_fd);
+  }
+}
+
+/* Add the contents of the given file to the Pipe's buffer. This is used when shortcutting a
+ * process, the cached data is injected into the Pipe. */
+void Pipe::add_data_from_fd(int fd, size_t len) {
+  if (len > 0) {
+    buf_.read(fd, len);
+    /* Pipe might represent one of the top process's files inherited for writing, which might even
+     * be a regular file (e.g. in case of "firebuild command args > outfile"). We can't directly
+     * call set_send_only_mode() on that. So instead call send_buf(), it'll automatically take care
+     * of it. */
+    send_buf();
   }
 }
 
