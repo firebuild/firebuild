@@ -257,15 +257,13 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
         int fifo_fd = make_fifo_fd_conn(proc, inherited_pipe.fds[0], &fifo_fds);
         /* Find the recorders belonging to the parent process. We need to record to all those,
          * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
-        auto recorders = std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
-        if (proc->parent()) {
-          recorders = pipe->proc2recorders[proc->parent_exec_point()];
-        }
+        auto  recorders =  proc->parent() ? pipe->proc2recorders[proc->parent_exec_point()]
+            : std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
         if (proc->can_shortcut()) {
           inherited_pipe.recorder = std::make_shared<PipeRecorder>(proc);
           recorders.push_back(inherited_pipe.recorder);
         }
-        pipe->add_fd1_and_proc(fifo_fd, file_fd.get(), proc, recorders);
+        pipe->add_fd1_and_proc(fifo_fd, file_fd.get(), proc, std::move(recorders));
         FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_pipe.fds[0])
                  + " as new fd1: " + d(fifo_fd) + " of " + d(pipe));
 

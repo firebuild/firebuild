@@ -180,7 +180,8 @@ void PipeRecorder::deactivate() {
 /**
  * Returns whether any of the given recorders is active, i.e. still records data.
  */
-bool PipeRecorder::has_active_recorder(const std::vector<std::shared_ptr<PipeRecorder>> recorders) {
+bool PipeRecorder::has_active_recorder(
+    const std::vector<std::shared_ptr<PipeRecorder>>& recorders) {
   for (size_t i = 0; i < recorders.size(); i++) {
     if (!recorders[i]->deactivated_) {
       return true;
@@ -195,15 +196,15 @@ bool PipeRecorder::has_active_recorder(const std::vector<std::shared_ptr<PipeRec
  * See pipe_recorder.h for the big picture, as well as the design rationale behind this static
  * method taking multiple PipeRecorders at once.
  */
-void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> recorders,
+void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                            const char *buf, ssize_t len) {
-  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, len=%ld", recorders.size(), len);
+  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, len=%ld", recorders->size(), len);
 
   assert(len > 0);
 
   // FIXME Would it be faster to call add_data_from_buffer() for the first active recorder only,
   // and then do add_data_from_regular_fd() (i.e. copy_file_range()) for the rest?
-  for (std::shared_ptr<PipeRecorder>& recorder : recorders) {
+  for (std::shared_ptr<PipeRecorder>& recorder : *recorders) {
     if (!recorder->deactivated_) {
       recorder->add_data_from_buffer(buf, len);
     }
@@ -222,27 +223,27 @@ void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecor
  * See pipe_recorder.h for the big picture, as well as the design rationale behind this static
  * method taking multiple PipeRecorders at once.
  */
-void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> recorders,
+void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                               int fd, ssize_t len) {
-  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders.size(), fd, len);
+  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
 
-  assert(has_active_recorder(recorders));
+  assert(has_active_recorder(*recorders));
   assert(len > 0);
 
   /* The first active recorder consumes the data from the pipe. */
   size_t i;
-  for (i = 0; i < recorders.size(); i++) {
-    if (!recorders[i]->deactivated_) {
-      recorders[i++]->add_data_from_unix_pipe(fd, len);
+  for (i = 0; i < recorders->size(); i++) {
+    if (!(*recorders)[i]->deactivated_) {
+      (*recorders)[i++]->add_data_from_unix_pipe(fd, len);
       break;
     }
   }
 
   /* The remaining active recorders copy from the first one's backing file. */
-  for (; i < recorders.size(); i++) {
-    if (!recorders[i]->deactivated_) {
-      recorders[i]->add_data_from_regular_fd(recorders[0]->fd_,
-                                             recorders[0]->offset_ - len, len);
+  for (; i < recorders->size(); i++) {
+    if (!(*recorders)[i]->deactivated_) {
+      (*recorders)[i]->add_data_from_regular_fd((*recorders)[0]->fd_,
+                                                (*recorders)[0]->offset_ - len, len);
     }
   }
 }
@@ -258,13 +259,14 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
  * See in pipe_recorder.h for the big picture, as well as the design rationale behind this static
  * method taking multiple PipeRecorders at once.
  */
-void PipeRecorder::record_data_from_regular_fd(std::vector<std::shared_ptr<PipeRecorder>> recorders,
-                                               int fd, ssize_t len) {
-  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders.size(), fd, len);
+void PipeRecorder::record_data_from_regular_fd(
+    std::vector<std::shared_ptr<PipeRecorder>> *recorders,
+    int fd, ssize_t len) {
+  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
 
   assert(len > 0);
 
-  for (std::shared_ptr<PipeRecorder>& recorder : recorders) {
+  for (std::shared_ptr<PipeRecorder>& recorder : *recorders) {
     if (!recorder->deactivated_) {
       recorder->add_data_from_regular_fd(fd, 0, len);
     }
