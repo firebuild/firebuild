@@ -257,10 +257,13 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   /* Maybe notify the supervisor */
   if (i_am_intercepting && {{ send_msg_condition }}) {
 ###           if channel != 'shmq'
-    /* Barrier over shmq, before sending the message on the socket */
-    FBB_Builder_barrier ic_msg_barrier;
-    fbb_barrier_init(&ic_msg_barrier);
-    fb_fbb_send_msg_and_check_ack2(&ic_msg_barrier, fb_sv_conn);
+    /* Make sure there's no pending message in shmq. Do this by sending a barrier
+     * (an empty ACK'ed message) over shmq and waiting for its ACK, if needed. */
+    if (!shmq_writer_queue_is_empty(&fb_shmq)) {
+      FBB_Builder_barrier ic_msg_barrier;
+      fbb_barrier_init(&ic_msg_barrier);
+      fb_fbb_send_msg_and_check_ack2(&ic_msg_barrier, fb_sv_conn);
+    }
 ###           endif
 
     FBB_Builder_{{ msg }} ic_msg;

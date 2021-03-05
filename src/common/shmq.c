@@ -557,6 +557,21 @@ void shmq_writer_wait_for_ack(shmq_writer_t *writer) {
   assert(((shmq_global_header_t *)(writer->buf))->ack_count == writer->ack_recv_count);
 }
 
+/**
+ * Check whether the reader has consumed all the messages.
+ *
+ * Due to the asynchronous nature of the game, it's possible that the reader consumes the last
+ * message from the queue just when this method is about to return false, or when the caller acts on
+ * the returned false. That is, a return value of true means that the queue is empty, a return value
+ * of false means that the queue may or may not be empty.
+ */
+bool shmq_writer_queue_is_empty(const shmq_writer_t *writer) {
+  int32_t reader_tail_location = ((shmq_global_header_t *)(writer->buf))->tail_location;
+  int32_t writer_next_message_pointer_location =
+      writer->chunk[shmq_writer_nr_chunks(writer) - 1].head - shmq_next_message_pointer_size();
+  return reader_tail_location == writer_next_message_pointer_location;
+}
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

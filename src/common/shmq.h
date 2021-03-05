@@ -24,7 +24,7 @@ typedef struct {
   /* The semaphore for ACKing a message. */
   sem_t ack_sem;
   /* The offset of the oldest pointer, e.g. the address of p[2] in shmq.c's example. */
-  /* Updated by the reader */
+  /* Updated by the reader. */
   volatile int32_t tail_location;
   /* Number of messages ACKed so far, i.e. number of sem_post()s, for debugging. */
   int32_t ack_count;
@@ -101,6 +101,7 @@ void shmq_writer_fini(shmq_writer_t *writer);
 char *shmq_writer_new_message(shmq_writer_t *writer, int32_t len);
 void shmq_writer_send_message(shmq_writer_t *writer, bool ack_needed);
 void shmq_writer_wait_for_ack(shmq_writer_t *writer);
+bool shmq_writer_queue_is_empty(const shmq_writer_t *writer);
 
 static inline int shmq_writer_nr_chunks(const shmq_writer_t *writer) {
   static const int state_to_nr_chunks[5] = {0, 1, 2, 3, 2};
