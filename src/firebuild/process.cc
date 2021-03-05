@@ -12,6 +12,7 @@
 
 #include "common/firebuild_common.h"
 #include "firebuild/file.h"
+#include "firebuild/pipe_recorder.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_env.h"
@@ -359,9 +360,11 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
                                          pipe->fd1_shared_ptr(),
                                          this, fd1_close_on_popen);
     add_filefd(fds_, fd1, ffd1);
-    // TODO(rbalint) open cache files for fd1 and pass that
-    auto cache_fds = std::vector<int>();
-    pipe->add_fd1(fd1_conn, ffd1.get(), std::move(cache_fds));
+    /* Empty recorders array. We don't start recording after a pipe(), this data wouldn't be
+     * used anywhere. We only start recording after an exec(), to catch the traffic as seen
+     * from that potential shortcutting point. */
+    auto recorders = std::vector<std::shared_ptr<PipeRecorder>>();
+    pipe->add_fd1_and_proc(fd1_conn, ffd1.get(), exec_point(), recorders);
   }
   return pipe;
 }
@@ -603,11 +606,14 @@ void Process::handle_write(const int fd) {
                                    " missed at least one open()");
     return;
   }
-  /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
-   * i.e. the file was opened by the current process. */
-  Process* opened_by = (*fds_)[fd]->opened_by();
-  exec_point()->disable_shortcutting_bubble_up_to_excl(
-      opened_by ? opened_by->exec_point() : nullptr, "Process wrote to inherited fd " + d(fd));
+  if (!(*fds_)[fd]->pipe()) {
+    /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
+     * i.e. the file was opened by the current process. */
+    Process* opened_by = (*fds_)[fd]->opened_by();
+    exec_point()->disable_shortcutting_bubble_up_to_excl(
+        opened_by ? opened_by->exec_point() : nullptr,
+        "Process wrote to inherited non-pipe fd " + d(fd));
+  }
 }
 
 void Process::handle_set_wd(const char * const ar_d) {

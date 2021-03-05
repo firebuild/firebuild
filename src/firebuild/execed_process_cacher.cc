@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -150,6 +151,15 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   if (no_store_) {
+    /* This is when FIREBUILD_READONLY is set. We could have decided not to create PipeRecorders
+     * at all. But maybe go with the default code path, i.e. record the data to temporary files,
+     * but at the last step purge them instead of moving them to their final location in the cache.
+     * This way the code path is more similar to the regular case. */
+    for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+      if (inherited_pipe.recorder) {
+        inherited_pipe.recorder->abandon();
+      }
+    }
     return;
   }
 
@@ -173,6 +183,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   std::vector<flatbuffers::Offset<msg::File>> out_path_isreg_with_hash,
       out_path_isdir;
   std::vector<const FileName*> out_path_notexist_fns;
+  std::vector<flatbuffers::Offset<msg::PipeData>> out_pipe_data;
 
   std::vector<file_file_usage> sorted_file_usages;
   for (const auto& pair : proc->file_usages()) {
@@ -269,6 +280,33 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     }
   }
 
+  /* Store what was written to the inherited pipes. Use the fd as of when the process started up,
+   * because this is what matters if we want to replay; how the process later dup()ed it to other
+   * fds is irrelevant. Similarly, no need to store the data written to pipes opened by this
+   * process, that data won't ever be replayed. */
+  for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+    /* Record the output as belonging to the lowest fd. */
+    int fd = inherited_pipe.fds[0];
+    std::shared_ptr<PipeRecorder> recorder = inherited_pipe.recorder;
+    if (recorder) {
+      bool is_empty;
+      Hash pipe_traffic_hash;
+      if (!recorder->store(&is_empty, &pipe_traffic_hash)) {
+        // FIXME handle error
+        FB_DEBUG(FB_DEBUG_CACHING,
+                 "Could not store pipe traffic in cache, not writing shortcut info");
+        return;
+      }
+      if (!is_empty) {
+        /* Note: pipes with no traffic are just simply not mentioned here in the "outputs" section.
+         * They were taken into account when computing the process's fingerprint. */
+        const auto hash =
+            builder.CreateVector(pipe_traffic_hash.to_binary(), Hash::hash_size());
+        out_pipe_data.push_back(msg::CreatePipeData(builder, fd, hash));
+      }
+    }
+  }
+
   auto in_path_isreg = fns_to_sorted_offsets(&in_path_isreg_fns, &builder);
   auto in_path_isdir = fns_to_sorted_offsets(&in_path_isdir_fns, &builder);
   auto in_path_notexist_or_isreg =
@@ -292,7 +330,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
                                 builder.CreateVectorOfSortedTables(&out_path_isreg_with_hash),
                                 builder.CreateVectorOfSortedTables(&out_path_isdir),
                                 builder.CreateVector(out_path_notexist),
+                                builder.CreateVector(out_pipe_data),
                                 proc->exit_status());
+
   // TODO(egmont) Add all sorts of other stuff
 
   auto pio = msg::CreateProcessInputsOutputs(builder, inputs, outputs);
@@ -465,6 +505,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                                          const msg::ProcessInputsOutputs* const inouts) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
+  /* Bubble up all the file operations we're about to perform. */
   if (proc->parent_exec_point()) {
     for (const auto& file : *inouts->inputs()->path_isreg_with_hash()) {
       Hash hash;
@@ -546,6 +587,31 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(filename, fu);
     }
+  }
+
+  /* See what the process originally wrote to its pipes. Add these to the Pipes' buffers. */
+  for (const auto& data : *inouts->outputs()->pipe_data()) {
+    FileFD *ffd = proc->get_fd(data->fd());
+    assert(ffd);
+    Pipe *pipe = ffd->pipe().get();
+    assert(pipe);
+
+    Hash hash;
+    hash.set_hash_from_binary(data->hash()->data());
+    int fd = blob_cache->get_fd_for_file(hash);
+    struct stat64 st;
+    if (fstat64(fd, &st) < 0) {
+      assert(0 && "fstat");
+    }
+    pipe->add_data_from_fd(fd, st.st_size);
+
+    if (proc->parent()) {
+      /* Bubble up the replayed pipe data. */
+      std::vector<std::shared_ptr<PipeRecorder>> recorders =
+          pipe->proc2recorders[proc->parent_exec_point()];
+      PipeRecorder::record_data_from_regular_fd(recorders, fd, st.st_size);
+    }
+    close(fd);
   }
 
   /* Set the exit code, propagate upwards. */

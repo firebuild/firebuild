@@ -201,11 +201,80 @@ bool BlobCache::store_file(const FileName *path,
     /* Place meta info in the cache, for easier debugging. */
     std::string path_debug = path_dst + "_debug.txt";
     std::string txt(pretty_timestamp() + "  Copied from " + d(path) + "\n");
-    int fd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
-    if (write(fd, txt.c_str(), txt.size()) < 0) {
+    int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
+    if (write(debugfd, txt.c_str(), txt.size()) < 0) {
       perror("BlobCache::store_file");
     }
+    close(debugfd);
+  }
+
+  if (key_out != NULL) {
+    *key_out = key;
+  }
+  return true;
+}
+
+/**
+ * Store the given regular file in the blob cache, with its hash as the key.
+ *
+ * The file is moved from its previous location. It is assumed that
+ * no one modifies it during checksum computation, that is, the
+ * intercepted processes have no direct access to it.
+ *
+ * The file handle is closed.
+ *
+ * The hash_cache is not queried or updated.
+ *
+ * This API is designed for PipeRecorder in order to place the recorded data in the cache.
+ *
+ * @param path The file to move to the cache
+ * @param fd A fd referring to this file
+ * @param len The file's length
+ * @param key_out Optionally store the key (hash) here
+ * @return Whether succeeded
+ */
+bool BlobCache::move_store_file(const std::string &path,
+                                int fd,
+                                size_t len,
+                                Hash *key_out) {
+  TRACK(FB_DEBUG_CACHING, "path=%s, fd=%d, len=%ld", D(path), fd, len);
+
+  FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob by moving " + path);
+
+  Hash key;
+  /* In order to save an fstat64() call in set_from_fd(), create a "fake" stat result here.
+   * We know that it's a regular file, we know its size, and the rest are irrelevant. */
+  struct stat64 st;
+  st.st_mode = S_IFREG;
+  st.st_size = len;
+  if (!key.set_from_fd(fd, &st, NULL)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd);
+    unlink(path.c_str());
+    return false;
+  }
+  close(fd);
+
+  std::string path_dst = construct_cached_file_name(base_dir_, key, true);
+  if (rename(path.c_str(), path_dst.c_str()) == -1) {
+    perror("rename");
+    unlink(path.c_str());
+    return false;
+  }
+
+  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "  => " + key.to_ascii());
+  }
+
+  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    /* Place meta info in the cache, for easier debugging. */
+    std::string path_debug = path_dst + "_debug.txt";
+    std::string txt(pretty_timestamp() + "  Moved from " + path + "\n");
+    int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
+    if (write(debugfd, txt.c_str(), txt.size()) < 0) {
+      perror("BlobCache::move_store_file");
+    }
+    close(debugfd);
   }
 
   if (key_out != NULL) {
@@ -260,6 +329,30 @@ bool BlobCache::retrieve_file(const Hash &key,
   close(fd_src);
   close(fd_dst);
   return true;
+}
+
+/**
+ * Get a read-only fd for a given entry in the cache.
+ *
+ * This is comfy when shortcutting a process and replaying what it wrote to a pipe.
+ *
+ * @param key The key (the file's hash)
+ * @return A read-only fd, or -1
+ */
+int BlobCache::get_fd_for_file(const Hash &key) {
+  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: getting fd for blob " + key.to_ascii());
+  }
+
+  std::string path_src = construct_cached_file_name(base_dir_, key, false);
+
+  int fd = open(path_src.c_str(), O_RDONLY);
+  if (fd == -1) {
+    perror("open");
+    return -1;
+  }
+
+  return fd;
 }
 
 }  // namespace firebuild

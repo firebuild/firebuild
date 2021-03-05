@@ -24,8 +24,13 @@ class BlobCache {
                   int fd_src,
                   struct stat64 *stat_ptr,
                   Hash *key_out);
+  bool move_store_file(const std::string &path,
+                       int fd,
+                       size_t len,
+                       Hash *key_out);
   bool retrieve_file(const Hash &key,
                      const FileName *path_dst);
+  int get_fd_for_file(const Hash &key);
 
  private:
   /* Including the "blobs" subdir. */

@@ -34,8 +34,11 @@
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 #include "firebuild/obj_cache.h"
+#include "firebuild/execed_process.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/pipe.h"
+#include "firebuild/pipe_recorder.h"
+#include "firebuild/process.h"
 #include "firebuild/process_factory.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
@@ -212,11 +215,15 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       proc->disable_shortcutting_bubble_up("Executable blacklisted");
     }
 
+    /* Check for executables that we prefer not to shortcut. */
+    if (skip_cache_matcher->match(proc->executable(),
+                                  proc->args().size() > 0 ? proc->args()[0] : "")) {
+      proc->disable_shortcutting_only_this("Executable matches skip_cache");
+    }
+
     /* If we still potentially can, and prefer to cache / shortcut this process,
      * register the cacher object and calculate the process's fingerprint. */
-    if (proc->can_shortcut() &&
-        !skip_cache_matcher->match(proc->executable(),
-                                  proc->args().size() > 0 ? proc->args()[0] : "")) {
+    if (proc->can_shortcut()) {
       proc->set_cacher(cacher);
       if (!cacher->fingerprint(proc)) {
         proc->disable_shortcutting_bubble_up("Could not fingerprint the process");
@@ -248,9 +255,17 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
         assert(pipe);
         /* For the lowest fd, create a new named pipe */
         int fifo_fd = make_fifo_fd_conn(proc, inherited_pipe.fds[0], &fifo_fds);
-        // FIXME(rbalint) add cache fds
-        auto cache_fds = std::vector<int>();
-        pipe->add_fd1(fifo_fd, file_fd.get(), std::move(cache_fds));
+        /* Find the recorders belonging to the parent process. We need to record to all those,
+         * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
+        auto recorders = std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
+        if (proc->parent()) {
+          recorders = pipe->proc2recorders[proc->parent_exec_point()];
+        }
+        if (proc->can_shortcut()) {
+          inherited_pipe.recorder = std::make_shared<PipeRecorder>(proc);
+          recorders.push_back(inherited_pipe.recorder);
+        }
+        pipe->add_fd1_and_proc(fifo_fd, file_fd.get(), proc, recorders);
         FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_pipe.fds[0])
                  + " as new fd1: " + d(fifo_fd) + " of " + d(pipe));
 
@@ -272,6 +287,9 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
 
       fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
+      /* inherited_pipes was updated with the recorders, save the new version */
+      proc->set_inherited_pipes(inherited_pipes);
+
       if (debug_flags != 0) {
         fbb_scproc_resp_set_debug_flags(&sv_msg, debug_flags);
       }
@@ -1342,6 +1360,8 @@ int main(const int argc, char *argv[]) {
   cacher =
       new firebuild::ExecedProcessCacher(no_store, no_fetch,
                                          cfg->getRoot()["env_vars"]["fingerprint_skip"]);
+
+  firebuild::PipeRecorder::set_base_dir((cache_dir + "/tmp").c_str());
   firebuild::hash_cache = new firebuild::HashCache();
 
   {

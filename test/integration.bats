@@ -220,3 +220,18 @@ setup() {
     assert_streq "$(strip_stderr stderr)" ""
   done
 }
+
+@test "pipe replaying" {
+  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -- echo foo)
+  assert_streq "$result" "foo"
+  assert_streq "$(strip_stderr stderr)" ""
+
+  # Poison the cache, pretending that the output was "quux" instead of "foo".
+  # (Bash supports wildcard redirection to a single matching file.)
+  echo quux > test_cache_dir/blobs/*/*/*
+
+  # Replaying the "echo foo" command now needs to print "quux".
+  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -- echo foo)
+  assert_streq "$result" "quux"
+  assert_streq "$(strip_stderr stderr)" ""
+}
