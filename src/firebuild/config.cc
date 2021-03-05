@@ -27,7 +27,7 @@ namespace firebuild {
 
 std::vector<const FileName*> *ignore_locations = nullptr;
 
-ExeMatcher* blacklist_matcher = nullptr;
+ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
 
 /** Parse configuration file
@@ -76,7 +76,7 @@ static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) 
  *    key -= value
  *      Remove the scalar `value` from the existing array `key`, if found
  *
- *  E.g. str = "processes.blacklist += \"myapp\""
+ *  E.g. str = "processes.dont_shortcut += \"myapp\""
  *
  *  Currently only strings are supported, but it's easy to add TypeBoolean,
  *  TypeInt, TypeInt64 and TypeFloat too, if required.
@@ -194,11 +194,11 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
     ignore_locations->push_back(FileName::Get(ignores[i].c_str()));
   }
 
-  libconfig::Setting& blacklist = cfg->getRoot()["processes"]["blacklist"];
-  assert(!blacklist_matcher);
-  blacklist_matcher = new ExeMatcher();
-  for (int i = 0; i < blacklist.getLength(); i++) {
-    blacklist_matcher->add(blacklist[i]);
+  libconfig::Setting& dont_shortcut = cfg->getRoot()["processes"]["dont_shortcut"];
+  assert(!dont_shortcut_matcher);
+  dont_shortcut_matcher = new ExeMatcher();
+  for (int i = 0; i < dont_shortcut.getLength(); i++) {
+    dont_shortcut_matcher->add(dont_shortcut[i]);
   }
 
   libconfig::Setting& skip_cache = cfg->getRoot()["processes"]["skip_cache"];
