@@ -159,13 +159,13 @@ class PipeRecorder {
   /** Close the backing fd, drop the data that was written so far. Set to abandoned state. */
   void abandon();
 
-  static bool has_active_recorder(const std::vector<std::shared_ptr<PipeRecorder>> recorders);
+  static bool has_active_recorder(const std::vector<std::shared_ptr<PipeRecorder>>& recorders);
 
-  static void record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> recorders,
+  static void record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                       const char *buf, ssize_t len);
-  static void record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> recorders,
+  static void record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                          int fd, ssize_t len);
-  static void record_data_from_regular_fd(std::vector<std::shared_ptr<PipeRecorder>> recorders,
+  static void record_data_from_regular_fd(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                           int fd, ssize_t len);
 
   static void set_base_dir(const char *dir);

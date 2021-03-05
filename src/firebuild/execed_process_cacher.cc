@@ -607,9 +607,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
 
     if (proc->parent()) {
       /* Bubble up the replayed pipe data. */
-      std::vector<std::shared_ptr<PipeRecorder>> recorders =
+      std::vector<std::shared_ptr<PipeRecorder>>& recorders =
           pipe->proc2recorders[proc->parent_exec_point()];
-      PipeRecorder::record_data_from_regular_fd(recorders, fd, st.st_size);
+      PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
     }
     close(fd);
   }

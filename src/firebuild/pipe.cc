@@ -371,7 +371,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes from fd: "
                      + d_fd(fd1) + "to fd: " + d_fd(fd0_conn) + " using tee");
             /* Save the data, consuming it from the pipe. */
-            PipeRecorder::record_data_from_unix_pipe(fd1_end->recorders, fd1, received);
+            PipeRecorder::record_data_from_unix_pipe(&fd1_end->recorders, fd1, received);
           }
         } else {
           /* We do not want to record the data. Forward it using splice() which consumes it from the
@@ -448,7 +448,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
       assert(bufsize >= received);
       const char * buf_to_save = buf_.data() + bufsize - received;
       /* Record it. */
-      PipeRecorder::record_data_from_buffer(fd1_end->recorders, buf_to_save, received);
+      PipeRecorder::record_data_from_buffer(&fd1_end->recorders, buf_to_save, received);
       /* Try to send it, too. */
       send_ret = send_buf();
     }
