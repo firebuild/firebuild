@@ -456,7 +456,7 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
                                                                     size_t *inouts_buf_len) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
-  const msg::ProcessInputsOutputs *ret = NULL;
+  const msg::ProcessInputsOutputs *inouts = nullptr;
   int count = 0;
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
@@ -466,33 +466,37 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
   }
   for (const Hash& subkey : subkeys) {
-    if (!obj_cache->retrieve(fingerprint, subkey, inouts_buf, inouts_buf_len)) {
+    uint8_t *candidate_inouts_buf;
+    size_t candidate_inouts_buf_len;
+    if (!obj_cache->retrieve(fingerprint, subkey,
+                             &candidate_inouts_buf, &candidate_inouts_buf_len)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   Cannot retrieve " + d(subkey) + " from objcache, ignoring");
       continue;
     }
-    auto inouts = msg::GetProcessInputsOutputs(*inouts_buf);
-    if (!inouts->inputs() || pi_matches_fs(*inouts->inputs(), subkey)) {
+    const msg::ProcessInputsOutputs *candidate_inouts =
+        msg::GetProcessInputsOutputs(candidate_inouts_buf);
+    if (!candidate_inouts->inputs() || pi_matches_fs(*candidate_inouts->inputs(), subkey)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
       count++;
       if (count == 1) {
-        ret = inouts;
+        *inouts_buf = candidate_inouts_buf;
+        *inouts_buf_len = candidate_inouts_buf_len;
+        inouts = candidate_inouts;
         /* Let's play safe for now and not break out of this loop, let's
          * make sure that there are no other matches. */
       }
       if (count == 2) {
         FB_DEBUG(FB_DEBUG_SHORTCUT,
                  "│   More than 1 matching candidates found, ignoring them all");
-        inouts = nullptr;
-        munmap(*inouts_buf, *inouts_buf_len);
-        return NULL;
+        munmap(candidate_inouts_buf, candidate_inouts_buf_len);
+        return nullptr;
       }
     } else {
-      inouts = nullptr;
-      munmap(*inouts_buf, *inouts_buf_len);
+      munmap(candidate_inouts_buf, candidate_inouts_buf_len);
     }
   }
-  return ret;
+  return inouts;
 }
 
 /**
