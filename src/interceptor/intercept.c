@@ -662,6 +662,12 @@ static void fb_ic_init() {
     assert(0 && "_exit() did not exit");
   }
 
+  if (fbb_scproc_resp_has_dont_intercept(sv_msg)) {
+    /* if set, must be true */
+    assert(fbb_scproc_resp_get_dont_intercept(sv_msg));
+    intercepting_enabled = false;
+    env_purge(environ);
+  }
   if (fbb_scproc_resp_has_reopen_fd_fifos(sv_msg)) {
     /* reopen fds */
     for_s_in_fbb_scproc_resp_reopen_fd_fifos(sv_msg, {

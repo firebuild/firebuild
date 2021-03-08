@@ -43,4 +43,9 @@ int get_env_fixup_size(char **env);
  */
 void env_fixup(char **env, void *buf);
 
+/**
+ * Remove environment variables injected by firebuild, to disable interception of children.
+ */
+void env_purge(char **env);
+
 #endif  // FIREBUILD_ENV_H_

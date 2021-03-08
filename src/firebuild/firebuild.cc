@@ -209,9 +209,14 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     proc_tree->insert(proc);
     proc->initialize();
 
-    /* Check for executables that are known not to be shortcuttable. */
-    if (dont_shortcut_matcher->match(proc->executable(), proc->executed_path(),
-                                proc->args().size() > 0 ? proc->args()[0] : "")) {
+    if (dont_intercept_matcher->match(proc->executable(), proc->executed_path(),
+                                      proc->args().size() > 0 ? proc->args()[0] : "")) {
+      /* Executables that should not be intercepted. */
+      proc->disable_shortcutting_bubble_up("Executable set to not be intercepted");
+      fbb_scproc_resp_set_dont_intercept(&sv_msg, true);
+    } else if (dont_shortcut_matcher->match(proc->executable(), proc->executed_path(),
+                                            proc->args().size() > 0 ? proc->args()[0] : "")) {
+      /* Executables that are known not to be shortcuttable. */
       proc->disable_shortcutting_bubble_up("Executable set to be not shortcut");
     }
 
