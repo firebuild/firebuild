@@ -36,20 +36,20 @@
   const unsigned int u_fb_sv_conn = (unsigned int)fb_sv_conn;
   if (first > u_fb_sv_conn || last < u_fb_sv_conn) {
     /* Just go ahead. */
-    ret = ic_orig_close_range(first, last, flags);
+    ret = get_ic_orig_close_range()(first, last, flags);
   } else if (first == u_fb_sv_conn && last == u_fb_sv_conn) {
     /* Wishing to close only fb_sv_conn. Just pretend it succeeded. */
     ret = 0;
   } else if (first == u_fb_sv_conn) {
     /* Need to skip the first fd. */
-    ret = ic_orig_close_range(first + 1, last, flags);
+    ret = get_ic_orig_close_range()(first + 1, last, flags);
   } else if (last == u_fb_sv_conn) {
     /* Need to skip the last fd. */
-    ret = ic_orig_close_range(first, last - 1, flags);
+    ret = get_ic_orig_close_range()(first, last - 1, flags);
   } else {
     /* Need to leave a hole in the range. */
-    int ret1 = ic_orig_close_range(first, u_fb_sv_conn - 1, 0);
-    int ret2 = ic_orig_close_range(u_fb_sv_conn + 1, last, 0);
+    int ret1 = get_ic_orig_close_range()(first, u_fb_sv_conn - 1, 0);
+    int ret2 = get_ic_orig_close_range()(u_fb_sv_conn + 1, last, 0);
     ret = (ret1 == 0 && ret2 == 0) ? 0 : -1;
   }
 ### endblock call_orig

@@ -20,5 +20,5 @@
 {# This is a standalone template, does not extend tpl.c.              #}
 {# ------------------------------------------------------------------ #}
 ### if gen == 'decl.h'
-#define ic_orig_{{ func }} {{ func }}
+#define get_ic_orig_{{ func }}() {{ func }}
 ### endif

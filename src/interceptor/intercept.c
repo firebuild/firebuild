@@ -233,7 +233,7 @@ void insert_debug_msg(const char* m) {
   if (insert_trace_markers) {
     int saved_errno = errno;
     char tpl[256] = "/FIREBUILD   ###   ";
-    ic_orig_open(strncat(tpl, m, sizeof(tpl) - strlen(tpl) - 1), 0);
+    get_ic_orig_open()(strncat(tpl, m, sizeof(tpl) - strlen(tpl) - 1), 0);
     errno = saved_errno;
   }
 #else
@@ -660,7 +660,7 @@ static void atfork_child_handler(void) {
 
     /* Reinitialize other stuff */
     reset_interceptors();
-    ic_pid = ic_orig_getpid();
+    ic_pid = get_ic_orig_getpid()();
 
     /* Reconnect to supervisor */
     fb_init_supervisor_conn();
@@ -706,7 +706,7 @@ void handle_exit() {
     fbbcomm_builder_rusage_init(&ic_msg);
 
     struct rusage ru;
-    ic_orig_getrusage(RUSAGE_SELF, &ru);
+    get_ic_orig_getrusage()(RUSAGE_SELF, &ru);
     timersub(&ru.ru_stime, &initial_rusage.ru_stime, &ru.ru_stime);
     timersub(&ru.ru_utime, &initial_rusage.ru_utime, &ru.ru_utime);
     fbbcomm_builder_rusage_set_utime_u(&ic_msg,
@@ -729,7 +729,7 @@ void handle_exit() {
 void *pthread_start_routine_wrapper(void *routine_and_arg) {
   if (insert_trace_markers) {
     char buf[256];
-    snprintf(buf, sizeof(buf), "launched via pthread_create() in pid %d", ic_orig_getpid());
+    snprintf(buf, sizeof(buf), "launched via pthread_create() in pid %d", get_ic_orig_getpid()());
     insert_debug_msg(buf);
   }
   void *(*start_routine)(void *) = ((void **)routine_and_arg)[0];
@@ -743,7 +743,7 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
  * @return fd of the connection
  */
 int fb_connect_supervisor() {
-  int conn = TEMP_FAILURE_RETRY(ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
+  int conn = TEMP_FAILURE_RETRY(get_ic_orig_socket()(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
   assert(conn != -1);
 
   struct sockaddr_un remote;
@@ -755,9 +755,9 @@ int fb_connect_supervisor() {
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
   int conn_ret = TEMP_FAILURE_RETRY(
-      ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote)));
+      get_ic_orig_connect()(conn, (struct sockaddr *)&remote, sizeof(remote)));
   if (conn_ret == -1) {
-    ic_orig_perror("connect");
+    get_ic_orig_perror()("connect");
     assert(0 && "connection to supervisor failed");
   }
   return conn;
@@ -771,7 +771,7 @@ void fb_init_supervisor_conn() {
   /* Reconnect to supervisor.
    * POSIX says to retry close() on EINTR (e.g. wrap in TEMP_FAILURE_RETRY())
    * but Linux probably disagrees, see #723. */
-  ic_orig_close(fb_sv_conn);
+  get_ic_orig_close()(fb_sv_conn);
   fb_sv_conn = fb_connect_supervisor();
 }
 
@@ -805,7 +805,7 @@ static void init_argc_argv() {
  * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init() {
-  ic_orig_getrusage(RUSAGE_SELF, &initial_rusage);
+  get_ic_orig_getrusage()(RUSAGE_SELF, &initial_rusage);
 
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
     insert_trace_markers = true;
@@ -855,10 +855,10 @@ static void fb_ic_init() {
   init_argc_argv();
 
   pid_t pid, ppid;
-  ic_pid = pid = ic_orig_getpid();
-  ppid = ic_orig_getppid();
+  ic_pid = pid = get_ic_orig_getpid()();
+  ppid = get_ic_orig_getppid()();
 
-  if (ic_orig_getcwd(ic_cwd, sizeof(ic_cwd)) == NULL) {
+  if (get_ic_orig_getcwd()(ic_cwd, sizeof(ic_cwd)) == NULL) {
     assert(0 && "getcwd() returned NULL");
   }
   ic_cwd_len = strlen(ic_cwd);
@@ -873,8 +873,8 @@ static void fb_ic_init() {
   fbbcomm_builder_scproc_query_set_cwd(&ic_msg, ic_cwd);
   fbbcomm_builder_scproc_query_set_arg_with_count(&ic_msg, (const char **) ic_argv, ic_argc);
 
-  mode_t initial_umask = ic_orig_umask(0077);
-  ic_orig_umask(initial_umask);
+  mode_t initial_umask = get_ic_orig_umask()(0077);
+  get_ic_orig_umask()(initial_umask);
   fbbcomm_builder_scproc_query_set_umask(&ic_msg, initial_umask);
 
   /* make a sorted and filtered copy of env */
@@ -904,7 +904,7 @@ static void fb_ic_init() {
    * and readlink(2) */
   char linkname[IC_PATH_BUFSIZE];
   ssize_t r;
-  r = ic_orig_readlink("/proc/self/exe", linkname, IC_PATH_BUFSIZE - 1);
+  r = get_ic_orig_readlink()("/proc/self/exe", linkname, IC_PATH_BUFSIZE - 1);
   if (r > 0 && r < IC_PATH_BUFSIZE) {
     linkname[r] = '\0';
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
@@ -991,7 +991,7 @@ static void fb_ic_init() {
 #ifndef NDEBUG
   ret =
 #endif
-      TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, 0));
+      TEMP_FAILURE_RETRY(get_ic_orig_recvmsg()(fb_sv_conn, &msgh, 0));
   assert(ret >= 0 && ret == (ssize_t)header.msg_size);
   assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
 
@@ -1006,7 +1006,7 @@ static void fb_ic_init() {
          i++) {
       int fd = fbbcomm_serialized_scproc_resp_get_fds_appended_to_at(sv_msg, i);
       insert_debug_msg("seeking forward in fd");
-      ic_orig_lseek(fd, 0, SEEK_END);
+      get_ic_orig_lseek()(fd, 0, SEEK_END);
     }
 
     insert_debug_msg("exiting");
@@ -1075,12 +1075,12 @@ static void fb_ic_init() {
        * Similarly, since the targets will be dups of each other, it's enough to set the flags once.
        * In fact, set them on the source fd just because it's simpler this way. */
       int flags =
-          ic_orig_fcntl(fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, 0), F_GETFL);
+          get_ic_orig_fcntl()(fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, 0), F_GETFL);
       assert(flags != -1);
 #ifndef NDEBUG
       int fcntl_ret =
 #endif
-          ic_orig_fcntl(src_fd, F_SETFL, flags);
+          get_ic_orig_fcntl()(src_fd, F_SETFL, flags);
       assert(fcntl_ret != -1);
 
       /* Dup2 the source fd to the desired places and then close the original. */
@@ -1089,10 +1089,10 @@ static void fb_ic_init() {
 #ifndef NDEBUG
         int dup2_ret =
 #endif
-            ic_orig_dup2(src_fd, dst_fd);
+            get_ic_orig_dup2()(src_fd, dst_fd);
         assert(dup2_ret == dst_fd);
       }
-      ic_orig_close(src_fd);
+      get_ic_orig_close()(src_fd);
     }
   }
 
@@ -1143,11 +1143,11 @@ static void fb_ic_cleanup() {
 
 
 ssize_t fb_read(int fd, void *buf, size_t count) {
-  FB_READ_WRITE(*ic_orig_read, fd, buf, count);
+  FB_READ_WRITE(*get_ic_orig_read(), fd, buf, count);
 }
 
 ssize_t fb_write(int fd, const void *buf, size_t count) {
-  FB_READ_WRITE(*ic_orig_write, fd, buf, count);
+  FB_READ_WRITE(*get_ic_orig_write(), fd, buf, count);
 }
 
 /** Send error message to supervisor */
