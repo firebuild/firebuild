@@ -53,8 +53,8 @@
 
 ### block call_orig
 ### if vararg
-  ret = ic_orig_{{ func }}({{ names_str }}, mode);
+  ret = {{ call_ic_orig_func }}({{ names_str }}, mode);
 ### else
-  ret = ic_orig_{{ func }}({{ names_str }});
+  ret = {{ call_ic_orig_func }}({{ names_str }});
 ### endif
 ### endblock call_orig

@@ -67,9 +67,9 @@
 ### if gen == 'decl.h'
 ###   block decl_h
 ###     if not syscall
-extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
+extern {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }});
 ###     else
-#define ic_orig_{{ func }}(...) ic_orig_syscall({{ func }} __VA_OPT__(,) __VA_ARGS__)
+#define ic_orig_{{ func }}(...) get_ic_orig_syscall()({{ func }} __VA_OPT__(,) __VA_ARGS__)
 ###     endif
 ###   endblock decl_h
 ### endif
@@ -79,19 +79,15 @@ extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
 ### if gen == 'def.c'
 ###   block def_c
 ###     if not syscall
-{{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
+inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
+  static {{ rettype }}(*resolved)({{ sig_str }}) = NULL;
+  if (resolved == NULL) {
+    resolved = dlsym(RTLD_NEXT, "{{ func }}");
+  }
+  return resolved;
+}
 ###     endif
 ###   endblock def_c
-### endif
-{#                                                                    #}
-{# --- Template for 'init.c' ---------------------------------------- #}
-{#                                                                    #}
-### if gen == 'init.c'
-###   block init_c
-###     if not syscall
-ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func }}");
-###     endif
-###   endblock init_c
 ### endif
 {#                                                                    #}
 {# --- Template for 'reset.c' --------------------------------------- #}
@@ -251,7 +247,7 @@ case {{ func }}: {
 ###         else
 ###           if not vararg
   {%+ if rettype != 'void' %}ret = {% endif -%}
-  ic_orig_{{ func }}({{ names_str }});
+  {{ call_ic_orig_func }}({{ names_str }});
 ###           else
 #error "Need to implement call_orig for vararg function {{ func }}()"
 ###           endif

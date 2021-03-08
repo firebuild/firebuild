@@ -54,7 +54,7 @@ long {{ func }} ({{ sig_str }}) {
       long arg7 = va_arg(ap_pass, long);
       long arg8 = va_arg(ap_pass, long);
       va_end(ap_pass);
-      long ret = ic_orig_{{ func }}(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+      long ret = get_ic_orig_{{ func }}()(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
 #ifdef FB_EXTRA_DEBUG
       if (insert_trace_markers) {

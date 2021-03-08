@@ -40,7 +40,7 @@
   handle_exit({{ names_str }});
 
   /* Perform the call */
-  ic_orig_{{ func }}({{ names_str }});
+  {{ call_ic_orig_func }}({{ names_str }});
 
   /* Make scan-build happy */
   (void)i_locked;

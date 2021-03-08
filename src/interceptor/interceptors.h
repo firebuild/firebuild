@@ -78,7 +78,7 @@ struct ustat;
 void init_interceptors();
 void reset_interceptors();
 
-/* Include the auto-generated declarations of the ic_orig function pointers,
+/* Include the auto-generated declarations of the get_ic_orig function pointers,
  * and some convenience #define redirects */
 #include "interceptor/gen_decl.h"
 
