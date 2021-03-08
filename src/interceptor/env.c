@@ -100,10 +100,11 @@ static bool ld_preload_needs_fixup(char **env) {
 bool env_needs_fixup(char **env) {
   /* FB_SYSTEM_LOCATIONS is not fixed up because it is not needed for correctness, just for
    * improving performance a bit. */
-  return fb_insert_trace_markers_needs_fixup(env) ||
-      fb_socket_needs_fixup(env) ||
-      ld_library_path_needs_fixup(env) ||
-      ld_preload_needs_fixup(env);
+  return intercepting_enabled &&
+      (fb_insert_trace_markers_needs_fixup(env) ||
+       fb_socket_needs_fixup(env) ||
+       ld_library_path_needs_fixup(env) ||
+       ld_preload_needs_fixup(env));
 }
 
 int get_env_fixup_size(char **env) {
@@ -276,4 +277,43 @@ void env_fixup(char **env, void *buf) {
   }
 
   *buf1 = NULL;
+}
+
+void env_purge(char **env) {
+  char **cur = env;
+  assert(cur != NULL);  /* Make scan-build happy */
+
+  /* Copy the environment, skipping the ones that need to be removed. */
+  for (int i = 0; env[i] != NULL; i++) {
+    if ((begins_with(env[i], FB_INSERT_TRACE_MARKERS "=")) ||
+        (begins_with(env[i], FB_SOCKET "="))) {
+      continue;
+    }
+    if (begins_with(env[i], LD_PRELOAD "=")) {
+      /* Clear libfbintercept.so */
+      if (strcmp(env[i], LD_PRELOAD "=" LIBFBINTERCEPT_SO) == 0) {
+        /* Just skip LD_PRELOAD. */
+        continue;
+      } else {
+        char * start = strstr(env[i], LIBFBINTERCEPT_SO);
+        size_t move_len = LIBFBINTERCEPT_SO_LEN;
+        if (start) {
+          if (*(start - 1) == ':' || *(start - 1) == ' ') {
+            /* Clear separator before. */
+            start--; move_len++;
+          } else if (*(start + move_len) == ':' || *(start + move_len) == ' ') {
+            /* Clear separator after. */
+            move_len++;
+          }
+          size_t remaining_len = strlen(start);
+          /* Move LD_PRELOAD's contents including '\0' earlier to overwrite libfbintercept.so. */
+          memmove(start, start + move_len,
+                  remaining_len - move_len + 1);
+        }
+      }
+    }
+    *cur++ = env[i];
+  }
+
+  *cur = NULL;
 }

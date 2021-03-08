@@ -175,6 +175,8 @@ setup() {
       result=$(fakeroot ./run-firebuild -- id -u)
       assert_streq "$result" "0"
     fi
+    result=$(./run-firebuild -- fakeroot id -u)
+    assert_streq "$result" "0"
   done
 }
 

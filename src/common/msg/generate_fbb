@@ -95,6 +95,8 @@ gen_fbb([
   ("scproc_resp", [
     (REQUIRED, "bool", "shortcut"),
     (OPTIONAL, "int64_t", "exit_status"),
+    # disable interception and remove libfbintercept from LD_PRELOAD
+    (OPTIONAL, "bool", "dont_intercept"),
     # makes sense only for shortcut = false
     (OPTIONAL, "int32_t", "debug_flags"),
     # fifos for fds to reopen

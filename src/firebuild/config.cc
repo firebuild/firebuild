@@ -28,6 +28,7 @@ namespace firebuild {
 std::vector<const FileName*> *ignore_locations = nullptr;
 
 ExeMatcher* dont_shortcut_matcher = nullptr;
+ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
 
 /** Parse configuration file
@@ -173,6 +174,14 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
   delete mini_config;
 }
 
+static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) {
+  assert(!*matcher);
+  *matcher = new ExeMatcher();
+  for (int i = 0; i < items.getLength(); i++) {
+    (*matcher)->add(items[i]);
+  }
+}
+
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string> &config_strings) {
   parse_cfg_file(cfg, custom_cfg_file);
@@ -194,19 +203,9 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
     ignore_locations->push_back(FileName::Get(ignores[i].c_str()));
   }
 
-  libconfig::Setting& dont_shortcut = cfg->getRoot()["processes"]["dont_shortcut"];
-  assert(!dont_shortcut_matcher);
-  dont_shortcut_matcher = new ExeMatcher();
-  for (int i = 0; i < dont_shortcut.getLength(); i++) {
-    dont_shortcut_matcher->add(dont_shortcut[i]);
-  }
-
-  libconfig::Setting& skip_cache = cfg->getRoot()["processes"]["skip_cache"];
-  assert(!skip_cache_matcher);
-  skip_cache_matcher = new ExeMatcher();
-  for (int i = 0; i < skip_cache.getLength(); i++) {
-    skip_cache_matcher->add(skip_cache[i]);
-  }
+  init_matcher(&dont_shortcut_matcher, cfg->getRoot()["processes"]["dont_shortcut"]);
+  init_matcher(&dont_intercept_matcher, cfg->getRoot()["processes"]["dont_intercept"]);
+  init_matcher(&skip_cache_matcher, cfg->getRoot()["processes"]["skip_cache"]);
 }
 
 }  // namespace firebuild

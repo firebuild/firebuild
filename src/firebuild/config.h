@@ -18,6 +18,7 @@ namespace firebuild {
 
 extern std::vector<const FileName*> *ignore_locations;
 extern ExeMatcher* dont_shortcut_matcher;
+extern ExeMatcher* dont_intercept_matcher;
 extern ExeMatcher* skip_cache_matcher;
 
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
