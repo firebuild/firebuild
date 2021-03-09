@@ -33,9 +33,9 @@ class ExeMatcher {
   }
   void add(const std::string name) {
     if (name.find('/') == std::string::npos) {
-      full_names_.insert(name);
-    } else {
       base_names_.insert(name);
+    } else {
+      full_names_.insert(name);
     }
   }
 
