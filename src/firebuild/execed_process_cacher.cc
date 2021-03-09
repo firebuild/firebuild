@@ -82,6 +82,21 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       builder.CreateVector(hash.to_binary(), Hash::hash_size());
   auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
 
+  flatbuffers::Offset<firebuild::msg::File> fp_executed_path;
+  if (proc->executable() == proc->executed_path()) {
+    /* Those often match, don't create the same string twice. */
+    fp_executed_path = fp_executable;
+  } else {
+    auto executed_file_path = builder.CreateString(proc->executed_path()->c_str(),
+                                                   proc->executed_path()->length());
+    if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+      return false;
+    }
+    auto executed_file_hash =
+        builder.CreateVector(hash.to_binary(), Hash::hash_size());
+    fp_executed_path = msg::CreateFile(builder, executed_file_path, executed_file_hash);
+  }
+
   /* The linked libraries */
   std::vector<flatbuffers::Offset<msg::File>> fp_libs_vec;
   const auto linux_vdso = FileName::Get("linux-vdso.so.1");
@@ -113,7 +128,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   }
   auto fp_pipefds = builder.CreateVector(fp_pipefds_vec);
 
-  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_libs,
+  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_executed_path, fp_libs,
                                           fp_args, fp_env, fp_wd, fp_pipefds);
   builder.Finish(fp);
   hash.set_from_data(builder.GetBufferPointer(), builder.GetSize());
@@ -648,6 +663,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
     if (proc->can_shortcut()) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   fingerprint = " + d(fingerprints_[proc]));
     }
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   executed path = " + d(proc->executed_path()));
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   exe = " + d(proc->executable()));
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   arg = " + d(proc->args()));
     /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + d(proc->env_vars())); */

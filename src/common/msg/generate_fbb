@@ -83,6 +83,8 @@ gen_fbb([
     (OPTIONAL, STRINGARRAY, "env_var"),
     # full path of the binary
     (OPTIONAL, STRING, "executable"),
+    # pathname used to execute the program
+    (OPTIONAL, STRING, "executed_path"),
     # loaded shared libraries in the beginning
     (OPTIONAL, STRINGARRAY, "libs"),
   ]),

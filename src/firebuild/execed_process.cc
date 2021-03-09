@@ -47,6 +47,7 @@ static std::string escapeJsonString(const std::string& input) {
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *initial_wd,
                              const FileName *executable,
+                             const FileName *executed_path,
                              Process * parent,
                              std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
@@ -57,7 +58,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                                    : nullptr),
       sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
       wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      libs_(), file_usages_(), created_pipes_(), cacher_(NULL) {
+      executed_path_(executed_path), libs_(), file_usages_(), created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
          pid, ppid, D(initial_wd), D(executable), D(parent));

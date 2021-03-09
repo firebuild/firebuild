@@ -17,19 +17,11 @@ namespace firebuild {
 class ExeMatcher {
  public:
   ExeMatcher() : base_names_(), full_names_() {}
-  bool match(const firebuild::FileName* exe_file, const std::string& arg0) const {
-    const std::string exe = exe_file->to_string();
-    size_t pos = exe.rfind('/');
-    const std::string exe_base = exe.substr(pos == std::string::npos ? 0 : pos + 1);
-    pos = arg0.rfind('/');
-    const std::string arg0_base = arg0.substr(pos == std::string::npos ? 0 : pos + 1);
-    if (base_names_.find(exe_base) != base_names_.end()
-        || base_names_.find(arg0_base) != base_names_.end()
-        || full_names_.find(exe) != full_names_.end()
-        || full_names_.find(arg0) != full_names_.end()) {
-      return true;
-    }
-    return false;
+  bool match(const firebuild::FileName* exe_file, const firebuild::FileName* executed_file,
+             const std::string& arg0) const {
+    return match(exe_file->to_string()) || match(arg0)
+        || executed_file == exe_file ? false
+        : executed_file ? match(executed_file->to_string()) : false;
   }
   void add(const std::string name) {
     if (name.find('/') == std::string::npos) {
@@ -40,6 +32,12 @@ class ExeMatcher {
   }
 
  private:
+  bool match(const std::string& exe) const {
+    size_t pos = exe.rfind('/');
+    const std::string exe_base = exe.substr(pos == std::string::npos ? 0 : pos + 1);
+    return base_names_.find(exe_base) != base_names_.end()
+        || full_names_.find(exe) != full_names_.end();
+  }
   std::unordered_set<std::string> base_names_;
   std::unordered_set<std::string> full_names_;
 };
