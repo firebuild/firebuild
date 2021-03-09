@@ -47,7 +47,8 @@ typedef struct inherited_pipe_ {
 class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
-                         const FileName *executable, Process * parent,
+                         const FileName *executable, const FileName *executed_path,
+                         Process * parent,
                          std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
@@ -69,6 +70,7 @@ class ExecedProcess : public Process {
   std::vector<std::string>& env_vars() {return env_vars_;}
   void set_env_vars(const std::vector<std::string>& env_vars) {env_vars_ = env_vars;}
   const FileName* executable() const {return executable_;}
+  const FileName* executed_path() const {return executed_path_;}
   std::vector<const FileName*>& libs() {return libs_;}
   const std::vector<const FileName*>& libs() const {return libs_;}
   void set_libs(std::vector<const FileName*> libs) {libs_ = libs;}
@@ -182,7 +184,12 @@ class ExecedProcess : public Process {
   std::vector<std::string> args_;
   /// Environment variables in deterministic (sorted) order.
   std::vector<std::string> env_vars_;
+  /// The executable running. In case of scripts this is the interpreter or in case of invoking
+  /// an executable via a symlink this is the executable the symlink points to.
   const FileName* executable_;
+  /// The path executed. In case of scripts this is the script's name or in case of invoking
+  /// executable via a symlink this is the name of the symlink.
+  const FileName* executed_path_;
   /// DSO-s loaded by the linker at process startup, in the same order.
   /// (DSO-s later loaded via dlopen(), and DSO-s of descendant processes
   /// are registered as regular file open operations.)

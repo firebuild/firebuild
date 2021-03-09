@@ -22,10 +22,13 @@ ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
                                  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
   TRACK(FB_DEBUG_PROC, "parent=%s", D(parent));
 
+  const FileName* executable = FileName::Get(fbb_scproc_query_get_executable(msg));
+  const FileName* executed_path = fbb_scproc_query_has_executed_path(msg)
+      ? FileName::Get(fbb_scproc_query_get_executed_path(msg)) : nullptr;
   auto e = new ExecedProcess(fbb_scproc_query_get_pid(msg),
                              fbb_scproc_query_get_ppid(msg),
                              FileName::Get(fbb_scproc_query_get_cwd(msg)),
-                             FileName::Get(fbb_scproc_query_get_executable(msg)),
+                             executable, executed_path,
                              parent, fds);
 
   std::vector<std::string> args = fbb_scproc_query_get_arg(msg);

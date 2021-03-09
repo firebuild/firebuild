@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <link.h>
 #include <pthread.h>
+#include <sys/auxv.h>
 #include <sys/un.h>
 #include <sys/resource.h>
 #include <spawn.h>
@@ -599,6 +600,11 @@ static void fb_ic_init() {
   fbb_scproc_query_set_ppid(&ic_msg, ppid);
   fbb_scproc_query_set_cwd(&ic_msg, cwd_buf);
   fbb_scproc_query_set_arg(&ic_msg, argv);
+
+  const char *executed_path = (const char*)getauxval(AT_EXECFN);
+  if (executed_path) {
+    fbb_scproc_query_set_executed_path(&ic_msg, executed_path);
+  }
 
   /* make a sorted and filtered copy of env */
   int env_len = 0, env_copy_len = 0;
