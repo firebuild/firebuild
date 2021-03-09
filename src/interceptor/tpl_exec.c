@@ -29,6 +29,7 @@
   for (i = 1; i <= argc ; i++) {
     argv[i] = va_arg(ap, char*);
   }
+
 ###     if e
   /* Also locate the environment */
   char **envp = va_arg(ap, char**);
@@ -49,7 +50,7 @@
     env_fixed_up = (void *) envp;
   }
 
-  {
+  if (i_am_intercepting) {
     /* Notify the supervisor before the call */
     FBB_Builder_execv ic_msg;
     fbb_execv_init(&ic_msg);
@@ -117,7 +118,7 @@
   ret = {{ ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv, env_fixed_up{% if at %}, flags{% endif %});
   saved_errno = errno;
 
-  {
+  if (i_am_intercepting) {
     /* Notify the supervisor after the call */
     FBB_Builder_execv_failed ic_msg;
     fbb_execv_failed_init(&ic_msg);

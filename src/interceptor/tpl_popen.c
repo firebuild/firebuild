@@ -14,7 +14,7 @@
    */
 
   int type_flags = popen_type_to_flags(type);
-  {
+  if (i_am_intercepting) {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
     FBB_Builder_popen ic_msg;
@@ -46,7 +46,7 @@
 ### endblock call_orig
 
 ### block send_msg
-  {
+  if (i_am_intercepting) {
     /* Notify the supervisor after the call */
     if (success) {
       int ret_fileno = ic_orig_fileno(ret), tmp_rdonly_fd;
