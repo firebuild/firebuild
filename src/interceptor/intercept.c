@@ -348,29 +348,31 @@ static void atfork_child_handler(void) {
    * probably not worth the trouble. The intercepted fork() will attempt
    * to unlock if it grabbed the lock, which will silently fail, that's
    * okay. */
-  pthread_mutex_init(&ic_global_lock, NULL);
+  if (intercepting_enabled) {
+    pthread_mutex_init(&ic_global_lock, NULL);
 
-  /* Add a useful trace marker */
-  if (insert_trace_markers) {
-    char buf[256];
-    snprintf(buf, sizeof(buf), "launched via fork() by ppid %d", ic_orig_getppid());
-    insert_debug_msg(buf);
+    /* Add a useful trace marker */
+    if (insert_trace_markers) {
+      char buf[256];
+      snprintf(buf, sizeof(buf), "launched via fork() by ppid %d", ic_orig_getppid());
+      insert_debug_msg(buf);
+    }
+
+    /* Reinitialize other stuff */
+    reset_interceptors();
+    clear_all_file_states();
+    ic_pid = ic_orig_getpid();
+
+    /* Reconnect to supervisor */
+    fb_init_supervisor_conn();
+
+    /* Inform the supervisor about who we are */
+    FBB_Builder_fork_child ic_msg;
+    fbb_fork_child_init(&ic_msg);
+    fbb_fork_child_set_pid(&ic_msg, ic_pid);
+    fbb_fork_child_set_ppid(&ic_msg, getppid());
+    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
-
-  /* Reinitialize other stuff */
-  reset_interceptors();
-  clear_all_file_states();
-  ic_pid = ic_orig_getpid();
-
-  /* Reconnect to supervisor */
-  fb_init_supervisor_conn();
-
-  /* Inform the supervisor about who we are */
-  FBB_Builder_fork_child ic_msg;
-  fbb_fork_child_init(&ic_msg);
-  fbb_fork_child_set_pid(&ic_msg, ic_pid);
-  fbb_fork_child_set_ppid(&ic_msg, getppid());
-  fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 }
 
 static void on_exit_handler(const int status, void *arg) {
