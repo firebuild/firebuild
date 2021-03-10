@@ -6,6 +6,10 @@
 
 #include <string>
 
+/** Wrapper retrying on recoverable errors */
+ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
+                           unsigned int flags);
+
 namespace firebuild {
 
 typedef struct msg_header_ {

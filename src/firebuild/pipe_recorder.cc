@@ -14,6 +14,7 @@
 #include "firebuild/execed_process.h"
 #include "firebuild/hash.h"
 #include "firebuild/pipe.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -119,7 +120,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
     open_backing_file();
   }
 
-  ssize_t saved = copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
+  ssize_t saved = fb_copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
   if (saved == -1) {
     perror("copy_file_range");
     abort();
