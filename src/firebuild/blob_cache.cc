@@ -12,6 +12,7 @@
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -48,7 +49,7 @@ static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
     return false;
   }
 
-  if (copy_file_range(fd_src, NULL, fd_dst, NULL, st->st_size, 0) == st->st_size) {
+  if (fb_copy_file_range(fd_src, NULL, fd_dst, NULL, st->st_size, 0) == st->st_size) {
     /* copy_file_range() succeeded. */
     return true;
   }

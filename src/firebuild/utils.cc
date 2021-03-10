@@ -23,6 +23,31 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
   FB_READV_WRITEV(writev, fd, iov, iovcnt);
 }
 
+/** Wrapper retrying on recoverable errors */
+ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
+                           unsigned int flags) {
+  ssize_t ret;
+  size_t remaining = len;
+  do {
+    ret = copy_file_range(fd_in, off_in, fd_out, off_out, remaining, flags);
+    if (ret == -1) {
+      if (errno == EXDEV) {
+        perror("copy_file_range");
+        // TODO(rbalint) fall back to fb_read and fb_write
+        assert(0 && "cache and system or build area on different mount points is supported only "
+               "with Linux 5.3 and later");
+      } else {
+        return ret;
+      }
+    } else if (ret == 0) {
+      return len - remaining;
+    } else {
+      remaining -= ret;
+    }
+  } while (remaining > 0);
+  return len;
+}
+
 namespace firebuild {
 
 /**
