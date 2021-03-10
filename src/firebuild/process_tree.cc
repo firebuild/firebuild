@@ -53,9 +53,9 @@ ProcessTree::ProcessTree()
       /* Scan-build reports a false leak for the correct code. This is used only in static
        * analysis. It is broken because all shared pointers to the Pipe must be copies of
        * the shared self pointer stored in it. */
-      pipe = std::make_shared<Pipe>(fd, NULL);
+      pipe = std::make_shared<Pipe>(fd, nullptr);
 #else
-      pipe = (new Pipe(fd, NULL))->shared_ptr();
+      pipe = (new Pipe(fd, nullptr))->shared_ptr();
 #endif
       FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
       /* Top level inherited fds are special, they should not be closed. */
