@@ -5,6 +5,7 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <cassert>
@@ -118,10 +119,11 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
     open_backing_file();
   }
 
-#ifndef NDEBUG
-  ssize_t saved =
-#endif
-      copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
+  ssize_t saved = copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
+  if (saved == -1) {
+    perror("copy_file_range");
+    abort();
+  }
   assert(saved == len);
 
   offset_ += len;
