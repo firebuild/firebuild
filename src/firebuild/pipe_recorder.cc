@@ -63,6 +63,7 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
   assert(saved == len);
 
   offset_ += len;
+  assert_cmp(offset_, >, 0);
 }
 
 /**
@@ -92,6 +93,7 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
   assert(saved == len);
 
   offset_ += len;
+  assert_cmp(offset_, >, 0);
 }
 
 /**
@@ -105,6 +107,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
   TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "fd_in=%d, off_in=%ld, len=%ld",
          fd_in, off_in, len);
 
+  assert(fd_in >= 0);
   assert(!deactivated_);
   assert(!abandoned_);
   assert(len > 0);
@@ -120,6 +123,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
   assert(saved == len);
 
   offset_ += len;
+  assert_cmp(offset_, >, 0);
 }
 
 bool PipeRecorder::store(bool *is_empty_out, Hash *key_out) {
