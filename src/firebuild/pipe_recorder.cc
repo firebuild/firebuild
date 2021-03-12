@@ -51,6 +51,7 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
 
   assert(!deactivated_);
   assert(!abandoned_);
+  assert_cmp(len, >, 0);
 
   if (fd_ < 0) {
     open_backing_file();
@@ -79,6 +80,7 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
 
   assert(!deactivated_);
   assert(!abandoned_);
+  assert_cmp(len, >, 0);
 
   if (fd_ < 0) {
     open_backing_file();
@@ -110,7 +112,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
   assert(fd_in >= 0);
   assert(!deactivated_);
   assert(!abandoned_);
-  assert(len > 0);
+  assert_cmp(len, >, 0);
 
   if (fd_ < 0) {
     open_backing_file();
