@@ -234,16 +234,17 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
   size_t i;
   for (i = 0; i < recorders->size(); i++) {
     if (!(*recorders)[i]->deactivated_) {
-      (*recorders)[i++]->add_data_from_unix_pipe(fd, len);
+      (*recorders)[i]->add_data_from_unix_pipe(fd, len);
       break;
     }
   }
 
+  size_t first_active = i++;
   /* The remaining active recorders copy from the first one's backing file. */
   for (; i < recorders->size(); i++) {
     if (!(*recorders)[i]->deactivated_) {
-      (*recorders)[i]->add_data_from_regular_fd((*recorders)[0]->fd_,
-                                                (*recorders)[0]->offset_ - len, len);
+      (*recorders)[i]->add_data_from_regular_fd((*recorders)[first_active]->fd_,
+                                                (*recorders)[first_active]->offset_ - len, len);
     }
   }
 }
