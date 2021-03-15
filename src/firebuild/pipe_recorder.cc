@@ -292,8 +292,8 @@ void PipeRecorder::set_base_dir(const char *dir) {
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
 std::string PipeRecorder::d_internal(const int level) const {
-  std::string ret = "{PipeRecorder #" + d(id_) + ", for " + d(for_proc_, level + 1) +
-      ", " + d(offset_) + " bytes";
+  (void)level;
+  std::string ret = "{PipeRecorder #" + d(id_) + ", " + d(offset_) + " bytes";
   if (abandoned_) {
     ret += ", abandoned";
   } else if (deactivated_) {
