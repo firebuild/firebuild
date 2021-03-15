@@ -74,10 +74,8 @@ ProcessTree::ProcessTree()
 ProcessTree::~ProcessTree() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
-  // clean up all processes
-  for (auto& pair : fb_pid2proc_) {
-    delete(pair.second);
-  }
+  // clean up all processes, from the leaves towards the root
+  delete_process_subtree(root());
   // clean up pending exec() children
   for (auto& pair : pid2exec_child_sock_) {
     delete(pair.second.incomplete_child);
@@ -86,6 +84,17 @@ ProcessTree::~ProcessTree() {
   for (auto& pair : pid2posix_spawn_child_sock_) {
     delete(pair.second.incomplete_child);
   }
+}
+
+void ProcessTree::delete_process_subtree(Process *p) {
+  if (!p) {
+    return;
+  }
+  delete_process_subtree(p->exec_child());
+  for (Process *fork_child : p->fork_children()) {
+    delete_process_subtree(fork_child);
+  }
+  delete p;
 }
 
 void ProcessTree::insert_process(Process *p) {
