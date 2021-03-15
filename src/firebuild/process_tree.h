@@ -186,6 +186,7 @@ class ProcessTree {
    * by C. */
   std::unordered_map<std::string, cmd_prof> cmd_profs_;
   void insert_process(Process *p);
+  void delete_process_subtree(Process *p);
   void profile_collect_cmds(const Process &p,
                             std::unordered_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);
