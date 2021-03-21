@@ -87,6 +87,7 @@ static void usage() {
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
          "                             to let users find unintercepted calls using\n"
          "                             strace or ltrace\n"
+         "   --version              output version information and exit\n"
          "Exit status:\n"
          " exit status of the BUILD COMMAND\n"
          " 1  in case of failure\n");
@@ -1268,6 +1269,7 @@ int main(const int argc, char *argv[]) {
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
       {"insert-trace-markers", no_argument,       0, 'i' },
+      {"version",              no_argument,       0, 'v' },
       {0,                                0,       0,  0  }
     };
 
@@ -1312,6 +1314,12 @@ int main(const int argc, char *argv[]) {
       if (optarg != NULL) {
         report_file = optarg;
       }
+      break;
+
+    case 'v':
+      printf("FireBuild " FIREBUILD_VERSION "\n\n"
+             "This is an unpublished work. All rights reserved.\n");
+      exit(EXIT_SUCCESS);
       break;
 
     default:

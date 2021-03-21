@@ -1,6 +1,11 @@
+cmake_minimum_required(VERSION 3.9)
+
 project(FireBuild C CXX)
 
-cmake_minimum_required(VERSION 3.9)
+if (NOT DEFINED FIREBUILD_VERSION)
+  execute_process(COMMAND git describe OUTPUT_VARIABLE FIREBUILD_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(FIREBUILD_VERSION "Git ${FIREBUILD_VERSION}")
+endif()
 
 include(CheckIPOSupported)
 check_ipo_supported(RESULT IPO_SUPPORTED OUTPUT IPO_SUPPORT_ERROR)
