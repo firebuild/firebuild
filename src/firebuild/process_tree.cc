@@ -46,6 +46,7 @@ ProcessTree::ProcessTree()
     if (fd == STDERR_FILENO && flags2a != flags2b) {
       /* stdout and stderr point to the same location (changing one's flags did change the
        * other's). Reuse the Pipe object that we created in the loop's first iteration. */
+      pipe = (*inherited_fds_)[STDOUT_FILENO]->pipe();
     } else {
       /* Create a new Pipe for this file descriptor.
        * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
@@ -61,8 +62,6 @@ ProcessTree::ProcessTree()
       /* Top level inherited fds are special, they should not be closed. */
       pipe->set_keep_fd0_open();
       inherited_fd_pipes_.insert(pipe);
-
-      pipe = pipe->fd1_shared_ptr();  /* might be needed for the second iteration of the loop */
     }
 
     std::shared_ptr<FileFD> file_fd =
