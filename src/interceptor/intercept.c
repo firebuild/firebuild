@@ -596,6 +596,8 @@ static void fb_ic_init() {
   FBB_Builder_scproc_query ic_msg;
   fbb_scproc_query_init(&ic_msg);
 
+  fbb_scproc_query_set_version(&ic_msg, FIREBUILD_VERSION);
+
   fbb_scproc_query_set_pid(&ic_msg, pid);
   fbb_scproc_query_set_ppid(&ic_msg, ppid);
   fbb_scproc_query_set_cwd(&ic_msg, cwd_buf);

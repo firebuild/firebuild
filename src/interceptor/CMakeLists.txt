@@ -4,7 +4,9 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89")
 
 # the trace markers may truncate the marker messages
-set_source_files_properties(intercept.c PROPERTIES COMPILE_FLAGS "-Wno-unknown-warning-option -Wno-stringop-truncation")
+set_source_files_properties(intercept.c
+  PROPERTIES COMPILE_FLAGS "-Wno-unknown-warning-option -Wno-stringop-truncation -DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
+
 
 add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c

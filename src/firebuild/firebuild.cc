@@ -370,6 +370,12 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     const FBB_scproc_query *ic_msg = reinterpret_cast<const FBB_scproc_query *>(fbb_buf);
     auto pid = fbb_scproc_query_get_pid(ic_msg);
     auto ppid = fbb_scproc_query_get_ppid(ic_msg);
+    const char* ic_version = fbb_scproc_query_get_version_with_fallback(ic_msg, NULL);
+
+    if (ic_version && strcmp(ic_version, FIREBUILD_VERSION) != 0) {
+      firebuild::fb_error("Mismatched interceptor version: " + std::string(ic_version));
+      abort();
+    }
 
     ::firebuild::Process *unix_parent = NULL;
     firebuild::LaunchType launch_type = firebuild::LAUNCH_TYPE_OTHER;

@@ -87,6 +87,8 @@ gen_fbb([
     (OPTIONAL, STRING, "executed_path"),
     # loaded shared libraries in the beginning
     (OPTIONAL, STRINGARRAY, "libs"),
+    # interceptor's version
+    (OPTIONAL, STRING, "version"),
   ]),
 
   # FireBuild supervisor's response with details of shortcutting.

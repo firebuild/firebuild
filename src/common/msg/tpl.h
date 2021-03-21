@@ -167,6 +167,13 @@ static inline const char *fbb_{{ msg }}_get_{{ var }}(const FBB_{{ msg }} *msg) 
 ###     set ns.offset_str = ns.offset_str + " + msg->" + var + "_size"
 }
 
+###       if req == OPTIONAL
+/* get {{ req }} string '{{ var }}' with fallback default */
+static inline const char * fbb_{{ msg }}_get_{{ var }}_with_fallback(const FBB_{{ msg }} *msg, const char *fallback) {
+  return fbb_{{ msg }}_has_{{ var }}(msg) ? fbb_{{ msg }}_get_{{ var }}(msg) : fallback;
+}
+###       endif
+
 ###     elif type == STRINGARRAY
 #define for_s_in_fbb_{{ msg }}_{{ var }}(msg, loop_body) do {            \
   ssize_t rem_size = msg->{{ var }}_size;                                \
