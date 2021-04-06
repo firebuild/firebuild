@@ -481,9 +481,9 @@ gen_fbb([
     (OPTIONAL, "bool", "with_p"),
     # PATH, or confstr(_CS_PATH) if PATH is not set
     (OPTIONAL, STRING, "path"),
-    # user CPU time in microseconds
+    # user CPU time in microseconds since last exec()
     (REQUIRED, "int64_t", "utime_u"),
-    # system CPU time in microseconds
+    # system CPU time in microseconds since laste exec()
     (REQUIRED, "int64_t", "stime_u"),
   ]),
 

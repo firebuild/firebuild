@@ -24,6 +24,9 @@ static void fb_ic_cleanup() __attribute__((destructor));
 /** file fd states */
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
+/** Resource usage at the process' last exec() */
+struct rusage initial_rusage;
+
 /** Global lock for preventing parallel system and popen calls */
 pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -341,6 +344,9 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
  * See #237 for further details.
  */
 static void atfork_child_handler(void) {
+  /* Reset, getrusage will report the correct self resource usage. */
+  timerclear(&initial_rusage.ru_stime);
+  timerclear(&initial_rusage.ru_utime);
   /* Reinitialize the lock, see #207.
    *
    * We don't know if the lock was previously held, we'd need to check
@@ -411,7 +417,9 @@ void handle_exit(const int status) {
     fbb_exit_set_exit_status(&ic_msg, status);
 
     struct rusage ru;
-    getrusage(RUSAGE_SELF, &ru);
+    ic_orig_getrusage(RUSAGE_SELF, &ru);
+    timersub(&ru.ru_stime, &initial_rusage.ru_stime, &ru.ru_stime);
+    timersub(&ru.ru_utime, &initial_rusage.ru_utime, &ru.ru_utime);
     fbb_exit_set_utime_u(&ic_msg,
         (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
     fbb_exit_set_stime_u(&ic_msg,
@@ -541,6 +549,8 @@ void fb_init_supervisor_conn() {
  * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init() {
+  ic_orig_getrusage(RUSAGE_SELF, &initial_rusage);
+
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
     insert_trace_markers = true;
   }

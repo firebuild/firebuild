@@ -440,12 +440,6 @@ int64_t ExecedProcess::sum_rusage_recurse() {
   sum_utime_u_ = 0;
   sum_stime_u_ = 0;
   sum_rusage(&sum_utime_u_, &sum_stime_u_);
-  if (parent() && parent()->pid() == pid()) {
-    sum_utime_u_ -= parent()->utime_u();
-    sum_stime_u_ -= parent()->stime_u();
-    aggr_time -= parent()->utime_u();
-    aggr_time -= parent()->stime_u();
-  }
   set_aggr_time(aggr_time);
   return Process::sum_rusage_recurse();
 }
