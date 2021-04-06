@@ -53,6 +53,9 @@ typedef struct {
 #define IC_FD_STATES_SIZE 4096
 extern fd_state ic_fd_states[];
 
+/** Resource usage at the process' last exec() */
+extern struct rusage initial_rusage;
+
 /** Global lock for preventing parallel system and popen calls */
 extern pthread_mutex_t ic_system_popen_lock;
 
