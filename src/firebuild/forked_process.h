@@ -40,10 +40,6 @@ class ForkedProcess : public Process {
     parent()->add_wd(d);
   }
   Process* exec_proc() const {return parent()->exec_proc();}
-  int64_t sum_rusage_recurse() {
-    set_aggr_time(utime_u() + stime_u());
-    return Process::sum_rusage_recurse();
-  }
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.

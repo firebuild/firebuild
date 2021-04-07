@@ -137,7 +137,7 @@ profile_collect_cmds(const Process &p,
   if (p.exec_child() != NULL) {
     ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());
     if (ancestors->count(ec->args()[0]) == 0) {
-      (*cmds)[ec->args()[0]].sum_aggr_time += p.exec_child()->aggr_time();
+      (*cmds)[ec->args()[0]].sum_aggr_time += ec->aggr_cpu_time_u();
     } else {
       if (!(*cmds)[ec->args()[0]].recursed) {
         (*cmds)[ec->args()[0]].recursed = true;
@@ -157,11 +157,11 @@ void ProcessTree::build_profile(const Process &p,
     auto *e = static_cast<const ExecedProcess*>(&p);
     auto &cmd_prof = cmd_profs_[e->args()[0]];
     if (ancestors->count(e->args()[0]) == 0) {
-      cmd_prof.aggr_time += e->aggr_time();
+      cmd_prof.aggr_time += e->aggr_cpu_time_u();
       ancestors->insert(e->args()[0]);
       first_visited = true;
     }
-    cmd_prof.cmd_time += e->sum_utime_u() +  e->sum_stime_u();
+    cmd_prof.cmd_time += e->utime_u() +  e->stime_u();
     profile_collect_cmds(p, &cmd_prof.subcmds, ancestors);
   }
   if (p.exec_child() != NULL) {
@@ -224,7 +224,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
 
   // build profile
   build_profile(*root_, &cmd_chain);
-  build_time = root_->aggr_time();
+  build_time = root_->aggr_cpu_time_u();
 
   // print it
   fprintf(stream, "digraph {\n");
