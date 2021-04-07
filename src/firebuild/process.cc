@@ -27,14 +27,16 @@ Process::Process(const int pid, const int ppid, const int exec_count, const File
                  Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
-      closed_fds_({}), utime_u_(0), stime_u_(0), aggr_time_(0), fork_children_(),
-      expected_child_(), exec_child_(NULL) {
+      closed_fds_({}), fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
 
 void Process::update_rusage(const int64_t utime_u, const int64_t stime_u) {
-  utime_u_ = utime_u;
-  stime_u_ = stime_u;
+  ExecedProcess* ep = exec_point();
+  if (ep) {
+    ep->add_utime_u(utime_u);
+    ep->add_stime_u(stime_u);
+  }
 }
 
 void Process::exit_result(const int status, const int64_t utime_u,
@@ -48,15 +50,6 @@ void Process::exit_result(const int status, const int64_t utime_u,
    * running, or exited due to an unhandled signal). */
   exit_status_ = status & 0xff;
   update_rusage(utime_u, stime_u);
-}
-
-void Process::sum_rusage(int64_t * const sum_utime_u,
-                         int64_t *const sum_stime_u) {
-  (*sum_utime_u) += utime_u_;
-  (*sum_stime_u) += stime_u_;
-  for (unsigned int i = 0; i < fork_children_.size(); i++) {
-    fork_children_[i]->sum_rusage(sum_utime_u, sum_stime_u);
-  }
 }
 
 std::shared_ptr<FileFD>
@@ -932,16 +925,6 @@ void Process::finish() {
 
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();
-}
-
-int64_t Process::sum_rusage_recurse() {
-  if (exec_child_ != NULL) {
-    aggr_time_ += exec_child_->sum_rusage_recurse();
-  }
-  for (auto& fork_child : fork_children_) {
-    aggr_time_ += fork_child->sum_rusage_recurse();
-  }
-  return aggr_time_;
 }
 
 void Process::export2js_recurse(const unsigned int level, FILE* stream,

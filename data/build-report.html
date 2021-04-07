@@ -323,8 +323,8 @@ function details(d) {
   document.getElementById('detailed_pid').innerHTML = d.pid;
   document.getElementById('detailed_ppid').innerHTML = d.ppid;
   document.getElementById('detailed_exit_status').innerHTML = d.exit_status;
-  document.getElementById('detailed_sum_utime').innerHTML = print_time(d.sum_utime_u);
-  document.getElementById('detailed_sum_stime').innerHTML = print_time(d.sum_stime_u);
+  document.getElementById('detailed_utime').innerHTML = print_time(d.utime_u);
+  document.getElementById('detailed_stime').innerHTML = print_time(d.stime_u);
 
   var pop_up_div = document.getElementById('pop_up_div');
   pop_up_div.style.display = 'block';
@@ -426,7 +426,7 @@ function update(source) {
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
       .on("click", function (d) { details(d.data); })
-      .text(function(d) { return "(" + (100 * (d.data.sum_utime_u + d.data.sum_stime_u) / root.data.aggr_time).toFixed(2) + ")%"; })
+      .text(function(d) { return "(" + (100 * (d.data.utime_u + d.data.stime_u) / root.data.aggr_time).toFixed(2) + ")%"; })
       .append("svg:title")
       .text("Show details");
 
@@ -574,10 +574,10 @@ function toggle(d) {
           </tr>
           <tr>
             <td>
-              <span class="detail_name">User CPU time:</span> <span id="detailed_sum_utime"> </span>
+              <span class="detail_name">User CPU time:</span> <span id="detailed_utime"> </span>
             </td>
             <td>
-              <span class="detail_name">System CPU time:</span> <span id="detailed_sum_stime"> </span>
+              <span class="detail_name">System CPU time:</span> <span id="detailed_stime"> </span>
             </td>
           </tr>
           <tr>

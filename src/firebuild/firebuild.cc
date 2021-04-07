@@ -1445,9 +1445,6 @@ int main(const int argc, char *argv[]) {
             "process\n");
     child_ret = EXIT_FAILURE;
   } else {
-    // postprocess process tree
-    proc_tree->root()->sum_rusage_recurse();
-
     // show process tree if needed
     if (generate_report) {
       write_report(report_file, datadir);

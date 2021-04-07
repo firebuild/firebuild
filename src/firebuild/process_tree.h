@@ -73,7 +73,6 @@ class ProcessTree {
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds() {return inherited_fds_;}
   void insert(Process *p);
   void insert(ExecedProcess *p);
-  static int64_t sum_rusage_recurse(Process *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
   ExecedProcess* root() {return root_;}

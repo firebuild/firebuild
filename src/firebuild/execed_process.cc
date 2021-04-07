@@ -56,8 +56,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                                              ? parent->exec_point()
                                              : parent->exec_point()->maybe_shortcutable_ancestor_)
                                    : nullptr),
-      sum_utime_u_(0), sum_stime_u_(0), initial_wd_(initial_wd),
-      wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
+      initial_wd_(initial_wd), wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
       executed_path_(executed_path), libs_(), file_usages_(), created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
@@ -176,6 +175,11 @@ void ExecedProcess::do_finalize() {
     args().clear();
     env_vars().clear();
     libs_.clear();
+  }
+
+  /* Propagate resource usage. */
+  if (parent_exec_point()) {
+    parent_exec_point()->add_children_cpu_time_u(aggr_cpu_time_u());
   }
 
   // Call the base class's method
@@ -435,15 +439,6 @@ void ExecedProcess::disable_shortcutting_only_this(const std::string &reason,
   }
 }
 
-int64_t ExecedProcess::sum_rusage_recurse() {
-  int64_t aggr_time = utime_u() + stime_u();
-  sum_utime_u_ = 0;
-  sum_stime_u_ = 0;
-  sum_rusage(&sum_utime_u_, &sum_stime_u_);
-  set_aggr_time(aggr_time);
-  return Process::sum_rusage_recurse();
-}
-
 void ExecedProcess::export2js_recurse(const unsigned int level, FILE* stream,
                                       unsigned int *nodeid) {
   if (level > 0) {
@@ -561,9 +556,7 @@ void ExecedProcess::export2js(const unsigned int level,
   }
   fprintf(stream, "%s utime_u: %lu,\n", indent, utime_u());
   fprintf(stream, "%s stime_u: %lu,\n", indent, stime_u());
-  fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_time());
-  fprintf(stream, "%s sum_utime_u: %lu,\n", indent, sum_utime_u());
-  fprintf(stream, "%s sum_stime_u: %lu,\n", indent, sum_stime_u());
+  fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_cpu_time_u());
 }
 
 /* For debugging, a short imprecise reminder of the command line. Omits the path to the

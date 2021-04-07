@@ -98,12 +98,6 @@ class Process {
   const FileName* wd() {return wd_;}
   void handle_set_wd(const char * const d);
   void handle_set_fwd(const int fd);
-  int64_t utime_u() const {return utime_u_;}
-  void set_utime_u(int64_t t) {utime_u_ = t;}
-  int64_t stime_u() const {return stime_u_;}
-  void set_stime_u(int64_t t) {stime_u_ = t;}
-  int64_t aggr_time() const {return aggr_time_;}
-  void set_aggr_time(int64_t t) {aggr_time_ = t;}
   void set_exec_pending(bool val) {exec_pending_ = val;}
   bool exec_pending() {return exec_pending_;}
   void set_posix_spawn_pending(bool val) {posix_spawn_pending_ = val;}
@@ -151,7 +145,6 @@ class Process {
   void finish();
   virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_u, int64_t stime_u);
-  void sum_rusage(int64_t *sum_utime_u, int64_t *sum_stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
   FileFD* get_fd(int fd) {
     assert(fds_);
@@ -387,8 +380,6 @@ class Process {
   /** Propagate exit status upward through exec()-ed processes */
   virtual void propagate_exit_status(const int status) = 0;
 
-  virtual int64_t sum_rusage_recurse();
-
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
@@ -432,12 +423,6 @@ class Process {
   const FileName* wd_;  ///< Current working directory
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
   std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
-  int64_t utime_u_;  ///< user time in microseconds as reported by getrusage()
-  /// system time in microseconds as reported by getrusage()
-  int64_t stime_u_;
-  /** Sum of user and system time in microseconds for all forked and exec()-ed
-      children */
-  int64_t aggr_time_ = 0;
   std::vector<Process*> fork_children_;  ///< children of the process
   /// the latest system() child
   ExecedProcess *system_child_ {NULL};

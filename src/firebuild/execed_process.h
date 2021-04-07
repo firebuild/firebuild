@@ -54,10 +54,13 @@ class ExecedProcess : public Process {
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
   const ExecedProcess* exec_point() const {return this;}
-  int64_t sum_utime_u() const {return sum_utime_u_;}
-  void set_sum_utime_u(int64_t t) {sum_utime_u_ = t;}
-  int64_t sum_stime_u() const {return sum_stime_u_;}
-  void set_sum_stime_u(int64_t t) {sum_stime_u_ = t;}
+  void add_utime_u(int64_t t) {utime_u_ += t;}
+  int64_t utime_u() const {return utime_u_;}
+  void add_stime_u(int64_t t) {stime_u_ += t;}
+  int64_t stime_u() const {return stime_u_;}
+  int64_t cpu_time_u() const {return utime_u_ + stime_u_;}
+  void add_children_cpu_time_u(const int64_t t) {children_cpu_time_u_ += t;}
+  int64_t aggr_cpu_time_u() const {return cpu_time_u() + children_cpu_time_u_;}
   const FileName* initial_wd() const {return initial_wd_;}
   const std::unordered_set<const FileName*>& wds() const {return wds_;}
   const std::unordered_set<const FileName*>& wds() {return wds_;}
@@ -149,7 +152,6 @@ class ExecedProcess : public Process {
 
   bool was_shortcut() const {return was_shortcut_;}
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
-  virtual int64_t sum_rusage_recurse();
 
   void export2js(const unsigned int level, FILE* stream,
                  unsigned int * nodeid);
@@ -170,10 +172,12 @@ class ExecedProcess : public Process {
       maybe_shortcutable_ancestor points at itself, etc. */
   ExecedProcess * maybe_shortcutable_ancestor_;
   /// Sum of user time in microseconds for all forked but not exec()-ed children
-  int64_t sum_utime_u_ = 0;
+  int64_t utime_u_ = 0;
   /// Sum of system time in microseconds for all forked but not exec()-ed
   /// children
-  int64_t sum_stime_u_ = 0;
+  int64_t stime_u_ = 0;
+  /** Sum of user and system time in microseconds for all finalized exec()-ed children */
+  int64_t children_cpu_time_u_ = 0;
   /// Directory the process exec()-started in
   const FileName* initial_wd_;
   /// Working directories visited by the process and all fork()-children
