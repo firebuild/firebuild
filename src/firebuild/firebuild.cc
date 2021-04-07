@@ -1249,6 +1249,16 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
   }
 }
 
+static bool running_under_valgrind() {
+  const char *v = getenv("LD_PRELOAD");
+  if (v == NULL) {
+    return false;
+  } else {
+    return (strstr(v, "/valgrind/") != NULL || strstr(v, "/vgpreload") != NULL);
+  }
+}
+
+
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
   char *directory = NULL;
@@ -1465,30 +1475,30 @@ int main(const int argc, char *argv[]) {
     }
   }
 
-  // clean up everything
-  {
-    char* env_str;
-    for (int i = 0; (env_str = env_exec[i]) != NULL; i++) {
-      free(env_str);
-    }
-    free(env_exec);
-  }
-
   unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
 
-  free(fb_conn_string);
-  free(fb_tmp_dir);
-  delete(proc_tree);
-  delete(firebuild::ignore_locations);
-  delete(cfg);
+  if (running_under_valgrind()) {
+    /* keep Valgrind happy */
+    {
+      char* env_str;
+      for (int i = 0; (env_str = env_exec[i]) != NULL; i++) {
+        free(env_str);
+      }
+      free(env_exec);
+    }
 
-  // keep Valgrind happy
-  fclose(stdin);
-  fclose(stdout);
-  fclose(stderr);
-  if (bats_inherited_fd > -1) {
-    close(bats_inherited_fd);
+    free(fb_conn_string);
+    free(fb_tmp_dir);
+    delete(proc_tree);
+    delete(firebuild::ignore_locations);
+    delete(cfg);
+    fclose(stdin);
+    fclose(stdout);
+    fclose(stderr);
+    if (bats_inherited_fd > -1) {
+      close(bats_inherited_fd);
+    }
   }
 
   exit(child_ret);
