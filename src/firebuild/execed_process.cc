@@ -160,7 +160,7 @@ void ExecedProcess::do_finalize() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   // store data for shortcutting
-  if (cacher_ && !was_shortcut() && can_shortcut()) {
+  if (cacher_ && !was_shortcut() && can_shortcut() && aggr_cpu_time_u() >= min_cpu_time_u) {
     cacher_->store(this);
   }
 

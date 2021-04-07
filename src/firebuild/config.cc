@@ -30,6 +30,8 @@ std::vector<const FileName*> *ignore_locations = nullptr;
 ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
+/** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
+int64_t min_cpu_time_u = 0;
 
 /** Parse configuration file
  *
@@ -165,6 +167,11 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
         adding = x_str;
         break;
       }
+      case libconfig::Setting::TypeFloat: {
+        float x_float = x;
+        adding = x_float;
+        break;
+      }
       default:
         std::cerr << "This type is not supported" << std::endl;
         exit(EXIT_FAILURE);
@@ -185,6 +192,7 @@ static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) 
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string> &config_strings) {
   parse_cfg_file(cfg, custom_cfg_file);
+  cfg->setAutoConvert(true);
   for (auto s : config_strings) {
     modify_config(cfg, s);
   }
@@ -196,6 +204,13 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   }
 
   /* Save portions of the configuration to separate variables for faster access. */
+  if (cfg->exists("min_cpu_time")) {
+    libconfig::Setting& min_cpu_time_cfg = cfg->getRoot()["min_cpu_time"];
+    if (min_cpu_time_cfg.isNumber()) {
+      float min_cpu_time_s = min_cpu_time_cfg;
+      min_cpu_time_u = 1000000.0 * min_cpu_time_s;
+    }
+  }
   libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
   assert(!ignore_locations);
   ignore_locations = new std::vector<const FileName *>();
