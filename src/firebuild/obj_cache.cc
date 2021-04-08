@@ -144,11 +144,11 @@ bool ObjCache::store(const Hash &key,
     close(fd);
   }
 
-  char *tmpfile;
-  if (asprintf(&tmpfile, "%s/new.XXXXXX", base_dir_.c_str()) < 0) {
-    perror("asprintf");
-    return false;
-  }
+  const char* tmpfile_end = "/new.XXXXXX";
+  char* tmpfile = static_cast<char*>(malloc(base_dir_.length() + strlen(tmpfile_end) + 1));
+  memcpy(tmpfile, base_dir_.c_str(), base_dir_.length());
+  memcpy(tmpfile + base_dir_.length(), tmpfile_end, strlen(tmpfile_end) + 1);
+
   int fd_dst = mkstemp(tmpfile);  /* opens with O_RDWR */
   if (fd_dst == -1) {
     perror("mkstemp");
