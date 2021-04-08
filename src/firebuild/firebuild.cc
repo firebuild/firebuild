@@ -16,10 +16,11 @@
 #include <fcntl.h>
 #include <libgen.h>
 
+#include <fmt/core.h>
+#include <fmt/format.h>
 #include <string>
 #include <stdexcept>
 #include <libconfig.h++>
-
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
@@ -169,21 +170,19 @@ static char** get_sanitized_env() {
   return ret_env;
 }
 
-static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd, string_array* fifo_fds) {
+static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd,
+                             std::vector<std::string>* fifo_fds) {
   int fifo_name_offset;
-  char * fifo_params =
+  std::string fifo_params =
       firebuild::make_fifo(fd, O_WRONLY, proc->pid(), fb_conn_string, &fifo_name_offset);
-  if (!fifo_params) {
-    return -1;
-  }
-  string_array_append(fifo_fds, fifo_params);
-  char *fifo = fifo_params + fifo_name_offset;
+  const char *fifo = fifo_params.c_str() + fifo_name_offset;
   int ret = open(fifo, O_NONBLOCK | O_RDONLY);
   if (ret == -1) {
     perror("could not open fifo for intercepting bytes written to the pipe");
     assert(0);
   }
   firebuild::bump_fd_age(ret);
+  fifo_fds->push_back(fifo_params);
   return ret;
 }
 
@@ -202,10 +201,11 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
     FBB_Builder_scproc_resp sv_msg;
     fbb_scproc_resp_init(&sv_msg);
+    std::string fifo_params;
     int fifo_name_offset;
-    char * fifo_params = nullptr;
-    string_array fifo_fds;
-    string_array_init(&fifo_fds);
+    std::vector<std::string> fifo_fds = {};
+    string_array fifo_fds_sa;
+    string_array_init(&fifo_fds_sa);
 
     proc_tree->insert(proc);
     proc->initialize();
@@ -275,22 +275,25 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
         /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
         for (size_t i = 1; i < inherited_pipe.fds.size(); i++) {
-          if (asprintf(&fifo_params, "%d:%d %d",
-                       inherited_pipe.fds[i], 0, inherited_pipe.fds[0]) == -1) {
-            perror("asprintf");
-          }
-          string_array_append(&fifo_fds, fifo_params);
+          fifo_params = fmt::format(FMT_STRING("{}:0 {}"), inherited_pipe.fds[i],
+                                    inherited_pipe.fds[0]);
+          fifo_fds.push_back(fifo_params);
         }
       }
       if (pending_popen_stdin_fifo) {
         /* Needed for opening STDIN in child for popen(..., "w") */
         fifo_params = firebuild::make_fifo(STDIN_FILENO, O_RDONLY, proc->pid(), fb_conn_string,
                                            &fifo_name_offset);
-        assert(fifo_params);
-        string_array_append(&fifo_fds, fifo_params);
+        fifo_fds.push_back(fifo_params);
       }
 
-      fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds.p);
+      {
+        for (std::string& fifo_str : fifo_fds) {
+          /* Constness is cast away, but it is OK because the string array is not deep freed. */
+          string_array_append(&fifo_fds_sa, const_cast<char*>(fifo_str.c_str()));
+        }
+        fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds_sa.p);
+      }
       /* inherited_pipes was updated with the recorders, save the new version */
       proc->set_inherited_pipes(inherited_pipes);
 
@@ -307,7 +310,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
          * it did not read from STDIN either. It is safe to skip setting up the pipe. */
       } else {
         assert(pending_popen_stdin_fd != -1);
-        char *fifo = fifo_params + fifo_name_offset;
+        const char *fifo = fifo_params.c_str() + fifo_name_offset;
         /* This open blocks until the interceptor opens the other end. */
         int tmp_fd0_conn = open(fifo, O_WRONLY);
         /* Create the pipe. */
@@ -323,7 +326,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
         unlink(fifo);
       }
     }
-    string_array_deep_free(&fifo_fds);
+    free(fifo_fds_sa.p);
 }
 
 void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,

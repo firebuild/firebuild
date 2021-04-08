@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include <fmt/core.h>
+#include <fmt/format.h>
 #include <string>
 #include <cstdlib>
 
@@ -63,17 +65,16 @@ void ack_msg(const int conn, const int ack_num) {
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
-char* make_fifo(int fd, int flags, int pid, const char *fb_conn_string, int *fifo_name_offset) {
+std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
+                      int* fifo_name_offset) {
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
-  char* fifo_params, *fifo;
-  if (asprintf(&fifo_params, "%d:%d %n%s-%d-%d-%09ld-%09ld",
-               fd, flags, fifo_name_offset, fb_conn_string, pid, fd,
-               time.tv_sec, time.tv_nsec) == -1) {
-    perror("asprintf");
-    return nullptr;
-  }
-  fifo = fifo_params + *fifo_name_offset;
+  std::string fifo_params_fd_flags = fmt::format(FMT_STRING("{}: {} "), fd, flags);
+  *fifo_name_offset = fifo_params_fd_flags.length();
+  std::string fifo_params = fmt::format(FMT_STRING("{}{}-{}-{}-{:09d}-{:09d})"),
+                                        fifo_params_fd_flags,
+                                        fb_conn_string, pid, fd, time.tv_sec, time.tv_nsec);
+  const char* fifo = fifo_params.c_str() + *fifo_name_offset;
   int ret = mkfifo(fifo, 0666);
   if (ret == -1) {
     perror("could not create fifo");
