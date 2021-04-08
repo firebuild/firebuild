@@ -7,6 +7,7 @@ set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_V
 find_package(FlatBuffers REQUIRED)
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(fmt REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 
@@ -45,7 +46,7 @@ add_executable(firebuild
   obj_cache.cc
   utils.cc
   $<TARGET_OBJECTS:common_objs>)
-target_link_libraries(firebuild ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash)
+target_link_libraries(firebuild ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash fmt::fmt)
 target_link_options(firebuild PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_property(TARGET firebuild PROPERTY INTERPROCEDURAL_OPTIMIZATION True)
 add_dependencies(firebuild fbb_gen_files flatbuffers_gen_files)
