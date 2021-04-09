@@ -123,7 +123,7 @@ class ExecedProcess : public Process {
    * @param p process the event preventing shortcutting happened in, or
    *     omitted for the current process
    */
-  virtual void disable_shortcutting_only_this(const std::string &reason,
+  virtual void disable_shortcutting_only_this(const char* reason,
                                               const ExecedProcess *p = NULL);
   /**
    * Process and parents (transitively) up to (excluding) "stop" can't be short-cut because
@@ -137,7 +137,11 @@ class ExecedProcess : public Process {
    *        (when shortcutable_ancestor_is_set is true)
    * @param shortcutable_ancestor_is_set the shortcutable_ancestor is computed
    */
-  void disable_shortcutting_bubble_up_to_excl(ExecedProcess *stop, const std::string& reason,
+  void disable_shortcutting_bubble_up_to_excl(ExecedProcess *stop, const char* reason,
+                                              const ExecedProcess *p = NULL,
+                                              ExecedProcess *shortcutable_ancestor = nullptr,
+                                              bool shortcutable_ancestor_is_set = false);
+  void disable_shortcutting_bubble_up_to_excl(ExecedProcess *stop, const char* reason, int fd,
                                               const ExecedProcess *p = NULL,
                                               ExecedProcess *shortcutable_ancestor = nullptr,
                                               bool shortcutable_ancestor_is_set = false);
@@ -148,7 +152,13 @@ class ExecedProcess : public Process {
    * @param p process the event preventing shortcutting happened in, or
    *     omitted for the current process
    */
-  void disable_shortcutting_bubble_up(const std::string& reason, const ExecedProcess *p = NULL);
+  void disable_shortcutting_bubble_up(const char* reason, const ExecedProcess *p = NULL);
+  void disable_shortcutting_bubble_up(const char* reason, const int fd,
+                                      const ExecedProcess *p = NULL);
+  void disable_shortcutting_bubble_up(const char* reason, const FileName& file,
+                                      const ExecedProcess *p = NULL);
+  void disable_shortcutting_bubble_up(const char* reason, const std::string& str,
+                                      const ExecedProcess *p = NULL);
 
   bool was_shortcut() const {return was_shortcut_;}
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
@@ -213,7 +223,7 @@ class ExecedProcess : public Process {
   std::vector<inherited_pipe_t> inherited_pipes_ = {};
   void store_in_cache();
   /// Reason for this process can't be short-cut
-  std::string cant_shortcut_reason_ = "";
+  const char* cant_shortcut_reason_ = nullptr;
   /// Process the event preventing short-cutting happened in
   const Process *cant_shortcut_proc_ = NULL;
   /// Helper object for storing in / retrieving from cache.

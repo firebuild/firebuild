@@ -24,7 +24,7 @@ int ProcessPBAdaptor::msg(Process *p, const FBB_dlopen *dlo, int fd_conn, const 
   } else {
     std::string filename = fbb_dlopen_has_absolute_filename(dlo) ?
                            fbb_dlopen_get_absolute_filename(dlo) : "NULL";
-    p->exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() " + filename);
+    p->exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ", filename);
     return 0;
   }
 }

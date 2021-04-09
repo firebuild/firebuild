@@ -377,7 +377,7 @@ bool ExecedProcess::shortcut() {
 
 void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
     ExecedProcess *stop,
-    const std::string& reason,
+    const char* reason,
     const ExecedProcess *p,
     ExecedProcess *shortcutable_ancestor,
     bool shortcutable_ancestor_is_set) {
@@ -411,20 +411,52 @@ void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
   }
 }
 
-void ExecedProcess::disable_shortcutting_bubble_up(const std::string& reason,
+void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
+    ExecedProcess *stop,
+    const char* reason,
+    const int fd,
+    const ExecedProcess *p,
+    ExecedProcess *shortcutable_ancestor,
+    bool shortcutable_ancestor_is_set) {
+  disable_shortcutting_bubble_up_to_excl(stop, reason, p, shortcutable_ancestor,
+                                         shortcutable_ancestor_is_set);
+  FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
+}
+void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const ExecedProcess *p) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
 
   disable_shortcutting_bubble_up_to_excl(NULL, reason, p);
 }
 
-void ExecedProcess::disable_shortcutting_only_this(const std::string &reason,
+void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
+                                                   const int fd,
+                                                   const ExecedProcess *p) {
+  disable_shortcutting_bubble_up(reason, p);
+  FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
+}
+
+void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
+                                                   const FileName& file,
+                                                   const ExecedProcess *p) {
+  disable_shortcutting_bubble_up(reason, p);
+  FB_DEBUG(FB_DEBUG_PROC, "file: " + d(file));
+}
+
+void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
+                                                   const std::string& str,
+                                                   const ExecedProcess *p) {
+  disable_shortcutting_bubble_up(reason, p);
+  FB_DEBUG(FB_DEBUG_PROC, d(str));
+}
+
+void ExecedProcess::disable_shortcutting_only_this(const char* reason,
                                                    const ExecedProcess *p) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
 
   if (can_shortcut_) {
     can_shortcut_ = false;
-    assert_cmp(cant_shortcut_reason_, ==, "");
+    assert(cant_shortcut_reason_ == nullptr);
     cant_shortcut_reason_ = reason;
     assert_null(cant_shortcut_proc_);
     cant_shortcut_proc_ = p ? p : this;
