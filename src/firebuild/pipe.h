@@ -105,11 +105,17 @@ typedef enum {
  * - Fd1 ends can be closed independently. When one fd1 end is closed the file descriptor is closed,
  *   the callback on it is disabled and freed. When the last fd1 is closed there may still be data
  *   in the buffer to send. In that case the pipe switches to send_only_mode_ and keeps forwarding
- *   the data to fd0 until all the data is sent or received EPIPE on fd0. Even when the last fd1
- *   gets closed the pipe stays active and a new fd1 can be added to it. This sequence of events can
- *   occur when the supervisor detects the closure of the fd1 fds before a new intercepted process
- *   shows up for which one fd1 end needs to be reopened. As a result pipes are finished only after
- *   all fd1 ends are closed and there are no fd1-side references are kept by processes.
+ *   the data to fd0 until all the data is sent or received EPIPE on fd0.
+ *   Even when the last fd1 gets closed the pipe stays active and a new fd1 can be added to it. This
+ *   sequence of events can occur when the supervisor detects the closure of the fd1 fds before a
+ *   new intercepted process shows up for which one fd1 end needs to be reopened. As a result pipes
+ *   are finished after all fd1 ends are closed and there are no fd1-side references are kept by
+ *   processes.
+ *   It is also possible that there is an fd1-side reference kept in the supervisor, but the new
+ *   process that would inherit it never shows up, for example because it is statically linked
+ *   thus it is not intercepted. For that case when all fd1 ends are closed the pipe starts a timer
+ *   and waits a preset time and for the processing of all non timer events. If no new fd1 end is
+ *   added until this final cutoff time the pipe is finished.
  * - When fd0 end is closed the whole Pipe can be finish()-ed discarding the buffered data and
  *   closing all fd1 ends. This is detected when receiving EPIPE on fd0.
  * The forward() and send_buf() functions don't change the Pipe ends, it is the responsibility of
@@ -229,7 +235,10 @@ class Pipe {
   bool keep_fd0_open_:1;
   bool fd0_shared_ptr_generated_:1;
   bool fd1_shared_ptr_generated_:1;
+  /** Number of times the fd1 timeout callback visited the pipe. */
+  unsigned int fd1_timeout_round_:3;
   LinearBuffer buf_;
+  struct event* fd1_timeout_event_ = nullptr;
   /**
    * Shared self pointer used by fd0 references to clean oneself up only after finish() and keep
    * track of fd0 references separately . */
@@ -247,6 +256,7 @@ class Pipe {
   static int id_counter_;
   static void pipe_fd0_write_cb(evutil_socket_t fd, int16_t what, void *arg);
   static void pipe_fd1_read_cb(evutil_socket_t fd, int16_t what, void *arg);
+  static void fd1_timeout_cb(int fd, int16_t what, void *arg);
   pipe_end* get_fd1_end(FileFD* file_fd) {
     auto it = ffd2fd1_ends.find(file_fd);
     if (it != ffd2fd1_ends.end()) {

@@ -1408,7 +1408,9 @@ int main(const int argc, char *argv[]) {
   }
   auto env_exec = get_sanitized_env();
 
-  ev_base = event_base_new();;
+  ev_base = event_base_new();
+  /* Use two priority queues, the lowe priority queue (1) is for timers. */
+  event_base_priority_init(ev_base, 2);
 
   /* Open listener socket before forking child to always let the child connect */
   listener = create_listener();
