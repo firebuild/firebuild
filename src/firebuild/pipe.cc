@@ -20,6 +20,9 @@
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
 
+/** Timeout for closing a pipe after all fd1 ends are closed and a new hasn't been opened. */
+const struct timeval kFd1ReopenTimeout = {0, 100000};
+
 namespace firebuild {
 
 static void maybe_finish(Pipe* pipe) {
@@ -58,13 +61,28 @@ struct Fd1Deleter {
   }
 };
 
+void Pipe::fd1_timeout_cb(int fd, int16_t what, void *arg) {
+  (void) fd; /* unused */
+  (void) what;
+  assert(what & EV_TIMEOUT);
+
+  Pipe* pipe = reinterpret_cast<Pipe*>(arg);
+  if (++pipe->fd1_timeout_round_ >= 2) {
+    /* At least kFd1ReopenTimeout time elapsed since the
+     * the pipe lost the last fd1 end and all non timer events have been processed after that. */
+    pipe->finish();
+  } else {
+    /* Add it again, it is not persistent. */
+    evtimer_add(pipe->fd1_timeout_event_, &kFd1ReopenTimeout);
+  }
+}
 
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
       conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), send_only_mode_(false),
       keep_fd0_open_(false), fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
-      buf_(), fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr),
-      shared_self_ptr_(this), creator_(creator) {
+      fd1_timeout_round_(0), buf_(), fd0_ptrs_held_self_ptr_(nullptr),
+      fd1_ptrs_held_self_ptr_(nullptr), shared_self_ptr_(this), creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%s, creator=%s", D_FD(fd0_conn), D(creator));
 }
 
@@ -93,6 +111,10 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
 
   assert(conn2fd1_ends.count(fd1_conn) == 0);
   assert(!finished());
+  if (fd1_timeout_event_) {
+    event_free(fd1_timeout_event_);
+    fd1_timeout_event_ = nullptr;
+  }
   auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, Pipe::pipe_fd1_read_cb, this);
   auto fd1_end = new pipe_end({fd1_event, {file_fd}, recorders, false});
   conn2fd1_ends[fd1_conn] = fd1_end;
@@ -150,6 +172,14 @@ void Pipe::close_one_fd1(int fd) {
     if (buffer_empty()) {
       if (!fd1_ptrs_held_self_ptr_) {
         finish();
+      } else {
+        /* There are references held to fd1 which means that a process may show up inheriting
+         * the open pipe end. Set up a timer to close finish() the pipe if the new process does not
+         * not register with the supervisor possibly because it is a static binary. */
+        assert_null(fd1_timeout_event_);
+        fd1_timeout_round_ = 0;
+        fd1_timeout_event_ = evtimer_new(ev_base, fd1_timeout_cb, this);
+        evtimer_add(fd1_timeout_event_, &kFd1ReopenTimeout);
       }
     } else {
       /* Let the pipe send out the remaining data. */
@@ -217,6 +247,10 @@ void Pipe::finish() {
     event_free(fd0_event);
   }
   fd0_event = nullptr;
+  if (fd1_timeout_event_) {
+    event_free(fd1_timeout_event_);
+    fd1_timeout_event_ = nullptr;
+  }
   shared_self_ptr_.reset();
 }
 
