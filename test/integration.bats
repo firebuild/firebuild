@@ -204,7 +204,7 @@ setup() {
 
   # command substitution with statically linked binary
   for i in 1 2; do
-    result=$(timeout 2 ./run-firebuild -- sh -c 'echo `./test_static`')
+    result=$(timeout 10 ./run-firebuild -- sh -c 'echo `./test_static`')
     assert_streq "$result" "I am statically linked."
     assert_streq "$(strip_stderr stderr)" ""
   done
