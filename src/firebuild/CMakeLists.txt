@@ -38,7 +38,6 @@ add_executable(firebuild
   hash.cc
   hash_cache.cc
   file.cc
-  file_db.cc
   file_fd.cc
   file_usage.cc
   file_usage_db.cc
