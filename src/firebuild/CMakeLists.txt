@@ -40,7 +40,6 @@ add_executable(firebuild
   file.cc
   file_fd.cc
   file_usage.cc
-  file_usage_db.cc
   blob_cache.cc
   obj_cache.cc
   utils.cc
