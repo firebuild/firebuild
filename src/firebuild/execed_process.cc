@@ -12,7 +12,6 @@
 #include <libconfig.h++>
 
 #include "firebuild/config.h"
-#include "firebuild/file_db.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/platform.h"
 #include "firebuild/utils.h"
