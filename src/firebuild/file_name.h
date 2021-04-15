@@ -5,6 +5,8 @@
 #define FIREBUILD_FILE_NAME_H_
 
 #include <flatbuffers/flatbuffers.h>
+#define XXH_INLINE_ALL
+#include <xxhash.h>
 
 #include <cstring>
 #include <string>
@@ -27,7 +29,7 @@ class FileName {
   const char * c_str() const {return name_;}
   std::string to_string() const {return std::string(name_);}
   size_t length() const {return length_;}
-  size_t hash() const {return std::_Hash_bytes(name_, length_, 0);}
+  size_t hash() const {return XXH3_64bits(name_, length_);}
   static const FileName* Get(const char * const name, ssize_t length);
   static const FileName* Get(const flatbuffers::String * const name) {
     return Get(name->c_str(), name->size());
@@ -97,6 +99,5 @@ std::string d(const FileName& fn, const int level = 0);
 std::string d(const FileName *fn, const int level = 0);
 
 }  // namespace firebuild
-
 
 #endif  // FIREBUILD_FILE_NAME_H_
