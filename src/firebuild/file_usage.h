@@ -6,8 +6,11 @@
 #define FIREBUILD_FILE_USAGE_H_
 
 #include <sys/stat.h>
+#define XXH_INLINE_ALL
+#include <xxhash.h>
 
 #include <string>
+#include <unordered_set>
 
 #include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -49,57 +52,68 @@ typedef enum {
   FILE_ACTION_MKDIR,
 } FileAction;
 
+struct FileUsageHasher;
+
 class FileUsage {
  public:
-  FileUsage(FileInitialState initial_state, Hash hash) :
-      initial_state_(initial_state),
-      /*read_(false),*/ initial_hash_(hash),
-      stated_(false), initial_stat_(), initial_stat_err_(0),
-      written_(false), stat_changed_(true), unknown_err_(0) {}
-  explicit FileUsage(FileInitialState initial_state) :
-      FileUsage(initial_state, Hash()) {}
-  FileUsage() : FileUsage(DONTKNOW) {}
-
   FileInitialState initial_state() const {return initial_state_;}
   const Hash& initial_hash() const {return initial_hash_;}
   bool written() const {return written_;}
-  void set_written(bool val) {written_ = val;}
 
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
 
-  bool merge(const FileUsage& fu);
-  bool update_from_open_params(const FileName* filename,
-                               FileAction action, int flags, int err,
-                               bool do_read);
+  static const FileUsage* Get(const FileUsage& candidate);
+  static const FileUsage* Get(FileInitialState initial_state = DONTKNOW,
+                              Hash hash = Hash(), bool written = false) {
+    FileUsage tmp_file_usage(initial_state, hash, written);
+    return (Get(tmp_file_usage));
+  }
+
+  static const FileUsage* Get(const FileName* filename, FileAction action,
+                              int flags, int err, bool do_read) {
+    FileUsage tmp_file_usage;
+    if (!tmp_file_usage.update_from_open_params(filename, action, flags, err, do_read)) {
+      return nullptr;
+    } else {
+      return (Get(tmp_file_usage));
+    }
+  }
+
+  const FileUsage* merge(const FileUsage* that) const;
   bool open(const FileName* filename, int flags, int err, Hash **hashpp);
 
 
  private:
+  FileUsage(FileInitialState initial_state, Hash hash, bool written = false) :
+      /*read_(false),*/
+      initial_hash_(hash),
+      initial_state_(initial_state),
+      stated_(false),
+      written_(written),
+      stat_changed_(true),
+      initial_stat_err_(0),
+      initial_stat_(),
+      unknown_err_(0) {}
+  explicit FileUsage(FileInitialState initial_state) :
+      FileUsage(initial_state, Hash()) {}
+  FileUsage() : FileUsage(DONTKNOW) {}
+
   /* Things that describe the filesystem when the process started up */
+
+  /** The initial checksum, if initial_state_ == EXIST_WITH_HASH. */
+  Hash initial_hash_;
 
   /** The file's contents at the process's startup. More precisely, at
    *  the time the process first tries to do anything with this file
    *  that could be relevant, because at process startup we have no idea
    *  which files we'll need to monitor. See the comment of the
    *  individual enum numbers for more details. */
-  FileInitialState initial_state_;
-
-  /** The initial checksum, if initial_state_ == EXIST_WITH_HASH. */
-  Hash initial_hash_;
+  FileInitialState initial_state_ : 4;
 
   /** If the file was stat()'ed during the process's lifetime, that is,
    *  its initial metadata might be relevant. */
   bool stated_ : 1;
-
-  /** The result of initially stat()'ing the file. Only valid if stated_
-   *  && !initial_stat_err_. */
-  struct stat64 initial_stat_;
-
-  /** The error from initially stat()'ing the file, or 0 if there was no
-   *  error. */
-  int initial_stat_err_;
-
 
   /* Things that describe what the process potentially did */
 
@@ -109,21 +123,58 @@ class FileUsage {
   bool written_ : 1;
 
   /** If the file's metadata (e.g. mode) was potentially altered, that is,
-   *  the final state is to be remembered.
+e   *  the final state is to be remembered.
    *  FIXME Do we need this? We should just always stat() at the end. */
   bool stat_changed_ : 1;
+
+  /** The error from initially stat()'ing the file, or 0 if there was no
+   *  error. */
+  int initial_stat_err_;
+
+  /** The result of initially stat()'ing the file. Only valid if stated_
+   *  && !initial_stat_err_. */
+  struct stat64 initial_stat_;
 
   /* Note: stuff like the final hash are not stored here. They are
    * computed right before being placed in the cache, don't need to be
    * remembered in memory. */
 
+  static std::unordered_set<FileUsage, FileUsageHasher>* db_;
+  /* This, along with the FileUsage::db_initializer_ definition in file_usage.cc,
+   * initializes the file usage database once at startup. */
+  class DbInitializer {
+   public:
+    DbInitializer();
+  };
+  friend class DbInitializer;
+  static DbInitializer db_initializer_;
+  friend struct FileUsageHasher;
+  friend bool operator==(const FileUsage& lhs, const FileUsage& rhs);
 
   /* Misc */
 
   /** An unhandled error occured during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
+  bool update_from_open_params(const FileName* filename,
+                               FileAction action, int flags, int err,
+                               bool do_read);
 };
+
+bool operator==(const FileUsage& lhs, const FileUsage& rhs);
+
+struct FileUsageHasher {
+  std::size_t operator()(const FileUsage& f) const noexcept {
+    XXH64_hash_t hash = XXH3_64bits(f.initial_hash_.to_binary(), Hash::hash_size());
+    unsigned char merged_state = f.initial_state_;
+    merged_state |= f.stated_ << 5;
+    merged_state |= f.written_ << 6;
+    merged_state |= f.stat_changed_ << 7;
+    hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
+    return hash;
+  }
+};
+
 
 struct file_file_usage {
   const FileName* file;
@@ -139,6 +190,5 @@ std::string d(const FileUsage& fu, const int level = 0);
 std::string d(const FileUsage *fu, const int level = 0);
 const char *file_initial_state_to_string(FileInitialState state);
 const char *file_action_to_string(FileAction action);
-
 }  // namespace firebuild
 #endif  // FIREBUILD_FILE_USAGE_H_

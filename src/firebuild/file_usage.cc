@@ -16,6 +16,8 @@
 
 #include <sys/stat.h>
 
+#include <unordered_set>
+
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
@@ -23,36 +25,78 @@
 
 namespace firebuild {
 
+std::unordered_set<FileUsage, FileUsageHasher>* FileUsage::db_;
+
+FileUsage::DbInitializer::DbInitializer() {
+  db_ = new std::unordered_set<FileUsage, FileUsageHasher>();
+}
+
+FileUsage::DbInitializer FileUsage::db_initializer_;
+
+bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
+  return (lhs.initial_state_ == rhs.initial_state_
+          && lhs.initial_hash_ == rhs.initial_hash_
+          && lhs.stated_ == rhs.stated_
+          // TODO(rbalint) no operator==()
+          // && lhs.initial_stat_ == rhs.initial_stat_
+          && lhs.written_ == rhs.written_
+          && lhs.stat_changed_ == rhs.stat_changed_
+          && lhs.unknown_err_ == rhs.unknown_err_);
+          }
+
+const FileUsage* FileUsage::Get(const FileUsage& candidate) {
+  auto it = db_->find(candidate);
+  if (it != db_->end()) {
+    return &*it;
+  } else {
+    /* Not found, add a copy to the set. */
+    return &*db_->insert(candidate).first;
+  }
+}
+
 /**
  * Merge the other FileUsage object into this one.
  *
  * "this" describes the older event(s) which happened to a file, and
- * "that" describes the new one. "this" is updated to represent what
- * happened to the file so far.
- * @return if the merge caused a change in "this"
+ * "that" describes the new one.
+ * @return pointer to the merge result, it may be different from either "this" and "that"
  */
-bool FileUsage::merge(const FileUsage& that) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "that=%s", D(that));
+const FileUsage* FileUsage::merge(const FileUsage* that) const {
+  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "other=%s", D(that));
+
+  if (*this == *that) {
+    return this;
+  }
+
+  FileUsage tmp = *this;
 
   bool changed = false;
   if (initial_state_ == DONTKNOW) {
-    if (initial_state_ != that.initial_state_) {
-      initial_state_ = that.initial_state_;
+    if (initial_state_ != that->initial_state_) {
+      tmp.initial_state_ = that->initial_state_;
       changed = true;
     }
-    if (that.initial_state_ == ISREG_WITH_HASH ||
-        that.initial_state_ == ISDIR_WITH_HASH) {
-      if (initial_hash_ != that.initial_hash_) {
-        initial_hash_ = that.initial_hash_;
+    if (that->initial_state_ == ISREG_WITH_HASH ||
+        that->initial_state_ == ISDIR_WITH_HASH) {
+      if (initial_hash_ != that->initial_hash_) {
+        tmp.initial_hash_ = that->initial_hash_;
         changed = true;
       }
     }
   }
-  if (written_ != that.written_) {
-    written_ = written_ || that.written_;
+  if (written_ != that->written_) {
+    tmp.written_ = written_ || that->written_;
     changed = true;
   }
-  return changed;
+  if (!changed) {
+    return this;
+  } else {
+    if (tmp == *that) {
+      return that;
+    } else {
+      return FileUsage::Get(tmp);
+    }
+  }
 }
 
 /**

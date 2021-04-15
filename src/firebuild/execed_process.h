@@ -77,8 +77,10 @@ class ExecedProcess : public Process {
   std::vector<const FileName*>& libs() {return libs_;}
   const std::vector<const FileName*>& libs() const {return libs_;}
   void set_libs(std::vector<const FileName*> libs) {libs_ = libs;}
-  std::unordered_map<const FileName*, FileUsage*>& file_usages() {return file_usages_;}
-  const std::unordered_map<const FileName*, FileUsage*>& file_usages() const {return file_usages_;}
+  std::unordered_map<const FileName*, const FileUsage*>& file_usages() {return file_usages_;}
+  const std::unordered_map<const FileName*, const FileUsage*>& file_usages() const {
+    return file_usages_;
+  }
   void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
   void do_finalize();
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
@@ -87,10 +89,10 @@ class ExecedProcess : public Process {
 
   void initialize();
   void propagate_file_usage(const FileName *name,
-                            const FileUsage &fu_change);
+                            const FileUsage* fu_change);
   bool register_file_usage(const FileName *name, const FileName *actual_file,
                            FileAction action, int flags, int error);
-  bool register_file_usage(const FileName *name, FileUsage fu_change);
+  bool register_file_usage(const FileName *name, const FileUsage* fu_change);
   bool register_parent_directory(const FileName *name);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
   std::vector<inherited_pipe_t> inherited_pipes() {return inherited_pipes_;}
@@ -209,7 +211,7 @@ class ExecedProcess : public Process {
   /// are registered as regular file open operations.)
   std::vector<const FileName*> libs_;
   /// File usage per path for p and f. c. (t.)
-  std::unordered_map<const FileName*, FileUsage*> file_usages_;
+  std::unordered_map<const FileName*, const FileUsage*> file_usages_;
   /**
    * Pipes created by this process.
    */
