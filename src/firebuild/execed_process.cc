@@ -163,10 +163,6 @@ void ExecedProcess::do_finalize() {
     cacher_->store(this);
   }
 
-  // free up process data that we no longer need
-  for (auto& fu : file_usages_) {
-    delete fu.second;
-  }
   file_usages_.clear();
   fds()->clear();
   inherited_pipes_.clear();
@@ -203,26 +199,33 @@ void ExecedProcess::do_finalize() {
  * performs the file operations, no administration is necessary there.
  */
 void ExecedProcess::propagate_file_usage(const FileName *name,
-                                         const FileUsage &fu_change) {
+                                         const FileUsage* fu_change) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
 
-  FileUsage *fu;
+  const FileUsage *fu;
+  bool propagate = false;
   {
     /* Don't keep the iterator open. */
     auto it = file_usages_.find(name);
     if (it != file_usages_.end()) {
       fu = it->second;
-  } else {
-      fu = new FileUsage();
-      file_usages_[name] = fu;
+      const FileUsage* merged_fu = fu->merge(fu_change);
+      if (merged_fu != fu) {
+        fu = fu_change;
+        propagate = true;
+      }
+    } else {
+      file_usages_[name] = fu_change;
+      fu = fu_change;
+      propagate = true;
     }
   }
   /* Propagage change further if needed. */
-  if (fu->merge(fu_change)) {
+  if (propagate) {
     ExecedProcess *next_ancestor =
         generate_report ? parent_exec_point() : maybe_shortcutable_ancestor_;
     if (next_ancestor) {
-      next_ancestor->propagate_file_usage(name, fu_change);
+      next_ancestor->propagate_file_usage(name, fu);
     }
   }
 }
@@ -259,7 +262,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     return true;
   }
 
-  FileUsage *fu = nullptr;
+  const FileUsage *fu = nullptr;
   {
     /* Don't keep the iterator open. */
     auto it = file_usages_.find(name);
@@ -273,28 +276,33 @@ bool ExecedProcess::register_file_usage(const FileName *name,
      * modifications to apply currently, which is at most the written_
      * flag, and then we propagate this upwards to be applied.
      */
-    FileUsage *fu_change = new FileUsage();
-    if (!fu_change->update_from_open_params(actual_file, action, flags, error, false)) {
+    const FileUsage *fu_change = FileUsage::Get(actual_file, action, flags, error, false);
+    if (!fu_change) {
       /* Error */
       return false;
+    } else if (fu_change == fu) {
+      /* This file usage is already registered identically for this file and is also propoagated */
+      return true;
     }
-    if (fu->merge(*fu_change) && parent_exec_point()) {
-      parent_exec_point()->propagate_file_usage(name, *fu_change);
+    const FileUsage* merged_fu = fu->merge(fu_change);
+    if (merged_fu != fu) {
+      file_usages_[name] = merged_fu;
+      if (parent_exec_point()) {
+        parent_exec_point()->propagate_file_usage(name, fu_change);
+      }
     }
-    delete fu_change;
   } else {
     /* The process opens this file for the first time. Compute whatever
      * we need to know about its initial state. Use that same object to
      * propagate the changes upwards. */
-    fu = new FileUsage();
-    if (!fu->update_from_open_params(actual_file, action, flags, error, true)) {
+    fu = FileUsage::Get(actual_file, action, flags, error, true);
+    if (!fu) {
       /* Error */
-      delete fu;
       return false;
     }
     file_usages_[name] = fu;
     if (parent_exec_point()) {
-      parent_exec_point()->propagate_file_usage(name, *fu);
+      parent_exec_point()->propagate_file_usage(name, fu);
     }
   }
   return true;
@@ -305,7 +313,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
  * This one does not look at the file system, but instead registers the given fu_change.
  */
 bool ExecedProcess::register_file_usage(const FileName *name,
-                                        FileUsage fu_change) {
+                                        const FileUsage* fu_change) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
 
   if (name->is_at_locations(ignore_locations)) {
@@ -313,7 +321,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     return true;
   }
 
-  FileUsage *fu = nullptr;
+  const FileUsage *fu = nullptr;
   {
     /* Don't keep the iterator open. */
     auto it = file_usages_.find(name);
@@ -322,13 +330,18 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
   }
   if (fu) {
-    fu->merge(fu_change);
+    const FileUsage* merged_fu = fu->merge(fu_change);
+    if (merged_fu == fu) {
+      return true;
+    } else {
+      fu = merged_fu;
+    }
   } else {
-    fu = new FileUsage(fu_change);
-    file_usages_[name] = fu;
+    file_usages_[name] = fu_change;
+    fu = fu_change;
   }
   if (parent_exec_point()) {
-    parent_exec_point()->propagate_file_usage(name, fu_change);
+    parent_exec_point()->propagate_file_usage(name, fu);
   }
   return true;
 }
@@ -353,7 +366,7 @@ bool ExecedProcess::register_parent_directory(const FileName *name) {
   }
   parent_name.resize(slash_pos);
 
-  FileUsage fu_change(ISDIR);
+  const FileUsage* fu_change = FileUsage::Get(ISDIR);
   return register_file_usage(FileName::Get(parent_name), fu_change);
 }
 

@@ -36,10 +36,10 @@ class Hash {
       : arr_()
   {}
 
-  bool operator==(const Hash& src) {
+  bool operator==(const Hash& src) const {
     return memcmp(&arr_, &src.arr_, hash_size_) == 0;
   }
-  bool operator!=(const Hash& src) {
+  bool operator!=(const Hash& src) const {
     return memcmp(&arr_, &src.arr_, hash_size_) != 0;
   }
 

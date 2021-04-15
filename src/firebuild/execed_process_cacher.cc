@@ -530,7 +530,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       Hash hash;
       assert_cmp(file->hash()->size(), ==, Hash::hash_size());
       hash.set_hash_from_binary(file->hash()->data());
-      FileUsage fu(ISREG_WITH_HASH, hash);
+      const FileUsage* fu = FileUsage::Get(ISREG_WITH_HASH, hash);
       const auto path = FileName::Get(file->path());
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
@@ -538,35 +538,34 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       Hash hash;
       assert_cmp(file->hash()->size(), ==, Hash::hash_size());
       hash.set_hash_from_binary(file->hash()->data());
-      FileUsage fu(ISDIR_WITH_HASH, hash);
+      const FileUsage* fu = FileUsage::Get(ISDIR_WITH_HASH, hash);
       const auto path = FileName::Get(file->path());
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
     for (const auto& filename : *inouts->inputs()->path_isreg()) {
-      FileUsage fu(ISREG);
+      const FileUsage* fu = FileUsage::Get(ISREG);
       proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_isdir()) {
-      FileUsage fu(ISDIR);
+      const FileUsage* fu = FileUsage::Get(ISDIR);
       proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg()) {
-      FileUsage fu(NOTEXIST_OR_ISREG);
+      const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG);
       proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg_empty()) {
-      FileUsage fu(NOTEXIST_OR_ISREG_EMPTY);
+      const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG_EMPTY);
       proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
     for (const auto& filename : *inouts->inputs()->path_notexist()) {
-      FileUsage fu(NOTEXIST);
+      const FileUsage* fu = FileUsage::Get(NOTEXIST);
       proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
     }
   }
 
   /* We'll reuse this for every file modification event to propagate. */
-  FileUsage fu;
-  fu.set_written(true);
+  const FileUsage* fu = FileUsage::Get(DONTKNOW, Hash(), true);
 
   for (const auto& file : *inouts->outputs()->path_isdir()) {
     const auto path = FileName::Get(file->path());
