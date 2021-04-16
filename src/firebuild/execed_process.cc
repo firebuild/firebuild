@@ -211,7 +211,7 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
       fu = it->second;
       const FileUsage* merged_fu = fu->merge(fu_change);
       if (merged_fu != fu) {
-        fu = fu_change;
+        it->second = fu = merged_fu;
         propagate = true;
       }
     } else {
@@ -272,7 +272,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   }
   if (fu) {
     /* The process already used this file. The initial state was already
-     * recorded. We create a new FileUsage object which represents the
+     * recorded. We obtain a new FileUsage object which represents the
      * modifications to apply currently, which is at most the written_
      * flag, and then we propagate this upwards to be applied.
      */
@@ -288,7 +288,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     if (merged_fu != fu) {
       file_usages_[name] = merged_fu;
       if (parent_exec_point()) {
-        parent_exec_point()->propagate_file_usage(name, fu_change);
+        parent_exec_point()->propagate_file_usage(name, merged_fu);
       }
     }
   } else {
@@ -334,7 +334,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     if (merged_fu == fu) {
       return true;
     } else {
-      fu = merged_fu;
+      file_usages_[name] = fu = merged_fu;
     }
   } else {
     file_usages_[name] = fu_change;
