@@ -7,6 +7,11 @@
 #include <sys/stat.h>
 
 #include <fmt/core.h>
+#if FMT_VERSION > 70000
+#include <fmt/compile.h>
+#else
+#define FMT_COMPILE FMT_STRING
+#endif
 #include <fmt/format.h>
 #include <string>
 #include <cstdlib>
@@ -69,9 +74,9 @@ std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
                       int* fifo_name_offset) {
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
-  std::string fifo_params_fd_flags = fmt::format(FMT_STRING("{}: {} "), fd, flags);
+  std::string fifo_params_fd_flags = fmt::format(FMT_COMPILE("{}: {} "), fd, flags);
   *fifo_name_offset = fifo_params_fd_flags.length();
-  std::string fifo_params = fmt::format(FMT_STRING("{}{}-{}-{}-{:09d}-{:09d})"),
+  std::string fifo_params = fmt::format(FMT_COMPILE("{}{}-{}-{}-{:09d}-{:09d})"),
                                         fifo_params_fd_flags,
                                         fb_conn_string, pid, fd, time.tv_sec, time.tv_nsec);
   const char* fifo = fifo_params.c_str() + *fifo_name_offset;
