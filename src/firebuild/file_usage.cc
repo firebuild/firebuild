@@ -26,8 +26,17 @@
 namespace firebuild {
 
 std::unordered_set<FileUsage, FileUsageHasher>* FileUsage::db_;
+const FileUsage* FileUsage::no_hash_not_written_states_[ISDIR_WITH_HASH + 1];
+const FileUsage* FileUsage::no_hash_written_states_[ISDIR_WITH_HASH + 1];
+
 
 FileUsage::DbInitializer::DbInitializer() {
+  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
+    no_hash_not_written_states_[i] = new FileUsage(int_to_initial_state(i), Hash());
+  }
+  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
+    no_hash_written_states_[i] = new FileUsage(int_to_initial_state(i), Hash(), true);
+  }
   db_ = new std::unordered_set<FileUsage, FileUsageHasher>();
 }
 
@@ -110,7 +119,7 @@ const FileUsage* FileUsage::merge(const FileUsage* that) const {
  */
 bool FileUsage::update_from_open_params(const FileName* filename,
                                         FileAction action, int flags, int err,
-                                        bool do_read) {
+                                        bool do_read, bool* hash_changed) {
   TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this,
          "filename=%s, action=%s, flags=%d, err=%d, do_read=%s",
          D(filename), file_action_to_string(action), flags, err, D(do_read));
@@ -158,6 +167,7 @@ bool FileUsage::update_from_open_params(const FileName* filename,
               return false;
             }
             initial_state_ = ISREG_WITH_HASH;
+            *hash_changed  = true;
           } else {
             /* E: Another nasty combo. We can't distinguish a newly
              * created empty file from a previously empty one. If the file
@@ -173,6 +183,7 @@ bool FileUsage::update_from_open_params(const FileName* filename,
                 return false;
               }
               initial_state_ = ISREG_WITH_HASH;
+              *hash_changed  = true;
             } else {
               initial_state_ = NOTEXIST_OR_ISREG_EMPTY;
             }
