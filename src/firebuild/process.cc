@@ -253,7 +253,7 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
     }
 
     // FIXME When a directory is removed, register that it was an _empty_ directory
-    const FileUsage* fu = FileUsage::Get(flags & AT_REMOVEDIR ? ISDIR : ISREG, Hash(), true);
+    const FileUsage* fu = FileUsage::Get(flags & AT_REMOVEDIR ? ISDIR : ISREG, true);
     if (!exec_point()->register_file_usage(name, fu)) {
       exec_point()->disable_shortcutting_bubble_up(
           "Could not register the unlink or rmdir", *name);

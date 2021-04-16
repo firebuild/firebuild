@@ -565,7 +565,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   /* We'll reuse this for every file modification event to propagate. */
-  const FileUsage* fu = FileUsage::Get(DONTKNOW, Hash(), true);
+  const FileUsage* fu = FileUsage::Get(DONTKNOW, true);
 
   for (const auto& file : *inouts->outputs()->path_isdir()) {
     const auto path = FileName::Get(file->path());

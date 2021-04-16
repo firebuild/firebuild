@@ -63,20 +63,31 @@ class FileUsage {
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
 
-  static const FileUsage* Get(const FileUsage& candidate);
-  static const FileUsage* Get(FileInitialState initial_state = DONTKNOW,
-                              Hash hash = Hash(), bool written = false) {
+  static const FileUsage* Get(FileInitialState initial_state,
+                              Hash hash, bool written = false) {
     FileUsage tmp_file_usage(initial_state, hash, written);
     return (Get(tmp_file_usage));
+  }
+  static const FileUsage* Get(FileInitialState initial_state = DONTKNOW, bool written = false) {
+    if (written) {
+      return no_hash_written_states_[initial_state_to_int(initial_state)];
+    } else {
+      return no_hash_not_written_states_[initial_state_to_int(initial_state)];
+    }
   }
 
   static const FileUsage* Get(const FileName* filename, FileAction action,
                               int flags, int err, bool do_read) {
     FileUsage tmp_file_usage;
-    if (!tmp_file_usage.update_from_open_params(filename, action, flags, err, do_read)) {
+    bool hash_set = false;
+    if (!tmp_file_usage.update_from_open_params(filename, action, flags, err, do_read, &hash_set)) {
       return nullptr;
     } else {
-      return (Get(tmp_file_usage));
+      if (hash_set) {
+        return (Get(tmp_file_usage));
+      } else {
+        return Get(tmp_file_usage.initial_state_, tmp_file_usage.written_);
+      }
     }
   }
 
@@ -95,9 +106,8 @@ class FileUsage {
       initial_stat_err_(0),
       initial_stat_(),
       unknown_err_(0) {}
-  explicit FileUsage(FileInitialState initial_state) :
+  explicit FileUsage(FileInitialState initial_state = DONTKNOW) :
       FileUsage(initial_state, Hash()) {}
-  FileUsage() : FileUsage(DONTKNOW) {}
 
   /* Things that describe the filesystem when the process started up */
 
@@ -139,7 +149,12 @@ e   *  the final state is to be remembered.
    * computed right before being placed in the cache, don't need to be
    * remembered in memory. */
 
+  /** Global FileUsage db*/
   static std::unordered_set<FileUsage, FileUsageHasher>* db_;
+  /** Frequently used singletons */
+  static const FileUsage* no_hash_not_written_states_[ISDIR_WITH_HASH + 1];
+  static const FileUsage* no_hash_written_states_[ISDIR_WITH_HASH + 1];
+
   /* This, along with the FileUsage::db_initializer_ definition in file_usage.cc,
    * initializes the file usage database once at startup. */
   class DbInitializer {
@@ -152,13 +167,42 @@ e   *  the final state is to be remembered.
   friend bool operator==(const FileUsage& lhs, const FileUsage& rhs);
 
   /* Misc */
+  static int initial_state_to_int(const FileInitialState s) {
+    switch (s) {
+      case DONTKNOW: return DONTKNOW;
+      case NOTEXIST: return NOTEXIST;
+      case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
+      case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
+      case ISREG: return ISREG;
+      case ISREG_WITH_HASH: return ISREG_WITH_HASH;
+      case ISDIR: return ISDIR;
+      case ISDIR_WITH_HASH: return ISDIR_WITH_HASH;
+      default:
+        abort();
+    }
+  }
+
+  static FileInitialState int_to_initial_state(const int s) {
+    switch (s) {
+      case DONTKNOW: return DONTKNOW;
+      case NOTEXIST: return NOTEXIST;
+      case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
+      case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
+      case ISREG: return ISREG;
+      case ISREG_WITH_HASH: return ISREG_WITH_HASH;
+      case ISDIR: return ISDIR;
+      case ISDIR_WITH_HASH: return ISDIR_WITH_HASH;
+      default:
+        abort();
+    }
+  }
 
   /** An unhandled error occured during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
-  bool update_from_open_params(const FileName* filename,
-                               FileAction action, int flags, int err,
-                               bool do_read);
+  static const FileUsage* Get(const FileUsage& candidate);
+  bool update_from_open_params(const FileName* filename, FileAction action, int flags, int err,
+                               bool do_read, bool* hash_changed);
 };
 
 bool operator==(const FileUsage& lhs, const FileUsage& rhs);
