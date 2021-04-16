@@ -151,6 +151,8 @@ jobs:
         sudo apt-get build-dep .
     - name: deb
       run: |
+        # skip dh_buildinfo step
+        printf '\noverride_dh_buildinfo:\n' >> debian/rules
         dpkg-buildpackage -us -uc
         sudo apt-get install ../*.deb
         firebuild -- ls
