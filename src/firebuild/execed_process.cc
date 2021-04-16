@@ -204,22 +204,19 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
 
   const FileUsage *fu;
   bool propagate = false;
-  {
-    /* Don't keep the iterator open. */
-    auto it = file_usages_.find(name);
-    if (it != file_usages_.end()) {
-      fu = it->second;
-      const FileUsage* merged_fu = fu->merge(fu_change);
-      if (merged_fu != fu) {
-        it->second = fu = merged_fu;
-        propagate = true;
-      }
-    } else {
-      file_usages_[name] = fu_change;
-      fu = fu_change;
+  auto it = file_usages_.find(name);
+  if (it != file_usages_.end()) {
+    fu = it->second;
+    const FileUsage* merged_fu = fu->merge(fu_change);
+    if (merged_fu != fu) {
+      it->second = fu = merged_fu;
       propagate = true;
     }
+  } else {
+    file_usages_[name] = fu = fu_change;
+    propagate = true;
   }
+
   /* Propagage change further if needed. */
   if (propagate) {
     ExecedProcess *next_ancestor =
@@ -263,12 +260,9 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   }
 
   const FileUsage *fu = nullptr;
-  {
-    /* Don't keep the iterator open. */
-    auto it = file_usages_.find(name);
-    if (it != file_usages_.end()) {
-      fu = it->second;
-    }
+  auto it = file_usages_.find(name);
+  if (it != file_usages_.end()) {
+    fu = it->second;
   }
   if (fu) {
     /* The process already used this file. The initial state was already
@@ -286,7 +280,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
     const FileUsage* merged_fu = fu->merge(fu_change);
     if (merged_fu != fu) {
-      file_usages_[name] = merged_fu;
+      it->second = merged_fu;
       if (parent_exec_point()) {
         parent_exec_point()->propagate_file_usage(name, merged_fu);
       }
@@ -322,23 +316,19 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   }
 
   const FileUsage *fu = nullptr;
-  {
-    /* Don't keep the iterator open. */
-    auto it = file_usages_.find(name);
-    if (it != file_usages_.end()) {
-      fu = it->second;
-    }
+  auto it = file_usages_.find(name);
+  if (it != file_usages_.end()) {
+    fu = it->second;
   }
   if (fu) {
     const FileUsage* merged_fu = fu->merge(fu_change);
     if (merged_fu == fu) {
       return true;
     } else {
-      file_usages_[name] = fu = merged_fu;
+      it->second = fu = merged_fu;
     }
   } else {
-    file_usages_[name] = fu_change;
-    fu = fu_change;
+    file_usages_[name] = fu = fu_change;
   }
   if (parent_exec_point()) {
     parent_exec_point()->propagate_file_usage(name, fu);
