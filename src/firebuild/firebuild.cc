@@ -17,6 +17,11 @@
 #include <libgen.h>
 
 #include <fmt/core.h>
+#if FMT_VERSION > 70000
+#include <fmt/compile.h>
+#else
+#define FMT_COMPILE FMT_STRING
+#endif
 #include <fmt/format.h>
 #include <string>
 #include <stdexcept>
@@ -275,7 +280,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
         /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
         for (size_t i = 1; i < inherited_pipe.fds.size(); i++) {
-          fifo_params = fmt::format(FMT_STRING("{}:0 {}"), inherited_pipe.fds[i],
+          fifo_params = fmt::format(FMT_COMPILE("{}:0 {}"), inherited_pipe.fds[i],
                                     inherited_pipe.fds[0]);
           fifo_fds.push_back(fifo_params);
         }
