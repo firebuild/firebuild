@@ -35,6 +35,13 @@ class Hash {
   Hash()
       : arr_()
   {}
+  explicit Hash(const uint8_t* arr)
+      : arr_() {
+    memcpy(arr_, arr, sizeof(arr_));
+    if (arr_[hash_size_ - 1] & 0x3) {
+      arr_[hash_size_ - 1] &= ~0x3;
+    }
+  }
 
   bool operator==(const Hash& src) const {
     return memcmp(&arr_, &src.arr_, hash_size_) == 0;

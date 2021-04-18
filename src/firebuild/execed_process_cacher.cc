@@ -22,6 +22,8 @@
 
 namespace firebuild {
 
+static const XXH64_hash_t kFingerprintVersion = 0;
+
 // TODO(rbalint) add pretty hash printer for debugging or switch to base64 hash storage format
 
 /**
@@ -52,54 +54,93 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
 }
 
 /**
+ * Add file_name to fingerprint, including the ending '\0'.
+ *
+ * Adding the ending '\0' prevents hash collisions by concatenating filenames.
+ */
+static void add_to_fingerprint(XXH3_state_t* state, const FileName* file_name) {
+  if (XXH3_128bits_update(state, file_name->c_str(), file_name->length() + 1) == XXH_ERROR) {
+    abort();
+  }
+}
+
+/**
+ * Add string to fingerprint, including the ending '\0'.
+ *
+ * Adding the ending '\0' prevents hash collisions by concatenating strings.
+ */
+static void add_to_fingerprint(XXH3_state_t* state, const std::string& str) {
+  if (XXH3_128bits_update(state, str.c_str(), str.length() + 1) == XXH_ERROR) {
+    abort();
+  }
+}
+
+/**
+ * Add hash to fingerprint
+ */
+static void add_to_fingerprint(XXH3_state_t* state, const Hash& hash) {
+  if (XXH3_128bits_update(state, hash.to_binary(), Hash::hash_size()) == XXH_ERROR) {
+    abort();
+  }
+}
+
+/**
+ * Add int to fingerprint
+ */
+static void add_to_fingerprint(XXH3_state_t* state, const int i) {
+  if (XXH3_128bits_update(state, &i, sizeof(int)) == XXH_ERROR) {
+    abort();
+  }
+}
+
+/**
  * Compute the fingerprint, store it keyed by the process in fingerprints_.
  * Also store fingerprint_msgs_ if debugging is enabled.
  */
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
-  flatbuffers::FlatBufferBuilder builder(64*1024);
+  XXH3_state_t state;
+  if (XXH3_128bits_reset_withSeed(&state, kFingerprintVersion) == XXH_ERROR) {
+    abort();
+  }
+  add_to_fingerprint(&state, proc->initial_wd());
+  /* Size is added to not allow collisions between elements of different containers.
+   * Otherwise "cmd foo BAR=1" would collide with "env BAR=1 cmd foo". */
+  add_to_fingerprint(&state, proc->args().size());
+  for (const auto& arg : proc->args()) {
+    add_to_fingerprint(&state, arg);
+  }
 
-  auto fp_wd = builder.CreateString(proc->initial_wd()->c_str(), proc->initial_wd()->length());
-  auto fp_args = builder.CreateVectorOfStrings(proc->args());
-
-  std::vector<flatbuffers::Offset<flatbuffers::String>> fp_env_vec;
   /* Already sorted by the interceptor */
-  for (auto& env : proc->env_vars()) {
+  add_to_fingerprint(&state, proc->env_vars().size());
+  for (const auto& env : proc->env_vars()) {
     if (env_fingerprintable(env)) {
-      fp_env_vec.push_back(builder.CreateString(env));
+      add_to_fingerprint(&state, env);
     }
   }
-  auto fp_env = builder.CreateVector(fp_env_vec);
 
   /* The executable and its hash */
+  add_to_fingerprint(&state, proc->executable());
   Hash hash;
   if (!hash_cache->get_hash(proc->executable(), &hash)) {
     return false;
   }
-  auto file_path = builder.CreateString(proc->executable()->c_str(), proc->executable()->length());
-  auto file_hash =
-      builder.CreateVector(hash.to_binary(), Hash::hash_size());
-  auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
+  add_to_fingerprint(&state, hash);
 
-  flatbuffers::Offset<firebuild::msg::File> fp_executed_path;
   if (proc->executable() == proc->executed_path()) {
-    /* Those often match, don't create the same string twice. */
-    fp_executed_path = fp_executable;
+    add_to_fingerprint(&state, proc->executable());
+    add_to_fingerprint(&state, hash);
   } else {
-    auto executed_file_path = builder.CreateString(proc->executed_path()->c_str(),
-                                                   proc->executed_path()->length());
+    add_to_fingerprint(&state, proc->executed_path());
     if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
       return false;
     }
-    auto executed_file_hash =
-        builder.CreateVector(hash.to_binary(), Hash::hash_size());
-    fp_executed_path = msg::CreateFile(builder, executed_file_path, executed_file_hash);
+    add_to_fingerprint(&state, hash);
   }
 
-  /* The linked libraries */
-  std::vector<flatbuffers::Offset<msg::File>> fp_libs_vec;
   const auto linux_vdso = FileName::Get("linux-vdso.so.1");
+  add_to_fingerprint(&state, proc->libs().size());
   for (const auto lib : proc->libs()) {
     if (lib == linux_vdso) {
       continue;
@@ -107,34 +148,101 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     if (!hash_cache->get_hash(lib, &hash)) {
       return false;
     }
-    auto lib_path = builder.CreateString(lib->c_str(), lib->length());
-    auto lib_hash =
-        builder.CreateVector(hash.to_binary(), Hash::hash_size());
-    auto fp_lib = msg::CreateFile(builder, lib_path, lib_hash);
-    fp_libs_vec.push_back(fp_lib);
+    add_to_fingerprint(&state, lib);
+    add_to_fingerprint(&state, hash);
   }
-  auto fp_libs = builder.CreateVector(fp_libs_vec);
 
   /* The inherited pipes */
-  std::vector<flatbuffers::Offset<msg::PipeFds>> fp_pipefds_vec;
   for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
-    std::vector<int> fds;
     for (int fd : inherited_pipe.fds) {
-      fds.push_back(fd);
+      add_to_fingerprint(&state, fd);
     }
-    auto fp_fds = builder.CreateVector(fds);
-    auto fp_pipefds = msg::CreatePipeFds(builder, fp_fds);
-    fp_pipefds_vec.push_back(fp_pipefds);
+    /* Close each inherited pipe with and invalid value to avoid collisions. */
+    add_to_fingerprint(&state, -1);
   }
-  auto fp_pipefds = builder.CreateVector(fp_pipefds_vec);
 
-  auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_executed_path, fp_libs,
-                                          fp_args, fp_env, fp_wd, fp_pipefds);
-  builder.Finish(fp);
-  hash.set_from_data(builder.GetBufferPointer(), builder.GetSize());
+  XXH128_hash_t digest = XXH3_128bits_digest(&state);
+  uint8_t canonical_digest[Hash::hash_size()];
 
-  fingerprints_[proc] = hash;
+  /* Convert from endian-specific representation to endian-independent byte array. */
+  XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&canonical_digest), digest);
+
+  fingerprints_[proc] = Hash(canonical_digest);
+
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    flatbuffers::FlatBufferBuilder builder(64*1024);
+
+    auto fp_wd = builder.CreateString(proc->initial_wd()->c_str(), proc->initial_wd()->length());
+    auto fp_args = builder.CreateVectorOfStrings(proc->args());
+
+    std::vector<flatbuffers::Offset<flatbuffers::String>> fp_env_vec;
+    /* Already sorted by the interceptor */
+    for (auto& env : proc->env_vars()) {
+      if (env_fingerprintable(env)) {
+        fp_env_vec.push_back(builder.CreateString(env));
+      }
+    }
+    auto fp_env = builder.CreateVector(fp_env_vec);
+
+    /* The executable and its hash */
+    if (!hash_cache->get_hash(proc->executable(), &hash)) {
+      return false;
+    }
+    auto file_path = builder.CreateString(proc->executable()->c_str(),
+                                          proc->executable()->length());
+    auto file_hash =
+        builder.CreateVector(hash.to_binary(), Hash::hash_size());
+    auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
+
+    flatbuffers::Offset<firebuild::msg::File> fp_executed_path;
+    if (proc->executable() == proc->executed_path()) {
+      /* Those often match, don't create the same string twice. */
+      fp_executed_path = fp_executable;
+    } else {
+      auto executed_file_path = builder.CreateString(proc->executed_path()->c_str(),
+                                                     proc->executed_path()->length());
+      if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+        return false;
+      }
+      auto executed_file_hash =
+          builder.CreateVector(hash.to_binary(), Hash::hash_size());
+      fp_executed_path = msg::CreateFile(builder, executed_file_path, executed_file_hash);
+    }
+
+    /* The linked libraries */
+    std::vector<flatbuffers::Offset<msg::File>> fp_libs_vec;
+    for (const auto lib : proc->libs()) {
+      if (lib == linux_vdso) {
+        continue;
+      }
+      if (!hash_cache->get_hash(lib, &hash)) {
+        return false;
+      }
+      auto lib_path = builder.CreateString(lib->c_str(), lib->length());
+      auto lib_hash =
+          builder.CreateVector(hash.to_binary(), Hash::hash_size());
+      auto fp_lib = msg::CreateFile(builder, lib_path, lib_hash);
+      fp_libs_vec.push_back(fp_lib);
+    }
+    auto fp_libs = builder.CreateVector(fp_libs_vec);
+
+    /* The inherited pipes */
+    std::vector<flatbuffers::Offset<msg::PipeFds>> fp_pipefds_vec;
+    for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+      std::vector<int> fds;
+      for (int fd : inherited_pipe.fds) {
+        fds.push_back(fd);
+      }
+      auto fp_fds = builder.CreateVector(fds);
+      auto fp_pipefds = msg::CreatePipeFds(builder, fp_fds);
+      fp_pipefds_vec.push_back(fp_pipefds);
+    }
+    auto fp_pipefds = builder.CreateVector(fp_pipefds_vec);
+
+    auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_executed_path, fp_libs,
+                                            fp_args, fp_env, fp_wd, fp_pipefds);
+    builder.Finish(fp);
+
     std::vector<unsigned char> buf(builder.GetSize());
     memcpy(buf.data(), builder.GetBufferPointer(), builder.GetSize());
     fingerprint_msgs_[proc] = buf;
