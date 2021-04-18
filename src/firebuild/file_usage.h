@@ -205,7 +205,8 @@ bool operator==(const FileUsage& lhs, const FileUsage& rhs);
 
 struct FileUsageHasher {
   std::size_t operator()(const FileUsage& f) const noexcept {
-    XXH64_hash_t hash = XXH3_64bits(f.initial_hash_.to_binary(), Hash::hash_size());
+    XXH64_hash_t hash = XXH3_64bits_withSeed(f.initial_hash_.to_binary(), Hash::hash_size(),
+                                             f.unknown_err_);
     unsigned char merged_state = f.initial_state_;
     merged_state |= f.stated_ << 5;
     merged_state |= f.written_ << 6;
