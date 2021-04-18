@@ -83,11 +83,7 @@ class FileUsage {
     if (!tmp_file_usage.update_from_open_params(filename, action, flags, err, do_read, &hash_set)) {
       return nullptr;
     } else {
-      if (hash_set) {
-        return (Get(tmp_file_usage));
-      } else {
-        return Get(tmp_file_usage.initial_state_, tmp_file_usage.written_);
-      }
+      return (Get(tmp_file_usage));
     }
   }
 

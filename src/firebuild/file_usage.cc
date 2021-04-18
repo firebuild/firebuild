@@ -31,13 +31,15 @@ const FileUsage* FileUsage::no_hash_written_states_[ISDIR_WITH_HASH + 1];
 
 
 FileUsage::DbInitializer::DbInitializer() {
-  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
-    no_hash_not_written_states_[i] = new FileUsage(int_to_initial_state(i), Hash());
-  }
-  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
-    no_hash_written_states_[i] = new FileUsage(int_to_initial_state(i), Hash(), true);
-  }
   db_ = new std::unordered_set<FileUsage, FileUsageHasher>();
+  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
+    const FileUsage fu(int_to_initial_state(i), Hash());
+    no_hash_not_written_states_[i] = &*db_->insert(fu).first;
+  }
+  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
+    const FileUsage fu(int_to_initial_state(i), Hash(), true);
+    no_hash_written_states_[i] = &*db_->insert(fu).first;
+  }
 }
 
 FileUsage::DbInitializer FileUsage::db_initializer_;
