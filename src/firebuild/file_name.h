@@ -11,6 +11,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 #include "firebuild/debug.h"
@@ -30,6 +31,15 @@ class FileName {
   std::string to_string() const {return std::string(name_);}
   size_t length() const {return length_;}
   size_t hash() const {return XXH3_64bits(name_, length_);}
+  const XXH128_hash_t& hash_XXH128() const {
+    auto it = hash_db_->find(this);
+    if (it != hash_db_->end()) {
+      return it->second;
+    } else {
+      /* Not found, add a copy to the set. */
+      return (hash_db_->insert({this,  XXH3_128bits(name_, length_)}).first)->second;
+    }
+  }
   static const FileName* Get(const char * const name, ssize_t length);
   static const FileName* Get(const flatbuffers::String * const name) {
     return Get(name->c_str(), name->size());
@@ -56,6 +66,7 @@ class FileName {
   const char * name_;
   size_t length_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
+  static std::unordered_map<const FileName*, XXH128_hash_t>* hash_db_;
   /* Disable assignment. */
   void operator=(const FileName&);
 
