@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 #include "firebuild/file_name.h"
@@ -10,9 +11,11 @@
 namespace firebuild {
 
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
+std::unordered_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
 
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
+  hash_db_ = new std::unordered_map<const FileName*, XXH128_hash_t>();
 }
 
 FileName::DbInitializer FileName::db_initializer_;
