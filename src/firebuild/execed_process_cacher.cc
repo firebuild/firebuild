@@ -58,7 +58,7 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
  *
  * Adding the ending '\0' prevents hash collisions by concatenating filenames.
  */
-static void add_to_fingerprint(XXH3_state_t* state, const FileName* file_name) {
+static void add_to_hash_state(XXH3_state_t* state, const FileName* file_name) {
   if (XXH3_128bits_update(state, file_name->c_str(), file_name->length() + 1) == XXH_ERROR) {
     abort();
   }
@@ -69,7 +69,7 @@ static void add_to_fingerprint(XXH3_state_t* state, const FileName* file_name) {
  *
  * Adding the ending '\0' prevents hash collisions by concatenating strings.
  */
-static void add_to_fingerprint(XXH3_state_t* state, const std::string& str) {
+static void add_to_hash_state(XXH3_state_t* state, const std::string& str) {
   if (XXH3_128bits_update(state, str.c_str(), str.length() + 1) == XXH_ERROR) {
     abort();
   }
@@ -78,7 +78,7 @@ static void add_to_fingerprint(XXH3_state_t* state, const std::string& str) {
 /**
  * Add hash to fingerprint
  */
-static void add_to_fingerprint(XXH3_state_t* state, const Hash& hash) {
+static void add_to_hash_state(XXH3_state_t* state, const Hash& hash) {
   if (XXH3_128bits_update(state, hash.to_binary(), Hash::hash_size()) == XXH_ERROR) {
     abort();
   }
@@ -87,7 +87,7 @@ static void add_to_fingerprint(XXH3_state_t* state, const Hash& hash) {
 /**
  * Add int to fingerprint
  */
-static void add_to_fingerprint(XXH3_state_t* state, const int i) {
+static void add_to_hash_state(XXH3_state_t* state, const int i) {
   if (XXH3_128bits_update(state, &i, sizeof(int)) == XXH_ERROR) {
     abort();
   }
@@ -104,43 +104,43 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   if (XXH3_128bits_reset_withSeed(&state, kFingerprintVersion) == XXH_ERROR) {
     abort();
   }
-  add_to_fingerprint(&state, proc->initial_wd());
+  add_to_hash_state(&state, proc->initial_wd());
   /* Size is added to not allow collisions between elements of different containers.
    * Otherwise "cmd foo BAR=1" would collide with "env BAR=1 cmd foo". */
-  add_to_fingerprint(&state, proc->args().size());
+  add_to_hash_state(&state, proc->args().size());
   for (const auto& arg : proc->args()) {
-    add_to_fingerprint(&state, arg);
+    add_to_hash_state(&state, arg);
   }
 
   /* Already sorted by the interceptor */
-  add_to_fingerprint(&state, proc->env_vars().size());
+  add_to_hash_state(&state, proc->env_vars().size());
   for (const auto& env : proc->env_vars()) {
     if (env_fingerprintable(env)) {
-      add_to_fingerprint(&state, env);
+      add_to_hash_state(&state, env);
     }
   }
 
   /* The executable and its hash */
-  add_to_fingerprint(&state, proc->executable());
+  add_to_hash_state(&state, proc->executable());
   Hash hash;
   if (!hash_cache->get_hash(proc->executable(), &hash)) {
     return false;
   }
-  add_to_fingerprint(&state, hash);
+  add_to_hash_state(&state, hash);
 
   if (proc->executable() == proc->executed_path()) {
-    add_to_fingerprint(&state, proc->executable());
-    add_to_fingerprint(&state, hash);
+    add_to_hash_state(&state, proc->executable());
+    add_to_hash_state(&state, hash);
   } else {
-    add_to_fingerprint(&state, proc->executed_path());
+    add_to_hash_state(&state, proc->executed_path());
     if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
       return false;
     }
-    add_to_fingerprint(&state, hash);
+    add_to_hash_state(&state, hash);
   }
 
   const auto linux_vdso = FileName::Get("linux-vdso.so.1");
-  add_to_fingerprint(&state, proc->libs().size());
+  add_to_hash_state(&state, proc->libs().size());
   for (const auto lib : proc->libs()) {
     if (lib == linux_vdso) {
       continue;
@@ -148,17 +148,17 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     if (!hash_cache->get_hash(lib, &hash)) {
       return false;
     }
-    add_to_fingerprint(&state, lib);
-    add_to_fingerprint(&state, hash);
+    add_to_hash_state(&state, lib);
+    add_to_hash_state(&state, hash);
   }
 
   /* The inherited pipes */
   for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
     for (int fd : inherited_pipe.fds) {
-      add_to_fingerprint(&state, fd);
+      add_to_hash_state(&state, fd);
     }
     /* Close each inherited pipe with and invalid value to avoid collisions. */
-    add_to_fingerprint(&state, -1);
+    add_to_hash_state(&state, -1);
   }
 
   XXH128_hash_t digest = XXH3_128bits_digest(&state);
