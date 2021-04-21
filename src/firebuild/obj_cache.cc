@@ -127,14 +127,14 @@ static std::string FlatBufferToStringQuoted(const uint8_t *buffer,
  * @param entry The entry to store
  * @param entry_len length of the entry to store
  * @param debug_key Optionally the key as pb for debugging purposes
- * @param subkey_out Optionally store the subkey (hash of the entry) here
+ * @param subkey hash of the entry
  * @return Whether succeeded
  */
 bool ObjCache::store(const Hash &key,
                      const uint8_t * const entry,
                      const size_t entry_len,
                      const uint8_t * const debug_key,
-                     Hash *subkey_out) {
+                     const Hash& subkey) {
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -176,9 +176,6 @@ bool ObjCache::store(const Hash &key,
     return false;
   }
 
-  Hash subkey;
-  subkey.set_from_data(entry, entry_len);
-
   // FIXME Do we need to handle short writes / EINTR?
   // FIXME Do we need to split large files into smaller writes?
   auto written = write(fd_dst, entry, entry_len);
@@ -201,10 +198,6 @@ bool ObjCache::store(const Hash &key,
     return false;
   }
   free(tmpfile);
-
-  if (subkey_out != NULL) {
-    *subkey_out = subkey;
-  }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + d(subkey));
