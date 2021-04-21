@@ -20,7 +20,7 @@ class ObjCache {
              const uint8_t * const entry,
              const size_t entry_len,
              const uint8_t * const debug_key,
-             Hash *subkey_out);
+             const Hash &subkey);
   bool retrieve(const Hash &key,
                 const Hash &subkey,
                 uint8_t ** entry,

@@ -20,6 +20,8 @@
 #pragma GCC diagnostic pop
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
+#include "firebuild/hashed_flatbuffers_file_vector.h"
+#include "firebuild/hashed_flatbuffers_string_vector.h"
 
 namespace firebuild {
 
@@ -84,6 +86,11 @@ static void add_to_hash_state(XXH3_state_t* state, const Hash& hash) {
     abort();
   }
 }
+static void add_to_hash_state(XXH3_state_t* state, const XXH128_hash_t& hash) {
+  if (XXH3_128bits_update(state, &hash, sizeof(XXH128_hash_t)) == XXH_ERROR) {
+    abort();
+  }
+}
 
 /**
  * Add int to fingerprint
@@ -92,6 +99,14 @@ static void add_to_hash_state(XXH3_state_t* state, const int i) {
   if (XXH3_128bits_update(state, &i, sizeof(int)) == XXH_ERROR) {
     abort();
   }
+}
+
+static Hash state_to_hash(XXH3_state_t* state) {
+  const XXH128_hash_t digest = XXH3_128bits_digest(state);
+  uint8_t canonical_digest[Hash::hash_size()];
+  /* Convert from endian-specific representation to endian-independent byte array. */
+  XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&canonical_digest), digest);
+  return Hash(canonical_digest);
 }
 
 /**
@@ -162,13 +177,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     add_to_hash_state(&state, -1);
   }
 
-  XXH128_hash_t digest = XXH3_128bits_digest(&state);
-  uint8_t canonical_digest[Hash::hash_size()];
-
-  /* Convert from endian-specific representation to endian-independent byte array. */
-  XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&canonical_digest), digest);
-
-  fingerprints_[proc] = Hash(canonical_digest);
+  fingerprints_[proc] = state_to_hash(&state);
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     flatbuffers::FlatBufferBuilder builder(64*1024);
@@ -258,21 +267,15 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   }
 }
 
-static std::vector<flatbuffers::Offset<flatbuffers::String>>
-fns_to_sorted_offsets(std::vector<const FileName*>* fns, flatbuffers::FlatBufferBuilder* builder) {
-  std::vector<flatbuffers::Offset<flatbuffers::String>> ret;
-  struct {
-    bool operator()(const  FileName* lhs, const FileName* rhs) const {
-      return std::strcmp(lhs->c_str(), rhs->c_str()) < 0;
-    }
-  } filenames_less;
-  if (fns->size() > 0) {
-    std::sort(fns->begin(), fns->end(), filenames_less);
-    for (const auto& fn : *fns) {
-      ret.push_back(builder->CreateString(fn->c_str(), fn->length()));
-    }
-  }
-  return ret;
+void sort_and_add_to_hash_state(HashedFlatbuffersStringVector* hashed_vec,
+                                XXH3_state_t* hash_state) {
+  hashed_vec->sort_hashes();
+  add_to_hash_state(hash_state, hashed_vec->hash());
+}
+
+void sort_and_add_to_hash_state(HashedFlatbuffersFileVector* hashed_vec, XXH3_state_t* hash_state) {
+  hashed_vec->sort_hashes();
+  add_to_hash_state(hash_state, hashed_vec->hash());
 }
 
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
@@ -292,6 +295,10 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   Hash fingerprint = fingerprints_[proc];
+  XXH3_state_t inouts_hash_state;
+  if (XXH3_128bits_reset_withSeed(&inouts_hash_state, kFingerprintVersion) == XXH_ERROR) {
+    abort();
+  }
 
   /* Go through the files the process opened for reading and/or writing.
    * Construct the cache entry parts describing the initial and the final state
@@ -299,21 +306,20 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   flatbuffers::FlatBufferBuilder builder(64*1024);
 
   /* Inputs.*/
-  std::vector<flatbuffers::Offset<msg::File>> in_path_isreg_with_hash;
-  std::vector<const FileName*> in_path_isreg_fns;
-  std::vector<flatbuffers::Offset<msg::File>> in_path_isdir_with_hash;
-  std::vector<const FileName*> in_path_isdir_fns,
-      in_path_notexist_or_isreg_fns,
-      in_path_notexist_or_isreg_empty_fns,
-      in_path_notexist_fns;
+  HashedFlatbuffersFileVector in_path_isreg_with_hash(&builder),
+      in_path_isdir_with_hash(&builder);
+  HashedFlatbuffersStringVector in_path_isreg(&builder),
+      in_path_isdir(&builder),
+      in_path_notexist_or_isreg(&builder),
+      in_path_notexist_or_isreg_empty(&builder),
+      in_path_notexist(&builder);
 
   /* Outputs.*/
-  std::vector<flatbuffers::Offset<msg::File>> out_path_isreg_with_hash,
-      out_path_isdir;
-  std::vector<const FileName*> out_path_notexist_fns;
+  HashedFlatbuffersFileVector out_path_isreg_with_hash(&builder),
+      out_path_isdir(&builder);
+  HashedFlatbuffersStringVector out_path_notexist(&builder);
   std::vector<flatbuffers::Offset<msg::PipeData>> out_pipe_data;
 
-  std::vector<file_file_usage> sorted_file_usages;
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;
@@ -325,33 +331,27 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         /* Nothing to do. */
         break;
       case ISREG_WITH_HASH: {
-        const auto path = builder.CreateString(filename->c_str(), filename->length());
-        const auto hash =
-            builder.CreateVector(fu->initial_hash().to_binary(), Hash::hash_size());
-        in_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash));
+        in_path_isreg_with_hash.add(filename, fu);
         break;
       }
       case ISREG:
-        in_path_isreg_fns.push_back(filename);
+        in_path_isreg.add(filename);
         break;
       case ISDIR_WITH_HASH: {
-        const auto path = builder.CreateString(filename->c_str(), filename->length());
-        const auto hash =
-            builder.CreateVector(fu->initial_hash().to_binary(), Hash::hash_size());
-        in_path_isdir_with_hash.push_back(msg::CreateFile(builder, path, hash));
+        in_path_isdir_with_hash.add(filename, fu);
         break;
       }
       case ISDIR:
-        in_path_isdir_fns.push_back(filename);
+        in_path_isdir.add(filename);
         break;
       case NOTEXIST_OR_ISREG:
-        in_path_notexist_or_isreg_fns.push_back(filename);
+        in_path_notexist_or_isreg.add(filename);
         break;
       case NOTEXIST_OR_ISREG_EMPTY:
-        in_path_notexist_or_isreg_empty_fns.push_back(filename);
+        in_path_notexist_or_isreg_empty.add(filename);
         break;
       case NOTEXIST:
-        in_path_notexist_fns.push_back(filename);
+        in_path_notexist.add(filename);
         break;
       default:
         assert(false);
@@ -374,35 +374,26 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
                        "Could not store blob in cache, not writing shortcut info");
               return;
             }
-            const auto path = builder.CreateString(filename->c_str(), filename->length());
-            const auto hash =
-                builder.CreateVector(new_hash.to_binary(), Hash::hash_size());
             // TODO(egmont) fail if setuid/setgid/sticky is set
-            /* File's default values. */
-            const int mtime = 0, size = 0;
             int mode = st.st_mode & 07777;
-            out_path_isreg_with_hash.push_back(msg::CreateFile(builder, path, hash, mtime, size,
-                                                               mode));
+            out_path_isreg_with_hash.add(filename, new_hash, mode);
           } else if (S_ISDIR(st.st_mode)) {
-            const auto path = builder.CreateString(filename->c_str(), filename->length());
-            /* File's default values. */
-            const int hash = 0, mtime = 0, size = 0;
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
-            out_path_isdir.push_back(msg::CreateFile(builder, path, hash, mtime, size, mode));
+            out_path_isdir.add(filename, mode);
           } else {
             // TODO(egmont) handle other types of entries
           }
         } else {
           perror("fstat");
           if (fu->initial_state() != NOTEXIST) {
-            out_path_notexist_fns.push_back(filename);
+            out_path_notexist.add(filename);
           }
         }
         close(fd);
       } else {
         if (fu->initial_state() != NOTEXIST) {
-          out_path_notexist_fns.push_back(filename);
+          out_path_notexist.add(filename);
         }
       }
     }
@@ -431,33 +422,37 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         const auto hash =
             builder.CreateVector(pipe_traffic_hash.to_binary(), Hash::hash_size());
         out_pipe_data.push_back(msg::CreatePipeData(builder, fd, hash));
+        add_to_hash_state(&inouts_hash_state, fd);
+        add_to_hash_state(&inouts_hash_state, pipe_traffic_hash);
       }
     }
   }
 
-  auto in_path_isreg = fns_to_sorted_offsets(&in_path_isreg_fns, &builder);
-  auto in_path_isdir = fns_to_sorted_offsets(&in_path_isdir_fns, &builder);
-  auto in_path_notexist_or_isreg =
-      fns_to_sorted_offsets(&in_path_notexist_or_isreg_fns, &builder);
-  auto in_path_notexist_or_isreg_empty =
-      fns_to_sorted_offsets(&in_path_notexist_or_isreg_empty_fns, &builder);
-  auto in_path_notexist = fns_to_sorted_offsets(&in_path_notexist_fns, &builder);
-  auto out_path_notexist = fns_to_sorted_offsets(&out_path_notexist_fns, &builder);
+  sort_and_add_to_hash_state(&in_path_isreg, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isreg_with_hash, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isdir, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isdir_with_hash, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_notexist_or_isreg, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_notexist_or_isreg_empty, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_notexist, &inouts_hash_state);
+  sort_and_add_to_hash_state(&out_path_isreg_with_hash, &inouts_hash_state);
+  sort_and_add_to_hash_state(&out_path_isdir, &inouts_hash_state);
+  sort_and_add_to_hash_state(&out_path_notexist, &inouts_hash_state);
 
   auto inputs =
       msg::CreateProcessInputs(builder,
-                               builder.CreateVectorOfSortedTables(&in_path_isreg_with_hash),
-                               builder.CreateVector(in_path_isreg),
-                               builder.CreateVectorOfSortedTables(&in_path_isdir_with_hash),
-                               builder.CreateVector(in_path_isdir),
-                               builder.CreateVector(in_path_notexist_or_isreg),
-                               builder.CreateVector(in_path_notexist_or_isreg_empty),
-                               builder.CreateVector(in_path_notexist));
+                               builder.CreateVectorOfSortedTables(&in_path_isreg_with_hash.files()),
+                               builder.CreateVector(in_path_isreg.strings()),
+                               builder.CreateVectorOfSortedTables(&in_path_isdir_with_hash.files()),
+                               builder.CreateVector(in_path_isdir.strings()),
+                               builder.CreateVector(in_path_notexist_or_isreg.strings()),
+                               builder.CreateVector(in_path_notexist_or_isreg_empty.strings()),
+                               builder.CreateVector(in_path_notexist.strings()));
   auto outputs =
       msg::CreateProcessOutputs(builder,
-                                builder.CreateVectorOfSortedTables(&out_path_isreg_with_hash),
-                                builder.CreateVectorOfSortedTables(&out_path_isdir),
-                                builder.CreateVector(out_path_notexist),
+                                builder.CreateVector(out_path_isreg_with_hash.files()),
+                                builder.CreateVector(out_path_isdir.files()),
+                                builder.CreateVector(out_path_notexist.strings()),
                                 builder.CreateVector(out_pipe_data),
                                 proc->exit_status());
 
@@ -472,7 +467,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
-  obj_cache->store(fingerprint, builder.GetBufferPointer(), builder.GetSize(), debug_msg, NULL);
+  Hash subkey = state_to_hash(&inouts_hash_state);
+  obj_cache->store(fingerprint, builder.GetBufferPointer(), builder.GetSize(), debug_msg, subkey);
 }
 
 /**
