@@ -6,7 +6,6 @@
 #define FIREBUILD_FILE_USAGE_H_
 
 #include <sys/stat.h>
-#define XXH_INLINE_ALL
 #include <xxhash.h>
 
 #include <string>

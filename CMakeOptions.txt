@@ -1,0 +1,6 @@
+# Build options for use by CMake
+
+# Disabling this option may be useful for triaging performance issues
+# or result faster hash computation where the system's libxxhash library
+# uses HW acceleration. See: https://bugs.debian.org/977345
+option(ENABLE_XXH_INLINE_ALL "Enable -DXXH_INLINE_ALL" ON)

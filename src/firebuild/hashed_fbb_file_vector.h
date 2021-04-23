@@ -4,7 +4,6 @@
 #ifndef FIREBUILD_HASHED_FBB_FILE_VECTOR_H_
 #define FIREBUILD_HASHED_FBB_FILE_VECTOR_H_
 
-#define XXH_INLINE_ALL
 #include <xxhash.h>
 
 #include <vector>
