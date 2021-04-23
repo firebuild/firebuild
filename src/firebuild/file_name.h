@@ -4,7 +4,6 @@
 #ifndef FIREBUILD_FILE_NAME_H_
 #define FIREBUILD_FILE_NAME_H_
 
-#define XXH_INLINE_ALL
 #include <xxhash.h>
 
 #include <cstring>

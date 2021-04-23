@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#define XXH_INLINE_ALL
 #include <xxhash.h>
 
 #include <algorithm>
@@ -35,7 +34,7 @@ void Hash::set_from_data(const void *data, ssize_t size) {
   /* xxhash's doc says:
    * "Streaming functions [...] is slower than single-call functions, due to state management."
    * Let's take the faster path. */
-  hash_ = XXH128(data, size, 0);
+  hash_ = XXH3_128bits(data, size);
 }
 
 /**

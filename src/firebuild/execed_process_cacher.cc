@@ -136,6 +136,15 @@ static const FBBSTORE_Builder *fbbstore_builder_pipe_data_vector_item_fn(int i,
   return reinterpret_cast<const FBBSTORE_Builder *>(builder);
 }
 
+/* Free XXH3_state_t when it is malloc()-ed. */
+static inline void maybe_XXH3_freeState(XXH3_state_t* state) {
+#ifndef XXH_INLINE_ALL
+  XXH3_freeState(state);
+#else
+  (void)state;
+#endif
+}
+
 /**
  * Compute the fingerprint, store it keyed by the process in fingerprints_.
  * Also store fingerprint_msgs_ if debugging is enabled.
@@ -143,68 +152,76 @@ static const FBBSTORE_Builder *fbbstore_builder_pipe_data_vector_item_fn(int i,
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
-  XXH3_state_t state;
-  if (XXH3_128bits_reset_withSeed(&state, kFingerprintVersion) == XXH_ERROR) {
+#ifdef XXH_INLINE_ALL
+  XXH3_state_t state_struct;
+  XXH3_state_t* state = &state_struct;
+#else
+  XXH3_state_t* state = XXH3_createState();
+#endif
+  if (XXH3_128bits_reset_withSeed(state, kFingerprintVersion) == XXH_ERROR) {
     abort();
   }
-  add_to_hash_state(&state, proc->initial_wd());
+  add_to_hash_state(state, proc->initial_wd());
   /* Size is added to not allow collisions between elements of different containers.
    * Otherwise "cmd foo BAR=1" would collide with "env BAR=1 cmd foo". */
-  add_to_hash_state(&state, proc->args().size());
+  add_to_hash_state(state, proc->args().size());
   for (const auto& arg : proc->args()) {
-    add_to_hash_state(&state, arg);
+    add_to_hash_state(state, arg);
   }
 
   /* Already sorted by the interceptor */
-  add_to_hash_state(&state, proc->env_vars().size());
+  add_to_hash_state(state, proc->env_vars().size());
   for (const auto& env : proc->env_vars()) {
     if (env_fingerprintable(env)) {
-      add_to_hash_state(&state, env);
+      add_to_hash_state(state, env);
     }
   }
 
   /* The executable and its hash */
-  add_to_hash_state(&state, proc->executable());
+  add_to_hash_state(state, proc->executable());
   Hash hash;
   if (!hash_cache->get_hash(proc->executable(), &hash)) {
+    maybe_XXH3_freeState(state);
     return false;
   }
-  add_to_hash_state(&state, hash);
+  add_to_hash_state(state, hash);
 
   if (proc->executable() == proc->executed_path()) {
-    add_to_hash_state(&state, proc->executable());
-    add_to_hash_state(&state, hash);
+    add_to_hash_state(state, proc->executable());
+    add_to_hash_state(state, hash);
   } else {
-    add_to_hash_state(&state, proc->executed_path());
+    add_to_hash_state(state, proc->executed_path());
     if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+      maybe_XXH3_freeState(state);
       return false;
     }
-    add_to_hash_state(&state, hash);
+    add_to_hash_state(state, hash);
   }
 
   const auto linux_vdso = FileName::Get("linux-vdso.so.1");
-  add_to_hash_state(&state, proc->libs().size());
+  add_to_hash_state(state, proc->libs().size());
   for (const auto lib : proc->libs()) {
     if (lib == linux_vdso) {
       continue;
     }
     if (!hash_cache->get_hash(lib, &hash)) {
+      maybe_XXH3_freeState(state);
       return false;
     }
-    add_to_hash_state(&state, lib);
-    add_to_hash_state(&state, hash);
+    add_to_hash_state(state, lib);
+    add_to_hash_state(state, hash);
   }
 
   /* The inherited pipes */
   for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
     for (int fd : inherited_pipe.fds) {
-      add_to_hash_state(&state, fd);
+      add_to_hash_state(state, fd);
     }
     /* Close each inherited pipe with and invalid value to avoid collisions. */
-    add_to_hash_state(&state, -1);
+    add_to_hash_state(state, -1);
   }
 
-  fingerprints_[proc] = state_to_hash(&state);
+  fingerprints_[proc] = state_to_hash(state);
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Only when debugging: add an entry to fingerprint_msgs_.
@@ -231,6 +248,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     FBBFP_Builder_file executable;
     fbbfp_builder_file_init(&executable);
     if (!hash_cache->get_hash(proc->executable(), &hash)) {
+      maybe_XXH3_freeState(state);
       return false;
     }
     fbbfp_builder_file_set_path(&executable, proc->executable()->c_str());
@@ -246,6 +264,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
           reinterpret_cast<FBBFP_Builder *>(&executable));
     } else {
       if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+        maybe_XXH3_freeState(state);
         return false;
       }
       fbbfp_builder_file_set_path(&executed_path, proc->executed_path()->c_str());
@@ -263,6 +282,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
         continue;
       }
       if (!hash_cache->get_hash(lib, &hash)) {
+        maybe_XXH3_freeState(state);
         return false;
       }
       FBBFP_Builder_file& lib_builder = lib_builders.emplace_back();
@@ -289,6 +309,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     fbbfp_builder_serialize(reinterpret_cast<FBBFP_Builder *>(&fp), buf.data());
     fingerprint_msgs_[proc] = buf;
   }
+  maybe_XXH3_freeState(state);
   return true;
 }
 
@@ -327,8 +348,13 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   Hash fingerprint = fingerprints_[proc];
-  XXH3_state_t inouts_hash_state;
-  if (XXH3_128bits_reset_withSeed(&inouts_hash_state, kFingerprintVersion) == XXH_ERROR) {
+#ifdef XXH_INLINE_ALL
+  XXH3_state_t state_struct;
+  XXH3_state_t* inouts_hash_state = &state_struct;
+#else
+  XXH3_state_t* inouts_hash_state = XXH3_createState();
+#endif
+  if (XXH3_128bits_reset_withSeed(inouts_hash_state, kFingerprintVersion) == XXH_ERROR) {
     abort();
   }
 
@@ -412,6 +438,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
               /* unexpected error, now what? */
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
+              maybe_XXH3_freeState(inouts_hash_state);
               return;
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
@@ -457,6 +484,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         // FIXME handle error
         FB_DEBUG(FB_DEBUG_CACHING,
                  "Could not store pipe traffic in cache, not writing shortcut info");
+        maybe_XXH3_freeState(inouts_hash_state);
         return;
       }
       if (!is_empty) {
@@ -466,24 +494,24 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         fbbstore_builder_pipe_data_init(&new_pipe_data);
         fbbstore_builder_pipe_data_set_fd(&new_pipe_data, fd);
         fbbstore_builder_pipe_data_set_hash(&new_pipe_data, hash.get());
-        add_to_hash_state(&inouts_hash_state, fd);
-        add_to_hash_state(&inouts_hash_state, hash);
+        add_to_hash_state(inouts_hash_state, fd);
+        add_to_hash_state(inouts_hash_state, hash);
       }
     }
   }
 
-  sort_and_add_to_hash_state(&in_path_isreg, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_isreg_with_hash, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_system_path_isreg_with_hash, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_isdir, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_isdir_with_hash, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_system_path_isdir_with_hash, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_notexist_or_isreg, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_notexist_or_isreg_empty, &inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_notexist, &inouts_hash_state);
-  sort_and_add_to_hash_state(&out_path_isreg_with_hash, &inouts_hash_state);
-  sort_and_add_to_hash_state(&out_path_isdir, &inouts_hash_state);
-  sort_and_add_to_hash_state(&out_path_notexist, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isreg, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isreg_with_hash, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_system_path_isreg_with_hash, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isdir, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_isdir_with_hash, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_system_path_isdir_with_hash, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_notexist_or_isreg, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_notexist_or_isreg_empty, inouts_hash_state);
+  sort_and_add_to_hash_state(&in_path_notexist, inouts_hash_state);
+  sort_and_add_to_hash_state(&out_path_isreg_with_hash, inouts_hash_state);
+  sort_and_add_to_hash_state(&out_path_isdir, inouts_hash_state);
+  sort_and_add_to_hash_state(&out_path_notexist, inouts_hash_state);
 
   FBBSTORE_Builder_process_inputs pi;
   fbbstore_builder_process_inputs_init(&pi);
@@ -548,8 +576,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
-  Hash subkey = state_to_hash(&inouts_hash_state);
+  Hash subkey = state_to_hash(inouts_hash_state);
   obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg, subkey);
+  maybe_XXH3_freeState(inouts_hash_state);
 }
 
 /**

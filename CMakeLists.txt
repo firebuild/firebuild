@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.9)
 
 project(FireBuild C CXX)
 
+include(CMakeOptions.txt)
+
 if (NOT DEFINED FIREBUILD_VERSION)
   execute_process(COMMAND git describe OUTPUT_VARIABLE FIREBUILD_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
   set(FIREBUILD_VERSION "Git ${FIREBUILD_VERSION}")
@@ -63,6 +65,9 @@ if(COVERAGE)
 endif(COVERAGE)
 
 add_definitions(-DFIREBUILD_DATADIR="${DATADIR}" -DLIBFIREBUILD_SO="${LIBFIREBUILD_SO}")
+if (ENABLE_XXH_INLINE_ALL)
+  add_definitions(-DXXH_INLINE_ALL)
+endif()
 add_subdirectory(src)
 
 enable_testing()
