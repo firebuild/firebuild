@@ -48,10 +48,6 @@ bool FileName::is_at_locations(const std::vector<const FileName *> *locations) c
   return false;
 }
 
-int FileNamePtrPtrCompare(const FileName * const * const lhs, const FileName * const * const rhs) {
-  return strcmp((*lhs)->c_str(), (*rhs)->c_str());
-}
-
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
