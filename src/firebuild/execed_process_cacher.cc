@@ -260,9 +260,13 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
 static std::vector<flatbuffers::Offset<flatbuffers::String>>
 fns_to_sorted_offsets(std::vector<const FileName*>* fns, flatbuffers::FlatBufferBuilder* builder) {
   std::vector<flatbuffers::Offset<flatbuffers::String>> ret;
+  struct {
+    bool operator()(const  FileName* lhs, const FileName* rhs) const {
+      return std::strcmp(lhs->c_str(), rhs->c_str()) < 0;
+    }
+  } filenames_less;
   if (fns->size() > 0) {
-    std::qsort(fns->data(), fns->size(), sizeof(fns->data()[0]),
-               reinterpret_cast<int (*)(const void*, const void*)>(FileNamePtrPtrCompare));
+    std::sort(fns->begin(), fns->end(), filenames_less);
     for (const auto& fn : *fns) {
       ret.push_back(builder->CreateString(fn->c_str(), fn->length()));
     }
