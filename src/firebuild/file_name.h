@@ -70,7 +70,7 @@ class FileName {
 };
 
 inline bool operator==(const FileName& lhs, const FileName& rhs) {
-  return strcmp(lhs.c_str(), rhs.c_str()) == 0;
+  return lhs.length() == rhs.length() && memcmp(lhs.c_str(), rhs.c_str(), lhs.length()) == 0;
 }
 
 struct FileNameHasher {
