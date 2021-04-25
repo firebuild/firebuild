@@ -18,6 +18,10 @@ FileName::DbInitializer::DbInitializer() {
   hash_db_ = new std::unordered_map<const FileName*, XXH128_hash_t>();
 }
 
+bool FileName::isDbEmpty() {
+  return !db_ || db_->empty();
+}
+
 FileName::DbInitializer FileName::db_initializer_;
 
 /**

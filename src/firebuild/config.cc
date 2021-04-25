@@ -26,6 +26,7 @@
 namespace firebuild {
 
 std::vector<const FileName*> *ignore_locations = nullptr;
+std::vector<const FileName*> *system_locations = nullptr;
 
 ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* dont_intercept_matcher = nullptr;
@@ -181,6 +182,16 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
   delete mini_config;
 }
 
+static void init_locations(std::vector<const FileName*> **locations,
+                           const libconfig::Setting& items, bool force_set_system_location) {
+  assert(!*locations);
+  *locations = new std::vector<const FileName *>();
+  for (int i = 0; i < items.getLength(); i++) {
+    (*locations)->push_back(FileName::Get(items[i].c_str(), strlen(items[i].c_str()),
+                                          force_set_system_location));
+  }
+}
+
 static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) {
   assert(!*matcher);
   *matcher = new ExeMatcher();
@@ -211,12 +222,11 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
       min_cpu_time_u = 1000000.0 * min_cpu_time_s;
     }
   }
-  libconfig::Setting& ignores = cfg->getRoot()["ignore_locations"];
-  assert(!ignore_locations);
-  ignore_locations = new std::vector<const FileName *>();
-  for (int i = 0; i < ignores.getLength(); i++) {
-    ignore_locations->push_back(FileName::Get(ignores[i].c_str()));
-  }
+
+  /* System locations have to be inserted first because proper classification relies on them. */
+  assert(FileName::isDbEmpty());
+  init_locations(&system_locations, cfg->getRoot()["system_locations"], true);
+  init_locations(&ignore_locations, cfg->getRoot()["ignore_locations"], false);
 
   init_matcher(&dont_shortcut_matcher, cfg->getRoot()["processes"]["dont_shortcut"]);
   init_matcher(&dont_intercept_matcher, cfg->getRoot()["processes"]["dont_intercept"]);
