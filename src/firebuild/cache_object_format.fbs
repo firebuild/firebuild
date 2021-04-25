@@ -85,8 +85,10 @@ table ProcessFingerprint {
 table ProcessInputs {
   // Files that are opened for reading, with various results.
   path_isreg_with_hash:[File];
+  system_path_isreg_with_hash:[File];
   path_isreg:[string];
   path_isdir_with_hash:[File];
+  system_path_isdir_with_hash:[File];
   path_isdir:[string];
   path_notexist_or_isreg:[string];
   path_notexist_or_isreg_empty:[string];

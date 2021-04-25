@@ -307,7 +307,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   /* Inputs.*/
   HashedFlatbuffersFileVector in_path_isreg_with_hash(&builder),
-      in_path_isdir_with_hash(&builder);
+      in_system_path_isreg_with_hash(&builder),
+      in_path_isdir_with_hash(&builder),
+      in_system_path_isdir_with_hash(&builder);
   HashedFlatbuffersStringVector in_path_isreg(&builder),
       in_path_isdir(&builder),
       in_path_notexist_or_isreg(&builder),
@@ -331,14 +333,22 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         /* Nothing to do. */
         break;
       case ISREG_WITH_HASH: {
-        in_path_isreg_with_hash.add(filename, fu);
+        if (filename->is_in_system_location()) {
+          in_system_path_isreg_with_hash.add(filename, fu);
+        } else {
+          in_path_isreg_with_hash.add(filename, fu);
+        }
         break;
       }
       case ISREG:
         in_path_isreg.add(filename);
         break;
       case ISDIR_WITH_HASH: {
-        in_path_isdir_with_hash.add(filename, fu);
+        if (filename->is_in_system_location()) {
+          in_system_path_isdir_with_hash.add(filename, fu);
+        } else {
+          in_path_isdir_with_hash.add(filename, fu);
+        }
         break;
       }
       case ISDIR:
@@ -430,8 +440,10 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   sort_and_add_to_hash_state(&in_path_isreg, &inouts_hash_state);
   sort_and_add_to_hash_state(&in_path_isreg_with_hash, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_system_path_isreg_with_hash, &inouts_hash_state);
   sort_and_add_to_hash_state(&in_path_isdir, &inouts_hash_state);
   sort_and_add_to_hash_state(&in_path_isdir_with_hash, &inouts_hash_state);
+  sort_and_add_to_hash_state(&in_system_path_isdir_with_hash, &inouts_hash_state);
   sort_and_add_to_hash_state(&in_path_notexist_or_isreg, &inouts_hash_state);
   sort_and_add_to_hash_state(&in_path_notexist_or_isreg_empty, &inouts_hash_state);
   sort_and_add_to_hash_state(&in_path_notexist, &inouts_hash_state);
@@ -442,8 +454,12 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   auto inputs =
       msg::CreateProcessInputs(builder,
                                builder.CreateVectorOfSortedTables(&in_path_isreg_with_hash.files()),
+                               builder.CreateVectorOfSortedTables(
+                                   &in_system_path_isreg_with_hash.files()),
                                builder.CreateVector(in_path_isreg.strings()),
                                builder.CreateVectorOfSortedTables(&in_path_isdir_with_hash.files()),
+                               builder.CreateVectorOfSortedTables(
+                                   &in_system_path_isdir_with_hash.files()),
                                builder.CreateVector(in_path_isdir.strings()),
                                builder.CreateVector(in_path_notexist_or_isreg.strings()),
                                builder.CreateVector(in_path_notexist_or_isreg_empty.strings()),
@@ -471,19 +487,14 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   obj_cache->store(fingerprint, builder.GetBufferPointer(), builder.GetSize(), debug_msg, subkey);
 }
 
-/**
- * Check whether the given ProcessInputs matches the file system's
- * current contents.
- */
-static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint) {
-  TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
-
-  struct stat64 st;
-  for (const auto& file : *pi.path_isreg_with_hash()) {
+static bool pis_hash_match_fs(
+    const flatbuffers::Vector<flatbuffers::Offset<firebuild::msg::File> >* pis, bool is_dir,
+    const Hash& fingerprint) {
+  for (const auto& file : *pis) {
     Hash on_fs_hash, in_cache_hash;
-    bool is_dir;
+    bool on_fs_is_dir = false;
     const auto path = FileName::Get(file->path());
-    if (!hash_cache->get_hash(path, &on_fs_hash, &is_dir) || is_dir) {
+    if (!hash_cache->get_hash(path, &on_fs_hash, &on_fs_is_dir) || (is_dir != on_fs_is_dir)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(path)
@@ -494,28 +505,26 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
     in_cache_hash.set_hash_from_binary(file->hash()->data());
     if (on_fs_hash != in_cache_hash) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
-                                  d(path) + ": hash differs");
+               d(path) + ": hash differs");
       return false;
     }
   }
-  for (const auto& file : *pi.path_isdir_with_hash()) {
-    Hash on_fs_hash, in_cache_hash;
-    bool is_dir;
-    const auto path = FileName::Get(file->path());
-    if (!hash_cache->get_hash(path, &on_fs_hash, &is_dir) || !is_dir) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(path)
-               + ": directory expected but does not exist or something else found");
-      return false;
-    }
-    assert_cmp(file->hash()->size(), ==, Hash::hash_size());
-    in_cache_hash.set_hash_from_binary(file->hash()->data());
-    if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
-                                  d(path) + ": hash differs");
-      return false;
-    }
+  return true;
+}
+
+/**
+ * Check whether the given ProcessInputs matches the file system's
+ * current contents.
+ */
+static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint) {
+  TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
+
+  struct stat64 st;
+  if (!pis_hash_match_fs(pi.path_isreg_with_hash(), false, fingerprint)) {
+    return false;
+  }
+  if (!pis_hash_match_fs(pi.path_isdir_with_hash(), true, fingerprint)) {
+    return false;
   }
   for (const auto& filename : *pi.path_isreg()) {
     if (stat64(filename->c_str(), &st) == -1 || !S_ISREG(st.st_mode)) {
@@ -534,6 +543,12 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
                + ": directory expected but does not exist or something else found");
       return false;
     }
+  }
+  if (!pis_hash_match_fs(pi.system_path_isreg_with_hash(), false, fingerprint)) {
+    return false;
+  }
+  if (!pis_hash_match_fs(pi.system_path_isdir_with_hash(), true, fingerprint)) {
+    return false;
   }
   for (const auto& filename : *pi.path_notexist_or_isreg()) {
     if (stat64(filename->c_str(), &st) != -1 && !S_ISREG(st.st_mode)) {

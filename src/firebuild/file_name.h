@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/platform.h"
 
@@ -24,7 +25,7 @@ class FileName {
  public:
   FileName(const FileName& other)
       : name_(reinterpret_cast<const char *>(malloc(other.length_ + 1))),
-        length_(other.length_) {
+        length_(other.length_), in_system_location_(other.in_system_location_) {
     memcpy(const_cast<char*>(name_), other.name_, other.length_ + 1);
   }
   const char * c_str() const {return name_;}
@@ -40,12 +41,14 @@ class FileName {
       return (hash_db_->insert({this,  XXH3_128bits(name_, length_)}).first)->second;
     }
   }
-  static const FileName* Get(const char * const name, ssize_t length);
+  static bool isDbEmpty();
+  static const FileName* Get(const char * const name, ssize_t length,
+                             bool force_set_system_location);
   static const FileName* Get(const flatbuffers::String * const name) {
-    return Get(name->c_str(), name->size());
+    return Get(name->c_str(), name->size(), false);
   }
   static const FileName* Get(const std::string& name) {
-    return Get(name.c_str(), name.size());
+    return Get(name.c_str(), name.size(), false);
   }
   /**
    * Checks if a path semantically begins with the given subpath.
@@ -53,11 +56,12 @@ class FileName {
    * Does string operations only, does not look at the file system.
    */
   bool is_at_locations(const std::vector<const FileName *> *locations) const;
+  bool is_in_system_location() const {return in_system_location_;}
 
  private:
-  FileName(const char * const name, size_t length, bool copy_name)
+  FileName(const char * const name, size_t length, bool copy_name, bool in_system_location)
       : name_(copy_name ? reinterpret_cast<const char *>(malloc(length + 1)) : name),
-        length_(length) {
+        length_(length), in_system_location_(in_system_location) {
     if (copy_name) {
       memcpy(const_cast<char*>(name_), name, length);
       const_cast<char*>(name_)[length] = '\0';
@@ -65,6 +69,7 @@ class FileName {
   }
   const char * name_;
   size_t length_;
+  bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static std::unordered_map<const FileName*, XXH128_hash_t>* hash_db_;
   /* Disable assignment. */
@@ -90,12 +95,17 @@ struct FileNameHasher {
   }
 };
 
-inline const FileName* FileName::Get(const char * const name, ssize_t length = -1) {
-  FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false);
+extern std::vector<const FileName*>* system_locations;
+
+inline const FileName* FileName::Get(const char * const name, ssize_t length = -1,
+                                     bool force_set_system_location = false) {
+  FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false, false);
   auto it = db_->find(tmp_file_name);
   if (it != db_->end()) {
     return &*it;
   } else {
+    tmp_file_name.in_system_location_ =
+        force_set_system_location ? true : tmp_file_name.is_at_locations(system_locations);
     /* Not found, add a copy to the set. */
     return &*db_->insert(tmp_file_name).first;
   }
