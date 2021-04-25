@@ -51,6 +51,10 @@ ObjCache::ObjCache(const std::string &base_dir) : base_dir_(base_dir) {
   mkdir(base_dir_.c_str(), 0700);
 }
 
+
+/* /x/xx/<ascii key>/<ascii subkey> */
+static size_t kObjCachePathLength = 1 + 1 + 1 + 2 + 1 + 2 * Hash::kAsciiLength + 1;
+
 /*
  * Constructs the directory name where the cached files are to be
  * stored, or read from. Optionally creates the necessary subdirectories
@@ -60,23 +64,28 @@ ObjCache::ObjCache(const std::string &base_dir) : base_dir_(base_dir) {
  * create_dirs=true, it creates the directories "base/k", "base/k/ke"
  * and "base/k/ke/key" and returns the latter.
  */
-static std::string construct_cached_dir_name(const std::string &base,
-                                             const Hash &key,
-                                             bool create_dirs) {
-  std::string key_str = key.to_ascii();
-  std::string path = base + "/" + key_str.substr(0, 1);
+static void construct_cached_dir_name(const std::string &base, const Hash &key,
+                                       bool create_dirs, char* path) {
+  char ascii[Hash::kAsciiLength + 1];
+  key.to_ascii(ascii);
+  char *end = path;
+  memcpy(end, base.c_str(), base.length());
+  end += base.length();
+  *end++ = '/'; *end++ = ascii[0];
   if (create_dirs) {
-    mkdir(path.c_str(), 0700);
+    *end = '\0';
+    mkdir(path, 0700);
   }
-  path += "/" + key_str.substr(0, 2);
+  *end++ = '/'; *end++ = ascii[0]; *end++ = ascii[1];
   if (create_dirs) {
-    mkdir(path.c_str(), 0700);
+    *end = '\0';
+    mkdir(path, 0700);
   }
-  path += "/" + key_str;
+  *end++ = '/';
+  memcpy(end, ascii, sizeof(ascii));
   if (create_dirs) {
-    mkdir(path.c_str(), 0700);
+    mkdir(path, 0700);
   }
-  return path;
 }
 
 /*
@@ -89,12 +98,14 @@ static std::string construct_cached_dir_name(const std::string &base,
  * creates the directories "base/k", "base/k/ke" and "base/k/ke/key" and
  * returns "base/k/ke/key/subkey".
  */
-static std::string construct_cached_file_name(const std::string &base,
-                                              const Hash &key,
-                                              const Hash &subkey,
-                                              bool create_dirs) {
-  std::string path = construct_cached_dir_name(base, key, create_dirs);
-  return path + "/" + subkey.to_ascii();
+static void construct_cached_file_name(const std::string &base,
+                                       const Hash &key,
+                                       const Hash &subkey,
+                                       bool create_dirs,
+                                       char* path) {
+  construct_cached_dir_name(base, key, create_dirs, path);
+  path[base.length() + kObjCachePathLength - Hash::kAsciiLength - 1] = '/';
+  subkey.to_ascii(&path[base.length() + kObjCachePathLength - Hash::kAsciiLength]);
 }
 
 /* Replacement for flatbuffers::FlatBufferToString(), but with quoted keys. */
@@ -132,12 +143,17 @@ bool ObjCache::store(const Hash &key,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the key in the cache, for easier debugging. */
-    std::string path_debug =
-        construct_cached_dir_name(base_dir_, key, true) + "/%_directory_debug.json";
+    const char* debug_postfix = "/%_directory_debug.json";
+    char* path_debug =
+        reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
+                                       - Hash::kAsciiLength + strlen(debug_postfix) + 1));
+    construct_cached_dir_name(base_dir_, key, true, path_debug);
+    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength],
+           debug_postfix, strlen(debug_postfix) + 1);
     std::string debug_text =
         FlatBufferToStringQuoted(debug_key, msg::ProcessFingerprintTypeTable(), true);
 
-    int fd = creat(path_debug.c_str(), 0600);
+    int fd = creat(path_debug, 0600);
     if (write(fd, debug_text.c_str(), debug_text.size()) < 0) {
       perror("store");
     }
@@ -174,8 +190,9 @@ bool ObjCache::store(const Hash &key,
   }
   close(fd_dst);
 
-  std::string path_dst = construct_cached_file_name(base_dir_, key, subkey, true);
-  if (rename(tmpfile, path_dst.c_str()) == -1) {
+  char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
+  if (rename(tmpfile, path_dst) == -1) {
     perror("rename");
     unlink(tmpfile);
     free(tmpfile);
@@ -193,11 +210,16 @@ bool ObjCache::store(const Hash &key,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the value in the cache, for easier debugging. */
-    std::string path_debug = path_dst + "_debug.json";
+    const char* debug_postfix = "_debug.json";
+    char* path_debug = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
+                                                      + strlen(debug_postfix) + 1));
+    memcpy(path_debug, path_dst, base_dir_.length() + kObjCachePathLength);
+    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength], debug_postfix,
+           strlen(debug_postfix) + 1);
     std::string entry_txt =
         FlatBufferToStringQuoted(entry, firebuild::msg::ProcessInputsOutputsTypeTable(), true);
 
-    int fd = creat(path_debug.c_str(), 0600);
+    int fd = creat(path_debug, 0600);
     if (write(fd, entry_txt.c_str(), entry_txt.size()) < 0) {
       perror("store");
     }
@@ -226,9 +248,10 @@ bool ObjCache::retrieve(const Hash &key,
              + d(key) + " subkey " + d(subkey));
   }
 
-  std::string path = construct_cached_file_name(base_dir_, key, subkey, false);
+  char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, subkey, false, path);
 
-  int fd = open(path.c_str(), O_RDONLY);
+  int fd = open(path, O_RDONLY);
   if (fd == -1) {
     perror("open");
     return false;
@@ -256,7 +279,7 @@ bool ObjCache::retrieve(const Hash &key,
       return false;
     }
   } else {
-    fb_error("0-sized cache entry: " + path);
+    fb_error("0-sized cache entry: " + std::string(path));
     assert(st.st_size <= 0);
     close(fd);
     return false;
@@ -279,9 +302,10 @@ std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
   std::vector<Hash> ret;
-  std::string path = construct_cached_dir_name(base_dir_, key, false);
+  char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
+  construct_cached_dir_name(base_dir_, key, false, path);
 
-  DIR *dir = opendir(path.c_str());
+  DIR *dir = opendir(path);
   if (dir == NULL) {
     return ret;
   }

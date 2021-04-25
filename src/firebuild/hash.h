@@ -51,6 +51,8 @@ class Hash {
   }
 
   static size_t hash_size() {return hash_size_;}
+  /** ASCII representation length without the trailing '\0' */
+  static const size_t kAsciiLength = 21;
 
   void set_from_data(const void *data, ssize_t size);
   bool set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out);
@@ -59,7 +61,12 @@ class Hash {
   bool set_hash_from_binary(const uint8_t * const binary);
   bool set_hash_from_ascii(const std::string &ascii);
   const uint8_t * to_binary() const;
-  std::string to_ascii() const;
+  void to_ascii(char* out) const;
+  std::string to_ascii() const {
+     char ascii[Hash::kAsciiLength + 1];
+     to_ascii(ascii);
+     return std::string(ascii);
+  }
 
  private:
   static void decode_block(uint32_t in, unsigned char *out);
@@ -70,8 +77,6 @@ class Hash {
 
   static const unsigned int hash_size_ = 16;
   uint8_t arr_[hash_size_] = {};
-
-  static const unsigned int ascii_length_ = 21;  /* without the trailing '\0' */
 
   /* This, along with the Hash::hash_maps_initializer_ definition in hash.cc,
    * initializes the encode_map_ and decode_map_ arrays once at startup. */
