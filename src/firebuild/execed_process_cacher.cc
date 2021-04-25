@@ -453,13 +453,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   auto inputs =
       msg::CreateProcessInputs(builder,
-                               builder.CreateVectorOfSortedTables(&in_path_isreg_with_hash.files()),
-                               builder.CreateVectorOfSortedTables(
-                                   &in_system_path_isreg_with_hash.files()),
+                               builder.CreateVector(in_path_isreg_with_hash.files()),
+                               builder.CreateVector(in_system_path_isreg_with_hash.files()),
                                builder.CreateVector(in_path_isreg.strings()),
-                               builder.CreateVectorOfSortedTables(&in_path_isdir_with_hash.files()),
-                               builder.CreateVectorOfSortedTables(
-                                   &in_system_path_isdir_with_hash.files()),
+                               builder.CreateVector(in_path_isdir_with_hash.files()),
+                               builder.CreateVector(in_system_path_isdir_with_hash.files()),
                                builder.CreateVector(in_path_isdir.strings()),
                                builder.CreateVector(in_path_notexist_or_isreg.strings()),
                                builder.CreateVector(in_path_notexist_or_isreg_empty.strings()),
