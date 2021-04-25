@@ -76,6 +76,9 @@ static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
   return false;
 }
 
+/* /x/xx/<ascii key> */
+static size_t kBlobCachePathLength = 1 + 1 + 1 + 2 + 1 + Hash::kAsciiLength;
+
 /*
  * Constructs the filename where the cached file is to be stored, or
  * read from. Optionally creates the necessary subdirectories within the
@@ -85,19 +88,25 @@ static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
  * create_dirs=true, it creates the directories "base/k" and "base/k/ke"
  * and returns "base/k/ke/key".
  */
-static std::string construct_cached_file_name(const std::string &base,
-                                              const Hash &key,
-                                              bool create_dirs) {
-  std::string key_str = key.to_ascii();
-  std::string path = base + "/" + key_str.substr(0, 1);
+static void construct_cached_file_name(const std::string &base, const Hash &key,
+                                       bool create_dirs, char* path) {
+  char ascii[Hash::kAsciiLength + 1];
+  key.to_ascii(ascii);
+  char *end = path;
+  memcpy(end, base.c_str(), base.length());
+  end += base.length();
+  *end++ = '/'; *end++ = ascii[0];
   if (create_dirs) {
-    mkdir(path.c_str(), 0700);
+    *end = '\0';
+    mkdir(path, 0700);
   }
-  path += "/" + key_str.substr(0, 2);
+  *end++ = '/'; *end++ = ascii[0]; *end++ = ascii[1];
   if (create_dirs) {
-    mkdir(path.c_str(), 0700);
+    *end = '\0';
+    mkdir(path, 0700);
   }
-  return path + "/" + key_str;
+  *end++ = '/';
+  memcpy(end, ascii, sizeof(ascii));
 }
 
 /**
@@ -185,8 +194,9 @@ bool BlobCache::store_file(const FileName *path,
   }
   close(fd_dst);
 
-  std::string path_dst = construct_cached_file_name(base_dir_, key, true);
-  if (rename(tmpfile, path_dst.c_str()) == -1) {
+  char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, true, path_dst);
+  if (rename(tmpfile, path_dst) == -1) {
     perror("rename");
     unlink(tmpfile);
     free(tmpfile);
@@ -200,7 +210,7 @@ bool BlobCache::store_file(const FileName *path,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place meta info in the cache, for easier debugging. */
-    std::string path_debug = path_dst + "_debug.txt";
+    std::string path_debug = std::string(path_dst) + "_debug.txt";
     std::string txt(pretty_timestamp() + "  Copied from " + d(path) + "\n");
     int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(debugfd, txt.c_str(), txt.size()) < 0) {
@@ -256,8 +266,9 @@ bool BlobCache::move_store_file(const std::string &path,
   }
   close(fd);
 
-  std::string path_dst = construct_cached_file_name(base_dir_, key, true);
-  if (rename(path.c_str(), path_dst.c_str()) == -1) {
+  char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, true, path_dst);
+  if (rename(path.c_str(), path_dst) == -1) {
     perror("rename");
     unlink(path.c_str());
     return false;
@@ -269,7 +280,7 @@ bool BlobCache::move_store_file(const std::string &path,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place meta info in the cache, for easier debugging. */
-    std::string path_debug = path_dst + "_debug.txt";
+    std::string path_debug = std::string(path_dst) + "_debug.txt";
     std::string txt(pretty_timestamp() + "  Moved from " + path + "\n");
     int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(debugfd, txt.c_str(), txt.size()) < 0) {
@@ -304,9 +315,10 @@ bool BlobCache::retrieve_file(const Hash &key,
     FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + d(key) + " => " + d(path_dst));
   }
 
-  std::string path_src = construct_cached_file_name(base_dir_, key, false);
+  char* path_src = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, false, path_src);
 
-  int fd_src = open(path_src.c_str(), O_RDONLY);
+  int fd_src = open(path_src, O_RDONLY);
   if (fd_src == -1) {
     perror("open");
     return false;
@@ -345,9 +357,10 @@ int BlobCache::get_fd_for_file(const Hash &key) {
     FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: getting fd for blob " + key.to_ascii());
   }
 
-  std::string path_src = construct_cached_file_name(base_dir_, key, false);
+  char* path_src = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, false, path_src);
 
-  int fd = open(path_src.c_str(), O_RDONLY);
+  int fd = open(path_src, O_RDONLY);
   if (fd == -1) {
     perror("open");
     return -1;

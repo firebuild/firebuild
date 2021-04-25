@@ -238,10 +238,10 @@ void Hash::decode_block(uint32_t in, unsigned char *out) {
  * representation of a hash.
  */
 bool Hash::set_hash_from_ascii(const std::string &ascii) {
-  if (ascii.size() != ascii_length_) {
+  if (ascii.size() != kAsciiLength) {
     return false;
   }
-  for (unsigned int i = 0; i < ascii_length_; i++) {
+  for (unsigned int i = 0; i < kAsciiLength; i++) {
     if (decode_map_[static_cast<int>(ascii[i])] < 0) {
       return false;
     }
@@ -288,21 +288,16 @@ uint32_t Hash::encode_block(const unsigned char *in) {
  *
  * See the class's documentation for the exact format.
  */
-std::string Hash::to_ascii() const {
+void Hash::to_ascii(char* const out) const {
   assert(!(arr_[15] & 0x03));
 
-  std::string ret;
-  ret.resize(ascii_length_);
-  char *ret_c_str = const_cast<char *>(ret.c_str());
-
-  *reinterpret_cast<uint32_t *>(ret_c_str)      = encode_block(arr_);
-  *reinterpret_cast<uint32_t *>(ret_c_str +  4) = encode_block(arr_ +  3);
-  *reinterpret_cast<uint32_t *>(ret_c_str +  8) = encode_block(arr_ +  6);
-  *reinterpret_cast<uint32_t *>(ret_c_str + 12) = encode_block(arr_ +  9);
-  *reinterpret_cast<uint32_t *>(ret_c_str + 16) = encode_block(arr_ + 12);
-  *(ret_c_str + 20) = encode_map_[arr_[15] >> 2];
-
-  return ret;
+  *reinterpret_cast<uint32_t *>(out)      = encode_block(arr_);
+  *reinterpret_cast<uint32_t *>(out +  4) = encode_block(arr_ +  3);
+  *reinterpret_cast<uint32_t *>(out +  8) = encode_block(arr_ +  6);
+  *reinterpret_cast<uint32_t *>(out + 12) = encode_block(arr_ +  9);
+  *reinterpret_cast<uint32_t *>(out + 16) = encode_block(arr_ + 12);
+  *(out + 20) = encode_map_[arr_[15] >> 2];
+  out[kAsciiLength] = '\0';
 }
 
 /* Global debugging methods.
