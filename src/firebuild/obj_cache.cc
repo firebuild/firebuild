@@ -155,7 +155,10 @@ bool ObjCache::store(const Hash &key,
 
     int fd = creat(path_debug, 0600);
     if (write(fd, debug_text.c_str(), debug_text.size()) < 0) {
-      perror("store");
+      perror("storing %_directory_debug.json failed");
+      assert(0);
+      close(fd);
+      return false;
     }
     close(fd);
   }
@@ -167,7 +170,8 @@ bool ObjCache::store(const Hash &key,
 
   int fd_dst = mkstemp(tmpfile);  /* opens with O_RDWR */
   if (fd_dst == -1) {
-    perror("mkstemp");
+    perror("Failed mkstemp() for storing cache object");
+    assert(0);
     free(tmpfile);
     return false;
   }
@@ -179,11 +183,8 @@ bool ObjCache::store(const Hash &key,
   // FIXME Do we need to split large files into smaller writes?
   auto written = write(fd_dst, entry, entry_len);
   if (written < 0 || static_cast<size_t>(written) != entry_len) {
-    if (written == -1) {
-      perror("write");
-    } else {
-      FB_DEBUG(FB_DEBUG_CACHING, "short write");
-    }
+    perror("Failed write() while storing cache object");
+    assert(0);
     close(fd_dst);
     free(tmpfile);
     return false;
@@ -193,7 +194,8 @@ bool ObjCache::store(const Hash &key,
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
   if (rename(tmpfile, path_dst) == -1) {
-    perror("rename");
+    perror("Failed rename() while storing cache object");
+    assert(0);
     unlink(tmpfile);
     free(tmpfile);
     return false;
@@ -221,7 +223,8 @@ bool ObjCache::store(const Hash &key,
 
     int fd = creat(path_debug, 0600);
     if (write(fd, entry_txt.c_str(), entry_txt.size()) < 0) {
-      perror("store");
+      perror("Failed write() while storing *_debug.json");
+      assert(0);
     }
     close(fd);
   }
@@ -254,16 +257,19 @@ bool ObjCache::retrieve(const Hash &key,
   int fd = open(path, O_RDONLY);
   if (fd == -1) {
     perror("open");
+    assert(0);
     return false;
   }
 
   struct stat64 st;
   if (fstat64(fd, &st) == -1) {
-    perror("fstat");
+    perror("Failed fstat retrieving cache object");
+    assert(0);
     close(fd);
     return false;
   } else if (!S_ISREG(st.st_mode)) {
     FB_DEBUG(FB_DEBUG_CACHING, "not a regular file");
+    assert(0);
     close(fd);
     return false;
   }
@@ -275,6 +281,7 @@ bool ObjCache::retrieve(const Hash &key,
     p = reinterpret_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0));
     if (p == MAP_FAILED) {
       perror("mmap");
+      assert(0);
       close(fd);
       return false;
     }
