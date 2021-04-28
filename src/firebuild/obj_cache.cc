@@ -148,7 +148,7 @@ bool ObjCache::store(const Hash &key,
         reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
                                        - Hash::kAsciiLength + strlen(debug_postfix) + 1));
     construct_cached_dir_name(base_dir_, key, true, path_debug);
-    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength],
+    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength - 1],
            debug_postfix, strlen(debug_postfix) + 1);
     std::string debug_text =
         FlatBufferToStringQuoted(debug_key, msg::ProcessFingerprintTypeTable(), true);
