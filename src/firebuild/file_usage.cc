@@ -95,10 +95,11 @@ const FileUsage* FileUsage::merge(const FileUsage* that) const {
       }
     }
   }
-  if (written_ != that->written_) {
-    tmp.written_ = written_ || that->written_;
+  if (!written_ && that->written_) {
     changed = true;
   }
+  tmp.written_ = written_ || that->written_;
+
   if (!changed) {
     return this;
   } else {
