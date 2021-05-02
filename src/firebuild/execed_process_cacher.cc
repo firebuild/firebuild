@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "firebuild/debug.h"
@@ -627,6 +628,75 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
 }
 
 /**
+ * Restore output directories starting with start_index in sorted order.
+ */
+static bool restore_remaining_dirs_sorted(
+    ExecedProcess* proc,
+    const flatbuffers::Vector<flatbuffers::Offset<firebuild::msg::File> >* dirs,
+    const FileUsage* fu, int start_index) {
+  int index = 0;
+  std::vector<std::pair<const FileName*, int>> remaining_dirs;
+  for (const auto& file : *dirs) {
+    if (index++ < start_index) {
+      continue;
+    }
+    remaining_dirs.push_back({FileName::Get(file->path()), file->mode()});
+  }
+
+  struct {
+    bool operator()(const std::pair<const FileName*, int>& d1,
+                    const std::pair<const FileName*, int>& d2) const {
+      return strcmp(d1.first->c_str(), d2.first->c_str()) < 0;
+      }
+  } remaining_dirs_less;
+  std::sort(remaining_dirs.begin(), remaining_dirs.end(), remaining_dirs_less);
+
+  for (auto&& [path, mode] : remaining_dirs) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
+    assert_cmp(mode, !=, -1);
+    int ret = mkdir(path->c_str(), mode);
+    if (ret != 0) {
+      perror("Failed to restore directory");
+      assert_cmp(ret, !=, -1);
+      return false;
+    }
+    if (proc->parent_exec_point()) {
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
+    }
+  }
+  return true;
+}
+
+/**
+ * Restore output directories with the right mode.
+ */
+static bool restore_dirs(
+    ExecedProcess* proc,
+    const flatbuffers::Vector<flatbuffers::Offset<firebuild::msg::File> >* dirs,
+    const FileUsage* fu) {
+  int index = 0;
+  for (const auto& file : *dirs) {
+    const auto path = FileName::Get(file->path());
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
+    assert_cmp(file->mode(), !=, -1);
+    int ret = mkdir(path->c_str(), file->mode());
+    if (ret != 0) {
+      if (errno == ENOENT) {
+        return restore_remaining_dirs_sorted(proc, dirs, fu, index);
+      }
+      perror("Failed to restore directory");
+      assert_cmp(ret, !=, -1);
+      return false;
+    }
+    if (proc->parent_exec_point()) {
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
+    }
+    index++;
+  }
+  return true;
+}
+
+/**
  * Applies the given shortcut.
  *
  * Modifies the file system to match the given instructions. Propagates
@@ -679,15 +749,10 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   /* We'll reuse this for every file modification event to propagate. */
   const FileUsage* fu = FileUsage::Get(DONTKNOW, true);
 
-  for (const auto& file : *inouts->outputs()->path_isdir()) {
-    const auto path = FileName::Get(file->path());
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
-    assert_cmp(file->mode(), !=, -1);
-    mkdir(path->c_str(), file->mode());
-    if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
-    }
+  if (!restore_dirs(proc, inouts->outputs()->path_isdir(), fu)) {
+    return false;
   }
+
   for (const auto& file : *inouts->outputs()->path_isreg_with_hash()) {
     const auto path = FileName::Get(file->path());
     FB_DEBUG(FB_DEBUG_SHORTCUT,
