@@ -20,8 +20,8 @@ class ExeMatcher {
   bool match(const firebuild::FileName* exe_file, const firebuild::FileName* executed_file,
              const std::string& arg0) const {
     return match(exe_file->to_string()) || match(arg0)
-        || executed_file == exe_file ? false
-        : executed_file ? match(executed_file->to_string()) : false;
+        || (executed_file == exe_file ? false
+            : (executed_file ? match(executed_file->to_string()) : false));
   }
   void add(const std::string name) {
     if (name.find('/') == std::string::npos) {
