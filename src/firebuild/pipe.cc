@@ -90,22 +90,22 @@ Pipe::~Pipe() {
   TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "");
 }
 
-std::shared_ptr<Pipe> Pipe::fd0_shared_ptr() {
+boost::local_shared_ptr<Pipe> Pipe::fd0_shared_ptr() {
   assert(!fd0_shared_ptr_generated_);
   fd0_ptrs_held_self_ptr_ = shared_self_ptr_;
   fd0_shared_ptr_generated_ = true;
-  return std::shared_ptr<Pipe>(this, Fd0Deleter());
+  return boost::local_shared_ptr<Pipe>(this, Fd0Deleter());
 }
 
-std::shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
+boost::local_shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
   assert(!fd1_shared_ptr_generated_);
   fd1_ptrs_held_self_ptr_ = shared_self_ptr_;
   fd1_shared_ptr_generated_ = true;
-  return std::shared_ptr<Pipe>(this, Fd1Deleter());
+  return boost::local_shared_ptr<Pipe>(this, Fd1Deleter());
 }
 
 void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
-                            std::vector<std::shared_ptr<PipeRecorder>> recorders) {
+                            std::vector<boost::local_shared_ptr<PipeRecorder>> recorders) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s, proc=%s, #recorders=%ld",
          D_FD(fd1_conn), D(proc), recorders.size());
 

@@ -43,12 +43,13 @@ static std::string escapeJsonString(const std::string& input) {
   return ss.str();
 }
 
-ExecedProcess::ExecedProcess(const int pid, const int ppid,
-                             const FileName *initial_wd,
-                             const FileName *executable,
-                             const FileName *executed_path,
-                             Process * parent,
-                             std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+ExecedProcess::ExecedProcess(
+    const int pid, const int ppid,
+    const FileName *initial_wd,
+    const FileName *executable,
+    const FileName *executed_path,
+    Process * parent,
+    boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds)
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
@@ -97,7 +98,7 @@ void ExecedProcess::initialize() {
   std::vector<inherited_pipe_t> inherited_pipes;
   /* This iterates over the fds in increasing order. */
   for (auto file_fd : *fds()) {
-    std::shared_ptr<Pipe> pipe;
+    boost::local_shared_ptr<Pipe> pipe;
     if (!file_fd || (file_fd->flags() & O_ACCMODE) != O_WRONLY || !(pipe = file_fd->pipe())) {
       continue;
     }

@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-
+#include <boost/smart_ptr/local_shared_ptr.hpp>
 #include "firebuild/cxx_lang_utils.h"
 
 namespace firebuild {
@@ -130,7 +130,7 @@ inline std::string d(const std::vector<T> *arr, const int level = 0) {
  * Debug a shared_ptr of anything that is d()-debuggable.
  */
 template <typename T>
-inline std::string d(const std::shared_ptr<T>& ptr, const int level = 0) {
+inline std::string d(const boost::local_shared_ptr<T>& ptr, const int level = 0) {
   return d(ptr.get(), level);
 }
 

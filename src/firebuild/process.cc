@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <utility>
+#include <boost/smart_ptr/make_local_shared.hpp>
 
 #include "common/firebuild_common.h"
 #include "firebuild/file.h"
@@ -24,7 +25,8 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
-                 Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                 Process * parent,
+                 boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), fork_children_(), expected_child_(), exec_child_(NULL) {
@@ -52,10 +54,10 @@ void Process::exit_result(const int status, const int64_t utime_u,
   update_rusage(utime_u, stime_u);
 }
 
-std::shared_ptr<FileFD>
-Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+boost::local_shared_ptr<FileFD>
+Process::add_filefd(boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds,
                     int fd,
-                    std::shared_ptr<FileFD> ffd) {
+                    boost::local_shared_ptr<FileFD> ffd) {
   TRACK(FB_DEBUG_PROC, "fd=%d", fd);
 
   if (fds->size() <= static_cast<unsigned int>(fd)) {
@@ -69,7 +71,7 @@ Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
   return ffd;
 }
 
-void Process::add_pipe(std::shared_ptr<Pipe> pipe) {
+void Process::add_pipe(boost::local_shared_ptr<Pipe> pipe) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "pipe=%s", D(pipe.get()));
 
   exec_point()->add_pipe(pipe);
@@ -89,10 +91,11 @@ void Process::drain_all_pipes() {
   }
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
+boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> Process::pass_on_fds(
+    bool execed) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "execed=%s", D(execed));
 
-  auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+  auto fds = boost::make_local_shared<std::vector<boost::local_shared_ptr<FileFD>>>();
   for (unsigned int i = 0; i < fds_->size(); i++) {
     auto const &file_fd_shared_ptr = fds_->at(i);
     if (file_fd_shared_ptr) {
@@ -100,7 +103,7 @@ std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool 
       if (!(execed && raw_file_fd.cloexec())) {
         /* The operations on the fds in the new process don't affect the fds in the parent,
          * thus create a copy of the parent's FileFD pointed to by a new shared pointer. */
-        add_filefd(fds, i, std::make_shared<FileFD>(raw_file_fd));
+        add_filefd(fds, i, boost::make_local_shared<FileFD>(raw_file_fd));
         if (execed && raw_file_fd.close_on_popen()) {
           /* The newly exec()-ed process will not close inherited popen()-ed fds on pclose() */
           (*fds)[i]->set_close_on_popen(false);
@@ -118,7 +121,7 @@ void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, i
     /* Since only fd0 is passed only fd0's FileFD inherits O_CLOEXEC from type_flags. */
     auto pipe = handle_pipe_internal(fd, -1, type_flags, 0 /* fd1_flags */, 0, fifo, nullptr,
                                      true, false, this);
-    auto ffd1 = std::make_shared<FileFD>(child_fileno, O_WRONLY, pipe->fd1_shared_ptr(),
+    auto ffd1 = boost::make_local_shared<FileFD>(child_fileno, O_WRONLY, pipe->fd1_shared_ptr(),
                                          proc->parent_);
 
     (*proc->parent_->fds_)[child_fileno] = ffd1;
@@ -147,7 +150,7 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
   }
 
   if (fd >= 0) {
-    add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
+    add_filefd(fds_, fd, boost::make_local_shared<FileFD>(name, fd, flags, this));
   }
 
   if (ack_num != 0) {
@@ -296,7 +299,7 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
   return 0;
 }
 
-std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1,
+boost::local_shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1,
                                                     const int fd0_flags, const int fd1_flags,
                                                     const int error, const char *fd0_fifo,
                                                     const char *fd1_fifo, bool fd0_close_on_popen,
@@ -307,7 +310,7 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
          fd0, fd1, fd0_flags, fd1_flags, error, fd0_fifo, fd1_fifo, D(fd0_proc));
 
   if (error) {
-    return std::shared_ptr<Pipe>(nullptr);
+    return boost::local_shared_ptr<Pipe>(nullptr);
   }
 
   // validate fd-s
@@ -316,7 +319,7 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
     fd0_proc->exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", fd0);
-    return std::shared_ptr<Pipe>(nullptr);
+    return boost::local_shared_ptr<Pipe>(nullptr);
   }
 
   if (fd1 != -1 && get_fd(fd1)) {
@@ -324,7 +327,7 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
     exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", fd1);
-    return std::shared_ptr<Pipe>(nullptr);
+    return boost::local_shared_ptr<Pipe>(nullptr);
   }
 
   assert(fd0_fifo);
@@ -336,11 +339,11 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
   /* Scan-build reports a false leak for the correct code. This is used only in static
    * analysis. It is broken because all shared pointers to the Pipe must be copies of
    * the shared self pointer stored in it. */
-  auto pipe = std::make_shared<Pipe>(fd0_conn, this);
+  auto pipe = boost::make_local_shared<Pipe>(fd0_conn, this);
 #else
   auto pipe = (new Pipe(fd0_conn, this))->shared_ptr();
 #endif
-  fd0_proc->add_filefd(fd0_proc->fds_, fd0, std::make_shared<FileFD>(
+  fd0_proc->add_filefd(fd0_proc->fds_, fd0, boost::make_local_shared<FileFD>(
       fd0, (fd0_flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), fd0_proc,
       fd0_close_on_popen));
   /* Fd1_fifo may not be set. */
@@ -348,14 +351,14 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
     int fd1_conn = open(fd1_fifo, O_NONBLOCK | O_RDONLY);
     assert(fd1_conn != -1 && "opening fd1_fifo failed");
     firebuild::bump_fd_age(fd1_conn);
-    auto ffd1 = std::make_shared<FileFD>(fd1, (fd1_flags & ~O_ACCMODE) | O_WRONLY,
+    auto ffd1 = boost::make_local_shared<FileFD>(fd1, (fd1_flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
                                          this, fd1_close_on_popen);
     add_filefd(fds_, fd1, ffd1);
     /* Empty recorders array. We don't start recording after a pipe(), this data wouldn't be
      * used anywhere. We only start recording after an exec(), to catch the traffic as seen
      * from that potential shortcutting point. */
-    auto recorders = std::vector<std::shared_ptr<PipeRecorder>>();
+    auto recorders = std::vector<boost::local_shared_ptr<PipeRecorder>>();
     pipe->add_fd1_and_proc(fd1_conn, ffd1.get(), exec_point(), recorders);
   }
   return pipe;
@@ -396,7 +399,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 
   handle_force_close(newfd);
 
-  add_filefd(fds_, newfd, std::make_shared<FileFD>(
+  add_filefd(fds_, newfd, boost::make_local_shared<FileFD>(
       newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
       (*fds_)[oldfd]));
   return 0;
@@ -818,14 +821,14 @@ static bool argv_matches_expectation(const std::vector<std::string>& actual,
   return true;
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>>
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
                                 int *type_flags_p,
                                 const bool failed) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "failed=%s", D(failed));
 
-  std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
     if (argv_matches_expectation(argv, expected_child_->argv())) {
       auto fds = expected_child_->fds();
@@ -847,7 +850,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
     exec_point()->disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child",
                                    std::string(failed ? "  failed: " : " appeared: ") + d(argv));
   }
-  return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+  return boost::make_local_shared<std::vector<boost::local_shared_ptr<FileFD>>>();
 }
 
 bool Process::any_child_not_finalized() {

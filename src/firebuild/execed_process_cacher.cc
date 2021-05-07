@@ -416,7 +416,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
     /* Record the output as belonging to the lowest fd. */
     int fd = inherited_pipe.fds[0];
-    std::shared_ptr<PipeRecorder> recorder = inherited_pipe.recorder;
+    boost::local_shared_ptr<PipeRecorder> recorder = inherited_pipe.recorder;
     if (recorder) {
       bool is_empty;
       Hash pipe_traffic_hash;
@@ -811,7 +811,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
 
     if (proc->parent()) {
       /* Bubble up the replayed pipe data. */
-      std::vector<std::shared_ptr<PipeRecorder>>& recorders =
+      std::vector<boost::local_shared_ptr<PipeRecorder>>& recorders =
           pipe->proc2recorders[proc->parent_exec_point()];
       PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
     }

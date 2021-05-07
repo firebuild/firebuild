@@ -14,6 +14,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <boost/smart_ptr/shared_ptr.hpp>
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
@@ -34,7 +35,7 @@ typedef struct _pipe_end {
   /* FileFDs associated with this pipe end keeping a(n fd1) reference to this pipe. */
   std::unordered_set<FileFD*> file_fds;
   /** Cache files to save the captured data to */
-  std::vector<std::shared_ptr<PipeRecorder>> recorders;
+  std::vector<boost::local_shared_ptr<PipeRecorder>> recorders;
   bool known_to_be_opened;
 } pipe_end;
 
@@ -138,15 +139,15 @@ class Pipe {
   /**
    * Shared_ptr of this Pipe for fd0-side references.
    */
-  std::shared_ptr<Pipe> fd0_shared_ptr();
+  boost::local_shared_ptr<Pipe> fd0_shared_ptr();
   /**
    * Shared_ptr of this Pipe for fd1-side references.
    */
-  std::shared_ptr<Pipe> fd1_shared_ptr();
+  boost::local_shared_ptr<Pipe> fd1_shared_ptr();
   /**
    * Shared_ptr of this Pipe for not fd0- or fd1-side references.
    */
-  std::shared_ptr<Pipe> shared_ptr() {return shared_self_ptr_;}
+  boost::local_shared_ptr<Pipe> shared_ptr() {return shared_self_ptr_;}
   /**
    * Event with the callback triggered when fd0 end is writable.
    *
@@ -175,10 +176,11 @@ class Pipe {
    * Somewhat similar to conn2fd1_ends and ffd2fd1_ends, but this one has to live on until the
    * process is stored in the cache, when pipe_end might no longer be around. Used for track the
    * recorders across an exec(), as well as storing in the cache what a process wrote to a pipe. */
-  std::unordered_map<ExecedProcess *, std::vector<std::shared_ptr<PipeRecorder>>> proc2recorders;
+  std::unordered_map<ExecedProcess *,
+                     std::vector<boost::local_shared_ptr<PipeRecorder>>> proc2recorders;
 
   void add_fd1_and_proc(int fd1, FileFD*, ExecedProcess *proc,
-                        std::vector<std::shared_ptr<PipeRecorder>> recorders);
+                        std::vector<boost::local_shared_ptr<PipeRecorder>> recorders);
   /**
    * Send contents of the buffer to the 'to' side
    * @return send operation's result
@@ -242,13 +244,13 @@ class Pipe {
   /**
    * Shared self pointer used by fd0 references to clean oneself up only after finish() and keep
    * track of fd0 references separately . */
-  std::shared_ptr<Pipe> fd0_ptrs_held_self_ptr_;
+  boost::local_shared_ptr<Pipe> fd0_ptrs_held_self_ptr_;
   /**
    * Shared self pointer used by fd1 references to clean oneself up only after finish() and keep
    * track of fd1 references separately. */
-  std::shared_ptr<Pipe> fd1_ptrs_held_self_ptr_;
+  boost::local_shared_ptr<Pipe> fd1_ptrs_held_self_ptr_;
   /** Shared self pointer kept until the pipe is finish()-ed */
-  std::shared_ptr<Pipe> shared_self_ptr_;
+  boost::local_shared_ptr<Pipe> shared_self_ptr_;
   /** The process that created this pipe, or NULL if it represents a pipe or terminal line
    *  inherited from the external world. */
   Process* creator_;

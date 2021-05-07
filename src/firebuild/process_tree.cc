@@ -8,13 +8,14 @@
 #include <cstdio>
 #include <stdexcept>
 #include <limits>
+#include <boost/smart_ptr/make_local_shared.hpp>
 
 #include "firebuild/debug.h"
 
 namespace firebuild {
 
 ProcessTree::ProcessTree()
-    : inherited_fds_(std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
+    : inherited_fds_(boost::make_local_shared<std::vector<boost::local_shared_ptr<FileFD>>>()),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
       pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
       cmd_profs_() {
@@ -23,7 +24,7 @@ ProcessTree::ProcessTree()
   // TODO(rbalint) support other inherited fds
   /* Create the FileFD representing stdin of the top process. */
   Process::add_filefd(inherited_fds_, STDIN_FILENO,
-                      std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
+                      boost::make_local_shared<FileFD>(STDIN_FILENO, O_RDONLY));
 
   /* Create the Pipes and FileFDs representing stdout and stderr of the top process.
    * Check if stdout and stderr point to the same place. kcmp() is not universally
@@ -41,7 +42,7 @@ ProcessTree::ProcessTree()
   FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
                                                    "Top level stdout and stderr are distinct");
 
-  std::shared_ptr<Pipe> pipe;
+  boost::local_shared_ptr<Pipe> pipe;
   for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
     if (fd == STDERR_FILENO && flags2a != flags2b) {
       /* stdout and stderr point to the same location (changing one's flags did change the
@@ -54,7 +55,7 @@ ProcessTree::ProcessTree()
       /* Scan-build reports a false leak for the correct code. This is used only in static
        * analysis. It is broken because all shared pointers to the Pipe must be copies of
        * the shared self pointer stored in it. */
-      pipe = std::make_shared<Pipe>(fd, nullptr);
+      pipe = boost::make_local_shared<Pipe>(fd, nullptr);
 #else
       pipe = (new Pipe(fd, nullptr))->shared_ptr();
 #endif
@@ -64,8 +65,8 @@ ProcessTree::ProcessTree()
       inherited_fd_pipes_.insert(pipe);
     }
 
-    std::shared_ptr<FileFD> file_fd =
-        Process::add_filefd(inherited_fds_, fd, std::make_shared<FileFD>(fd, O_WRONLY));
+    boost::local_shared_ptr<FileFD> file_fd =
+        Process::add_filefd(inherited_fds_, fd, boost::make_local_shared<FileFD>(fd, O_WRONLY));
     file_fd->set_pipe(pipe);
   }
 }

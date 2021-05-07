@@ -2,6 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 #include <string>
+#include <boost/smart_ptr/make_local_shared.hpp>
 
 #include "firebuild/file_name.h"
 #include "firebuild/process_factory.h"
@@ -18,8 +19,9 @@ ProcessFactory::getForkedProcess(const int pid, Process * const parent) {
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const FBB_scproc_query *msg, Process * parent,
-                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
+ProcessFactory::getExecedProcess(
+    const FBB_scproc_query *msg, Process * parent,
+    boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds) {
   TRACK(FB_DEBUG_PROC, "parent=%s", D(parent));
 
   const FileName* executable = FileName::Get(fbb_scproc_query_get_executable(msg));

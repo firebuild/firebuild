@@ -53,13 +53,13 @@ class FileFD {
         read_(false), written_(false), open_(fd_ >= 0), origin_fd_(NULL),
         filename_(), pipe_(), opened_by_(p) {}
   /** Constructor for fds backed by a pipe including ones created by popen(). */
-  FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process * const p,
+  FileFD(int fd, int flags, boost::local_shared_ptr<Pipe> pipe, Process * const p,
          bool close_on_popen = false)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_PIPE), close_on_popen_(close_on_popen),
         read_(false), written_(false), open_(fd_ >= 0), origin_fd_(NULL),
         filename_(), pipe_(pipe), opened_by_(p) {}
   /** Constructor for fds created from other fds through dup() or exec() */
-  FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
+  FileFD(int fd, int flags, fd_origin o, boost::local_shared_ptr<FileFD> o_fd)
       : fd_(fd), curr_flags_(flags), origin_type_(o), close_on_popen_(false),
         read_(false), written_(false), open_(fd_ >= 0), origin_fd_(o_fd),
         filename_(o_fd->filename()), pipe_(o_fd->pipe_),
@@ -97,15 +97,15 @@ class FileFD {
   bool read() {return read_;}
   bool written() {return written_;}
   const FileName* filename() const {return filename_;}
-  void set_pipe(std::shared_ptr<Pipe> pipe) {
+  void set_pipe(boost::local_shared_ptr<Pipe> pipe) {
     assert((origin_type_ == FD_ORIGIN_ROOT && !pipe_) || pipe_);
     if (pipe_) {
       pipe_->handle_close(this);
     }
     pipe_ = pipe;
   }
-  std::shared_ptr<Pipe> pipe() {return pipe_;}
-  const std::shared_ptr<Pipe> pipe() const {return pipe_;}
+  boost::local_shared_ptr<Pipe> pipe() {return pipe_;}
+  const boost::local_shared_ptr<Pipe> pipe() const {return pipe_;}
 
  private:
   int fd_;
@@ -117,9 +117,9 @@ class FileFD {
   bool written_ : 1;
   /** file descriptor is open (valid) */
   bool open_ : 1;
-  std::shared_ptr<FileFD> origin_fd_;
+  boost::local_shared_ptr<FileFD> origin_fd_;
   const FileName* filename_;
-  std::shared_ptr<Pipe> pipe_;
+  boost::local_shared_ptr<Pipe> pipe_;
   /** Process that opened this file by name.
    *  Remains the same (doesn't get updated to the current process) at dup2() or alike.
    *  NULL if the topmost intercepted process already inherited it from the supervisor. */

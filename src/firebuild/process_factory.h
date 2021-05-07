@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <boost/smart_ptr/make_local_shared.hpp>
 
 #include "./fbb.h"
 #include "firebuild/execed_process.h"
@@ -25,9 +26,9 @@ namespace firebuild {
 class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(int pid, Process * const parent);
-  static ExecedProcess* getExecedProcess(const FBB_scproc_query *msg,
-                                         Process * parent,
-                                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  static ExecedProcess* getExecedProcess(
+      const FBB_scproc_query *msg, Process * parent,
+      boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);

@@ -12,7 +12,9 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <boost/smart_ptr/local_shared_ptr.hpp>
 
+#include "firebuild/compat.h"
 #include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
 #include "firebuild/pipe.h"
@@ -41,7 +43,7 @@ typedef struct inherited_pipe_ {
   /* The client-side file descriptor numbers, sorted */
   std::vector<int> fds {};
   /* The recorder of the traffic, as seen from this exec point */
-  std::shared_ptr<PipeRecorder> recorder {};
+  boost::local_shared_ptr<PipeRecorder> recorder {};
 } inherited_pipe_t;
 
 class ExecedProcess : public Process {
@@ -49,7 +51,7 @@ class ExecedProcess : public Process {
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
                          const FileName *executable, const FileName *executed_path,
                          Process * parent,
-                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+                         boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
@@ -94,7 +96,7 @@ class ExecedProcess : public Process {
                            FileAction action, int flags, int error);
   bool register_file_usage(const FileName *name, const FileUsage* fu_change);
   bool register_parent_directory(const FileName *name);
-  void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
+  void add_pipe(boost::local_shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
   std::vector<inherited_pipe_t> inherited_pipes() {return inherited_pipes_;}
   const std::vector<inherited_pipe_t> inherited_pipes() const {return inherited_pipes_;}
   void set_inherited_pipes(std::vector<inherited_pipe_t> inherited_pipes)
@@ -215,7 +217,7 @@ class ExecedProcess : public Process {
   /**
    * Pipes created by this process.
    */
-  std::unordered_set<std::shared_ptr<Pipe>> created_pipes_ = {};
+  std::unordered_set<boost::local_shared_ptr<Pipe>> created_pipes_;
   /**
    * The outbound pipes this process had at startup.
    * Each such pipe might have multiple client-side file descriptors (see dup() and friends),

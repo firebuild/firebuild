@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <boost/smart_ptr/shared_ptr.hpp>
 
 #include "common/firebuild_common.h"
 #include "firebuild/execed_process.h"
@@ -190,7 +191,7 @@ void PipeRecorder::deactivate() {
  * Returns whether any of the given recorders is active, i.e. still records data.
  */
 bool PipeRecorder::has_active_recorder(
-    const std::vector<std::shared_ptr<PipeRecorder>>& recorders) {
+    const std::vector<boost::local_shared_ptr<PipeRecorder>>& recorders) {
   for (size_t i = 0; i < recorders.size(); i++) {
     if (!recorders[i]->deactivated_) {
       return true;
@@ -205,15 +206,16 @@ bool PipeRecorder::has_active_recorder(
  * See pipe_recorder.h for the big picture, as well as the design rationale behind this static
  * method taking multiple PipeRecorders at once.
  */
-void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
-                                           const char *buf, ssize_t len) {
+void PipeRecorder::record_data_from_buffer(
+    std::vector<boost::local_shared_ptr<PipeRecorder>> *recorders,
+    const char *buf, ssize_t len) {
   TRACK(FB_DEBUG_PIPE, "#recorders=%ld, len=%ld", recorders->size(), len);
 
   assert(len > 0);
 
   // FIXME Would it be faster to call add_data_from_buffer() for the first active recorder only,
   // and then do add_data_from_regular_fd() (i.e. copy_file_range()) for the rest?
-  for (std::shared_ptr<PipeRecorder>& recorder : *recorders) {
+  for (boost::local_shared_ptr<PipeRecorder>& recorder : *recorders) {
     if (!recorder->deactivated_) {
       recorder->add_data_from_buffer(buf, len);
     }
@@ -232,8 +234,9 @@ void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecor
  * See pipe_recorder.h for the big picture, as well as the design rationale behind this static
  * method taking multiple PipeRecorders at once.
  */
-void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
-                                              int fd, ssize_t len) {
+void PipeRecorder::record_data_from_unix_pipe(
+    std::vector<boost::local_shared_ptr<PipeRecorder>> *recorders,
+    int fd, ssize_t len) {
   TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
 
   assert(has_active_recorder(*recorders));
@@ -270,13 +273,13 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
  * method taking multiple PipeRecorders at once.
  */
 void PipeRecorder::record_data_from_regular_fd(
-    std::vector<std::shared_ptr<PipeRecorder>> *recorders,
+    std::vector<boost::local_shared_ptr<PipeRecorder>> *recorders,
     int fd, ssize_t len) {
   TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
 
   assert(len > 0);
 
-  for (std::shared_ptr<PipeRecorder>& recorder : *recorders) {
+  for (boost::local_shared_ptr<PipeRecorder>& recorder : *recorders) {
     if (!recorder->deactivated_) {
       recorder->add_data_from_regular_fd(fd, 0, len);
     }

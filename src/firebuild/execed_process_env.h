@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <boost/smart_ptr/shared_ptr.hpp>
 
 #include "firebuild/file_fd.h"
 
@@ -27,12 +28,13 @@ typedef enum {
 class ExecedProcessEnv {
  public:
   ExecedProcessEnv();
-  explicit ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+  explicit ExecedProcessEnv(
+      boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds);
 
   std::vector<std::string>& argv() {return argv_;}
   const std::vector<std::string>& argv() const {return argv_;}
   void set_argv(const std::vector<std::string>& argv) {argv_ = argv;}
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds() {return fds_;}
   void set_launch_type(LaunchType value) {launch_type_ = value;}
   LaunchType launch_type() const {return launch_type_;}
   void set_type_flags(int type_flags) {type_flags_ = type_flags;}
@@ -47,7 +49,7 @@ class ExecedProcessEnv {
   /// popen(command, type)'s type encoded as O_WRONLY | O_RDONLY | O_CLOEXEC flags
   int type_flags_;
   /// File descriptor states intherited from parent
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds_;
   // TODO(egmont) add envp ?
 
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessEnv);

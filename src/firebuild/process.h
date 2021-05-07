@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 #include <algorithm>
+#include <boost/smart_ptr/shared_ptr.hpp>
 
 #include "firebuild/debug.h"
 #include "firebuild/file_fd.h"
@@ -72,7 +73,8 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, int exec_count, const FileName *wd,
-          Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+          Process* parent,
+          boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -134,7 +136,7 @@ class Process {
   void set_pending_popen_type_flags(int flags) {
     pending_popen_type_flags_ = flags;
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>>
   pop_expected_child_fds(const std::vector<std::string>&,
                          LaunchType *launch_type_p,
                          int *type_flags_p = nullptr,
@@ -154,7 +156,7 @@ class Process {
       return (*fds_)[fd].get();
     }
   }
-  std::shared_ptr<FileFD> get_shared_fd(int fd) {
+  boost::local_shared_ptr<FileFD> get_shared_fd(int fd) {
     assert(fds_);
     if (fd < 0 || static_cast<unsigned int>(fd) >= fds_->size()) {
       return nullptr;
@@ -162,15 +164,20 @@ class Process {
       return (*fds_)[fd];
     }
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
-  const std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() const {return fds_;}
-  void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds() {return fds_;}
+  const boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds() const {
+    return fds_;
+  }
+  void set_fds(boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds) {
+    fds_ = fds;
+  }
   /** Add add ffd FileFD* to open fds */
-  static std::shared_ptr<FileFD>
-  add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
-             const int fd, std::shared_ptr<FileFD> ffd);
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(bool execed = true);
-  void add_pipe(std::shared_ptr<Pipe> pipe);
+  static boost::local_shared_ptr<FileFD>
+  add_filefd(boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds,
+             const int fd, boost::local_shared_ptr<FileFD> ffd);
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> pass_on_fds(
+      bool execed = true);
+  void add_pipe(boost::local_shared_ptr<Pipe> pipe);
   /** Drain all pipes's associated with open file descriptors of the process reading as much data
    *  as available on each fd1 end of each pipe */
   // TODO(rbalint) forward only fd0 pipe ends coming from this process
@@ -265,7 +272,7 @@ class Process {
    * @param fd1_fifo fifo to read from intercepted pipe's fd[1] (NULL if not set)
    * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
    */
-  std::shared_ptr<Pipe> handle_pipe(const int fd0, const int fd1, const int flags,
+  boost::local_shared_ptr<Pipe> handle_pipe(const int fd0, const int fd1, const int flags,
                                     const int error, const char *fd0_fifo, const char *fd1_fifo) {
     return handle_pipe_internal(fd0, fd1, flags, flags, error, fd0_fifo, fd1_fifo, false, false,
                                 this);
@@ -280,7 +287,7 @@ class Process {
    * @param fd0_proc child process to attach fd0 to
    * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
    */
-  std::shared_ptr<Pipe> popen_wronly_pipe(const int fd1, const int type_flags,
+  boost::local_shared_ptr<Pipe> popen_wronly_pipe(const int fd1, const int type_flags,
                                           const char *fd0_fifo, const char *fd1_fifo,
                                           Process *fd0_proc) {
     return handle_pipe_internal(STDIN_FILENO, fd1, type_flags & ~O_CLOEXEC, type_flags, 0, fd0_fifo,
@@ -421,8 +428,9 @@ class Process {
   int exec_count_;
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   const FileName* wd_;  ///< Current working directory
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
-  std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
+  /** Active file descriptors */
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds_;
+  std::list<boost::local_shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   std::vector<Process*> fork_children_;  ///< children of the process
   /// the latest system() child
   ExecedProcess *system_child_ {NULL};
@@ -463,7 +471,7 @@ class Process {
    * @param fd0_proc child process to attach fd0 to
    * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
    */
-  std::shared_ptr<Pipe> handle_pipe_internal(const int fd1, const int fd2,
+  boost::local_shared_ptr<Pipe> handle_pipe_internal(const int fd1, const int fd2,
                                              const int fd0_flags, const int fd1_flags,
                                              const int error, const char *fd0_fifo,
                                              const char *fd1_fifo, bool fd0_close_on_popen,

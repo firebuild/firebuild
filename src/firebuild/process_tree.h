@@ -70,7 +70,9 @@ class ProcessTree {
   ProcessTree();
   ~ProcessTree();
 
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds() {return inherited_fds_;}
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> inherited_fds() {
+    return inherited_fds_;
+  }
   void insert(Process *p);
   void insert(ExecedProcess *p);
   void export2js(FILE* stream);
@@ -163,10 +165,10 @@ class ProcessTree {
    *  Represents the fds the root process inherits from the external context.
    *  (The newly execed top process inherits this set here from the ProcessTree,
    *  while a newly execed non-top process inherits its parent's fds_.) */
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds_;
+  boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> inherited_fds_;
   /** The pipes (or terminal lines) inherited from the external world,
    *  each represented by a Pipe object created by this ProcessTree. */
-  std::unordered_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
+  std::unordered_set<boost::local_shared_ptr<Pipe>> inherited_fd_pipes_;
   std::unordered_map<int, Process*> fb_pid2proc_;
   std::unordered_map<int, Process*> pid2proc_;
   std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;

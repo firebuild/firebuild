@@ -25,6 +25,8 @@
 #include <fmt/format.h>
 #include <string>
 #include <stdexcept>
+#include <boost/smart_ptr/local_shared_ptr.hpp>
+#include <boost/smart_ptr/make_local_shared.hpp>
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
@@ -269,9 +271,9 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
         /* Find the recorders belonging to the parent process. We need to record to all those,
          * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
         auto  recorders =  proc->parent() ? pipe->proc2recorders[proc->parent_exec_point()]
-            : std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
+            : std::vector<boost::local_shared_ptr<firebuild::PipeRecorder>>();
         if (proc->can_shortcut()) {
-          inherited_pipe.recorder = std::make_shared<PipeRecorder>(proc);
+          inherited_pipe.recorder = boost::make_local_shared<PipeRecorder>(proc);
           recorders.push_back(inherited_pipe.recorder);
         }
         pipe->add_fd1_and_proc(fifo_fd, file_fd.get(), proc, std::move(recorders));
@@ -390,7 +392,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     int type_flags;
 
     firebuild::Process *parent = NULL;
-    auto fds = std::make_shared<std::vector<std::shared_ptr<firebuild::FileFD>>>();
+    auto fds = boost::make_local_shared<std::vector<boost::local_shared_ptr<firebuild::FileFD>>>();
 
     /* Locate the parent in case of execve or alike. This includes the
      * case when the outermost intercepted process starts up (no

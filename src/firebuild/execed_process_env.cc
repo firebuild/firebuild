@@ -2,6 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 #include <memory>
+#include <boost/smart_ptr/shared_ptr.hpp>
 
 #include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"
@@ -11,7 +12,8 @@ namespace firebuild {
 ExecedProcessEnv::ExecedProcessEnv()
     : argv_(), launch_type_(LAUNCH_TYPE_OTHER), type_flags_(), fds_(nullptr) { }
 
-ExecedProcessEnv::ExecedProcessEnv(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+ExecedProcessEnv::ExecedProcessEnv(
+    boost::local_shared_ptr<std::vector<boost::local_shared_ptr<FileFD>>> fds)
     : argv_(), launch_type_(LAUNCH_TYPE_OTHER), type_flags_(), fds_(fds) { }
 
 void ExecedProcessEnv::set_sh_c_command(const std::string &cmd) {
