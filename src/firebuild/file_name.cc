@@ -25,7 +25,7 @@ bool FileName::isDbEmpty() {
 FileName::DbInitializer FileName::db_initializer_;
 
 /**
- * Checks if a path semantically begins with the given subpath.
+ * Checks if a path semantically begins with one of the given sorted subpaths.
  *
  * Does string operations only, does not look at the file system.
  */
@@ -40,8 +40,11 @@ bool FileName::is_at_locations(const std::vector<const FileName *> *locations) c
       continue;
     }
 
-    if (memcmp(location->name_, this->name_, location_len) != 0) {
+    const int memcmp_res = memcmp(location->name_, this->name_, location_len);
+    if (memcmp_res < 0) {
       continue;
+    } else if (memcmp_res > 0) {
+      return false;
     }
 
     if (this->length_ == location_len) {
