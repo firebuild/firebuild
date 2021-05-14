@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <string>
 #include <iostream>
 #include <cassert>
@@ -190,6 +191,8 @@ static void init_locations(std::vector<const FileName*> **locations,
     (*locations)->push_back(FileName::Get(items[i].c_str(), strlen(items[i].c_str()),
                                           force_set_system_location));
   }
+  static FileNameLess file_name_less;
+  std::sort((*locations)->begin(), (*locations)->end(), file_name_less);
 }
 
 static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) {

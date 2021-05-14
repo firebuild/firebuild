@@ -51,7 +51,7 @@ class FileName {
     return Get(name.c_str(), name.size(), false);
   }
   /**
-   * Checks if a path semantically begins with the given subpath.
+   * Checks if a path semantically begins with one of the given sorted subpaths.
    *
    * Does string operations only, does not look at the file system.
    */
@@ -92,6 +92,13 @@ inline bool operator==(const FileName& lhs, const FileName& rhs) {
 struct FileNameHasher {
   std::size_t operator()(const FileName& s) const noexcept {
     return s.hash();
+  }
+};
+
+/** Helper struct for std::sort */
+struct FileNameLess {
+  bool operator()(const FileName* f1, const FileName* f2) const {
+    return strcmp(f1->c_str(), f2->c_str()) < 0;
   }
 };
 
