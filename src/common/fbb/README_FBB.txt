@@ -482,9 +482,9 @@ would need to run strlen().
     size_t len = fbbns_serialized_foo_get_mystringarray_len_at(msg, index);
 
 Get the entire array, C++ convenience API. Note that this allocates
-memory (hence not async-signal-safe) and copies the data:
+memory (hence not async-signal-safe) but does not copy the string_view backing data:
 
-    std::vector<std::string> values = fbbns_serialized_foo_get_mystringarray_as_vector(msg);
+    std::vector<std::string_view> values = fbbns_serialized_foo_get_mystringarray_as_vector(msg);
 
 
 ### Array of FBBs

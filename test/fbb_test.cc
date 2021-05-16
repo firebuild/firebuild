@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
   assert(cxx_chars.size() == 8);
   assert(std::string(cxx_chars.begin(), cxx_chars.end()) == "Welcome!");
 
-  std::vector<std::string> cxx_strings = fbbtest_serialized_testing_get_arrstr_as_vector(msg);
+  std::vector<std::string_view> cxx_strings = fbbtest_serialized_testing_get_arrstr_as_vector(msg);
   assert(cxx_strings.size() == 3);
   assert(cxx_strings[0] == "lorem1");
   assert(cxx_strings[1] == "lorem02");

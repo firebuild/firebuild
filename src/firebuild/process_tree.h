@@ -34,7 +34,7 @@ struct cmd_prof {
   int64_t aggr_time = 0;
   int64_t cmd_time = 0;
   /**  {time_u, count} */
-  std::unordered_map<std::string, subcmd_prof> subcmds = {};
+  std::unordered_map<std::string_view, subcmd_prof> subcmds = {};
 };
 
 /** Connection of a waiting fork() child process*/
@@ -183,13 +183,13 @@ class ProcessTree {
    * For each command (C) we store the cumulated CPU time in microseconds
    * (system + user time), and count the invocations of each other command
    * by C. */
-  std::unordered_map<std::string, cmd_prof> cmd_profs_;
+  std::unordered_map<std::string_view, cmd_prof> cmd_profs_;
   void insert_process(Process *p);
   void delete_process_subtree(Process *p);
   void profile_collect_cmds(const Process &p,
-                            std::unordered_map<std::string, subcmd_prof> *cmds,
-                            std::set<std::string> *ancestors);
-  void build_profile(const Process &p, std::set<std::string> *ancestors);
+                            std::unordered_map<std::string_view, subcmd_prof> *cmds,
+                            std::set<std::string_view> *ancestors);
+  void build_profile(const Process &p, std::set<std::string_view> *ancestors);
 
   DISALLOW_COPY_AND_ASSIGN(ProcessTree);
 };

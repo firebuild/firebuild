@@ -16,6 +16,7 @@
 
 #ifdef __cplusplus
 #include <string>
+#include <string_view>
 #include <vector>
 #endif
 
@@ -462,10 +463,10 @@ static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(const {{ N
  * Builder getter - array (C++, not async-signal-safe)
  * {{ type }}[] {{ var }}
  */
-static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Builder_{{ msg }} *msg) {
+static inline std::vector<{{ "std::string_view" if type == STRING else ctype }}> {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Builder_{{ msg }} *msg) {
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
-  std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
+  std::vector<{{ "std::string_view" if type == STRING else ctype }}> ret;
   ret.reserve(msg->wire.{{ var }}_count);
   for (fbb_size_t idx = 0; idx < msg->wire.{{ var }}_count; idx++)
     ret.emplace_back({{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msg, idx));
@@ -641,10 +642,10 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(cons
  * Serialized getter - array (C++, not async-signal-safe)
  * {{ type }}[] {{ var }}
  */
-static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Serialized_{{ msg }} *msg) {
+static inline std::vector<{{ "std::string_view" if type == STRING else ctype }}> {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Serialized_{{ msg }} *msg) {
   assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
-  std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
+  std::vector<{{ "std::string_view" if type == STRING else ctype }}> ret;
   ret.reserve( msg->{{ var }}_count);
   for (fbb_size_t idx = 0; idx < msg->{{ var }}_count; idx++) {
     ret.emplace_back({{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx) {% if type == STRING %}, (size_t){{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx) {% endif %});

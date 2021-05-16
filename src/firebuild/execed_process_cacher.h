@@ -5,6 +5,7 @@
 #define FIREBUILD_EXECED_PROCESS_CACHER_H_
 
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -39,11 +40,12 @@ class ExecedProcessCacher {
   bool shortcut(ExecedProcess *proc);
 
  private:
-  bool env_fingerprintable(const std::string& name_and_value) const;
+  bool env_fingerprintable(const std::string_view& name_and_value) const;
 
   bool no_store_;
   bool no_fetch_;
-  std::unordered_set<std::string> envs_skip_;
+  std::unordered_set<std::string_view> envs_skip_;
+  std::unordered_set<std::string> envs_skip_backing_strings_;
 
   /* The hashed fingerprint of the processes handled by this cacher. */
   std::unordered_map<const ExecedProcess*, Hash> fingerprints_;

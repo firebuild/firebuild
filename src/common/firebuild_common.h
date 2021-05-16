@@ -5,6 +5,7 @@
 #ifndef COMMON_FIREBUILD_COMMON_H_
 #define COMMON_FIREBUILD_COMMON_H_
 
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>

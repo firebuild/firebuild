@@ -25,7 +25,7 @@ namespace firebuild {
  * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
  * TODO: use JSONCpp instead to handle all cases
  */
-static std::string escapeJsonString(const std::string& input) {
+static std::string escapeJsonString(const std::string_view& input) {
   std::ostringstream ss;
   for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
     switch (*iter) {
@@ -47,15 +47,19 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *initial_wd,
                              const FileName *executable,
                              const FileName *executed_path,
+                             std::vector<std::string_view> args,
+                             std::vector<std::string_view> env_vars,
                              Process * parent,
-                             std::vector<std::shared_ptr<FileFD>>* fds)
+                             std::vector<std::shared_ptr<FileFD>>* fds,
+                             char* string_view_buffer)
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
                                              ? parent->exec_point()
                                              : parent->exec_point()->maybe_shortcutable_ancestor_)
                                    : nullptr),
-      initial_wd_(initial_wd), wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
+      initial_wd_(initial_wd), wds_(), failed_wds_(), string_views_buffer_(string_view_buffer),
+      args_(args), env_vars_(env_vars), executable_(executable),
       executed_path_(executed_path), libs_(), file_usages_(), created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
@@ -497,7 +501,7 @@ void ExecedProcess::export2js(const unsigned int level,
   auto indent_str = std::string(2 * level, ' ');
   const char* indent = indent_str.c_str();
 
-  fprintf(stream, "name:\"%s\",\n", args()[0].c_str());
+  fprintf(stream, "name:\"%s\",\n", args()[0].data());
   fprintf(stream, "%s id: %u,\n", indent, (*nodeid)++);
   fprintf(stream, "%s pid: %u,\n", indent, pid());
   fprintf(stream, "%s ppid: %u,\n", indent, ppid());
@@ -645,6 +649,7 @@ ExecedProcess::~ExecedProcess() {
   if (cacher_) {
     cacher_->erase_fingerprint(this);
   }
+  free(string_views_buffer_);
 }
 
 }  // namespace firebuild

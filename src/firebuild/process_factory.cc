@@ -1,7 +1,11 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#include <string>
+
+#include <string.h>
+
+#include <string_view>
+#include <utility>
 
 #include "firebuild/file_name.h"
 #include "firebuild/process_factory.h"
@@ -18,23 +22,23 @@ ProcessFactory::getForkedProcess(const int pid, Process * const parent) {
 }
 
 ExecedProcess*
-ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *msg, Process * parent,
-                                 std::vector<std::shared_ptr<FileFD>>* fds) {
+ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *msg, const size_t msg_len,
+                                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds) {
   TRACK(FB_DEBUG_PROC, "parent=%s", D(parent));
 
   const FileName* executable = FileName::Get(fbbcomm_serialized_scproc_query_get_executable(msg));
   const FileName* executed_path = fbbcomm_serialized_scproc_query_has_executed_path(msg)
       ? FileName::Get(fbbcomm_serialized_scproc_query_get_executed_path(msg)) : nullptr;
+  FBBCOMM_Serialized_scproc_query * msg_copy =
+      reinterpret_cast<FBBCOMM_Serialized_scproc_query*>(malloc(msg_len));
+  memcpy(msg_copy, msg, msg_len);
   auto e = new ExecedProcess(fbbcomm_serialized_scproc_query_get_pid(msg),
                              fbbcomm_serialized_scproc_query_get_ppid(msg),
                              FileName::Get(fbbcomm_serialized_scproc_query_get_cwd(msg)),
                              executable, executed_path,
-                             parent, fds);
-
-  std::vector<std::string> args = fbbcomm_serialized_scproc_query_get_arg_as_vector(msg);
-  e->set_args(args);
-  std::vector<std::string> env_vars = fbbcomm_serialized_scproc_query_get_env_var_as_vector(msg);
-  e->set_env_vars(env_vars);
+                             fbbcomm_serialized_scproc_query_get_arg_as_vector(msg_copy),
+                             fbbcomm_serialized_scproc_query_get_env_var_as_vector(msg_copy),
+                             parent, fds, reinterpret_cast<char*>(msg_copy));
 
   auto& libs = e->libs();
   for (uint32_t i = 0; i < fbbcomm_serialized_scproc_query_get_libs_count(msg); i++) {

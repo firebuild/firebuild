@@ -771,7 +771,7 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name, 
   }
 }
 
-static bool argv_matches_expectation(const std::vector<std::string>& actual,
+static bool argv_matches_expectation(const std::vector<std::string_view>& actual,
                                      const std::vector<std::string>& expected) {
   /* When launching ["foo", "arg1"], the new process might be something like
    * ["/bin/bash", "-e", "./foo", "arg1"].
@@ -789,7 +789,12 @@ static bool argv_matches_expectation(const std::vector<std::string>& actual,
 
   if (actual.size() == expected.size()) {
     /* If the length is the same, exact match is required. */
-    return actual == expected;
+    for (unsigned int i = 0; i < expected.size(); i++) {
+      if (actual[i] != expected[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /* If the length grew, check the expected arg0. */
@@ -828,7 +833,7 @@ static bool argv_matches_expectation(const std::vector<std::string>& actual,
 }
 
 std::vector<std::shared_ptr<FileFD>>*
-Process::pop_expected_child_fds(const std::vector<std::string>& argv,
+Process::pop_expected_child_fds(const std::vector<std::string_view>& argv,
                                 LaunchType *launch_type_p,
                                 int *type_flags_p,
                                 const bool failed) {

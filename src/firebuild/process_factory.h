@@ -26,7 +26,7 @@ class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(int pid, Process * const parent);
   static ExecedProcess* getExecedProcess(const FBBCOMM_Serialized_scproc_query *msg,
-                                         Process * parent,
+                                         const size_t msg_len, Process * parent,
                                          std::vector<std::shared_ptr<FileFD>>* fds);
 
  private:

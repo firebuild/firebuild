@@ -125,8 +125,8 @@ void ProcessTree::export2js(FILE * stream) {
 
 void ProcessTree::
 profile_collect_cmds(const Process &p,
-                     std::unordered_map<std::string, subcmd_prof> *cmds,
-                     std::set<std::string> *ancestors) {
+                     std::unordered_map<std::string_view, subcmd_prof> *cmds,
+                     std::set<std::string_view> *ancestors) {
   if (p.exec_child() != NULL) {
     ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());
     if (ancestors->count(ec->args()[0]) == 0) {
@@ -144,7 +144,7 @@ profile_collect_cmds(const Process &p,
 }
 
 void ProcessTree::build_profile(const Process &p,
-                                std::set<std::string> *ancestors) {
+                                std::set<std::string_view> *ancestors) {
   bool first_visited = false;
   if (p.exec_started()) {
     auto *e = static_cast<const ExecedProcess*>(&p);
@@ -211,7 +211,7 @@ static double percent_of(const double val, const double of) {
 }
 
 void ProcessTree::export_profile2dot(FILE* stream) {
-  std::set<std::string> cmd_chain;
+  std::set<std::string_view> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
   int64_t build_time;
 
@@ -229,8 +229,8 @@ void ProcessTree::export_profile2dot(FILE* stream) {
           "edge [fontname=Helvetica, fontsize=12]\n");
 
   for (auto& pair : cmd_profs_) {
-    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", pair.first.c_str(),
-            pair.first.c_str());
+    fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", pair.first.data(),
+            pair.first.data());
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
             percent_of(pair.second.aggr_time, build_time),
             percent_of(pair.second.cmd_time, build_time),
@@ -238,7 +238,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
                                       build_time)).c_str());
     for (auto& pair2 : pair.second.subcmds) {
       fprintf(stream, "    \"%s\" -> \"%s\" [label=\"",
-              pair.first.c_str(), pair2.first.c_str());
+              pair.first.data(), pair2.first.data());
       if (!pair2.second.recursed) {
         fprintf(stream, "%.2lf%%\\n", percent_of(pair2.second.sum_aggr_time,
                                               build_time));

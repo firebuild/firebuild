@@ -12,7 +12,7 @@ namespace firebuild {
  * Get a human friendly representation of a string, inside double
  * quotes, for debugging purposes.
  */
-std::string d(const std::string& str, const int level) {
+std::string d(const std::string_view& str, const int level) {
   (void)level;  /* unused */
   std::string ret = "\"";
   for (unsigned char c : str) {

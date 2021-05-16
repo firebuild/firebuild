@@ -10,6 +10,7 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "firebuild/cxx_lang_utils.h"
@@ -94,7 +95,7 @@ inline std::string d(bool value, const int level = 0) {
   return value ? "true" : "false";
 }
 
-std::string d(const std::string& str, const int level = 0);
+std::string d(const std::string_view& str, const int level = 0);
 std::string d(const char *str, const int level = 0);
 
 /**

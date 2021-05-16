@@ -32,6 +32,11 @@ class ExecedProcessEnv {
   std::vector<std::string>& argv() {return argv_;}
   const std::vector<std::string>& argv() const {return argv_;}
   void set_argv(const std::vector<std::string>& argv) {argv_ = argv;}
+  void set_argv(const std::vector<std::string_view>& argv) {
+    for (const auto& arg : argv) {
+      argv_.push_back(std::string(arg) );
+    }
+  }
   std::vector<std::shared_ptr<FileFD>>* pop_fds() {
     std::vector<std::shared_ptr<FileFD>>* ret = fds_;
     fds_ = nullptr;

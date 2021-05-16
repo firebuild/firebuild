@@ -135,7 +135,7 @@ class Process {
     pending_popen_type_flags_ = flags;
   }
   std::vector<std::shared_ptr<FileFD>>*
-  pop_expected_child_fds(const std::vector<std::string>&,
+  pop_expected_child_fds(const std::vector<std::string_view>&,
                          LaunchType *launch_type_p,
                          int *type_flags_p = nullptr,
                          const bool failed = false);

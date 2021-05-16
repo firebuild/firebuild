@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -36,18 +37,19 @@ ExecedProcessCacher::ExecedProcessCacher(bool no_store,
                                          bool no_fetch,
                                          const libconfig::Setting& envs_skip) :
     no_store_(no_store), no_fetch_(no_fetch),
-    envs_skip_(), fingerprints_(), fingerprint_msgs_() {
+    envs_skip_(), envs_skip_backing_strings_(), fingerprints_(), fingerprint_msgs_() {
   for (int i = 0; i < envs_skip.getLength(); i++) {
-    envs_skip_.insert(envs_skip[i]);
+    const std::string& backing_string = *envs_skip_backing_strings_.insert(envs_skip[i]).first;
+    envs_skip_.insert(backing_string);
   }
 }
 
 /**
  * Helper for fingerprint() to decide which env vars matter
  */
-bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value) const {
+bool ExecedProcessCacher::env_fingerprintable(const std::string_view& name_and_value) const {
   /* Strip off the "=value" part. */
-  const std::string name = name_and_value.substr(0, name_and_value.find('='));
+  const std::string_view name = name_and_value.substr(0, name_and_value.find('='));
 
   /* Env vars to skip, taken from the config files.
    * Note: FB_SOCKET is already filtered out in the interceptor. */
@@ -70,8 +72,8 @@ static void add_to_hash_state(XXH3_state_t* state, const FileName* file_name) {
  *
  * Adding the ending '\0' prevents hash collisions by concatenating strings.
  */
-static void add_to_hash_state(XXH3_state_t* state, const std::string& str) {
-  if (XXH3_128bits_update(state, str.c_str(), str.length() + 1) == XXH_ERROR) {
+static void add_to_hash_state(XXH3_state_t* state, const std::string_view& str) {
+  if (XXH3_128bits_update(state, str.data(), str.length() + 1) == XXH_ERROR) {
     abort();
   }
 }
@@ -104,11 +106,11 @@ static Hash state_to_hash(XXH3_state_t* state) {
   return Hash(digest);
 }
 
-/* Adaptor from C++ std::vector<std::string> to FBB's string array */
-static const char *string_vector_item_fn(int i, const void *user_data) {
-  const std::vector<std::string> *strs =
-      reinterpret_cast<const std::vector<std::string> *>(user_data);
-  return (*strs)[i].c_str();
+/* Adaptor from C++ std::vector<std::string_view> to FBB's string array */
+static const char *string_view_vector_item_fn(int i, const void *user_data) {
+  const std::vector<std::string_view> *strs =
+      reinterpret_cast<const std::vector<std::string_view> *>(user_data);
+  return (*strs)[i].data();
 }
 
 /* Adaptor from C++ std::vector<FBBFP_Builder_file> to FBB's FBB array */
@@ -215,14 +217,14 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
     fbbfp_builder_process_fingerprint_set_wd(&fp, proc->initial_wd()->c_str());
     fbbfp_builder_process_fingerprint_set_args_item_fn(&fp, proc->args().size(),
-                                                       string_vector_item_fn, &proc->args());
+                                                       string_view_vector_item_fn, &proc->args());
 
     /* Env vars are already sorted by the interceptor, but we need to do some filtering */
     std::vector<const char *> c_env;
     c_env.reserve(proc->env_vars().size());  /* likely minor optimization */
     for (const auto& env : proc->env_vars()) {
       if (env_fingerprintable(env)) {
-        c_env.push_back(env.c_str());
+        c_env.push_back(env.data());
       }
     }
     fbbfp_builder_process_fingerprint_set_env_with_count(&fp, c_env.data(), c_env.size());

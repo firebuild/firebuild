@@ -48,8 +48,11 @@ class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
                          const FileName *executable, const FileName *executed_path,
+                         std::vector<std::string_view> args,
+                         std::vector<std::string_view> env_vars,
                          Process * parent,
-                         std::vector<std::shared_ptr<FileFD>>* fds);
+                         std::vector<std::shared_ptr<FileFD>>* fds,
+                         char* string_view_buffer);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
@@ -66,12 +69,10 @@ class ExecedProcess : public Process {
   const std::unordered_set<const FileName*>& wds() {return wds_;}
   const std::unordered_set<const FileName*>& failed_wds() const {return wds_;}
   std::unordered_set<const FileName*>& failed_wds() {return failed_wds_;}
-  const std::vector<std::string>& args() const {return args_;}
-  std::vector<std::string>& args() {return args_;}
-  void set_args(const std::vector<std::string>& args) {args_ = args;}
-  const std::vector<std::string>& env_vars() const {return env_vars_;}
-  std::vector<std::string>& env_vars() {return env_vars_;}
-  void set_env_vars(const std::vector<std::string>& env_vars) {env_vars_ = env_vars;}
+  const std::vector<std::string_view>& args() const {return args_;}
+  std::vector<std::string_view>& args() {return args_;}
+  const std::vector<std::string_view>& env_vars() const {return env_vars_;}
+  std::vector<std::string_view>& env_vars() {return env_vars_;}
   const FileName* executable() const {return executable_;}
   const FileName* executed_path() const {return executed_path_;}
   std::vector<const FileName*>& libs() {return libs_;}
@@ -197,9 +198,11 @@ class ExecedProcess : public Process {
   /// Working directories the process and all fork()-children failed to
   /// chdir() to
   std::unordered_set<const FileName*> failed_wds_;
-  std::vector<std::string> args_;
+  /// Backing buffer for string_views, such as args_ and env_vars_
+  char* string_views_buffer_;
+  std::vector<std::string_view> args_;
   /// Environment variables in deterministic (sorted) order.
-  std::vector<std::string> env_vars_;
+  std::vector<std::string_view> env_vars_;
   /// The executable running. In case of scripts this is the interpreter or in case of invoking
   /// an executable via a symlink this is the executable the symlink points to.
   const FileName* executable_;
