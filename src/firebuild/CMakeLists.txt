@@ -7,7 +7,11 @@ set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_V
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
-pkg_check_modules(JEMALLOC REQUIRED jemalloc)
+if (WITH_JEMALLOC)
+  pkg_check_modules(JEMALLOC REQUIRED jemalloc)
+else()
+  set(JEMALLOC_LIBRARIES "")
+endif()
 find_package(tsl-hopscotch-map REQUIRED)
 
 add_custom_command(
