@@ -4,3 +4,6 @@
 # or result faster hash computation where the system's libxxhash library
 # uses HW acceleration. See: https://bugs.debian.org/977345
 option(ENABLE_XXH_INLINE_ALL "Enable -DXXH_INLINE_ALL" ON)
+
+# Disable linking with jemalloc may help in triaging memory handling issues
+option(WITH_JEMALLOC "Link with jemalloc" ON)
