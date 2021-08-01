@@ -10,7 +10,6 @@ find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
-pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 
 add_custom_command(
   OUTPUT fbbfp.c fbbfp.h fbbfp_decode.c
@@ -62,7 +61,7 @@ add_executable(firebuild-bin
   fbbfp.c
   fbbstore.c
   $<TARGET_OBJECTS:common_objs>)
-target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash fmt::fmt)
+target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} xxhash fmt::fmt)
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_target_properties(firebuild-bin
   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True OUTPUT_NAME firebuild)

@@ -11,7 +11,7 @@ For Ubuntu earlier than 21.04 (Valgrind earlier than 3.17.0):
 Install the build dependencies:
 
     sudo apt update
-    sudo apt install cmake bats graphviz libconfig++-dev node-d3 libevent-dev libxxhash-dev libjemalloc-dev libfmt-dev moreutils python3-jinja2 fakeroot
+    sudo apt install cmake bats graphviz libconfig++-dev node-d3 libevent-dev libxxhash-dev libfmt-dev moreutils python3-jinja2 fakeroot
 
 ## Notes
 
