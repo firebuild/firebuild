@@ -4,7 +4,7 @@ For Ubuntu earlier than 19.10:
 
     sudo apt-add-repository ppa:rbalint/xxhash
     
-This PPA hosts valgrind packages with fixes needed to make valgrind-check pass:
+For Ubuntu earlier than 21.04 (Valgrind earlier than 3.17.0):
 
     sudo apt-add-repository ppa:rbalint/valgrind
 
