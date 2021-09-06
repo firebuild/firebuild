@@ -12,7 +12,7 @@ env:
   BUILD_DEPS: cmake libconfig++-dev libevent-dev libflatbuffers-dev flatbuffers-compiler libxxhash-dev libjemalloc-dev libfmt-dev pkg-config python3-jinja2
   TEST_DEPS: bats node-d3 graphviz moreutils fakeroot
 jobs:
-  build:
+  build-on-ubuntu-lts:
     needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
@@ -49,6 +49,36 @@ jobs:
         cmake -DCOVERAGE=1 .
         make -j2 check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
+  # build on latest stable Ubuntu available in a docker image, which may not be an lts
+  build-on-ubuntu-docker:
+    needs: style-checks
+    runs-on: ubuntu-latest
+    container: ubuntu:hirsute
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
+    - name: install-deps
+      run: |
+        apt-get -qq update
+        # configure tzdata in advance to prevent hanging at the prompt
+        TZ=Europe/Budapest
+        ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
+        echo $TZ > /etc/timezone
+        apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc valgrind
+    - name: build-out-of-tree
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        make -j2
+    - name: build-in-tree
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=Debug .
+        make -j2 check
+    - name: test
+      run: |
+        make check
+        test/close_fds_exec make valgrind-check
   scan-build:
     # wait for clang-build because scan-build fails if the former fails
     needs: [style-checks, clang-build]
