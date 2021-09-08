@@ -1,3 +1,4 @@
 debian/tmp/etc/* etc
 usr/bin
 usr/share
+usr/lib/firebuild
