@@ -22,6 +22,7 @@ extern ExeMatcher* dont_intercept_matcher;
 extern ExeMatcher* skip_cache_matcher;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 extern int64_t min_cpu_time_u;
+extern bool use_shim;
 
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);

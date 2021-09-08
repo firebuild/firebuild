@@ -34,6 +34,7 @@ ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 int64_t min_cpu_time_u = 0;
+bool use_shim = false;
 
 /** Parse configuration file
  *
@@ -225,6 +226,8 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
       min_cpu_time_u = 1000000.0 * min_cpu_time_s;
     }
   }
+
+  use_shim = (cfg->exists("intercepted_commands_dir"));
 
   /* System locations have to be inserted first because proper classification relies on them. */
   assert(FileName::isDbEmpty());
