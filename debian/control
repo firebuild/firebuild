@@ -5,6 +5,7 @@ Maintainer: Balint Reczey <balint@balintreczey.hu>
 Build-Depends: bats,
                cmake,
                debhelper-compat (= 12),
+               fakeroot,
                graphviz,
                help2man,
                libconfig++-dev,

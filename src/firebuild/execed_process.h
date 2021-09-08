@@ -169,8 +169,8 @@ class ExecedProcess : public Process {
                  unsigned int * nodeid);
   void export2js_recurse(const unsigned int level, FILE* stream,
                          unsigned int *nodeid);
-
   std::string args_to_short_string() const;
+
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
    * See #431 for design and rationale. */

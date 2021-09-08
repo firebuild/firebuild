@@ -19,4 +19,5 @@ add_custom_target(fbbcomm_gen_files ALL DEPENDS fbbcomm.c fbbcomm.h fbbcomm_deco
 add_library(common_objs OBJECT common/firebuild_common.c fbbcomm.c)
 
 add_subdirectory(interceptor)
+add_subdirectory(shim)
 add_subdirectory(firebuild)

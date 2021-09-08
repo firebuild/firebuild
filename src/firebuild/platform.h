@@ -11,11 +11,20 @@
 #endif
 #include <unistd.h>
 
+#ifdef __cplusplus
+
 #include <cstring>
 
 namespace firebuild {
 
 namespace platform {
+
+#else
+
+#include <stdbool.h>
+#include <string.h>
+
+#endif
 
 inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
@@ -37,7 +46,7 @@ inline bool path_is_absolute(const char * p) {
  * @return 0 if they point to the same place, -1 or 1 if fd1 sorts lower or higher than fd2 in an
  * arbitrary ordering to help using fdcmp for sorting
  */
-inline int fdcmp(int fd1, int fd2) {
+static inline int fdcmp(int fd1, int fd2) {
 #ifdef __linux__
   pid_t pid = getpid();
   switch (syscall(SYS_kcmp, pid, pid, KCMP_FILE, fd1, fd2)) {
@@ -63,7 +72,9 @@ inline int fdcmp(int fd1, int fd2) {
 #endif
 }
 
+#ifdef __cplusplus
 }  // namespace platform
 }  // namespace firebuild
+#endif
 
 #endif  // FIREBUILD_PLATFORM_H_
