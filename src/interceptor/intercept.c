@@ -321,10 +321,10 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
     /* FIXME does this really happen? */
     return 0;
   }
-  const char *libfbintercept = "/libfbintercept.so";
-  if (strlen(info->dlpi_name) >= strlen(libfbintercept) &&
+  const char *libfirebuild = "/" LIBFIREBUILD_SO;
+  if (strlen(info->dlpi_name) >= strlen(libfirebuild) &&
     strcmp(info->dlpi_name + strlen(info->dlpi_name)
-           - strlen(libfbintercept), libfbintercept) == 0) {
+           - strlen(libfirebuild), libfirebuild) == 0) {
     /* This is internal to Firebuild, filter it out. */
     return 0;
   }

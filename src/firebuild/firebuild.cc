@@ -147,9 +147,9 @@ static char** get_sanitized_env() {
 
   const char *ld_preload_value = getenv("LD_PRELOAD");
   if (ld_preload_value) {
-    env_v.push_back("LD_PRELOAD=libfbintercept.so:" + std::string(ld_preload_value));
+    env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO ":" + std::string(ld_preload_value));
   } else {
-    env_v.push_back("LD_PRELOAD=libfbintercept.so");
+    env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO);
   }
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());

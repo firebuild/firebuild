@@ -37,7 +37,7 @@ add_dependencies(fbb_test fbb_gen_files)
 add_custom_target(check-deps)
 add_dependencies(check-deps fbb_test)
 add_dependencies(check-deps firebuild)
-add_dependencies(check-deps fbintercept)
+add_dependencies(check-deps firebuild-bin)
 add_dependencies(check check-deps)
 add_dependencies(valgrind-check check-deps)
 

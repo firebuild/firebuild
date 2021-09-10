@@ -10,7 +10,7 @@ extern char **environ;
 int main() {
   char *myenv[] = {
     "AAA=aaa",
-    "LD_PRELOAD=  LIBXXX.SO  libfbintercept.so  LIBYYY.SO  ",
+    "LD_PRELOAD=  LIBXXX.SO  libfirebuild.so  LIBYYY.SO  ",
     NULL
   };
   environ = myenv;

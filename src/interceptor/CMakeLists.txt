@@ -43,7 +43,7 @@ add_custom_command (
 
 add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c)
 
-add_library(fbintercept SHARED
+add_library(firebuild SHARED
   env.c
   ic_file_ops.c
   ic_redirect_only.c
@@ -51,12 +51,12 @@ add_library(fbintercept SHARED
   interceptors.c
   $<TARGET_OBJECTS:common_objs>)
 
-add_dependencies(fbintercept gen_files fbb_gen_files)
+add_dependencies(firebuild gen_files fbb_gen_files)
 
-set_target_properties(fbintercept PROPERTIES
+set_target_properties(firebuild PROPERTIES
   INTERPROCEDURAL_OPTIMIZATION True
   VERSION "0.0.0" SOVERSION 0)
-target_link_libraries(fbintercept dl)
-target_link_options(fbintercept PUBLIC -Wno-strict-overflow)
+target_link_libraries(firebuild dl)
+target_link_options(firebuild PUBLIC -Wno-strict-overflow)
 
-install(TARGETS fbintercept DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS firebuild DESTINATION ${CMAKE_INSTALL_LIBDIR})
