@@ -13,8 +13,9 @@
 
 namespace firebuild {
 
-ProcessTree::ProcessTree()
-    : inherited_fds_(std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
+ProcessTree::ProcessTree(int top_pid)
+    : top_pid_(top_pid), roots_(),
+      inherited_fds_(std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
       pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
       cmd_profs_() {
@@ -74,7 +75,9 @@ ProcessTree::~ProcessTree() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
   // clean up all processes, from the leaves towards the root
-  delete_process_subtree(root());
+  for (auto& pair : roots()) {
+    delete_process_subtree(pair.second);
+  }
   // clean up pending exec() children
   for (auto& pair : pid2exec_child_sock_) {
     delete(pair.second.incomplete_child);
@@ -112,22 +115,49 @@ void ProcessTree::insert(Process *p) {
 void ProcessTree::insert(ExecedProcess *p) {
   TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
 
-  if (root_ == NULL) {
-    root_ = p;
-  } else if (p->parent() == NULL) {
-    // root's parent is firebuild which is not in the tree.
-    // If any other parent is missing, FireBuild missed process
-    // that can happen due to the missing process(es) being statically built
-    fb_error("TODO(rbalint) handle: Process without known exec parent\n");
+  if (p->parent() == NULL) {
+    int root_pid = p->shim_pid(p->env_vars());
+    if (root_pid == -1) {
+      root_pid = top_pid_;
+    }
+    assert(root_pid != -1);
+    if (roots_.count(root_pid) == 0) {
+      roots_[root_pid] = p;
+    } else {
+      // roots parent is firebuild which is not in the tree.
+      // If any other parent is missing, FireBuild missed process
+      // that can happen due to the missing process(es) being statically built
+      fb_error("TODO(rbalint) handle: Process without known exec parent\n");
+    }
   }
-
   insert_process(p);
 }
 
 void ProcessTree::export2js(FILE * stream) {
   fprintf(stream, "data = ");
   unsigned int nodeid = 0;
-  root_->export2js_recurse(0, stream, &nodeid);
+
+  if (roots().size() > 1) {
+    int64_t utime_u = 0, stime_u = 0, aggr_cpu_time_u = 0;
+    for (const auto& pair : roots()) {
+      utime_u += pair.second->utime_u();
+      stime_u += pair.second->stime_u();
+      aggr_cpu_time_u += pair.second->aggr_cpu_time_u();
+    }
+    fprintf(stream, "{");
+    fprintf(stream, "name:\"firebuild shims\",\n");
+    fprintf(stream, "id: %u,\n", nodeid++);
+    fprintf(stream, "utime_u: %lu,\n", utime_u);
+    fprintf(stream, "stime_u: %lu,\n", stime_u);
+    fprintf(stream, "aggr_time: %lu,\n", aggr_cpu_time_u);
+    fprintf(stream, "children: [");
+  }
+  for (const auto& pair : roots()) {
+    pair.second->export2js_recurse(1, stream, &nodeid);
+  }
+  if (roots().size() > 1) {
+    fprintf(stream, "]};\n");
+  }
 }
 
 void ProcessTree::
@@ -220,11 +250,15 @@ static double percent_of(const double val, const double of) {
 void ProcessTree::export_profile2dot(FILE* stream) {
   std::set<std::string> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
-  int64_t build_time;
+  int64_t build_time = 0;
 
   // build profile
-  build_profile(*root_, &cmd_chain);
-  build_time = root_->aggr_cpu_time_u();
+  for (auto& pair : roots()) {
+    build_profile(*pair.second, &cmd_chain);
+  }
+  for (auto& pair : roots()) {
+    build_time += pair.second->aggr_cpu_time_u();
+  }
 
   // print it
   fprintf(stream, "digraph {\n");

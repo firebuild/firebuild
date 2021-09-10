@@ -67,15 +67,16 @@ struct pending_parent_ack {
 
 class ProcessTree {
  public:
-  ProcessTree();
+  explicit ProcessTree(int top_pid);
   ~ProcessTree();
 
+  int top_pid() const {return top_pid_;}
   std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds() {return inherited_fds_;}
   void insert(Process *p);
   void insert(ExecedProcess *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
-  ExecedProcess* root() {return root_;}
+  std::unordered_map<int, ExecedProcess*>& roots() {return roots_;}
   Process* pid2proc(int pid) {
     auto it = pid2proc_.find(pid);
     if (it != pid2proc_.end()) {
@@ -158,7 +159,13 @@ class ProcessTree {
   }
 
  private:
-  ExecedProcess *root_ = NULL;
+  /** PID of the very first process started by firebuild */
+  int top_pid_;
+  /**
+   * Top processes by PID. One per each shim invocation, or a single top process, when shims are
+   * not used.
+   */
+  std::unordered_map<int, ExecedProcess *> roots_;
   /** This is somewhat analogous to Process::fds_, although cannot change over time.
    *  Represents the fds the root process inherits from the external context.
    *  (The newly execed top process inherits this set here from the ProcessTree,

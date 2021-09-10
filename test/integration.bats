@@ -244,3 +244,11 @@ setup() {
   assert_streq "$result" "quux"
   assert_streq "$(strip_stderr stderr)" ""
 }
+
+@test "shim" {
+  for i in 1 2; do
+    result=$(./run-firebuild -o 'intercepted_commads_dir = "./bin"' -r -- bash -c "(ls integration.bats; ls integration.bats) | uniq -c")
+    assert_streq "$result" "      2 integration.bats"
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}

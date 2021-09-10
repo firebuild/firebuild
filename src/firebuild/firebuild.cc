@@ -68,7 +68,7 @@ evutil_socket_t listener;
 struct event *sigchild_event;
 
 static int bats_inherited_fd = -1;
-static int child_pid, child_ret = 1;
+static int child_ret = 1;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
@@ -145,11 +145,17 @@ static char** get_sanitized_env() {
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
 
-  const char *ld_preload_value = getenv("LD_PRELOAD");
-  if (ld_preload_value) {
-    env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO ":" + std::string(ld_preload_value));
+  if (cfg->exists("intercepted_commads_dir")) {
+    libconfig::Setting& intercepted_commads_dir = cfg->getRoot()["intercepted_commads_dir"];
+    env_v.push_back("PATH=" + std::string(intercepted_commads_dir) + ":"
+                    + std::string(getenv("PATH")));
   } else {
-    env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO);
+    const char *ld_preload_value = getenv("LD_PRELOAD");
+    if (ld_preload_value) {
+      env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO ":" + std::string(ld_preload_value));
+    } else {
+      env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO);
+    }
   }
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
@@ -398,6 +404,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
      * exec (an exec parent will be found then). */
     parent = proc_tree->pid2proc(pid);
 
+    int shim_pid;
     if (parent) {
       /* This PID was already seen, i.e. this process is the result of an exec*(),
        * or a posix_spawn*() where we've already seen and processed the
@@ -417,6 +424,11 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     } else if (ppid == getpid()) {
       /* This is the first intercepted process. */
       fds = proc_tree->inherited_fds();
+    } else if (!proc_tree->pid2proc(ppid)
+               && (shim_pid = atoi(
+                   firebuild::scproc_query_env_var_value(ic_msg, "FIREBUILD_SHIM_PID"))) == pid) {
+      /* This is one of the root intercepted processes. */
+      // TODO(rbalint) inherit shim's open fds
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
@@ -1220,7 +1232,7 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   /* Collect exiting children. */
   do {
     waitpid_ret = waitpid(-1, &status, WNOHANG);
-    if (waitpid_ret == child_pid) {
+    if (waitpid_ret == proc_tree->top_pid()) {
       save_child_status(waitpid_ret, status, &child_ret, false);
     } else if (waitpid_ret > 0) {
       // TODO(rbalint) find runaway child's parent and possibly disable shortcutting
@@ -1424,14 +1436,12 @@ int main(const int argc, char *argv[]) {
   sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
   event_add(sigchild_event, NULL);
 
-  /* This creates some Pipe objects, so needs ev_base being set up. */
-  proc_tree = new firebuild::ProcessTree();
-
   /* Collect runaway children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
 
   // run command and handle interceptor messages
-  if ((child_pid = fork()) == 0) {
+  int child_pid = fork();
+  if (child_pid == 0) {
     int i;
     // intercepted process
 #pragma GCC diagnostic push
@@ -1457,7 +1467,8 @@ int main(const int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   } else {
     // supervisor process
-
+    /* This creates some Pipe objects, so needs ev_base being set up. */
+    proc_tree = new firebuild::ProcessTree(child_pid);
     bump_limits();
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
@@ -1474,7 +1485,7 @@ int main(const int argc, char *argv[]) {
     event_base_free(ev_base);
   }
 
-  if (!proc_tree->root()) {
+  if (proc_tree->roots().empty()) {
     fprintf(stderr, "ERROR: Could not collect any information about the build "
             "process\n");
     child_ret = EXIT_FAILURE;
