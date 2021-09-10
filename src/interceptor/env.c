@@ -19,8 +19,7 @@
 #define FB_SOCKET               "FB_SOCKET"
 #define LD_LIBRARY_PATH         "LD_LIBRARY_PATH"
 #define LD_PRELOAD              "LD_PRELOAD"
-#define LIBFBINTERCEPT_SO       "libfbintercept.so"
-#define LIBFBINTERCEPT_SO_LEN   ((int) strlen(LIBFBINTERCEPT_SO))
+#define LIBFIREBUILD_SO_LEN     ((int) strlen(LIBFIREBUILD_SO))
 
 void get_argv_env(char *** argv, char ***env) {
   char* arg = *(__environ - 2);
@@ -85,9 +84,9 @@ static bool ld_preload_needs_fixup(char **env) {
     return true;
   }
 
-  const char *loc = strstr(current_value, LIBFBINTERCEPT_SO);
+  const char *loc = strstr(current_value, LIBFIREBUILD_SO);
   if (loc) {
-    const char *loc_end = loc + LIBFBINTERCEPT_SO_LEN;
+    const char *loc_end = loc + LIBFIREBUILD_SO_LEN;
     if ((loc == current_value || *(loc - 1) == ':' || *(loc - 1) == ' ')
         && (*loc_end == '\0' || *loc_end == ':' || *loc_end == ' ')) {
       return false;
@@ -124,7 +123,7 @@ int get_env_fixup_size(char **env) {
   ret += strlen(FB_SOCKET "=") + strlen(fb_conn_string) + 1;
 
   char *e = getenv_from(env, LD_PRELOAD);
-  ret += strlen(LD_PRELOAD "=") + (e ? strlen(e) : 0) + 1 + LIBFBINTERCEPT_SO_LEN + 1;
+  ret += strlen(LD_PRELOAD "=") + (e ? strlen(e) : 0) + 1 + LIBFIREBUILD_SO_LEN + 1;
 
   e = getenv_from(env, LD_LIBRARY_PATH);
   ret += strlen(LD_LIBRARY_PATH "=") +
@@ -183,10 +182,10 @@ static int fixup_ld_library_path(const char *current_value, char *p) {
  * (including the "LD_PRELOAD=" prefix) at @p.
  * The desired value depends on the @current_value.
  *
- * Appends libfbintercept.so to the end, if needed.
- * (The intercepted program removed libfbintercept.so from LD_PRELOAD and added something,
+ * Appends libfirebuild.so to the end, if needed.
+ * (The intercepted program removed libfirebuild.so from LD_PRELOAD and added something,
  * presumably its own library instead of _prepending_ its own library. The fix is thus _appending_
- * libfbintercept.so to pretend that the program did the proper prepending.)
+ * libfirebuild.so to pretend that the program did the proper prepending.)
  *
  * Returns the number of bytes placed (including the trailing NUL).
  */
@@ -194,10 +193,10 @@ static int fixup_ld_preload(const char *current_value, char *p) {
   insert_debug_msg("Fixing up LD_PRELOAD in the environment");
   int offset;
   if (current_value == NULL) {
-    sprintf(p, "%s=%s%n", LD_PRELOAD, LIBFBINTERCEPT_SO, &offset);  /* NOLINT */
+    sprintf(p, "%s=%s%n", LD_PRELOAD, LIBFIREBUILD_SO, &offset);  /* NOLINT */
   } else {
     /* Append the library. */
-    sprintf(p, "%s=%s:%s%n", LD_PRELOAD, current_value, LIBFBINTERCEPT_SO, &offset);  /* NOLINT */
+    sprintf(p, "%s=%s:%s%n", LD_PRELOAD, current_value, LIBFIREBUILD_SO, &offset);  /* NOLINT */
   }
   return offset + 1;
 }
@@ -290,13 +289,13 @@ void env_purge(char **env) {
       continue;
     }
     if (begins_with(env[i], LD_PRELOAD "=")) {
-      /* Clear libfbintercept.so */
-      if (strcmp(env[i], LD_PRELOAD "=" LIBFBINTERCEPT_SO) == 0) {
+      /* Clear libfirebuild.so */
+      if (strcmp(env[i], LD_PRELOAD "=" LIBFIREBUILD_SO) == 0) {
         /* Just skip LD_PRELOAD. */
         continue;
       } else {
-        char * start = strstr(env[i], LIBFBINTERCEPT_SO);
-        size_t move_len = LIBFBINTERCEPT_SO_LEN;
+        char * start = strstr(env[i], LIBFIREBUILD_SO);
+        size_t move_len = LIBFIREBUILD_SO_LEN;
         if (start) {
           if (*(start - 1) == ':' || *(start - 1) == ' ') {
             /* Clear separator before. */
@@ -306,7 +305,7 @@ void env_purge(char **env) {
             move_len++;
           }
           size_t remaining_len = strlen(start);
-          /* Move LD_PRELOAD's contents including '\0' earlier to overwrite libfbintercept.so. */
+          /* Move LD_PRELOAD's contents including '\0' earlier to overwrite libfirebuild.so. */
           memmove(start, start + move_len,
                   remaining_len - move_len + 1);
         }

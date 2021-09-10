@@ -17,6 +17,8 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(GNUInstallDirs)
 
+set(LIBFIREBUILD_SO "libfirebuild.so")
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
 set(DATADIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/firebuild" CACHE STRING "FireBuild's architecture-independent files' location")
@@ -60,7 +62,7 @@ if(COVERAGE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fprofile-arcs -ftest-coverage")
 endif(COVERAGE)
 
-add_definitions(-DFIREBUILD_DATADIR="${DATADIR}")
+add_definitions(-DFIREBUILD_DATADIR="${DATADIR}" -DLIBFIREBUILD_SO="${LIBFIREBUILD_SO}")
 add_subdirectory(src)
 
 enable_testing()
