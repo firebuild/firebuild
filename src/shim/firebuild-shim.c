@@ -5,9 +5,12 @@
  * Shim that runs argv[0] with FireBuild interception.
  */
 
+#include <dirent.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #define LIBFIREBUILD_SO_LEN strlen(LIBFIREBUILD_SO)
@@ -34,6 +37,88 @@ static void fix_ld_preload() {
     memcpy(&new_ld_preload[LIBFIREBUILD_SO_LEN + 1], orig, orig_len + 1);
     setenv("LD_PRELOAD", new_ld_preload, 1 /* overwrite */);
   }
+}
+
+typedef struct inode_fd_ {
+  ino_t inode;
+  int fd;
+  int acc_mode;
+} inode_fd;
+
+static int cmp_inode_fds(const void *p1, const void *p2) {
+  ino_t inode1 = ((inode_fd*)p1)->inode;
+  ino_t inode2 = ((inode_fd*)p2)->inode;
+  if (inode1 == inode2) {
+    int fd1 = ((inode_fd*)p1)->fd;
+    int fd2 = ((inode_fd*)p2)->fd;
+    return (fd1 == fd2) ? 0 : (fd1 < fd2 ? -1 : 1);
+  } else {
+    return inode1 < inode2 ? -1 : 1;
+  }
+}
+
+/**
+ * List of open file descriptors grouped by pointing to the same inode. The groups are separated
+ * by ":", the fd-s are separated by ",", e.g.: "1,2:3", where STDERR and STDOUT are pointing to
+ * the same inode, and fd 3 is a separate one.
+ * @param fd_dir "/proc/self/fd" or "/proc/NNN/fd", where NNN is the pid
+ */
+char* fd_map(const char * fd_dir) {
+  size_t ret_buf_size = 32, ret_len = 0;
+  char *ret_buf = malloc(ret_buf_size);
+  ret_buf[0] = '\0';
+  size_t inode_fds_buf_size = 4096;
+  size_t inode_fds_size = 0;
+  inode_fd *inode_fds = malloc(sizeof(inode_fd) * inode_fds_buf_size);
+  DIR *dir = opendir(fd_dir);
+  struct dirent *de;
+  while ((de = readdir(dir)) != NULL) {
+    if (de->d_type == DT_LNK) {
+      int fd_num = atoi(de->d_name);
+      if (fd_num == dirfd(dir)) {
+        continue;
+      }
+      int acc_mode = fcntl(fd_num, F_GETFL) & O_ACCMODE;
+      if (acc_mode != -1) {
+        struct stat statbuf;
+        if (fstatat(dirfd(dir), de->d_name, &statbuf, 0) != -1) {
+          if (inode_fds_size == inode_fds_buf_size) {
+            inode_fds_buf_size *= 2;
+            inode_fds = realloc(inode_fds, inode_fds_buf_size);
+          }
+          inode_fds[inode_fds_size].inode = statbuf.st_ino;
+          inode_fds[inode_fds_size].acc_mode = acc_mode;
+          inode_fds[inode_fds_size++].fd = fd_num;
+        }
+      }
+    }
+  }
+  closedir(dir);
+  if (inode_fds_size == 0) {
+    free(inode_fds);
+    return ret_buf;
+  }
+  qsort(inode_fds, inode_fds_size, sizeof(inode_fd), cmp_inode_fds);
+
+  ino_t last_inode = inode_fds[0].inode + 1;
+  for (size_t i = 0; i < inode_fds_size; i++) {
+    if (ret_buf_size - ret_len < 32) {
+      ret_buf_size *= 2;
+      ret_buf = realloc(ret_buf, ret_buf_size);
+    }
+    ret_len += snprintf(&ret_buf[ret_len], ret_buf_size - ret_len, "%s%d=%d",
+                        (last_inode == inode_fds[i].inode) ? "," : ((ret_len > 0) ? ":" : ""),
+                        inode_fds[i].fd, inode_fds[i].acc_mode);
+    last_inode = inode_fds[i].inode;
+  }
+  free(inode_fds);
+  return ret_buf;
+}
+
+void export_fd_map() {
+  char *fds = fd_map("/proc/self/fd");
+  setenv("FIREBUILD_SHIM_FDS", fds, 0);
+  free(fds);
 }
 
 /**
@@ -99,6 +184,7 @@ int main(const int argc, char *argv[]) {
   }
   fix_ld_preload();
   export_shim_pid();
+  export_fd_map();
   char *executable = real_executable(argv[0]);
   execv(executable, argv);
   free(executable);
