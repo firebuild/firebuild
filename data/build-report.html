@@ -346,6 +346,10 @@ function fill_color(d) {
     return d.data.was_shortcut ? "lightgreen" : ((d._children && d._children.length != 0) ? "lightsteelblue" : "#fff");
 }
 
+function fraction_as_percent(num, denum) {
+    return ((denum == 0 || (num / denum) >= 0.99995) ? 100 : (100 * num / denum).toFixed(2)) + "%";
+}
+
 function update(source) {
   var duration = d3.event && d3.event.altKey ? 5000 : 500;
 
@@ -421,7 +425,7 @@ function update(source) {
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
       .on("click", function (d) { details(d.data); })
-      .text(function(d) { return (100 * d.data.aggr_time / root.data.aggr_time).toFixed(2) + "%"; })
+      .text(function(d) {return fraction_as_percent(d.data.aggr_time, root.data.aggr_time);})
       .append("svg:title")
       .text("Show details");
   nodeEnter.append("svg:text")
@@ -430,7 +434,7 @@ function update(source) {
       .attr("dy", ".35em")
       .attr("text-anchor", "middle")
       .on("click", function (d) { details(d.data); })
-      .text(function(d) { return "(" + (100 * (d.data.utime_u + d.data.stime_u) / root.data.aggr_time).toFixed(2) + ")%"; })
+      .text(function(d) {return "(" + fraction_as_percent(d.data.aggr_time, root.data.aggr_time) + ")";})
       .append("svg:title")
       .text("Show details");
 
