@@ -305,14 +305,13 @@ function details(d) {
   blanket.style.width = blanket_width + 'px';
   blanket.style.display = 'block';
 
+  /* every element needs to be updated, otherwise they would show the previous node's values */
   document.getElementById('detailed_name').innerHTML = d.name;
   document.getElementById('detailed_cwd').innerHTML = d.cwd;
   document.getElementById('detailed_args').innerHTML = print_string_array(d.args);
   document.getElementById('detailed_env').innerHTML = print_string_array(d.env).replace(/ /g, "<br/>");
   document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs).replace(/ /g, "<br/>");
-  if (d.cant_sc_reason) {
-    document.getElementById('cant_shortcut').innerHTML = d.cant_sc_reason + ((d.cant_sc_fb_pid)?' in a <a href="#" onclick="jump_details(' + d.cant_sc_fb_pid + ');">child process</a>':"");
-  }
+  document.getElementById('cant_shortcut').innerHTML = d.cant_sc_reason ? d.cant_sc_reason + ((d.cant_sc_fb_pid)?' in a <a href="#" onclick="jump_details(' + d.cant_sc_fb_pid + ');">child process</a>':"") : "none";
   document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated).replace(/ /g, "<br/>");
   document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified).replace(/ /g, "<br/>");
   document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread).replace(/ /g, "<br/>");
