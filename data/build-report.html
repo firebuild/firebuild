@@ -312,6 +312,7 @@ function details(d) {
   document.getElementById('detailed_env').innerHTML = print_string_array(d.env).replace(/ /g, "<br/>");
   document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs).replace(/ /g, "<br/>");
   document.getElementById('cant_shortcut').innerHTML = d.cant_sc_reason ? d.cant_sc_reason + ((d.cant_sc_fb_pid)?' in a <a href="#" onclick="jump_details(' + d.cant_sc_fb_pid + ');">child process</a>':"") : "none";
+  document.getElementById('shortcut').innerHTML = d.was_shortcut ? "true" : "false";
   document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated).replace(/ /g, "<br/>");
   document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified).replace(/ /g, "<br/>");
   document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread).replace(/ /g, "<br/>");
@@ -339,6 +340,10 @@ function hide_details() {
 function jump_details(fb_pid) {
   var nodes = root.descendants();
   nodes.forEach(function(d) { if (d.data.fb_pid == fb_pid) { hide_details(); details(d.data); } });
+}
+
+function fill_color(d) {
+    return d.data.was_shortcut ? "lightgreen" : ((d._children && d._children.length != 0) ? "lightsteelblue" : "#fff");
 }
 
 function update(source) {
@@ -390,13 +395,13 @@ function update(source) {
       .attr("rx", 5)
       .attr("ry", 5)
       .on("click", function (d) { details(d.data); })
-      .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; });
+      .style("fill", fill_color);
 
   nodeEnter.filter(function (d) {return ! leaf(d);})
       .append("svg:circle")
       .attr("r", 1e-6)
       .on("click", function(d) { toggle(d); update(d); })
-      .style("fill", function(d) { return (d._children && (d._children.length != 0))? "lightsteelblue" : "#fff"; })
+      .style("fill", fill_color)
       .append("svg:title")
       .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
 
@@ -436,13 +441,13 @@ function update(source) {
 
   nodeUpdate.select("circle")
       .attr("r", 4.5)
-      .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
+      .style("fill", fill_color);
 
   nodeUpdate.select("title")
       .text(function (d) {return (d._children && (d._children.length != 0))?"Expand":"Collapse";});
 
   nodeUpdate.select("rect")
-      .style("fill", function(d) { return ((d._children && (d._children.length != 0)) ? "lightsteelblue" : "#fff"); });
+      .style("fill", fill_color);
 
   nodeUpdate.select("text")
       .style("fill-opacity", 1);
@@ -539,6 +544,11 @@ function toggle(d) {
           <tr>
             <td colspan="2"><span class="detail_name">Event preventing short-cutting:</span>
               <span id="cant_shortcut">none</span>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="2"><span class="detail_name">Short-cut:</span>
+              <span id="shortcut">false</span>
             </td>
           </tr>
           <tr>
