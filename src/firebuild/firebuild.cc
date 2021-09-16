@@ -64,7 +64,7 @@ static char datadir[] = FIREBUILD_DATADIR;
 static char *fb_tmp_dir;
 static char *fb_conn_string;
 
-evutil_socket_t listener;
+evutil_socket_t listener, shim_sock = -1, shim_client_sock = -1;
 struct event *sigchild_event;
 
 static int bats_inherited_fd = -1;
@@ -123,7 +123,7 @@ static char** get_sanitized_env() {
   }
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
 
-  FB_DEBUG(firebuild::FB_DEBUG_PROC, "Setting preset environment variables:");
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, "Setting environment variables:");
   const libconfig::Setting& preset = root["env_vars"]["preset"];
   for (int i = 0; i < preset.getLength(); i++) {
     env_v.push_back(preset[i]);
@@ -145,10 +145,14 @@ static char** get_sanitized_env() {
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
 
-  if (cfg->exists("intercepted_commads_dir")) {
+  if (firebuild::use_shim) {
     libconfig::Setting& intercepted_commads_dir = cfg->getRoot()["intercepted_commads_dir"];
     env_v.push_back("PATH=" + std::string(intercepted_commads_dir) + ":"
                     + std::string(getenv("PATH")));
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+    env_v.push_back("FIREBUILD_SHIM_FD=" + std::to_string(shim_client_sock));
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+
   } else {
     const char *ld_preload_value = getenv("LD_PRELOAD");
     if (ld_preload_value) {
@@ -156,6 +160,7 @@ static char** get_sanitized_env() {
     } else {
       env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO);
     }
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
   }
   env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
@@ -1224,7 +1229,7 @@ static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
 static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   TRACK(firebuild::FB_DEBUG_PROC, "");
 
-  auto listener_event = reinterpret_cast<struct event *>(arg);
+  auto listener_events = reinterpret_cast<std::pair<event*, event*>*>(arg);
   (void)fd;
   (void)what;
 
@@ -1245,7 +1250,11 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
   if (waitpid_ret < 0) {
     /* All children exited. */
     event_del(sigchild_event);
-    event_del(listener_event);
+    event_del(listener_events->first);
+    if (listener_events->second) {
+      event_del(listener_events->second);
+    }
+    delete(listener_events);
   }
 }
 
@@ -1268,6 +1277,43 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
     auto ev = event_new(ev_base, fd, EV_READ | EV_PERSIST, ic_conn_readcb, conn_ctx);
     conn_ctx->set_ev(ev);
     event_add(ev, NULL);
+  }
+}
+
+static void read_shim_msg(evutil_socket_t shim_sock, int16_t event, void *arg) {
+  TRACK(firebuild::FB_DEBUG_COMM, "shim_sock=%d", shim_sock);
+  (void) event; /* unused */
+  (void) arg;   /* unused */
+
+  /* Read message with control data */
+  struct msghdr msg = {};
+  char msg_buf[sizeof(pid_t) + sizeof(int)];
+  struct iovec io = {.iov_base = msg_buf, .iov_len = sizeof(msg_buf)};
+  msg.msg_iov = &io;
+  msg.msg_iovlen = 1;
+  union {
+    char c_buffer[CMSG_SPACE(4096)];  // FIXME sizing
+    struct cmsghdr cmsghdr;
+  } u;
+  memset(u.c_buffer, 0, sizeof(u.c_buffer));
+  msg.msg_control = u.c_buffer;
+  msg.msg_controllen = sizeof(u.c_buffer);
+
+  if (recvmsg(shim_sock, &msg, sizeof(msg_buf)) < 0) {
+    firebuild::fb_error("Failed to receive fds from shim\n");
+  }
+
+  assert(msg.msg_iov->iov_len == sizeof(pid_t) + sizeof(int));
+  pid_t pid = *reinterpret_cast<pid_t*>(msg_buf);
+  int fd_count = *reinterpret_cast<int*>(msg_buf + sizeof(pid_t));
+
+  struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
+  int* fds = reinterpret_cast<int*>(CMSG_DATA(cmsg));
+  if (fd_count > 0) {
+    proc_tree->QueueShimFds(pid, fds, fd_count);
+    /* The last extra fd is for signaling the consumption of the message and the signal is closing
+     * it. */
+    close(fds[fd_count]);
   }
 }
 
@@ -1425,7 +1471,6 @@ int main(const int argc, char *argv[]) {
     }
     fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket").c_str());
   }
-  auto env_exec = get_sanitized_env();
 
   ev_base = event_base_new();
   /* Use two priority queues, the lowe priority queue (1) is for timers. */
@@ -1435,8 +1480,35 @@ int main(const int argc, char *argv[]) {
   listener = create_listener();
   auto listener_event = event_new(ev_base, listener, EV_READ|EV_PERSIST, accept_ic_conn, NULL);
   event_add(listener_event, NULL);
-  sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
+
+  event* shim_sock_event = NULL;
+  if (firebuild::use_shim) {
+    int sv[2];
+    if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) != 0) {
+      perror("Failed to create Unix-domain socket pair for shim");
+      exit(1);
+    }
+
+    /* The file descriptor to be inherited to shim should be higher than any well known fd to be
+     * fairly sure that transitive parents of shim don't close it. Given that the supervisor already
+     * opened many file descriptors this is close to being guaranteed. */
+    if (sv[1] <= STDERR_FILENO) {
+      firebuild::fb_error("The file descriptor number to be used for shim communication "
+                          "is too low");
+      exit(1);
+    }
+    shim_client_sock = sv[1];
+
+    shim_sock = sv[0];
+    shim_sock_event = event_new(ev_base, shim_sock, EV_READ|EV_PERSIST, read_shim_msg, NULL);
+    event_add(shim_sock_event, NULL);
+  }
+
+  sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb,
+                             new std::pair<event*, event*>(listener_event, shim_sock_event));
   event_add(sigchild_event, NULL);
+
+  auto env_exec = get_sanitized_env();
 
   /* Collect runaway children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
@@ -1451,8 +1523,9 @@ int main(const int argc, char *argv[]) {
     char* argv_exec[argc - optind + 1];
 #pragma GCC diagnostic pop
 
-    // we don't need that
+    // we don't need those
     evutil_closesocket(listener);
+    evutil_closesocket(shim_sock);
     // create and execute build command
     for (i = 0; i < argc - optind ; i++) {
       argv_exec[i] = argv[optind + i];
@@ -1469,6 +1542,9 @@ int main(const int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   } else {
     // supervisor process
+    if (shim_client_sock != -1) {
+      close(shim_client_sock);
+    }
     /* This creates some Pipe objects, so needs ev_base being set up. */
     proc_tree = new firebuild::ProcessTree(child_pid);
     bump_limits();
@@ -1480,6 +1556,9 @@ int main(const int argc, char *argv[]) {
 
     /* Clean up remaining events and the event base. */
     evutil_closesocket(listener);
+    if (shim_sock != -1) {
+      evutil_closesocket(shim_sock);
+    }
     event_free(listener_event);
     event_free(sigchild_event);
     /* Finish all top pipes before event_base_free() frees all their events. */

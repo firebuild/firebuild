@@ -5,12 +5,16 @@
  * Shim that runs argv[0] with FireBuild interception.
  */
 
+#include <assert.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/un.h>
 #include <unistd.h>
 
 #define LIBFIREBUILD_SO_LEN strlen(LIBFIREBUILD_SO)
@@ -62,20 +66,25 @@ static int cmp_inode_fds(const void *p1, const void *p2) {
  * by ":", the fd-s are separated by ",", e.g.: "1,2:3", where STDERR and STDOUT are pointing to
  * the same inode, and fd 3 is a separate one.
  * @param fd_dir "/proc/self/fd" or "/proc/NNN/fd", where NNN is the pid
+ * @param shim_fd socket to the supervisor, which should not be reported as an open fd
+ * @param[out] fds_out array of open file descriptors ordered the same way as in the returned string
+ * @param[out] fds_count_out number of open file descriptors
  */
-char* fd_map(const char * fd_dir) {
-  size_t ret_buf_size = 32, ret_len = 0;
+char* get_fd_map(const char * fd_dir, int shim_fd, int **fds_out, int *fds_count_out) {
+  size_t ret_buf_size = 32, ret_len = 0, fds_size = 8, fds_count = 0;
   char *ret_buf = malloc(ret_buf_size);
   ret_buf[0] = '\0';
   size_t inode_fds_buf_size = 4096;
   size_t inode_fds_size = 0;
   inode_fd *inode_fds = malloc(sizeof(inode_fd) * inode_fds_buf_size);
+  int *fds = malloc(fds_size * sizeof(fds_out)[0]);
+
   DIR *dir = opendir(fd_dir);
   struct dirent *de;
   while ((de = readdir(dir)) != NULL) {
     if (de->d_type == DT_LNK) {
       int fd_num = atoi(de->d_name);
-      if (fd_num == dirfd(dir)) {
+      if (fd_num == dirfd(dir) || fd_num == shim_fd) {
         continue;
       }
       int acc_mode = fcntl(fd_num, F_GETFL) & O_ACCMODE;
@@ -96,6 +105,9 @@ char* fd_map(const char * fd_dir) {
   closedir(dir);
   if (inode_fds_size == 0) {
     free(inode_fds);
+    free(fds);
+    *fds_out = NULL;
+    *fds_count_out = 0;
     return ret_buf;
   }
   qsort(inode_fds, inode_fds_size, sizeof(inode_fd), cmp_inode_fds);
@@ -109,16 +121,65 @@ char* fd_map(const char * fd_dir) {
     ret_len += snprintf(&ret_buf[ret_len], ret_buf_size - ret_len, "%s%d=%d",
                         (last_inode == inode_fds[i].inode) ? "," : ((ret_len > 0) ? ":" : ""),
                         inode_fds[i].fd, inode_fds[i].acc_mode);
+
+    if (fds_size - fds_count <= 0) {
+      fds_size *=2;
+      fds = realloc(fds, fds_size * sizeof(fds_out)[0]);
+    }
+    (fds)[fds_count++] = inode_fds[i].fd;
     last_inode = inode_fds[i].inode;
   }
   free(inode_fds);
+  *fds_out = fds;
+  *fds_count_out = fds_count;
   return ret_buf;
 }
 
-void export_fd_map() {
-  char *fds = fd_map("/proc/self/fd");
-  setenv("FIREBUILD_SHIM_FDS", fds, 0);
-  free(fds);
+void export_fd_map(const char *fd_map) {
+  setenv("FIREBUILD_SHIM_FDS", fd_map, 0);
+}
+
+void send_fds_to_supervisor(int shim_fd, pid_t pid, const int *fds, const int fd_count) {
+  struct msghdr msg = {0};
+  struct cmsghdr *cmsg;
+  char msg_buf[sizeof(pid) + sizeof(fd_count)];
+  struct iovec io = {.iov_base = msg_buf, .iov_len = sizeof(msg_buf)};
+  size_t buf_len = CMSG_SPACE(sizeof(fds[0]) * (fd_count + 1));
+  union {
+    char buf[buf_len];
+    struct cmsghdr align;
+  } u;
+  int pipefd[2];
+
+  memset(u.buf, 0, buf_len);
+  msg.msg_iov = &io;
+  msg.msg_iovlen = 1;
+  memcpy(msg_buf, &pid, sizeof(pid));
+  memcpy(msg_buf + sizeof(pid), &fd_count, sizeof(fd_count));
+  msg.msg_control = u.buf;
+  msg.msg_controllen = buf_len;
+  cmsg = CMSG_FIRSTHDR(&msg);
+  cmsg->cmsg_level = SOL_SOCKET;
+  cmsg->cmsg_type = SCM_RIGHTS;
+  cmsg->cmsg_len = CMSG_LEN(sizeof(fds[0]) * (fd_count + 1));
+  memcpy(CMSG_DATA(cmsg), fds, sizeof(fds[0]) * fd_count);
+
+  if (pipe(pipefd) != 0) {
+    perror("firebuild-shim: Failed to create pipe for supervisor communication");
+    return;
+  }
+  fcntl(pipefd[0], F_SETFD, fcntl(pipefd[0], F_GETFD, 0) | FD_CLOEXEC);
+  memcpy(CMSG_DATA(cmsg) + sizeof(fds[0]) * fd_count, &(pipefd[1]), sizeof(fds[0]) * fd_count);
+
+  if (sendmsg(shim_fd, &msg, 0) < 0) {
+    fprintf(stderr, "Failed to send fds to firebuild\n");
+  }
+  /* Wait for the supervisor to close the last fd to avoid potential race condition with the exec
+     child that could connect the supervisor earlier. */
+  close(pipefd[1]);
+  if (read(pipefd[0], u.buf, 1) == -1) {
+    perror("firebuild-shim: Failed to read from supervisor");
+  }
 }
 
 /**
@@ -169,22 +230,42 @@ static char * real_executable(const char *argv0) {
   exit(1);
 }
 
-void export_shim_pid() {
+void export_shim_pid(pid_t pid) {
   char pid_str[MAX_PID_STR_LEN];
-  snprintf(pid_str, MAX_PID_STR_LEN, "%d", getpid());
+  snprintf(pid_str, MAX_PID_STR_LEN, "%d", pid);
   setenv("FIREBUILD_SHIM_PID", pid_str, 0);
 }
 
 int main(const int argc, char *argv[]) {
   (void)argc;
-  if (!getenv("FB_SOCKET")) {
+
+  if (!(getenv("FB_SOCKET"))) {
     fprintf(stderr, "ERROR: FB_SOCKET is not set, maybe firebuild is not running?\n");
     usage();
     exit(1);
   }
-  fix_ld_preload();
-  export_shim_pid();
-  export_fd_map();
+  const char* shim_fd_str = getenv("FIREBUILD_SHIM_FD");
+  if (shim_fd_str) {
+    int shim_fd = atoi(shim_fd_str);
+    pid_t pid = getpid();
+    if (shim_fd <= 0) {
+      fprintf(stderr, "ERROR: FIREBUILD_SHIM_FD=%s is invalid\n", shim_fd_str);
+      usage();
+      exit(1);
+    }
+    fix_ld_preload();
+    export_shim_pid(pid);
+    int *fds, fd_count;
+    char *fd_map = get_fd_map("/proc/self/fd", shim_fd, &fds, &fd_count);
+    export_fd_map(fd_map);
+    send_fds_to_supervisor(shim_fd, pid, fds, fd_count);
+    free(fds);
+    free(fd_map);
+    /* */
+    unsetenv("FIREBUILD_SHIM_FD");
+  } else {
+    /* just run the real executable, a transitive parent shim already connected the supervisor */
+  }
   char *executable = real_executable(argv[0]);
   execv(executable, argv);
   free(executable);

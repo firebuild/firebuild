@@ -36,6 +36,8 @@ ProcessTree::ProcessTree(int top_pid)
   FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
                                                    "Top level stdout and stderr are distinct");
   /* TODO(rbalint) pass proper access mode flags */
+  int fds[] = {0, 1, 2};
+  QueueShimFds(top_pid, fds, 3);
   inherit_fds(top_pid, flags2a != flags2b ? "0=0:1=1,2=1" : "0=0:1=1:2=1", true);
 }
 
@@ -43,42 +45,54 @@ void ProcessTree::inherit_fds(int pid, const char* fds_string, bool keep_open) {
   assert(inherited_fds_.count(pid) == 0);
   // TODO(rbalint) support other inherited fds
   /* Create the FileFD representing stdin of the top process. */
+  const std::vector<int>* fds = ShimPid2Fds(pid);
   inherited_fds_[pid] = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
 
   std::shared_ptr<Pipe> pipe;
   bool reuse_pipe = false;
   int scanf_ret, offset = 0;
+  int i = -1;
   do {
     int fd, acc_mode, characters_read;
     char separator;
     scanf_ret = sscanf(&fds_string[offset], "%d=%d%c%n",
                        &fd, &acc_mode, &separator, &characters_read);
     offset += characters_read;
+    i++;
     if (scanf_ret >= 2) {
       /* valid fd */
-      if (!reuse_pipe) {
-        /* Create a new Pipe for this file descriptor.
-         * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
+      if (fd == STDOUT_FILENO || fd == STDIN_FILENO || acc_mode == O_WRONLY) {
+        /* to be captured */
+        if (!reuse_pipe) {
+          /* Create a new Pipe for this file descriptor.
+           * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
 #ifdef __clang_analyzer__
-        /* Scan-build reports a false leak for the correct code. This is used only in static
-         * analysis. It is broken because all shared pointers to the Pipe must be copies of
-         * the shared self pointer stored in it. */
-        pipe = std::make_shared<Pipe>(fd, nullptr);
+          /* Scan-build reports a false leak for the correct code. This is used only in static
+           * analysis. It is broken because all shared pointers to the Pipe must be copies of
+           * the shared self pointer stored in it. */
+          pipe = std::make_shared<Pipe>((*fds)[i], nullptr);
 #else
-        pipe = (new Pipe(fd, nullptr))->shared_ptr();
+          pipe = (new Pipe((*fds)[i], nullptr))->shared_ptr();
 #endif
-        FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
-        if (keep_open) {
-          pipe->set_keep_fd0_open();
+          FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
+          if (keep_open) {
+            pipe->set_keep_fd0_open();
+          }
+          inherited_fd_pipes_.insert(pipe);
+        } else if (!keep_open) {
+          close((*fds)[i]);
         }
-        inherited_fd_pipes_.insert(pipe);
+
+        std::shared_ptr<FileFD> file_fd =
+            Process::add_filefd(inherited_fds_[pid], fd, std::make_shared<FileFD>(fd, acc_mode));
+        file_fd->set_pipe(pipe);
+      } else {
+        close((*fds)[i]);
+        continue;
       }
-
-      std::shared_ptr<FileFD> file_fd =
-          Process::add_filefd(inherited_fds_[pid], fd, std::make_shared<FileFD>(fd, acc_mode));
-      file_fd->set_pipe(pipe);
+    } else {
+      // TODO(rbalint) break close all, invalid string
     }
-
     if (scanf_ret == 3) {
       if (separator == ',') {
         reuse_pipe = true;
@@ -87,6 +101,7 @@ void ProcessTree::inherit_fds(int pid, const char* fds_string, bool keep_open) {
       }
     }
   } while (scanf_ret == 3);
+  DropShimFds(pid);
 }
 
 ProcessTree::~ProcessTree() {

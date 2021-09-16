@@ -102,6 +102,11 @@ class ProcessTree {
     assert(!PPid2ParentAck(ppid));
     ppid2pending_parent_ack_[ppid] = {ack, sock};
   }
+  void QueueShimFds(int pid, int* fds, int fd_count) {
+    assert(!ShimPid2Fds(pid));
+    shim_fds_[pid] = std::vector<int>(fd_count);
+    memmove(shim_fds_[pid].data(), fds, fd_count * sizeof(fds[0]));
+  }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
     auto it = pid2fork_child_sock_.find(pid);
     if (it != pid2fork_child_sock_.end()) {
@@ -134,6 +139,14 @@ class ProcessTree {
       return nullptr;
     }
   }
+  const std::vector<int>* ShimPid2Fds(const int pid) {
+    auto it = shim_fds_.find(pid);
+    if (it != shim_fds_.end()) {
+      return &it->second;
+    } else {
+      return nullptr;
+    }
+  }
   void DropQueuedForkChild(const int pid) {
     pid2fork_child_sock_.erase(pid);
   }
@@ -152,6 +165,9 @@ class ProcessTree {
       ack_msg(ack->sock, ack->ack_num);
       DropParentAck(ppid);
     }
+  }
+  void DropShimFds(const int pid) {
+    shim_fds_.erase(pid);
   }
   void FinishInheritedFdPipes() {
     for (auto& pipe : inherited_fd_pipes_) {
@@ -194,6 +210,7 @@ class ProcessTree {
    *  we get to this point in the parent. The key is the parent's pid. */
   std::unordered_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
   std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
+  std::unordered_map<int, std::vector<int>> shim_fds_ = {};
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds
