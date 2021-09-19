@@ -423,12 +423,14 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       }
     } else if (ppid == getpid()) {
       /* This is the first intercepted process. */
-      fds = proc_tree->inherited_fds();
+      fds = proc_tree->inherited_fds(proc_tree->top_pid());
     } else if (!proc_tree->pid2proc(ppid)
                && (shim_pid = atoi(
                    firebuild::scproc_query_env_var_value(ic_msg, "FIREBUILD_SHIM_PID"))) == pid) {
       /* This is one of the root intercepted processes. */
-      // TODO(rbalint) inherit shim's open fds
+      proc_tree->inherit_fds(
+          shim_pid, firebuild::scproc_query_env_var_value(ic_msg, "FIREBUILD_SHIM_FDS"));
+      fds = proc_tree->inherited_fds(shim_pid);
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */

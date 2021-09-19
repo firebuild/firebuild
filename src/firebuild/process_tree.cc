@@ -14,17 +14,11 @@
 namespace firebuild {
 
 ProcessTree::ProcessTree(int top_pid)
-    : top_pid_(top_pid), roots_(),
-      inherited_fds_(std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
+    : top_pid_(top_pid), roots_(), inherited_fds_({}),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
       pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
       cmd_profs_() {
   TRACK(FB_DEBUG_PROCTREE, "");
-
-  // TODO(rbalint) support other inherited fds
-  /* Create the FileFD representing stdin of the top process. */
-  Process::add_filefd(inherited_fds_, STDIN_FILENO,
-                      std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
 
   /* Create the Pipes and FileFDs representing stdout and stderr of the top process.
    * Check if stdout and stderr point to the same place. kcmp() is not universally
@@ -41,34 +35,58 @@ ProcessTree::ProcessTree(int top_pid)
   fcntl(STDOUT_FILENO, F_SETFL, flags1);
   FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
                                                    "Top level stdout and stderr are distinct");
+  /* TODO(rbalint) pass proper access mode flags */
+  inherit_fds(top_pid, flags2a != flags2b ? "0=0:1=1,2=1" : "0=0:1=1:2=1", true);
+}
+
+void ProcessTree::inherit_fds(int pid, const char* fds_string, bool keep_open) {
+  assert(inherited_fds_.count(pid) == 0);
+  // TODO(rbalint) support other inherited fds
+  /* Create the FileFD representing stdin of the top process. */
+  inherited_fds_[pid] = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
 
   std::shared_ptr<Pipe> pipe;
-  for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
-    if (fd == STDERR_FILENO && flags2a != flags2b) {
-      /* stdout and stderr point to the same location (changing one's flags did change the
-       * other's). Reuse the Pipe object that we created in the loop's first iteration. */
-      pipe = (*inherited_fds_)[STDOUT_FILENO]->pipe();
-    } else {
-      /* Create a new Pipe for this file descriptor.
-       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
+  bool reuse_pipe = false;
+  int scanf_ret, offset = 0;
+  do {
+    int fd, acc_mode, characters_read;
+    char separator;
+    scanf_ret = sscanf(&fds_string[offset], "%d=%d%c%n",
+                       &fd, &acc_mode, &separator, &characters_read);
+    offset += characters_read;
+    if (scanf_ret >= 2) {
+      /* valid fd */
+      if (!reuse_pipe) {
+        /* Create a new Pipe for this file descriptor.
+         * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
 #ifdef __clang_analyzer__
-      /* Scan-build reports a false leak for the correct code. This is used only in static
-       * analysis. It is broken because all shared pointers to the Pipe must be copies of
-       * the shared self pointer stored in it. */
-      pipe = std::make_shared<Pipe>(fd, nullptr);
+        /* Scan-build reports a false leak for the correct code. This is used only in static
+         * analysis. It is broken because all shared pointers to the Pipe must be copies of
+         * the shared self pointer stored in it. */
+        pipe = std::make_shared<Pipe>(fd, nullptr);
 #else
-      pipe = (new Pipe(fd, nullptr))->shared_ptr();
+        pipe = (new Pipe(fd, nullptr))->shared_ptr();
 #endif
-      FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
-      /* Top level inherited fds are special, they should not be closed. */
-      pipe->set_keep_fd0_open();
-      inherited_fd_pipes_.insert(pipe);
+        FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
+        if (keep_open) {
+          pipe->set_keep_fd0_open();
+        }
+        inherited_fd_pipes_.insert(pipe);
+      }
+
+      std::shared_ptr<FileFD> file_fd =
+          Process::add_filefd(inherited_fds_[pid], fd, std::make_shared<FileFD>(fd, acc_mode));
+      file_fd->set_pipe(pipe);
     }
 
-    std::shared_ptr<FileFD> file_fd =
-        Process::add_filefd(inherited_fds_, fd, std::make_shared<FileFD>(fd, O_WRONLY));
-    file_fd->set_pipe(pipe);
-  }
+    if (scanf_ret == 3) {
+      if (separator == ',') {
+        reuse_pipe = true;
+      } else {
+        reuse_pipe = false;
+      }
+    }
+  } while (scanf_ret == 3);
 }
 
 ProcessTree::~ProcessTree() {

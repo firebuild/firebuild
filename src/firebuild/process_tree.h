@@ -71,7 +71,10 @@ class ProcessTree {
   ~ProcessTree();
 
   int top_pid() const {return top_pid_;}
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds() {return inherited_fds_;}
+  void inherit_fds(int pid, const char* fds_string, bool keep_open = false);
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds(int pid) {
+    return inherited_fds_[pid];
+  }
   void insert(Process *p);
   void insert(ExecedProcess *p);
   void export2js(FILE* stream);
@@ -166,11 +169,17 @@ class ProcessTree {
    * not used.
    */
   std::unordered_map<int, ExecedProcess *> roots_;
-  /** This is somewhat analogous to Process::fds_, although cannot change over time.
-   *  Represents the fds the root process inherits from the external context.
-   *  (The newly execed top process inherits this set here from the ProcessTree,
-   *  while a newly execed non-top process inherits its parent's fds_.) */
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds_;
+  /**
+   * This is somewhat analogous to Process::fds_, although cannot change over time.
+   * Represents the fds the root process inherits from the external context.
+   *
+   * A newly execed root process inherits from set here from the ProcessTree,
+   * while a newly execed non-top process inherits its parent's fds_.
+   * If shims are not used the root process inherits the fds from ther supervisor.
+   * If shims are used the first exec child of shim inherits shim's fds, this is why the map is
+   * keyed by the pid of the top process/shim.
+   * */
+  std::unordered_map<int, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>> inherited_fds_;
   /** The pipes (or terminal lines) inherited from the external world,
    *  each represented by a Pipe object created by this ProcessTree. */
   std::unordered_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
