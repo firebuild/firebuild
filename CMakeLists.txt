@@ -19,7 +19,7 @@ include(GNUInstallDirs)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
-set(DATADIR "${CMAKE_SOURCE_DIR}/data" CACHE STRING "FireBuild's architecture-independent files' location")
+set(DATADIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/firebuild" CACHE STRING "FireBuild's architecture-independent files' location")
 set(TENTATIVE_C_CXX_FLAGS
   -std=c++17
   -W
@@ -90,3 +90,4 @@ file(COPY etc/firebuild.conf
   DESTINATION "${CMAKE_BINARY_DIR}/etc")
 
 install(FILES etc/firebuild.conf DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+install(FILES data/build-report.html DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/firebuild")
