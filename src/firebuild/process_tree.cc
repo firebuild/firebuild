@@ -84,16 +84,20 @@ void ProcessTree::inherit_fds(int pid, int* fds, int fd_count, const char* fds_s
       std::shared_ptr<FileFD> file_fd =
           Process::add_filefd(inherited_fds_[pid], fd, std::make_shared<FileFD>(fd, acc_mode));
       file_fd->set_pipe(pipe);
+
+      if (scanf_ret == 3) {
+        if (separator == ',') {
+          reuse_pipe = true;
+        } else {
+          reuse_pipe = false;
+        }
+      }
     } else {
       close(fds[i]);
-      continue;
-    }
-
-    if (scanf_ret == 3) {
-      if (separator == ',') {
-        reuse_pipe = true;
-      } else {
+      if (scanf_ret == 3 && separator == ':') {
         reuse_pipe = false;
+      } else {
+        /* use reuse_pipe's previous value */
       }
     }
   }
