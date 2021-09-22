@@ -52,9 +52,15 @@ static int cmp_inode_fds(const void *p1, const void *p2) {
   ino_t inode1 = ((inode_fd*)p1)->inode;
   ino_t inode2 = ((inode_fd*)p2)->inode;
   if (inode1 == inode2) {
-    int fd1 = ((inode_fd*)p1)->fd;
-    int fd2 = ((inode_fd*)p2)->fd;
-    return (fd1 == fd2) ? 0 : (fd1 < fd2 ? -1 : 1);
+    int m1 = ((inode_fd*)p1)->acc_mode;
+    int m2 = ((inode_fd*)p2)->acc_mode;
+    if (m1 == m2) {
+      int fd1 = ((inode_fd*)p1)->fd;
+      int fd2 = ((inode_fd*)p2)->fd;
+      return (fd1 == fd2) ? 0 : (fd1 < fd2 ? -1 : 1);
+    } else {
+      return m1 < m2 ? -1 : 1;
+    }
   } else {
     return inode1 < inode2 ? -1 : 1;
   }
