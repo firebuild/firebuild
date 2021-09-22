@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #define LIBFIREBUILD_SO_LEN strlen(LIBFIREBUILD_SO)
-#define MAX_PID_STR_LEN 32
 
 
 static void usage() {
@@ -135,15 +134,13 @@ char* get_fd_map(const char * fd_dir, int shim_fd, int **fds_out, int *fds_count
   return ret_buf;
 }
 
-void export_fd_map(const char *fd_map) {
-  setenv("FIREBUILD_SHIM_FDS", fd_map, 0);
-}
-
-void send_fds_to_supervisor(int shim_fd, pid_t pid, const int *fds, const int fd_count) {
+void send_fds_to_supervisor(int shim_fd, pid_t pid, const int *fds, const int fd_count,
+                            char *fd_map) {
   struct msghdr msg = {0};
   struct cmsghdr *cmsg;
   char msg_buf[sizeof(pid) + sizeof(fd_count)];
-  struct iovec io = {.iov_base = msg_buf, .iov_len = sizeof(msg_buf)};
+  struct iovec io[] = {{.iov_base = msg_buf, .iov_len = sizeof(msg_buf)},
+                       {.iov_base = fd_map, .iov_len = strlen(fd_map) + 1}};
   size_t buf_len = CMSG_SPACE(sizeof(fds[0]) * (fd_count + 1));
   union {
     char buf[buf_len];
@@ -152,8 +149,8 @@ void send_fds_to_supervisor(int shim_fd, pid_t pid, const int *fds, const int fd
   int pipefd[2];
 
   memset(u.buf, 0, buf_len);
-  msg.msg_iov = &io;
-  msg.msg_iovlen = 1;
+  msg.msg_iov = io;
+  msg.msg_iovlen = 2;
   memcpy(msg_buf, &pid, sizeof(pid));
   memcpy(msg_buf + sizeof(pid), &fd_count, sizeof(fd_count));
   msg.msg_control = u.buf;
@@ -230,12 +227,6 @@ static char * real_executable(const char *argv0) {
   exit(1);
 }
 
-void export_shim_pid(pid_t pid) {
-  char pid_str[MAX_PID_STR_LEN];
-  snprintf(pid_str, MAX_PID_STR_LEN, "%d", pid);
-  setenv("FIREBUILD_SHIM_PID", pid_str, 0);
-}
-
 int main(const int argc, char *argv[]) {
   (void)argc;
 
@@ -254,11 +245,9 @@ int main(const int argc, char *argv[]) {
       exit(1);
     }
     fix_ld_preload();
-    export_shim_pid(pid);
     int *fds, fd_count;
     char *fd_map = get_fd_map("/proc/self/fd", shim_fd, &fds, &fd_count);
-    export_fd_map(fd_map);
-    send_fds_to_supervisor(shim_fd, pid, fds, fd_count);
+    send_fds_to_supervisor(shim_fd, pid, fds, fd_count, fd_map);
     free(fds);
     free(fd_map);
     /* */

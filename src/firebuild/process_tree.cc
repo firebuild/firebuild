@@ -13,86 +13,82 @@
 
 namespace firebuild {
 
-ProcessTree::ProcessTree(int top_pid)
-    : top_pid_(top_pid), roots_(), inherited_fds_({}),
+ProcessTree::ProcessTree(int top_pid, bool use_shim)
+    : top_pid_(top_pid), use_shim_(use_shim), roots_(), pending_root_pids_(), inherited_fds_({}),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
       pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
       cmd_profs_() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
-  /* Create the Pipes and FileFDs representing stdout and stderr of the top process.
-   * Check if stdout and stderr point to the same place. kcmp() is not universally
-   * available, so do a back-n-forth fcntl() on one and see if it drags the other with it.
-   * See https://unix.stackexchange.com/questions/191967.
-   * Share the same Pipe object, or use two different Pipes depending on the outcome. */
-  // FIXME Make this more generic, for all the received pipes / terminal outputs.
-  // FIXME With shim support we can't safely toggle the fcntl flags as it might affect other
-  // processes. Use kcmp() or /proc instead.
-  int flags1 = fcntl(STDOUT_FILENO, F_GETFL);
-  int flags2a = fcntl(STDERR_FILENO, F_GETFL);
-  fcntl(STDOUT_FILENO, F_SETFL, flags1 ^ O_NONBLOCK);
-  int flags2b = fcntl(STDERR_FILENO, F_GETFL);
-  fcntl(STDOUT_FILENO, F_SETFL, flags1);
-  FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
-                                                   "Top level stdout and stderr are distinct");
-  /* TODO(rbalint) pass proper access mode flags */
-  int fds[] = {0, 1, 2};
-  QueueShimFds(top_pid, fds, 3);
-  inherit_fds(top_pid, flags2a != flags2b ? "0=0:1=1,2=1" : "0=0:1=1:2=1", true);
+  if (!use_shim) {
+    /* Create the Pipes and FileFDs representing stdout and stderr of the top process.
+     * Check if stdout and stderr point to the same place. kcmp() is not universally
+     * available, so do a back-n-forth fcntl() on one and see if it drags the other with it.
+     * See https://unix.stackexchange.com/questions/191967.
+     * Share the same Pipe object, or use two different Pipes depending on the outcome. */
+    // FIXME Make this more generic, for all the received pipes / terminal outputs.
+    // FIXME With shim support we can't safely toggle the fcntl flags as it might affect other
+    // processes. Use kcmp() or /proc instead.
+    int flags1 = fcntl(STDOUT_FILENO, F_GETFL);
+    int flags2a = fcntl(STDERR_FILENO, F_GETFL);
+    fcntl(STDOUT_FILENO, F_SETFL, flags1 ^ O_NONBLOCK);
+    int flags2b = fcntl(STDERR_FILENO, F_GETFL);
+    fcntl(STDOUT_FILENO, F_SETFL, flags1);
+    FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
+             "Top level stdout and stderr are distinct");
+    /* TODO(rbalint) pass proper access mode flags */
+    int fds[] = {0, 1, 2};
+    inherit_fds(top_pid, fds, 3, flags2a != flags2b ? "0=0:1=1,2=1" : "0=0:1=1:2=1", true);
+  }
 }
 
-void ProcessTree::inherit_fds(int pid, const char* fds_string, bool keep_open) {
+void ProcessTree::inherit_fds(int pid, int* fds, int fd_count, const char* fds_string,
+                              bool keep_open) {
   assert(inherited_fds_.count(pid) == 0);
   // TODO(rbalint) support other inherited fds
   /* Create the FileFD representing stdin of the top process. */
-  const std::vector<int>* fds = ShimPid2Fds(pid);
   inherited_fds_[pid] = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
 
   std::shared_ptr<Pipe> pipe;
   bool reuse_pipe = false;
   int scanf_ret, offset = 0;
-  int i = -1;
-  do {
+  for (int i = 0; i < fd_count; i++) {
     int fd, acc_mode, characters_read;
     char separator;
     scanf_ret = sscanf(&fds_string[offset], "%d=%d%c%n",
                        &fd, &acc_mode, &separator, &characters_read);
     offset += characters_read;
-    i++;
-    if (scanf_ret >= 2) {
-      /* valid fd */
-      if (fd == STDOUT_FILENO || fd == STDIN_FILENO || acc_mode == O_WRONLY) {
-        /* to be captured */
-        if (!reuse_pipe) {
-          /* Create a new Pipe for this file descriptor.
-           * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
+    assert(scanf_ret >= 2);
+    if (fd == STDOUT_FILENO || fd == STDIN_FILENO || acc_mode == O_WRONLY) {
+      /* to be captured */
+      if (!reuse_pipe) {
+        /* Create a new Pipe for this file descriptor.
+         * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
 #ifdef __clang_analyzer__
-          /* Scan-build reports a false leak for the correct code. This is used only in static
-           * analysis. It is broken because all shared pointers to the Pipe must be copies of
-           * the shared self pointer stored in it. */
-          pipe = std::make_shared<Pipe>((*fds)[i], nullptr);
+        /* Scan-build reports a false leak for the correct code. This is used only in static
+         * analysis. It is broken because all shared pointers to the Pipe must be copies of
+         * the shared self pointer stored in it. */
+        pipe = std::make_shared<Pipe>((*fds)[i], nullptr);
 #else
-          pipe = (new Pipe((*fds)[i], nullptr))->shared_ptr();
+        pipe = (new Pipe(fds[i], nullptr))->shared_ptr();
 #endif
-          FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
-          if (keep_open) {
-            pipe->set_keep_fd0_open();
-          }
-          inherited_fd_pipes_.insert(pipe);
-        } else if (!keep_open) {
-          close((*fds)[i]);
+        FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
+        if (keep_open) {
+          pipe->set_keep_fd0_open();
         }
-
-        std::shared_ptr<FileFD> file_fd =
-            Process::add_filefd(inherited_fds_[pid], fd, std::make_shared<FileFD>(fd, acc_mode));
-        file_fd->set_pipe(pipe);
-      } else {
-        close((*fds)[i]);
-        continue;
+        inherited_fd_pipes_.insert(pipe);
+      } else if (!keep_open) {
+        close(fds[i]);
       }
+
+      std::shared_ptr<FileFD> file_fd =
+          Process::add_filefd(inherited_fds_[pid], fd, std::make_shared<FileFD>(fd, acc_mode));
+      file_fd->set_pipe(pipe);
     } else {
-      // TODO(rbalint) break close all, invalid string
+      close(fds[i]);
+      continue;
     }
+
     if (scanf_ret == 3) {
       if (separator == ',') {
         reuse_pipe = true;
@@ -100,8 +96,9 @@ void ProcessTree::inherit_fds(int pid, const char* fds_string, bool keep_open) {
         reuse_pipe = false;
       }
     }
-  } while (scanf_ret == 3);
-  DropShimFds(pid);
+  }
+  /* The last element can't be followed by a separator. */
+  assert(scanf_ret != 3);
 }
 
 ProcessTree::~ProcessTree() {
@@ -149,12 +146,17 @@ void ProcessTree::insert(ExecedProcess *p) {
   TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
 
   if (p->parent() == NULL) {
-    int root_pid = p->shim_pid(p->env_vars());
-    if (root_pid == -1) {
+    int root_pid = -1;
+    if (use_shim_) {
+      if (pending_root_pids_.count(p->pid()) > 0) {
+        root_pid = p->pid();
+        pending_root_pids_.erase(p->pid());
+      }
+    } else {
       root_pid = top_pid_;
     }
-    assert(root_pid != -1);
-    if (roots_.count(root_pid) == 0) {
+
+    if (root_pid != -1 && roots_.count(root_pid) == 0) {
       roots_[root_pid] = p;
     } else {
       // roots parent is firebuild which is not in the tree.

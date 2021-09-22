@@ -88,14 +88,4 @@ std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
   return fifo_params;
 }
 
-const char* scproc_query_env_var_value(const FBB_scproc_query *msg, const char* env_var) {
-  int env_var_len = strlen(env_var);
-  for_s_in_fbb_scproc_query_env_var(msg, {
-      if (strncmp(s, env_var, env_var_len) == 0 && s[env_var_len] == '=') {
-        return &s[env_var_len + 1];
-      }
-    });
-  return &env_var[env_var_len];
-}
-
 }  // namespace firebuild

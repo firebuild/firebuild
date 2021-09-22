@@ -171,21 +171,6 @@ class ExecedProcess : public Process {
                          unsigned int *nodeid);
 
   std::string args_to_short_string() const;
-  /** PID of shim or -1 if shim's PID is not set in the environment. */
-  static int shim_pid(const std::vector<std::string>& env_vars) {
-    const std::string shim_env_var_prefix = "FIREBUILD_SHIM_PID=";
-    for (const std::string& env_var : env_vars) {
-      if (env_var.compare(0, shim_env_var_prefix.length(), shim_env_var_prefix) == 0) {
-        try {
-          int pid = std::stoi(env_var.substr(shim_env_var_prefix.length()));
-          return pid;
-        } catch (const std::exception& e) {
-          return -1;
-        }
-      }
-    }
-    return -1;
-  }
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.

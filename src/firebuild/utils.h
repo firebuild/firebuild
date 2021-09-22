@@ -6,8 +6,6 @@
 
 #include <string>
 
-#include "./fbb.h"
-
 /** Wrapper retrying on recoverable errors */
 ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
                            unsigned int flags);
@@ -23,11 +21,6 @@ void ack_msg(const int conn, const int ack_num);
 
 std::string make_fifo(int fd, int flags, int pid, const char *fb_conn_string,
                       int *fifo_name_offset);
-
-/**
- * Value of an environment variable or an empty string if the variable is not set.
- */
-const char* scproc_query_env_var_value(const FBB_scproc_query *ic_msg, const char* env_var);
 
 }  // namespace firebuild
 #endif  // FIREBUILD_UTILS_H_

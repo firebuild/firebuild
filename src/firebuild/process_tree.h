@@ -67,13 +67,22 @@ struct pending_parent_ack {
 
 class ProcessTree {
  public:
-  explicit ProcessTree(int top_pid);
+  explicit ProcessTree(int top_pid, bool use_shim);
   ~ProcessTree();
 
   int top_pid() const {return top_pid_;}
-  void inherit_fds(int pid, const char* fds_string, bool keep_open = false);
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> inherited_fds(int pid) {
-    return inherited_fds_[pid];
+  void inherit_fds(int pid, int* fds, int fd_count, const char* fds_string,
+                   bool keep_open = false);
+  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pop_inherited_fds(int pid) {
+    auto it = inherited_fds_.find(pid);
+    if (it != inherited_fds_.end()) {
+      auto ret = it->second;
+      inherited_fds_.erase(it);
+      pending_root_pids_.insert(pid);
+      return ret;
+    } else {
+      return nullptr;
+    }
   }
   void insert(Process *p);
   void insert(ExecedProcess *p);
@@ -180,11 +189,15 @@ class ProcessTree {
  private:
   /** PID of the very first process started by firebuild */
   int top_pid_;
+  /** Shim is in use*/
+  bool use_shim_;
   /**
    * Top processes by PID. One per each shim invocation, or a single top process, when shims are
    * not used.
    */
   std::unordered_map<int, ExecedProcess *> roots_;
+  /** PIDs of shim exec children which the supervisor hasn't yet added to roots_ */
+  std::unordered_set<int> pending_root_pids_;
   /**
    * This is somewhat analogous to Process::fds_, although cannot change over time.
    * Represents the fds the root process inherits from the external context.

@@ -409,7 +409,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
      * exec (an exec parent will be found then). */
     parent = proc_tree->pid2proc(pid);
 
-    int shim_pid;
+    std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> inherited_fds_candidate;
     if (parent) {
       /* This PID was already seen, i.e. this process is the result of an exec*(),
        * or a posix_spawn*() where we've already seen and processed the
@@ -428,14 +428,11 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       }
     } else if (ppid == getpid()) {
       /* This is the first intercepted process. */
-      fds = proc_tree->inherited_fds(proc_tree->top_pid());
+      fds = proc_tree->pop_inherited_fds(proc_tree->top_pid());
     } else if (!proc_tree->pid2proc(ppid)
-               && (shim_pid = atoi(
-                   firebuild::scproc_query_env_var_value(ic_msg, "FIREBUILD_SHIM_PID"))) == pid) {
+               && (inherited_fds_candidate = proc_tree->pop_inherited_fds(pid))) {
       /* This is one of the root intercepted processes. */
-      proc_tree->inherit_fds(
-          shim_pid, firebuild::scproc_query_env_var_value(ic_msg, "FIREBUILD_SHIM_FDS"));
-      fds = proc_tree->inherited_fds(shim_pid);
+      fds = inherited_fds_candidate;
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
@@ -1287,7 +1284,7 @@ static void read_shim_msg(evutil_socket_t shim_sock, int16_t event, void *arg) {
 
   /* Read message with control data */
   struct msghdr msg = {};
-  char msg_buf[sizeof(pid_t) + sizeof(int)];
+  char msg_buf[4096];  // FIXME sizing
   struct iovec io = {.iov_base = msg_buf, .iov_len = sizeof(msg_buf)};
   msg.msg_iov = &io;
   msg.msg_iovlen = 1;
@@ -1303,14 +1300,13 @@ static void read_shim_msg(evutil_socket_t shim_sock, int16_t event, void *arg) {
     firebuild::fb_error("Failed to receive fds from shim\n");
   }
 
-  assert(msg.msg_iov->iov_len == sizeof(pid_t) + sizeof(int));
   pid_t pid = *reinterpret_cast<pid_t*>(msg_buf);
   int fd_count = *reinterpret_cast<int*>(msg_buf + sizeof(pid_t));
 
   struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
   int* fds = reinterpret_cast<int*>(CMSG_DATA(cmsg));
   if (fd_count > 0) {
-    proc_tree->QueueShimFds(pid, fds, fd_count);
+    proc_tree->inherit_fds(pid, fds, fd_count, msg_buf + sizeof(pid_t) + sizeof(int));
     /* The last extra fd is for signaling the consumption of the message and the signal is closing
      * it. */
     close(fds[fd_count]);
@@ -1546,7 +1542,7 @@ int main(const int argc, char *argv[]) {
       close(shim_client_sock);
     }
     /* This creates some Pipe objects, so needs ev_base being set up. */
-    proc_tree = new firebuild::ProcessTree(child_pid);
+    proc_tree = new firebuild::ProcessTree(child_pid, firebuild::use_shim);
     bump_limits();
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
