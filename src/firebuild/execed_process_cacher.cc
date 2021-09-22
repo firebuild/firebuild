@@ -627,6 +627,7 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
         FB_DEBUG(FB_DEBUG_SHORTCUT,
                  "│   More than 1 matching candidates found, ignoring them all");
         munmap(candidate_inouts_buf, candidate_inouts_buf_len);
+        munmap(*inouts_buf, *inouts_buf_len);
         return nullptr;
       }
     } else {
