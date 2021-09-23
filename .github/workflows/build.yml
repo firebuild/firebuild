@@ -65,6 +65,7 @@ jobs:
         TZ=Europe/Budapest
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
         echo $TZ > /etc/timezone
+        apt-get install -y eatmydata
         eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc
     - name: build-out-of-tree
       run: |
