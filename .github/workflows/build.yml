@@ -65,7 +65,7 @@ jobs:
         TZ=Europe/Budapest
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
         echo $TZ > /etc/timezone
-        eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc valgrind
+        eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc
     - name: build-out-of-tree
       run: |
         mkdir build
@@ -76,10 +76,6 @@ jobs:
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug .
         make -j2 check
-    - name: test
-      run: |
-        make check
-        test/close_fds_exec make valgrind-check
   scan-build:
     # wait for clang-build because scan-build fails if the former fails
     needs: [style-checks, clang-build]
