@@ -23,7 +23,7 @@ jobs:
         sudo add-apt-repository -y -n ppa:rbalint/fmtlib
         sudo add-apt-repository -y -n ppa:rbalint/valgrind
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
-        sudo apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
+        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
     - name: build-out-of-tree
       run: |
         mkdir build
@@ -65,7 +65,7 @@ jobs:
         TZ=Europe/Budapest
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
         echo $TZ > /etc/timezone
-        apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc valgrind
+        eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc valgrind
     - name: build-out-of-tree
       run: |
         mkdir build
@@ -90,7 +90,7 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo apt-get -y install clang-tools-12 $BUILD_DEPS
+        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
     - name: scan-build
       run: |
         scan-build-12 cmake .
@@ -104,7 +104,7 @@ jobs:
     - name: install-deps
       run: |
         sudo apt-get -qq update
-        sudo apt-get -y install clang-tools-12 $BUILD_DEPS
+        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
     - name: build
       run: |
         env CXX=clang++ CC=clang cmake .
@@ -121,7 +121,7 @@ jobs:
         sudo add-apt-repository -y -n ppa:rbalint/fmtlib
         sudo add-apt-repository -y ppa:rbalint/xxhash
         # work around breaking 18.04's make https://github.com/rbalint/fb/issues/174
-        sudo apt-get -y install $BUILD_DEPS
+        sudo eatmydata apt-get -y install $BUILD_DEPS
     - name: rebuild self
       run: |
         tools/rebuild-self build
@@ -151,8 +151,8 @@ jobs:
         sudo apt-get update
         sudo add-apt-repository -y -n ppa:rbalint/fmtlib
         sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo apt-get -y install devscripts $BUILD_DEPS $TEST_DEPS
-        sudo apt-get build-dep vte2.91
+        sudo eatmydata apt-get -y install devscripts $BUILD_DEPS $TEST_DEPS
+        sudo eatmydata apt-get build-dep vte2.91
     - name: build-in-tree
       run: |
         cmake -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
@@ -176,7 +176,7 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo apt-get build-dep .
+        sudo eatmydata apt-get build-dep .
     - name: deb
       run: |
         # skip dh_buildinfo step
