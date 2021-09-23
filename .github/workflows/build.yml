@@ -128,7 +128,7 @@ jobs:
         # rebuild again, to test shortcutting
         cd test
         ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -C ../build all
+        time ./run-firebuild make -j2 -C ../build all
         du -sh test_cache_dir
     - name: rebuild self with -j8
       run: |
@@ -181,7 +181,7 @@ jobs:
       run: |
         # skip dh_buildinfo step
         printf '\noverride_dh_buildinfo:\n' >> debian/rules
-        dpkg-buildpackage -us -uc
+        dpkg-buildpackage -j2 -us -uc
         sudo apt-get install ../*.deb
         firebuild -- ls
 
