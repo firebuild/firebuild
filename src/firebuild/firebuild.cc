@@ -59,8 +59,6 @@ struct event_base * ev_base = NULL;
 
 namespace {
 
-static char datadir[] = FIREBUILD_DATADIR;
-
 static char *fb_tmp_dir;
 static char *fb_conn_string;
 
@@ -1481,6 +1479,8 @@ int main(const int argc, char *argv[]) {
   } else {
     // show process tree if needed
     if (generate_report) {
+      const std::string datadir(getenv("FIREBUILD_DATA_DIR") ? getenv("FIREBUILD_DATA_DIR")
+                                : FIREBUILD_DATADIR);
       write_report(report_file, datadir);
     }
   }

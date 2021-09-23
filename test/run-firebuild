@@ -2,7 +2,7 @@
 
 . test_helper.bash
 
-$FIREBUILD_PREFIX_CMD firebuild \
+env FIREBUILD_DATA_DIR="../data" $FIREBUILD_PREFIX_CMD firebuild \
   -c ../etc/firebuild.conf \
   -o 'env_vars.pass_through += "GCOV_PREFIX"' \
   -o 'env_vars.pass_through += "GCOV_PREFIX_STRIP"' \
