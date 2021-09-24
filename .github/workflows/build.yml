@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - shim-debug
   pull_request:
     branches:
       - master
@@ -12,160 +12,7 @@ env:
   BUILD_DEPS: cmake libconfig++-dev libevent-dev libflatbuffers-dev flatbuffers-compiler libxxhash-dev libjemalloc-dev libfmt-dev pkg-config python3-jinja2
   TEST_DEPS: bats node-d3 graphviz moreutils fakeroot
 jobs:
-  build-on-ubuntu-lts:
-    needs: style-checks
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sudo add-apt-repository -y -n ppa:rbalint/fmtlib
-        sudo add-apt-repository -y -n ppa:rbalint/valgrind
-        sudo add-apt-repository -y -u ppa:rbalint/xxhash
-        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
-    - name: build-out-of-tree
-      run: |
-        mkdir build
-        cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        make -j2
-    - name: doc
-      run: |
-        cd build
-        doxygen
-    - name: build-in-tree
-      run: |
-        cmake -DCMAKE_BUILD_TYPE=Debug .
-        make -j2 check
-    - name: test
-      run: |
-        make check
-        test/close_fds_exec make valgrind-check
-    - name: coverage
-      # tests don't run with out of tree builds at the moment
-      run: |
-        git clean -dxf
-        cmake -DCOVERAGE=1 .
-        make -j2 check coverage-info
-        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
-  # build on latest stable Ubuntu available in a docker image, which may not be an lts
-  build-on-ubuntu-docker:
-    needs: style-checks
-    runs-on: ubuntu-latest
-    container: ubuntu:hirsute
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list
-        apt-get -qq update
-        # configure tzdata in advance to prevent hanging at the prompt
-        TZ=Europe/Budapest
-        ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
-        echo $TZ > /etc/timezone
-        apt-get install -y eatmydata
-        eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc
-    - name: build-out-of-tree
-      run: |
-        mkdir build
-        cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        make -j2
-    - name: build-in-tree
-      run: |
-        cmake -DCMAKE_BUILD_TYPE=Debug .
-        make -j2 check
-  scan-build:
-    # wait for clang-build because scan-build fails if the former fails
-    needs: [style-checks, clang-build]
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
-    - name: scan-build
-      run: |
-        scan-build-12 cmake .
-        scan-build-12 --status-bugs make -j2
-  clang-build:
-    needs: style-checks
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sudo apt-get -qq update
-        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
-    - name: build
-      run: |
-        env CXX=clang++ CC=clang cmake .
-        # the interceptor does not work when building it with Clang, thus make check always fails
-        make -j2
-  rebuild-self:
-    needs: style-checks
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sudo add-apt-repository -y -n ppa:rbalint/fmtlib
-        sudo add-apt-repository -y ppa:rbalint/xxhash
-        # work around breaking 18.04's make https://github.com/rbalint/fb/issues/174
-        sudo eatmydata apt-get -y install $BUILD_DEPS
-    - name: rebuild self
-      run: |
-        tools/rebuild-self build
-        # rebuild again, to test shortcutting
-        cd test
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -j2 -C ../build all
-        du -sh test_cache_dir
-    - name: rebuild self with -j8
-      run: |
-        cd test
-        rm -r test_cache_dir
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -j8 -C ../build all
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -j8 -C ../build all
-
-  build-other-projects:
-    needs: style-checks
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sudo sed -i 's/# deb-src/deb-src/' /etc/apt/sources.list
-        sudo apt-get update
-        sudo add-apt-repository -y -n ppa:rbalint/fmtlib
-        sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo eatmydata apt-get -y install devscripts $BUILD_DEPS $TEST_DEPS
-        sudo eatmydata apt-get build-dep vte2.91
-    - name: build-in-tree
-      run: |
-        cmake -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
-        make -j2 check
-    - name: build-vte
-      run: |
-        apt-get source vte2.91
-        cd vte2.91-*
-        meson build
-        cd ../test
-        ./run-firebuild ninja -j8 -C ../vte2.91-*/build
-        ninja -C ../vte2.91-*/build clean
-        ./run-firebuild ninja -j8 -C ../vte2.91-*/build
-
   build-deb:
-    needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     steps:
@@ -181,16 +28,3 @@ jobs:
         dpkg-buildpackage -j2 -us -uc
         sudo apt-get install ../*.deb
         firebuild -- ls
-
-  style-checks:
-    runs-on: ubuntu-20.04
-    timeout-minutes: 2
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
-        pip3 install cpplint==1.5.4
-    - name: style-check
-      run: env PATH=$HOME/.local/bin:$PATH cpplint --recursive src test
-
