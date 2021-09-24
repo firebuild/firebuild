@@ -31,6 +31,7 @@ add_test_binary(test_static)
 target_link_libraries(test_static "-static")
 
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
+file(CREATE_LINK ${CMAKE_SOURCE_DIR}/data "${CMAKE_BINARY_DIR}/test/data" SYMBOLIC)
 add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc $<TARGET_OBJECTS:common_objs>)
 add_test(fbb ./fbb_test)
 add_dependencies(fbb_test fbb_gen_files)
