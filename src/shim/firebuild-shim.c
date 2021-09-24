@@ -129,7 +129,7 @@ static char* get_fd_map(const char * fd_dir, int shim_fd, int **fds_out, int *fd
                         inode_fds[i].fd, inode_fds[i].acc_mode);
 
     if (fds_capacity - fds_len <= 0) {
-      fds_capacity *=2;
+      fds_capacity *= 2;
       fds = realloc(fds, fds_capacity * sizeof(fds[0]));
     }
     (fds)[fds_len++] = inode_fds[i].fd;

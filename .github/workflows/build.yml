@@ -21,6 +21,7 @@ jobs:
       run: |
         sudo add-apt-repository -y ppa:rbalint/xxhash
         sudo eatmydata apt-get build-dep .
+        sudo eatmydata apt-get install valgrind
     - name: deb
       run: |
         # skip dh_buildinfo step
