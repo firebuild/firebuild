@@ -239,7 +239,9 @@ int main(const int argc, char *argv[]) {
   }
   const char* shim_fd_str = getenv("FIREBUILD_SHIM_FD");
   if (shim_fd_str) {
+    fprintf(stderr, "str: %s\n", shim_fd_str);
     int shim_fd = atoi(shim_fd_str);
+    fprintf(stderr, "int: %d\n", shim_fd);
     pid_t pid = getpid();
     if (shim_fd <= 0) {
       fprintf(stderr, "ERROR: FIREBUILD_SHIM_FD=%s is invalid\n", shim_fd_str);
