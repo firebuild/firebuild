@@ -21,18 +21,6 @@
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define OFF0  0  /* if a char x[4] is looked at as int32, x[0] is at this bit position */
-#define OFF1  8  /*                  ""                   x[1]           ""            */
-#define OFF2 16  /*                                                               etc. */
-#define OFF3 24
-#else
-#define OFF0 24
-#define OFF1 16
-#define OFF2  8
-#define OFF3  0
-#endif
-
 namespace firebuild  {
 
 unsigned char Hash::encode_map_[];
@@ -52,10 +40,6 @@ void Hash::set_from_data(const void *data, ssize_t size) {
 
   /* Convert from endian-specific representation to endian-independent byte array. */
   XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&arr_), hash);
-
-  /* Chop off the last 2 bits. They are not converted to base64 for simplicity, and we need to
-   * be able to decode as well. */
-  arr_[sizeof(arr_) - 1] &= ~0x03;
 }
 
 /**
@@ -198,36 +182,37 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
 /**
  * Sets the binary hash value directly from the given binary array.
  * No hash computation takes place.
- *
- * Returns true if succeeded, false if the input is not a valid binary hash.
  */
-bool Hash::set_hash_from_binary(const uint8_t * const binary) {
+void Hash::set_hash_from_binary(const uint8_t *binary) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
 
-  if (binary[sizeof(arr_) - 1] & 0x03) {
-    return false;
-  }
   memcpy(arr_, binary, sizeof(arr_));
-  return true;
 }
 
 /**
  * Helper method of set_hash_from_ascii().
  *
- * Convert 4 input bytes into 3 output bytes according to base64 decoding.
+ * Convert 4 input bytes (part of the base64 ASCII representation) into 3 output bytes (part of the
+ * binary representation) according to base64 decoding.
  *
  * The input value is the input 4 bytes in the machine's byte order, i.e. the numerical 32-bit value
  * differs on little endian vs. big endian machines, but the memory representations are the same.
  */
-void Hash::decode_block(uint32_t in, unsigned char *out) {
-  uint32_t val =
-      (decode_map_[(in >> OFF0) & 0xff] << 18) |
-      (decode_map_[(in >> OFF1) & 0xff] << 12) |
-      (decode_map_[(in >> OFF2) & 0xff] <<  6) |
-      (decode_map_[(in >> OFF3) & 0xff]);
+void Hash::decode_block(const char *in, unsigned char *out) {
+  const unsigned char *in_unsigned = reinterpret_cast<const unsigned char *>(in);
+  uint32_t val = (decode_map_[in_unsigned[0]] << 18) |
+                 (decode_map_[in_unsigned[1]] << 12) |
+                 (decode_map_[in_unsigned[2]] <<  6) |
+                 (decode_map_[in_unsigned[3]]);
   out[0] = val >> 16;
   out[1] = val >> 8;
   out[2] = val;
+}
+/** Similar to the previous, but for the last block (2 ASCII characters -> 1 byte of the binary) */
+void Hash::decode_last_block(const char *in, unsigned char *out) {
+  const unsigned char *in_unsigned = reinterpret_cast<const unsigned char *>(in);
+  out[0] = (decode_map_[in_unsigned[0]] << 2) |
+           (decode_map_[in_unsigned[1]] >> 4);
 }
 
 /**
@@ -241,18 +226,24 @@ bool Hash::set_hash_from_ascii(const std::string &ascii) {
   if (ascii.size() != kAsciiLength) {
     return false;
   }
+  /* check that all characters are from the set of valid chars */
   for (unsigned int i = 0; i < kAsciiLength; i++) {
     if (decode_map_[static_cast<int>(ascii[i])] < 0) {
       return false;
     }
   }
+  /* check that the last character is from the more restricted set,
+   * namely represents 6 bits so that the last 4 of them are zeros */
+  if ((decode_map_[static_cast<int>(ascii[kAsciiLength - 1])] & 0x0f) != 0) {
+    return false;
+  }
 
-  decode_block(*reinterpret_cast<const uint32_t *>(&ascii[ 0]), arr_);
-  decode_block(*reinterpret_cast<const uint32_t *>(&ascii[ 4]), arr_ +  3);
-  decode_block(*reinterpret_cast<const uint32_t *>(&ascii[ 8]), arr_ +  6);
-  decode_block(*reinterpret_cast<const uint32_t *>(&ascii[12]), arr_ +  9);
-  decode_block(*reinterpret_cast<const uint32_t *>(&ascii[16]), arr_ + 12);
-  arr_[15] = decode_map_[static_cast<int>(ascii[20])] << 2;
+  decode_block(&ascii[ 0], arr_);
+  decode_block(&ascii[ 4], arr_ +  3);
+  decode_block(&ascii[ 8], arr_ +  6);
+  decode_block(&ascii[12], arr_ +  9);
+  decode_block(&ascii[16], arr_ + 12);
+  decode_last_block(&ascii[20], arr_ + 15);
 
   return true;
 }
@@ -267,20 +258,26 @@ const uint8_t * Hash::to_binary() const {
 /**
  * Helper method of to_ascii().
  *
- * Convert 3 input bytes into 4 output bytes according to base64 encoding.
+ * Convert 3 input bytes (part of the binary representation) into 4 output bytes (part of the base64
+ * ASCII representation) according to base64 encoding.
  *
  * The output value is the output 4 bytes in the machine's byte order, i.e. the numerical 32-bit value
  * differs on little endian vs. big endian machines, but the memory representations are the same.
  */
-uint32_t Hash::encode_block(const unsigned char *in) {
-  uint32_t val = (static_cast<unsigned int>(in[0]) << 16) |
-                 (static_cast<unsigned int>(in[1]) <<  8) |
-                 (static_cast<unsigned int>(in[2]));
-  return
-      (encode_map_[ val >> 18        ] << OFF0) |
-      (encode_map_[(val >> 12) & 0x3f] << OFF1) |
-      (encode_map_[(val >>  6) & 0x3f] << OFF2) |
-      (encode_map_[ val        & 0x3f] << OFF3);
+void Hash::encode_block(const unsigned char *in, char *out) {
+  uint32_t val = (in[0] << 16) |
+                 (in[1] <<  8) |
+                 (in[2]);
+  out[0] = encode_map_[ val >> 18        ];
+  out[1] = encode_map_[(val >> 12) & 0x3f];
+  out[2] = encode_map_[(val >>  6) & 0x3f];
+  out[3] = encode_map_[ val        & 0x3f];
+}
+/** Similar to the previous, but for the last block (1 byte of the binary -> 2 ASCII characters */
+void Hash::encode_last_block(const unsigned char *in, char *out) {
+  uint8_t val = in[0];
+  out[0] = encode_map_[ val >> 2        ];
+  out[1] = encode_map_[(val << 4) & 0x3f];
 }
 
 /**
@@ -288,15 +285,13 @@ uint32_t Hash::encode_block(const unsigned char *in) {
  *
  * See the class's documentation for the exact format.
  */
-void Hash::to_ascii(char* const out) const {
-  assert(!(arr_[15] & 0x03));
-
-  *reinterpret_cast<uint32_t *>(out)      = encode_block(arr_);
-  *reinterpret_cast<uint32_t *>(out +  4) = encode_block(arr_ +  3);
-  *reinterpret_cast<uint32_t *>(out +  8) = encode_block(arr_ +  6);
-  *reinterpret_cast<uint32_t *>(out + 12) = encode_block(arr_ +  9);
-  *reinterpret_cast<uint32_t *>(out + 16) = encode_block(arr_ + 12);
-  *(out + 20) = encode_map_[arr_[15] >> 2];
+void Hash::to_ascii(char *out) const {
+  encode_block(arr_     , out);
+  encode_block(arr_ +  3, out +  4);
+  encode_block(arr_ +  6, out +  8);
+  encode_block(arr_ +  9, out + 12);
+  encode_block(arr_ + 12, out + 16);
+  encode_last_block(arr_ + 15, out + 20);
   out[kAsciiLength] = '\0';
 }
 
