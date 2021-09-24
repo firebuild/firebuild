@@ -19,16 +19,16 @@ namespace firebuild {
  * and provides methods to compute the hash, and convert to/from
  * an ASCII representation that can be used in filenames.
  *
- * The binary hash is the first 126 bits of the XXH128 sum (i.e. the two
- * low bits of the last byte are chopped off).
+ * The binary hash is canonical (i.e. architecture independent) version
+ * of the XXH128 sum.
  *
  * The ASCII hash is the base64 representation of the binary hash, in
- * 126/6 = 21 characters. The two non-alphanumeric characters of our
- * base64 alphabet are '+' and '^'. No trailing '=' signs to denote the
- * partial block.
+ * ceil(128/6) = 22 characters. The two non-alphanumeric characters of
+ * our base64 alphabet are '+' and '^'. No trailing '=' signs to denote
+ * the partial block.
  *
  * Command line equivalent:
- * xxh128sum | xxd -r -p | base64 | cut -c1-21 | tr / ^
+ * xxh128sum | xxd -r -p | base64 | cut -c1-22 | tr / ^
  */
 class Hash {
  public:
@@ -38,9 +38,6 @@ class Hash {
   explicit Hash(const uint8_t* arr)
       : arr_() {
     memcpy(arr_, arr, sizeof(arr_));
-    if (arr_[hash_size_ - 1] & 0x3) {
-      arr_[hash_size_ - 1] &= ~0x3;
-    }
   }
 
   bool operator==(const Hash& src) const {
@@ -52,16 +49,16 @@ class Hash {
 
   static size_t hash_size() {return hash_size_;}
   /** ASCII representation length without the trailing '\0' */
-  static const size_t kAsciiLength = 21;
+  static const size_t kAsciiLength = 22;
 
   void set_from_data(const void *data, ssize_t size);
   bool set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out);
   bool set_from_file(const FileName *filename, bool *is_dir_out = NULL);
 
-  bool set_hash_from_binary(const uint8_t * const binary);
+  void set_hash_from_binary(const uint8_t *binary);
   bool set_hash_from_ascii(const std::string &ascii);
   const uint8_t * to_binary() const;
-  void to_ascii(char* out) const;
+  void to_ascii(char *out) const;
   std::string to_ascii() const {
      char ascii[Hash::kAsciiLength + 1];
      to_ascii(ascii);
@@ -69,8 +66,10 @@ class Hash {
   }
 
  private:
-  static void decode_block(uint32_t in, unsigned char *out);
-  static uint32_t encode_block(const unsigned char *in);
+  static void decode_block(const char *in, unsigned char *out);
+  static void decode_last_block(const char *in, unsigned char *out);
+  static void encode_block(const unsigned char *in, char *out);
+  static void encode_last_block(const unsigned char *in, char *out);
 
   static unsigned char encode_map_[64];
   static char decode_map_[256];

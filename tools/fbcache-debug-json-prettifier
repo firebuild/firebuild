@@ -24,7 +24,7 @@ def fixup(node):
     raw = b""
     for num in node["hash"]:
       raw += num.to_bytes(1, byteorder='little')
-    ascii = base64.b64encode(raw, altchars=b"+^")[:21].decode(encoding="ascii")
+    ascii = base64.b64encode(raw, altchars=b"+^")[:22].decode(encoding="ascii")
     node["hash"] = ascii
 
   # Convert "mode" to octal
