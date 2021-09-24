@@ -249,8 +249,10 @@ int main(const int argc, char *argv[]) {
       exit(1);
     }
     fix_ld_preload();
+    fprintf(stderr, "int: %d\n", shim_fd);
     int *fds, fd_count;
     char *fd_map = get_fd_map("/proc/self/fd", shim_fd, &fds, &fd_count);
+    fprintf(stderr, "int: %d\n", shim_fd);
     send_fds_to_supervisor(shim_fd, pid, fds, fd_count, fd_map);
     free(fds);
     free(fd_map);
