@@ -165,6 +165,11 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
     libconfig::Setting& adding = cfg->getRoot().add(name, type);
     /* Unfortunately there's no operator= to assign from another Setting. */
     switch (type) {
+      case libconfig::Setting::TypeBoolean: {
+        bool x_bool = x;
+        adding = x_bool;
+        break;
+      }
       case libconfig::Setting::TypeString: {
         std::string x_str = x;
         adding = x_str;
@@ -227,7 +232,9 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
     }
   }
 
-  use_shim = (cfg->exists("intercepted_commands_dir"));
+  use_shim = cfg->exists("use_shim")
+      && cfg->getRoot()["use_shim"].getType() == libconfig::Setting::TypeBoolean
+      && cfg->getRoot()["use_shim"];
 
   /* System locations have to be inserted first because proper classification relies on them. */
   assert(FileName::isDbEmpty());
