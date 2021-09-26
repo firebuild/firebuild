@@ -16,8 +16,7 @@ namespace firebuild {
 ProcessTree::ProcessTree(int top_pid, bool use_shim)
     : top_pid_(top_pid), use_shim_(use_shim), roots_(), pending_root_pids_(), inherited_fds_({}),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
-      pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
-      cmd_profs_() {
+      pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
   if (!use_shim) {
@@ -221,29 +220,41 @@ profile_collect_cmds(const Process &p,
   }
 }
 
-void ProcessTree::build_profile(const Process &p,
-                                std::set<std::string> *ancestors) {
-  bool first_visited = false;
-  if (p.exec_started()) {
-    auto *e = static_cast<const ExecedProcess*>(&p);
-    auto &cmd_prof = cmd_profs_[e->args()[0]];
-    if (ancestors->count(e->args()[0]) == 0) {
-      cmd_prof.aggr_time += e->aggr_cpu_time_u();
-      ancestors->insert(e->args()[0]);
-      first_visited = true;
+void ProcessTree::build_profile(std::unordered_map<std::string, cmd_prof>* cmd_profs,
+                                const Process *p = nullptr,
+                                std::set<std::string> *passed_ancestors = nullptr) {
+  if (!p) {
+    for (auto& pair : roots()) {
+      build_profile(cmd_profs, pair.second, passed_ancestors);
     }
-    cmd_prof.cmd_time += e->utime_u() +  e->stime_u();
-    profile_collect_cmds(p, &cmd_prof.subcmds, ancestors);
-  }
-  if (p.exec_child() != NULL) {
-    build_profile(*p.exec_child(), ancestors);
-  }
-  for (auto& fork_child : p.fork_children()) {
-    build_profile(*fork_child, ancestors);
-  }
+  } else {
+    bool first_visited = false;
+    std::set<std::string> *ancestors = passed_ancestors ? passed_ancestors
+        : new std::set<std::string>();
+    if (p->exec_started()) {
+      auto *e = static_cast<const ExecedProcess*>(p);
+      auto &cmd_prof = (*cmd_profs)[e->args()[0]];
+      if (ancestors->count(e->args()[0]) == 0) {
+        cmd_prof.aggr_time += e->aggr_cpu_time_u();
+        ancestors->insert(e->args()[0]);
+        first_visited = true;
+      }
+      cmd_prof.cmd_time += e->utime_u() +  e->stime_u();
+      profile_collect_cmds(*p, &cmd_prof.subcmds, ancestors);
+    }
+    if (p->exec_child() != NULL) {
+      build_profile(cmd_profs, p->exec_child(), ancestors);
+    }
+    for (auto& fork_child : p->fork_children()) {
+      build_profile(cmd_profs, fork_child, ancestors);
+    }
 
-  if (first_visited) {
-    ancestors->erase(static_cast<const ExecedProcess*>(&p)->args()[0]);
+    if (first_visited) {
+      ancestors->erase(static_cast<const ExecedProcess*>(p)->args()[0]);
+    }
+    if (!passed_ancestors) {
+      delete ancestors;
+    }
   }
 }
 
@@ -289,14 +300,10 @@ static double percent_of(const double val, const double of) {
 }
 
 void ProcessTree::export_profile2dot(FILE* stream) {
-  std::set<std::string> cmd_chain;
   double min_penwidth = 1, max_penwidth = 8;
   int64_t build_time = 0;
-
-  // build profile
-  for (auto& pair : roots()) {
-    build_profile(*pair.second, &cmd_chain);
-  }
+  std::unordered_map<std::string, cmd_prof> cmd_profs;
+  build_profile(&cmd_profs);
   for (auto& pair : roots()) {
     build_time += pair.second->aggr_cpu_time_u();
   }
@@ -310,7 +317,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
           " width=0, shape=box, fontcolor=white];\n"
           "edge [fontname=Helvetica, fontsize=12]\n");
 
-  for (auto& pair : cmd_profs_) {
+  for (auto& pair : cmd_profs) {
     fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", pair.first.c_str(),
             pair.first.c_str());
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",

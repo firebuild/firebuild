@@ -213,13 +213,14 @@ class ProcessTree {
    * For each command (C) we store the cumulated CPU time in microseconds
    * (system + user time), and count the invocations of each other command
    * by C. */
-  std::unordered_map<std::string, cmd_prof> cmd_profs_;
   void insert_process(Process *p);
   void delete_process_subtree(Process *p);
   void profile_collect_cmds(const Process &p,
                             std::unordered_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);
-  void build_profile(const Process &p, std::set<std::string> *ancestors);
+  void build_profile(std::unordered_map<std::string, cmd_prof>* cmd_profs,
+                     const Process *p,
+                     std::set<std::string> *ancestors);
 
   DISALLOW_COPY_AND_ASSIGN(ProcessTree);
 };
