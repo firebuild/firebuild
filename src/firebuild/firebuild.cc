@@ -55,6 +55,7 @@
 /** global configuration */
 libconfig::Config * cfg;
 bool generate_report = false;
+bool update_shim_links = false;
 
 struct event_base * ev_base = NULL;
 
@@ -85,6 +86,8 @@ static void usage() {
          "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
          "                             the report's filename can be specified \n"
          "                             (firebuild-build-report.html by default). \n"
+         "   -u --update-shim-links    Update symlinks to firebuild shim in\n"
+         "                             intercepted_commads_dir (set in the configuration file)\n"
          "   -h --help                 show this help\n"
          "   -o --option=key=val       Add or replace a scalar in the config\n"
          "   -o --option=key+=val      Append to an array of scalars in the config\n"
@@ -1362,6 +1365,7 @@ int main(const int argc, char *argv[]) {
       {"directory",            required_argument, 0, 'C' },
       {"debug-level",          required_argument, 0, 'd' },
       {"generate-report",      optional_argument, 0, 'r' },
+      {"update-shim-links",    no_argument,       0, 'u' },
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
       {"insert-trace-markers", no_argument,       0, 'i' },
@@ -1369,7 +1373,7 @@ int main(const int argc, char *argv[]) {
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:C:d:r::o:hi",
+    c = getopt_long(argc, argv, "c:C:d:r::uo:hi",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -1410,6 +1414,10 @@ int main(const int argc, char *argv[]) {
       if (optarg != NULL) {
         report_file = optarg;
       }
+      break;
+
+    case 'u':
+      update_shim_links = true;
       break;
 
     case 'v':
@@ -1588,6 +1596,26 @@ int main(const int argc, char *argv[]) {
       const std::string datadir(getenv("FIREBUILD_DATA_DIR") ? getenv("FIREBUILD_DATA_DIR")
                                 : FIREBUILD_DATADIR);
       write_report(report_file, datadir);
+    }
+    if (update_shim_links) {
+      std::unordered_set<std::string> never_shim;
+      for (auto const cmd : {"dont_shortcut", "dont_intercept", "skip_cache", "dont_shim"}) {
+        libconfig::Setting& cmds = cfg->getRoot()["processes"][cmd];
+        for (int i = 0; i < cmds.getLength(); i++) {
+          never_shim.insert(cmds[i]);
+        }
+      }
+      for (auto const &cmd : proc_tree->shortcut_commands()) {
+        const size_t pos = cmd.rfind('/');
+        if (never_shim.count(cmd) == 0 && pos == std::string::npos) {
+          // TODO(rbalint) parameters
+          if (symlink("/usr/lib/firebuild/firebuild-shim",
+                      std::string(std::string(cfg->getRoot()["intercepted_commands_dir"])
+                                  + "/" + cmd).c_str()) != 0) {
+            perror(std::string("Error creating symbolic link: " + cmd).c_str());
+          }
+        }
+      }
     }
   }
 

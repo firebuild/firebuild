@@ -221,11 +221,12 @@ profile_collect_cmds(const Process &p,
 }
 
 void ProcessTree::build_profile(std::unordered_map<std::string, cmd_prof>* cmd_profs,
+                                bool include_not_shortcuttable = true,
                                 const Process *p = nullptr,
                                 std::set<std::string> *passed_ancestors = nullptr) {
   if (!p) {
     for (auto& pair : roots()) {
-      build_profile(cmd_profs, pair.second, passed_ancestors);
+      build_profile(cmd_profs, include_not_shortcuttable, pair.second, passed_ancestors);
     }
   } else {
     bool first_visited = false;
@@ -234,19 +235,23 @@ void ProcessTree::build_profile(std::unordered_map<std::string, cmd_prof>* cmd_p
     if (p->exec_started()) {
       auto *e = static_cast<const ExecedProcess*>(p);
       auto &cmd_prof = (*cmd_profs)[e->args()[0]];
-      if (ancestors->count(e->args()[0]) == 0) {
-        cmd_prof.aggr_time += e->aggr_cpu_time_u();
-        ancestors->insert(e->args()[0]);
-        first_visited = true;
+      if (e->can_shortcut() || include_not_shortcuttable) {
+        if (ancestors->count(e->args()[0]) == 0) {
+          cmd_prof.aggr_time += e->aggr_cpu_time_u();
+          ancestors->insert(e->args()[0]);
+          first_visited = true;
+        }
+        cmd_prof.cmd_time += e->utime_u() +  e->stime_u();
       }
-      cmd_prof.cmd_time += e->utime_u() +  e->stime_u();
-      profile_collect_cmds(*p, &cmd_prof.subcmds, ancestors);
+      if (!e->can_shortcut() || include_not_shortcuttable) {
+        profile_collect_cmds(*p, &cmd_prof.subcmds, ancestors);
+      }
     }
     if (p->exec_child() != NULL) {
-      build_profile(cmd_profs, p->exec_child(), ancestors);
+      build_profile(cmd_profs, include_not_shortcuttable, p->exec_child(), ancestors);
     }
     for (auto& fork_child : p->fork_children()) {
-      build_profile(cmd_profs, fork_child, ancestors);
+      build_profile(cmd_profs, include_not_shortcuttable, fork_child, ancestors);
     }
 
     if (first_visited) {
@@ -344,6 +349,26 @@ void ProcessTree::export_profile2dot(FILE* stream) {
   }
 
   fprintf(stream, "}\n");
+}
+
+std::vector<std::string> ProcessTree::shortcut_commands() {
+  std::unordered_map<std::string, cmd_prof> cmd_profs;
+  build_profile(&cmd_profs, false);
+
+  int64_t build_time = 0;
+  for (auto& pair : roots()) {
+    build_time += pair.second->aggr_cpu_time_u();
+  }
+
+  std::vector<std::string> cmds;
+  FB_DEBUG(FB_DEBUG_PROCTREE, "Shortcuttable commands:");
+  for (auto const it : cmd_profs) {
+    FB_DEBUG(FB_DEBUG_PROCTREE, "  " + it.first + " "
+             + std::to_string(build_time > 0 ? it.second.aggr_time * 100 / build_time : 100) + "%");
+    cmds.push_back(it.first);
+  }
+
+  return cmds;
 }
 
 }  // namespace firebuild

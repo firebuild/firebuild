@@ -17,6 +17,7 @@
 #include "firebuild/utils.h"
 
 extern bool generate_report;
+extern bool update_shim_links;
 
 namespace firebuild {
 
@@ -167,7 +168,9 @@ void ExecedProcess::do_finalize() {
   fds()->clear();
   inherited_pipes_.clear();
   if (!generate_report) {
-    args().clear();
+    if (!update_shim_links) {
+      args().clear();
+    }
     env_vars().clear();
     libs_.clear();
   }

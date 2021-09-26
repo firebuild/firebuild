@@ -85,6 +85,7 @@ class ProcessTree {
   void insert(ExecedProcess *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
+  std::vector<std::string> shortcut_commands();
   std::unordered_map<int, ExecedProcess*>& roots() {return roots_;}
   Process* pid2proc(int pid) {
     auto it = pid2proc_.find(pid);
@@ -219,6 +220,7 @@ class ProcessTree {
                             std::unordered_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);
   void build_profile(std::unordered_map<std::string, cmd_prof>* cmd_profs,
+                     bool include_not_shortcuttable,
                      const Process *p,
                      std::set<std::string> *ancestors);
 
