@@ -261,6 +261,7 @@ int main(const int argc, char *argv[]) {
   } else {
     /* just run the real executable, a transitive parent shim already connected the supervisor */
   }
+  setenv("PATH", strchr(getenv("PATH"), ':') + 1, 1);
   char *executable = real_executable(argv[0]);
   execv(executable, argv);
   free(executable);
