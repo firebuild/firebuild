@@ -23,6 +23,7 @@
 #define FMT_COMPILE FMT_STRING
 #endif
 #include <fmt/format.h>
+#include <map>
 #include <string>
 #include <stdexcept>
 #include <libconfig.h++>
@@ -109,14 +110,13 @@ static char** get_sanitized_env() {
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "Passing through environment variables:");
 
   const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
-  std::vector<std::string> env_v;
+  std::map<std::string, std::string> env;
   for (int i = 0; i < pass_through.getLength(); i++) {
     char * got_env = getenv(pass_through[i].c_str());
-    if (NULL  != got_env) {
-      env_v.push_back(pass_through[i].c_str() +
-                      std::string("=") +
-                      std::string(got_env));
-      FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+    if (got_env != NULL) {
+      env[pass_through[i]] = std::string(got_env);
+      FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + std::string(pass_through[i]) + "="
+               + env[pass_through[i]]);
     }
   }
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
@@ -124,14 +124,22 @@ static char** get_sanitized_env() {
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "Setting preset environment variables:");
   const libconfig::Setting& preset = root["env_vars"]["preset"];
   for (int i = 0; i < preset.getLength(); i++) {
-    env_v.push_back(preset[i]);
-    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+    std::string str = preset[i];
+    size_t eq_pos = str.find('=');
+    if (eq_pos == std::string::npos) {
+      firebuild::fb_error("Invalid present environment variable: " + str);
+      abort();
+    } else {
+      const std::string var_name = str.substr(0, eq_pos);
+      env[var_name] = str.substr(eq_pos + 1);
+      FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
+    }
   }
 
   std::string system_locations;
   const libconfig::Setting& system_locations_setting = root["system_locations"];
   for (int i = 0; i < system_locations_setting.getLength(); i++) {
-    std::string loc = system_locations_setting[i];
+    const std::string loc = system_locations_setting[i];
     if (system_locations.length() == 0) {
       system_locations.append(loc);
     } else {
@@ -139,32 +147,33 @@ static char** get_sanitized_env() {
     }
   }
   if (system_locations.length() > 0) {
-    env_v.push_back("FB_SYSTEM_LOCATIONS=" + std::string(system_locations));
-    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+    const std::string var_name = "FB_SYSTEM_LOCATIONS=";
+    env[var_name] = std::string(system_locations);
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
   }
 
   const char *ld_preload_value = getenv("LD_PRELOAD");
   if (ld_preload_value) {
-    env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO ":" + std::string(ld_preload_value));
+    env["LD_PRELOAD"] = LIBFIREBUILD_SO ":" + std::string(ld_preload_value);
   } else {
-    env_v.push_back("LD_PRELOAD=" LIBFIREBUILD_SO);
+    env["LD_PRELOAD"] = LIBFIREBUILD_SO;
   }
-  env_v.push_back("FB_SOCKET=" + std::string(fb_conn_string));
-  FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_v.back());
+  env["FB_SOCKET"] = fb_conn_string;
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, " FB_SOCKET=" + env["FB_SOCKET"]);
 
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
 
   if (insert_trace_markers) {
-    env_v.push_back("FB_INSERT_TRACE_MARKERS=1");
+    env["FB_INSERT_TRACE_MARKERS"] = "1";
   }
 
   char ** ret_env =
-      static_cast<char**>(malloc(sizeof(char*) * (env_v.size() + 1)));
+      static_cast<char**>(malloc(sizeof(char*) * (env.size() + 1)));
 
-  auto it = env_v.begin();
+  auto it = env.begin();
   int i = 0;
-  while (it != env_v.end()) {
-    ret_env[i] = strdup(it->c_str());
+  while (it != env.end()) {
+    ret_env[i] = strdup(std::string(it->first + "=" + it->second).c_str());
     it++;
     i++;
   }
