@@ -403,7 +403,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
             break;
           } else {
             FB_DEBUG(FB_DEBUG_PIPE, "sent " + d(received) + " bytes from fd: "
-                     + d_fd(fd1) + "to fd: " + d_fd(fd0_conn) + " using tee");
+                     + d_fd(fd1) + " to fd: " + d_fd(fd0_conn) + " using tee");
             /* Save the data, consuming it from the pipe. */
             PipeRecorder::record_data_from_unix_pipe(&fd1_end->recorders, fd1, received);
           }
