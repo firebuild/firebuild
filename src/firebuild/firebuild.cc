@@ -4,7 +4,6 @@
 
 #include <event2/event.h>
 #include <signal.h>
-#include <flatbuffers/flatbuffers.h>
 #include <getopt.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
@@ -32,10 +31,6 @@
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
 #include "firebuild/blob_cache.h"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
-#include "firebuild/cache_object_format_generated.h"
-#pragma GCC diagnostic pop
 #include "firebuild/connection_context.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
@@ -51,6 +46,8 @@
 #include "firebuild/process_proto_adaptor.h"
 #include "firebuild/utils.h"
 #include "./fbbcomm.h"
+#include "firebuild/fbbfp.h"
+#include "firebuild/fbbstore.h"
 
 /** global configuration */
 libconfig::Config * cfg;

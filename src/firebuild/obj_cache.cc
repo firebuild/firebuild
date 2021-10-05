@@ -28,19 +28,16 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#include <flatbuffers/minireflect.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
-#include "firebuild/cache_object_format_generated.h"
-#pragma GCC diagnostic pop
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
+#include "firebuild/fbbfp.h"
+#include "firebuild/fbbstore.h"
 
 namespace firebuild {
 
@@ -108,32 +105,19 @@ static void construct_cached_file_name(const std::string &base,
   subkey.to_ascii(&path[base.length() + kObjCachePathLength - Hash::kAsciiLength]);
 }
 
-/* Replacement for flatbuffers::FlatBufferToString(), but with quoted keys. */
-static std::string FlatBufferToStringQuoted(const uint8_t *buffer,
-                                            const flatbuffers::TypeTable *type_table,
-                                            bool multi_line = false,
-                                            bool vector_delimited = true) {
-  flatbuffers::ToStringVisitor tostring_visitor(multi_line ? "\n" : " ", true, "    ",
-                                                vector_delimited);
-  IterateFlatBuffer(buffer, type_table, &tostring_visitor);
-  return tostring_visitor.s;
-}
-
 
 /**
  * Store a serialized entry in obj-cache.
  *
  * @param key The key
- * @param entry The entry to store
- * @param entry_len length of the entry to store
+ * @param entry The entry to serialize and store
  * @param debug_key Optionally the key as pb for debugging purposes
  * @param subkey hash of the entry
  * @return Whether succeeded
  */
 bool ObjCache::store(const Hash &key,
-                     const uint8_t * const entry,
-                     const size_t entry_len,
-                     const uint8_t * const debug_key,
+                     const FBBSTORE_Builder * const entry,
+                     const FBBFP_Serialized * const debug_key,
                      const Hash& subkey) {
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
@@ -150,17 +134,10 @@ bool ObjCache::store(const Hash &key,
     construct_cached_dir_name(base_dir_, key, true, path_debug);
     memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength - 1],
            debug_postfix, strlen(debug_postfix) + 1);
-    std::string debug_text =
-        FlatBufferToStringQuoted(debug_key, msg::ProcessFingerprintTypeTable(), true);
 
-    int fd = creat(path_debug, 0600);
-    if (write(fd, debug_text.c_str(), debug_text.size()) < 0) {
-      perror("storing %_directory_debug.json failed");
-      assert(0);
-      close(fd);
-      return false;
-    }
-    close(fd);
+    FILE *f = fopen(path_debug, "w");
+    fbbfp_serialized_debug(f, debug_key);
+    fclose(f);
   }
 
   const char* tmpfile_end = "/new.XXXXXX";
@@ -178,14 +155,15 @@ bool ObjCache::store(const Hash &key,
 
   // FIXME Do we need to handle short writes / EINTR?
   // FIXME Do we need to split large files into smaller writes?
-  auto written = write(fd_dst, entry, entry_len);
-  if (written < 0 || static_cast<size_t>(written) != entry_len) {
-    perror("Failed write() while storing cache object");
-    assert(0);
-    close(fd_dst);
-    free(tmpfile);
-    return false;
-  }
+  // FIXME add basic error handling
+  // FIXME Is it faster if we alloca() for small sizes instead of malloc()?
+  // FIXME Is it faster to ftruncate() the file to the desired size, then mmap,
+  // then serialize to the mapped memory, then ftruncate() again to the actual size?
+  size_t len = fbbstore_builder_measure(entry);
+  char *entry_serial = reinterpret_cast<char *>(malloc(len));
+  fbbstore_builder_serialize(entry, entry_serial);
+  fb_write(fd_dst, entry_serial, len);
+  free(entry_serial);
   close(fd_dst);
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
@@ -211,15 +189,10 @@ bool ObjCache::store(const Hash &key,
     memcpy(path_debug, path_dst, base_dir_.length() + kObjCachePathLength);
     memcpy(&path_debug[base_dir_.length() + kObjCachePathLength], debug_postfix,
            strlen(debug_postfix) + 1);
-    std::string entry_txt =
-        FlatBufferToStringQuoted(entry, firebuild::msg::ProcessInputsOutputsTypeTable(), true);
 
-    int fd = creat(path_debug, 0600);
-    if (write(fd, entry_txt.c_str(), entry_txt.size()) < 0) {
-      perror("Failed write() while storing *_debug.json");
-      assert(0);
-    }
-    close(fd);
+    FILE *f = fopen(path_debug, "w");
+    fbbstore_builder_debug(f, entry);
+    fclose(f);
   }
   return true;
 }
