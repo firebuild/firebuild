@@ -18,6 +18,6 @@
     if (len > 0) {
       memcpy(ret_path, buf, len);
       ret_path[len] = '\0';
-      fbb_{{ msg }}_set_ret_path(&ic_msg, ret_path);
+      fbbcomm_builder_{{ msg }}_set_ret_path(&ic_msg, ret_path);
     }
 ### endblock set_fields

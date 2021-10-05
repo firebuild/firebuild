@@ -1,3 +1,16 @@
+set_source_files_properties(fbbtest.c PROPERTIES COMPILE_FLAGS "-fPIC")
+
+add_custom_command(
+  OUTPUT fbbtest.c fbbtest.h fbbtest_decode.c
+  DEPENDS fbbtest.def
+  ../src/common/fbb/generate_fbb
+  ../src/common/fbb/tpl.c
+  ../src/common/fbb/tpl.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND ../src/common/fbb/generate_fbb fbbtest ${CMAKE_CURRENT_BINARY_DIR}
+  COMMENT "Generating fbbtest files")
+
+add_custom_target(fbbtest_gen_files ALL DEPENDS fbbtest.c fbbtest.h fbbtest_decode.c)
 
 function(add_test_binary TEST_BINARY)
   add_executable("${TEST_BINARY}" EXCLUDE_FROM_ALL "${TEST_BINARY}.c")
@@ -30,11 +43,11 @@ add_test_binary(test_env_fixup)
 add_test_binary(test_static)
 target_link_libraries(test_static "-static")
 
-include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src)
+include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/data "${CMAKE_BINARY_DIR}/test/data" SYMBOLIC)
-add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc $<TARGET_OBJECTS:common_objs>)
+add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc fbbtest.c)
+add_dependencies(fbb_test fbbtest_gen_files)
 add_test(fbb ./fbb_test)
-add_dependencies(fbb_test fbb_gen_files)
 add_custom_target(check-deps)
 add_dependencies(check-deps fbb_test)
 add_dependencies(check-deps firebuild)

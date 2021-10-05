@@ -25,6 +25,7 @@
 #include <sys/stat.h>
 
 #include "common/firebuild_common.h"
+#include "./fbbcomm.h"
 
 /** A poor man's (plain C) implementation of a hashmap:
  *  posix_spawn_file_actions_t -> char**
@@ -37,7 +38,7 @@
  */
 typedef struct {
   const posix_spawn_file_actions_t *p;
-  string_array actions;
+  voidp_array actions;
 } psfa;
 extern psfa *psfas;
 extern int psfas_num;
@@ -76,11 +77,11 @@ extern pthread_mutex_t ic_global_lock;
 
 /** Send message, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-void fb_fbb_send_msg(void *ic_msg, int fd);
+void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
 
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd);
+void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
 
 /** Connection string to supervisor */
 extern char * fb_conn_string;
@@ -105,7 +106,7 @@ extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
                          const char *path, int flags, mode_t mode);
 extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
-extern string_array *psfa_find(const posix_spawn_file_actions_t *p);
+extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 
 /** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
 extern char *env_ld_library_path;

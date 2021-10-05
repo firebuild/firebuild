@@ -17,11 +17,11 @@
   if (i_am_intercepting) {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
-    FBB_Builder_popen ic_msg;
-    fbb_popen_init(&ic_msg);
-    fbb_popen_set_cmd(&ic_msg, cmd);
-    fbb_popen_set_type_flags(&ic_msg, type_flags);
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    FBBCOMM_Builder_popen ic_msg;
+    fbbcomm_builder_popen_init(&ic_msg);
+    fbbcomm_builder_popen_set_cmd(&ic_msg, cmd);
+    fbbcomm_builder_popen_set_type_flags(&ic_msg, type_flags);
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
@@ -52,8 +52,8 @@
       int ret_fileno = ic_orig_fileno(ret), tmp_rdonly_fd;
       char fd_fifo[fb_conn_string_len + 64];
       struct timespec time;
-      FBB_Builder_popen_parent ic_msg;
-      fbb_popen_parent_init(&ic_msg);
+      FBBCOMM_Builder_popen_parent ic_msg;
+      fbbcomm_builder_popen_parent_init(&ic_msg);
 
       ic_orig_clock_gettime(CLOCK_REALTIME, &time);
       snprintf(fd_fifo, sizeof(fd_fifo), "%s-%d-%d-%09ld-%09ld",
@@ -63,8 +63,8 @@
         // TODO(rbalint) maybe continue without shortcutting being possible
         assert(ret == 0 && "mkfifo for popen() failed");
       }
-      fbb_popen_parent_set_fd(&ic_msg, ret_fileno);
-      fbb_popen_parent_set_fifo(&ic_msg, fd_fifo);
+      fbbcomm_builder_popen_parent_set_fd(&ic_msg, ret_fileno);
+      fbbcomm_builder_popen_parent_set_fifo(&ic_msg, fd_fifo);
       if (is_wronly(type_flags)) {
         /* The returned fd will be connected to the child's stdin. */
         /* Open fd1 for reading just to not block in opening for writing. */
@@ -74,7 +74,7 @@
          mode blocks until the other end is opened, too (see fifo(7)) */
       int tmp_fifo_fd = ic_orig_open(fd_fifo, type_flags | O_NONBLOCK);
       assert(tmp_fifo_fd != -1);
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
       ic_orig_fcntl(tmp_fifo_fd, F_SETFL, ic_orig_fcntl(ret_fileno, F_GETFL));
 #ifndef NDEBUG
       int dup2_ret =
@@ -88,10 +88,10 @@
         ic_orig_close(tmp_rdonly_fd);
       }
     } else {
-      FBB_Builder_popen_failed ic_msg;
-      fbb_popen_failed_init(&ic_msg);
-      fbb_popen_failed_set_error_no(&ic_msg, saved_errno);
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      FBBCOMM_Builder_popen_failed ic_msg;
+      fbbcomm_builder_popen_failed_init(&ic_msg);
+      fbbcomm_builder_popen_failed_set_error_no(&ic_msg, saved_errno);
+      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     }
     pthread_mutex_unlock(&ic_system_popen_lock);
   }

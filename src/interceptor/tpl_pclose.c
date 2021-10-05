@@ -11,10 +11,10 @@
   int fd = safe_fileno(stream);
   if (i_am_intercepting) {
     /* Send a synthetic close before the pclose() to avoid a deadlock in wait4. */
-    FBB_Builder_close ic_msg;
-    fbb_close_init(&ic_msg);
-    fbb_close_set_fd(&ic_msg, fd);
-    fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+    FBBCOMM_Builder_close ic_msg;
+    fbbcomm_builder_close_init(&ic_msg);
+    fbbcomm_builder_close_set_fd(&ic_msg, fd);
+    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
   }
 ### endblock before
 
