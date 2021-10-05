@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "firebuild/hash.h"
+#include "firebuild/fbbfp.h"
+#include "firebuild/fbbstore.h"
 
 namespace firebuild {
 
@@ -17,9 +19,8 @@ class ObjCache {
   ~ObjCache();
 
   bool store(const Hash &key,
-             const uint8_t * const entry,
-             const size_t entry_len,
-             const uint8_t * const debug_key,
+             const FBBSTORE_Builder * const entry,
+             const FBBFP_Serialized * const debug_key,
              const Hash &subkey);
   bool retrieve(const Hash &key,
                 const Hash &subkey,

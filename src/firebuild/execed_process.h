@@ -95,8 +95,8 @@ class ExecedProcess : public Process {
   bool register_file_usage(const FileName *name, const FileUsage* fu_change);
   bool register_parent_directory(const FileName *name);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
-  std::vector<inherited_pipe_t> inherited_pipes() {return inherited_pipes_;}
-  const std::vector<inherited_pipe_t> inherited_pipes() const {return inherited_pipes_;}
+  std::vector<inherited_pipe_t>& inherited_pipes() {return inherited_pipes_;}
+  const std::vector<inherited_pipe_t>& inherited_pipes() const {return inherited_pipes_;}
   void set_inherited_pipes(std::vector<inherited_pipe_t> inherited_pipes)
       {inherited_pipes_ = inherited_pipes;}
 

@@ -2,9 +2,10 @@
 # GCC raises warning about the GCC-optimized code
 set_source_files_properties(execed_process_cacher.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
+set_source_files_properties(fbbfp.c fbbstore.c PROPERTIES COMPILE_FLAGS "-fPIC")
+
 set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
-find_package(FlatBuffers REQUIRED)
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
@@ -12,13 +13,28 @@ pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 
 add_custom_command(
-  OUTPUT cache_object_format_generated.h
-  DEPENDS cache_object_format.fbs
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  COMMAND flatc -c --reflect-names ${CMAKE_CURRENT_SOURCE_DIR}/cache_object_format.fbs
-  COMMENT "Generating Cache FlatBuffers files")
+  OUTPUT fbbfp.c fbbfp.h fbbfp_decode.c
+  DEPENDS fbbfp.def
+  ../common/fbb/generate_fbb
+  ../common/fbb/tpl.c
+  ../common/fbb/tpl.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND ../common/fbb/generate_fbb fbbfp ${CMAKE_CURRENT_BINARY_DIR}
+  COMMENT "Generating fbbfp files")
 
-add_custom_target(flatbuffers_gen_files DEPENDS cache_object_format_generated.h)
+add_custom_target(fbbfp_gen_files ALL DEPENDS fbbfp.c fbbfp.h fbbfp_decode.c)
+
+add_custom_command(
+  OUTPUT fbbstore.c fbbstore.h fbbstore_decode.c
+  DEPENDS fbbstore.def
+  ../common/fbb/generate_fbb
+  ../common/fbb/tpl.c
+  ../common/fbb/tpl.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  COMMAND ../common/fbb/generate_fbb fbbstore ${CMAKE_CURRENT_BINARY_DIR}
+  COMMENT "Generating fbbstore files")
+
+add_custom_target(fbbstore_gen_files ALL DEPENDS fbbstore.c fbbstore.h fbbstore_decode.c)
 
 add_executable(firebuild-bin
   config.cc
@@ -43,11 +59,13 @@ add_executable(firebuild-bin
   blob_cache.cc
   obj_cache.cc
   utils.cc
+  fbbfp.c
+  fbbstore.c
   $<TARGET_OBJECTS:common_objs>)
 target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash fmt::fmt)
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_target_properties(firebuild-bin
   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True OUTPUT_NAME firebuild)
-add_dependencies(firebuild-bin fbbcomm_gen_files flatbuffers_gen_files)
+add_dependencies(firebuild-bin fbbcomm_gen_files fbbfp_gen_files fbbstore_gen_files)
 
 install(TARGETS firebuild-bin DESTINATION bin)
