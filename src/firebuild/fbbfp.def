@@ -1,0 +1,86 @@
+# Copyright (c) 2020, 2021 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# This is the definition of the FBB format used for fingerprinting a
+# process.
+
+# This is a Python dictionary, to be read and processed by "generate_fbb".
+
+{
+  "types_with_custom_debugger": ["XXH128_canonical_t"],
+
+  "extra_c": """
+    static void fbbfp_debug_XXH128_canonical_t(FILE *f, XXH128_canonical_t value) {
+      fputs("[ ", f);
+      const char *sep = "";
+      for (int i = 0; i < 16; i++) {
+        fprintf(f, "%s%d", sep, value.digest[i]);
+        sep = ", ";
+      }
+      fputs(" ]", f);
+    }
+  """,
+
+  "extra_h": """
+    #define XXH_INLINE_ALL
+    #include <xxhash.h>
+  """,
+
+  "tags": [
+    ("file", [
+      # file path, absolute or relative
+      (REQUIRED, STRING,               "path"),
+      # checksum (binary) of the file content, empty if file is not found
+      (REQUIRED, "XXH128_canonical_t", "hash"),
+      # TODO add alternate hash values generated after preprocessing the file
+      # with programs keeping the semantic content (e.g. removing white spaces)
+      #(REQUIRED, "XXH128_canonical_t", "alt_hash"),
+
+      # last modification time - FIXME in what unit?
+      #(OPTIONAL, "long",               "mtime"),
+      # file size, length in case of stdio
+      #(OPTIONAL, "size_t",             "size"),
+      # TODO refine mode
+      (OPTIONAL, "mode_t",             "mode"),
+      # The reason why the file could not be opened.
+      #(OPTIONAL, "int",                "error_no"),
+    ]),
+
+    ("pipe_fds", [
+      # Client-side fds pointing to the same pipe
+      (ARRAY, "int", "fds"),
+    ]),
+
+    # Properties of a process that are known when it starts up, and are
+    # expected to be the same across identical launches. These take a key
+    # part in deciding whether it can be shortcutted. This includes command
+    # line flags, selected environment variables and such. Things that are
+    # expected to change across runs, e.g. pid, ppid, $FB_SOCKET etc. are
+    # not included here. Things that only become known while the process is
+    # running, such as the files it reads, aren't included either.
+    ("process_fingerprint", [
+      # Program file
+      (REQUIRED, FBB,    "executable"),      # tag "file"
+      # Pathname used to execute the program
+      (REQUIRED, FBB,    "executed_path"),   # tag "file"
+      # Libraries loaded upon startup
+      (ARRAY,    FBB,    "libs"),            # tag "file"
+      # Command parameters, starting with name of the command
+      (ARRAY,    STRING, "args"),
+      # Environment variables, filtered (to exclude e.g. $FB_SOCKET)
+      # and sorted to a deterministic order
+      (ARRAY,    STRING, "env"),
+      # The initial working directory
+      (REQUIRED, STRING, "wd"),
+      # For each outbound pipe, this contains the client-side fds
+      (ARRAY,    FBB,    "outbound_pipes"),  # tag "pipe_fds"
+      # special purpose file descriptors, not having file name
+      #(OPTIONAL, FBB,    "stdin"),           # tag "file"
+      #(OPTIONAL, FBB,    "stdout"),          # tag "file"
+      #(OPTIONAL, FBB,    "stderr"),          # tag "file"
+
+      # Other initially opened file descriptors?
+      # seek positions from fdinfo?
+    ]),
+  ]
+}

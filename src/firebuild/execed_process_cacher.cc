@@ -14,14 +14,12 @@
 
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Weffc++"
-#include "firebuild/cache_object_format_generated.h"
-#pragma GCC diagnostic pop
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
-#include "firebuild/hashed_flatbuffers_file_vector.h"
-#include "firebuild/hashed_flatbuffers_string_vector.h"
+#include "firebuild/hashed_fbb_file_vector.h"
+#include "firebuild/hashed_fbb_string_vector.h"
+#include "firebuild/fbbfp.h"
+#include "firebuild/fbbstore.h"
 
 namespace firebuild {
 
@@ -109,6 +107,38 @@ static Hash state_to_hash(XXH3_state_t* state) {
   return Hash(canonical_digest);
 }
 
+/* Adaptor from C++ std::vector<std::string> to FBB's string array */
+static const char *string_vector_item_fn(int i, const void *user_data) {
+  const std::vector<std::string> *strs =
+      reinterpret_cast<const std::vector<std::string> *>(user_data);
+  return (*strs)[i].c_str();
+}
+
+/* Adaptor from C++ std::vector<FBBFP_Builder_file> to FBB's FBB array */
+static const FBBFP_Builder *fbbfp_builder_file_vector_item_fn(int i, const void *user_data) {
+  const std::vector<FBBFP_Builder_file> *fbbs =
+      reinterpret_cast<const std::vector<FBBFP_Builder_file> *>(user_data);
+  const FBBFP_Builder_file *builder = &(*fbbs)[i];
+  return reinterpret_cast<const FBBFP_Builder *>(builder);
+}
+
+/* Adaptor from C++ std::vector<FBBFP_Builder_pipe_fds> to FBB's FBB array */
+static const FBBFP_Builder *fbbfp_builder_pipe_fds_vector_item_fn(int i, const void *user_data) {
+  const std::vector<FBBFP_Builder_pipe_fds> *fbbs =
+      reinterpret_cast<const std::vector<FBBFP_Builder_pipe_fds> *>(user_data);
+  const FBBFP_Builder_pipe_fds *builder = &(*fbbs)[i];
+  return reinterpret_cast<const FBBFP_Builder *>(builder);
+}
+
+/* Adaptor from C++ std::vector<FBBSTORE_Builder_pipe_data> to FBB's FBB array */
+static const FBBSTORE_Builder *fbbstore_builder_pipe_data_vector_item_fn(int i,
+                                                                         const void *user_data) {
+  const std::vector<FBBSTORE_Builder_pipe_data> *fbbs =
+      reinterpret_cast<const std::vector<FBBSTORE_Builder_pipe_data> *>(user_data);
+  const FBBSTORE_Builder_pipe_data *builder = &(*fbbs)[i];
+  return reinterpret_cast<const FBBSTORE_Builder *>(builder);
+}
+
 /**
  * Compute the fingerprint, store it keyed by the process in fingerprints_.
  * Also store fingerprint_msgs_ if debugging is enabled.
@@ -180,81 +210,86 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   fingerprints_[proc] = state_to_hash(&state);
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-    flatbuffers::FlatBufferBuilder builder(64*1024);
+    /* Only when debugging: add an entry to fingerprint_msgs_.
+     * The entry is the serialized message so that we don't have to fiddle with
+     * memory allocation/freeing for all the substrings. */
+    FBBFP_Builder_process_fingerprint fp;
+    fbbfp_builder_process_fingerprint_init(&fp);
 
-    auto fp_wd = builder.CreateString(proc->initial_wd()->c_str(), proc->initial_wd()->length());
-    auto fp_args = builder.CreateVectorOfStrings(proc->args());
+    fbbfp_builder_process_fingerprint_set_wd(&fp, proc->initial_wd()->c_str());
+    fbbfp_builder_process_fingerprint_set_args_item_fn(&fp, proc->args().size(),
+                                                       string_vector_item_fn, &proc->args());
 
-    std::vector<flatbuffers::Offset<flatbuffers::String>> fp_env_vec;
-    /* Already sorted by the interceptor */
-    for (auto& env : proc->env_vars()) {
+    /* Env vars are already sorted by the interceptor, but we need to do some filtering */
+    std::vector<const char *> c_env;
+    c_env.reserve(proc->env_vars().size());  /* likely minor optimization */
+    for (const auto& env : proc->env_vars()) {
       if (env_fingerprintable(env)) {
-        fp_env_vec.push_back(builder.CreateString(env));
+        c_env.push_back(env.c_str());
       }
     }
-    auto fp_env = builder.CreateVector(fp_env_vec);
+    fbbfp_builder_process_fingerprint_set_env_with_count(&fp, c_env.data(), c_env.size());
 
     /* The executable and its hash */
+    FBBFP_Builder_file executable;
+    fbbfp_builder_file_init(&executable);
     if (!hash_cache->get_hash(proc->executable(), &hash)) {
       return false;
     }
-    auto file_path = builder.CreateString(proc->executable()->c_str(),
-                                          proc->executable()->length());
-    auto file_hash =
-        builder.CreateVector(hash.to_binary(), Hash::hash_size());
-    auto fp_executable = msg::CreateFile(builder, file_path, file_hash);
+    fbbfp_builder_file_set_path(&executable, proc->executable()->c_str());
+    fbbfp_builder_file_set_hash(&executable, hash.to_canonical());
+    fbbfp_builder_process_fingerprint_set_executable(&fp,
+        reinterpret_cast<FBBFP_Builder *>(&executable));
 
-    flatbuffers::Offset<firebuild::msg::File> fp_executed_path;
+    FBBFP_Builder_file executed_path;
+    fbbfp_builder_file_init(&executed_path);
     if (proc->executable() == proc->executed_path()) {
       /* Those often match, don't create the same string twice. */
-      fp_executed_path = fp_executable;
+      fbbfp_builder_process_fingerprint_set_executed_path(&fp,
+          reinterpret_cast<FBBFP_Builder *>(&executable));
     } else {
-      auto executed_file_path = builder.CreateString(proc->executed_path()->c_str(),
-                                                     proc->executed_path()->length());
       if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
         return false;
       }
-      auto executed_file_hash =
-          builder.CreateVector(hash.to_binary(), Hash::hash_size());
-      fp_executed_path = msg::CreateFile(builder, executed_file_path, executed_file_hash);
+      fbbfp_builder_file_set_path(&executed_path, proc->executed_path()->c_str());
+      fbbfp_builder_file_set_hash(&executed_path, hash.to_canonical());
+      fbbfp_builder_process_fingerprint_set_executed_path(&fp,
+          reinterpret_cast<FBBFP_Builder *>(&executed_path));
     }
 
     /* The linked libraries */
-    std::vector<flatbuffers::Offset<msg::File>> fp_libs_vec;
-    for (const auto lib : proc->libs()) {
+    std::vector<FBBFP_Builder_file> lib_builders;
+    lib_builders.reserve(proc->libs().size());
+
+    for (const auto& lib : proc->libs()) {
       if (lib == linux_vdso) {
         continue;
       }
       if (!hash_cache->get_hash(lib, &hash)) {
         return false;
       }
-      auto lib_path = builder.CreateString(lib->c_str(), lib->length());
-      auto lib_hash =
-          builder.CreateVector(hash.to_binary(), Hash::hash_size());
-      auto fp_lib = msg::CreateFile(builder, lib_path, lib_hash);
-      fp_libs_vec.push_back(fp_lib);
+      FBBFP_Builder_file& lib_builder = lib_builders.emplace_back();
+      fbbfp_builder_file_init(&lib_builder);
+      fbbfp_builder_file_set_path(&lib_builder, lib->c_str());
+      fbbfp_builder_file_set_hash(&lib_builder, hash.to_canonical());
     }
-    auto fp_libs = builder.CreateVector(fp_libs_vec);
+    fbbfp_builder_process_fingerprint_set_libs_item_fn(&fp, lib_builders.size(),
+                                                       fbbfp_builder_file_vector_item_fn,
+                                                       &lib_builders);
 
     /* The inherited pipes */
-    std::vector<flatbuffers::Offset<msg::PipeFds>> fp_pipefds_vec;
+    std::vector<FBBFP_Builder_pipe_fds> pipefds_builders;
     for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
-      std::vector<int> fds;
-      for (int fd : inherited_pipe.fds) {
-        fds.push_back(fd);
-      }
-      auto fp_fds = builder.CreateVector(fds);
-      auto fp_pipefds = msg::CreatePipeFds(builder, fp_fds);
-      fp_pipefds_vec.push_back(fp_pipefds);
+      FBBFP_Builder_pipe_fds& pipefds_builder = pipefds_builders.emplace_back();
+      fbbfp_builder_pipe_fds_init(&pipefds_builder);
+      fbbfp_builder_pipe_fds_set_fds(&pipefds_builder, inherited_pipe.fds);
     }
-    auto fp_pipefds = builder.CreateVector(fp_pipefds_vec);
+    fbbfp_builder_process_fingerprint_set_outbound_pipes_item_fn(&fp, pipefds_builders.size(),
+        fbbfp_builder_pipe_fds_vector_item_fn, &pipefds_builders);
 
-    auto fp = msg::CreateProcessFingerprint(builder, fp_executable, fp_executed_path, fp_libs,
-                                            fp_args, fp_env, fp_wd, fp_pipefds);
-    builder.Finish(fp);
-
-    std::vector<unsigned char> buf(builder.GetSize());
-    memcpy(buf.data(), builder.GetBufferPointer(), builder.GetSize());
+    size_t len = fbbfp_builder_measure(reinterpret_cast<FBBFP_Builder *>(&fp));
+    std::vector<char> buf(len);
+    fbbfp_builder_serialize(reinterpret_cast<FBBFP_Builder *>(&fp), buf.data());
     fingerprint_msgs_[proc] = buf;
   }
   return true;
@@ -267,13 +302,13 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   }
 }
 
-void sort_and_add_to_hash_state(HashedFlatbuffersStringVector* hashed_vec,
+void sort_and_add_to_hash_state(HashedFbbStringVector* hashed_vec,
                                 XXH3_state_t* hash_state) {
   hashed_vec->sort_hashes();
   add_to_hash_state(hash_state, hashed_vec->hash());
 }
 
-void sort_and_add_to_hash_state(HashedFlatbuffersFileVector* hashed_vec, XXH3_state_t* hash_state) {
+void sort_and_add_to_hash_state(HashedFbbFileVector* hashed_vec, XXH3_state_t* hash_state) {
   hashed_vec->sort_hashes();
   add_to_hash_state(hash_state, hashed_vec->hash());
 }
@@ -303,24 +338,22 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   /* Go through the files the process opened for reading and/or writing.
    * Construct the cache entry parts describing the initial and the final state
    * of them. */
-  flatbuffers::FlatBufferBuilder builder(64*1024);
 
-  /* Inputs.*/
-  HashedFlatbuffersFileVector in_path_isreg_with_hash(&builder),
-      in_system_path_isreg_with_hash(&builder),
-      in_path_isdir_with_hash(&builder),
-      in_system_path_isdir_with_hash(&builder);
-  HashedFlatbuffersStringVector in_path_isreg(&builder),
-      in_path_isdir(&builder),
-      in_path_notexist_or_isreg(&builder),
-      in_path_notexist_or_isreg_empty(&builder),
-      in_path_notexist(&builder);
+  /* File inputs */
+  HashedFbbFileVector in_path_isreg_with_hash,
+      in_system_path_isreg_with_hash,
+      in_path_isdir_with_hash,
+      in_system_path_isdir_with_hash;
+  HashedFbbStringVector in_path_isreg,
+      in_path_isdir,
+      in_path_notexist_or_isreg,
+      in_path_notexist_or_isreg_empty,
+      in_path_notexist;
 
-  /* Outputs.*/
-  HashedFlatbuffersFileVector out_path_isreg_with_hash(&builder),
-      out_path_isdir(&builder);
-  HashedFlatbuffersStringVector out_path_notexist(&builder);
-  std::vector<flatbuffers::Offset<msg::PipeData>> out_pipe_data;
+  /* File outputs */
+  HashedFbbFileVector out_path_isreg_with_hash,
+      out_path_isdir;
+  HashedFbbStringVector out_path_notexist;
 
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
@@ -409,6 +442,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     }
   }
 
+  /* Pipe outputs */
+  std::vector<FBBSTORE_Builder_pipe_data> out_pipe_data;
+
   /* Store what was written to the inherited pipes. Use the fd as of when the process started up,
    * because this is what matters if we want to replay; how the process later dup()ed it to other
    * fds is irrelevant. Similarly, no need to store the data written to pipes opened by this
@@ -419,8 +455,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     std::shared_ptr<PipeRecorder> recorder = inherited_pipe.recorder;
     if (recorder) {
       bool is_empty;
-      Hash pipe_traffic_hash;
-      if (!recorder->store(&is_empty, &pipe_traffic_hash)) {
+      Hash hash;
+      if (!recorder->store(&is_empty, &hash)) {
         // FIXME handle error
         FB_DEBUG(FB_DEBUG_CACHING,
                  "Could not store pipe traffic in cache, not writing shortcut info");
@@ -429,11 +465,12 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       if (!is_empty) {
         /* Note: pipes with no traffic are just simply not mentioned here in the "outputs" section.
          * They were taken into account when computing the process's fingerprint. */
-        const auto hash =
-            builder.CreateVector(pipe_traffic_hash.to_binary(), Hash::hash_size());
-        out_pipe_data.push_back(msg::CreatePipeData(builder, fd, hash));
+        FBBSTORE_Builder_pipe_data& new_pipe_data = out_pipe_data.emplace_back();
+        fbbstore_builder_pipe_data_init(&new_pipe_data);
+        fbbstore_builder_pipe_data_set_fd(&new_pipe_data, fd);
+        fbbstore_builder_pipe_data_set_hash(&new_pipe_data, hash.to_canonical());
         add_to_hash_state(&inouts_hash_state, fd);
-        add_to_hash_state(&inouts_hash_state, pipe_traffic_hash);
+        add_to_hash_state(&inouts_hash_state, hash);
       }
     }
   }
@@ -451,61 +488,94 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   sort_and_add_to_hash_state(&out_path_isdir, &inouts_hash_state);
   sort_and_add_to_hash_state(&out_path_notexist, &inouts_hash_state);
 
-  auto inputs =
-      msg::CreateProcessInputs(builder,
-                               builder.CreateVector(in_path_isreg_with_hash.files()),
-                               builder.CreateVector(in_system_path_isreg_with_hash.files()),
-                               builder.CreateVector(in_path_isreg.strings()),
-                               builder.CreateVector(in_path_isdir_with_hash.files()),
-                               builder.CreateVector(in_system_path_isdir_with_hash.files()),
-                               builder.CreateVector(in_path_isdir.strings()),
-                               builder.CreateVector(in_path_notexist_or_isreg.strings()),
-                               builder.CreateVector(in_path_notexist_or_isreg_empty.strings()),
-                               builder.CreateVector(in_path_notexist.strings()));
-  auto outputs =
-      msg::CreateProcessOutputs(builder,
-                                builder.CreateVector(out_path_isreg_with_hash.files()),
-                                builder.CreateVector(out_path_isdir.files()),
-                                builder.CreateVector(out_path_notexist.strings()),
-                                builder.CreateVector(out_pipe_data),
-                                proc->exit_status());
+  FBBSTORE_Builder_process_inputs pi;
+  fbbstore_builder_process_inputs_init(&pi);
+  fbbstore_builder_process_inputs_set_path_isreg_with_hash_item_fn(&pi,
+      in_path_isreg_with_hash.size(),
+      HashedFbbFileVector::item_fn,
+      &in_path_isreg_with_hash);
+  fbbstore_builder_process_inputs_set_system_path_isreg_with_hash_item_fn(&pi,
+      in_system_path_isreg_with_hash.size(),
+      HashedFbbFileVector::item_fn,
+      &in_system_path_isreg_with_hash);
+  fbbstore_builder_process_inputs_set_path_isreg(&pi,
+      in_path_isreg.c_strings());
+  fbbstore_builder_process_inputs_set_path_isdir_with_hash_item_fn(&pi,
+      in_path_isdir_with_hash.size(),
+      HashedFbbFileVector::item_fn,
+      &in_path_isdir_with_hash);
+  fbbstore_builder_process_inputs_set_system_path_isdir_with_hash_item_fn(&pi,
+      in_system_path_isdir_with_hash.size(),
+      HashedFbbFileVector::item_fn,
+      &in_system_path_isdir_with_hash);
+  fbbstore_builder_process_inputs_set_path_isdir(&pi,
+      in_path_isdir.c_strings());
+  fbbstore_builder_process_inputs_set_path_notexist_or_isreg(&pi,
+      in_path_notexist_or_isreg.c_strings());
+  fbbstore_builder_process_inputs_set_path_notexist_or_isreg_empty(&pi,
+      in_path_notexist_or_isreg_empty.c_strings());
+  fbbstore_builder_process_inputs_set_path_notexist(&pi,
+      in_path_notexist.c_strings());
+
+  FBBSTORE_Builder_process_outputs po;
+  fbbstore_builder_process_outputs_init(&po);
+  fbbstore_builder_process_outputs_set_path_isreg_with_hash_item_fn(&po,
+      out_path_isreg_with_hash.size(),
+      HashedFbbFileVector::item_fn,
+      &out_path_isreg_with_hash);
+  fbbstore_builder_process_outputs_set_path_isdir_item_fn(&po,
+      out_path_isdir.size(),
+      HashedFbbFileVector::item_fn,
+      &out_path_isdir);
+  fbbstore_builder_process_outputs_set_path_notexist(&po,
+      out_path_notexist.c_strings());
+  fbbstore_builder_process_outputs_set_pipe_data_item_fn(&po,
+      out_pipe_data.size(),
+      fbbstore_builder_pipe_data_vector_item_fn,
+      &out_pipe_data);
+  fbbstore_builder_process_outputs_set_exit_status(&po,
+      proc->exit_status());
 
   // TODO(egmont) Add all sorts of other stuff
 
-  auto pio = msg::CreateProcessInputsOutputs(builder, inputs, outputs);
-  builder.Finish(pio);
+  FBBSTORE_Builder_process_inputs_outputs pio;
+  fbbstore_builder_process_inputs_outputs_init(&pio);
+  fbbstore_builder_process_inputs_outputs_set_inputs(&pio,
+                                                     reinterpret_cast<FBBSTORE_Builder *>(&pi));
+  fbbstore_builder_process_inputs_outputs_set_outputs(&pio,
+                                                      reinterpret_cast<FBBSTORE_Builder *>(&po));
 
-  uint8_t *debug_msg = NULL;
+  const FBBFP_Serialized *debug_msg = NULL;
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-    debug_msg = fingerprint_msgs_[proc].data();
+    debug_msg = reinterpret_cast<const FBBFP_Serialized *>(fingerprint_msgs_[proc].data());
   }
 
   /* Store in the cache everything about this process. */
   Hash subkey = state_to_hash(&inouts_hash_state);
-  obj_cache->store(fingerprint, builder.GetBufferPointer(), builder.GetSize(), debug_msg, subkey);
+  obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg, subkey);
 }
 
-static bool pis_hash_match_fs(
-    const flatbuffers::Vector<flatbuffers::Offset<firebuild::msg::File> >* pis, bool is_dir,
+/**
+ * Check whether the given File matches the file system's current contents.
+ */
+static bool file_matches_fs(const FBBSTORE_Serialized_file *file, bool is_dir,
     const Hash& fingerprint) {
-  for (const auto& file : *pis) {
-    Hash on_fs_hash, in_cache_hash;
-    bool on_fs_is_dir = false;
-    const auto path = FileName::Get(file->path());
-    if (!hash_cache->get_hash(path, &on_fs_hash, &on_fs_is_dir) || (is_dir != on_fs_is_dir)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(path)
-               + ": regular file expected but does not exist or something else found");
-      return false;
-    }
-    assert_cmp(file->hash()->size(), ==, Hash::hash_size());
-    in_cache_hash.set_hash_from_binary(file->hash()->data());
-    if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
-               d(path) + ": hash differs");
-      return false;
-    }
+  Hash on_fs_hash, in_cache_hash;
+  bool on_fs_is_dir = false;
+  const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
+                                  fbbstore_serialized_file_get_path_len(file));
+  if (!hash_cache->get_hash(path, &on_fs_hash, &on_fs_is_dir) || (is_dir != on_fs_is_dir)) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT,
+             "│   " + d(fingerprint)
+             + " mismatches e.g. at " + d(path)
+             + ": regular file expected but does not exist or something else found");
+    return false;
+  }
+  in_cache_hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
+  if (on_fs_hash != in_cache_hash) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
+             d(path) + ": hash differs");
+    return false;
   }
   return true;
 }
@@ -514,63 +584,93 @@ static bool pis_hash_match_fs(
  * Check whether the given ProcessInputs matches the file system's
  * current contents.
  */
-static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint) {
+static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Hash& fingerprint) {
   TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
 
   struct stat64 st;
-  if (!pis_hash_match_fs(pi.path_isreg_with_hash(), false, fingerprint)) {
-    return false;
+  size_t i;
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_with_hash_count(pi); i++) {
+    const FBBSTORE_Serialized *fbb =
+        fbbstore_serialized_process_inputs_get_path_isreg_with_hash_at(pi, i);
+    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
+    if (!file_matches_fs(file, false, fingerprint)) {
+      return false;
+    }
   }
-  if (!pis_hash_match_fs(pi.path_isdir_with_hash(), true, fingerprint)) {
-    return false;
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_with_hash_count(pi); i++) {
+    const FBBSTORE_Serialized *fbb =
+        fbbstore_serialized_process_inputs_get_path_isdir_with_hash_at(pi, i);
+    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
+    if (!file_matches_fs(file, true, fingerprint)) {
+      return false;
+    }
   }
-  for (const auto& filename : *pi.path_isreg()) {
-    if (stat64(filename->c_str(), &st) == -1 || !S_ISREG(st.st_mode)) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(pi); i++) {
+    const char *filename = fbbstore_serialized_process_inputs_get_path_isreg_at(pi, i);
+    if (stat64(filename, &st) == -1 || !S_ISREG(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename->str())
+               + " mismatches e.g. at " + d(filename)
                + ": regular file expected but does not exist or something else found");
       return false;
     }
   }
-  for (const auto& filename : *pi.path_isdir()) {
-    if (stat64(filename->c_str(), &st) == -1 || !S_ISDIR(st.st_mode)) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(pi); i++) {
+    const char *filename = fbbstore_serialized_process_inputs_get_path_isdir_at(pi, i);
+    if (stat64(filename, &st) == -1 || !S_ISDIR(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename->str())
+               + " mismatches e.g. at " + d(filename)
                + ": directory expected but does not exist or something else found");
       return false;
     }
   }
-  if (!pis_hash_match_fs(pi.system_path_isreg_with_hash(), false, fingerprint)) {
-    return false;
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_system_path_isreg_with_hash_count(pi);
+       i++) {
+    const FBBSTORE_Serialized *fbb =
+        fbbstore_serialized_process_inputs_get_system_path_isreg_with_hash_at(pi, i);
+    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
+    if (!file_matches_fs(file, false, fingerprint)) {
+      return false;
+    }
   }
-  if (!pis_hash_match_fs(pi.system_path_isdir_with_hash(), true, fingerprint)) {
-    return false;
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_system_path_isdir_with_hash_count(pi);
+       i++) {
+    const FBBSTORE_Serialized *fbb =
+        fbbstore_serialized_process_inputs_get_system_path_isdir_with_hash_at(pi, i);
+    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
+    if (!file_matches_fs(file, false, fingerprint)) {
+      return false;
+    }
   }
-  for (const auto& filename : *pi.path_notexist_or_isreg()) {
-    if (stat64(filename->c_str(), &st) != -1 && !S_ISREG(st.st_mode)) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_count(pi); i++) {
+    const char *filename = fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_at(pi, i);
+    if (stat64(filename, &st) != -1 && !S_ISREG(st.st_mode)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename->str())
+               + " mismatches e.g. at " + d(filename)
                + ": file expected to be missing or regular, something else found");
       return false;
     }
   }
-  for (const auto& filename : *pi.path_notexist_or_isreg_empty()) {
-    if (stat64(filename->c_str(), &st) != -1 && (!S_ISREG(st.st_mode) || st.st_size > 0)) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_count(pi);
+       i++) {
+    const char *filename =
+        fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_at(pi, i);
+    if (stat64(filename, &st) != -1 && (!S_ISREG(st.st_mode) || st.st_size > 0)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename->str())
+               + " mismatches e.g. at " + d(filename)
                + ": file expected to be missing or empty, non-empty file or something else found");
       return false;
     }
   }
-  for (const auto& filename : *pi.path_notexist()) {
-    if (stat64(filename->c_str(), &st) != -1) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_count(pi); i++) {
+    const char *filename = fbbstore_serialized_process_inputs_get_path_notexist_at(pi, i);
+    if (stat64(filename, &st) != -1) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename->str())
+               + " mismatches e.g. at " + d(filename)
                + ": path expected to be missing, existing object is found");
       return false;
     }
@@ -588,12 +688,13 @@ static bool pi_matches_fs(const msg::ProcessInputs& pi, const Hash& fingerprint)
  * Returns a new object, to be deleted by the caller, if exactly one
  * match was found.
  */
-const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const ExecedProcess *proc,
-                                                                    uint8_t **inouts_buf,
-                                                                    size_t *inouts_buf_len) {
+const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_shortcut(
+    const ExecedProcess *proc,
+    uint8_t **inouts_buf,
+    size_t *inouts_buf_len) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
-  const msg::ProcessInputsOutputs *inouts = nullptr;
+  const FBBSTORE_Serialized_process_inputs_outputs *inouts = nullptr;
   int count = 0;
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
@@ -611,9 +712,20 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
                "│   Cannot retrieve " + d(subkey) + " from objcache, ignoring");
       continue;
     }
-    const msg::ProcessInputsOutputs *candidate_inouts =
-        msg::GetProcessInputsOutputs(candidate_inouts_buf);
-    if (!candidate_inouts->inputs() || pi_matches_fs(*candidate_inouts->inputs(), subkey)) {
+    const FBBSTORE_Serialized *candidate_inouts_fbb =
+        reinterpret_cast<const FBBSTORE_Serialized *>(candidate_inouts_buf);
+    assert_cmp(fbbstore_serialized_get_tag(candidate_inouts_fbb), ==,
+               FBBSTORE_TAG_process_inputs_outputs);
+    const FBBSTORE_Serialized_process_inputs_outputs *candidate_inouts =
+        reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(candidate_inouts_fbb);
+
+    const FBBSTORE_Serialized *inputs_fbb =
+        fbbstore_serialized_process_inputs_outputs_get_inputs(candidate_inouts);
+    assert_cmp(fbbstore_serialized_get_tag(inputs_fbb), ==, FBBSTORE_TAG_process_inputs);
+    const FBBSTORE_Serialized_process_inputs *inputs =
+        reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
+
+    if (pi_matches_fs(inputs, subkey)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
       count++;
       if (count == 1) {
@@ -634,6 +746,9 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
       munmap(candidate_inouts_buf, candidate_inouts_buf_len);
     }
   }
+  /* The retval is currently the same as the memory address to unmap (i.e. *inouts_buf).
+   * They used to be different, and could easily become different again in the future,
+   * so leave the two for now. */
   return inouts;
 }
 
@@ -642,28 +757,33 @@ const msg::ProcessInputsOutputs* ExecedProcessCacher::find_shortcut(const Execed
  */
 static bool restore_remaining_dirs_sorted(
     ExecedProcess* proc,
-    const flatbuffers::Vector<flatbuffers::Offset<firebuild::msg::File> >* dirs,
-    const FileUsage* fu, int start_index) {
-  int index = 0;
+    const FBBSTORE_Serialized_process_outputs *outputs,
+    const FileUsage* fu, size_t start_index) {
   std::vector<std::pair<const FileName*, int>> remaining_dirs;
-  for (const auto& file : *dirs) {
-    if (index++ < start_index) {
-      continue;
-    }
-    remaining_dirs.push_back({FileName::Get(file->path()), file->mode()});
+  for (size_t i = start_index;
+       i < fbbstore_serialized_process_outputs_get_path_isdir_count(outputs); i++) {
+    const FBBSTORE_Serialized *dir_generic =
+        fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i);
+    assert_cmp(fbbstore_serialized_get_tag(dir_generic), ==, FBBSTORE_TAG_file);
+    const FBBSTORE_Serialized_file *dir =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
+    const auto path = FileName::Get(fbbstore_serialized_file_get_path(dir),
+                                    fbbstore_serialized_file_get_path_len(dir));
+    assert(fbbstore_serialized_file_has_mode(dir));
+    mode_t mode = fbbstore_serialized_file_get_mode(dir);
+    remaining_dirs.push_back({path, mode});
   }
 
   struct {
     bool operator()(const std::pair<const FileName*, int>& d1,
                     const std::pair<const FileName*, int>& d2) const {
       return strcmp(d1.first->c_str(), d2.first->c_str()) < 0;
-      }
+    }
   } remaining_dirs_less;
   std::sort(remaining_dirs.begin(), remaining_dirs.end(), remaining_dirs_less);
 
   for (auto&& [path, mode] : remaining_dirs) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
-    assert_cmp(mode, !=, -1);
     int ret = mkdir(path->c_str(), mode);
     if (ret != 0) {
       perror("Failed to restore directory");
@@ -682,17 +802,23 @@ static bool restore_remaining_dirs_sorted(
  */
 static bool restore_dirs(
     ExecedProcess* proc,
-    const flatbuffers::Vector<flatbuffers::Offset<firebuild::msg::File> >* dirs,
+    const FBBSTORE_Serialized_process_outputs *outputs,
     const FileUsage* fu) {
-  int index = 0;
-  for (const auto& file : *dirs) {
-    const auto path = FileName::Get(file->path());
+  for (size_t i = 0; i < fbbstore_serialized_process_outputs_get_path_isdir_count(outputs); i++) {
+    const FBBSTORE_Serialized *dir_generic =
+        fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i);
+    assert_cmp(fbbstore_serialized_get_tag(dir_generic), ==, FBBSTORE_TAG_file);
+    const FBBSTORE_Serialized_file *dir =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
+    const auto path = FileName::Get(fbbstore_serialized_file_get_path(dir),
+                                    fbbstore_serialized_file_get_path_len(dir));
+    assert(fbbstore_serialized_file_has_mode(dir));
+    mode_t mode = fbbstore_serialized_file_get_mode(dir);
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
-    assert_cmp(file->mode(), !=, -1);
-    int ret = mkdir(path->c_str(), file->mode());
+    int ret = mkdir(path->c_str(), mode);
     if (ret != 0) {
       if (errno == ENOENT) {
-        return restore_remaining_dirs_sorted(proc, dirs, fu, index);
+        return restore_remaining_dirs_sorted(proc, outputs, fu, i);
       }
       perror("Failed to restore directory");
       assert_cmp(ret, !=, -1);
@@ -701,7 +827,6 @@ static bool restore_dirs(
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    index++;
   }
   return true;
 }
@@ -713,78 +838,116 @@ static bool restore_dirs(
  * upwards all the shortcutted file read and write events.
  */
 bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
-                                         const msg::ProcessInputsOutputs* const inouts) {
+                                         const FBBSTORE_Serialized_process_inputs_outputs *inouts) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
+
+  size_t i;
 
   /* Bubble up all the file operations we're about to perform. */
   if (proc->parent_exec_point()) {
-    for (const auto& file : *inouts->inputs()->path_isreg_with_hash()) {
+    const FBBSTORE_Serialized_process_inputs *inputs =
+        reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>
+        (fbbstore_serialized_process_inputs_outputs_get_inputs(inouts));
+
+    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_with_hash_count(inputs);
+         i++) {
+      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
+          (fbbstore_serialized_process_inputs_get_path_isreg_with_hash_at(inputs, i));
       Hash hash;
-      assert_cmp(file->hash()->size(), ==, Hash::hash_size());
-      hash.set_hash_from_binary(file->hash()->data());
+      hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
       const FileUsage* fu = FileUsage::Get(ISREG_WITH_HASH, hash);
-      const auto path = FileName::Get(file->path());
+      const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
+                                      fbbstore_serialized_file_get_path_len(file));
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    for (const auto& file : *inouts->inputs()->path_isdir_with_hash()) {
+    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_with_hash_count(inputs);
+         i++) {
+      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
+          (fbbstore_serialized_process_inputs_get_path_isdir_with_hash_at(inputs, i));
       Hash hash;
-      assert_cmp(file->hash()->size(), ==, Hash::hash_size());
-      hash.set_hash_from_binary(file->hash()->data());
+      hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
       const FileUsage* fu = FileUsage::Get(ISDIR_WITH_HASH, hash);
-      const auto path = FileName::Get(file->path());
+      const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
+                                      fbbstore_serialized_file_get_path_len(file));
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    for (const auto& filename : *inouts->inputs()->path_isreg()) {
+    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(inputs); i++) {
       const FileUsage* fu = FileUsage::Get(ISREG);
-      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
+      const auto path = FileName::Get(
+          fbbstore_serialized_process_inputs_get_path_isreg_at(inputs, i),
+          fbbstore_serialized_process_inputs_get_path_isreg_len_at(inputs, i));
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    for (const auto& filename : *inouts->inputs()->path_isdir()) {
+    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(inputs); i++) {
       const FileUsage* fu = FileUsage::Get(ISDIR);
-      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
+      const auto path = FileName::Get(
+          fbbstore_serialized_process_inputs_get_path_isdir_at(inputs, i),
+          fbbstore_serialized_process_inputs_get_path_isdir_len_at(inputs, i));
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg()) {
+    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_count(inputs);
+         i++) {
       const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG);
-      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
+      const auto path = FileName::Get(
+          fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_at(inputs, i),
+          fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_len_at(inputs, i));
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    for (const auto& filename : *inouts->inputs()->path_notexist_or_isreg_empty()) {
+    for (i = 0;
+         i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_count(inputs);
+         i++) {
       const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG_EMPTY);
-      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
+      const auto path = FileName::Get(
+          fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_at(inputs, i),
+          fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_len_at(inputs, i));
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
-    for (const auto& filename : *inouts->inputs()->path_notexist()) {
+    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_count(inputs); i++) {
       const FileUsage* fu = FileUsage::Get(NOTEXIST);
-      proc->parent_exec_point()->propagate_file_usage(FileName::Get(filename), fu);
+      const auto path = FileName::Get(
+          fbbstore_serialized_process_inputs_get_path_notexist_at(inputs, i),
+          fbbstore_serialized_process_inputs_get_path_notexist_len_at(inputs, i));
+      proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
   }
+
+  const FBBSTORE_Serialized_process_outputs *outputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
+      (fbbstore_serialized_process_inputs_outputs_get_outputs(inouts));
 
   /* We'll reuse this for every file modification event to propagate. */
   const FileUsage* fu = FileUsage::Get(DONTKNOW, true);
 
-  if (!restore_dirs(proc, inouts->outputs()->path_isdir(), fu)) {
+  if (!restore_dirs(proc, outputs, fu)) {
     return false;
   }
 
-  for (const auto& file : *inouts->outputs()->path_isreg_with_hash()) {
-    const auto path = FileName::Get(file->path());
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_isreg_with_hash_count(outputs);
+       i++) {
+    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
+        (fbbstore_serialized_process_outputs_get_path_isreg_with_hash_at(outputs, i));
+    const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
+                                    fbbstore_serialized_file_get_path_len(file));
     FB_DEBUG(FB_DEBUG_SHORTCUT,
              "│   Fetching file from blobs cache: "
              + d(path));
     Hash hash;
-    assert_cmp(file->hash()->size(), ==, Hash::hash_size());
-    hash.set_hash_from_binary(file->hash()->data());
+    hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
     blob_cache->retrieve_file(hash, path);
-    /* mode is -1 by default in flatbuffers */
-    if (file->mode() != -1) {
+    if (fbbstore_serialized_file_has_mode(file)) {
       /* Refuse to apply setuid, setgid, sticky bit. */
       // FIXME warn on them, even when we store them.
-      chmod(path->c_str(), file->mode() & 0777);
+      chmod(path->c_str(), fbbstore_serialized_file_get_mode(file) & 0777);
     }
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
   }
-  /* Walk backwards, so that inner contents are removed before the directory itself. */
-  for (int i = inouts->outputs()->path_notexist()->size() - 1; i >= 0; i--) {
-    const auto filename = FileName::Get(inouts->outputs()->path_notexist()->Get(i));
+  // FIXME #541
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_notexist_count(outputs); i++) {
+    const auto filename = FileName::Get(
+        fbbstore_serialized_process_outputs_get_path_notexist_at(outputs, i),
+        fbbstore_serialized_process_outputs_get_path_notexist_len_at(outputs, i));
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file or directory: " + d(filename));
     if (unlink(filename->c_str()) < 0 && errno == EISDIR) {
       rmdir(filename->c_str());
@@ -795,14 +958,17 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   /* See what the process originally wrote to its pipes. Add these to the Pipes' buffers. */
-  for (const auto& data : *inouts->outputs()->pipe_data()) {
-    FileFD *ffd = proc->get_fd(data->fd());
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_pipe_data_count(outputs); i++) {
+    const FBBSTORE_Serialized_pipe_data *data =
+        reinterpret_cast<const FBBSTORE_Serialized_pipe_data *>
+        (fbbstore_serialized_process_outputs_get_pipe_data_at(outputs, i));
+    FileFD *ffd = proc->get_fd(fbbstore_serialized_pipe_data_get_fd(data));
     assert(ffd);
     Pipe *pipe = ffd->pipe().get();
     assert(pipe);
 
     Hash hash;
-    hash.set_hash_from_binary(data->hash()->data());
+    hash.set_hash_from_canonical(fbbstore_serialized_pipe_data_get_hash(data));
     int fd = blob_cache->get_fd_for_file(hash);
     struct stat64 st;
     if (fstat64(fd, &st) < 0) {
@@ -821,7 +987,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
 
   /* Set the exit code, propagate upwards. */
   // TODO(egmont) what to do with resource usage?
-  proc->exit_result(inouts->outputs()->exit_status(), 0, 0);
+  proc->exit_result(fbbstore_serialized_process_outputs_get_exit_status(outputs), 0, 0);
 
   return true;
 }
@@ -841,7 +1007,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
   bool ret = false;
   uint8_t * inouts_buf = NULL;
   size_t inouts_buf_len = 0;
-  const msg::ProcessInputsOutputs *inouts = NULL;
+  const FBBSTORE_Serialized_process_inputs_outputs *inouts = NULL;
 
   if (FB_DEBUGGING(FB_DEBUG_SHORTCUT)) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");

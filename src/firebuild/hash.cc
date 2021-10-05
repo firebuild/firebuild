@@ -190,6 +190,16 @@ void Hash::set_hash_from_binary(const uint8_t *binary) {
 }
 
 /**
+ * Sets the binary hash value directly from the given value.
+ * No hash computation takes place.
+ */
+void Hash::set_hash_from_canonical(XXH128_canonical_t value) {
+  TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
+
+  *reinterpret_cast<XXH128_canonical_t *>(arr_) = value;
+}
+
+/**
  * Helper method of set_hash_from_ascii().
  *
  * Convert 4 input bytes (part of the base64 ASCII representation) into 3 output bytes (part of the
@@ -253,6 +263,13 @@ bool Hash::set_hash_from_ascii(const std::string &ascii) {
  */
 const uint8_t * Hash::to_binary() const {
   return arr_;
+}
+
+/**
+ * Get the raw binary representation as value.
+ */
+XXH128_canonical_t Hash::to_canonical() const {
+  return *reinterpret_cast<const XXH128_canonical_t *>(arr_);
 }
 
 /**

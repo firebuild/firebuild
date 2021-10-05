@@ -4,7 +4,6 @@
 #ifndef FIREBUILD_FILE_NAME_H_
 #define FIREBUILD_FILE_NAME_H_
 
-#include <flatbuffers/flatbuffers.h>
 #define XXH_INLINE_ALL
 #include <xxhash.h>
 
@@ -44,9 +43,6 @@ class FileName {
   static bool isDbEmpty();
   static const FileName* Get(const char * const name, ssize_t length,
                              bool force_set_system_location);
-  static const FileName* Get(const flatbuffers::String * const name) {
-    return Get(name->c_str(), name->size(), false);
-  }
   static const FileName* Get(const std::string& name) {
     return Get(name.c_str(), name.size(), false);
   }

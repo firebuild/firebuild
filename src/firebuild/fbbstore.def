@@ -1,0 +1,130 @@
+# Copyright (c) 2020, 2021 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# This is the definition of the FBB format used for storing the cache
+# entries.
+
+# This is a Python dictionary, to be read and processed by "generate_fbb".
+
+{
+  "types_with_custom_debugger": ["XXH128_canonical_t"],
+
+  "extra_c": """
+    static void fbbstore_debug_XXH128_canonical_t(FILE *f, XXH128_canonical_t value) {
+      fputs("[ ", f);
+      const char *sep = "";
+      for (int i = 0; i < 16; i++) {
+        fprintf(f, "%s%d", sep, value.digest[i]);
+        sep = ", ";
+      }
+      fputs(" ]", f);
+    }
+  """,
+
+  "extra_h": """
+    #define XXH_INLINE_ALL
+    #include <xxhash.h>
+  """,
+
+  "tags": [
+    ("file", [
+      # file path, absolute or relative
+      (REQUIRED, STRING,               "path"),
+      # checksum (binary) of the file content, empty if file is not found
+      (REQUIRED, "XXH128_canonical_t", "hash"),
+      # TODO add alternate hash values generated after preprocessing the file
+      # with programs keeping the semantic content (e.g. removing white spaces)
+      #(REQUIRED, "XXH128_canonical_t", "alt_hash"),
+
+      # last modification time - FIXME in what unit?
+      #(OPTIONAL, "long",               "mtime"),
+      # file size, length in case of stdio
+      #(OPTIONAL, "size_t",             "size"),
+      # TODO refine mode
+      (OPTIONAL, "mode_t",             "mode"),
+      # The reason why the file could not be opened.
+      #(OPTIONAL, "int",                "error_no"),
+    ]),
+
+    ("dir", [
+      (REQUIRED, STRING, "path"),
+      (ARRAY,    STRING, "entry"),
+    ]),
+
+    ("pipe_data", [
+      # fd at the time the process started, the lowest one if dup()'ed to
+      # multiple fds
+      (REQUIRED, "int",                "fd"),
+      # Checksum (binary) of the written data
+      (REQUIRED, "XXH128_canonical_t", "hash"),
+    ]),
+
+    # Things that are read from the external world by the process while
+    # it's running, but aren't known in advance that the process will need
+    # them. In order to shortcut a process, there has to be a cached entry
+    # that matches the current world.
+    ("process_inputs", [
+      # Files that are opened for reading, with various results.
+      (ARRAY, FBB,    "path_isreg_with_hash"),         # tag "file"
+      (ARRAY, FBB,    "system_path_isreg_with_hash"),  # tag "file"
+      (ARRAY, STRING, "path_isreg"),
+      (ARRAY, FBB,    "path_isdir_with_hash"),         # tag "file"
+      (ARRAY, FBB,    "system_path_isdir_with_hash"),  # tag "file"
+      (ARRAY, STRING, "path_isdir"),
+      (ARRAY, STRING, "path_notexist_or_isreg"),
+      (ARRAY, STRING, "path_notexist_or_isreg_empty"),
+      (ARRAY, STRING, "path_notexist"),
+
+      # Files and directories that are stat'ed, even if stat failed.
+      #(ARRAY, FBB,    "path_stated"),                  # tag "file"
+
+      # TODO: Directories that are opendir'ed, even if opendir failed.
+      # FIXME: need to fingerprint the entire directory listing??
+      #(ARRAY, FBB,    "path_isdir_listed"),            # tag "dir"
+
+      # TODO: readlink and friends...
+    ]),
+
+    # Things that are modified in the external world by the process while
+    # it's running.
+    ("process_outputs", [
+      # Files that are written to (or removed), only if opening them for
+      # writing succeeded.
+      (ARRAY,    FBB,    "path_isreg_with_hash"),  # tag "file"
+      # Directories created
+      (ARRAY,    FBB,    "path_isdir"),            # tag "file"
+      (ARRAY,    STRING, "path_notexist"),
+      # Maybe special handling of files that are appended to?
+
+      # TODO:
+      # unlink, rmdir
+      # link, symlink
+      # chown, chmod
+      # etc.
+
+      # Data written to inherited pipes
+      (ARRAY,    FBB,    "pipe_data"),             # tag "pipe_data"
+
+      (REQUIRED, "int",  "exit_status"),
+    ]),
+
+    ("process_inputs_outputs", [
+      (REQUIRED, FBB,    "inputs"),                # tag "process_inputs"
+      (REQUIRED, FBB,    "outputs"),               # tag "process_outputs"
+    ]),
+
+  # Legacy - can we remove it?
+  #  ("process", [
+  #    # process id
+  #    (REQUIRED, "pid_t",              "pid"),
+  #    # Checksum (binary) of process and children
+  #    (REQUIRED, "XXH128_canonical_t", "hash"),
+  #    (REQUIRED, FBB,                  "inputs_outputs"),  # tag "process_inputs_outputs"
+  #    # exit status of the process
+  #    (REQUIRED, "int",                "exit_status"),
+  #    (REQUIRED, "XXH128_canonical_t", "child_hash"),
+  #    # TODO
+  #    # signals?
+  #  ]),
+  ]
+}

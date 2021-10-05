@@ -56,8 +56,10 @@ class Hash {
   bool set_from_file(const FileName *filename, bool *is_dir_out = NULL);
 
   void set_hash_from_binary(const uint8_t *binary);
+  void set_hash_from_canonical(XXH128_canonical_t);
   bool set_hash_from_ascii(const std::string &ascii);
   const uint8_t * to_binary() const;
+  XXH128_canonical_t to_canonical() const;
   void to_ascii(char *out) const;
   std::string to_ascii() const {
      char ascii[Hash::kAsciiLength + 1];
