@@ -1,0 +1,648 @@
+# Copyright (c) 2020, 2021 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# This is the definition of the FBB format used for communication
+# between the interceptor and the supervisor.
+
+# This is a Python dictionary, to be read and processed by "generate_fbb".
+
+{
+  "tags": [
+    # interceptor library queries FireBuild supervisor if it can shortcut execution of the process
+    ("scproc_query", [
+      # process id
+      (OPTIONAL, "pid_t", "pid"),
+      # parent pid
+      (OPTIONAL, "pid_t", "ppid"),
+      # working dir process started in
+      (OPTIONAL, STRING, "cwd"),
+      # only argv, sending argc would be redundant
+      (ARRAY, STRING, "arg"),
+      # environment variables in unprocessed NAME=value form
+      (ARRAY, STRING, "env_var"),
+      # full path of the binary
+      (OPTIONAL, STRING, "executable"),
+      # pathname used to execute the program
+      (OPTIONAL, STRING, "executed_path"),
+      # loaded shared libraries in the beginning
+      (ARRAY, STRING, "libs"),
+      # interceptor's version
+      (OPTIONAL, STRING, "version"),
+    ]),
+
+    # FireBuild supervisor's response with details of shortcutting.
+    # Unlike the others, this message type is used in the supervisor->interceptor direction of the
+    # communication. Nevertheless, it resides in the same namespace.
+    ("scproc_resp", [
+      (REQUIRED, "bool", "shortcut"),
+      (OPTIONAL, "int", "exit_status"),
+      # disable interception and remove libfirebuild from LD_PRELOAD
+      (OPTIONAL, "bool", "dont_intercept"),
+      # makes sense only for shortcut = false
+      (OPTIONAL, "int32_t", "debug_flags"),
+      # fifos for fds to reopen
+      # the format is "<fd>:<flags as int> <fifo path>"
+      (ARRAY, STRING, "reopen_fd_fifos"),
+    ]),
+
+    # Those function calls are not handled specially in interceptor lib and
+    # are reported once per process to supervisor
+    ("gen_call", [
+      # function name
+      (REQUIRED, STRING, "call"),
+    ]),
+
+    # FireBuild error
+    ("fb_error", [
+      # error message
+      (REQUIRED, STRING, "msg"),
+    ]),
+    # FireBuild debugging message
+    ("fb_debug", [
+      # error message
+      (REQUIRED, STRING, "msg"),
+    ]),
+
+    ("fcntl", [
+      # file descriptor
+      (OPTIONAL, "int", "fd"),
+      # command
+      (OPTIONAL, "int", "cmd"),
+      # arg, if present
+      (OPTIONAL, "int", "arg"),
+      # return value, depends on cmd
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("ioctl", [
+      # file descriptor
+      (OPTIONAL, "int", "fd"),
+      # command
+      (OPTIONAL, "unsigned long", "cmd"),
+      # return value, depends on cmd
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("open", [
+      # dir file descriptor for openat()
+      (OPTIONAL, "int", "dirfd"),
+      # file path
+      (OPTIONAL, STRING, "file"),
+      # flags, decoding is left for FireBuild supervisor
+      (REQUIRED, "int", "flags"),
+      # mode if (flags & O_CREAT), decoding is left for FireBuild supervisor
+      (OPTIONAL, "mode_t", "mode"),
+      # return value, the file descriptor if != -1
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("freopen", [
+      # file path
+      (OPTIONAL, STRING, "filename"),
+      # flags, decoding is left for FireBuild supervisor
+      (OPTIONAL, "int", "flags"),
+      # file descriptor associated to the stream to be reopened
+      (OPTIONAL, "int", "fd"),
+      # return value, the file descriptor if != -1
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("chdir", [
+      # directory path
+      (OPTIONAL, STRING, "dir"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("fchdir", [
+      # directory fd
+      (OPTIONAL, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("readlink", [
+      # dir file descriptor for readlinkat()
+      (OPTIONAL, "int", "dirfd"),
+      # path name
+      (OPTIONAL, STRING, "path"),
+      # buffer size
+      (OPTIONAL, "size_t", "bufsiz"),
+      # returned path
+      (OPTIONAL, STRING, "ret_path"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("rename", [
+      # old dir file descriptor for renameat[2]()
+      (OPTIONAL, "int", "olddirfd"),
+      # path to old file
+      (OPTIONAL, STRING, "oldpath"),
+      # new dir file descriptor for renameat[2]()
+      (OPTIONAL, "int", "newdirfd"),
+      # path to new file
+      (OPTIONAL, STRING, "newpath"),
+      # flags for renmaeat2()
+      (OPTIONAL, "unsigned int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("access", [
+      # path to file
+      (OPTIONAL, STRING, "pathname"),
+      # acess mode
+      (OPTIONAL, "int", "mode"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("euidaccess", [
+      # path to file
+      (OPTIONAL, STRING, "pathname"),
+      # access mode
+      (OPTIONAL, "int", "mode"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("faccessat", [
+      # dir file descriptor
+      (OPTIONAL, "int", "dirfd"),
+      # path to file
+      (OPTIONAL, STRING, "pathname"),
+      # access mode
+      (OPTIONAL, "int", "mode"),
+      # flags
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("stat", [
+      # dir file descriptor for fstatat()
+      (OPTIONAL, "int", "dirfd"),
+      # path to file
+      (OPTIONAL, STRING, "filename"),
+      # it was actually lstat() or fstatat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+      (OPTIONAL, "bool", "link"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("fstat", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("mkdir", [
+      # dir file descriptor for mkdirat()
+      (OPTIONAL, "int", "dirfd"),
+      # dir path
+      (OPTIONAL, STRING, "pathname"),
+      # mode
+      (REQUIRED, "mode_t", "mode"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("rmdir", [
+      # dir path
+      (OPTIONAL, STRING, "pathname"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("close", [
+      # file descriptor
+      (OPTIONAL, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("fcloseall", [
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("chmod", [
+      # dir file descriptor for fchmodat()
+      (OPTIONAL, "int", "dirfd"),
+      # file path
+      (OPTIONAL, STRING, "path"),
+      # mode
+      (OPTIONAL, "mode_t", "mode"),
+      # flags for fchmodat()
+      (OPTIONAL, "int", "flags"),
+      # it was actually lchmod() or fchmodat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+      (OPTIONAL, "bool", "link"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("fchmod", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # mode
+      (OPTIONAL, "mode_t", "mode"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("chown", [
+      # dir file descriptor for fchownat()
+      (OPTIONAL, "int", "dirfd"),
+      # file path
+      (OPTIONAL, STRING, "path"),
+      # uid
+      (OPTIONAL, "uid_t", "owner"),
+      # gid
+      (OPTIONAL, "gid_t", "group"),
+      # flags for fchownat()
+      (OPTIONAL, "int", "flags"),
+      # it was actually lchown() or fchownat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+      (OPTIONAL, "bool", "link"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("fchown", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # uid
+      (OPTIONAL, "uid_t", "owner"),
+      # gid
+      (OPTIONAL, "gid_t", "group"),
+      # flags for fchownat()
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("unlink", [
+      # dir file descriptor for unlinkat()
+      (OPTIONAL, "int", "dirfd"),
+      # path name
+      (OPTIONAL, STRING, "pathname"),
+      # flags for unlinkat()
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("link", [
+      # old dir file descriptor for linkat()
+      (OPTIONAL, "int", "olddirfd"),
+      # old file path
+      (OPTIONAL, STRING, "oldpath"),
+      # new dir file descriptor for linkat()
+      (OPTIONAL, "int", "newdirfd"),
+      # new file path
+      (OPTIONAL, STRING, "newpath"),
+      # flags for linkat()
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("symlink", [
+      # old file path
+      (OPTIONAL, STRING, "oldpath"),
+      # new dir file descriptor for symlinkat()
+      (OPTIONAL, "int", "newdirfd"),
+      # new file path
+      (OPTIONAL, STRING, "newpath"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("lockf", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # lock command
+      (OPTIONAL, "int", "cmd"),
+      # file range
+      (OPTIONAL, "off_t", "len"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("utime", [
+      # ..at(), like utimensat
+      (OPTIONAL, "int", "dirfd"),
+      # file name
+      (OPTIONAL, STRING, "file"),
+      # it was actually lutime() or utimensat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
+      (OPTIONAL, "bool", "link"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("futime", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    # pipe2() with flags = 0 is equivalent to pipe()
+    ("pipe2", [
+      # pipe fd[0] in case of success
+      (OPTIONAL, "int", "fd0"),
+      # pipe fd[1] in case of success
+      (OPTIONAL, "int", "fd1"),
+      # flags
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+      # named pipe which is read by the intercepted process when reading fd[0]
+      (OPTIONAL, STRING, "fd0_fifo"),
+      # named pipe which is written by the intercepted process when reading fd[1]
+      (OPTIONAL, STRING, "fd1_fifo"),
+    ]),
+
+    # for dup
+    ("dup", [
+      # old file fd
+      (REQUIRED, "int", "oldfd"),
+      # new fd
+      (REQUIRED, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    # for dup2 and dup3
+    ("dup3", [
+      # old file fd
+      (REQUIRED, "int", "oldfd"),
+      # new file fd
+      (REQUIRED, "int", "newfd"),
+      # flags
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("dlopen", [
+      # file path
+      (OPTIONAL, STRING, "filename"),
+      # flag, decoding is left for FireBuild supervisor
+      (OPTIONAL, "int", "flag"),
+      # absolute filename where (if) the library was found
+      (OPTIONAL, STRING, "absolute_filename"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("execv", [
+      # file to execute
+      (OPTIONAL, STRING, "file"),
+      # file fd to execute, in case of fexecve()
+      (OPTIONAL, "int", "fd"),
+      # dir fd to execute, in case of execveat()
+      (OPTIONAL, "int", "dirfd"),
+      # argv[]
+      (ARRAY, STRING, "arg"),
+      # envp[]
+      (ARRAY, STRING, "env"),
+      # true, in case of execvp()/execvpe()
+      (OPTIONAL, "bool", "with_p"),
+      # PATH, or confstr(_CS_PATH) if PATH is not set
+      (OPTIONAL, STRING, "path"),
+      # user CPU time in microseconds since last exec()
+      (REQUIRED, "int64_t", "utime_u"),
+      # system CPU time in microseconds since laste exec()
+      (REQUIRED, "int64_t", "stime_u"),
+    ]),
+
+    ("execv_failed", [
+      # error no., when ret = -1
+      (REQUIRED, "int", "error_no"),
+    ]),
+
+    # system(3)
+    ("system", [
+      # command, only SystemRet is sent when command was NULL
+      (REQUIRED, STRING, "cmd"),
+      # return value is sent in SystemRet
+    ]),
+
+    ("system_ret", [
+      # command, not present when it was NULL
+      (OPTIONAL, STRING, "cmd"),
+      # return value
+      (REQUIRED, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    # popen(3)
+    ("popen", [
+      # command
+      (OPTIONAL, STRING, "cmd"),
+      # type, represented as flags
+      (REQUIRED, "int", "type_flags"),
+    ]),
+
+    ("popen_parent", [
+      # return value
+      (REQUIRED, "int", "fd"),
+      # fifo
+      (OPTIONAL, STRING, "fifo"),
+    ]),
+
+    ("popen_failed", [
+      # command, to let the supervisor remove it from expected_children
+      (OPTIONAL, STRING, "cmd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("pclose", [
+      # file descriptor
+      (REQUIRED, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addopen() call.
+    ("posix_spawn_file_action_open", [
+      (REQUIRED, "int", "fd"),
+      (REQUIRED, STRING,    "path"),
+      (REQUIRED, "int", "flags"),
+      (REQUIRED, "mode_t", "mode"),
+    ]),
+
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addclose() call.
+    ("posix_spawn_file_action_close", [
+      (REQUIRED, "int", "fd"),
+    ]),
+
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_adddup2() call.
+    ("posix_spawn_file_action_dup2", [
+      (REQUIRED, "int", "oldfd"),
+      (REQUIRED, "int", "newfd"),
+    ]),
+
+    # posix_spawn[p](3)
+    ("posix_spawn", [
+      # command
+      (OPTIONAL, STRING, "file"),
+      # only argv, sending argc would be redundant
+      (ARRAY, STRING, "arg"),
+      # environment variables in unprocessed NAME=value form
+      (ARRAY, STRING, "env"),
+      # spawn or spawnp
+      (REQUIRED, "bool", "is_spawnp"),
+    ]),
+
+    ("posix_spawn_parent", [
+      # command args repeated, to let the supervisor remove it from expected_child
+      (ARRAY, STRING, "arg"),
+      # posix_spawn_file_actions_t, each action is an FBB message of one of
+      # posix_spawn_file_action_{open,close,dup2}
+      (ARRAY, FBB, "file_actions"),
+      # child's process id
+      (REQUIRED, "pid_t", "pid"),
+    ]),
+
+    ("posix_spawn_failed", [
+      # command args repeated, to let the supervisor remove it from expected_child
+      (ARRAY, STRING, "arg"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("wait", [
+      # pid whose termination the parent has successfully waited for
+      (REQUIRED, "pid_t", "pid"),
+    ]),
+
+    ("sysconf", [
+      # name
+      (OPTIONAL, "int", "name"),
+      # value
+      (OPTIONAL, "long", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("syscall", [
+      # syscall number (id)
+      (OPTIONAL, "long", "number"),
+      # return value
+      (OPTIONAL, "long", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("gethostname", [
+      # name
+      (OPTIONAL, STRING, "name"),
+      # value
+      (OPTIONAL, "size_t", "len"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("getdomainname", [
+      # name
+      (OPTIONAL, STRING, "name"),
+      # value
+      (OPTIONAL, "size_t", "len"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("truncate", [
+      # name
+      (OPTIONAL, STRING, "path"),
+      # length
+      (OPTIONAL, "off_t", "len"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("ftruncate", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # length
+      (OPTIONAL, "off_t", "len"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("pathconf", [
+      # path name
+      (OPTIONAL, STRING, "path"),
+      # option name
+      (OPTIONAL, "int", "name"),
+      # option value
+      (OPTIONAL, "long", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("fpathconf", [
+      # file fd
+      (OPTIONAL, "int", "fd"),
+      # option name
+      (OPTIONAL, "int", "name"),
+      # option value
+      (OPTIONAL, "long", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("read", [
+      # file fd
+      (REQUIRED, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("write", [
+      # file fd
+      (REQUIRED, "int", "fd"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("exit", [
+      # exit status of the process
+      (REQUIRED, "int", "exit_status"),
+      # user CPU time in microseconds
+      (REQUIRED, "int64_t", "utime_u"),
+      # system CPU time in microseconds
+      (REQUIRED, "int64_t", "stime_u"),
+    ]),
+
+    # fork()'s child
+    ("fork_child", [
+      # process id
+      (REQUIRED, "pid_t", "pid"),
+      # process parent id
+      (REQUIRED, "pid_t", "ppid"),
+    ]),
+
+    # process that called fork()
+    ("fork_parent", [
+      # child process id
+      (REQUIRED, "pid_t", "pid"),
+    ]),
+  ]
+}

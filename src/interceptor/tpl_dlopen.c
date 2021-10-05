@@ -6,7 +6,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (absolute_filename != NULL) fbb_" + msg + "_set_absolute_filename(&ic_msg, absolute_filename);"] %}
+{% set msg_add_fields = ["if (absolute_filename != NULL) fbbcomm_builder_" + msg + "_set_absolute_filename(&ic_msg, absolute_filename);"] %}
 
 ### block before
   thread_libc_nesting_depth++;

@@ -51,7 +51,7 @@ add_library(firebuild SHARED
   interceptors.c
   $<TARGET_OBJECTS:common_objs>)
 
-add_dependencies(firebuild gen_files fbb_gen_files)
+add_dependencies(firebuild gen_files fbbcomm_gen_files)
 
 set_target_properties(firebuild PROPERTIES
   INTERPROCEDURAL_OPTIMIZATION True

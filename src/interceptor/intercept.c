@@ -206,7 +206,7 @@ void insert_end_marker(const char* m) {
 }
 
 /** Get next unique ACK id */
-static int get_next_ack_id() {
+static uint32_t get_next_ack_id() {
   return ack_id++;
 }
 
@@ -230,17 +230,16 @@ static int get_next_ack_id() {
  */
 static ssize_t fb_recv_msg(uint32_t *ack_id_p, char **bufp, int fd) {
   /* read serialized length and ack_id */
-  uint32_t header[2];
-  ssize_t ret = fb_read(fd, header, sizeof(header));
+  msg_header header;
+  ssize_t ret = fb_read(fd, &header, sizeof(header));
   if (ret == -1 || ret == 0) {
     return ret;
   }
-  uint32_t msg_size = header[0];
   if (ack_id_p) {
-    *ack_id_p = header[1];
+    *ack_id_p = header.ack_id;
   }
 
-  if (msg_size == 0) {
+  if (header.msg_size == 0) {
     /* empty message, only an ack_id */
     return 0;
   }
@@ -249,31 +248,47 @@ static ssize_t fb_recv_msg(uint32_t *ack_id_p, char **bufp, int fd) {
   assert(bufp != NULL);
 
   /* read serialized msg */
-  *bufp = (char *) malloc(msg_size);
-  if ((ret = fb_read(fd, *bufp, msg_size)) == -1) {
+  *bufp = (char *) malloc(header.msg_size);
+  if ((ret = fb_read(fd, *bufp, header.msg_size)) == -1) {
     return ret;
   }
-  assert(ret >= (ssize_t) sizeof(uint32_t));
+  assert(ret > 0);
   return ret;
+}
+
+/** Send the serialized version of the given message over the wire,
+ *  prefixed with the ack num and the message length */
+void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint32_t ack_num) {
+  int len = fbbcomm_builder_measure(ic_msg);
+  char *buf = alloca(sizeof(msg_header) + len);
+  fbbcomm_builder_serialize(ic_msg, buf + sizeof(msg_header));
+#pragma GCC diagnostic push
+#ifdef __clang__
+#pragma GCC diagnostic ignored "-Wcast-align"
+#endif
+  ((msg_header *)buf)->ack_id = ack_num;
+  ((msg_header *)buf)->msg_size = len;
+#pragma GCC diagnostic pop
+  fb_write(fd, buf, sizeof(msg_header) + len);
 }
 
 /** Send message, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-void fb_fbb_send_msg(void *ic_msg, int fd) {
+void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
-  fbb_send(fd, ic_msg, 0);
+  fb_send_msg(fd, ic_msg, 0);
 
   thread_signal_danger_zone_leave();
 }
 
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
-void fb_fbb_send_msg_and_check_ack(void *ic_msg, int fd) {
+void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
   uint32_t ack_num = get_next_ack_id();
-  fbb_send(fd, ic_msg, ack_num);
+  fb_send_msg(fd, ic_msg, ack_num);
 
   uint32_t ack_num_resp = 0;
   fb_recv_msg(&ack_num_resp, NULL, fd);
@@ -374,11 +389,11 @@ static void atfork_child_handler(void) {
     fb_init_supervisor_conn();
 
     /* Inform the supervisor about who we are */
-    FBB_Builder_fork_child ic_msg;
-    fbb_fork_child_init(&ic_msg);
-    fbb_fork_child_set_pid(&ic_msg, ic_pid);
-    fbb_fork_child_set_ppid(&ic_msg, getppid());
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    FBBCOMM_Builder_fork_child ic_msg;
+    fbbcomm_builder_fork_child_init(&ic_msg);
+    fbbcomm_builder_fork_child_set_pid(&ic_msg, ic_pid);
+    fbbcomm_builder_fork_child_set_ppid(&ic_msg, getppid());
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 }
 
@@ -412,20 +427,20 @@ void handle_exit(const int status) {
     }
     thread_signal_danger_zone_leave();
 
-    FBB_Builder_exit ic_msg;
-    fbb_exit_init(&ic_msg);
-    fbb_exit_set_exit_status(&ic_msg, status);
+    FBBCOMM_Builder_exit ic_msg;
+    fbbcomm_builder_exit_init(&ic_msg);
+    fbbcomm_builder_exit_set_exit_status(&ic_msg, status);
 
     struct rusage ru;
     ic_orig_getrusage(RUSAGE_SELF, &ru);
     timersub(&ru.ru_stime, &initial_rusage.ru_stime, &ru.ru_stime);
     timersub(&ru.ru_utime, &initial_rusage.ru_utime, &ru.ru_utime);
-    fbb_exit_set_utime_u(&ic_msg,
+    fbbcomm_builder_exit_set_utime_u(&ic_msg,
         (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
-    fbb_exit_set_stime_u(&ic_msg,
+    fbbcomm_builder_exit_set_stime_u(&ic_msg,
         (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
 
     if (i_locked) {
       thread_signal_danger_zone_enter();
@@ -603,19 +618,19 @@ static void fb_ic_init() {
     assert(0 && "getcwd() returned NULL");
   }
 
-  FBB_Builder_scproc_query ic_msg;
-  fbb_scproc_query_init(&ic_msg);
+  FBBCOMM_Builder_scproc_query ic_msg;
+  fbbcomm_builder_scproc_query_init(&ic_msg);
 
-  fbb_scproc_query_set_version(&ic_msg, FIREBUILD_VERSION);
+  fbbcomm_builder_scproc_query_set_version(&ic_msg, FIREBUILD_VERSION);
 
-  fbb_scproc_query_set_pid(&ic_msg, pid);
-  fbb_scproc_query_set_ppid(&ic_msg, ppid);
-  fbb_scproc_query_set_cwd(&ic_msg, cwd_buf);
-  fbb_scproc_query_set_arg(&ic_msg, argv);
+  fbbcomm_builder_scproc_query_set_pid(&ic_msg, pid);
+  fbbcomm_builder_scproc_query_set_ppid(&ic_msg, ppid);
+  fbbcomm_builder_scproc_query_set_cwd(&ic_msg, cwd_buf);
+  fbbcomm_builder_scproc_query_set_arg(&ic_msg, (const char **) argv);
 
   const char *executed_path = (const char*)getauxval(AT_EXECFN);
   if (executed_path) {
-    fbb_scproc_query_set_executed_path(&ic_msg, executed_path);
+    fbbcomm_builder_scproc_query_set_executed_path(&ic_msg, executed_path);
   }
 
   /* make a sorted and filtered copy of env */
@@ -635,7 +650,7 @@ static void fb_ic_init() {
   }
   env_copy[env_copy_len] = NULL;
   qsort(env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
-  fbb_scproc_query_set_env_var(&ic_msg, env_copy);
+  fbbcomm_builder_scproc_query_set_env_var(&ic_msg, (const char **) env_copy);
 
   // get full executable path
   // see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
@@ -645,46 +660,45 @@ static void fb_ic_init() {
   r = ic_orig_readlink("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
   if (r > 0 && r < CWD_BUFSIZE) {
     linkname[r] = '\0';
-    fbb_scproc_query_set_executable(&ic_msg, linkname);
+    fbbcomm_builder_scproc_query_set_executable(&ic_msg, linkname);
   }
 
   // list loaded shared libs
   string_array libs;
   string_array_init(&libs);
   dl_iterate_phdr(shared_libs_cb, &libs);
-  fbb_scproc_query_set_libs(&ic_msg, libs.p);
+  fbbcomm_builder_scproc_query_set_libs(&ic_msg, (const char **) libs.p);
 
-  fbb_send(fb_sv_conn, &ic_msg, 0);
+  fb_send_msg(fb_sv_conn, &ic_msg, 0);
 
-  FBB_scproc_resp *sv_msg = NULL;
+  FBBCOMM_Serialized *sv_msg_generic = NULL;
 #ifndef NDEBUG
   ssize_t len =
 #endif
-      fb_recv_msg(NULL, (char **)&sv_msg, fb_sv_conn);
+      fb_recv_msg(NULL, (char **)&sv_msg_generic, fb_sv_conn);
   assert(len >= (ssize_t) sizeof(int));
-  assert(*(int *) sv_msg == FBB_TAG_scproc_resp);
-  debug_flags = fbb_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
+  assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
+  FBBCOMM_Serialized_scproc_resp *sv_msg = (FBBCOMM_Serialized_scproc_resp *) sv_msg_generic;
+  debug_flags = fbbcomm_serialized_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
 
   // we may return immediately if supervisor decides that way
-  if (fbb_scproc_resp_get_shortcut(sv_msg)) {
-    assert(fbb_scproc_resp_has_exit_status(sv_msg));
+  if (fbbcomm_serialized_scproc_resp_get_shortcut(sv_msg)) {
+    assert(fbbcomm_serialized_scproc_resp_has_exit_status(sv_msg));
     insert_debug_msg("this process was shortcut by the supervisor, exiting");
     void(*orig_underscore_exit)(int) = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
-    (*orig_underscore_exit)(fbb_scproc_resp_get_exit_status(sv_msg));
+    (*orig_underscore_exit)(fbbcomm_serialized_scproc_resp_get_exit_status(sv_msg));
     assert(0 && "_exit() did not exit");
   }
 
-  if (fbb_scproc_resp_has_dont_intercept(sv_msg)) {
+  if (fbbcomm_serialized_scproc_resp_has_dont_intercept(sv_msg)) {
     /* if set, must be true */
-    assert(fbb_scproc_resp_get_dont_intercept(sv_msg));
+    assert(fbbcomm_serialized_scproc_resp_get_dont_intercept(sv_msg));
     intercepting_enabled = false;
     env_purge(environ);
   }
-  if (fbb_scproc_resp_has_reopen_fd_fifos(sv_msg)) {
-    /* reopen fds */
-    for_s_in_fbb_scproc_resp_reopen_fd_fifos(sv_msg, {
-        reopen_fd_fifo(s);
-    });
+  /* reopen fds */
+  for (size_t i = 0; i < fbbcomm_serialized_scproc_resp_get_reopen_fd_fifos_count(sv_msg); i++) {
+    reopen_fd_fifo(fbbcomm_serialized_scproc_resp_get_reopen_fd_fifos_at(sv_msg, i));
   }
 
   free(sv_msg);
@@ -733,25 +747,25 @@ ssize_t fb_read(int fd, void *buf, size_t count) {
   FB_READ_WRITE(*ic_orig_read, fd, buf, count);
 }
 
-/** wrapper for writev() retrying on recoverable errors */
-ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
-  FB_READV_WRITEV(*ic_orig_writev, fd, iov, iovcnt);
+/** wrapper for write() retrying on recoverable errors */
+ssize_t fb_write(int fd, const void *buf, size_t count) {
+  FB_READ_WRITE(*ic_orig_write, fd, buf, count);
 }
 
 /** Send error message to supervisor */
 extern void fb_error(const char* msg) {
-  FBB_Builder_fb_error ic_msg;
-  fbb_fb_error_init(&ic_msg);
-  fbb_fb_error_set_msg(&ic_msg, msg);
-  fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+  FBBCOMM_Builder_fb_error ic_msg;
+  fbbcomm_builder_fb_error_init(&ic_msg);
+  fbbcomm_builder_fb_error_set_msg(&ic_msg, msg);
+  fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
 void fb_debug(const char* msg) {
-  FBB_Builder_fb_debug ic_msg;
-  fbb_fb_debug_init(&ic_msg);
-  fbb_fb_debug_set_msg(&ic_msg, msg);
-  fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+  FBBCOMM_Builder_fb_debug ic_msg;
+  fbbcomm_builder_fb_debug_init(&ic_msg);
+  fbbcomm_builder_fb_debug_set_msg(&ic_msg, msg);
+  fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
 }
 
 
@@ -760,11 +774,15 @@ void fb_debug(const char* msg) {
  * Add an entry, with a new empty string array, to our pool.
  */
 void psfa_init(const posix_spawn_file_actions_t *p) {
+  // FIXME guard with mutex!
+
+  /* This provides extra safety, in case a previous record belonging to this pointer wasn't cleaned
+   * up, and now the same pointer is getting reused for a brand new posix_spawn_file_actions. */
   psfa_destroy(p);
 
   /* grow buffer if necessary */
   if (psfas_alloc == 0) {
-    psfas_alloc = 4 /* whatever */;
+    psfas_alloc = 4  /* whatever */;
     psfas = (psfa *) malloc(sizeof(psfa) * psfas_alloc);
   } else if (psfas_num == psfas_alloc) {
     psfas_alloc *= 2;
@@ -772,8 +790,19 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
   }
 
   psfas[psfas_num].p = p;
-  string_array_init(&psfas[psfas_num].actions);
+  voidp_array_init(&psfas[psfas_num].actions);
   psfas_num++;
+}
+
+static void psfa_item_free(void *p) {
+  if (fbbcomm_builder_get_tag(p) == FBBCOMM_TAG_posix_spawn_file_action_open) {
+    /* For addopen() actions the filename needs to be freed. */
+    FBBCOMM_Builder_posix_spawn_file_action_open *builder = p;
+    char *path =
+        (/* non-const */ char *) fbbcomm_builder_posix_spawn_file_action_open_get_path(builder);
+    free(path);
+  }
+  free(p);
 }
 
 /**
@@ -782,9 +811,11 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
  * Do not shrink psfas.
  */
 void psfa_destroy(const posix_spawn_file_actions_t *p) {
+  // FIXME guard with mutex!
+
   for (int i = 0; i < psfas_num; i++) {
     if (psfas[i].p == p) {
-      string_array_deep_free(&psfas[i].actions);
+      voidp_array_deep_free(&psfas[i].actions, psfa_item_free);
       if (i < psfas_num - 1) {
         /* Keep the array dense by moving the last item to this slot. */
         psfas[i] = psfas[psfas_num - 1];
@@ -798,64 +829,70 @@ void psfa_destroy(const posix_spawn_file_actions_t *p) {
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_addopen():
- * Append a corresponding record to our structures.
- * An open action is denoted using the string "o <fd> <flags> <mode> <filename>"
- * (without the angle brackets).
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_open builder to our structures.
  */
 void psfa_addopen(const posix_spawn_file_actions_t *p,
                   int fd,
                   const char *path,
                   int flags,
                   mode_t mode) {
-  string_array *obj = psfa_find(p);
+  voidp_array *obj = psfa_find(p);
   assert(obj);
 
-  char *str;
-  if (asprintf(&str, "o %d %d %d %s", fd, flags, mode, path) < 0) {
-    perror("asprintf");
-  }
-  string_array_append(obj, str);
+  FBBCOMM_Builder_posix_spawn_file_action_open *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_open));
+  fbbcomm_builder_posix_spawn_file_action_open_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_open_set_fd(fbbcomm_builder, fd);
+  fbbcomm_builder_posix_spawn_file_action_open_set_path(fbbcomm_builder, strdup(path));
+  fbbcomm_builder_posix_spawn_file_action_open_set_flags(fbbcomm_builder, flags);
+  fbbcomm_builder_posix_spawn_file_action_open_set_mode(fbbcomm_builder, mode);
+
+  voidp_array_append(obj, fbbcomm_builder);
 }
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclose():
- * Append a corresponding record to our structures.
- * A close action is denoted using the string "c <fd>" (without the angle brackets).
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_close builder to our structures.
  */
 void psfa_addclose(const posix_spawn_file_actions_t *p,
                    int fd) {
-  string_array *obj = psfa_find(p);
+  voidp_array *obj = psfa_find(p);
   assert(obj);
 
-  char *str;
-  if (asprintf(&str, "c %d", fd) < 0) {
-    perror("asprintf");
-  }
-  string_array_append(obj, str);
+  FBBCOMM_Builder_posix_spawn_file_action_close *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_close));
+  fbbcomm_builder_posix_spawn_file_action_close_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_close_set_fd(fbbcomm_builder, fd);
+
+  voidp_array_append(obj, fbbcomm_builder);
 }
 
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_adddup2():
- * Append a corresponding record to our structures.
- * A dup2 action is denoted using the string "d <oldfd> <newfd>" (without the angle brackets).
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_dup2 builder to our structures.
  */
 void psfa_adddup2(const posix_spawn_file_actions_t *p,
                   int oldfd,
                   int newfd) {
-  string_array *obj = psfa_find(p);
+  voidp_array *obj = psfa_find(p);
   assert(obj);
 
-  char *str;
-  if (asprintf(&str, "d %d %d", oldfd, newfd) < 0) {
-    perror("asprintf");
-  }
-  string_array_append(obj, str);
+  FBBCOMM_Builder_posix_spawn_file_action_dup2 *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_dup2));
+  fbbcomm_builder_posix_spawn_file_action_dup2_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_dup2_set_oldfd(fbbcomm_builder, oldfd);
+  fbbcomm_builder_posix_spawn_file_action_dup2_set_newfd(fbbcomm_builder, newfd);
+
+  voidp_array_append(obj, fbbcomm_builder);
 }
 
 /**
- * Find the string_array for a given posix_spawn_file_actions.
+ * Find the voidp_array for a given posix_spawn_file_actions.
  */
-string_array *psfa_find(const posix_spawn_file_actions_t *p) {
+voidp_array *psfa_find(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (psfas[i].p == p) {
       return &psfas[i].actions;

@@ -1,0 +1,38 @@
+# Copyright (c) 2020, 2021 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+# This is the definition of an FBB format used for testing FBB itself.
+
+# This is a Python dictionary, to be read and processed by "generate_fbb".
+
+{
+  "tags": [
+    ("testing", [
+      (REQUIRED, "int",  "reqint"),
+      (OPTIONAL, "int",  "optint"),
+      (ARRAY,    "int",  "arrint"),
+      (REQUIRED, "char", "reqchr"),
+      (OPTIONAL, "char", "optchr"),
+      (ARRAY,    "char", "arrchr"),
+      (REQUIRED, STRING, "reqstr"),
+      (OPTIONAL, STRING, "optstr"),
+      (ARRAY,    STRING, "arrstr"),
+      (ARRAY,    STRING, "arrstr2"),
+      (REQUIRED, FBB,    "reqfbb"),
+      (OPTIONAL, FBB,    "optfbb"),
+      (ARRAY,    FBB,    "arrfbb"),
+    ]),
+
+    ("testing2", [
+      (OPTIONAL, "int",   "t2"),
+    ]),
+
+    ("testing3", [
+      (OPTIONAL, "int",   "t3"),
+    ]),
+
+    ("testing4", [
+      (OPTIONAL, "int",   "t4"),
+    ]),
+  ]
+}

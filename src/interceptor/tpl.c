@@ -247,14 +247,14 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###         if msg
   /* Maybe notify the supervisor */
   if (i_am_intercepting && {{ send_msg_condition }}) {
-    FBB_Builder_{{ msg }} ic_msg;
-    fbb_{{ msg }}_init(&ic_msg);
+    FBBCOMM_Builder_{{ msg }} ic_msg;
+    fbbcomm_builder_{{ msg }}_init(&ic_msg);
 
 ###           block set_fields
     /* Auto-generated from the function signature */
 ###             for (type, name) in types_and_names
 ###               if name not in msg_skip_fields
-    fbb_{{ msg }}_set_{{ name }}(&ic_msg, {{ name }});
+    fbbcomm_builder_{{ msg }}_set_{{ name }}(&ic_msg, {{ name }});
 ###               else
     /* Skipping '{{ name }}' */
 ###               endif
@@ -269,7 +269,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 ###           if send_ret_on_success
     /* Send return value on success */
-    if (success) fbb_{{ msg }}_set_ret(&ic_msg, ret);
+    if (success) fbbcomm_builder_{{ msg }}_set_ret(&ic_msg, ret);
 ###           else
     /* Not sending return value */
 ###           endif
@@ -277,23 +277,23 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###           if send_msg_on_error
     /* Send errno on failure */
 ###             if not no_saved_errno
-    if (!success) fbb_{{ msg }}_set_error_no(&ic_msg, saved_errno);
+    if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, saved_errno);
 ###             else
-    if (!success) fbb_{{ msg }}_set_error_no(&ic_msg, errno);
+    if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, errno);
 ###             endif
 ###           endif
 ###           if ack_condition
     /* Sending ack is conditional */
     if ({{ ack_condition }}) {
       /* Send and wait for ack */
-      fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     } else {
       /* Send and go on, no ack */
-      fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+      fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
     }
 ###           else
     /* Send and go on, no ack */
-    fb_fbb_send_msg(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
 ###           endif
   }
 ###         endif

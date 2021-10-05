@@ -8,12 +8,18 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <sys/uio.h>
 
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef struct msg_header_ {
+  uint32_t msg_size;
+  uint32_t ack_id;
+} msg_header;
 
 /**
  * string_array allows to conveniently build up an array of strings (i.e. NULL-terminated char**).
@@ -27,6 +33,20 @@ typedef struct {
 void string_array_init(string_array *array);
 void string_array_append(string_array *array, char *s);
 void string_array_deep_free(string_array *array);
+
+/**
+ * voidp_array allows to conveniently build up an array of pointers (i.e. NULL-terminated void**).
+ */
+typedef struct {
+  void **p;
+  int len;         /* excluding the trailing NULL */
+  int size_alloc;  /* including the room for the trailing NULL */
+} voidp_array;
+
+void voidp_array_init(voidp_array *array);
+void voidp_array_append(voidp_array *array, void *s);
+void voidp_array_deep_free(voidp_array *array, void (*fn_free)(void *));
+
 bool is_path_at_locations(const char *path, string_array *prefix_array);
 
 static inline bool is_rdonly(int flags) { return ((flags & O_ACCMODE) == O_RDONLY); }

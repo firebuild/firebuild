@@ -50,7 +50,7 @@
 #include "firebuild/process_tree.h"
 #include "firebuild/process_proto_adaptor.h"
 #include "firebuild/utils.h"
-#include "./fbb.h"
+#include "./fbbcomm.h"
 
 /** global configuration */
 libconfig::Config * cfg;
@@ -211,8 +211,8 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     /* The pipe for popen(..., "r") has been created earlier. */
     assert(!pending_popen_stdin_fifo || is_wronly(popen_type_flags));
 
-    FBB_Builder_scproc_resp sv_msg;
-    fbb_scproc_resp_init(&sv_msg);
+    FBBCOMM_Builder_scproc_resp sv_msg;
+    fbbcomm_builder_scproc_resp_init(&sv_msg);
     std::string fifo_params;
     int fifo_name_offset;
     std::vector<std::string> fifo_fds = {};
@@ -226,7 +226,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
                                       proc->args().size() > 0 ? proc->args()[0] : "")) {
       /* Executables that should not be intercepted. */
       proc->disable_shortcutting_bubble_up("Executable set to not be intercepted");
-      fbb_scproc_resp_set_dont_intercept(&sv_msg, true);
+      fbbcomm_builder_scproc_resp_set_dont_intercept(&sv_msg, true);
     } else if (dont_shortcut_matcher->match(proc->executable(), proc->executed_path(),
                                             proc->args().size() > 0 ? proc->args()[0] : "")) {
       /* Executables that are known not to be shortcuttable. */
@@ -260,10 +260,10 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     /* Try to shortcut the process. */
     bool shortcutting_succeeded = proc->shortcut();
     if (shortcutting_succeeded) {
-      fbb_scproc_resp_set_shortcut(&sv_msg, true);
-      fbb_scproc_resp_set_exit_status(&sv_msg, proc->exit_status());
+      fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, true);
+      fbbcomm_builder_scproc_resp_set_exit_status(&sv_msg, proc->exit_status());
     } else {
-      fbb_scproc_resp_set_shortcut(&sv_msg, false);
+      fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, false);
       /* parent forked, thus a new set of fds is needed to track outputs */
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
@@ -304,17 +304,23 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
           /* Constness is cast away, but it is OK because the string array is not deep freed. */
           string_array_append(&fifo_fds_sa, const_cast<char*>(fifo_str.c_str()));
         }
-        fbb_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds_sa.p);
+        fbbcomm_builder_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds_sa.p);
       }
       /* inherited_pipes was updated with the recorders, save the new version */
       proc->set_inherited_pipes(inherited_pipes);
 
       if (debug_flags != 0) {
-        fbb_scproc_resp_set_debug_flags(&sv_msg, debug_flags);
+        fbbcomm_builder_scproc_resp_set_debug_flags(&sv_msg, debug_flags);
       }
     }
 
-    fbb_send(fd_conn, &sv_msg, 0);
+    int len = fbbcomm_builder_measure(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
+    char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
+    fbbcomm_builder_serialize(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg),
+                              buf + sizeof(msg_header));
+    reinterpret_cast<msg_header *>(buf)->ack_id = 0;
+    reinterpret_cast<msg_header *>(buf)->msg_size = len;
+    fb_write(fd_conn, buf, sizeof(msg_header) + len);
 
     if (pending_popen_stdin_fifo) {
       if (shortcutting_succeeded) {
@@ -376,16 +382,17 @@ static void accept_fork_child(firebuild::Process* parent, int parent_fd, int par
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
  */
-void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
+void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id, int fd_conn,
                           firebuild::Process** new_proc) {
   TRACK(firebuild::FB_DEBUG_PROC, "fd_conn=%s, ack_id=%d", D_FD(fd_conn), ack_id);
 
-  int tag = *reinterpret_cast<const int *>(fbb_buf);
-  if (tag == FBB_TAG_scproc_query) {
-    const FBB_scproc_query *ic_msg = reinterpret_cast<const FBB_scproc_query *>(fbb_buf);
-    auto pid = fbb_scproc_query_get_pid(ic_msg);
-    auto ppid = fbb_scproc_query_get_ppid(ic_msg);
-    const char* ic_version = fbb_scproc_query_get_version_with_fallback(ic_msg, NULL);
+  int tag = fbbcomm_serialized_get_tag(fbbcomm_buf);
+  if (tag == FBBCOMM_TAG_scproc_query) {
+    const FBBCOMM_Serialized_scproc_query *ic_msg =
+        reinterpret_cast<const FBBCOMM_Serialized_scproc_query *>(fbbcomm_buf);
+    auto pid = fbbcomm_serialized_scproc_query_get_pid(ic_msg);
+    auto ppid = fbbcomm_serialized_scproc_query_get_ppid(ic_msg);
+    const char* ic_version = fbbcomm_serialized_scproc_query_get_version(ic_msg);
 
     if (ic_version && strcmp(ic_version, FIREBUILD_VERSION) != 0) {
       firebuild::fb_error("Mismatched interceptor version: " + std::string(ic_version));
@@ -431,7 +438,7 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
       assert(unix_parent);
 
       /* Verify that the child was expected and get inherited fds. */
-      std::vector<std::string> args = fbb_scproc_query_get_arg(ic_msg);
+      std::vector<std::string> args = fbbcomm_serialized_scproc_query_get_arg_as_vector(ic_msg);
       fds = unix_parent->pop_expected_child_fds(args, &launch_type, &type_flags);
 
       if (unix_parent->posix_spawn_pending()) {
@@ -516,10 +523,11 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
     accept_exec_child(proc, fd_conn, proc_tree);
     *new_proc = proc;
 
-  } else if (tag == FBB_TAG_fork_child) {
-    const FBB_fork_child *ic_msg = reinterpret_cast<const FBB_fork_child *>(fbb_buf);
-    auto pid = fbb_fork_child_get_pid(ic_msg);
-    auto ppid = fbb_fork_child_get_ppid(ic_msg);
+  } else if (tag == FBBCOMM_TAG_fork_child) {
+    const FBBCOMM_Serialized_fork_child *ic_msg =
+        reinterpret_cast<const FBBCOMM_Serialized_fork_child *>(fbbcomm_buf);
+    auto pid = fbbcomm_serialized_fork_child_get_pid(ic_msg);
+    auto ppid = fbbcomm_serialized_fork_child_get_ppid(ic_msg);
     auto pending_ack = proc_tree->PPid2ParentAck(ppid);
     /* The supervisor needs up to date information about the fork parent in the ProcessTree
      * when the child Process is created. To ensure having up to date information all the
@@ -540,19 +548,20 @@ void proc_new_process_msg(const void *fbb_buf, uint32_t ack_id, int fd_conn,
   }
 }
 
-void proc_ic_msg(const void *fbb_buf,
+void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
                  uint32_t ack_num,
                  int fd_conn,
                  firebuild::Process* proc) {
   TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
-         D_FD(fd_conn), fbb_tag_string(fbb_buf), ack_num);
+         D_FD(fd_conn), fbbcomm_tag_to_string(fbbcomm_serialized_get_tag(fbbcomm_buf)), ack_num);
 
-  int tag = *reinterpret_cast<const int *>(fbb_buf);
+  int tag = fbbcomm_serialized_get_tag(fbbcomm_buf);
   assert(proc);
   switch (tag) {
-    case FBB_TAG_fork_parent: {
-      const FBB_fork_parent *ic_msg = reinterpret_cast<const FBB_fork_parent *>(fbb_buf);
-      auto child_pid = fbb_fork_parent_get_pid(ic_msg);
+    case FBBCOMM_TAG_fork_parent: {
+      const FBBCOMM_Serialized_fork_parent *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_fork_parent *>(fbbcomm_buf);
+      auto child_pid = fbbcomm_serialized_fork_parent_get_pid(ic_msg);
       auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
       if (!fork_child_sock) {
         /* wait for child */
@@ -566,31 +575,33 @@ void proc_ic_msg(const void *fbb_buf,
       }
       return;
     }
-    case FBB_TAG_execv_failed: {
+    case FBBCOMM_TAG_execv_failed: {
       // FIXME(rbalint) check execv parameter and record what needs to be
       // checked when shortcutting the process
       proc->set_exec_pending(false);
       break;
     }
-    case FBB_TAG_exit: {
-      const FBB_exit *ic_msg = reinterpret_cast<const FBB_exit *>(fbb_buf);
-      proc->exit_result(fbb_exit_get_exit_status(ic_msg),
-                        fbb_exit_get_utime_u(ic_msg),
-                        fbb_exit_get_stime_u(ic_msg));
+    case FBBCOMM_TAG_exit: {
+      const FBBCOMM_Serialized_exit *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_exit *>(fbbcomm_buf);
+      proc->exit_result(fbbcomm_serialized_exit_get_exit_status(ic_msg),
+                        fbbcomm_serialized_exit_get_utime_u(ic_msg),
+                        fbbcomm_serialized_exit_get_stime_u(ic_msg));
       break;
     }
-    case FBB_TAG_system: {
-      const FBB_system *ic_msg = reinterpret_cast<const FBB_system *>(fbb_buf);
+    case FBBCOMM_TAG_system: {
+      const FBBCOMM_Serialized_system *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_system *>(fbbcomm_buf);
       assert_null(proc->system_child());
       // system(cmd) launches a child of argv = ["sh", "-c", cmd]
       auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
       // FIXME what if !has_cmd() ?
-      expected_child->set_sh_c_command(fbb_system_get_cmd(ic_msg));
+      expected_child->set_sh_c_command(fbbcomm_serialized_system_get_cmd(ic_msg));
       expected_child->set_launch_type(firebuild::LAUNCH_TYPE_SYSTEM);
       proc->set_expected_child(expected_child);
       break;
     }
-    case FBB_TAG_system_ret: {
+    case FBBCOMM_TAG_system_ret: {
       assert(proc->system_child());
       if (proc->system_child()->state() != firebuild::FB_PROC_FINALIZED) {
         /* The process has actually quit (otherwise the interceptor
@@ -605,26 +616,27 @@ void proc_ic_msg(const void *fbb_buf,
       proc->set_system_child(NULL);
       break;
     }
-    case FBB_TAG_popen: {
-      const FBB_popen *ic_msg = reinterpret_cast<const FBB_popen *>(fbb_buf);
+    case FBBCOMM_TAG_popen: {
+      const FBBCOMM_Serialized_popen *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_popen *>(fbbcomm_buf);
       assert_null(proc->pending_popen_child());
       assert_cmp(proc->pending_popen_fd(), ==, -1);
-      int type_flags = fbb_popen_get_type_flags(ic_msg);
+      int type_flags = fbbcomm_serialized_popen_get_type_flags(ic_msg);
       auto fds = proc->pass_on_fds(false);
       /* popen(cmd) launches a child of argv = ["sh", "-c", cmd] */
       auto expected_child = new ::firebuild::ExecedProcessEnv(fds);
       // FIXME what if !has_cmd() ?
-      expected_child->set_sh_c_command(fbb_popen_get_cmd(ic_msg));
+      expected_child->set_sh_c_command(fbbcomm_serialized_popen_get_cmd(ic_msg));
       expected_child->set_launch_type(firebuild::LAUNCH_TYPE_POPEN);
       expected_child->set_type_flags(type_flags);
       proc->set_expected_child(expected_child);
       break;
     }
-    case FBB_TAG_popen_parent: {
-      const FBB_popen_parent *ic_msg = reinterpret_cast<const FBB_popen_parent *>(fbb_buf);
-      int fd = fbb_popen_parent_get_fd(ic_msg);
-      const char *fifo =
-          fbb_popen_parent_has_fifo(ic_msg) ? fbb_popen_parent_get_fifo(ic_msg) : nullptr;
+    case FBBCOMM_TAG_popen_parent: {
+      const FBBCOMM_Serialized_popen_parent *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_popen_parent *>(fbbcomm_buf);
+      int fd = fbbcomm_serialized_popen_parent_get_fd(ic_msg);
+      const char *fifo = fbbcomm_serialized_popen_parent_get_fifo(ic_msg);
       if (proc->has_expected_child()) {
         /* The child hasn't appeared yet. Defer sending the ACK and setting up
          * the fd -> child mapping. */
@@ -647,20 +659,23 @@ void proc_ic_msg(const void *fbb_buf,
       }
       break;
     }
-    case FBB_TAG_popen_failed: {
-      const FBB_popen_failed *ic_msg = reinterpret_cast<const FBB_popen_failed *>(fbb_buf);
+    case FBBCOMM_TAG_popen_failed: {
+      const FBBCOMM_Serialized_popen_failed *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_popen_failed *>(fbbcomm_buf);
       // FIXME what if !has_cmd() ?
       proc->pop_expected_child_fds(
-          std::vector<std::string>({"sh", "-c", fbb_popen_failed_get_cmd(ic_msg)}),
+          std::vector<std::string>({"sh", "-c", fbbcomm_serialized_popen_failed_get_cmd(ic_msg)}),
           nullptr, nullptr, true);
       break;
     }
-    case FBB_TAG_pclose: {
-      const FBB_pclose *ic_msg = reinterpret_cast<const FBB_pclose *>(fbb_buf);
-      if (!fbb_pclose_has_error_no(ic_msg)) {
+    case FBBCOMM_TAG_pclose: {
+      const FBBCOMM_Serialized_pclose *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_pclose *>(fbbcomm_buf);
+      if (!fbbcomm_serialized_pclose_has_error_no(ic_msg)) {
         /* pclose() is essentially an fclose() first, then a waitpid(), but the interceptor
          * sends an extra close message in advance thus here the fd is already tracked as closed. */
-        firebuild::ExecedProcess *child = proc->PopPopenedProcess(fbb_pclose_get_fd(ic_msg));
+        firebuild::ExecedProcess *child =
+            proc->PopPopenedProcess(fbbcomm_serialized_pclose_get_fd(ic_msg));
         assert(child);
         if (child->state() != firebuild::FB_PROC_FINALIZED) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
@@ -671,62 +686,68 @@ void proc_ic_msg(const void *fbb_buf,
       }
       break;
     }
-    case FBB_TAG_posix_spawn: {
-      const FBB_posix_spawn *ic_msg = reinterpret_cast<const FBB_posix_spawn *>(fbb_buf);
+    case FBBCOMM_TAG_posix_spawn: {
+      const FBBCOMM_Serialized_posix_spawn *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_posix_spawn *>(fbbcomm_buf);
       auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
-      std::vector<std::string> argv = fbb_posix_spawn_get_arg(ic_msg);
+      std::vector<std::string> argv = fbbcomm_serialized_posix_spawn_get_arg_as_vector(ic_msg);
       expected_child->set_argv(argv);
       proc->set_expected_child(expected_child);
       proc->set_posix_spawn_pending(true);
       break;
     }
-    case FBB_TAG_posix_spawn_parent: {
-      const FBB_posix_spawn_parent *ic_msg =
-          reinterpret_cast<const FBB_posix_spawn_parent *>(fbb_buf);
+    case FBBCOMM_TAG_posix_spawn_parent: {
+      const FBBCOMM_Serialized_posix_spawn_parent *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_parent *>(fbbcomm_buf);
 
       /* First, do the basic fork() */
-      auto pid = fbb_posix_spawn_parent_get_pid(ic_msg);
+      auto pid = fbbcomm_serialized_posix_spawn_parent_get_pid(ic_msg);
       auto fork_parent_fds = proc->pass_on_fds(false);
       auto fork_child = firebuild::ProcessFactory::getForkedProcess(pid, proc);
       proc_tree->insert(fork_child);
 
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Do the corresponding administration. */
-      std::vector<std::string> file_actions = fbb_posix_spawn_parent_get_file_actions(ic_msg);
-      for (std::string& file_action : file_actions) {
-        switch (file_action[0]) {
-          case 'o': {
-            /* A successful open to a particular fd, silently closing the previous file if any.
-             * The string is "o <fd> <flags> <mode> <filename>" (without the angle brackets). */
-            int fd, flags, filename_offset;
-            sscanf(file_action.c_str(), "o %d %d %*d %n", &fd, &flags, &filename_offset);
-            const char *path = file_action.c_str() + filename_offset;
+      for (size_t i = 0;
+           i < fbbcomm_serialized_posix_spawn_parent_get_file_actions_count(ic_msg); i++) {
+        const FBBCOMM_Serialized *action =
+            fbbcomm_serialized_posix_spawn_parent_get_file_actions_at(ic_msg, i);
+        switch (fbbcomm_serialized_get_tag(action)) {
+          case FBBCOMM_TAG_posix_spawn_file_action_open: {
+            /* A successful open to a particular fd, silently closing the previous file if any. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
+            const char *path =
+                fbbcomm_serialized_posix_spawn_file_action_open_get_path(action_open);
+            int fd = fbbcomm_serialized_posix_spawn_file_action_open_get_fd(action_open);
+            int flags = fbbcomm_serialized_posix_spawn_file_action_open_get_flags(action_open);
             fork_child->handle_force_close(fd);
             fork_child->handle_open(AT_FDCWD, path, flags, fd, 0);
             break;
           }
-          case 'c': {
+          case FBBCOMM_TAG_posix_spawn_file_action_close: {
             /* A close attempt, maybe successful, maybe failed, we don't know. See glibc's
              * sysdeps/unix/sysv/linux/spawni.c:
              *   Signal errors only for file descriptors out of range.
              * sysdeps/posix/spawni.c:
              *   Only signal errors for file descriptors out of range.
              * whereas signaling the error means to abort posix_spawn and thus not reach
-             * this code here.
-             * The string is "c <fd>" (without the angle brackets). */
-            int fd;
-            sscanf(file_action.c_str(), "c %d", &fd);
+             * this code here. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_close *action_close =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_close *>(action);
+            int fd = fbbcomm_serialized_posix_spawn_file_action_close_get_fd(action_close);
             fork_child->handle_force_close(fd);
             break;
           }
-          case 'd': {
+          case FBBCOMM_TAG_posix_spawn_file_action_dup2: {
             /* A successful dup2.
              * Note that as per https://austingroupbugs.net/view.php?id=411 and glibc's
              * implementation, oldfd==newfd clears the close-on-exec bit (here only,
-             * not in a real dup2()).
-             * The string is "d <oldfd> <newfd>" (without the angle brackets). */
-            int oldfd, newfd;
-            sscanf(file_action.c_str(), "d %d %d", &oldfd, &newfd);
+             * not in a real dup2()). */
+            const FBBCOMM_Serialized_posix_spawn_file_action_dup2 *action_dup2 =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_dup2 *>(action);
+            int oldfd = fbbcomm_serialized_posix_spawn_file_action_dup2_get_oldfd(action_dup2);
+            int newfd = fbbcomm_serialized_posix_spawn_file_action_dup2_get_newfd(action_dup2);
             if (oldfd == newfd) {
               fork_child->handle_clear_cloexec(oldfd);
             } else {
@@ -756,7 +777,8 @@ void proc_ic_msg(const void *fbb_buf,
          * calls. This lets us detect a statically linked binary launched by posix_spawn(),
          * exactly the way we do at a regular exec*(), i.e. successfully wait*()ing for a child
          * that is in exec_pending state. */
-        std::vector<std::string> arg = fbb_posix_spawn_parent_get_arg(ic_msg);
+        std::vector<std::string> arg =
+            fbbcomm_serialized_posix_spawn_parent_get_arg_as_vector(ic_msg);
         proc->pop_expected_child_fds(arg, nullptr);
         fork_child->set_exec_pending(true);
       }
@@ -765,17 +787,19 @@ void proc_ic_msg(const void *fbb_buf,
        * child to appear. */
       break;
     }
-    case FBB_TAG_posix_spawn_failed: {
-      const FBB_posix_spawn_failed *ic_msg =
-          reinterpret_cast<const FBB_posix_spawn_failed *>(fbb_buf);
-      std::vector<std::string> arg = fbb_posix_spawn_failed_get_arg(ic_msg);
+    case FBBCOMM_TAG_posix_spawn_failed: {
+      const FBBCOMM_Serialized_posix_spawn_failed *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_failed *>(fbbcomm_buf);
+      std::vector<std::string> arg =
+          fbbcomm_serialized_posix_spawn_failed_get_arg_as_vector(ic_msg);
       proc->pop_expected_child_fds(arg, nullptr, nullptr, true);
       proc->set_posix_spawn_pending(false);
       break;
     }
-    case FBB_TAG_wait: {
-      const FBB_wait *ic_msg = reinterpret_cast<const FBB_wait *>(fbb_buf);
-      firebuild::Process *child = proc_tree->pid2proc(fbb_wait_get_pid(ic_msg));
+    case FBBCOMM_TAG_wait: {
+      const FBBCOMM_Serialized_wait *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_wait *>(fbbcomm_buf);
+      firebuild::Process *child = proc_tree->pid2proc(fbbcomm_serialized_wait_get_pid(ic_msg));
       assert(child);
       if (child->exec_pending()) {
         /* If the supervisor believes an exec is pending in a child proces while the parent
@@ -797,15 +821,15 @@ void proc_ic_msg(const void *fbb_buf,
       /* Else we can ACK straight away. */
       break;
     }
-    case FBB_TAG_pipe2: {
-      auto *ic_msg = reinterpret_cast<const FBB_pipe2 *>(fbb_buf);
-      const int fd0 = fbb_pipe2_get_fd0_with_fallback(ic_msg, -1);
-      const int fd1 = fbb_pipe2_get_fd1_with_fallback(ic_msg, -1);
-      auto fd0_fifo = fbb_pipe2_has_fd0_fifo(ic_msg) ? fbb_pipe2_get_fd0_fifo(ic_msg) : nullptr;
-      auto fd1_fifo = fbb_pipe2_has_fd1_fifo(ic_msg) ? fbb_pipe2_get_fd1_fifo(ic_msg) : nullptr;
+    case FBBCOMM_TAG_pipe2: {
+      auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_pipe2 *>(fbbcomm_buf);
+      const int fd0 = fbbcomm_serialized_pipe2_get_fd0_with_fallback(ic_msg, -1);
+      const int fd1 = fbbcomm_serialized_pipe2_get_fd1_with_fallback(ic_msg, -1);
+      auto fd0_fifo = fbbcomm_serialized_pipe2_get_fd0_fifo(ic_msg);
+      auto fd1_fifo = fbbcomm_serialized_pipe2_get_fd1_fifo(ic_msg);
       assert(fd0_fifo && fd1_fifo);
-      const int flags = fbb_pipe2_get_flags_with_fallback(ic_msg, 0);
-      const int error = fbb_pipe2_get_error_no_with_fallback(ic_msg, 0);
+      const int flags = fbbcomm_serialized_pipe2_get_flags_with_fallback(ic_msg, 0);
+      const int error = fbbcomm_serialized_pipe2_get_error_no_with_fallback(ic_msg, 0);
       auto pipe = proc->handle_pipe(fd0, fd1, flags, error, fd0_fifo, fd1_fifo);
       if (pipe) {
         proc->add_pipe(pipe);
@@ -813,116 +837,130 @@ void proc_ic_msg(const void *fbb_buf,
       /* Else we can ACK straight away. */
       break;
     }
-    case FBB_TAG_execv: {
-      const FBB_execv *ic_msg = reinterpret_cast<const FBB_execv *>(fbb_buf);
-      proc->update_rusage(fbb_execv_get_utime_u(ic_msg),
-                          fbb_execv_get_stime_u(ic_msg));
+    case FBBCOMM_TAG_execv: {
+      const FBBCOMM_Serialized_execv *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_execv *>(fbbcomm_buf);
+      proc->update_rusage(fbbcomm_serialized_execv_get_utime_u(ic_msg),
+                          fbbcomm_serialized_execv_get_stime_u(ic_msg));
       // FIXME(rbalint) save execv parameters
       proc->set_exec_pending(true);
       break;
     }
-    case FBB_TAG_open: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_open *>(fbb_buf),
-                                         fd_conn, ack_num);
+    case FBBCOMM_TAG_open: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_open *>(fbbcomm_buf), fd_conn, ack_num);
       /* ACK is sent by the msg handler if needed. */
       return;
     }
-    case FBB_TAG_dlopen: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dlopen *>(fbb_buf),
-                                         fd_conn, ack_num);
+    case FBBCOMM_TAG_dlopen: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_dlopen *>(fbbcomm_buf), fd_conn, ack_num);
       /* ACK is sent by the msg handler if needed. */
       return;
     }
-    case FBB_TAG_close: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_close *>(fbb_buf));
+    case FBBCOMM_TAG_close: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_close *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_unlink: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_unlink *>(fbb_buf));
+    case FBBCOMM_TAG_unlink: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_unlink *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_mkdir: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_mkdir *>(fbb_buf));
+    case FBBCOMM_TAG_mkdir: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_mkdir *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_rmdir: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_rmdir *>(fbb_buf));
+    case FBBCOMM_TAG_rmdir: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_rmdir *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_dup3: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dup3 *>(fbb_buf));
+    case FBBCOMM_TAG_dup3: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_dup3 *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_dup: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_dup *>(fbb_buf));
+    case FBBCOMM_TAG_dup: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_dup *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_rename: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_rename *>(fbb_buf));
+    case FBBCOMM_TAG_rename: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_rename *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_symlink: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_symlink *>(fbb_buf));
+    case FBBCOMM_TAG_symlink: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_symlink *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_fcntl: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_fcntl *>(fbb_buf));
+    case FBBCOMM_TAG_fcntl: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_fcntl *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_ioctl: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_ioctl *>(fbb_buf));
+    case FBBCOMM_TAG_ioctl: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_ioctl *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_chdir: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_chdir *>(fbb_buf));
+    case FBBCOMM_TAG_chdir: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_chdir *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_fchdir: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_fchdir *>(fbb_buf));
+    case FBBCOMM_TAG_fchdir: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_fchdir *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_read: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_read *>(fbb_buf));
+    case FBBCOMM_TAG_read: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_read *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_write: {
-      ::firebuild::ProcessPBAdaptor::msg(proc, reinterpret_cast<const FBB_write *>(fbb_buf));
+    case FBBCOMM_TAG_write: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_write *>(fbbcomm_buf));
       break;
     }
-    case FBB_TAG_access:
-    case FBB_TAG_chmod:
-    case FBB_TAG_chown:
-    case FBB_TAG_euidaccess:
-    case FBB_TAG_faccessat:
-    case FBB_TAG_fb_debug:
-    case FBB_TAG_fb_error:
-    case FBB_TAG_fchmod:
-    case FBB_TAG_fchown:
-    case FBB_TAG_fcloseall:
-    case FBB_TAG_fpathconf:
-    case FBB_TAG_freopen:
-    case FBB_TAG_fstat:
-    case FBB_TAG_ftruncate:
-    case FBB_TAG_futime:
-    case FBB_TAG_getdomainname:
-    case FBB_TAG_gethostname:
-    case FBB_TAG_link:
-    case FBB_TAG_lockf:
-    case FBB_TAG_NEXT:
-    case FBB_TAG_pathconf:
-    case FBB_TAG_readlink:
-    case FBB_TAG_scproc_resp:
-    case FBB_TAG_stat:
-    case FBB_TAG_syscall:
-    case FBB_TAG_sysconf:
-    case FBB_TAG_testing:
-    case FBB_TAG_truncate:
-    case FBB_TAG_utime:
+    case FBBCOMM_TAG_access:
+    case FBBCOMM_TAG_chmod:
+    case FBBCOMM_TAG_chown:
+    case FBBCOMM_TAG_euidaccess:
+    case FBBCOMM_TAG_faccessat:
+    case FBBCOMM_TAG_fb_debug:
+    case FBBCOMM_TAG_fb_error:
+    case FBBCOMM_TAG_fchmod:
+    case FBBCOMM_TAG_fchown:
+    case FBBCOMM_TAG_fcloseall:
+    case FBBCOMM_TAG_fpathconf:
+    case FBBCOMM_TAG_freopen:
+    case FBBCOMM_TAG_fstat:
+    case FBBCOMM_TAG_ftruncate:
+    case FBBCOMM_TAG_futime:
+    case FBBCOMM_TAG_getdomainname:
+    case FBBCOMM_TAG_gethostname:
+    case FBBCOMM_TAG_link:
+    case FBBCOMM_TAG_lockf:
+    case FBBCOMM_TAG_NEXT:
+    case FBBCOMM_TAG_pathconf:
+    case FBBCOMM_TAG_readlink:
+    case FBBCOMM_TAG_scproc_resp:
+    case FBBCOMM_TAG_stat:
+    case FBBCOMM_TAG_syscall:
+    case FBBCOMM_TAG_sysconf:
+    case FBBCOMM_TAG_truncate:
+    case FBBCOMM_TAG_utime:
       {
       // TODO(rbalint)
       break;
     }
-    case FBB_TAG_gen_call: {
+    case FBBCOMM_TAG_gen_call: {
       break;
     }
     default: {
@@ -1144,7 +1182,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
   size_t full_length;
-  const firebuild::msg_header * header;
+  const msg_header * header;
 
   int read_ret = buf.read(fd_conn, -1);
   if (read_ret < 0) {
@@ -1165,7 +1203,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
       /* Header is still incomplete, try again later. */
       return;
     } else {
-      header = reinterpret_cast<const firebuild::msg_header*>(buf.data());
+      header = reinterpret_cast<const msg_header *>(buf.data());
       full_length = sizeof(*header) + header->msg_size;
       if (buf.length() < full_length) {
         /* Have partial message, more data is needed. */
@@ -1174,23 +1212,24 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     }
 
     /* Have at least one full message. */
-    auto fbb_msg = buf.data() + sizeof(*header);
+    const FBBCOMM_Serialized *fbbcomm_msg =
+        reinterpret_cast<const FBBCOMM_Serialized *>(buf.data() + sizeof(*header));
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
       FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + firebuild::d_fd(fd_conn) + ": (" + d(proc) + ")");
       if (header->ack_id) {
         fprintf(stderr, "ack_num: %d\n", header->ack_id);
       }
-      fbb_debug(fbb_msg);
+      fbbcomm_serialized_debug(stderr, fbbcomm_msg);
       fflush(stderr);
     }
 
     /* Process the messaage. */
     if (proc) {
-      proc_ic_msg(fbb_msg, header->ack_id, fd_conn, proc);
+      proc_ic_msg(fbbcomm_msg, header->ack_id, fd_conn, proc);
     } else {
       /* Fist interceptor message */
-      proc_new_process_msg(fbb_msg, header->ack_id, fd_conn, &conn_ctx->proc);
+      proc_new_process_msg(fbbcomm_msg, header->ack_id, fd_conn, &conn_ctx->proc);
     }
     buf.discard(full_length);
   } while (buf.length() > 0);

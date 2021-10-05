@@ -4,7 +4,7 @@
 #ifndef FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
 #define FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
 
-#include "./fbb.h"
+#include "./fbbcomm.h"
 #include "firebuild/process.h"
 #include "firebuild/cxx_lang_utils.h"
 
@@ -18,22 +18,22 @@ namespace firebuild  {
    */
 class ProcessPBAdaptor {
  public:
-  static int msg(Process *p, const FBB_open *o, int fd_conn, int ack_num);
-  static int msg(Process *p, const FBB_dlopen *dlo, int fd_conn, int ack_num);
-  static int msg(Process *p, const FBB_close *c);
-  static int msg(Process *p, const FBB_unlink *u);
-  static int msg(Process *p, const FBB_rmdir *r);
-  static int msg(Process *p, const FBB_mkdir *m);
-  static int msg(Process *p, const FBB_dup *d);
-  static int msg(Process *p, const FBB_dup3 *d);
-  static int msg(Process *p, const FBB_rename *r);
-  static int msg(Process *p, const FBB_symlink *s);
-  static int msg(Process *p, const FBB_fcntl *f);
-  static int msg(Process *p, const FBB_ioctl *i);
-  static int msg(Process *p, const FBB_read *r);
-  static int msg(Process *p, const FBB_write *w);
-  static int msg(Process *p, const FBB_chdir *c);
-  static int msg(Process *p, const FBB_fchdir *f);
+  static int msg(Process *p, const FBBCOMM_Serialized_open *o, int fd_conn, int ack_num);
+  static int msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo, int fd_conn, int ack_num);
+  static int msg(Process *p, const FBBCOMM_Serialized_close *c);
+  static int msg(Process *p, const FBBCOMM_Serialized_unlink *u);
+  static int msg(Process *p, const FBBCOMM_Serialized_rmdir *r);
+  static int msg(Process *p, const FBBCOMM_Serialized_mkdir *m);
+  static int msg(Process *p, const FBBCOMM_Serialized_dup *d);
+  static int msg(Process *p, const FBBCOMM_Serialized_dup3 *d);
+  static int msg(Process *p, const FBBCOMM_Serialized_rename *r);
+  static int msg(Process *p, const FBBCOMM_Serialized_symlink *s);
+  static int msg(Process *p, const FBBCOMM_Serialized_fcntl *f);
+  static int msg(Process *p, const FBBCOMM_Serialized_ioctl *i);
+  static int msg(Process *p, const FBBCOMM_Serialized_read *r);
+  static int msg(Process *p, const FBBCOMM_Serialized_write *w);
+  static int msg(Process *p, const FBBCOMM_Serialized_chdir *c);
+  static int msg(Process *p, const FBBCOMM_Serialized_fchdir *f);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);

@@ -36,10 +36,10 @@
     /* The child signed in to the supervisor in atfork_child_handler(), nothing else here to do. */
   } else if (i_am_intercepting) {
     /* Parent */
-    FBB_Builder_fork_parent ic_msg;
-    fbb_fork_parent_init(&ic_msg);
-    fbb_fork_parent_set_pid(&ic_msg, ret);
-    fb_fbb_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    FBBCOMM_Builder_fork_parent ic_msg;
+    fbbcomm_builder_fork_parent_init(&ic_msg);
+    fbbcomm_builder_fork_parent_set_pid(&ic_msg, ret);
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 
   /* Common for all three outcomes: re-enable signal delivery */
