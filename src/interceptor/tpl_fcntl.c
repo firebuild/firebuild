@@ -6,7 +6,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (has_int_arg) fbb_" + msg + "_set_arg(&ic_msg, int_arg);"] %}
+{% set msg_add_fields = ["if (has_int_arg) fbbcomm_builder_" + msg + "_set_arg(&ic_msg, int_arg);"] %}
 {% set send_msg_condition = "to_send" %}
 
 ### block before

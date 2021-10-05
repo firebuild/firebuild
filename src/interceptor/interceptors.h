@@ -44,7 +44,7 @@ struct ustat;
 #include <utime.h>
 #include <wchar.h>
 
-#include "./fbb.h"
+#include "./fbbcomm.h"
 
 #if __GLIBC_PREREQ (2, 28)
 #define FB_SSIZE_T ssize_t

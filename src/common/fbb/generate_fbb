@@ -1,0 +1,62 @@
+#!/usr/bin/python3
+
+# Copyright (c) 2020, 2021 Interri Kft.
+# This file is an unpublished work. All rights reserved.
+
+import os
+import sys
+from jinja2 import Environment, FileSystemLoader
+
+if len(sys.argv) != 3:
+  print("Usage: generate_fbb namespace outputdir", file=sys.stderr)
+  print("  Processes the input file \"<namespace>\".def from the current directory", file=sys.stderr)
+  exit(1)
+fbbdir = os.path.dirname(sys.argv[0])  # wherever generate_fbb and tpl.[ch] reside
+namespace = sys.argv[1]
+outdir = sys.argv[2]
+
+env = Environment(loader=FileSystemLoader(fbbdir),
+                  line_statement_prefix='###',
+                  trim_blocks=True,
+                  lstrip_blocks=True,
+                  keep_trailing_newline=True)
+
+# Use a practically unique temporary filename, see #314
+tmpsuffix = ".tmp." + str(os.getpid())
+
+# Symbolic constants to reduce the chance of typos
+REQUIRED = "required"
+OPTIONAL = "optional"
+ARRAY = "array"
+STRING = "string"
+FBB = "fbb"
+
+def gen_fbb(params):
+  msgs = params.get("tags")
+  for (msg, fields) in msgs:
+    for (req, type, var) in fields:
+      if req not in [REQUIRED, OPTIONAL, ARRAY]:
+        print("Unknown value instead of REQUIRED, OPTIONAL or ARRAY", file=sys.stderr)
+        exit(1)
+
+  for extension in [".c", ".h", "_decode.c"]:
+    template = env.get_template("tpl" + extension)
+    rendered = template.render(ns=namespace,
+                               msgs=msgs,
+                               types_with_custom_debugger=params.get("types_with_custom_debugger", []),
+                               extra_c=params.get("extra_c", ""),
+                               extra_h=params.get("extra_h", ""),
+                               REQUIRED=REQUIRED,
+                               OPTIONAL=OPTIONAL,
+                               ARRAY=ARRAY,
+                               STRING=STRING,
+                               FBB=FBB)
+    if rendered:
+      filename = outdir + "/" + namespace + extension
+      with open(filename + tmpsuffix, "w") as f:
+        f.write(rendered)
+      os.rename(filename + tmpsuffix, filename)
+
+with open("" + namespace + ".def", "r") as f:
+  params = eval(f.read())
+  gen_fbb(params)

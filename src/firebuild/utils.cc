@@ -5,6 +5,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <fmt/core.h>
 #if FMT_VERSION > 70000
@@ -16,7 +17,7 @@
 #include <string>
 #include <cstdlib>
 
-#include "./fbb.h"
+#include "./fbbcomm.h"
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
@@ -62,11 +63,14 @@ namespace firebuild {
  * @param conn connection file descriptor to send the ACK on
  * @param ack_num the ACK id
  */
-void ack_msg(const int conn, const int ack_num) {
+void ack_msg(const int conn, const uint32_t ack_num) {
   TRACK(FB_DEBUG_COMM, "conn=%s, ack_num=%d", D_FD(conn), ack_num);
 
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + d(ack_num));
-  fbb_send(conn, NULL, ack_num);
+  msg_header msg;
+  msg.ack_id = ack_num;
+  msg.msg_size = 0;
+  fb_write(conn, &msg, sizeof(msg));
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
