@@ -180,7 +180,7 @@ bool FileUsage::update_from_open_params(const FileName* filename,
               unknown_err_ = errno;
               return false;
             }
-            if (st.st_size == 0) {
+            if (st.st_size > 0) {
               if (!hash_cache->get_hash(filename, &initial_hash_)) {
                 unknown_err_ = errno;
                 return false;
