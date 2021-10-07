@@ -26,9 +26,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-align"
-
 /* Beginning of extra_h */
 {{ extra_h }}
 /* End of extra_h */
@@ -715,7 +712,5 @@ fbb_size_t {{ ns }}_builder_serialize(const {{ NS }}_Builder *msg, char *dst);
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif
-
-#pragma GCC diagnostic pop
 
 #endif  /* {{ NS }}_H */

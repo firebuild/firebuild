@@ -16,7 +16,6 @@
 #include <stdio.h>
 
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-align"
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
