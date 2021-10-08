@@ -750,17 +750,43 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
 }
 
 /**
- * Restore output directories starting with start_index in sorted order.
+ * Restore output directories with the right mode.
+ *
+ * Create them in ascending order of the pathname lengths, so that parent directories are guaranteed
+ * to be processed before its children.
  */
-static bool restore_remaining_dirs_sorted(
+static bool restore_dirs(
     ExecedProcess* proc,
     const FBBSTORE_Serialized_process_outputs *outputs,
-    const FileUsage* fu, size_t start_index) {
-  std::vector<std::pair<const FileName*, int>> remaining_dirs;
-  for (size_t i = start_index;
-       i < fbbstore_serialized_process_outputs_get_path_isdir_count(outputs); i++) {
+    const FileUsage* fu) {
+  /* Construct indices 0 .. path_isdir_count()-1 and initialize them with these values */
+  std::vector<int> indices(fbbstore_serialized_process_outputs_get_path_isdir_count(outputs));
+  size_t i;
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_isdir_count(outputs); i++) {
+    indices[i] = i;
+  }
+  /* Sort the indices according to the pathname length at the given index */
+  struct {
+    const FBBSTORE_Serialized_process_outputs *outputs;
+    bool operator()(const int& i1, const int& i2) const {
+      const FBBSTORE_Serialized *file1_generic =
+          fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i1);
+      const FBBSTORE_Serialized_file *file1 =
+          reinterpret_cast<const FBBSTORE_Serialized_file *>(file1_generic);
+      const FBBSTORE_Serialized *file2_generic =
+          fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i2);
+      const FBBSTORE_Serialized_file *file2 =
+          reinterpret_cast<const FBBSTORE_Serialized_file *>(file2_generic);
+      return fbbstore_serialized_file_get_path_len(file1) <
+             fbbstore_serialized_file_get_path_len(file2);
+    }
+  } pathname_length_less;
+  pathname_length_less.outputs = outputs;
+  std::sort(indices.begin(), indices.end(), pathname_length_less);
+  /* Process the directory names in ascending order of their lengths */
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_isdir_count(outputs); i++) {
     const FBBSTORE_Serialized *dir_generic =
-        fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i);
+        fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, indices[i]);
     assert_cmp(fbbstore_serialized_get_tag(dir_generic), ==, FBBSTORE_TAG_file);
     const FBBSTORE_Serialized_file *dir =
         reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
@@ -768,18 +794,6 @@ static bool restore_remaining_dirs_sorted(
                                     fbbstore_serialized_file_get_path_len(dir));
     assert(fbbstore_serialized_file_has_mode(dir));
     mode_t mode = fbbstore_serialized_file_get_mode(dir);
-    remaining_dirs.push_back({path, mode});
-  }
-
-  struct {
-    bool operator()(const std::pair<const FileName*, int>& d1,
-                    const std::pair<const FileName*, int>& d2) const {
-      return strcmp(d1.first->c_str(), d2.first->c_str()) < 0;
-    }
-  } remaining_dirs_less;
-  std::sort(remaining_dirs.begin(), remaining_dirs.end(), remaining_dirs_less);
-
-  for (auto&& [path, mode] : remaining_dirs) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
     int ret = mkdir(path->c_str(), mode);
     if (ret != 0) {
@@ -795,37 +809,49 @@ static bool restore_remaining_dirs_sorted(
 }
 
 /**
- * Restore output directories with the right mode.
+ * Remove files and directories.
+ *
+ * Remove them in descending order of the pathname lengths, so that parent directories are
+ * guaranteed to be processed after its children.
+ *
+ * Note: There's deliberately no error checking. Maybe a program creates a temporary file in a way
+ * that we cannot tell whether that file existed previously, and then deletes it. So by design the
+ * unlink attempt might fail. Maybe one day we can refine this logic.
  */
-static bool restore_dirs(
+static void remove_files_and_dirs(
     ExecedProcess* proc,
     const FBBSTORE_Serialized_process_outputs *outputs,
     const FileUsage* fu) {
-  for (size_t i = 0; i < fbbstore_serialized_process_outputs_get_path_isdir_count(outputs); i++) {
-    const FBBSTORE_Serialized *dir_generic =
-        fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i);
-    assert_cmp(fbbstore_serialized_get_tag(dir_generic), ==, FBBSTORE_TAG_file);
-    const FBBSTORE_Serialized_file *dir =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
-    const auto path = FileName::Get(fbbstore_serialized_file_get_path(dir),
-                                    fbbstore_serialized_file_get_path_len(dir));
-    assert(fbbstore_serialized_file_has_mode(dir));
-    mode_t mode = fbbstore_serialized_file_get_mode(dir);
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
-    int ret = mkdir(path->c_str(), mode);
-    if (ret != 0) {
-      if (errno == ENOENT) {
-        return restore_remaining_dirs_sorted(proc, outputs, fu, i);
-      }
-      perror("Failed to restore directory");
-      assert_cmp(ret, !=, -1);
-      return false;
+  /* Construct indices 0 .. path_notexist_count()-1 and initialize them with these values */
+  std::vector<int> indices(fbbstore_serialized_process_outputs_get_path_notexist_count(outputs));
+  size_t i;
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_notexist_count(outputs); i++) {
+    indices[i] = i;
+  }
+  /* Reverse sort the indices according to the pathname length at the given index */
+  struct {
+    const FBBSTORE_Serialized_process_outputs *outputs;
+    bool operator()(const int& i1, const int& i2) const {
+      int len1 = fbbstore_serialized_process_outputs_get_path_notexist_len_at(outputs, i1);
+      int len2 = fbbstore_serialized_process_outputs_get_path_notexist_len_at(outputs, i2);
+      return len1 > len2;
+    }
+  } pathname_length_greater;
+  pathname_length_greater.outputs = outputs;
+  std::sort(indices.begin(), indices.end(), pathname_length_greater);
+  /* Process the directory names in descending order of their lengths */
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_notexist_count(outputs); i++) {
+    const auto path = FileName::Get(
+        fbbstore_serialized_process_outputs_get_path_notexist_at(outputs, indices[i]),
+        fbbstore_serialized_process_outputs_get_path_notexist_len_at(outputs, indices[i]));
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file or directory: " + d(path));
+    if (unlink(path->c_str()) < 0 && errno == EISDIR) {
+      rmdir(path->c_str());
     }
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
   }
-  return true;
 }
 
 /**
@@ -937,19 +963,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
   }
-  // FIXME #541
-  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_notexist_count(outputs); i++) {
-    const auto filename = FileName::Get(
-        fbbstore_serialized_process_outputs_get_path_notexist_at(outputs, i),
-        fbbstore_serialized_process_outputs_get_path_notexist_len_at(outputs, i));
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Deleting file or directory: " + d(filename));
-    if (unlink(filename->c_str()) < 0 && errno == EISDIR) {
-      rmdir(filename->c_str());
-    }
-    if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->propagate_file_usage(filename, fu);
-    }
-  }
+
+  remove_files_and_dirs(proc, outputs, fu);
 
   /* See what the process originally wrote to its pipes. Add these to the Pipes' buffers. */
   for (i = 0; i < fbbstore_serialized_process_outputs_get_pipe_data_count(outputs); i++) {
