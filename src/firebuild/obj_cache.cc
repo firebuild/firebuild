@@ -286,7 +286,7 @@ std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
   Hash subkey;
   struct dirent *dirent;
   while ((dirent = readdir(dir)) != NULL) {
-    if (subkey.set_hash_from_ascii(dirent->d_name)) {
+    if (subkey.set_from_ascii(dirent->d_name)) {
       ret.push_back(subkey);
     }
   }

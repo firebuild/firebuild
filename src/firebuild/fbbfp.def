@@ -7,15 +7,18 @@
 # This is a Python dictionary, to be read and processed by "generate_fbb".
 
 {
-  "types_with_custom_debugger": ["XXH128_canonical_t"],
+  "types_with_custom_debugger": ["XXH128_hash_t"],
 
   "extra_c": """
-    static void fbbfp_debug_XXH128_canonical_t(FILE *f, XXH128_canonical_t value) {
+    static void fbbfp_debug_XXH128_hash_t(FILE *f, XXH128_hash_t value) {
       fputs("[ ", f);
       const char *sep = "";
-      for (int i = 0; i < 16; i++) {
-        fprintf(f, "%s%d", sep, value.digest[i]);
+      for (int i = 0; i < 8; i++) {
+        fprintf(f, "%s%lu", sep, (value.high64 >> ((7 - i) * 8)) & 0xff);
         sep = ", ";
+      }
+      for (int i = 0; i < 8; i++) {
+        fprintf(f, "%s%lu", sep, (value.low64 >> ((7 - i) * 8)) & 0xff);
       }
       fputs(" ]", f);
     }
@@ -29,21 +32,21 @@
   "tags": [
     ("file", [
       # file path, absolute or relative
-      (REQUIRED, STRING,               "path"),
+      (REQUIRED, STRING,          "path"),
       # checksum (binary) of the file content, empty if file is not found
-      (REQUIRED, "XXH128_canonical_t", "hash"),
+      (REQUIRED, "XXH128_hash_t", "hash"),
       # TODO add alternate hash values generated after preprocessing the file
       # with programs keeping the semantic content (e.g. removing white spaces)
-      #(REQUIRED, "XXH128_canonical_t", "alt_hash"),
+      #(REQUIRED, "XXH128_hash_t", "alt_hash"),
 
       # last modification time - FIXME in what unit?
-      #(OPTIONAL, "long",               "mtime"),
+      #(OPTIONAL, "long",          "mtime"),
       # file size, length in case of stdio
-      #(OPTIONAL, "size_t",             "size"),
+      #(OPTIONAL, "size_t",        "size"),
       # TODO refine mode
-      (OPTIONAL, "mode_t",             "mode"),
+      (OPTIONAL, "mode_t",        "mode"),
       # The reason why the file could not be opened.
-      #(OPTIONAL, "int",                "error_no"),
+      #(OPTIONAL, "int",           "error_no"),
     ]),
 
     ("pipe_fds", [

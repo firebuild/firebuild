@@ -19,13 +19,13 @@ namespace firebuild {
  * and provides methods to compute the hash, and convert to/from
  * an ASCII representation that can be used in filenames.
  *
- * The binary hash is canonical (i.e. architecture independent) version
- * of the XXH128 sum.
+ * The binary hash is the raw (i.e. architecture dependent XXH128_hash_t)
+ * version of the XXH128 sum.
  *
- * The ASCII hash is the base64 representation of the binary hash, in
- * ceil(128/6) = 22 characters. The two non-alphanumeric characters of
- * our base64 alphabet are '+' and '^'. No trailing '=' signs to denote
- * the partial block.
+ * The ASCII hash is the base64 representation of the canonical
+ * representation, in ceil(128/6) = 22 characters. The two
+ * non-alphanumeric characters of our base64 alphabet are '+' and '^'.
+ * No trailing '=' signs to denote the partial block.
  *
  * Command line equivalent:
  * xxh128sum | xxd -r -p | base64 | cut -c1-22 | tr / ^
@@ -33,18 +33,17 @@ namespace firebuild {
 class Hash {
  public:
   Hash()
-      : arr_()
+      : hash_()
   {}
-  explicit Hash(const uint8_t* arr)
-      : arr_() {
-    memcpy(arr_, arr, sizeof(arr_));
-  }
+  explicit Hash(XXH128_hash_t value)
+      : hash_(value)
+  {}
 
-  bool operator==(const Hash& src) const {
-    return memcmp(&arr_, &src.arr_, hash_size_) == 0;
+  bool operator==(const Hash& other) const {
+    return hash_.high64 == other.hash_.high64 && hash_.low64 == other.hash_.low64;
   }
-  bool operator!=(const Hash& src) const {
-    return memcmp(&arr_, &src.arr_, hash_size_) != 0;
+  bool operator!=(const Hash& other) const {
+    return hash_.high64 != other.hash_.high64 || hash_.low64 != other.hash_.low64;
   }
 
   static size_t hash_size() {return hash_size_;}
@@ -55,11 +54,10 @@ class Hash {
   bool set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out);
   bool set_from_file(const FileName *filename, bool *is_dir_out = NULL);
 
-  void set_hash_from_binary(const uint8_t *binary);
-  void set_hash_from_canonical(XXH128_canonical_t);
-  bool set_hash_from_ascii(const std::string &ascii);
-  const uint8_t * to_binary() const;
-  XXH128_canonical_t to_canonical() const;
+  void set(XXH128_hash_t);
+  bool set_from_ascii(const std::string &ascii);
+  XXH128_hash_t get() const { return hash_; }
+  const XXH128_hash_t *get_ptr() const { return &hash_; }
   void to_ascii(char *out) const;
   std::string to_ascii() const {
      char ascii[Hash::kAsciiLength + 1];
@@ -76,8 +74,8 @@ class Hash {
   static unsigned char encode_map_[64];
   static char decode_map_[256];
 
-  static const unsigned int hash_size_ = 16;
-  uint8_t arr_[hash_size_] = {};
+  static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
+  XXH128_hash_t hash_;
 
   /* This, along with the Hash::hash_maps_initializer_ definition in hash.cc,
    * initializes the encode_map_ and decode_map_ arrays once at startup. */
