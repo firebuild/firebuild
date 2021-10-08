@@ -80,7 +80,7 @@ static void add_to_hash_state(XXH3_state_t* state, const std::string& str) {
  * Add hash to fingerprint
  */
 static void add_to_hash_state(XXH3_state_t* state, const Hash& hash) {
-  if (XXH3_128bits_update(state, hash.to_binary(), Hash::hash_size()) == XXH_ERROR) {
+  if (XXH3_128bits_update(state, hash.get_ptr(), Hash::hash_size()) == XXH_ERROR) {
     abort();
   }
 }
@@ -101,10 +101,7 @@ static void add_to_hash_state(XXH3_state_t* state, const int i) {
 
 static Hash state_to_hash(XXH3_state_t* state) {
   const XXH128_hash_t digest = XXH3_128bits_digest(state);
-  uint8_t canonical_digest[Hash::hash_size()];
-  /* Convert from endian-specific representation to endian-independent byte array. */
-  XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&canonical_digest), digest);
-  return Hash(canonical_digest);
+  return Hash(digest);
 }
 
 /* Adaptor from C++ std::vector<std::string> to FBB's string array */
@@ -237,7 +234,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       return false;
     }
     fbbfp_builder_file_set_path(&executable, proc->executable()->c_str());
-    fbbfp_builder_file_set_hash(&executable, hash.to_canonical());
+    fbbfp_builder_file_set_hash(&executable, hash.get());
     fbbfp_builder_process_fingerprint_set_executable(&fp,
         reinterpret_cast<FBBFP_Builder *>(&executable));
 
@@ -252,7 +249,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
         return false;
       }
       fbbfp_builder_file_set_path(&executed_path, proc->executed_path()->c_str());
-      fbbfp_builder_file_set_hash(&executed_path, hash.to_canonical());
+      fbbfp_builder_file_set_hash(&executed_path, hash.get());
       fbbfp_builder_process_fingerprint_set_executed_path(&fp,
           reinterpret_cast<FBBFP_Builder *>(&executed_path));
     }
@@ -271,7 +268,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       FBBFP_Builder_file& lib_builder = lib_builders.emplace_back();
       fbbfp_builder_file_init(&lib_builder);
       fbbfp_builder_file_set_path(&lib_builder, lib->c_str());
-      fbbfp_builder_file_set_hash(&lib_builder, hash.to_canonical());
+      fbbfp_builder_file_set_hash(&lib_builder, hash.get());
     }
     fbbfp_builder_process_fingerprint_set_libs_item_fn(&fp, lib_builders.size(),
                                                        fbbfp_builder_file_vector_item_fn,
@@ -468,7 +465,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         FBBSTORE_Builder_pipe_data& new_pipe_data = out_pipe_data.emplace_back();
         fbbstore_builder_pipe_data_init(&new_pipe_data);
         fbbstore_builder_pipe_data_set_fd(&new_pipe_data, fd);
-        fbbstore_builder_pipe_data_set_hash(&new_pipe_data, hash.to_canonical());
+        fbbstore_builder_pipe_data_set_hash(&new_pipe_data, hash.get());
         add_to_hash_state(&inouts_hash_state, fd);
         add_to_hash_state(&inouts_hash_state, hash);
       }
@@ -571,7 +568,7 @@ static bool file_matches_fs(const FBBSTORE_Serialized_file *file, bool is_dir,
              + ": regular file expected but does not exist or something else found");
     return false;
   }
-  in_cache_hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
+  in_cache_hash.set(fbbstore_serialized_file_get_hash(file));
   if (on_fs_hash != in_cache_hash) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
              d(path) + ": hash differs");
@@ -853,8 +850,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
          i++) {
       const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
           (fbbstore_serialized_process_inputs_get_path_isreg_with_hash_at(inputs, i));
-      Hash hash;
-      hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
+      Hash hash(fbbstore_serialized_file_get_hash(file));
       const FileUsage* fu = FileUsage::Get(ISREG_WITH_HASH, hash);
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
@@ -864,8 +860,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
          i++) {
       const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
           (fbbstore_serialized_process_inputs_get_path_isdir_with_hash_at(inputs, i));
-      Hash hash;
-      hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
+      Hash hash(fbbstore_serialized_file_get_hash(file));
       const FileUsage* fu = FileUsage::Get(ISDIR_WITH_HASH, hash);
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
@@ -931,8 +926,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     FB_DEBUG(FB_DEBUG_SHORTCUT,
              "│   Fetching file from blobs cache: "
              + d(path));
-    Hash hash;
-    hash.set_hash_from_canonical(fbbstore_serialized_file_get_hash(file));
+    Hash hash(fbbstore_serialized_file_get_hash(file));
     blob_cache->retrieve_file(hash, path);
     if (fbbstore_serialized_file_has_mode(file)) {
       /* Refuse to apply setuid, setgid, sticky bit. */
@@ -967,8 +961,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     Pipe *pipe = ffd->pipe().get();
     assert(pipe);
 
-    Hash hash;
-    hash.set_hash_from_canonical(fbbstore_serialized_pipe_data_get_hash(data));
+    Hash hash(fbbstore_serialized_pipe_data_get_hash(data));
     int fd = blob_cache->get_fd_for_file(hash);
     struct stat64 st;
     if (fstat64(fd, &st) < 0) {

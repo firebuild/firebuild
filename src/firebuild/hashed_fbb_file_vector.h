@@ -23,10 +23,10 @@ class HashedFbbFileVector {
     FBBSTORE_Builder_file& new_file = files_.emplace_back();
     fbbstore_builder_file_init(&new_file);
     fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
-    fbbstore_builder_file_set_hash(&new_file, content_hash.to_canonical());
+    fbbstore_builder_file_set_hash(&new_file, content_hash.get());
     if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
     hashes_.push_back({file_name->hash_XXH128(),
-                       *reinterpret_cast<const XXH128_hash_t*>(content_hash.to_binary()),
+                       content_hash.get(),
                        {0, static_cast<XXH64_hash_t>(mode)}});
   }
   void add(const FileName* file_name, const FileUsage* fu) {

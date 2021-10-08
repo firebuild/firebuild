@@ -5,7 +5,6 @@
 #include "firebuild/hash.h"
 
 #include <dirent.h>
-#include <endian.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -28,7 +27,7 @@ char Hash::decode_map_[];
 Hash::HashMapsInitializer Hash::hash_maps_initializer_;
 
 /**
- * Set the binary hash from the given buffer.
+ * Set the hash from the given buffer.
  */
 void Hash::set_from_data(const void *data, ssize_t size) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
@@ -36,14 +35,11 @@ void Hash::set_from_data(const void *data, ssize_t size) {
   /* xxhash's doc says:
    * "Streaming functions [...] is slower than single-call functions, due to state management."
    * Let's take the faster path. */
-  XXH128_hash_t hash = XXH128(data, size, 0);
-
-  /* Convert from endian-specific representation to endian-independent byte array. */
-  XXH128_canonicalFromHash(reinterpret_cast<XXH128_canonical_t *>(&arr_), hash);
+  hash_ = XXH128(data, size, 0);
 }
 
 /**
- * Set the binary hash from the given opened file descriptor.
+ * Set the hash from the given opened file descriptor.
  * The file seek position (read/write offset) is irrelevant.
  *
  * If fd is a directory, its sorted listing is hashed.
@@ -143,7 +139,7 @@ bool Hash::set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out) {
 }
 
 /**
- * Set the binary hash from the given file or directory.
+ * Set the hash from the given file or directory.
  *
  * If a directory is specified, its sorted listing is hashed.
  *
@@ -180,33 +176,20 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out) {
 }
 
 /**
- * Sets the binary hash value directly from the given binary array.
+ * Sets the hash value directly from the given value.
  * No hash computation takes place.
  */
-void Hash::set_hash_from_binary(const uint8_t *binary) {
+void Hash::set(XXH128_hash_t value) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
 
-  memcpy(arr_, binary, sizeof(arr_));
+  hash_ = value;
 }
 
 /**
- * Sets the binary hash value directly from the given value.
- * No hash computation takes place.
- */
-void Hash::set_hash_from_canonical(XXH128_canonical_t value) {
-  TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
-
-  *reinterpret_cast<XXH128_canonical_t *>(arr_) = value;
-}
-
-/**
- * Helper method of set_hash_from_ascii().
+ * Helper method of set_from_ascii().
  *
  * Convert 4 input bytes (part of the base64 ASCII representation) into 3 output bytes (part of the
  * binary representation) according to base64 decoding.
- *
- * The input value is the input 4 bytes in the machine's byte order, i.e. the numerical 32-bit value
- * differs on little endian vs. big endian machines, but the memory representations are the same.
  */
 void Hash::decode_block(const char *in, unsigned char *out) {
   const unsigned char *in_unsigned = reinterpret_cast<const unsigned char *>(in);
@@ -232,7 +215,7 @@ void Hash::decode_last_block(const char *in, unsigned char *out) {
  * Returns true if succeeded, false if the input is not a valid ASCII
  * representation of a hash.
  */
-bool Hash::set_hash_from_ascii(const std::string &ascii) {
+bool Hash::set_from_ascii(const std::string &ascii) {
   if (ascii.size() != kAsciiLength) {
     return false;
   }
@@ -248,28 +231,16 @@ bool Hash::set_hash_from_ascii(const std::string &ascii) {
     return false;
   }
 
-  decode_block(&ascii[ 0], arr_);
-  decode_block(&ascii[ 4], arr_ +  3);
-  decode_block(&ascii[ 8], arr_ +  6);
-  decode_block(&ascii[12], arr_ +  9);
-  decode_block(&ascii[16], arr_ + 12);
-  decode_last_block(&ascii[20], arr_ + 15);
+  XXH128_canonical_t canonical;
+  decode_block(&ascii[ 0], &canonical.digest[ 0]);
+  decode_block(&ascii[ 4], &canonical.digest[ 3]);
+  decode_block(&ascii[ 8], &canonical.digest[ 6]);
+  decode_block(&ascii[12], &canonical.digest[ 9]);
+  decode_block(&ascii[16], &canonical.digest[12]);
+  decode_last_block(&ascii[20], &canonical.digest[15]);
+  hash_ = XXH128_hashFromCanonical(&canonical);
 
   return true;
-}
-
-/**
- * Get the pointer to the raw binary representation.
- */
-const uint8_t * Hash::to_binary() const {
-  return arr_;
-}
-
-/**
- * Get the raw binary representation as value.
- */
-XXH128_canonical_t Hash::to_canonical() const {
-  return *reinterpret_cast<const XXH128_canonical_t *>(arr_);
 }
 
 /**
@@ -277,9 +248,6 @@ XXH128_canonical_t Hash::to_canonical() const {
  *
  * Convert 3 input bytes (part of the binary representation) into 4 output bytes (part of the base64
  * ASCII representation) according to base64 encoding.
- *
- * The output value is the output 4 bytes in the machine's byte order, i.e. the numerical 32-bit value
- * differs on little endian vs. big endian machines, but the memory representations are the same.
  */
 void Hash::encode_block(const unsigned char *in, char *out) {
   uint32_t val = (in[0] << 16) |
@@ -303,12 +271,15 @@ void Hash::encode_last_block(const unsigned char *in, char *out) {
  * See the class's documentation for the exact format.
  */
 void Hash::to_ascii(char *out) const {
-  encode_block(arr_     , out);
-  encode_block(arr_ +  3, out +  4);
-  encode_block(arr_ +  6, out +  8);
-  encode_block(arr_ +  9, out + 12);
-  encode_block(arr_ + 12, out + 16);
-  encode_last_block(arr_ + 15, out + 20);
+  XXH128_canonical_t canonical;
+  XXH128_canonicalFromHash(&canonical, hash_);
+
+  encode_block(&canonical.digest[ 0], out);
+  encode_block(&canonical.digest[ 3], out +  4);
+  encode_block(&canonical.digest[ 6], out +  8);
+  encode_block(&canonical.digest[ 9], out + 12);
+  encode_block(&canonical.digest[12], out + 16);
+  encode_last_block(&canonical.digest[15], out + 20);
   out[kAsciiLength] = '\0';
 }
 
