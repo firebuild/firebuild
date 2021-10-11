@@ -10,6 +10,7 @@
 #include <limits>
 
 #include "firebuild/debug.h"
+#include "firebuild/platform.h"
 
 namespace firebuild {
 
@@ -25,25 +26,15 @@ ProcessTree::ProcessTree()
   Process::add_filefd(inherited_fds_, STDIN_FILENO,
                       std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
 
-  /* Create the Pipes and FileFDs representing stdout and stderr of the top process.
-   * Check if stdout and stderr point to the same place. kcmp() is not universally
-   * available, so do a back-n-forth fcntl() on one and see if it drags the other with it.
-   * See https://unix.stackexchange.com/questions/191967.
-   * Share the same Pipe object, or use two different Pipes depending on the outcome. */
+  /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
   // FIXME Make this more generic, for all the received pipes / terminal outputs.
-  // FIXME With shim support we can't safely toggle the fcntl flags as it might affect other
-  // processes. Use kcmp() or /proc instead.
-  int flags1 = fcntl(STDOUT_FILENO, F_GETFL);
-  int flags2a = fcntl(STDERR_FILENO, F_GETFL);
-  fcntl(STDOUT_FILENO, F_SETFL, flags1 ^ O_NONBLOCK);
-  int flags2b = fcntl(STDERR_FILENO, F_GETFL);
-  fcntl(STDOUT_FILENO, F_SETFL, flags1);
-  FB_DEBUG(FB_DEBUG_PROCTREE, flags2a != flags2b ? "Top level stdout and stderr are the same" :
-                                                   "Top level stdout and stderr are distinct");
+  bool stdout_stderr_match = platform::fdcmp(STDOUT_FILENO, STDERR_FILENO) == 0;
+  FB_DEBUG(FB_DEBUG_PROCTREE, stdout_stderr_match ? "Top level stdout and stderr are the same" :
+           "Top level stdout and stderr are distinct");
 
   std::shared_ptr<Pipe> pipe;
   for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
-    if (fd == STDERR_FILENO && flags2a != flags2b) {
+    if (fd == STDERR_FILENO && stdout_stderr_match) {
       /* stdout and stderr point to the same location (changing one's flags did change the
        * other's). Reuse the Pipe object that we created in the loop's first iteration. */
       pipe = (*inherited_fds_)[STDOUT_FILENO]->pipe();
