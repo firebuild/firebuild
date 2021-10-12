@@ -3,8 +3,11 @@
 
 #include "firebuild/utils.h"
 
+#include <errno.h>
+#include <linux/aio_abi.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <unistd.h>
 
 #include <fmt/core.h>
@@ -16,12 +19,17 @@
 #include <fmt/format.h>
 #include <string>
 #include <cstdlib>
+#include <unordered_map>
 
 #include "./fbbcomm.h"
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
 msg_header fixed_ack_msg = {0, 0};
+aio_context_t io_ctx = 0;
+io_event io_events[500];
+
+std::unordered_map<int, struct iocb*>* ack_iocbs = nullptr;
 
 /** wrapper for writev() retrying on recoverable errors */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
@@ -70,7 +78,34 @@ void ack_msg(const int conn, const uint32_t ack_num) {
 
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + d(ack_num));
 #ifdef NDEBUG
-  fb_write(conn, &fixed_ack_msg, sizeof(fixed_ack_msg));
+  if (!ack_iocbs) {
+    ack_iocbs = new std::unordered_map<int, struct iocb*>();
+    syscall(__NR_io_setup, 500, &io_ctx);
+  }
+  iocb* control_block;
+  auto it = ack_iocbs->find(conn);
+  if (it != ack_iocbs->end()) {
+    control_block = it->second;
+  } else {
+    control_block = new iocb();
+    (*ack_iocbs)[conn] = control_block;
+  }
+  memset(control_block, 0, sizeof(iocb));
+  control_block->aio_fildes = conn;
+  control_block->aio_buf = reinterpret_cast<__u64>(&fixed_ack_msg);
+  control_block->aio_nbytes = sizeof(fixed_ack_msg);
+  control_block->aio_lio_opcode = IOCB_CMD_PWRITE;
+  int io_submit_ret = syscall(__NR_io_submit, io_ctx, 1, &control_block);
+  if (io_submit_ret == -1) {
+    if (errno == EAGAIN) {
+      /* Flush prior results */
+      syscall(__NR_io_getevents, io_ctx, 0, 500, &io_events, NULL);
+      syscall(__NR_io_submit, io_ctx, 1, &control_block);
+    } else {
+      perror("io_submit");
+      abort();
+    }
+  }
 #else
   msg_header msg = {.msg_size = 0, .ack_id = ack_num};
   fb_write(conn, &msg, sizeof(msg));
