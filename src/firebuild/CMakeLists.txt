@@ -78,7 +78,7 @@ add_executable(firebuild-bin
   fbbstore.cc
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_cc>)
-target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} ${XXHASH_LIBRARIES})
+target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} ${XXHASH_LIBRARIES} uring)
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow ${SANITIZE_SUPERVISOR_LINK_OPTIONS})
 set_target_properties(firebuild-bin PROPERTIES OUTPUT_NAME firebuild)
 # GCC 9's LTO implementation seem to have a bug we hit, but did not fully triage yet

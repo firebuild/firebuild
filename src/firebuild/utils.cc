@@ -20,6 +20,9 @@
 
 #include <dirent.h>
 #include <errno.h>
+#ifdef __linux__
+#include <liburing.h>
+#endif
 #include <stdio.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
@@ -32,6 +35,7 @@
 
 #include <string>
 #include <cstdlib>
+#include <unordered_map>
 #include <vector>
 
 #include "./fbbcomm.h"
@@ -40,6 +44,13 @@
 
 tsl::hopscotch_set<std::string>* deduplicated_strings = nullptr;
 
+#define QUEUE_DEPTH 500
+#define BLOCK_SZ    1024
+struct io_uring ring;
+
+std::unordered_map<int, msg_header*>* ack_msgs = nullptr;
+
+/** wrapper for writev() retrying on recoverable errors */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(write, fd, buf, count);
 }
@@ -179,13 +190,62 @@ void bump_limits() {
 
 namespace firebuild {
 
+static void flush_io_uring_cqes(struct io_uring* r) {
+  /* wait for at least operation to complete */
+  io_uring_cqe *cqe;
+  int ret = io_uring_wait_cqe(r, &cqe);
+  if (ret < 0) {
+    perror("io_uring_wait_cqe");
+  }
+  io_uring_cqe_seen(r, cqe);
+  /* flush other already finished operations */
+  while (io_uring_peek_cqe(r, &cqe) == 0) {
+    io_uring_cqe_seen(r, cqe);
+  }
+}
+
+/**
+ * ACK a message from the supervised process
+ * @param conn connection file descriptor to send the ACK on
+ * @param ack_num the ACK id
+ */
 void ack_msg(const int conn, const uint16_t ack_num) {
   TRACK(FB_DEBUG_COMM, "conn=%s, ack_num=%d", D_FD(conn), ack_num);
 
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + d(ack_num));
-  msg_header msg = {};
-  msg.ack_id = ack_num;
-  fb_write(conn, &msg, sizeof(msg));
+  if (!ack_msgs) {
+    ack_msgs = new std::unordered_map<int, msg_header*>();
+    io_uring_queue_init(QUEUE_DEPTH, &ring, 0);
+    // TODO(rbalint) exit is missing, is it a problem?
+    // io_uring_queue_exit(&ring);
+  }
+
+  msg_header* msg;
+  auto it = ack_msgs->find(conn);
+  if (it != ack_msgs->end()) {
+    msg = it->second;
+  } else {
+    msg = new msg_header();
+    (*ack_msgs)[conn] = msg;
+  }
+  msg->msg_size = 0;
+  msg->ack_id = ack_num;
+  io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+  if (!sqe) {
+    flush_io_uring_cqes(&ring);
+  }
+  io_uring_prep_write(sqe, conn, msg, sizeof(msg_header), 0);
+  io_uring_sqe_set_data(sqe, msg);
+  int ret = io_uring_submit(&ring);
+  if (ret != 1) {
+    if (errno == EBUSY) {
+      flush_io_uring_cqes(&ring);
+      ret = io_uring_submit(&ring);
+      assert(ret == 1);
+    }
+  }
+  // TODO(rbalint) fallback?
+  //  fb_write(conn, msg, sizeof(msg));
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
