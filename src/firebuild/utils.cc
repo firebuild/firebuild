@@ -21,6 +21,8 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
+msg_header fixed_ack_msg = {0, 0};
+
 /** wrapper for writev() retrying on recoverable errors */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(write, fd, buf, count);
@@ -67,10 +69,12 @@ void ack_msg(const int conn, const uint32_t ack_num) {
   TRACK(FB_DEBUG_COMM, "conn=%s, ack_num=%d", D_FD(conn), ack_num);
 
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + d(ack_num));
-  msg_header msg;
-  msg.ack_id = ack_num;
-  msg.msg_size = 0;
+#ifdef NDEBUG
+  fb_write(conn, &fixed_ack_msg, sizeof(fixed_ack_msg));
+#else
+  msg_header msg = {.msg_size = 0, .ack_id = ack_num};
   fb_write(conn, &msg, sizeof(msg));
+#endif
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
