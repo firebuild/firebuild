@@ -3,6 +3,7 @@
 
 #include "firebuild/utils.h"
 
+#include <aio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -16,12 +17,14 @@
 #include <fmt/format.h>
 #include <string>
 #include <cstdlib>
+#include <unordered_map>
 
 #include "./fbbcomm.h"
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
 msg_header fixed_ack_msg = {0, 0};
+std::unordered_map<int, struct aiocb*>* ack_aiocbs = nullptr;
 
 /** wrapper for writev() retrying on recoverable errors */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
@@ -70,7 +73,22 @@ void ack_msg(const int conn, const uint32_t ack_num) {
 
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "sending ACK no. " + d(ack_num));
 #ifdef NDEBUG
-  fb_write(conn, &fixed_ack_msg, sizeof(fixed_ack_msg));
+  if (!ack_aiocbs) {
+    ack_aiocbs = new std::unordered_map<int, struct aiocb*>();
+  }
+  aiocb* control_block;
+  auto it = ack_aiocbs->find(conn);
+  if (it != ack_aiocbs->end()) {
+    control_block = it->second;
+  } else {
+    control_block = new aiocb();
+    (*ack_aiocbs)[conn] = control_block;
+  }
+  memset(control_block, 0, sizeof(aiocb));
+  control_block->aio_fildes = conn;
+  control_block->aio_buf = &fixed_ack_msg;
+  control_block->aio_nbytes = sizeof(fixed_ack_msg);
+  aio_write(control_block);
 #else
   msg_header msg = {.msg_size = 0, .ack_id = ack_num};
   fb_write(conn, &msg, sizeof(msg));
