@@ -14,14 +14,14 @@
   /* First notify the supervisor that stderr has been written to,
    * similarly to tpl_write.c. */
   int fd = safe_fileno(stderr);
-  if (i_am_intercepting && (fd < 0 || fd >= IC_FD_STATES_SIZE || ic_fd_states[fd].written == false)) {
-    FBBCOMM_Builder_write ic_msg;
-    fbbcomm_builder_write_init(&ic_msg);
-    fbbcomm_builder_write_set_fd(&ic_msg, fd);
+  if (i_am_intercepting && (fd < 0 || fd >= IC_FD_STATES_SIZE || ic_fd_states[fd].notify_on_write == true)) {
+    FBBCOMM_Builder_write_to_inherited ic_msg;
+    fbbcomm_builder_write_to_inherited_init(&ic_msg);
+    fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
-    ic_fd_states[fd].written = true;
+    ic_fd_states[fd].notify_on_write = false;
   }
 ### endblock before
 

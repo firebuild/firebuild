@@ -915,14 +915,14 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_fchdir *>(fbbcomm_buf));
       break;
     }
-    case FBBCOMM_TAG_read: {
+    case FBBCOMM_TAG_read_from_inherited: {
       ::firebuild::ProcessPBAdaptor::msg(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_read *>(fbbcomm_buf));
+          reinterpret_cast<const FBBCOMM_Serialized_read_from_inherited *>(fbbcomm_buf));
       break;
     }
-    case FBBCOMM_TAG_write: {
+    case FBBCOMM_TAG_write_to_inherited: {
       ::firebuild::ProcessPBAdaptor::msg(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_write *>(fbbcomm_buf));
+          reinterpret_cast<const FBBCOMM_Serialized_write_to_inherited *>(fbbcomm_buf));
       break;
     }
     case FBBCOMM_TAG_access:

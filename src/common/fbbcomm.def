@@ -608,14 +608,16 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("read", [
+    # The first time the process reads from the given inherited fd
+    ("read_from_inherited", [
       # file fd
       (REQUIRED, "int", "fd"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("write", [
+    # The first time the process writes to the given inherited fd
+    ("write_to_inherited", [
       # file fd
       (REQUIRED, "int", "fd"),
       # error no., when ret = -1

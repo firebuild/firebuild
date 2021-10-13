@@ -356,16 +356,16 @@ class Process {
 
 
   /**
-   * Handle read() in the monitored process
+   * Handle first read() to an inherited fd in the monitored process
    * @param fd file descriptor
    */
-  void handle_read(const int fd);
+  void handle_read_from_inherited(const int fd);
 
   /**
-   * Handle write() in the monitored process
+   * Handle first write() to an inherited fd in the monitored process
    * @param fd file descriptor
    */
-  void handle_write(const int fd);
+  void handle_write_to_inherited(const int fd);
 
   /**
    * Fail to change to a working directory

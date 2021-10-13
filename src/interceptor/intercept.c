@@ -382,7 +382,7 @@ static void atfork_child_handler(void) {
 
     /* Reinitialize other stuff */
     reset_interceptors();
-    clear_all_file_states();
+    set_all_notify_on_read_write_states();
     ic_pid = ic_orig_getpid();
 
     /* Reconnect to supervisor */
@@ -582,6 +582,8 @@ static void fb_ic_init() {
   assert(thread_intercept_on == NULL);
   thread_intercept_on = "init";
   insert_debug_msg("initialization-begin");
+
+  set_all_notify_on_read_write_states();
 
   /* Useful for debugging deadlocks with strace, since the same values appear in futex()
    * if we need to wait for the lock. */

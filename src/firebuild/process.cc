@@ -574,7 +574,7 @@ int Process::handle_ioctl(const int fd, const int cmd,
   }
 }
 
-void Process::handle_read(const int fd) {
+void Process::handle_read_from_inherited(const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {
@@ -590,7 +590,7 @@ void Process::handle_read(const int fd) {
       opened_by ? opened_by->exec_point() : nullptr, "Process read from inherited fd ", fd);
 }
 
-void Process::handle_write(const int fd) {
+void Process::handle_write_to_inherited(const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);
 
   if (!get_fd(fd)) {

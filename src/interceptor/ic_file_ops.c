@@ -136,28 +136,28 @@ int popen_type_to_flags(const char * type) {
   return type_flags;
 }
 
-void set_file_state(const int fd) {
+void clear_notify_on_read_write_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
-    ic_fd_states[fd].read = true;
-    ic_fd_states[fd].written = true;
+    ic_fd_states[fd].notify_on_read = false;
+    ic_fd_states[fd].notify_on_write = false;
   }
 }
 
-void clear_file_state(const int fd) {
+void set_notify_on_read_write_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
-    ic_fd_states[fd].read = false;
-    ic_fd_states[fd].written = false;
+    ic_fd_states[fd].notify_on_read = true;
+    ic_fd_states[fd].notify_on_write = true;
   }
 }
 
-void clear_all_file_states() {
+void set_all_notify_on_read_write_states() {
   for (int fd = 0; fd < IC_FD_STATES_SIZE; fd++) {
-    ic_fd_states[fd].read = false;
-    ic_fd_states[fd].written = false;
+    ic_fd_states[fd].notify_on_read = true;
+    ic_fd_states[fd].notify_on_write = true;
   }
 }
 
-void copy_file_state(const int to_fd, const int from_fd) {
+void copy_notify_on_read_write_state(const int to_fd, const int from_fd) {
   if ((to_fd >= 0) && (to_fd < IC_FD_STATES_SIZE) &&
       (from_fd >= 0) && (from_fd < IC_FD_STATES_SIZE)) {
     ic_fd_states[to_fd] = ic_fd_states[from_fd];
