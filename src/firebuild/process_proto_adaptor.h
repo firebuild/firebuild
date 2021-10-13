@@ -30,8 +30,8 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBBCOMM_Serialized_symlink *s);
   static int msg(Process *p, const FBBCOMM_Serialized_fcntl *f);
   static int msg(Process *p, const FBBCOMM_Serialized_ioctl *i);
-  static int msg(Process *p, const FBBCOMM_Serialized_read *r);
-  static int msg(Process *p, const FBBCOMM_Serialized_write *w);
+  static int msg(Process *p, const FBBCOMM_Serialized_read_from_inherited *r);
+  static int msg(Process *p, const FBBCOMM_Serialized_write_to_inherited *w);
   static int msg(Process *p, const FBBCOMM_Serialized_chdir *c);
   static int msg(Process *p, const FBBCOMM_Serialized_fchdir *f);
 

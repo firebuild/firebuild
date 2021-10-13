@@ -98,18 +98,18 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_ioctl *f) {
                          ret, error);
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_read *r) {
-  const int error = fbbcomm_serialized_read_get_error_no_with_fallback(r, 0);
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_read_from_inherited *r) {
+  const int error = fbbcomm_serialized_read_from_inherited_get_error_no_with_fallback(r, 0);
   if (error == 0) {
-    p->handle_read(fbbcomm_serialized_read_get_fd(r));
+    p->handle_read_from_inherited(fbbcomm_serialized_read_from_inherited_get_fd(r));
   }
   return 0;
 }
 
-int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_write *w) {
-  const int error = fbbcomm_serialized_write_get_error_no_with_fallback(w, 0);
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_write_to_inherited *w) {
+  const int error = fbbcomm_serialized_write_to_inherited_get_error_no_with_fallback(w, 0);
   if (error == 0) {
-    p->handle_write(fbbcomm_serialized_write_get_fd(w));
+    p->handle_write_to_inherited(fbbcomm_serialized_write_to_inherited_get_fd(w));
   }
   return 0;
 }

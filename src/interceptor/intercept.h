@@ -44,10 +44,12 @@ extern psfa *psfas;
 extern int psfas_num;
 extern int psfas_alloc;
 
-/** file usage state */
+/** This tells whether the supervisor needs to be notified on a read or write
+ *  event. The supervisor needs to be notified only on the first of each kind,
+ *  and only for file descriptors that were inherited by the process. */
 typedef struct {
-  bool read:1; /** file has been read */
-  bool written:1; /** file has been written to */
+  bool notify_on_read:1;
+  bool notify_on_write:1;
 } fd_state;
 
 /** file fd states */
