@@ -136,6 +136,13 @@ int popen_type_to_flags(const char * type) {
   return type_flags;
 }
 
+void set_file_state(const int fd) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
+    ic_fd_states[fd].read = true;
+    ic_fd_states[fd].written = true;
+  }
+}
+
 void clear_file_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].read = false;
