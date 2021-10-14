@@ -249,25 +249,25 @@ generate("int", ["open", "open64"], "const char *file, int flags, ...",
          tpl="open",
          after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          send_ret_on_success=True,
-         ack_condition="!is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 generate("int", ["openat", "openat64"], "int dirfd, const char *file, int flags, ...",
          tpl="open",
          after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          msg="open",
          send_ret_on_success=True,
-         ack_condition="!is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
 # Intercept open_2 variants
 generate("int", ["__open_2", "__open64_2"], "const char *file, int flags",
          after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          msg="open",
          send_ret_on_success=True,
-         ack_condition="!is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, int flags",
          after_lines=["if (i_am_intercepting) clear_file_state(ret);"],
          msg="open",
          send_ret_on_success=True,
-         ack_condition="!is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
 # Intercept fopen
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
@@ -279,7 +279,7 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0666);",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, fd);"],
-         ack_condition="!is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
 # Intercept freopen
 # FIXME implement in the supervisor. Note that the behavior heavily depends on filename's nullness.
@@ -322,7 +322,7 @@ generate("DIR *", "opendir", "const char *file",
          msg="open",
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDONLY | O_CLOEXEC | O_DIRECTORY);",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, ic_orig_dirfd(ret));"],
-         ack_condition="!is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 generate("int", "closedir", "DIR *dirp",
          before_lines=["int fd = safe_dirfd(dirp); /* save it here, we can't do dirfd() after the closedir() */"],
          msg="close",
