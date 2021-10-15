@@ -382,7 +382,6 @@ static void atfork_child_handler(void) {
 
     /* Reinitialize other stuff */
     reset_interceptors();
-    set_all_notify_on_read_write_states();
     ic_pid = ic_orig_getpid();
 
     /* Reconnect to supervisor */
