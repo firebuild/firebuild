@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -11,7 +11,7 @@ build_dir="${1:-build-self-dir}"
 
 mkdir $build_dir
 cd $build_dir
-cmake ..
+env PATH="${PATH/ccache/ccache-DISABLED/}" cmake ..
 cd ..
 # TODO make this out-of-tree build, too
 cmake .

@@ -18,6 +18,9 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: build-on-ubuntu-lts
     - name: install-deps
       run: |
         sudo add-apt-repository -y -n ppa:rbalint/fmtlib
@@ -26,6 +29,7 @@ jobs:
         sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
     - name: build-out-of-tree
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         mkdir build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
@@ -36,6 +40,7 @@ jobs:
         doxygen
     - name: build-in-tree
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         cmake -DCMAKE_BUILD_TYPE=Debug .
         make -j2 check
     - name: test
@@ -45,6 +50,7 @@ jobs:
     - name: coverage
       # tests don't run with out of tree builds at the moment
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         git clean -dxf
         cmake -DCOVERAGE=1 .
         make -j2 check coverage-info
@@ -57,6 +63,11 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    # TODO(rbalint) use ccache action when it starts working in docker
+    # https://github.com/hendrikmuhs/ccache-action/issues/30#issuecomment-948013472
+    # - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: build-on-ubuntu-docker
     - name: install-deps
       run: |
         sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list
@@ -69,12 +80,14 @@ jobs:
         eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc
     - name: build-out-of-tree
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         mkdir build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
         make -j2
     - name: build-in-tree
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         cmake -DCMAKE_BUILD_TYPE=Debug .
         make -j2 check
   scan-build:
@@ -98,12 +111,16 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: clang-build
     - name: install-deps
       run: |
         sudo apt-get -qq update
         sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
     - name: build
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         env CXX=clang++ CC=clang cmake .
         # the interceptor does not work when building it with Clang, thus make check always fails
         make -j2
@@ -113,6 +130,9 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: rebuild-self
     - name: install-deps
       run: |
         sudo add-apt-repository -y -n ppa:rbalint/fmtlib
@@ -121,7 +141,8 @@ jobs:
         sudo eatmydata apt-get -y install $BUILD_DEPS
     - name: rebuild self
       run: |
-        tools/rebuild-self build
+        export FIREBUILD_PREFIX_CMD="env PATH=$PWD/src/firebuild:$PATH"
+        env PATH=/usr/lib/ccache:$PATH tools/rebuild-self build
         # rebuild again, to test shortcutting
         cd test
         ./run-firebuild make -C ../build clean
@@ -142,6 +163,9 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: build-other-projects
     - name: install-deps
       run: |
         sudo sed -i 's/# deb-src/deb-src/' /etc/apt/sources.list
@@ -152,8 +176,10 @@ jobs:
         sudo eatmydata apt-get build-dep vte2.91
     - name: build-in-tree
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         cmake -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
         make -j2 check
+        export PATH=${PATH#*ccache:}
     - name: build-vte
       run: |
         apt-get source vte2.91
@@ -170,12 +196,16 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: build-deb
     - name: install-deps
       run: |
         sudo add-apt-repository -y ppa:rbalint/xxhash
         sudo eatmydata apt-get build-dep .
     - name: deb
       run: |
+        export PATH=/usr/lib/ccache:$PATH
         # skip dh_buildinfo step
         printf '\noverride_dh_buildinfo:\n' >> debian/rules
         dpkg-buildpackage -j2 -us -uc
