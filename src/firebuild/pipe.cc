@@ -80,7 +80,7 @@ void Pipe::fd1_timeout_cb(int fd, int16_t what, void *arg) {
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
       conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), send_only_mode_(false),
-      keep_fd0_open_(false), fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
+      fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
       fd1_timeout_round_(0), buf_(), fd0_ptrs_held_self_ptr_(nullptr),
       fd1_ptrs_held_self_ptr_(nullptr), shared_self_ptr_(this), creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%s, creator=%s", D_FD(fd0_conn), D(creator));
@@ -238,14 +238,11 @@ void Pipe::finish() {
     send_ret = send_buf();
   } while (!buffer_empty() && send_ret == FB_PIPE_SUCCESS);
 
-  if (!keep_fd0_open_) {
-    auto fd0 = event_get_fd(fd0_event);
-    FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d_fd(fd0));
-    event_free(fd0_event);
-    close(fd0);
-  } else {
-    event_free(fd0_event);
-  }
+  auto fd0 = event_get_fd(fd0_event);
+  FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d_fd(fd0));
+  event_free(fd0_event);
+  close(fd0);
+
   fd0_event = nullptr;
   if (fd1_timeout_event_) {
     event_free(fd1_timeout_event_);

@@ -40,18 +40,20 @@ ProcessTree::ProcessTree()
       pipe = (*inherited_fds_)[STDOUT_FILENO]->pipe();
     } else {
       /* Create a new Pipe for this file descriptor.
-       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent. */
+       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent.
+       * The fd is dup()-ed first to let it be closed without closing the original fd. */
+      int fd_dup = fcntl(fd, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
+      assert(fd_dup != -1);
 #ifdef __clang_analyzer__
       /* Scan-build reports a false leak for the correct code. This is used only in static
        * analysis. It is broken because all shared pointers to the Pipe must be copies of
        * the shared self pointer stored in it. */
-      pipe = std::make_shared<Pipe>(fd, nullptr);
+      pipe = std::make_shared<Pipe>(fd_dup, nullptr);
 #else
-      pipe = (new Pipe(fd, nullptr))->shared_ptr();
+      pipe = (new Pipe(fd_dup, nullptr))->shared_ptr();
 #endif
-      FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd));
+      FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", dup()-ed as: " + d(fd_dup));
       /* Top level inherited fds are special, they should not be closed. */
-      pipe->set_keep_fd0_open();
       inherited_fd_pipes_.insert(pipe);
     }
 
