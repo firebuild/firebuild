@@ -191,7 +191,6 @@ class Pipe {
   void reset_fd1_ptrs_self_ptr_() {fd1_ptrs_held_self_ptr_.reset();}
   void set_send_only_mode(bool mode);
   bool send_only_mode() {return send_only_mode_;}
-  void set_keep_fd0_open() {keep_fd0_open_ = true;}
   int id() const {return id_;}
   const Process * creator() const {return creator_;}
   /**
@@ -232,7 +231,6 @@ class Pipe {
   int id_;
   /** Switch send only mode */
   bool send_only_mode_:1;
-  bool keep_fd0_open_:1;
   bool fd0_shared_ptr_generated_:1;
   bool fd1_shared_ptr_generated_:1;
   /** Number of times the fd1 timeout callback visited the pipe. */
