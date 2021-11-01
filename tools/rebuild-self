@@ -9,14 +9,14 @@ fi
 
 build_dir="${1:-build-self-dir}"
 
-mkdir $build_dir
-cd $build_dir
-env PATH="${PATH/ccache/ccache-DISABLED/}" cmake ..
-cd ..
-# TODO make this out-of-tree build, too
-cmake .
+mkdir ${build_dir}-first-build
+cd ${build_dir}-first-build
+cmake ..
 make all
 cd test
-./run-firebuild -- make -C ../$build_dir clean
-time ./run-firebuild -- make -C ../$build_dir all
+export PATH="${PATH/ccache/ccache-DISABLED/}"
+mkdir ../../$build_dir
+./run-firebuild -- env -C ../../$build_dir cmake ..
+./run-firebuild -- make -C ../../$build_dir clean
+time ./run-firebuild -- make -C ../../$build_dir all
 

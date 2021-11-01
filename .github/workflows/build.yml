@@ -141,21 +141,21 @@ jobs:
         sudo eatmydata apt-get -y install $BUILD_DEPS
     - name: rebuild self
       run: |
-        export FIREBUILD_PREFIX_CMD="env PATH=$PWD/src/firebuild:$PATH"
-        env PATH=/usr/lib/ccache:$PATH tools/rebuild-self build
+        export PATH=/usr/lib/ccache:$PATH
+        tools/rebuild-self build
         # rebuild again, to test shortcutting
-        cd test
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -j2 -C ../build all
+        cd build-first-build/test
+        ./run-firebuild make -C ../../build clean
+        time ./run-firebuild make -j2 -C ../../build all
         du -sh test_cache_dir
     - name: rebuild self with -j8
       run: |
-        cd test
+        cd build-first-build/test
         rm -r test_cache_dir
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -j8 -C ../build all
-        ./run-firebuild make -C ../build clean
-        time ./run-firebuild make -j8 -C ../build all
+        ./run-firebuild make -C ../../build clean
+        time ./run-firebuild make -j8 -C ../../build all
+        ./run-firebuild make -C ../../build clean
+        time ./run-firebuild make -j8 -C ../../build all
 
   build-other-projects:
     needs: style-checks
