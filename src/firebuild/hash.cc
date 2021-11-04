@@ -23,7 +23,7 @@
 namespace firebuild  {
 
 unsigned char Hash::encode_map_[];
-char Hash::decode_map_[];
+signed char Hash::decode_map_[];
 Hash::HashMapsInitializer Hash::hash_maps_initializer_;
 
 /**

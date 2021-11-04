@@ -72,7 +72,7 @@ class Hash {
   static void encode_last_block(const unsigned char *in, char *out);
 
   static unsigned char encode_map_[64];
-  static char decode_map_[256];
+  static signed char decode_map_[256];
 
   static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
   XXH128_hash_t hash_;
