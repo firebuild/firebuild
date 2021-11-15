@@ -13,7 +13,7 @@ namespace firebuild {
 
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent,
-                             std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                             std::vector<std::shared_ptr<FileFD>>* fds)
     : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 

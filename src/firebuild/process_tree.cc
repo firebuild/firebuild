@@ -15,7 +15,7 @@
 namespace firebuild {
 
 ProcessTree::ProcessTree()
-    : inherited_fds_(std::make_shared<std::vector<std::shared_ptr<FileFD>>>()),
+    : inherited_fds_(new std::vector<std::shared_ptr<FileFD>>()),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
       pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
       cmd_profs_() {

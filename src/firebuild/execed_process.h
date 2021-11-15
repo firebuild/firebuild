@@ -49,7 +49,7 @@ class ExecedProcess : public Process {
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
                          const FileName *executable, const FileName *executed_path,
                          Process * parent,
-                         std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+                         std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
