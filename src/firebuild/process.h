@@ -72,7 +72,7 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, int exec_count, const FileName *wd,
-          Process* parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds);
+          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -134,7 +134,7 @@ class Process {
   void set_pending_popen_type_flags(int flags) {
     pending_popen_type_flags_ = flags;
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+  std::vector<std::shared_ptr<FileFD>>*
   pop_expected_child_fds(const std::vector<std::string>&,
                          LaunchType *launch_type_p,
                          int *type_flags_p = nullptr,
@@ -162,14 +162,14 @@ class Process {
       return (*fds_)[fd];
     }
   }
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() {return fds_;}
-  const std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds() const {return fds_;}
-  void set_fds(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {fds_ = fds;}
+  std::vector<std::shared_ptr<FileFD>>* fds() {return fds_;}
+  const std::vector<std::shared_ptr<FileFD>>* fds() const {return fds_;}
+  void set_fds(std::vector<std::shared_ptr<FileFD>>* fds) {fds_ = fds;}
   /** Add add ffd FileFD* to open fds */
   static std::shared_ptr<FileFD>
-  add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+  add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
              const int fd, std::shared_ptr<FileFD> ffd);
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> pass_on_fds(const bool execed = true) const;
+  std::vector<std::shared_ptr<FileFD>>* pass_on_fds(const bool execed = true) const;
   void add_pipe(std::shared_ptr<Pipe> pipe);
   /** Drain all pipes's associated with open file descriptors of the process reading as much data
    *  as available on each fd1 end of each pipe */
@@ -421,7 +421,7 @@ class Process {
   int exec_count_;
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   const FileName* wd_;  ///< Current working directory
-  std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds_;  ///< Active file descriptors
+  std::vector<std::shared_ptr<FileFD>>* fds_;  ///< Active file descriptors
   std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   std::vector<Process*> fork_children_;  ///< children of the process
   /// the latest system() child

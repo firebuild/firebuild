@@ -401,7 +401,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
     int type_flags;
 
     firebuild::Process *parent = NULL;
-    auto fds = std::make_shared<std::vector<std::shared_ptr<firebuild::FileFD>>>();
+    std::vector<std::shared_ptr<firebuild::FileFD>>* fds = nullptr;
 
     /* Locate the parent in case of execve or alike. This includes the
      * case when the outermost intercepted process starts up (no
@@ -418,6 +418,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
         fds = parent->pass_on_fds();
       } else {
         /* Queue the ExecedProcess until parent's connection is closed */
+        fds = new std::vector<std::shared_ptr<firebuild::FileFD>>();
         auto proc =
             firebuild::ProcessFactory::getExecedProcess(
                 ic_msg, parent, fds);
@@ -437,6 +438,9 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
       /* Verify that the child was expected and get inherited fds. */
       std::vector<std::string> args = fbbcomm_serialized_scproc_query_get_arg_as_vector(ic_msg);
       fds = unix_parent->pop_expected_child_fds(args, &launch_type, &type_flags);
+      if (!fds) {
+        fds = new std::vector<std::shared_ptr<firebuild::FileFD>>();
+      }
 
       if (unix_parent->posix_spawn_pending()) {
         /* This is a posix_spawn*() child, but we haven't yet seen and processed the
@@ -450,6 +454,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
                 ic_msg, nullptr, nullptr);
         proc_tree->QueuePosixSpawnChild(ppid, fd_conn, proc);
         *new_proc = proc;
+        delete fds;
         return;
       }
 
@@ -660,9 +665,9 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       const FBBCOMM_Serialized_popen_failed *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_popen_failed *>(fbbcomm_buf);
       // FIXME what if !has_cmd() ?
-      proc->pop_expected_child_fds(
+      delete(proc->pop_expected_child_fds(
           std::vector<std::string>({"sh", "-c", fbbcomm_serialized_popen_failed_get_cmd(ic_msg)}),
-          nullptr, nullptr, true);
+          nullptr, nullptr, true));
       break;
     }
     case FBBCOMM_TAG_pclose: {
@@ -699,7 +704,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
 
       /* First, do the basic fork() */
       auto pid = fbbcomm_serialized_posix_spawn_parent_get_pid(ic_msg);
-      auto fork_parent_fds = proc->pass_on_fds(false);
       auto fork_child = firebuild::ProcessFactory::getForkedProcess(pid, proc);
       proc_tree->insert(fork_child);
 
@@ -776,7 +780,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
          * that is in exec_pending state. */
         std::vector<std::string> arg =
             fbbcomm_serialized_posix_spawn_parent_get_arg_as_vector(ic_msg);
-        proc->pop_expected_child_fds(arg, nullptr);
+        delete(proc->pop_expected_child_fds(arg, nullptr));
         fork_child->set_exec_pending(true);
       }
       fork_child->set_state(firebuild::FB_PROC_TERMINATED);
@@ -789,7 +793,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_failed *>(fbbcomm_buf);
       std::vector<std::string> arg =
           fbbcomm_serialized_posix_spawn_failed_get_arg_as_vector(ic_msg);
-      proc->pop_expected_child_fds(arg, nullptr, nullptr, true);
+      delete(proc->pop_expected_child_fds(arg, nullptr, nullptr, true));
       proc->set_posix_spawn_pending(false);
       break;
     }

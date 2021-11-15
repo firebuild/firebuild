@@ -24,7 +24,7 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
-                 Process * parent, std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
       closed_fds_({}), fork_children_(), expected_child_(), exec_child_(NULL) {
@@ -53,7 +53,7 @@ void Process::exit_result(const int status, const int64_t utime_u,
 }
 
 std::shared_ptr<FileFD>
-Process::add_filefd(std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds,
+Process::add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
                     int fd,
                     std::shared_ptr<FileFD> ffd) {
   TRACK(FB_DEBUG_PROC, "fd=%d", fd);
@@ -89,26 +89,23 @@ void Process::drain_all_pipes() {
   }
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
-Process::pass_on_fds(const bool execed) const {
+std::vector<std::shared_ptr<FileFD>>* Process::pass_on_fds(const bool execed) const {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "execed=%s", D(execed));
 
   const int fds_size = fds_->size();
-  auto ret_fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>(fds_size);
-  std::vector<std::shared_ptr<FileFD>> *ret_fds_raw_ptr = ret_fds.get();
-  const std::vector<std::shared_ptr<FileFD>> *fds_raw_ptr = fds_.get();
-  int last_fd = 0;
+  auto ret_fds = new std::vector<std::shared_ptr<FileFD>>(fds_size);
+  int last_fd = -1;
   for (int i = 0; i < fds_size; i++) {
-    const FileFD* const raw_file_fd = (*fds_raw_ptr)[i].get();
+    const FileFD* const raw_file_fd = (*fds_)[i].get();
     if (raw_file_fd != nullptr) {
       if (!(execed && raw_file_fd->cloexec())) {
         /* The operations on the fds in the new process don't affect the fds in the parent,
          * thus create a copy of the parent's FileFD pointed to by a new shared pointer. */
-        (*ret_fds_raw_ptr)[i] = std::make_shared<FileFD>(*raw_file_fd);
+        (*ret_fds)[i] = std::make_shared<FileFD>(*raw_file_fd);
         last_fd = i;
         if (execed && raw_file_fd->close_on_popen()) {
           /* The newly exec()-ed process will not close inherited popen()-ed fds on pclose() */
-          (*ret_fds_raw_ptr)[i]->set_close_on_popen(false);
+          (*ret_fds)[i]->set_close_on_popen(false);
         }
       }
     }
@@ -117,7 +114,7 @@ Process::pass_on_fds(const bool execed) const {
   if (last_fd + 1 < fds_size) {
     /* A few of the last elements of the ret_fds vector is not used. Cut the size to the used
      * ones. */
-    ret_fds_raw_ptr->resize(last_fd + 1);
+    ret_fds->resize(last_fd + 1);
   }
 
   return ret_fds;
@@ -830,17 +827,16 @@ static bool argv_matches_expectation(const std::vector<std::string>& actual,
   return true;
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+std::vector<std::shared_ptr<FileFD>>*
 Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                 LaunchType *launch_type_p,
                                 int *type_flags_p,
                                 const bool failed) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "failed=%s", D(failed));
 
-  std::shared_ptr<std::vector<std::shared_ptr<firebuild::FileFD>>> fds;
   if (expected_child_) {
     if (argv_matches_expectation(argv, expected_child_->argv())) {
-      auto fds = expected_child_->fds();
+      auto fds = expected_child_->pop_fds();
       if (launch_type_p)
           *launch_type_p = expected_child_->launch_type();
       if (type_flags_p)
@@ -859,7 +855,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
     exec_point()->disable_shortcutting_bubble_up("Unexpected system/popen/posix_spawn child",
                                    std::string(failed ? "  failed: " : " appeared: ") + d(argv));
   }
-  return std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
+  return nullptr;
 }
 
 bool Process::any_child_not_finalized() {
@@ -961,6 +957,8 @@ Process::~Process() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 
   free(pending_popen_fifo_);
+  delete(expected_child_);
+  delete(fds_);
 }
 
 /* Global debugging methods.

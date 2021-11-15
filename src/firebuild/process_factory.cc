@@ -19,7 +19,7 @@ ProcessFactory::getForkedProcess(const int pid, Process * const parent) {
 
 ExecedProcess*
 ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *msg, Process * parent,
-                                 std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds) {
+                                 std::vector<std::shared_ptr<FileFD>>* fds) {
   TRACK(FB_DEBUG_PROC, "parent=%s", D(parent));
 
   const FileName* executable = FileName::Get(fbbcomm_serialized_scproc_query_get_executable(msg));

@@ -48,7 +48,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *executable,
                              const FileName *executed_path,
                              Process * parent,
-                             std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> fds)
+                             std::vector<std::shared_ptr<FileFD>>* fds)
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
