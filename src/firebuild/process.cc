@@ -89,26 +89,38 @@ void Process::drain_all_pipes() {
   }
 }
 
-std::shared_ptr<std::vector<std::shared_ptr<FileFD>>> Process::pass_on_fds(bool execed) {
+std::shared_ptr<std::vector<std::shared_ptr<FileFD>>>
+Process::pass_on_fds(const bool execed) const {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "execed=%s", D(execed));
 
-  auto fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>();
-  for (unsigned int i = 0; i < fds_->size(); i++) {
-    auto const &file_fd_shared_ptr = fds_->at(i);
-    if (file_fd_shared_ptr) {
-      const FileFD& raw_file_fd = *file_fd_shared_ptr.get();
-      if (!(execed && raw_file_fd.cloexec())) {
+  const int fds_size = fds_->size();
+  auto ret_fds = std::make_shared<std::vector<std::shared_ptr<FileFD>>>(fds_size);
+  std::vector<std::shared_ptr<FileFD>> *ret_fds_raw_ptr = ret_fds.get();
+  const std::vector<std::shared_ptr<FileFD>> *fds_raw_ptr = fds_.get();
+  int last_fd = 0;
+  for (int i = 0; i < fds_size; i++) {
+    const FileFD* const raw_file_fd = (*fds_raw_ptr)[i].get();
+    if (raw_file_fd != nullptr) {
+      if (!(execed && raw_file_fd->cloexec())) {
         /* The operations on the fds in the new process don't affect the fds in the parent,
          * thus create a copy of the parent's FileFD pointed to by a new shared pointer. */
-        add_filefd(fds, i, std::make_shared<FileFD>(raw_file_fd));
-        if (execed && raw_file_fd.close_on_popen()) {
+        (*ret_fds_raw_ptr)[i] = std::make_shared<FileFD>(*raw_file_fd);
+        last_fd = i;
+        if (execed && raw_file_fd->close_on_popen()) {
           /* The newly exec()-ed process will not close inherited popen()-ed fds on pclose() */
-          (*fds)[i]->set_close_on_popen(false);
+          (*ret_fds_raw_ptr)[i]->set_close_on_popen(false);
         }
       }
     }
   }
-  return fds;
+
+  if (last_fd + 1 < fds_size) {
+    /* A few of the last elements of the ret_fds vector is not used. Cut the size to the used
+     * ones. */
+    ret_fds_raw_ptr->resize(last_fd + 1);
+  }
+
+  return ret_fds;
 }
 
 void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, int type_flags) {
