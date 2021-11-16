@@ -209,7 +209,7 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
     fu = it->second;
     const FileUsage* merged_fu = fu->merge(fu_change);
     if (merged_fu != fu) {
-      it->second = fu = merged_fu;
+      it.value() = fu = merged_fu;
       propagate = true;
     }
   } else {
@@ -280,7 +280,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
     const FileUsage* merged_fu = fu->merge(fu_change);
     if (merged_fu != fu) {
-      it->second = merged_fu;
+      it.value() = merged_fu;
       if (parent_exec_point()) {
         parent_exec_point()->propagate_file_usage(name, merged_fu);
       }
@@ -325,7 +325,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     if (merged_fu == fu) {
       return true;
     } else {
-      it->second = fu = merged_fu;
+      it.value() = fu = merged_fu;
     }
   } else {
     file_usages_[name] = fu = fu_change;

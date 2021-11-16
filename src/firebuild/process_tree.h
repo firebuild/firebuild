@@ -5,13 +5,14 @@
 #ifndef FIREBUILD_PROCESS_TREE_H_
 #define FIREBUILD_PROCESS_TREE_H_
 
+#include <tsl/hopscotch_map.h>
+
 #include <list>
 #include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -34,7 +35,7 @@ struct cmd_prof {
   int64_t aggr_time = 0;
   int64_t cmd_time = 0;
   /**  {time_u, count} */
-  std::unordered_map<std::string, subcmd_prof> subcmds = {};
+  tsl::hopscotch_map<std::string, subcmd_prof> subcmds = {};
 };
 
 /** Connection of a waiting fork() child process*/
@@ -167,27 +168,27 @@ class ProcessTree {
   /** The pipes (or terminal lines) inherited from the external world,
    *  each represented by a Pipe object created by this ProcessTree. */
   std::unordered_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
-  std::unordered_map<int, Process*> fb_pid2proc_;
-  std::unordered_map<int, Process*> pid2proc_;
-  std::unordered_map<int, fork_child_sock> pid2fork_child_sock_;
+  tsl::hopscotch_map<int, Process*> fb_pid2proc_;
+  tsl::hopscotch_map<int, Process*> pid2proc_;
+  tsl::hopscotch_map<int, fork_child_sock> pid2fork_child_sock_;
   /** Whenever an exec*() child appears, but we haven't yet fully processed its exec parent,
    *  we need to put aside the new process until we finish processing its ancestor. */
-  std::unordered_map<int, exec_child_sock> pid2exec_child_sock_;
+  tsl::hopscotch_map<int, exec_child_sock> pid2exec_child_sock_;
   /** Whenever a posix_spawn*() child process appears, but we haven't yet processed the
    *  posix_spawn_parent message from the parent, we have to put aside the new process until
    *  we get to this point in the parent. The key is the parent's pid. */
-  std::unordered_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
-  std::unordered_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
+  tsl::hopscotch_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
+  tsl::hopscotch_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds
    * (system + user time), and count the invocations of each other command
    * by C. */
-  std::unordered_map<std::string, cmd_prof> cmd_profs_;
+  tsl::hopscotch_map<std::string, cmd_prof> cmd_profs_;
   void insert_process(Process *p);
   void delete_process_subtree(Process *p);
   void profile_collect_cmds(const Process &p,
-                            std::unordered_map<std::string, subcmd_prof> *cmds,
+                            tsl::hopscotch_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);
   void build_profile(const Process &p, std::set<std::string> *ancestors);
 

@@ -6,6 +6,7 @@
 
 #include <event2/event.h>
 #include <limits.h>
+#include <tsl/hopscotch_map.h>
 #include <unistd.h>
 
 #include <memory>
@@ -158,7 +159,7 @@ class Pipe {
    * During fd1 end's lifetime this maps the supervisor-side connections to the fd1 end.
    * When and EOF is detected and the fd1 end is cleaned up and the connection is closed
    * the pipe_end reference is also removed from this map. */
-  std::unordered_map<int, pipe_end *> conn2fd1_ends;
+  tsl::hopscotch_map<int, pipe_end *> conn2fd1_ends;
   /**
    * Fd1 ends indexed by FileFD (pointer)
    * During fd1 end's lifetime this maps the intercepted process' file descriptor as tracked in
@@ -166,7 +167,7 @@ class Pipe {
    * When and EOF is detected and the fd1 end is cleaned up the pipe_end reference is also removed
    * from this map. The FileFD can still be tracked as being open, because the message about the
    * close() or dup() may arrive later than the EOF being detected. */
-  std::unordered_map<FileFD*, pipe_end *> ffd2fd1_ends;
+  tsl::hopscotch_map<FileFD*, pipe_end *> ffd2fd1_ends;
   /**
    * PipeRecorders indexed by ExecedProcess (pointer)
    *

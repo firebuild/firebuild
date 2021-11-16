@@ -4,12 +4,12 @@
 #ifndef FIREBUILD_FILE_NAME_H_
 #define FIREBUILD_FILE_NAME_H_
 
+#include <tsl/hopscotch_map.h>
 #include <xxhash.h>
 
 #include <cstring>
 #include <string>
 #include <unordered_set>
-#include <unordered_map>
 #include <vector>
 
 #include "common/firebuild_common.h"
@@ -66,7 +66,7 @@ class FileName {
   size_t length_;
   bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
-  static std::unordered_map<const FileName*, XXH128_hash_t>* hash_db_;
+  static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
   /* Disable assignment. */
   void operator=(const FileName&);
 
