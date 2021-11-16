@@ -11,6 +11,7 @@ find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
 pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(JEMALLOC REQUIRED jemalloc)
+find_package(tsl-hopscotch-map REQUIRED)
 
 add_custom_command(
   OUTPUT fbbfp.c fbbfp.h fbbfp_decode.c

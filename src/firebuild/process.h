@@ -5,12 +5,13 @@
 #ifndef FIREBUILD_PROCESS_H_
 #define FIREBUILD_PROCESS_H_
 
+#include <tsl/hopscotch_map.h>
+
 #include <cassert>
 #include <list>
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include <algorithm>
 
@@ -427,7 +428,7 @@ class Process {
   /// the latest system() child
   ExecedProcess *system_child_ {NULL};
   /// for popen()ed children: client fd -> process mapping
-  std::unordered_map<int, ExecedProcess *> fd2popen_child_ {};
+  tsl::hopscotch_map<int, ExecedProcess *> fd2popen_child_ {};
   /// if the popen()ed child has appeared, but the popen_parent messages hasn't:
   ExecedProcess *pending_popen_child_ {NULL};
   int pending_popen_child_conn_ {-1};

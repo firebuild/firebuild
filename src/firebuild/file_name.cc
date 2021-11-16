@@ -1,9 +1,10 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
+#include <tsl/hopscotch_map.h>
+
 #include <cstring>
 #include <unordered_set>
-#include <unordered_map>
 #include <vector>
 
 #include "firebuild/file_name.h"
@@ -11,11 +12,11 @@
 namespace firebuild {
 
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
-std::unordered_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
+tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
 
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
-  hash_db_ = new std::unordered_map<const FileName*, XXH128_hash_t>();
+  hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();
 }
 
 bool FileName::isDbEmpty() {

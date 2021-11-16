@@ -6,10 +6,10 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <tsl/hopscotch_map.h>
 #include <unistd.h>
 
 #include <string>
-#include <unordered_map>
 
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
@@ -58,7 +58,7 @@ class HashCache {
   bool store_and_get_hash(const FileName* path, Hash *hash, int fd, struct stat64 *stat_ptr);
 
  private:
-  std::unordered_map<const FileName*, HashCacheEntry> db_ = {};
+  tsl::hopscotch_map<const FileName*, HashCacheEntry> db_ = {};
 
   /**
    * Calculate hash of a file or directory on the path, and update the hash cache.

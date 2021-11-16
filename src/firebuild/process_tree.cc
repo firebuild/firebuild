@@ -125,7 +125,7 @@ void ProcessTree::export2js(FILE * stream) {
 
 void ProcessTree::
 profile_collect_cmds(const Process &p,
-                     std::unordered_map<std::string, subcmd_prof> *cmds,
+                     tsl::hopscotch_map<std::string, subcmd_prof> *cmds,
                      std::set<std::string> *ancestors) {
   if (p.exec_child() != NULL) {
     ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());

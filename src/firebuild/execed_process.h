@@ -5,12 +5,13 @@
 #ifndef FIREBUILD_EXECED_PROCESS_H_
 #define FIREBUILD_EXECED_PROCESS_H_
 
+#include <tsl/hopscotch_map.h>
+
 #include <cassert>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
-#include <unordered_map>
 #include <unordered_set>
 
 #include "firebuild/file_name.h"
@@ -77,8 +78,8 @@ class ExecedProcess : public Process {
   std::vector<const FileName*>& libs() {return libs_;}
   const std::vector<const FileName*>& libs() const {return libs_;}
   void set_libs(std::vector<const FileName*> libs) {libs_ = libs;}
-  std::unordered_map<const FileName*, const FileUsage*>& file_usages() {return file_usages_;}
-  const std::unordered_map<const FileName*, const FileUsage*>& file_usages() const {
+  tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() {return file_usages_;}
+  const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() const {
     return file_usages_;
   }
   void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
@@ -211,7 +212,7 @@ class ExecedProcess : public Process {
   /// are registered as regular file open operations.)
   std::vector<const FileName*> libs_;
   /// File usage per path for p and f. c. (t.)
-  std::unordered_map<const FileName*, const FileUsage*> file_usages_;
+  tsl::hopscotch_map<const FileName*, const FileUsage*> file_usages_;
   /**
    * Pipes created by this process.
    */

@@ -4,8 +4,9 @@
 #ifndef FIREBUILD_EXECED_PROCESS_CACHER_H_
 #define FIREBUILD_EXECED_PROCESS_CACHER_H_
 
+#include <tsl/hopscotch_map.h>
+
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include <libconfig.h++>
@@ -46,10 +47,10 @@ class ExecedProcessCacher {
   std::unordered_set<std::string> envs_skip_;
 
   /* The hashed fingerprint of the processes handled by this cacher. */
-  std::unordered_map<const ExecedProcess*, Hash> fingerprints_;
+  tsl::hopscotch_map<const ExecedProcess*, Hash> fingerprints_;
   /* The entire fingerprint of the processes handled by this cacher, for debugging
    * purposes, only if debugging is enabled. In serialized FBBFP format. */
-  std::unordered_map<const ExecedProcess*, std::vector<char>> fingerprint_msgs_;
+  tsl::hopscotch_map<const ExecedProcess*, std::vector<char>> fingerprint_msgs_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessCacher);
 };
