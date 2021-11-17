@@ -411,10 +411,10 @@ NULL:
     if (fbbns_serialized_foo_has_mystring(msg)) { ... }
 
 Get the string, C++ convenience API. Note that this allocates memory
-(hence not async-signal-safe) and copies the data. Also, it's an
+(hence not async-signal-safe), but does not copy the data. Also, it's an
 assertion failure to call it on an unset optional string.
 
-    std::string str = fbbns_serialized_foo_get_mystring_as_string(msg);
+    std::string_view str = fbbns_serialized_foo_get_mystring_as_string_view(msg);
 
 
 ### Required or optional FBBs

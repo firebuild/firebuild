@@ -410,11 +410,11 @@ static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(const {{ N
  * Builder getter - required or optional string (C++, not async-signal-safe)
  * {{ type }} {{ var }}
  */
-static inline std::string {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Builder_{{ msg }} *msg) {
+static inline std::string_view {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string_view(const {{ NS }}_Builder_{{ msg }} *msg) {
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
   assert(msg->{{ var }} != NULL);
 
-  return std::string(msg->{{ var }}, msg->wire.{{ var }}_len);
+  return std::string_view(msg->{{ var }}, msg->wire.{{ var }}_len);
 }
 #endif
 ###         endif
@@ -554,12 +554,12 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(const {
  * Serialized getter - required or optional string (C++, not async-signal-safe)
  * {{ type }} {{ var }}
  */
-static inline std::string {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Serialized_{{ msg }} *msg) {
+static inline std::string_view {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string_view(const {{ NS }}_Serialized_{{ msg }} *msg) {
   assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
   const char *c_str = {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
   assert(c_str != NULL);
-  return std::string(c_str, msg->{{ var }}_len);
+  return std::string_view(c_str, msg->{{ var }}_len);
 }
 #endif
 ###         endif
