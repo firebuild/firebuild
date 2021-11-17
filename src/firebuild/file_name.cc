@@ -63,7 +63,7 @@ bool FileName::is_at_locations(const std::vector<const FileName *> *locations) c
  * See #431 for design and rationale. */
 std::string d(const FileName& fn, const int level) {
   (void)level;  /* unused */
-  return d(fn.to_string());
+  return d(std::string(fn.to_string_view()));
 }
 std::string d(const FileName *fn, const int level) {
   if (fn) {

@@ -20,9 +20,9 @@ class ExeMatcher {
   ExeMatcher() : base_names_(), full_names_(), backing_strings() {}
   bool match(const firebuild::FileName* exe_file, const firebuild::FileName* executed_file,
              const std::string_view& arg0) const {
-    return match(exe_file->to_string()) || match(arg0)
+    return match(exe_file->to_string_view()) || match(arg0)
         || (executed_file == exe_file ? false
-            : (executed_file ? match(executed_file->to_string()) : false));
+            : (executed_file ? match(executed_file->to_string_view()) : false));
   }
   void add(const std::string& name) {
     const std::string& backing_string = *backing_strings.insert(name).first;

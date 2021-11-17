@@ -350,7 +350,7 @@ bool ExecedProcess::register_parent_directory(const FileName *name) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
 
   /* name is canonicalized, so just simply strip the last component */
-  std::string parent_name = name->to_string();
+  std::string parent_name = std::string(name->to_string_view());
   size_t slash_pos = parent_name.rfind('/');
   if (slash_pos == 0) {
     /* don't bother registering "/" */

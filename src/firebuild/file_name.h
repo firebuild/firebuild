@@ -9,6 +9,7 @@
 
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
@@ -28,7 +29,7 @@ class FileName {
     memcpy(const_cast<char*>(name_), other.name_, other.length_ + 1);
   }
   const char * c_str() const {return name_;}
-  std::string to_string() const {return std::string(name_);}
+  std::string_view to_string_view() const {return std::string_view(name_, length_);}
   size_t length() const {return length_;}
   size_t hash() const {return XXH3_64bits(name_, length_);}
   const XXH128_hash_t& hash_XXH128() const {
