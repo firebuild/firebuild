@@ -4,8 +4,9 @@
 #ifndef FIREBUILD_EXE_MATCHER_H_
 #define FIREBUILD_EXE_MATCHER_H_
 
+#include <tsl/hopscotch_set.h>
+
 #include <string>
-#include <unordered_set>
 
 #include "firebuild/file_name.h"
 
@@ -38,8 +39,8 @@ class ExeMatcher {
     return base_names_.find(exe_base) != base_names_.end()
         || full_names_.find(exe) != full_names_.end();
   }
-  std::unordered_set<std::string> base_names_;
-  std::unordered_set<std::string> full_names_;
+  tsl::hopscotch_set<std::string> base_names_;
+  tsl::hopscotch_set<std::string> full_names_;
 };
 
 }  // namespace firebuild
