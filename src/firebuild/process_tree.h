@@ -6,6 +6,7 @@
 #define FIREBUILD_PROCESS_TREE_H_
 
 #include <tsl/hopscotch_map.h>
+#include <tsl/hopscotch_set.h>
 
 #include <list>
 #include <map>
@@ -13,7 +14,6 @@
 #include <set>
 #include <stdexcept>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "firebuild/debug.h"
@@ -167,7 +167,7 @@ class ProcessTree {
   std::vector<std::shared_ptr<FileFD>>* inherited_fds_;
   /** The pipes (or terminal lines) inherited from the external world,
    *  each represented by a Pipe object created by this ProcessTree. */
-  std::unordered_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
+  tsl::hopscotch_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
   tsl::hopscotch_map<int, Process*> fb_pid2proc_;
   tsl::hopscotch_map<int, Process*> pid2proc_;
   tsl::hopscotch_map<int, fork_child_sock> pid2fork_child_sock_;

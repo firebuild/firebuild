@@ -6,13 +6,13 @@
 #define FIREBUILD_EXECED_PROCESS_H_
 
 #include <tsl/hopscotch_map.h>
+#include <tsl/hopscotch_set.h>
 
 #include <cassert>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
-#include <unordered_set>
 
 #include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
@@ -63,10 +63,10 @@ class ExecedProcess : public Process {
   void add_children_cpu_time_u(const int64_t t) {children_cpu_time_u_ += t;}
   int64_t aggr_cpu_time_u() const {return cpu_time_u() + children_cpu_time_u_;}
   const FileName* initial_wd() const {return initial_wd_;}
-  const std::unordered_set<const FileName*>& wds() const {return wds_;}
-  const std::unordered_set<const FileName*>& wds() {return wds_;}
-  const std::unordered_set<const FileName*>& failed_wds() const {return wds_;}
-  std::unordered_set<const FileName*>& failed_wds() {return failed_wds_;}
+  const tsl::hopscotch_set<const FileName*>& wds() const {return wds_;}
+  const tsl::hopscotch_set<const FileName*>& wds() {return wds_;}
+  const tsl::hopscotch_set<const FileName*>& failed_wds() const {return wds_;}
+  tsl::hopscotch_set<const FileName*>& failed_wds() {return failed_wds_;}
   const std::vector<std::string>& args() const {return args_;}
   std::vector<std::string>& args() {return args_;}
   void set_args(const std::vector<std::string>& args) {args_ = args;}
@@ -194,10 +194,10 @@ class ExecedProcess : public Process {
   /// Directory the process exec()-started in
   const FileName* initial_wd_;
   /// Working directories visited by the process and all fork()-children
-  std::unordered_set<const FileName*> wds_;
+  tsl::hopscotch_set<const FileName*> wds_;
   /// Working directories the process and all fork()-children failed to
   /// chdir() to
-  std::unordered_set<const FileName*> failed_wds_;
+  tsl::hopscotch_set<const FileName*> failed_wds_;
   std::vector<std::string> args_;
   /// Environment variables in deterministic (sorted) order.
   std::vector<std::string> env_vars_;
@@ -216,7 +216,7 @@ class ExecedProcess : public Process {
   /**
    * Pipes created by this process.
    */
-  std::unordered_set<std::shared_ptr<Pipe>> created_pipes_ = {};
+  tsl::hopscotch_set<std::shared_ptr<Pipe>> created_pipes_ = {};
   /**
    * The outbound pipes this process had at startup.
    * Each such pipe might have multiple client-side file descriptors (see dup() and friends),

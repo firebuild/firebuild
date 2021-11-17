@@ -7,12 +7,12 @@
 #include <event2/event.h>
 #include <limits.h>
 #include <tsl/hopscotch_map.h>
+#include <tsl/hopscotch_set.h>
 #include <unistd.h>
 
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -33,7 +33,7 @@ typedef struct _pipe_end {
   /** Event listening on the pipe end */
   struct event* ev;
   /* FileFDs associated with this pipe end keeping a(n fd1) reference to this pipe. */
-  std::unordered_set<FileFD*> file_fds;
+  tsl::hopscotch_set<FileFD*> file_fds;
   /** Cache files to save the captured data to */
   std::vector<std::shared_ptr<PipeRecorder>> recorders;
   bool known_to_be_opened;
