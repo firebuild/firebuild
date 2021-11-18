@@ -159,12 +159,15 @@ void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
 void Pipe::close_one_fd1(int fd) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd=%s", D_FD(fd));
 
-  auto fd1_end = conn2fd1_ends[fd];
-  assert(fd1_end);
+  auto it = conn2fd1_ends.find(fd);
+  if (it == conn2fd1_ends.end()) {
+    return;
+  }
+  auto fd1_end = it->second;
   for (auto file_fd : fd1_end->file_fds) {
     ffd2fd1_ends.erase(file_fd);
   }
-  conn2fd1_ends.erase(fd);
+  conn2fd1_ends.erase(it);
   event_free(fd1_end->ev);
   close(fd);
   delete(fd1_end);
