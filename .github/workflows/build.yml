@@ -103,7 +103,8 @@ jobs:
         sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
     - name: scan-build
       run: |
-        scan-build-12 cmake .
+        # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
+        scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
         scan-build-12 --status-bugs make -j2
   clang-build:
     needs: style-checks
