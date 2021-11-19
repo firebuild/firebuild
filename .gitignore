@@ -5,9 +5,11 @@
 *.out
 *.o
 *.so
-.gitignore
 CMakeCache.txt
+CMakeDoxyfile.in
+CMakeDoxygenDefaults.cmake
 CMakeFiles/
+CTestTestfile.cmake
 Doxyfile
 Makefile
 build/
