@@ -25,8 +25,8 @@ namespace firebuild {
 class ProcessFactory {
  public:
   static ForkedProcess* getForkedProcess(int pid, Process * const parent);
-  static ExecedProcess* getExecedProcess(const FBBCOMM_Serialized_scproc_query *msg,
-                                         Process * parent,
+  static ExecedProcess* getExecedProcess(const FBBCOMM_Serialized_scproc_query *const msg,
+                                         Process * const parent,
                                          std::vector<std::shared_ptr<FileFD>>* fds);
 
  private:

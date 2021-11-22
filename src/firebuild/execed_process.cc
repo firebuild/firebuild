@@ -47,6 +47,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *initial_wd,
                              const FileName *executable,
                              const FileName *executed_path,
+                             const std::vector<std::string>& args,
+                             const std::vector<std::string>& env_vars,
+                             const std::vector<const FileName*>& libs,
                              Process * parent,
                              std::vector<std::shared_ptr<FileFD>>* fds)
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
@@ -55,8 +58,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                                              ? parent->exec_point()
                                              : parent->exec_point()->maybe_shortcutable_ancestor_)
                                    : nullptr),
-      initial_wd_(initial_wd), wds_(), failed_wds_(), args_(), env_vars_(), executable_(executable),
-      executed_path_(executed_path), libs_(), file_usages_(), created_pipes_(), cacher_(NULL) {
+      initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
+      executable_(executable), executed_path_(executed_path), libs_(libs), file_usages_(),
+      created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
          pid, ppid, D(initial_wd), D(executable), D(parent));
