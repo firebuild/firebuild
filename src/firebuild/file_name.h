@@ -99,7 +99,7 @@ struct FileNameLess {
 
 extern std::vector<const FileName*>* system_locations;
 
-inline const FileName* FileName::Get(const char * const name, ssize_t length = -1,
+inline const FileName* FileName::Get(const char * const name, ssize_t length,
                                      bool force_set_system_location = false) {
   FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false, false);
   auto it = db_->find(tmp_file_name);

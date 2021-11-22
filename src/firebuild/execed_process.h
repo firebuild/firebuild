@@ -49,6 +49,9 @@ class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
                          const FileName *executable, const FileName *executed_path,
+                         const std::vector<std::string>& args,
+                         const std::vector<std::string>& env_vars,
+                         const std::vector<const FileName*>& libs,
                          Process * parent,
                          std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~ExecedProcess();
@@ -69,15 +72,12 @@ class ExecedProcess : public Process {
   tsl::hopscotch_set<const FileName*>& failed_wds() {return failed_wds_;}
   const std::vector<std::string>& args() const {return args_;}
   std::vector<std::string>& args() {return args_;}
-  void set_args(const std::vector<std::string>& args) {args_ = args;}
   const std::vector<std::string>& env_vars() const {return env_vars_;}
   std::vector<std::string>& env_vars() {return env_vars_;}
-  void set_env_vars(const std::vector<std::string>& env_vars) {env_vars_ = env_vars;}
   const FileName* executable() const {return executable_;}
   const FileName* executed_path() const {return executed_path_;}
   std::vector<const FileName*>& libs() {return libs_;}
   const std::vector<const FileName*>& libs() const {return libs_;}
-  void set_libs(std::vector<const FileName*> libs) {libs_ = libs;}
   tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() {return file_usages_;}
   const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() const {
     return file_usages_;
