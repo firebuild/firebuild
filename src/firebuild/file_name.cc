@@ -41,6 +41,10 @@ bool FileName::is_at_locations(const std::vector<const FileName *> *locations) c
       continue;
     }
 
+    if (this->name_[location_len] != '/' && this->length_ > location_len) {
+      continue;
+    }
+
     const int memcmp_res = memcmp(location->name_, this->name_, location_len);
     if (memcmp_res < 0) {
       continue;
