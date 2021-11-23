@@ -350,18 +350,25 @@ bool ExecedProcess::register_parent_directory(const FileName *name) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
 
   /* name is canonicalized, so just simply strip the last component */
-  std::string parent_name = name->to_string();
-  size_t slash_pos = parent_name.rfind('/');
+  ssize_t slash_pos = name->length() - 1;
+  for (; slash_pos >= 0; slash_pos--) {
+    if (name->c_str()[slash_pos] == '/') {
+      break;
+    }
+  }
+
   if (slash_pos == 0) {
     /* don't bother registering "/" */
     return true;
-  } else if (slash_pos == std::string::npos) {
+  } else if (slash_pos == -1) {
     return false;
   }
-  parent_name.resize(slash_pos);
 
-  const FileUsage* fu_change = FileUsage::Get(ISDIR);
-  return register_file_usage(FileName::Get(parent_name), fu_change);
+  char* parent_name = reinterpret_cast<char*>(alloca(slash_pos + 1));
+  memcpy(parent_name, name->c_str(), slash_pos);
+  parent_name[slash_pos] = '\0';
+
+  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage::Get(ISDIR));
 }
 
 /* Find and apply shortcut */
