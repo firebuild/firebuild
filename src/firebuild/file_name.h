@@ -63,7 +63,7 @@ class FileName {
     }
   }
   const char * const name_;
-  const size_t length_;
+  const uint32_t length_;
   const bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
