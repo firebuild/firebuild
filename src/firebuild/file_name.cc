@@ -45,6 +45,15 @@ bool FileName::is_at_locations(const std::vector<const FileName *> *locations) c
       continue;
     }
 
+    /* Try comparing only the first 8 bytes to potentially save a call to memcmp */
+    if (location_len >= sizeof(int64_t)
+        && (*reinterpret_cast<const int64_t*>(location->name_)
+            != *reinterpret_cast<const int64_t*>(this->name_))) {
+      /* Does not break the loop if this->name_ > location->name_ */
+      // TODO(rbalint) maybe the loop could be broken making this function even faster
+      continue;
+    }
+
     const int memcmp_res = memcmp(location->name_, this->name_, location_len);
     if (memcmp_res < 0) {
       continue;
