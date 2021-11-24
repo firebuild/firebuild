@@ -231,11 +231,6 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("fcloseall", [
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
     ("chmod", [
       # dir file descriptor for fchmodat()
       (OPTIONAL, "int", "dirfd"),

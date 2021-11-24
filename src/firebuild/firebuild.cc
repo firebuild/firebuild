@@ -938,7 +938,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchmod:
     case FBBCOMM_TAG_fchown:
-    case FBBCOMM_TAG_fcloseall:
     case FBBCOMM_TAG_fpathconf:
     case FBBCOMM_TAG_freopen:
     case FBBCOMM_TAG_fstat:
