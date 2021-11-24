@@ -98,8 +98,9 @@ class FileUsage {
       stated_(false),
       written_(written),
       stat_changed_(true),
-      initial_stat_err_(0),
-      initial_stat_(),
+      // TODO(rbalint) use those later
+      // initial_stat_err_(0),
+      // initial_stat_(),
       unknown_err_(0) {}
   explicit FileUsage(FileInitialState initial_state = DONTKNOW) :
       FileUsage(initial_state, Hash()) {}
@@ -132,13 +133,15 @@ e   *  the final state is to be remembered.
    *  FIXME Do we need this? We should just always stat() at the end. */
   bool stat_changed_ : 1;
 
+  // TODO(rbalint) make user of stat results, but store them in a more compressed
+  // form instead of in the huge struct stat64
   /** The error from initially stat()'ing the file, or 0 if there was no
    *  error. */
-  int initial_stat_err_;
+  // int initial_stat_err_;
 
   /** The result of initially stat()'ing the file. Only valid if stated_
    *  && !initial_stat_err_. */
-  struct stat64 initial_stat_;
+  // struct stat64 initial_stat_;
 
   /* Note: stuff like the final hash are not stored here. They are
    * computed right before being placed in the cache, don't need to be
