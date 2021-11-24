@@ -62,9 +62,9 @@ class FileName {
       const_cast<char*>(name_)[length] = '\0';
     }
   }
-  const char * name_;
-  size_t length_;
-  bool in_system_location_;
+  const char * const name_;
+  const size_t length_;
+  const bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
   /* Disable assignment. */
@@ -106,7 +106,7 @@ inline const FileName* FileName::Get(const char * const name, ssize_t length,
   if (it != db_->end()) {
     return &*it;
   } else {
-    tmp_file_name.in_system_location_ =
+    *const_cast<bool*>(&tmp_file_name.in_system_location_) =
         force_set_system_location ? true : tmp_file_name.is_at_locations(system_locations);
     /* Not found, add a copy to the set. */
     return &*db_->insert(tmp_file_name).first;
