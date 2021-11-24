@@ -315,7 +315,9 @@ generate("int", "fclose", "FILE *stream",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_close_set_fd(&ic_msg, fd);"])
 
-skip("fcloseall")  # Only closes the high level streams, not the underlying fds.
+# Unlike fclose(), fcloseall() only closes the high level streams and not the underlying fds.
+# So we don't care about it at all.
+skip("fcloseall")
 
 # Intercept opendir, closedir (no need to intercept fdopendir)
 generate("DIR *", "opendir", "const char *file",
