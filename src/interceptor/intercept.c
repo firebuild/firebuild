@@ -661,7 +661,7 @@ static void fb_ic_init() {
   r = ic_orig_readlink("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
   if (r > 0 && r < CWD_BUFSIZE) {
     linkname[r] = '\0';
-    fbbcomm_builder_scproc_query_set_executable(&ic_msg, linkname);
+    fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
   }
 
   // list loaded shared libs
