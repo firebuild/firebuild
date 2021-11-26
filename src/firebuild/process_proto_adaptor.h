@@ -18,8 +18,8 @@ namespace firebuild  {
    */
 class ProcessPBAdaptor {
  public:
-  static int msg(Process *p, const FBBCOMM_Serialized_open *o, int fd_conn, int ack_num);
-  static int msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo, int fd_conn, int ack_num);
+  static int msg(Process *p, const FBBCOMM_Serialized_open *o);
+  static int msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo);
   static int msg(Process *p, const FBBCOMM_Serialized_close *c);
   static int msg(Process *p, const FBBCOMM_Serialized_unlink *u);
   static int msg(Process *p, const FBBCOMM_Serialized_rmdir *r);

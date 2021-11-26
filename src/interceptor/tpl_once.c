@@ -31,10 +31,10 @@ bool ic_called_{{ func }};
 
 ###   if ack
     /* Send and wait for ack */
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
 ###   else
     /* Send and go on, no ack */
-    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_shmq(&ic_msg);
 ###   endif
   }
 ### endblock send_msg

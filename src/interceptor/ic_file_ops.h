@@ -16,7 +16,10 @@ int popen_type_to_flags(const char * type);
 void clear_notify_on_read_write_state(const int fd);
 void set_notify_on_read_write_state(const int fd);
 void set_all_notify_on_read_write_states();
-void copy_notify_on_read_write_state(const int to_fd, const int from_fd);
+void clear_pipe_state(const int fd);
+void set_pipe_state(const int fd);
+void clear_all_pipe_states();
+void copy_file_state(const int to_fd, const int from_fd);
 
 /* Same as fileno(), but with safe NULL pointer handling. */
 static inline int safe_fileno(FILE *stream) {

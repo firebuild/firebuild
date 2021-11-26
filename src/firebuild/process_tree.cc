@@ -18,7 +18,7 @@ ProcessTree::ProcessTree()
     : inherited_fds_(new std::vector<std::shared_ptr<FileFD>>()),
       inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
       pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
-      cmd_profs_() {
+      running_processes_(), cmd_profs_() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
   // TODO(rbalint) support other inherited fds
@@ -94,6 +94,10 @@ void ProcessTree::insert_process(Process *p) {
 
   fb_pid2proc_[p->fb_pid()] = p;
   pid2proc_[p->pid()] = p;
+
+  if (p->state() == FB_PROC_RUNNING) {
+    running_processes_.insert(running_processes_.begin(), p);
+  }
 }
 
 void ProcessTree::insert(Process *p) {

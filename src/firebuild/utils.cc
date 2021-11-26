@@ -20,6 +20,7 @@
 #include "./fbbcomm.h"
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/process.h"
 
 /** wrapper for writev() retrying on recoverable errors */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
@@ -59,7 +60,17 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
 namespace firebuild {
 
 /**
- * ACK a message from the supervised process
+ * ACK an shmq message from the supervised process.
+ */
+void ack_msg(Process *proc) {
+  TRACK(FB_DEBUG_COMM, "");
+
+  shmq_reader_message_done(proc->shmq_reader());
+}
+
+/**
+ * ACK a socket message from the supervised process.
+ *
  * @param conn connection file descriptor to send the ACK on
  * @param ack_num the ACK id
  */
@@ -93,3 +104,8 @@ std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
 }
 
 }  // namespace firebuild
+
+extern "C" {
+/* Needed to link shmq into the supervisor. */
+int ic_orig_ftruncate(int fd, off_t length) {return ftruncate(fd, length);}
+}

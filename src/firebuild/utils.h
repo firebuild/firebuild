@@ -12,10 +12,14 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
 
 namespace firebuild {
 
+class Process;
+
+void ack_msg(Process *proc);
 void ack_msg(const int conn, const uint32_t ack_num);
 
 std::string make_fifo(int fd, int flags, int pid, const char *fb_conn_string,
                       int *fifo_name_offset);
 
 }  // namespace firebuild
+
 #endif  // FIREBUILD_UTILS_H_

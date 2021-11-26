@@ -6,6 +6,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <cassert>
 #include <memory>
@@ -181,8 +182,8 @@ std::string pretty_timestamp();
 #define TRACK(...)
 #define TRACKX(...)
 #else
-/* Global, shared across all MethodTracker<T>s, for nice indentation */
-extern int method_tracker_level;
+/* Shared across all MethodTracker<T>s, for nice per-thread indentation */
+extern __thread int method_tracker_level;
 
 /**
  * Track entering and leaving a function (or any brace-block of code).
@@ -243,8 +244,8 @@ class MethodTracker {
         file_ = last_slash + 1;
       }
       char buf[1024];
-      size_t offset = snprintf(buf, sizeof(buf), "%*s-> %s()  (%s:%d)%s",
-                               2 * method_tracker_level, "", func_, file_, line_,
+      size_t offset = snprintf(buf, sizeof(buf), "[%7d] %*s-> %s()  (%s:%d)%s",
+                               gettid(), 2 * method_tracker_level, "", func_, file_, line_,
                                print_obj_on_enter || fmt[0] ? "  " : "");
       if (print_obj_on_enter && offset < sizeof(buf)) {
         offset += snprintf(buf + offset, sizeof(buf) - offset, "%s=%s%s",
@@ -264,8 +265,8 @@ class MethodTracker {
     if (FB_DEBUGGING(flag_)) {
       method_tracker_level--;
       char buf[1024];
-      size_t offset = snprintf(buf, sizeof(buf), "%*s<- %s()  (%s:%d)",
-                               2 * method_tracker_level, "", func_, file_, line_);
+      size_t offset = snprintf(buf, sizeof(buf), "[%7d] %*s<- %s()  (%s:%d)",
+                               gettid(), 2 * method_tracker_level, "", func_, file_, line_);
       if (print_obj_on_leave_ && offset < sizeof(buf)) {
         snprintf(buf + offset, sizeof(buf) - offset, "  %s=%s",
                  obj_name_, ((*resolved_d_)(obj_ptr_, 0)).c_str());
@@ -308,7 +309,8 @@ class MethodTracker {
   if (!(a op b)) { \
     std::string source = #a " " #op " " #b; \
     std::string actual = firebuild::d(a) + " " + #op + " " + firebuild::d(b); \
-    fprintf(stderr, "Assertion `%s': `%s' failed.\n", source.c_str(), actual.c_str()); \
+    fprintf(stderr, "[tid %d] Assertion `%s': `%s' failed.\n", \
+                    gettid(), source.c_str(), actual.c_str()); \
     assert(0 && "see previous message"); \
   } \
 } while (0)
@@ -319,7 +321,8 @@ class MethodTracker {
   if (p != NULL) { \
     std::string source = #p " != NULL"; \
     std::string actual = firebuild::d(p) + " != NULL"; \
-    fprintf(stderr, "Assertion `%s': `%s' failed.\n", source.c_str(), actual.c_str()); \
+    fprintf(stderr, "[tid %d] Assertion `%s': `%s' failed.\n", \
+                    gettid(), source.c_str(), actual.c_str()); \
     assert(0 && "see previous message"); \
   } \
 } while (0)

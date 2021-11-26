@@ -157,7 +157,25 @@ void set_all_notify_on_read_write_states() {
   }
 }
 
-void copy_notify_on_read_write_state(const int to_fd, const int from_fd) {
+void clear_pipe_state(const int fd) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
+    ic_fd_states[fd].is_pipe = false;
+  }
+}
+
+void set_pipe_state(const int fd) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
+    ic_fd_states[fd].is_pipe = true;
+  }
+}
+
+void clear_all_pipe_states() {
+  for (int fd = 0; fd < IC_FD_STATES_SIZE; fd++) {
+    ic_fd_states[fd].is_pipe = false;
+  }
+}
+
+void copy_file_state(const int to_fd, const int from_fd) {
   if ((to_fd >= 0) && (to_fd < IC_FD_STATES_SIZE) &&
       (from_fd >= 0) && (from_fd < IC_FD_STATES_SIZE)) {
     ic_fd_states[to_fd] = ic_fd_states[from_fd];

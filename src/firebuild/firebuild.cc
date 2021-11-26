@@ -5,6 +5,8 @@
 #include <event2/event.h>
 #include <signal.h>
 #include <getopt.h>
+#include <pthread.h>
+#include <semaphore.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
@@ -28,6 +30,7 @@
 #include <libconfig.h++>
 
 #include "common/firebuild_common.h"
+#include "common/shmq.h"
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
 #include "firebuild/blob_cache.h"
@@ -53,21 +56,25 @@
 libconfig::Config * cfg;
 bool generate_report = false;
 
+firebuild::ProcessTree *proc_tree;
+
 struct event_base * ev_base = NULL;
+pthread_mutex_t big_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 namespace {
 
 static char *fb_tmp_dir;
 static char *fb_conn_string;
+static char *fb_sema_string;
 
 evutil_socket_t listener;
 struct event *sigchild_event;
+sem_t *sema;
 
 static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
-static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;
 
 static void usage() {
@@ -156,7 +163,9 @@ static char** get_sanitized_env() {
     env["LD_PRELOAD"] = LIBFIREBUILD_SO;
   }
   env["FB_SOCKET"] = fb_conn_string;
+  env["FB_SEMAPHORE"] = fb_sema_string;
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " FB_SOCKET=" + env["FB_SOCKET"]);
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, " FB_SEMAPHORE=" + env["FB_SEMAPHORE"]);
 
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
 
@@ -361,22 +370,31 @@ void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,
 
 namespace {
 
-static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
+static void accept_fork_child(firebuild::Process* parent,
                               firebuild::Process** child_ref, int pid, int child_fd,
-                              int child_ack, firebuild::ProcessTree* proc_tree) {
+                              int child_ack, const char *shmq_name,
+                              firebuild::ProcessTree* proc_tree) {
   TRACK(firebuild::FB_DEBUG_PROC,
-        "parent_fd=%s, parent_ack=%d, parent=%s pid=%d child_fd=%s child_ack=%d",
-        D_FD(parent_fd), parent_ack, D(parent), pid, D_FD(child_fd), child_ack);
+        "parent=%s pid=%d child_fd=%s child_ack=%d, shmq_name=%s",
+        D(parent), pid, D_FD(child_fd), child_ack, shmq_name);
 
   auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
+  shmq_reader_init(proc->shmq_reader(), shmq_name);
   proc_tree->insert(proc);
   *child_ref = proc;
-  firebuild::ack_msg(parent_fd, parent_ack);
+  firebuild::ack_msg(parent);
   firebuild::ack_msg(child_fd, child_ack);
 }
 
 /**
- * Process message coming from interceptor
+ * Process the first message coming from an interceptor.
+ *
+ * The message tag is always "scproc_query" if it's an execed process, or "fork_child" if it's a
+ * forked process.
+ *
+ * This message always arrives over the socket because there's no shmq for the process yet, it'll be
+ * set up in this method.
+ *
  * @param fb_conn file desctiptor of the connection
  */
 void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id, int fd_conn,
@@ -453,6 +471,8 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
             firebuild::ProcessFactory::getExecedProcess(
                 ic_msg, nullptr, nullptr);
         proc_tree->QueuePosixSpawnChild(ppid, fd_conn, proc);
+        shmq_reader_init(proc->shmq_reader(),
+                         fbbcomm_serialized_scproc_query_get_shmq_name(ic_msg));
         *new_proc = proc;
         delete fds;
         return;
@@ -498,6 +518,8 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
     auto proc =
         firebuild::ProcessFactory::getExecedProcess(
             ic_msg, parent, fds);
+    shmq_reader_init(proc->shmq_reader(), fbbcomm_serialized_scproc_query_get_shmq_name(ic_msg));
+
     if (launch_type == firebuild::LAUNCH_TYPE_SYSTEM) {
       unix_parent->set_system_child(proc);
     } else if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
@@ -530,6 +552,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
         reinterpret_cast<const FBBCOMM_Serialized_fork_child *>(fbbcomm_buf);
     auto pid = fbbcomm_serialized_fork_child_get_pid(ic_msg);
     auto ppid = fbbcomm_serialized_fork_child_get_ppid(ic_msg);
+    const char *shmq_name = fbbcomm_serialized_fork_child_get_shmq_name(ic_msg);
     auto pending_ack = proc_tree->PPid2ParentAck(ppid);
     /* The supervisor needs up to date information about the fork parent in the ProcessTree
      * when the child Process is created. To ensure having up to date information all the
@@ -538,18 +561,27 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
      */
     if (!pending_ack) {
       /* queue fork_child data and delay processing messages on this socket */
-      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, new_proc);
+      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, std::string(shmq_name), new_proc);
     } else {
       auto pproc = proc_tree->pid2proc(ppid);
-      assert(pproc);
+      assert(pproc == pending_ack->proc);
       /* record new process */
-      accept_fork_child(pproc, pending_ack->sock, pending_ack->ack_num,
-                        new_proc, pid, fd_conn, ack_id, proc_tree);
+      accept_fork_child(pproc, new_proc, pid, fd_conn, ack_id, shmq_name, proc_tree);
       proc_tree->DropParentAck(ppid);
     }
   }
 }
 
+/**
+ * Process a message coming from interceptor, except for the first message of each process which is
+ * handled by proc_new_process_msg().
+ *
+ * The message usually arrives over shmq, but in certain cases (when we need to modify libevent's
+ * configuration) it arrives over the socket instead.
+ *
+ * @param fb_conn file desctiptor of the connection socket where the message arrived, or -1 if the
+ *     message arrived over shmq
+ */
 void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
                  uint32_t ack_num,
                  int fd_conn,
@@ -557,9 +589,14 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
   TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
          D_FD(fd_conn), fbbcomm_tag_to_string(fbbcomm_serialized_get_tag(fbbcomm_buf)), ack_num);
 
-  int tag = fbbcomm_serialized_get_tag(fbbcomm_buf);
   assert(proc);
+
+  int tag = fbbcomm_serialized_get_tag(fbbcomm_buf);
   switch (tag) {
+    case FBBCOMM_TAG_barrier: {
+      /* just ack */
+      break;
+    }
     case FBBCOMM_TAG_fork_parent: {
       const FBBCOMM_Serialized_fork_parent *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_fork_parent *>(fbbcomm_buf);
@@ -567,12 +604,13 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
       if (!fork_child_sock) {
         /* wait for child */
-        proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
+        proc_tree->QueueParentAck(proc->pid(), proc);
       } else {
         /* record new child process */
-        accept_fork_child(proc, fd_conn, ack_num,
-                          fork_child_sock->fork_child_ref, child_pid, fork_child_sock->sock,
-                          fork_child_sock->ack_num, proc_tree);
+        accept_fork_child(proc,
+                          fork_child_sock->fork_child_ref, child_pid,
+                          fork_child_sock->sock, fork_child_sock->ack_num,
+                          fork_child_sock->shmq_name.c_str(), proc_tree);
         proc_tree->DropQueuedForkChild(child_pid);
       }
       return;
@@ -610,7 +648,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
          * couldn't send us the system_ret message), but the supervisor
          * hasn't seen this event yet. Thus we have to slightly defer
          * sending the ACK. */
-        proc->system_child()->set_on_finalized_ack(ack_num, fd_conn);
+        proc->system_child()->set_on_finalized_ack(proc);
         proc->set_system_child(NULL);
         return;
       }
@@ -643,7 +681,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         /* The child hasn't appeared yet. Defer sending the ACK and setting up
          * the fd -> child mapping. */
         assert_null(proc->pending_popen_child());
-        proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
+        proc_tree->QueueParentAck(proc->pid(), proc);
         proc->set_pending_popen_fd(fd);
         proc->set_pending_popen_fifo(fifo ? strdup(fifo) : nullptr);
         return;
@@ -681,7 +719,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         assert(child);
         if (child->state() != firebuild::FB_PROC_FINALIZED) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
-          child->set_on_finalized_ack(ack_num, fd_conn);
+          child->set_on_finalized_ack(proc);
           return;
         }
         /* Else we can ACK straight away. */
@@ -705,6 +743,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       /* First, do the basic fork() */
       auto pid = fbbcomm_serialized_posix_spawn_parent_get_pid(ic_msg);
       auto fork_child = firebuild::ProcessFactory::getForkedProcess(pid, proc);
+      fork_child->set_state(firebuild::FB_PROC_TERMINATED);
       proc_tree->insert(fork_child);
 
       /* The actual forked process might perform some file operations according to
@@ -723,7 +762,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             int fd = fbbcomm_serialized_posix_spawn_file_action_open_get_fd(action_open);
             int flags = fbbcomm_serialized_posix_spawn_file_action_open_get_flags(action_open);
             fork_child->handle_force_close(fd);
-            fork_child->handle_open(AT_FDCWD, path, flags, fd, 0);
+            fork_child->handle_open(AT_FDCWD, path, flags, fd, 0, false);
             break;
           }
           case FBBCOMM_TAG_posix_spawn_file_action_close: {
@@ -783,7 +822,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         delete(proc->pop_expected_child_fds(arg, nullptr));
         fork_child->set_exec_pending(true);
       }
-      fork_child->set_state(firebuild::FB_PROC_TERMINATED);
       /* In either case, ACK the "posix_spawn_parent" message, don't necessarily wait for the
        * child to appear. */
       break;
@@ -816,7 +854,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         /* Ack it straight away. */
       } else if (child->state() != firebuild::FB_PROC_FINALIZED) {
         /* We haven't seen the process quitting yet. Defer sending the ACK. */
-        child->set_on_finalized_ack(ack_num, fd_conn);
+        child->set_on_finalized_ack(proc);
         return;
       }
       /* Else we can ACK straight away. */
@@ -849,15 +887,13 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     }
     case FBBCOMM_TAG_open: {
       ::firebuild::ProcessPBAdaptor::msg(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_open *>(fbbcomm_buf), fd_conn, ack_num);
-      /* ACK is sent by the msg handler if needed. */
-      return;
+          reinterpret_cast<const FBBCOMM_Serialized_open *>(fbbcomm_buf));
+      break;
     }
     case FBBCOMM_TAG_dlopen: {
       ::firebuild::ProcessPBAdaptor::msg(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_dlopen *>(fbbcomm_buf), fd_conn, ack_num);
-      /* ACK is sent by the msg handler if needed. */
-      return;
+          reinterpret_cast<const FBBCOMM_Serialized_dlopen *>(fbbcomm_buf));
+      break;
     }
     case FBBCOMM_TAG_close: {
       ::firebuild::ProcessPBAdaptor::msg(proc,
@@ -969,8 +1005,13 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     }
   }
 
-  if (ack_num != 0) {
-    firebuild::ack_msg(fd_conn, ack_num);
+  if (fd_conn < 0) {
+    /* This automatically ACKs if necessary. */
+    shmq_reader_message_done(proc->shmq_reader());
+  } else {
+    if (ack_num != 0) {
+      firebuild::ack_msg(fd_conn, ack_num);
+    }
   }
 }
 
@@ -1175,6 +1216,8 @@ static evutil_socket_t create_listener() {
 }
 
 static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
+  pthread_mutex_lock(&big_mutex);
+
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
   TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%s, ctx=%s", D_FD(fd_conn), D(conn_ctx));
 
@@ -1188,25 +1231,54 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
   if (read_ret < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       /* Try again later. */
+      pthread_mutex_unlock(&big_mutex);
       return;
     }
   }
   if (read_ret <= 0) {
     FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + firebuild::d_fd(fd_conn) +
              " hung up (" + d(proc) + ")");
+
+    /* Connection hung up, meaning that the supervised child no longer exists (has quit, or execed)
+     * (or maybe performed some nasty operation that we don't support which closed the connection).
+     *
+     * There might still be some messages waiting for us in shmq which we'll eventually have to
+     * process. Process them right now, in this thread.
+     *
+     * (Alternatively, we could signal in shmq that the queue is done, and send a semaphore to the
+     * other thread which handles shmq messages, and then that thread would handle them.) */
+    while (proc->state() == firebuild::FB_PROC_RUNNING &&
+          proc->shmq_reader() &&
+          shmq_reader_has_message(proc->shmq_reader())) {
+      const char *fbb_msg_void;
+      shmq_reader_get_message(proc->shmq_reader(), &fbb_msg_void);
+      const FBBCOMM_Serialized *fbb_msg =
+          reinterpret_cast<const FBBCOMM_Serialized *>(fbb_msg_void);
+
+      if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+        FB_DEBUG(firebuild::FB_DEBUG_COMM, "(after eof) handling shmq message for " + d(proc));
+        fbbcomm_serialized_debug(stderr, fbb_msg);
+      }
+
+      proc_ic_msg(fbb_msg, -1, -1, proc);
+    }
+
     delete conn_ctx;
+    pthread_mutex_unlock(&big_mutex);
     return;
   }
 
   do {
     if (buf.length() < sizeof(*header)) {
       /* Header is still incomplete, try again later. */
+      pthread_mutex_unlock(&big_mutex);
       return;
     } else {
       header = reinterpret_cast<const msg_header *>(buf.data());
       full_length = sizeof(*header) + header->msg_size;
       if (buf.length() < full_length) {
         /* Have partial message, more data is needed. */
+        pthread_mutex_unlock(&big_mutex);
         return;
       }
     }
@@ -1233,6 +1305,8 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     }
     buf.discard(full_length);
   } while (buf.length() > 0);
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 
@@ -1254,6 +1328,8 @@ static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
 
 /** Stop listener on SIGCHLD */
 static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
+  pthread_mutex_lock(&big_mutex);
+
   TRACK(firebuild::FB_DEBUG_PROC, "");
 
   auto listener_event = reinterpret_cast<struct event *>(arg);
@@ -1279,10 +1355,14 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
     event_del(sigchild_event);
     event_del(listener_event);
   }
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 
 static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
+  pthread_mutex_lock(&big_mutex);
+
   TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
 
   struct sockaddr_storage remote;
@@ -1301,6 +1381,8 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
     conn_ctx->set_ev(ev);
     event_add(ev, NULL);
   }
+
+  pthread_mutex_unlock(&big_mutex);
 }
 
 static bool running_under_valgrind() {
@@ -1312,6 +1394,81 @@ static bool running_under_valgrind() {
   }
 }
 
+
+/**
+ * Handle one message from one of the shmqs.
+ *
+ * Returns false if no messages were found.
+ *
+ * Factored out from shmq_thread_start_routine() to have nice TRACK() debugging.
+ */
+static bool handle_shmq_messages() {
+  /* Need exclusivity with the other thread reading from the sockets. */
+  pthread_mutex_lock(&big_mutex);
+
+  TRACK(firebuild::FB_DEBUG_COMM, "");
+
+  /* There's no meta data for semaphores, we don't know which intercepted process it came from.
+   * Scan all the running processes, and handle whichever message we first see. */
+  int i = 0;
+  for (firebuild::Process *proc : proc_tree->running_processes()) {
+    if (proc->shmq_reader() &&
+        shmq_reader_has_message(proc->shmq_reader())) {
+      const char *fbb_msg_void;
+      shmq_reader_get_message(proc->shmq_reader(), &fbb_msg_void);
+      const FBBCOMM_Serialized *fbb_msg =
+          reinterpret_cast<const FBBCOMM_Serialized *>(fbb_msg_void);
+
+      if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+        FB_DEBUG(firebuild::FB_DEBUG_COMM, "handling shmq message for " + d(proc));
+        fbbcomm_serialized_debug(stderr, fbb_msg);
+      }
+
+      proc_ic_msg(fbb_msg, -1, -1, proc);
+
+      if (i > 0) {
+        /* Heuristics: Bubble active processes towards the beginning of the array, so we're likely
+         * to find them sooner the next time. */
+        std::swap(proc_tree->running_processes()[i / 2], proc_tree->running_processes()[i]);
+      }
+      pthread_mutex_unlock(&big_mutex);
+      return true;
+    }
+    i++;
+  }
+
+  pthread_mutex_unlock(&big_mutex);
+  return false;
+}
+
+/*
+ * Entry point (a.k.a. "main loop") of the shmq thread.
+ */
+static void *shmq_thread_start_routine(void *arg) {
+  (void)arg;  /* unused */
+
+  /* There's no explicit point where the code can leave this loop.
+   * The thread will be canceled via pthread_cancel(). */
+  while (true) {
+    /* Wait for notification about a new message. (This is a thread cancellation point.) */
+    sem_wait(sema);
+
+    /* Don't unexpectedly cancel this thread while handling messages. */
+    // FIXME is this needed? Perhaps not.
+    // When we see an EOF on a socket, we handle the remaining shmq messages first, and then proceed
+    // to handle the EOF. So when all the processes quit and libevent's main loop quits too, we know
+    // that this thread doesn't do any work anymore.
+    // Is this really true with runaway processes in the game, though? I'm not sure.
+    // Let's stay on the safe side for now.
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+    /* Process one message. */
+    handle_shmq_messages();
+
+    /* Okay to cancel the thread. */
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+  }
+}
 
 int main(const int argc, char *argv[]) {
   char *config_file = NULL;
@@ -1449,6 +1606,7 @@ int main(const int argc, char *argv[]) {
     char *pattern;
     if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {
       perror("asprintf");
+      exit(EXIT_FAILURE);
     }
     fb_tmp_dir = mkdtemp(pattern);
     if (fb_tmp_dir == NULL) {
@@ -1457,6 +1615,14 @@ int main(const int argc, char *argv[]) {
     }
     fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket").c_str());
   }
+
+  struct timespec now;
+  clock_gettime(CLOCK_REALTIME, &now);
+  if (asprintf(&fb_sema_string, "/firebuild-%d-%ld-%09ld", getpid(), now.tv_sec, now.tv_nsec) < 0) {
+    perror("asprintf");
+    exit(EXIT_FAILURE);
+  }
+
   auto env_exec = get_sanitized_env();
 
   ev_base = event_base_new();
@@ -1469,6 +1635,8 @@ int main(const int argc, char *argv[]) {
   event_add(listener_event, NULL);
   sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
   event_add(sigchild_event, NULL);
+
+  sema = sem_open(fb_sema_string, O_CREAT|O_EXCL, 0600, 0);
 
   /* This creates some Pipe objects, so needs ev_base being set up. */
   proc_tree = new firebuild::ProcessTree();
@@ -1501,24 +1669,70 @@ int main(const int argc, char *argv[]) {
     execvpe(argv[optind], argv_exec, env_exec);
     perror("Executing build command failed");
     exit(EXIT_FAILURE);
-  } else {
-    // supervisor process
-
-    bump_limits();
-    /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
-    signal(SIGPIPE, SIG_IGN);
-
-    /* Main loop for processing interceptor messages */
-    event_base_dispatch(ev_base);
-
-    /* Clean up remaining events and the event base. */
-    evutil_closesocket(listener);
-    event_free(listener_event);
-    event_free(sigchild_event);
-    /* Finish all top pipes before event_base_free() frees all their events. */
-    proc_tree->FinishInheritedFdPipes();
-    event_base_free(ev_base);
   }
+
+  /* Supervisor process */
+
+  bump_limits();
+  /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
+  signal(SIGPIPE, SIG_IGN);
+
+  /* Block sigchld so that it'll be blocked in the shmq thread. */
+  sigset_t sigset_sigchld;
+  sigemptyset(&sigset_sigchld);
+  sigaddset(&sigset_sigchld, SIGCHLD);
+  pthread_sigmask(SIG_BLOCK, &sigset_sigchld, NULL);
+
+  /*
+   * We use two different communication channels for each process that we track: a socket (file
+   * descriptor), as well shmq where the message itself is placed in shared memory, and semaphores
+   * control the flow.
+   *
+   * The socket is needed for two reasons. One is to negotiate where the shm will be (it would be
+   * extremely complicated, if possible at all, for the two parties to know the shm name without
+   * coordinating it first, and to synchronize the creating and the opening of this shm). The other
+   * is to know when the process quits, perhaps unexpectedly (we see EOF on the socket, something
+   * which we don't get notified of over shm).
+   *
+   * Shmq is used for the rest for performance reasons, it is noticeably faster than the socket.
+   *
+   * Unfortunately there's no API to wait for either a socket event, or a semaphore event. We
+   * overcome this by having two threads, one listening for each kind. They lock a common mutex to
+   * make sure they run mutually exclusively. This restriction might get somewhat loosened one day.
+   */
+  pthread_t shmq_thread;
+  if (pthread_create(&shmq_thread, NULL, shmq_thread_start_routine, NULL) != 0) {
+    perror("pthread_create");
+    exit(EXIT_FAILURE);
+  }
+
+  /* Unblock sigchld in this thread. */
+  pthread_sigmask(SIG_UNBLOCK, &sigset_sigchld, NULL);
+
+  /* Main loop for processing interceptor messages */
+  event_base_dispatch(ev_base);
+
+  /* The main event loop has quit. Stop and wait for the thread that processes the shmqs. */
+  if (pthread_cancel(shmq_thread) != 0) {
+    perror("pthread_cancel");
+    exit(EXIT_FAILURE);
+  }
+  if (pthread_join(shmq_thread, NULL) != 0) {
+    perror("pthread_join");
+    exit(EXIT_FAILURE);
+  }
+  /* Process any remaining shmq messages. */
+  // FIXME similarly to the comment at pthread_setcancelstate(), I don't think this can happen.
+  // However, it doesn't hurt, let's stay on the safe side for now.
+  while (handle_shmq_messages()) {}
+
+  /* Clean up remaining events and the event base. */
+  evutil_closesocket(listener);
+  event_free(listener_event);
+  event_free(sigchild_event);
+  /* Finish all top pipes before event_base_free() frees all their events. */
+  proc_tree->FinishInheritedFdPipes();
+  event_base_free(ev_base);
 
   if (!proc_tree->root()) {
     fprintf(stderr, "ERROR: Could not collect any information about the build "
@@ -1535,6 +1749,8 @@ int main(const int argc, char *argv[]) {
 
   unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
+  sem_close(sema);
+  sem_unlink(fb_sema_string);
 
   if (running_under_valgrind()) {
     /* keep Valgrind happy */
@@ -1547,6 +1763,7 @@ int main(const int argc, char *argv[]) {
     }
 
     free(fb_conn_string);
+    free(fb_sema_string);
     free(fb_tmp_dir);
     delete(proc_tree);
     delete(firebuild::ignore_locations);

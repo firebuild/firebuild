@@ -23,6 +23,8 @@
 {#  send_msg_condition:  Custom condition to send message             #}
 {#  ack_condition:       Whether to ask for ack 'true', 'false' or    #}
 {#                       '<condition>' (default: 'false')             #}
+{#  channel:             Whether to send the message over 'shmq' or   #}
+{#                       'socket' (default: 'shmq')                   #}
 {#  after_send_lines:    Things to place after sending msg            #}
 {# ------------------------------------------------------------------ #}
 {# Jinja lacks native support for generating multiple files.          #}
@@ -44,6 +46,9 @@
 ### endif
 ### if global_lock is not defined
 ###   set global_lock = 'before'
+### endif
+### if channel is not defined
+###   set channel = 'shmq'
 ### endif
 {#                                                                    #}
 {# --- Template for 'decl.h' ---------------------------------------- #}
@@ -156,7 +161,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###       for (type, name) in types_and_names
 {# It is ugly to check for the variable name to end with "fd", but is simple and works well in practice. #}
 ###         if type == "int" and name[-2:] == "fd"
-  if ({{ name }} == fb_sv_conn) { errno = EBADF; return -1; }
+  if ({{ name }} == fb_sv_conn || {{ name }} == fb_shmq.fd) { errno = EBADF; return -1; }
 ###         endif
 ###       endfor
 ###     endblock
@@ -176,7 +181,13 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   int saved_errno = errno;
 ###     endif
 
-  if (!ic_init_done) fb_ic_load();
+  if (i_am_intercepting) {
+    /* Make sure that the interceptor is full initialized. */
+    if (!ic_init_done) fb_ic_load();
+  } else {
+    /* Make sure that at least the original method pointers are initialized. */
+    if (!ic_init_dlsyms_done) fb_ic_load_dlsyms();
+  }
 
   if (insert_trace_markers) {
     char debug_buf[256];
@@ -247,6 +258,16 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###         if msg
   /* Maybe notify the supervisor */
   if (i_am_intercepting && {{ send_msg_condition }}) {
+###           if channel != 'shmq'
+    /* Make sure there's no pending message in shmq. Do this by sending a barrier
+     * (an empty ACK'ed message) over shmq and waiting for its ACK, if needed. */
+    if (!shmq_writer_queue_is_empty(&fb_shmq)) {
+      FBBCOMM_Builder_barrier ic_msg_barrier;
+      fbbcomm_builder_barrier_init(&ic_msg_barrier);
+      fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg_barrier);
+    }
+###           endif
+
     FBBCOMM_Builder_{{ msg }} ic_msg;
     fbbcomm_builder_{{ msg }}_init(&ic_msg);
 
@@ -282,18 +303,19 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
     if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, errno);
 ###             endif
 ###           endif
+
 ###           if ack_condition
     /* Sending ack is conditional */
     if ({{ ack_condition }}) {
       /* Send and wait for ack */
-      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+      fb_fbbcomm_send_msg_and_check_ack_{{ channel }}(&ic_msg);
     } else {
       /* Send and go on, no ack */
-      fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+      fb_fbbcomm_send_msg_{{ channel }}(&ic_msg);
     }
 ###           else
     /* Send and go on, no ack */
-    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_{{ channel }}(&ic_msg);
 ###           endif
   }
 ###         endif

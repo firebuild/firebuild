@@ -18,7 +18,7 @@
     FBBCOMM_Builder_write_to_inherited ic_msg;
     fbbcomm_builder_write_to_inherited_init(&ic_msg);
     fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
   }
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].notify_on_write = false;

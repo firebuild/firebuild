@@ -13,11 +13,13 @@
 #include <sys/un.h>
 #include <sys/resource.h>
 #include <spawn.h>
+#include <time.h>
 
 #include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/interceptors.h"
 #include "common/firebuild_common.h"
+#include "common/shmq.h"
 
 static void fb_ic_cleanup() __attribute__((destructor));
 
@@ -41,15 +43,24 @@ size_t fb_conn_string_len = 0;
 
 /** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
+shmq_writer_t fb_shmq;
+
+/** Semaphore string to supervisor */
+char * fb_sema_string = NULL;
+
+/** Semaphore to supervisor */
+sem_t * fb_sv_sema = NULL;
 
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
 /** Control for running the initialization exactly once */
 pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
+pthread_once_t ic_init_dlsyms_control = PTHREAD_ONCE_INIT;
 
 /** Fast check for whether interceptor init has been run */
 bool ic_init_done = false;
+bool ic_init_dlsyms_done = false;
 
 /** System locations to not ask ACK for when opening them. */
 string_array system_locations;
@@ -272,27 +283,79 @@ void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint32_t ack_nu
   fb_write(fd, buf, sizeof(msg_header) + len);
 }
 
-/** Send message, delaying all signals in the current thread.
- *  The caller has to take care of thread locking. */
-void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
+/**
+ * Send message over the socket, delaying all signals in the current thread.
+ * The caller has to take care of thread locking.
+ *
+ * Suitable for the initial message (scproc_query).
+ */
+void fb_fbbcomm_send_msg_socket(const void /*FBBCOMM_Builder*/ *ic_msg) {
   thread_signal_danger_zone_enter();
 
-  fb_send_msg(fd, ic_msg, 0);
+  fb_send_msg(fb_sv_conn, ic_msg, 0);
 
   thread_signal_danger_zone_leave();
 }
 
-/** Send message and wait for ACK, delaying all signals in the current thread.
- *  The caller has to take care of thread locking. */
-void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
+/**
+ * Send message over socket and wait for ACK, delaying all signals in the current thread.
+ * The caller has to take care of thread locking.
+ *
+ * Suitable for messages that potentially modify the set of fds that libevent is watching, i.e. fds
+ * related to pipes. These kinds of messages need an ACK because the vast majority of messages are
+ * sent over shmq, and we need to preserve the order of messages across the two channels.
+ */
+void fb_fbbcomm_send_msg_and_check_ack_socket(const void /*FBBCOMM_Builder*/ *ic_msg) {
   thread_signal_danger_zone_enter();
 
   uint32_t ack_num = get_next_ack_id();
-  fb_send_msg(fd, ic_msg, ack_num);
+  fb_send_msg(fb_sv_conn, ic_msg, ack_num);
 
   uint32_t ack_num_resp = 0;
-  fb_recv_msg(&ack_num_resp, NULL, fd);
+  fb_recv_msg(&ack_num_resp, NULL, fb_sv_conn);
   assert(ack_num_resp == ack_num);
+
+  thread_signal_danger_zone_leave();
+}
+
+/**
+ * Send message over shmq, delaying all signals in the current thread.
+ * The caller has to take care of thread locking.
+ *
+ * Shmq is uitable for most of the messages, except for the initial handshake, as well as messages
+ * that potentially modify the set of fds that libevent is watching, i.e. fds related to pipes.
+ */
+void fb_fbbcomm_send_msg_shmq(const void /*FBBCOMM_Builder*/ *ic_msg) {
+  thread_signal_danger_zone_enter();
+
+  size_t size = fbbcomm_builder_measure(ic_msg);
+  char *where = shmq_writer_new_message(&fb_shmq, size);
+  fbbcomm_builder_serialize(ic_msg, where);
+  shmq_writer_send_message(&fb_shmq, false);
+
+  sem_post(fb_sv_sema);
+
+  thread_signal_danger_zone_leave();
+}
+
+/**
+ * Send message over shmq and wait for ACK, delaying all signals in the current thread.
+ * The caller has to take care of thread locking.
+ *
+ * Shmq is uitable for most of the messages, except for the initial handshake, as well as messages
+ * that potentially modify the set of fds that libevent is watching, i.e. fds related to pipes.
+ */
+void fb_fbbcomm_send_msg_and_check_ack_shmq(const void /*FBBCOMM_Builder*/ *ic_msg) {
+  thread_signal_danger_zone_enter();
+
+  size_t size = fbbcomm_builder_measure(ic_msg);
+  char *where = shmq_writer_new_message(&fb_shmq, size);
+  fbbcomm_builder_serialize(ic_msg, where);
+  shmq_writer_send_message(&fb_shmq, true);
+
+  sem_post(fb_sv_sema);
+
+  shmq_writer_wait_for_ack(&fb_shmq);
 
   thread_signal_danger_zone_leave();
 }
@@ -385,14 +448,16 @@ static void atfork_child_handler(void) {
     ic_pid = ic_orig_getpid();
 
     /* Reconnect to supervisor */
-    fb_init_supervisor_conn();
+    char shmq_name[64];
+    fb_init_supervisor_conn(shmq_name);
 
     /* Inform the supervisor about who we are */
     FBBCOMM_Builder_fork_child ic_msg;
     fbbcomm_builder_fork_child_init(&ic_msg);
     fbbcomm_builder_fork_child_set_pid(&ic_msg, ic_pid);
     fbbcomm_builder_fork_child_set_ppid(&ic_msg, getppid());
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fbbcomm_builder_fork_child_set_shmq_name(&ic_msg, shmq_name);
+    fb_fbbcomm_send_msg_and_check_ack_socket(&ic_msg);
   }
 }
 
@@ -439,7 +504,7 @@ void handle_exit(const int status) {
     fbbcomm_builder_exit_set_stime_u(&ic_msg,
         (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
 
     if (i_locked) {
       thread_signal_danger_zone_enter();
@@ -537,6 +602,8 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
     } else {
       /* The fifo has to be kept because the supervisor opens it later. */
     }
+    clear_notify_on_read_write_state(reopen_fd);
+    set_pipe_state(reopen_fd);
   } else {
     int fd;
     sscanf(reopen_fd_fifo, "%d", &fd);
@@ -545,24 +612,76 @@ static void reopen_fd_fifo(const char* fd_fifo_str) {
 #endif
         ic_orig_dup2(fd, reopen_fd);
     assert(dup2_ret == reopen_fd);
+    copy_file_state(reopen_fd, fd);
   }
-}
-
-/**  Set up the main supervisor connection */
-void fb_init_supervisor_conn() {
-  if (fb_conn_string == NULL) {
-    fb_conn_string = strdup(getenv("FB_SOCKET"));
-    fb_conn_string_len = strlen(fb_conn_string);
-  }
-  // reconnect to supervisor
-  ic_orig_close(fb_sv_conn);
-  fb_sv_conn = fb_connect_supervisor(-1);
 }
 
 /**
- * Initialize interceptor's data structures and sync with supervisor
+ * Set up the main supervisor connection
+ *
+ * @param shmq_name caller-supplied large enough buffer where the generated shmq name is placed
+ */
+void fb_init_supervisor_conn(char *shmq_name) {
+  /* Temporarily turn off intercepting, due to the circular dependency mentioned at
+   * fb_ic_init_dlsyms(). */
+  bool intercepting_enabled_save = intercepting_enabled;
+  intercepting_enabled = false;
+
+  if (fb_conn_string == NULL) {
+    /* Initializing for the first time at startup. */
+    fb_conn_string = strdup(getenv("FB_SOCKET"));
+    fb_conn_string_len = strlen(fb_conn_string);
+    fb_sema_string = strdup(getenv("FB_SEMAPHORE"));
+  } else {
+    /* Re-initializing in a fork child, clean up remains of the previous connection. */
+    shmq_writer_fini(&fb_shmq);
+    sem_close(fb_sv_sema);
+    ic_orig_close(fb_sv_conn);
+  }
+
+  /* (Re)connect to the supervisor */
+  fb_sv_conn = fb_connect_supervisor(-1);
+  fb_sv_sema = sem_open(fb_sema_string, 0);
+
+  struct timespec now;
+  ic_orig_clock_gettime(CLOCK_REALTIME, &now);
+  sprintf(shmq_name, "/firebuild-%d-%ld-%09ld.shm",  /* NOLINT(runtime/printf) */
+                     ic_orig_getpid(), now.tv_sec, now.tv_nsec);
+  shmq_writer_init(&fb_shmq, shmq_name);
+
+  intercepting_enabled = intercepting_enabled_save;
+}
+
+/**
+ * Initialize the ic_orig_*() method pointers.
+ *
+ * Initializing the interceptor is a two-pass process, this is pass 1 only, i.e. the weaker version.
+ *
+ * Two passes are needed to break a circular dependency. Prior to connecting to the supervisor we
+ * create shared memory and semaphores. These calls reside in external libraries (if glibc <= 2.33)
+ * and call back to open() and few others under the hood, which are then caught by us. We need to be
+ * able to call their original versions then. That is, we need a state where the ic_orig_*() method
+ * pointers are already initialized with the dlsym() lookup result, while the shared memory and the
+ * semaphores aren't created yet.
+ *
+ * This can be simplified to a single-phase initialization once we require glibc >= 2.34 where
+ * shared memory and semaphores are no longer in external libs.
+ */
+static void fb_ic_init_dlsyms() {
+  init_interceptors();
+  ic_init_dlsyms_done = true;
+}
+
+/**
+ * Initialize interceptor's data structures and sync with supervisor.
+ *
+ * Initializing the interceptor is a two-pass process, this is pass 1+2, i.e. the stronger version.
+ *
+ * See the pass 1 at fb_ic_init_dlsyms() for explanation.
  */
 static void fb_ic_init() {
+  fb_ic_init_dlsyms();
+
   ic_orig_getrusage(RUSAGE_SELF, &initial_rusage);
 
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
@@ -576,13 +695,12 @@ static void fb_ic_init() {
   /* Can't declare orig_signal_handlers as an array because SIGRTMAX isn't a constant */
   orig_signal_handlers = (void (**)(void)) calloc(SIGRTMAX + 1, sizeof (void (*)(void)));
 
-  init_interceptors();
-
   assert(thread_intercept_on == NULL);
   thread_intercept_on = "init";
   insert_debug_msg("initialization-begin");
 
   set_all_notify_on_read_write_states();
+  clear_all_pipe_states();
 
   /* Useful for debugging deadlocks with strace, since the same values appear in futex()
    * if we need to wait for the lock. */
@@ -602,7 +720,8 @@ static void fb_ic_init() {
     env_ld_library_path = strdup(llp);
   }
 
-  fb_init_supervisor_conn();
+  char shmq_name[64];
+  fb_init_supervisor_conn(shmq_name);
 
   pthread_atfork(NULL, NULL, atfork_child_handler);
   on_exit(on_exit_handler, NULL);
@@ -643,8 +762,10 @@ static void fb_ic_init() {
 
   for (char** cursor = env; *cursor != NULL; cursor++) {
     const char *fb_socket = "FB_SOCKET=";
+    const char *fb_sema = "FB_SEMAPHORE=";
     const char *fb_system_locations = "FB_SYSTEM_LOCATIONS=";
     if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0 &&
+        strncmp(*cursor, fb_sema, strlen(fb_sema)) != 0 &&
         strncmp(*cursor, fb_system_locations, strlen(fb_system_locations)) != 0) {
       env_copy[env_copy_len++] = *cursor;
     }
@@ -669,6 +790,7 @@ static void fb_ic_init() {
   string_array_init(&libs);
   dl_iterate_phdr(shared_libs_cb, &libs);
   fbbcomm_builder_scproc_query_set_libs(&ic_msg, (const char **) libs.p);
+  fbbcomm_builder_scproc_query_set_shmq_name(&ic_msg, shmq_name);
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
 
@@ -717,8 +839,39 @@ static void fb_ic_init() {
 }
 
 /**
- * Collect information about process the earliest possible, right
- * when interceptor library loads or when the first interceped call happens
+ * This method basically just calls fb_ic_init_dlsyms(), but makes sure that it's only run once even
+ * if multiple threads reach this point at about the same time. Although it's extremely unlikely for
+ * an app to go multi-threaded at this early stage.
+ *
+ * See fb_ic_init_dlsyms() for further details.
+ */
+void fb_ic_load_dlsyms() {
+  if (!ic_init_dlsyms_done) {
+    int (*orig_pthread_once)(pthread_once_t *, void (*)(void)) = dlsym(RTLD_NEXT, "pthread_once");
+    if (orig_pthread_once) {
+      /* Symbol found means that we are linked to libpthread. Use its method to guarantee that we
+       * initialize exactly once. */
+      (*orig_pthread_once)(&ic_init_dlsyms_control, fb_ic_init_dlsyms);
+    } else  {
+      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded.
+       * We can eliminate this branch once we require glibc >= 2.34. */
+      fb_ic_init_dlsyms();
+    }
+  }
+}
+
+/**
+ * Collect information about process the earliest possible, right when interceptor library loads or
+ * when the first interceped call happens.
+ *
+ * Typically this is run as the first step of app's lifetime, due to the "constructor" attribute.
+ * However, sometimes another library's constructor runs before this method, and if that library's
+ * constructor calls a method that we intercept then we'll invoke this method from that intercepted
+ * call.
+ *
+ * This method basically just calls fb_ic_init(), but makes sure that it's only run once even if
+ * multiple threads reach this point at about the same time. Although it's extremely unlikely for an
+ * app to go multi-threaded at this early stage.
  */
 void fb_ic_load() {
   if (!ic_init_done) {
@@ -728,7 +881,8 @@ void fb_ic_load() {
        * initialize exactly once. */
       (*orig_pthread_once)(&ic_init_control, fb_ic_init);
     } else  {
-      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded. */
+      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded.
+       * We can eliminate this branch once we require glibc >= 2.34. */
       fb_ic_init();
     }
   }
@@ -758,7 +912,7 @@ extern void fb_error(const char* msg) {
   FBBCOMM_Builder_fb_error ic_msg;
   fbbcomm_builder_fb_error_init(&ic_msg);
   fbbcomm_builder_fb_error_set_msg(&ic_msg, msg);
-  fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+  fb_fbbcomm_send_msg_shmq(&ic_msg);
 }
 
 /** Send debug message to supervisor if debug level is at least lvl */
@@ -766,7 +920,7 @@ void fb_debug(const char* msg) {
   FBBCOMM_Builder_fb_debug ic_msg;
   fbbcomm_builder_fb_debug_init(&ic_msg);
   fbbcomm_builder_fb_debug_set_msg(&ic_msg, msg);
-  fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+  fb_fbbcomm_send_msg_shmq(&ic_msg);
 }
 
 

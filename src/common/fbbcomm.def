@@ -28,6 +28,8 @@
       (ARRAY, STRING, "libs"),
       # interceptor's version
       (OPTIONAL, STRING, "version"),
+      # name of the shared memory message queue
+      (REQUIRED, STRING, "shmq_name"),
     ]),
 
     # FireBuild supervisor's response with details of shortcutting.
@@ -62,6 +64,9 @@
       # error message
       (REQUIRED, STRING, "msg"),
     ]),
+
+    # Empty, ACKable message to flush the queue.
+    ("barrier", []),
 
     ("fcntl", [
       # file descriptor
@@ -634,6 +639,8 @@
       (REQUIRED, "pid_t", "pid"),
       # process parent id
       (REQUIRED, "pid_t", "ppid"),
+      # name of the shared memory message queue
+      (REQUIRED, STRING, "shmq_name"),
     ]),
 
     # process that called fork()

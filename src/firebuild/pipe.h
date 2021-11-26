@@ -22,6 +22,7 @@
 #include "firebuild/pipe_recorder.h"
 
 extern event_base * ev_base;
+extern pthread_mutex_t big_mutex;
 
 namespace firebuild {
 

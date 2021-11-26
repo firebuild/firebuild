@@ -14,10 +14,13 @@
 #include "firebuild/file.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/platform.h"
+#include "firebuild/process_tree.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"
 #include "firebuild/utils.h"
+
+extern firebuild::ProcessTree *proc_tree;
 
 namespace firebuild {
 
@@ -143,10 +146,10 @@ void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, i
 }
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
-                         const int fd, const int error, int fd_conn, const int ack_num) {
+                         const int fd, const int error, const bool early_ack) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
-         dirfd, D(ar_name), flags, fd, error, D_FD(fd_conn), ack_num);
+         "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, early_ack=%s",
+         dirfd, D(ar_name), flags, fd, error, D(early_ack));
 
   const FileName* name = get_absolute(dirfd, ar_name);
   if (!name) {
@@ -159,8 +162,11 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
     add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
   }
 
-  if (ack_num != 0) {
-    ack_msg(fd_conn, ack_num);
+  /* For open() and dlopen() we send the shmq ACK as soon as possible.
+   * However, for the initially loaded libraries we can't do this over shmq because the message
+   * arrives on the socket, plus it includes multiple files, plus there's even more thing to do. */
+  if (early_ack) {
+    shmq_reader_maybe_send_early_ack(shmq_reader());
   }
 
   if (!error && !exec_point()->register_parent_directory(name)) {
@@ -885,8 +891,8 @@ void Process::do_finalize() {
 
   /* Now we can ack the previous system()'s second message,
    * or a pending pclose() or wait*(). */
-  if (on_finalized_ack_id_ != -1 && on_finalized_ack_fd_ != -1) {
-    ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
+  if (on_finalized_ack_proc_) {
+    ack_msg(on_finalized_ack_proc_);
   }
 
   reset_file_fd_pipe_refs();
@@ -931,6 +937,7 @@ void Process::finish() {
     reset_file_fd_pipe_refs();
   }
 
+  proc_tree->remove_running_process(this);
   set_state(FB_PROC_TERMINATED);
   maybe_finalize();
 }

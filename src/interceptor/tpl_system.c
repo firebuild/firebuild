@@ -13,7 +13,7 @@
     FBBCOMM_Builder_system ic_msg;
     fbbcomm_builder_system_init(&ic_msg);
     fbbcomm_builder_system_set_cmd(&ic_msg, cmd);
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
   }
 ### endblock before
 
@@ -45,7 +45,7 @@
     fbbcomm_builder_system_ret_set_cmd(&ic_msg, cmd);
     fbbcomm_builder_system_ret_set_ret(&ic_msg, ret);
     fbbcomm_builder_system_ret_set_error_no(&ic_msg, saved_errno);
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
     pthread_mutex_unlock(&ic_system_popen_lock);
   }
 ### endblock send_msg

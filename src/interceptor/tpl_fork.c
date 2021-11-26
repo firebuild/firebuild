@@ -39,7 +39,7 @@
     FBBCOMM_Builder_fork_parent ic_msg;
     fbbcomm_builder_fork_parent_init(&ic_msg);
     fbbcomm_builder_fork_parent_set_pid(&ic_msg, ret);
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
   }
 
   /* Common for all three outcomes: re-enable signal delivery */

@@ -160,7 +160,7 @@ int32_t parse_debug_flags(const std::string& str) {
 
 #ifndef NDEBUG
 std::vector<int> fd_ages;
-int method_tracker_level = 0;
+__thread int method_tracker_level = 0;
 #endif
 
 }  // namespace firebuild

@@ -2,6 +2,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 set_source_files_properties(common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC")
+set_source_files_properties(common/shmq.c PROPERTIES COMPILE_FLAGS "-fPIC")
 set_source_files_properties(fbbcomm.c PROPERTIES COMPILE_FLAGS "-fPIC")
 
 add_custom_command(
@@ -16,7 +17,7 @@ add_custom_command(
 
 add_custom_target(fbbcomm_gen_files ALL DEPENDS fbbcomm.c fbbcomm.h fbbcomm_decode.c)
 
-add_library(common_objs OBJECT common/firebuild_common.c fbbcomm.c)
+add_library(common_objs OBJECT common/firebuild_common.c common/shmq.c fbbcomm.c)
 
 add_subdirectory(interceptor)
 add_subdirectory(firebuild)

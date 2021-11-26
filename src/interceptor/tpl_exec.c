@@ -103,7 +103,7 @@
     fbbcomm_builder_execv_set_stime_u(&ic_msg,
         (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
   }
 
   /* Perform the call. */
@@ -129,6 +129,6 @@
      * successfully waits for it then the supervisor won't incorrectly see it in
      * exec_pending state and won't incorrectly believe that a statically linked binary
      * was execed. See #324 for details. */
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg_and_check_ack_shmq(&ic_msg);
   }
 ### endblock body

@@ -12,6 +12,7 @@ add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c
   DEPENDS generate_interceptors
   tpl.c
+  tpl_close.c
   tpl_dlopen.c
   tpl_error.c
   tpl_exec.c
@@ -56,7 +57,10 @@ add_dependencies(firebuild gen_files fbbcomm_gen_files)
 set_target_properties(firebuild PROPERTIES
   INTERPROCEDURAL_OPTIMIZATION True
   VERSION "0.0.0" SOVERSION 0)
-target_link_libraries(firebuild dl)
+
+# FIXME: pthread and rt aren't needed for glibc >= 2.34,
+# and not linking against those stubs might speed up loading time.
+target_link_libraries(firebuild dl pthread rt)
 target_link_options(firebuild PUBLIC -Wno-strict-overflow)
 
 install(TARGETS firebuild DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -23,6 +23,9 @@
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/utils.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+
 namespace firebuild {
 
 struct subcmd_prof {
@@ -46,6 +49,8 @@ struct fork_child_sock {
   int ppid;
   /** ACK number the process is waiting for */
   int ack_num;
+  /** Name of the shmq that this process will use */
+  std::string shmq_name;
   /** Location to save child's pointer to after it is created */
   Process** fork_child_ref;
 };
@@ -60,10 +65,8 @@ struct exec_child_sock {
 
 /** ACK a parent process is waiting for when the child appears */
 struct pending_parent_ack {
-  /** ACK number the parent is waiting for */
-  int ack_num;
-  /** Connection system/popen/posix_spawn parent is waiting on */
-  int sock;
+  /** The process that will need an ACK over shmq */
+  Process *proc;
 };
 
 class ProcessTree {
@@ -85,9 +88,10 @@ class ProcessTree {
       return NULL;
     }
   }
-  void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
+  void QueueForkChild(int pid, int sock, int ppid, int ack_num, std::string shmq_name,
+                      Process **fork_child_ref) {
     assert(!Pid2ForkChildSock(pid));
-    pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
+    pid2fork_child_sock_[pid] = {sock, ppid, ack_num, shmq_name, fork_child_ref};
   }
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
@@ -95,9 +99,9 @@ class ProcessTree {
   void QueuePosixSpawnChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2posix_spawn_child_sock_[pid] = {sock, incomplete_child};
   }
-  void QueueParentAck(int ppid, int ack, int sock) {
+  void QueueParentAck(int ppid, Process *proc) {
     assert(!PPid2ParentAck(ppid));
-    ppid2pending_parent_ack_[ppid] = {ack, sock};
+    ppid2pending_parent_ack_[ppid] = {proc};
   }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
     auto it = pid2fork_child_sock_.find(pid);
@@ -146,7 +150,7 @@ class ProcessTree {
   void AckParent(const int ppid) {
     const pending_parent_ack *ack = PPid2ParentAck(ppid);
     if (ack) {
-      ack_msg(ack->sock, ack->ack_num);
+      ack_msg(ack->proc);
       DropParentAck(ppid);
     }
   }
@@ -157,6 +161,14 @@ class ProcessTree {
     /* Destruct these Pipe objects, and in turn their recorders, by dropping the last reference. */
     inherited_fd_pipes_.clear();
   }
+
+  void remove_running_process(Process *proc) {
+    auto pos = std::find(running_processes_.begin(), running_processes_.end(), proc);
+    assert(pos != running_processes_.end());
+    running_processes_.erase(pos);
+  }
+  const std::vector<Process *>& running_processes() const {return running_processes_;}
+  std::vector<Process *>& running_processes() {return running_processes_;}
 
  private:
   ExecedProcess *root_ = NULL;
@@ -179,6 +191,9 @@ class ProcessTree {
    *  we get to this point in the parent. The key is the parent's pid. */
   tsl::hopscotch_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
   tsl::hopscotch_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
+  /** The set of processes in FB_PROC_RUNNING state. These are the ones whose shmq area
+   *  we look at for new messages. */
+  std::vector<Process *> running_processes_;
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds
@@ -196,4 +211,7 @@ class ProcessTree {
 };
 
 }  // namespace firebuild
+
+#pragma GCC diagnostic pop
+
 #endif  // FIREBUILD_PROCESS_TREE_H_

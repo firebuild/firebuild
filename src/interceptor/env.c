@@ -17,6 +17,7 @@
 /* Avoid typos in repetitive names */
 #define FB_INSERT_TRACE_MARKERS "FB_INSERT_TRACE_MARKERS"
 #define FB_SOCKET               "FB_SOCKET"
+#define FB_SEMAPHORE            "FB_SEMAPHORE"
 #define LD_LIBRARY_PATH         "LD_LIBRARY_PATH"
 #define LD_PRELOAD              "LD_PRELOAD"
 #define LIBFIREBUILD_SO_LEN     ((int) strlen(LIBFIREBUILD_SO))
@@ -66,6 +67,11 @@ static bool fb_insert_trace_markers_needs_fixup(char **env) {
 static bool fb_socket_needs_fixup(char **env) {
   char *current_value = getenv_from(env, FB_SOCKET);
   return current_value == NULL || strcmp(current_value, fb_conn_string) != 0;
+}
+
+static bool fb_semaphore_needs_fixup(char **env) {
+  char *current_value = getenv_from(env, FB_SEMAPHORE);
+  return current_value == NULL || strcmp(current_value, fb_sema_string) != 0;
 }
 
 static bool ld_library_path_needs_fixup(char **env) {
@@ -121,6 +127,7 @@ int get_env_fixup_size(char **env) {
      We might be counting a slightly upper estimate. */
   ret += strlen(FB_INSERT_TRACE_MARKERS "=1") + 1;
   ret += strlen(FB_SOCKET "=") + strlen(fb_conn_string) + 1;
+  ret += strlen(FB_SEMAPHORE "=") + strlen(fb_sema_string) + 1;
 
   char *e = getenv_from(env, LD_PRELOAD);
   ret += strlen(LD_PRELOAD "=") + (e ? strlen(e) : 0) + 1 + LIBFIREBUILD_SO_LEN + 1;
@@ -158,6 +165,18 @@ static int fixup_fb_socket(char *p) {
   insert_debug_msg("Fixing up FB_SOCKET in the environment");
   int offset;
   sprintf(p, "%s=%s%n", FB_SOCKET, fb_conn_string, &offset);  /* NOLINT */
+  return offset + 1;
+}
+
+/* Places the desired value of the FB_SEMAPHORE env var
+ * (including the "FB_SEMAPHORE=" prefix) at @p.
+ *
+ * Returns the number of bytes placed (including the trailing NUL).
+ */
+static int fixup_fb_semaphore(char *p) {
+  insert_debug_msg("Fixing up FB_SEMAPHORE in the environment");
+  int offset;
+  sprintf(p, "%s=%s%n", FB_SEMAPHORE, fb_sema_string, &offset);  /* NOLINT */
   return offset + 1;
 }
 
@@ -219,6 +238,7 @@ void env_fixup(char **env, void *buf) {
 
   bool fb_insert_trace_markers_fixed_up = false;
   bool fb_socket_fixed_up = false;
+  bool fb_semaphore_fixed_up = false;
   bool ld_library_path_fixed_up = false;
   bool ld_preload_fixed_up = false;
 
@@ -239,6 +259,15 @@ void env_fixup(char **env, void *buf) {
     *buf1++ = buf2;
     buf2 += size;
     fb_socket_fixed_up = true;
+  }
+
+  /* Fix up FB_SEMAPHORE if needed */
+  if (fb_semaphore_needs_fixup(env)) {
+    int size = fixup_fb_semaphore(buf2);
+    assert(size > 0);
+    *buf1++ = buf2;
+    buf2 += size;
+    fb_semaphore_fixed_up = true;
   }
 
   /* Fix up LD_LIBRARY_PATH if needed */
@@ -268,6 +297,7 @@ void env_fixup(char **env, void *buf) {
   for (i = 0; env[i] != NULL; i++) {
     if ((fb_insert_trace_markers_fixed_up && begins_with(env[i], FB_INSERT_TRACE_MARKERS "=")) ||
         (fb_socket_fixed_up && begins_with(env[i], FB_SOCKET "=")) ||
+        (fb_semaphore_fixed_up && begins_with(env[i], FB_SEMAPHORE "=")) ||
         (ld_library_path_fixed_up && begins_with(env[i], LD_LIBRARY_PATH "=")) ||
         (ld_preload_fixed_up && begins_with(env[i], LD_PRELOAD "="))) {
       continue;

@@ -15,6 +15,7 @@
 #include <vector>
 #include <algorithm>
 
+#include "common/shmq.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/execed_process_env.h"
@@ -208,11 +209,10 @@ class Process {
    * @param flags flags of open()
    * @param fd the return value, or -1 if file was dlopen()ed successfully
    * @param error error code of open()
-   * @param fd_conn fd to send ACK on when needed
-   * @param ack_num ACK number to send or 0 if sending ACK is not needed
+   * @param early_ack Whether to send an early ACK
    */
   int handle_open(const int dirfd, const char * const ar_name, const int flags,
-                  const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
+                  const int fd, const int error = 0, bool early_ack = false);
 
   /**
    * Handle file closure in the monitored process
@@ -384,9 +384,8 @@ class Process {
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
-  void set_on_finalized_ack(int id, int fd) {
-    on_finalized_ack_id_ = id;
-    on_finalized_ack_fd_ = fd;
+  void set_on_finalized_ack(Process *proc) {
+    on_finalized_ack_proc_ = proc;
   }
 
   /* For debugging. */
@@ -409,6 +408,8 @@ class Process {
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
    * See #431 for design and rationale. */
   virtual std::string d_internal(const int level = 0) const;
+
+  shmq_reader_t *shmq_reader() {return &shmq_reader_;}
 
  private:
   Process *parent_;
@@ -450,8 +451,9 @@ class Process {
   bool posix_spawn_pending_ {false};
   Process * exec_child_;
   bool any_child_not_finalized();
-  int on_finalized_ack_id_ = -1;
+  Process *on_finalized_ack_proc_ {nullptr};
   int on_finalized_ack_fd_ = -1;
+  shmq_reader_t shmq_reader_ = {};
   /**
    * Handle pipe creation in the monitored process
    * @param fd1 file descriptor to read (-1 if fd1 is not set)

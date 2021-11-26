@@ -17,6 +17,7 @@
 #include <link.h>
 #include <pthread.h>
 #include <dirent.h>
+#include <semaphore.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <spawn.h>
@@ -25,6 +26,7 @@
 #include <sys/stat.h>
 
 #include "common/firebuild_common.h"
+#include "common/shmq.h"
 #include "./fbbcomm.h"
 
 /** A poor man's (plain C) implementation of a hashmap:
@@ -46,10 +48,13 @@ extern int psfas_alloc;
 
 /** This tells whether the supervisor needs to be notified on a read or write
  *  event. The supervisor needs to be notified only on the first of each kind,
- *  and only for file descriptors that were inherited by the process. */
+ *  and only for file descriptors that were inherited by the process.
+ *  Also keeps track if the fd is a pipe, because a pipe closure message needs
+ *  to be sent to the supervisor over the socket. */
 typedef struct {
   bool notify_on_read:1;
   bool notify_on_write:1;
+  bool is_pipe:1;
 } fd_state;
 
 /** file fd states */
@@ -77,13 +82,13 @@ extern void fb_init_supervisor_conn();
 /** Global lock for serializing critical interceptor actions */
 extern pthread_mutex_t ic_global_lock;
 
-/** Send message, delaying all signals in the current thread.
- *  The caller has to take care of thread locking. */
-void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
+/* Send message over socket */
+void fb_fbbcomm_send_msg_socket(const void /*FBBCOMM_Builder*/ *ic_msg);
+void fb_fbbcomm_send_msg_and_check_ack_socket(const void /*FBBCOMM_Builder*/ *ic_msg);
 
-/** Send message and wait for ACK, delaying all signals in the current thread.
- *  The caller has to take care of thread locking. */
-void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
+/* Send message over shmq */
+void fb_fbbcomm_send_msg_shmq(const void /*FBBCOMM_Builder*/ *ic_msg);
+void fb_fbbcomm_send_msg_and_check_ack_shmq(const void /*FBBCOMM_Builder*/ *ic_msg);
 
 /** Connection string to supervisor */
 extern char * fb_conn_string;
@@ -93,12 +98,20 @@ extern size_t fb_conn_string_len;
 
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
+extern shmq_writer_t fb_shmq;
+
+/** Semaphore string to supervisor */
+extern char * fb_sema_string;
+
+/** Semaphore to supervisor */
+extern sem_t * fb_sv_sema;
 
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 extern int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
 /** Fast check for whether interceptor init has been run */
 extern bool ic_init_done;
+extern bool ic_init_dlsyms_done;
 
 extern bool intercepting_enabled;
 
@@ -215,6 +228,7 @@ inline void thread_signal_danger_zone_leave() {
   }
 }
 
+extern void fb_ic_load_dlsyms();
 extern void fb_ic_load() __attribute__((constructor));
 extern void handle_exit(const int status);
 void *pthread_start_routine_wrapper(void *routine_and_arg);
