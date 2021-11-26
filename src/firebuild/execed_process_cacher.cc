@@ -198,12 +198,8 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     add_to_hash_state(state, hash);
   }
 
-  const auto linux_vdso = FileName::Get("linux-vdso.so.1");
   add_to_hash_state(state, proc->libs().size());
   for (const auto lib : proc->libs()) {
-    if (lib == linux_vdso) {
-      continue;
-    }
     if (!hash_cache->get_hash(lib, &hash)) {
       maybe_XXH3_freeState(state);
       return false;
@@ -278,9 +274,6 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     lib_builders.reserve(proc->libs().size());
 
     for (const auto& lib : proc->libs()) {
-      if (lib == linux_vdso) {
-        continue;
-      }
       if (!hash_cache->get_hash(lib, &hash)) {
         maybe_XXH3_freeState(state);
         return false;
