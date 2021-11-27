@@ -93,6 +93,29 @@ bool is_path_at_locations(const char * const path, string_array *location_array)
   return false;
 }
 
+/**
+ * Checks if the file name is canonical, i.e.:
+ * - does not start with "./"
+ * - does not end with "/" or "/."
+ * - does not contain "//" or "/./"
+ * - can contain "/../", since they might point elsewhere if a symlink led to its containing
+ *    directory.
+ *  See #401 for further details and gotchas.
+ *
+ * Returns if the path is in canonical form
+ */
+bool is_canonical(const char * const path, const size_t length) {
+  if (path[0] == '\0') return true;
+  if ((path[0] == '.' && path[1] == '/')
+      || (length >= 2 && path[length - 1] == '/')
+      || (length >= 2 && path[length - 2] == '/' && path[length - 1] == '.')
+      || strstr(path, "//")
+      || strstr(path, "/./")) {
+    return false;
+  }
+  return true;
+}
+
 #ifdef __cplusplus
 }  /* extern "C" */
 #endif

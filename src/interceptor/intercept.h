@@ -134,6 +134,36 @@ extern void insert_end_marker(const char*);
  */
 extern int ic_pid;
 
+/**
+ * Make the filename canonical in place.
+ *
+ * String operation only, does not look at the actual file system.
+ * Removes double slashes, trailing slashes (except if the entire path is "/")
+ * and "." components.
+ * Preserves ".." components, since they might point elsewhere if a symlink led to
+ * its containing directory.
+ * See #401 for further details and gotchas.
+ *
+ * Returns the length of the canonicalized path.
+ */
+size_t make_canonical(char *path, size_t original_length);
+
+/* Note: This macro must be called in the function serializing the FBB message because the buffer
+ * holding the canonical field is allocated on the stack. */
+#define BUILDER_SET_CANONICAL(msg, field) do {                          \
+    const int orig_len = strlen(field);                                 \
+    if (is_canonical(field, orig_len)) {                                \
+      fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, field, \
+                                                        orig_len);      \
+    } else {                                                            \
+      char * const c_buf = alloca(orig_len + 1);                        \
+      memcpy(c_buf, field, orig_len + 1);                               \
+      const int c_len = make_canonical(c_buf, orig_len);                \
+      fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, c_buf, \
+                                                        c_len);         \
+    }                                                                   \
+  } while (0)
+
 /** The method name the current thread is intercepting, or NULL. In case of nested interceptions
  *  (which can happen with signal handlers), it contains the outermost intercepted method. The value
  *  is used for internal assertions and debugging messages only, not for actual business logic. */
