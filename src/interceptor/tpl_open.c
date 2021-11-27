@@ -7,7 +7,8 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (flags & O_CREAT) fbbcomm_builder_" + msg + "_set_mode(&ic_msg, mode);"] %}
+{% set msg_add_fields = ["if (flags & O_CREAT) fbbcomm_builder_" + msg + "_set_mode(&ic_msg, mode);",
+                         "BUILDER_SET_CANONICAL(" + msg + ", file);"] %}
 
 ### block before
   mode_t mode = 0;

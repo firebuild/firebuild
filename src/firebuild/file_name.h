@@ -102,6 +102,7 @@ extern std::vector<const FileName*>* system_locations;
 inline const FileName* FileName::Get(const char * const name, ssize_t length,
                                      bool force_set_system_location = false) {
   FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false, false);
+  assert(is_canonical(tmp_file_name.name_, tmp_file_name.length_));
   auto it = db_->find(tmp_file_name);
   if (it != db_->end()) {
     return &*it;

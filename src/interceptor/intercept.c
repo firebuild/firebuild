@@ -297,6 +297,130 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
   thread_signal_danger_zone_leave();
 }
 
+/**
+ * Make the filename canonical in place.
+ *
+ * String operation only, does not look at the actual file system.
+ * Removes double slashes, trailing slashes (except if the entire path is "/")
+ * and "." components.
+ * Preserves ".." components, since they might point elsewhere if a symlink led to
+ * its containing directory.
+ * See #401 for further details and gotchas.
+ *
+ * Returns the length of the canonicalized path.
+ */
+size_t make_canonical(char *path, size_t original_length) {
+  char *src = path, *dst = path;  /* dst <= src all the time */
+  bool add_slash = true;
+
+  if (path[0] == '\0') return 0;
+
+  if (!(path[0] == '.' && path[1] == '/')) {
+    char *a = strstr(path, "//");
+    char *b = strstr(path, "/./");
+    if (a == NULL && b == NULL) {
+      /* This is the quick code path for most of the well-behaved paths:
+       * doesn't start with "./", doesn't contain "//" or "/./".
+       * If a path passes this check then the only thing that might need
+       * fixing is a trailing "/" or "/.". */
+      size_t len = original_length;
+      if (len >= 2 && path[len - 1] == '.' && path[len - 2] == '/') {
+        /* Strip the final "." if the path ends in "/.". */
+        len--;
+        path[len] = '\0';
+      }
+      if (len >= 2 && path[len - 1] == '/') {
+        /* Strip the final "/" if the path ends in "/" and that's not the entire path. */
+        len--;
+        path[len] = '\0';
+      }
+      /* The quick code path is done here. */
+      return len;
+    }
+    /* Does not start with "./", but contains at least a "//" or "/./".
+     * Everything is fine up to that point. Fast forward src and dst. */
+    if (a != NULL && b != NULL) {
+      src = dst = a < b ? a : b;
+    } else if (a != NULL) {
+      src = dst = a;
+    } else {
+      src = dst = b;
+    }
+  } else {
+    /* Starts with "./", needs fixing from the beginning. */
+    src++;
+    add_slash = false;  /* Don't add "/" to dst when skipping the first one(s) in src. */
+  }
+
+  while (src[0] != '\0') {
+    /* Skip through a possible run of slashes and non-initial "." components, e.g. "//././". */
+    if (src[0] == '/') {
+      while (src[0] == '/' || (src[0] == '.' && (src[1] == '/' || src[1] == '\0'))) src++;
+      if (add_slash) {
+        *dst++ = '/';
+      }
+    }
+    /* Handle a regular (not ".") component. */
+    while (src[0] != '/' && src[0] != '\0') {
+      *dst++ = *src++;
+    }
+    add_slash = true;
+  }
+
+  /* If got empty path then it should be a "." instead. */
+  if (dst == path) {
+    *dst++ = '.';
+  }
+  /* Strip trailing slash, except if the entire path is "/". */
+  if (dst > path + 1 && dst[-1] == '/') {
+    dst--;
+  }
+
+  *dst = '\0';
+  return dst - path;
+}
+
+#if 0  /* unittests for make_canonical() */
+
+/* Macro so that assert() reports useful line numbers. */
+#define test(A, B) { \
+  char *str = strdup(A); \
+  make_canonical(str, strlen(str)); \
+  if (strcmp(str, B)) { \
+    fprintf(stderr, "Error:  input: %s\n", A); \
+    fprintf(stderr, "     expected: %s\n", B); \
+    fprintf(stderr, "  got instead: %s\n", str); \
+  } \
+}
+
+int main() {
+  test("/", "/");
+  test("/etc/hosts", "/etc/hosts");
+  test("/usr/include/vte-2.91/vte/vteterminal.h", "/usr/include/vte-2.91/vte/vteterminal.h");
+  test("/usr/bin/", "/usr/bin");
+  test("/usr/bin/.", "/usr/bin");
+  test("/usr/./bin", "/usr/bin");
+  test("/./usr/bin", "/usr/bin");
+  test("//", "/");
+  test("", "");
+  test(".", ".");
+  test("/.", "/");
+  test("./", ".");
+  test("/./././", "/");
+  test("./././.", ".");
+  test("//foo//bar//", "/foo/bar");
+  test("/././foo/././bar/././", "/foo/bar");
+  test("///.//././/.///foo//.//bar//.", "/foo/bar");
+  test("////foo/../bar", "/foo/../bar");
+  test("/foo/bar/../../../../../", "/foo/bar/../../../../..");
+  test("/.foo/.bar/..quux", "/.foo/.bar/..quux");
+  test("foo", "foo");
+  test("foo/bar", "foo/bar");
+  test("././foo/./bar/./.", "foo/bar");
+}
+
+#endif  /* unittests for canonicalize_path() */
+
 /** Compare pointers to char* like strcmp() for char* */
 static int cmpstringpp(const void *p1, const void *p2) {
   /* The actual arguments to this function are "pointers to
@@ -336,8 +460,9 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
     /* FIXME does this really happen? */
     return 0;
   }
+  const size_t len = strlen(info->dlpi_name);
   const char *libfirebuild = "/" LIBFIREBUILD_SO;
-  if (strlen(info->dlpi_name) >= strlen(libfirebuild) &&
+  if (len >= strlen(libfirebuild) &&
     strcmp(info->dlpi_name + strlen(info->dlpi_name)
            - strlen(libfirebuild), libfirebuild) == 0) {
     /* This is internal to Firebuild, filter it out. */
@@ -348,7 +473,15 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
     return 0;
   }
 
-  string_array_append(array, (/* non-const */ char *) info->dlpi_name);
+  if (is_canonical(info->dlpi_name, len)) {
+    string_array_append(array, (/* non-const */ char *) info->dlpi_name);
+  } else {
+    char * canonical_name = malloc(len + 1);
+    memcpy(canonical_name, info->dlpi_name, len + 1);
+    make_canonical(canonical_name, len);
+    string_array_append(array, canonical_name);
+    // TODO(rbalint) this leaks canonical_name
+  }
   return 0;
 }
 
@@ -631,7 +764,7 @@ static void fb_ic_init() {
 
   const char *executed_path = (const char*)getauxval(AT_EXECFN);
   if (executed_path) {
-    fbbcomm_builder_scproc_query_set_executed_path(&ic_msg, executed_path);
+    BUILDER_SET_CANONICAL(scproc_query, executed_path);
   }
 
   /* make a sorted and filtered copy of env */

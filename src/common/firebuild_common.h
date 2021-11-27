@@ -49,6 +49,19 @@ void voidp_array_deep_free(voidp_array *array, void (*fn_free)(void *));
 
 bool is_path_at_locations(const char *path, string_array *prefix_array);
 
+/**
+ * Checks if the file name is canonical, i.e.:
+ * - does not start with "./"
+ * - does not end with "/" or "/."
+ * - does not contain "//" or "/./"
+ * - can contain "/../", since they might point elsewhere if a symlink led to its containing
+ *    directory.
+ *  See #401 for further details and gotchas.
+ *
+ * Returns if the path is in canonical form
+ */
+bool is_canonical(const char * const path, const size_t length);
+
 static inline bool is_rdonly(int flags) { return ((flags & O_ACCMODE) == O_RDONLY); }
 static inline bool is_wronly(int flags) { return ((flags & O_ACCMODE) == O_WRONLY); }
 static inline bool is_rdwr(int flags)   { return ((flags & O_ACCMODE) == O_RDWR); }

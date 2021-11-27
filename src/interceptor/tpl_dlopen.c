@@ -19,6 +19,7 @@
   if (ret != NULL) {
     struct link_map *map;
     if (dlinfo(ret, RTLD_DI_LINKMAP, &map) == 0) {
+      /* This is also expected to be in canonical form. */
       absolute_filename = map->l_name;
     }
   }
