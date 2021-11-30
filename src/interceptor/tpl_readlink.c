@@ -20,6 +20,5 @@
       ret_path[len] = '\0';
       /* Returned path is assumed to be canonical.*/
       fbbcomm_builder_{{ msg }}_set_ret_path(&ic_msg, ret_path);
-      BUILDER_SET_CANONICAL({{msg}}, path);
     }
 ### endblock set_fields
