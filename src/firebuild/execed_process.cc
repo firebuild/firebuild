@@ -340,37 +340,6 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   return true;
 }
 
-/**
- * Register that the parent (a.k.a. dirname) of the given path does exist and is a directory, and
- * bubbles it upwards to the root. See #259 for rationale.
- * To be called on the exec_point of a non-shortcutted process when something is successfully done
- * to the given file.
- */
-bool ExecedProcess::register_parent_directory(const FileName *name) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
-
-  /* name is canonicalized, so just simply strip the last component */
-  ssize_t slash_pos = name->length() - 1;
-  for (; slash_pos >= 0; slash_pos--) {
-    if (name->c_str()[slash_pos] == '/') {
-      break;
-    }
-  }
-
-  if (slash_pos == 0) {
-    /* don't bother registering "/" */
-    return true;
-  } else if (slash_pos == -1) {
-    return false;
-  }
-
-  char* parent_name = reinterpret_cast<char*>(alloca(slash_pos + 1));
-  memcpy(parent_name, name->c_str(), slash_pos);
-  parent_name[slash_pos] = '\0';
-
-  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage::Get(ISDIR));
-}
-
 /* Find and apply shortcut */
 bool ExecedProcess::shortcut() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");

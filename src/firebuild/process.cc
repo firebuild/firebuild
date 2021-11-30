@@ -163,12 +163,6 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
     ack_msg(fd_conn, ack_num);
   }
 
-  if (!error && !exec_point()->register_parent_directory(name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register an implicit parent directory", *name);
-    return -1;
-  }
-
   if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     return -1;
@@ -255,12 +249,6 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
   }
 
   if (!error) {
-    if (!exec_point()->register_parent_directory(name)) {
-      exec_point()->disable_shortcutting_bubble_up(
-          "Could not register the implicit parent directory of the file", *name);
-      return -1;
-    }
-
     // FIXME When a directory is removed, register that it was an _empty_ directory
     const FileUsage* fu = FileUsage::Get(flags & AT_REMOVEDIR ? ISDIR : ISREG, true);
     if (!exec_point()->register_file_usage(name, fu)) {
@@ -287,12 +275,6 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int
   if (!name) {
     // FIXME don't disable shortcutting if mkdirat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to mkdirat()");
-    return -1;
-  }
-
-  if (!error && !exec_point()->register_parent_directory(name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register the implicit parent directory", *name);
     return -1;
   }
 
@@ -452,17 +434,6 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
       !S_ISREG(st.st_mode)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the renaming of non-regular file", *old_name);
-    return -1;
-  }
-
-  if (!exec_point()->register_parent_directory(old_name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register the implicit parent directory", *old_name);
-    return -1;
-  }
-  if (!exec_point()->register_parent_directory(new_name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register the implicit parent directory", *new_name);
     return -1;
   }
 

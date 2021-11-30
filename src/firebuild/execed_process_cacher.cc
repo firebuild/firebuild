@@ -704,6 +704,80 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
   return true;
 }
 
+static void in_place_dirname(char * const path, size_t* const len) {
+  /* name is canonicalized and absolute, so just simply strip the last component */
+  if (*len == 0) {
+    return;
+  }
+  (*len)--;
+  for (; *len > 0; (*len)--) {
+    if (path[*len] == '/') {
+      if (*len > 1) {
+        path[*len] = '\0';
+      } else {
+        /* keep top '/' */
+        path[*len + 1] = '\0';
+      }
+      return;
+    }
+  }
+}
+
+bool is_dir_created(const char * const dir, const FBBSTORE_Serialized_process_outputs *outputs) {
+  const size_t dir_count = fbbstore_serialized_process_outputs_get_path_isdir_count(outputs);
+  for (size_t i = 0; i < dir_count; i++) {
+    const FBBSTORE_Serialized *dir_generic =
+        fbbstore_serialized_process_outputs_get_path_isdir_at(outputs, i);
+    assert_cmp(fbbstore_serialized_get_tag(dir_generic), ==, FBBSTORE_TAG_file);
+    const FBBSTORE_Serialized_file *created_dir =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
+    if (strcmp(fbbstore_serialized_file_get_path(created_dir), dir) == 0) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+#define ENSURE_PARENT_DIR(f, statbuf, outputs) do {                     \
+    size_t parent_dir_len = fbbstore_serialized_file_get_path_len(f);   \
+    char* parent_dir =                                                  \
+        reinterpret_cast<char*>(alloca(parent_dir_len + 1));            \
+    memcpy(parent_dir, fbbstore_serialized_file_get_path(f),            \
+           parent_dir_len + 1);                                         \
+    in_place_dirname(parent_dir, &parent_dir_len);                      \
+    if (stat64(parent_dir, &statbuf) == -1 || !S_ISDIR(st.st_mode)) {   \
+      if (!is_dir_created(parent_dir, outputs)) {                       \
+        return false;                                                   \
+      }                                                                 \
+    }                                                                   \
+  } while (0)
+
+/**
+ * Check whether the given ProcessInputs matches the file system's
+ * current contents.
+ */
+static bool po_applicable(const FBBSTORE_Serialized_process_outputs *po) {
+  size_t i;
+  struct stat64 st;
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_isreg_with_hash_count(po);
+       i++) {
+    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
+        (fbbstore_serialized_process_outputs_get_path_isreg_with_hash_at(po, i));
+    ENSURE_PARENT_DIR(file, st, po);
+  }
+  for (i = 0; i < fbbstore_serialized_process_outputs_get_path_isdir_count(po);
+       i++) {
+    const FBBSTORE_Serialized *dir_generic =
+        fbbstore_serialized_process_outputs_get_path_isdir_at(po, i);
+    assert_cmp(fbbstore_serialized_get_tag(dir_generic), ==, FBBSTORE_TAG_file);
+    const FBBSTORE_Serialized_file *created_dir =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
+    ENSURE_PARENT_DIR(created_dir, st, po);
+  }
+  return true;
+}
+
 /**
  * Look up the cache for an entry describing what this process did the
  * last time.
@@ -753,6 +827,17 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
 
     if (pi_matches_fs(inputs, subkey)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
+
+      const FBBSTORE_Serialized *outputs_fbb =
+          fbbstore_serialized_process_inputs_outputs_get_outputs(candidate_inouts);
+      assert_cmp(fbbstore_serialized_get_tag(outputs_fbb), ==, FBBSTORE_TAG_process_outputs);
+      const FBBSTORE_Serialized_process_outputs *outputs =
+          reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>(outputs_fbb);
+      if (!po_applicable(outputs)) {
+        continue;
+      }
+
+
       count++;
       if (count == 1) {
         *inouts_buf = candidate_inouts_buf;
