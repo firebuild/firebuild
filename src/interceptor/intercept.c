@@ -58,6 +58,10 @@ char * system_locations_env_str;
 
 bool intercepting_enabled = true;
 
+/** Current working directory as reported to the supervisor */
+char ic_cwd[CWD_BUFSIZE] = {0};
+size_t ic_cwd_len = 0;
+
 /**
  * Stored PID
  * When getpid() returns a different value, we missed a fork() :-)
@@ -747,10 +751,10 @@ static void fb_ic_init() {
   ic_pid = pid = ic_orig_getpid();
   ppid = ic_orig_getppid();
 
-  char cwd_buf[CWD_BUFSIZE];
-  if (ic_orig_getcwd(cwd_buf, CWD_BUFSIZE) == NULL) {
+  if (ic_orig_getcwd(ic_cwd, sizeof(ic_cwd)) == NULL) {
     assert(0 && "getcwd() returned NULL");
   }
+  ic_cwd_len = strlen(ic_cwd);
 
   FBBCOMM_Builder_scproc_query ic_msg;
   fbbcomm_builder_scproc_query_init(&ic_msg);
@@ -759,7 +763,7 @@ static void fb_ic_init() {
 
   fbbcomm_builder_scproc_query_set_pid(&ic_msg, pid);
   fbbcomm_builder_scproc_query_set_ppid(&ic_msg, ppid);
-  fbbcomm_builder_scproc_query_set_cwd(&ic_msg, cwd_buf);
+  fbbcomm_builder_scproc_query_set_cwd(&ic_msg, ic_cwd);
   fbbcomm_builder_scproc_query_set_arg(&ic_msg, (const char **) argv);
 
   const char *executed_path = (const char*)getauxval(AT_EXECFN);

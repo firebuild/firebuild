@@ -37,5 +37,19 @@
         return pipe2(pipe_fds, flags);
         break;
       }
+    case SYS_chdir:
+      {
+        char* path = va_arg(ap, char*);
+        va_end(ap);
+        return chdir(path);
+        break;
+      }
+    case SYS_fchdir:
+      {
+        int fd = va_arg(ap, int);
+        va_end(ap);
+        return fchdir(fd);
+        break;
+      }
   }
 ### endblock no_intercept

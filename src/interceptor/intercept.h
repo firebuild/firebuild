@@ -65,6 +65,10 @@ extern pthread_mutex_t ic_system_popen_lock;
 /** buffer size for getcwd */
 #define CWD_BUFSIZE 4096
 
+/** Current working directory as reported to the supervisor */
+extern char ic_cwd[CWD_BUFSIZE];
+extern size_t ic_cwd_len;
+
 /** Reset globally maintained information about intercepted functions */
 extern void reset_fn_infos();
 
@@ -148,21 +152,44 @@ extern int ic_pid;
  */
 size_t make_canonical(char *path, size_t original_length);
 
-/* Note: This macro must be called in the function serializing the FBB message because the buffer
- * holding the canonical field is allocated on the stack. */
-#define BUILDER_SET_CANONICAL(msg, field) do {                          \
-    const int orig_len = strlen(field);                                 \
-    if (is_canonical(field, orig_len)) {                                \
-      fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, field, \
-                                                        orig_len);      \
+#define BUILDER_SET_CANONICAL2(msg, field, make_abs) do {               \
+  const int orig_len = strlen(field);                                   \
+  const bool fix_abs = make_abs && field[0] != '/';                     \
+  const bool canonical = is_canonical(field, orig_len);                 \
+  if (!fix_abs && canonical) {                                          \
+    fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, field,   \
+                                                      orig_len);        \
+  } else if (fix_abs                                                    \
+             && (orig_len == 0                                          \
+                 || (orig_len == 1 && field[0] == '.'))) {              \
+    fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, ic_cwd,  \
+                                                      ic_cwd_len);      \
+  } else {                                                              \
+    char * c_buf =                                                      \
+        alloca(orig_len + (fix_abs ? (ic_cwd_len + 2) : 1));            \
+    int c_len;                                                          \
+    if (fix_abs) {                                                      \
+      memcpy(c_buf, ic_cwd, ic_cwd_len);                                \
+      c_buf[ic_cwd_len] = '/';                                          \
+      memcpy(&c_buf[ic_cwd_len + 1], field, orig_len + 1);              \
+      c_len =                                                           \
+          make_canonical(&c_buf[ic_cwd_len + 1], orig_len)              \
+          + ic_cwd_len + 1;                                             \
     } else {                                                            \
-      char * const c_buf = alloca(orig_len + 1);                        \
       memcpy(c_buf, field, orig_len + 1);                               \
-      const int c_len = make_canonical(c_buf, orig_len);                \
-      fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, c_buf, \
-                                                        c_len);         \
+      c_len = make_canonical(c_buf, orig_len);                          \
     }                                                                   \
-  } while (0)
+    fbbcomm_builder_##msg##_set_##field##_with_length(&ic_msg, c_buf,   \
+                                                      c_len);           \
+  }                                                                     \
+} while (0)
+
+/* Note: These macros must be called in the function serializing the FBB message because the buffer
+ * holding the canonical field is allocated on the stack. */
+#define BUILDER_SET_ABSOLUTE_CANONICAL(msg, field) BUILDER_SET_CANONICAL2(msg, field, true)
+#define BUILDER_SET_CANONICAL(msg, field) BUILDER_SET_CANONICAL2(msg, field, false)
+#define BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(msg, dirfd, field)   \
+  BUILDER_SET_CANONICAL2(msg, field, (dirfd == AT_FDCWD));
 
 /** The method name the current thread is intercepting, or NULL. In case of nested interceptions
  *  (which can happen with signal handlers), it contains the outermost intercepted method. The value
