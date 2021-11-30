@@ -187,7 +187,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
   len += 2 * msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);  /* we'll build an alternating list of offsets and lengths */
   ADD_PADDING_LEN(len);
   for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
-    len += strlen({{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msgbldr, idx)) + 1;
+    len += {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(msgbldr, idx) + 1;
     ADD_PADDING_LEN(len);
   }
 ###     endif
@@ -301,8 +301,8 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
     offset += size;
     PAD(dst, offset);
     for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
-      const char *str = {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msgbldr, idx);
-      fbb_size_t len = strlen(str);
+      fbb_size_t len;
+      const char *str = {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(msgbldr, idx, &len);
       size = len + 1;
       *hops++ = offset;  /* build up an alternating list of offsets and lengths */
       *hops++ = len;

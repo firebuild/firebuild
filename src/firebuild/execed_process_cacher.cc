@@ -97,13 +97,6 @@ static Hash state_to_hash(XXH3_state_t* state) {
   return Hash(digest);
 }
 
-/* Adaptor from C++ std::vector<std::string> to FBB's string array */
-static const char *string_vector_item_fn(int i, const void *user_data) {
-  const std::vector<std::string> *strs =
-      reinterpret_cast<const std::vector<std::string> *>(user_data);
-  return (*strs)[i].c_str();
-}
-
 /* Adaptor from C++ std::vector<FBBFP_Builder_file> to FBB's FBB array */
 static const FBBFP_Builder *fbbfp_builder_file_vector_item_fn(int i, const void *user_data) {
   const std::vector<FBBFP_Builder_file> *fbbs =
@@ -220,8 +213,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     fbbfp_builder_process_fingerprint_init(&fp);
 
     fbbfp_builder_process_fingerprint_set_wd(&fp, proc->initial_wd()->c_str());
-    fbbfp_builder_process_fingerprint_set_args_item_fn(&fp, proc->args().size(),
-                                                       string_vector_item_fn, &proc->args());
+    fbbfp_builder_process_fingerprint_set_args(&fp, proc->args());
 
     /* Env vars are already sorted by the interceptor, but we need to do some filtering */
     std::vector<const char *> c_env;
@@ -361,7 +353,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       in_system_path_isreg_with_hash,
       in_path_isdir_with_hash,
       in_system_path_isdir_with_hash;
-  std::vector<const char *> in_path_isreg,
+  std::vector<cstring_view> in_path_isreg,
       in_path_isdir,
       in_path_notexist_or_isreg,
       in_path_notexist_or_isreg_empty,
@@ -393,7 +385,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         break;
       }
       case ISREG:
-        in_path_isreg.push_back(filename->c_str());
+        in_path_isreg.push_back({filename->c_str(), filename->length()});
         break;
       case ISDIR_WITH_HASH: {
         if (filename->is_in_system_location()) {
@@ -404,16 +396,16 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         break;
       }
       case ISDIR:
-        in_path_isdir.push_back(filename->c_str());
+        in_path_isdir.push_back({filename->c_str(), filename->length()});
         break;
       case NOTEXIST_OR_ISREG:
-        in_path_notexist_or_isreg.push_back(filename->c_str());
+        in_path_notexist_or_isreg.push_back({filename->c_str(), filename->length()});
         break;
       case NOTEXIST_OR_ISREG_EMPTY:
-        in_path_notexist_or_isreg_empty.push_back(filename->c_str());
+        in_path_notexist_or_isreg_empty.push_back({filename->c_str(), filename->length()});
         break;
       case NOTEXIST:
-        in_path_notexist.push_back(filename->c_str());
+        in_path_notexist.push_back({filename->c_str(), filename->length()});
         break;
       default:
         assert(false);
@@ -518,7 +510,6 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       in_path_notexist_or_isreg_empty);
   fbbstore_builder_process_inputs_set_path_notexist(&pi,
       in_path_notexist);
-
   fbbstore_builder_process_outputs_set_path_isreg_with_hash_item_fn(&po,
       out_path_isreg_with_hash.size(),
       file_item_fn,
