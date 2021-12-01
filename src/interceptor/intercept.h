@@ -272,6 +272,10 @@ inline void thread_signal_danger_zone_leave() {
   }
 }
 
+/** Take the global lock if the thread does not hold it already */
+void grab_global_lock(bool *i_locked, const char * const function_name);
+void release_global_lock();
+
 extern void fb_ic_load() __attribute__((constructor));
 extern void handle_exit(const int status);
 void *pthread_start_routine_wrapper(void *routine_and_arg);
