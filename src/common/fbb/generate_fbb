@@ -57,6 +57,15 @@ def gen_fbb(params):
         f.write(rendered)
       os.rename(filename + tmpsuffix, filename)
 
+      # Generate the same file with both .c and .cc extension, so that cmake can
+      # easily compile the C and C++ variants separately.
+      if extension == ".c":
+        extension = ".cc"
+        filename = outdir + "/" + namespace + extension
+        with open(filename + tmpsuffix, "w") as f:
+          f.write(rendered)
+        os.rename(filename + tmpsuffix, filename)
+
 with open("" + namespace + ".def", "r") as f:
   params = eval(f.read())
   gen_fbb(params)
