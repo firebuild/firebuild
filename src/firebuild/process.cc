@@ -163,7 +163,11 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const int 
     ack_msg(fd_conn, ack_num);
   }
 
-  if (!error && !exec_point()->register_parent_directory(name)) {
+  /* Registering parent directory is obsolete when the file is opened as read-only
+   * or without O_CREAT because it must have existed before the call.
+   * Even with O_CREAT the file could exist before, but register parent to stay on the safe side. */
+  if (!error && ((flags & O_ACCMODE) != O_RDONLY) && (flags & O_CREAT)
+      && !exec_point()->register_parent_directory(name)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register an implicit parent directory", *name);
     return -1;
@@ -255,11 +259,11 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
   }
 
   if (!error) {
-    if (!exec_point()->register_parent_directory(name)) {
-      exec_point()->disable_shortcutting_bubble_up(
-          "Could not register the implicit parent directory of the file", *name);
-      return -1;
-    }
+    /* There is no need to call register_parent_directory().
+     * If the process created the file to unlink it is already registered and if it was present
+     * before the process started then registering the file to unlink already implies the existence
+     * of the parent dir.
+     */
 
     // FIXME When a directory is removed, register that it was an _empty_ directory
     const FileUsage* fu = FileUsage::Get(flags & AT_REMOVEDIR ? ISDIR : ISREG, true);
@@ -455,11 +459,7 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
     return -1;
   }
 
-  if (!exec_point()->register_parent_directory(old_name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register the implicit parent directory", *old_name);
-    return -1;
-  }
+  /* No need to register the parent dir of old_name, registering new_name should be enough. */
   if (!exec_point()->register_parent_directory(new_name)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the implicit parent directory", *new_name);
