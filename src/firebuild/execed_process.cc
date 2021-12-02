@@ -258,11 +258,6 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
   }
 
-  if (name->is_at_locations(ignore_locations)) {
-    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
-    return true;
-  }
-
   const FileUsage *fu = nullptr;
   auto it = file_usages_.find(name);
   if (it != file_usages_.end()) {
@@ -290,6 +285,12 @@ bool ExecedProcess::register_file_usage(const FileName *name,
       }
     }
   } else {
+    /* Checking only here because files at ignore locations would never be added, thus found. */
+    if (name->is_at_locations(ignore_locations)) {
+      FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
+      return true;
+    }
+
     /* The process opens this file for the first time. Compute whatever
      * we need to know about its initial state. Use that same object to
      * propagate the changes upwards. */
