@@ -16,8 +16,6 @@
 #include "firebuild/execed_process.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
-#include "firebuild/hashed_fbb_file_vector.h"
-#include "firebuild/hashed_fbb_string_vector.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
 
@@ -81,11 +79,6 @@ static void add_to_hash_state(XXH3_state_t* state, const std::string& str) {
  */
 static void add_to_hash_state(XXH3_state_t* state, const Hash& hash) {
   if (XXH3_128bits_update(state, hash.get_ptr(), Hash::hash_size()) == XXH_ERROR) {
-    abort();
-  }
-}
-static void add_to_hash_state(XXH3_state_t* state, const XXH128_hash_t& hash) {
-  if (XXH3_128bits_update(state, &hash, sizeof(XXH128_hash_t)) == XXH_ERROR) {
     abort();
   }
 }
@@ -313,15 +306,29 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   }
 }
 
-void sort_and_add_to_hash_state(HashedFbbStringVector* hashed_vec,
-                                XXH3_state_t* hash_state) {
-  hashed_vec->sort_hashes();
-  add_to_hash_state(hash_state, hashed_vec->hash());
+static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
+                               const Hash& content_hash, const int mode = -1) {
+    FBBSTORE_Builder_file& new_file = files->emplace_back();
+    fbbstore_builder_file_init(&new_file);
+    fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+    fbbstore_builder_file_set_hash(&new_file, content_hash.get());
+    if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
 }
 
-void sort_and_add_to_hash_state(HashedFbbFileVector* hashed_vec, XXH3_state_t* hash_state) {
-  hashed_vec->sort_hashes();
-  add_to_hash_state(hash_state, hashed_vec->hash());
+static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
+                               const FileUsage* fu) {
+  add_file_with_hash(files, file_name, fu->initial_hash());
+}
+
+static void add_file_with_mode(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
+                               const int mode = -1) {
+  add_file_with_hash(files, file_name, Hash(), mode);
+}
+
+static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
+  const std::vector<FBBSTORE_Builder_file>* fbb_file_vector =
+      reinterpret_cast<const std::vector<FBBSTORE_Builder_file> *>(user_data);
+  return reinterpret_cast<const FBBSTORE_Builder *>(&(*fbb_file_vector)[idx]);
 }
 
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
@@ -341,35 +348,31 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   Hash fingerprint = fingerprints_[proc];
-#ifdef XXH_INLINE_ALL
-  XXH3_state_t state_struct;
-  XXH3_state_t* inouts_hash_state = &state_struct;
-#else
-  XXH3_state_t* inouts_hash_state = XXH3_createState();
-#endif
-  if (XXH3_128bits_reset_withSeed(inouts_hash_state, kFingerprintVersion) == XXH_ERROR) {
-    abort();
-  }
 
   /* Go through the files the process opened for reading and/or writing.
    * Construct the cache entry parts describing the initial and the final state
    * of them. */
 
   /* File inputs */
-  HashedFbbFileVector in_path_isreg_with_hash,
+  FBBSTORE_Builder_process_inputs pi;
+  fbbstore_builder_process_inputs_init(&pi);
+
+  std::vector<FBBSTORE_Builder_file> in_path_isreg_with_hash,
       in_system_path_isreg_with_hash,
       in_path_isdir_with_hash,
       in_system_path_isdir_with_hash;
-  HashedFbbStringVector in_path_isreg,
+  std::vector<const char *> in_path_isreg,
       in_path_isdir,
       in_path_notexist_or_isreg,
       in_path_notexist_or_isreg_empty,
       in_path_notexist;
 
   /* File outputs */
-  HashedFbbFileVector out_path_isreg_with_hash,
+  FBBSTORE_Builder_process_outputs po;
+  fbbstore_builder_process_outputs_init(&po);
+  std::vector<FBBSTORE_Builder_file> out_path_isreg_with_hash,
       out_path_isdir;
-  HashedFbbStringVector out_path_notexist;
+  std::vector<const char *> out_path_notexist;
 
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
@@ -383,34 +386,34 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         break;
       case ISREG_WITH_HASH: {
         if (filename->is_in_system_location()) {
-          in_system_path_isreg_with_hash.add(filename, fu);
+          add_file_with_hash(&in_system_path_isreg_with_hash, filename, fu);
         } else {
-          in_path_isreg_with_hash.add(filename, fu);
+          add_file_with_hash(&in_path_isreg_with_hash, filename, fu);
         }
         break;
       }
       case ISREG:
-        in_path_isreg.add(filename);
+        in_path_isreg.push_back(filename->c_str());
         break;
       case ISDIR_WITH_HASH: {
         if (filename->is_in_system_location()) {
-          in_system_path_isdir_with_hash.add(filename, fu);
+          add_file_with_hash(&in_system_path_isdir_with_hash, filename, fu);
         } else {
-          in_path_isdir_with_hash.add(filename, fu);
+          add_file_with_hash(&in_path_isdir_with_hash, filename, fu);
         }
         break;
       }
       case ISDIR:
-        in_path_isdir.add(filename);
+        in_path_isdir.push_back(filename->c_str());
         break;
       case NOTEXIST_OR_ISREG:
-        in_path_notexist_or_isreg.add(filename);
+        in_path_notexist_or_isreg.push_back(filename->c_str());
         break;
       case NOTEXIST_OR_ISREG_EMPTY:
-        in_path_notexist_or_isreg_empty.add(filename);
+        in_path_notexist_or_isreg_empty.push_back(filename->c_str());
         break;
       case NOTEXIST:
-        in_path_notexist.add(filename);
+        in_path_notexist.push_back(filename->c_str());
         break;
       default:
         assert(false);
@@ -431,29 +434,28 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
               /* unexpected error, now what? */
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
-              maybe_XXH3_freeState(inouts_hash_state);
               return;
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
             int mode = st.st_mode & 07777;
-            out_path_isreg_with_hash.add(filename, new_hash, mode);
+            add_file_with_hash(&out_path_isreg_with_hash, filename, new_hash, mode);
           } else if (S_ISDIR(st.st_mode)) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
-            out_path_isdir.add(filename, mode);
+            add_file_with_mode(&out_path_isdir, filename, mode);
           } else {
             // TODO(egmont) handle other types of entries
           }
         } else {
           perror("fstat");
           if (fu->initial_state() != NOTEXIST) {
-            out_path_notexist.add(filename);
+            out_path_notexist.push_back(filename->c_str());
           }
         }
         close(fd);
       } else {
         if (fu->initial_state() != NOTEXIST) {
-          out_path_notexist.add(filename);
+          out_path_notexist.push_back(filename->c_str());
         }
       }
     }
@@ -477,7 +479,6 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         // FIXME handle error
         FB_DEBUG(FB_DEBUG_CACHING,
                  "Could not store pipe traffic in cache, not writing shortcut info");
-        maybe_XXH3_freeState(inouts_hash_state);
         return;
       }
       if (!is_empty) {
@@ -487,66 +488,47 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         fbbstore_builder_pipe_data_init(&new_pipe_data);
         fbbstore_builder_pipe_data_set_fd(&new_pipe_data, fd);
         fbbstore_builder_pipe_data_set_hash(&new_pipe_data, hash.get());
-        add_to_hash_state(inouts_hash_state, fd);
-        add_to_hash_state(inouts_hash_state, hash);
       }
     }
   }
 
-  sort_and_add_to_hash_state(&in_path_isreg, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_isreg_with_hash, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_system_path_isreg_with_hash, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_isdir, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_isdir_with_hash, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_system_path_isdir_with_hash, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_notexist_or_isreg, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_notexist_or_isreg_empty, inouts_hash_state);
-  sort_and_add_to_hash_state(&in_path_notexist, inouts_hash_state);
-  sort_and_add_to_hash_state(&out_path_isreg_with_hash, inouts_hash_state);
-  sort_and_add_to_hash_state(&out_path_isdir, inouts_hash_state);
-  sort_and_add_to_hash_state(&out_path_notexist, inouts_hash_state);
-
-  FBBSTORE_Builder_process_inputs pi;
-  fbbstore_builder_process_inputs_init(&pi);
   fbbstore_builder_process_inputs_set_path_isreg_with_hash_item_fn(&pi,
       in_path_isreg_with_hash.size(),
-      HashedFbbFileVector::item_fn,
+      file_item_fn,
       &in_path_isreg_with_hash);
   fbbstore_builder_process_inputs_set_system_path_isreg_with_hash_item_fn(&pi,
       in_system_path_isreg_with_hash.size(),
-      HashedFbbFileVector::item_fn,
+      file_item_fn,
       &in_system_path_isreg_with_hash);
   fbbstore_builder_process_inputs_set_path_isreg(&pi,
-      in_path_isreg.c_strings());
+      in_path_isreg);
   fbbstore_builder_process_inputs_set_path_isdir_with_hash_item_fn(&pi,
       in_path_isdir_with_hash.size(),
-      HashedFbbFileVector::item_fn,
+      file_item_fn,
       &in_path_isdir_with_hash);
   fbbstore_builder_process_inputs_set_system_path_isdir_with_hash_item_fn(&pi,
       in_system_path_isdir_with_hash.size(),
-      HashedFbbFileVector::item_fn,
+      file_item_fn,
       &in_system_path_isdir_with_hash);
   fbbstore_builder_process_inputs_set_path_isdir(&pi,
-      in_path_isdir.c_strings());
+      in_path_isdir);
   fbbstore_builder_process_inputs_set_path_notexist_or_isreg(&pi,
-      in_path_notexist_or_isreg.c_strings());
+      in_path_notexist_or_isreg);
   fbbstore_builder_process_inputs_set_path_notexist_or_isreg_empty(&pi,
-      in_path_notexist_or_isreg_empty.c_strings());
+      in_path_notexist_or_isreg_empty);
   fbbstore_builder_process_inputs_set_path_notexist(&pi,
-      in_path_notexist.c_strings());
+      in_path_notexist);
 
-  FBBSTORE_Builder_process_outputs po;
-  fbbstore_builder_process_outputs_init(&po);
   fbbstore_builder_process_outputs_set_path_isreg_with_hash_item_fn(&po,
       out_path_isreg_with_hash.size(),
-      HashedFbbFileVector::item_fn,
+      file_item_fn,
       &out_path_isreg_with_hash);
   fbbstore_builder_process_outputs_set_path_isdir_item_fn(&po,
       out_path_isdir.size(),
-      HashedFbbFileVector::item_fn,
+      file_item_fn,
       &out_path_isdir);
   fbbstore_builder_process_outputs_set_path_notexist(&po,
-      out_path_notexist.c_strings());
+      out_path_notexist);
   fbbstore_builder_process_outputs_set_pipe_data_item_fn(&po,
       out_pipe_data.size(),
       fbbstore_builder_pipe_data_vector_item_fn,
@@ -569,9 +551,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
-  Hash subkey = state_to_hash(inouts_hash_state);
-  obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg, subkey);
-  maybe_XXH3_freeState(inouts_hash_state);
+  obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg);
 }
 
 /**
