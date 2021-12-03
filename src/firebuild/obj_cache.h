@@ -20,8 +20,7 @@ class ObjCache {
 
   bool store(const Hash &key,
              const FBBSTORE_Builder * const entry,
-             const FBBFP_Serialized * const debug_key,
-             const Hash &subkey);
+             const FBBFP_Serialized * const debug_key);
   bool retrieve(const Hash &key,
                 const Hash &subkey,
                 uint8_t ** entry,

@@ -112,13 +112,11 @@ static void construct_cached_file_name(const std::string &base,
  * @param key The key
  * @param entry The entry to serialize and store
  * @param debug_key Optionally the key as pb for debugging purposes
- * @param subkey hash of the entry
  * @return Whether succeeded
  */
 bool ObjCache::store(const Hash &key,
                      const FBBSTORE_Builder * const entry,
-                     const FBBFP_Serialized * const debug_key,
-                     const Hash& subkey) {
+                     const FBBFP_Serialized * const debug_key) {
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -166,20 +164,36 @@ bool ObjCache::store(const Hash &key,
   free(entry_serial);
   close(fd_dst);
 
+  /* Create randomized object file */
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
-  construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
-  if (rename(tmpfile, path_dst) == -1) {
-    perror("Failed rename() while storing cache object");
-    assert(0);
-    unlink(tmpfile);
-    free(tmpfile);
-    return false;
-  }
+  XXH128_hash_t random_hash;
+  /* One round of random should be enough. */
+  // TODO(rbalint) user shorter subkey, document randomness properly and use different alphabet to
+  // make randomness more apparent
+  int retries = 5;
+  do {
+    random_hash.high64 = random_hash.low64 = random();
+    Hash subkey(random_hash);
+    construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
+    if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+      if (errno == EEXIST && retries > 0) {
+        retries--;
+        continue;
+      } else {
+        perror("Failed rename() while storing cache object");
+        assert(0);
+        unlink(tmpfile);
+        free(tmpfile);
+        return false;
+      }
+    } else {
+      if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+        FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + d(subkey));
+      }
+      break;
+    }
+  } while (retries > 0);
   free(tmpfile);
-
-  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "  value hash " + d(subkey));
-  }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the value in the cache, for easier debugging. */
