@@ -15,6 +15,7 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_open *o, int fd_c
   int error = fbbcomm_serialized_open_get_error_no_with_fallback(o, 0);
   int ret = fbbcomm_serialized_open_get_ret_with_fallback(o, -1);
   return p->handle_open(dirfd, fbbcomm_serialized_open_get_file(o),
+                        fbbcomm_serialized_open_get_file_len(o),
                         fbbcomm_serialized_open_get_flags(o), ret, error, fd_conn, ack_num);
 }
 
@@ -23,6 +24,7 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo, int 
   if (!fbbcomm_serialized_dlopen_has_error_no(dlo) &&
       fbbcomm_serialized_dlopen_has_absolute_filename(dlo)) {
     return p->handle_open(AT_FDCWD, fbbcomm_serialized_dlopen_get_absolute_filename(dlo),
+                          fbbcomm_serialized_dlopen_get_absolute_filename_len(dlo),
                           O_RDONLY, -1, 0, fd_conn, ack_num);
   } else {
     std::string filename = fbbcomm_serialized_dlopen_has_absolute_filename(dlo) ?
@@ -41,18 +43,21 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_unlink *u) {
   const int dirfd = fbbcomm_serialized_unlink_get_dirfd_with_fallback(u, AT_FDCWD);
   const int flags = fbbcomm_serialized_unlink_get_flags_with_fallback(u, 0);
   const int error = fbbcomm_serialized_unlink_get_error_no_with_fallback(u, 0);
-  return p->handle_unlink(dirfd, fbbcomm_serialized_unlink_get_pathname(u), flags, error);
+  return p->handle_unlink(dirfd, fbbcomm_serialized_unlink_get_pathname(u),
+                          fbbcomm_serialized_unlink_get_pathname_len(u), flags, error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_rmdir *r) {
   const int error = fbbcomm_serialized_rmdir_get_error_no_with_fallback(r, 0);
-  return p->handle_rmdir(fbbcomm_serialized_rmdir_get_pathname(r), error);
+  return p->handle_rmdir(fbbcomm_serialized_rmdir_get_pathname(r),
+                         fbbcomm_serialized_rmdir_get_pathname_len(r), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_mkdir *m) {
   const int dirfd = fbbcomm_serialized_mkdir_get_dirfd_with_fallback(m, AT_FDCWD);
   const int error = fbbcomm_serialized_mkdir_get_error_no_with_fallback(m, 0);
-  return p->handle_mkdir(dirfd, fbbcomm_serialized_mkdir_get_pathname(m), error);
+  return p->handle_mkdir(dirfd, fbbcomm_serialized_mkdir_get_pathname(m),
+                         fbbcomm_serialized_mkdir_get_pathname_len(m), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_dup3 *d) {
@@ -73,7 +78,9 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_rename *r) {
   const int newdirfd = fbbcomm_serialized_rename_get_newdirfd_with_fallback(r, AT_FDCWD);
   const int error = fbbcomm_serialized_rename_get_error_no_with_fallback(r, 0);
   return p->handle_rename(olddirfd, fbbcomm_serialized_rename_get_oldpath(r),
-                          newdirfd, fbbcomm_serialized_rename_get_newpath(r), error);
+                          fbbcomm_serialized_rename_get_oldpath_len(r),
+                          newdirfd, fbbcomm_serialized_rename_get_newpath(r),
+                          fbbcomm_serialized_rename_get_newpath_len(r), error);
 }
 
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_symlink *s) {
@@ -117,7 +124,8 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_write_to_inherite
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_chdir *c) {
   const int error = fbbcomm_serialized_chdir_get_error_no_with_fallback(c, 0);
   if (error == 0) {
-    p->handle_set_wd(fbbcomm_serialized_chdir_get_dir(c));
+    p->handle_set_wd(fbbcomm_serialized_chdir_get_dir(c),
+                     fbbcomm_serialized_chdir_get_dir_len(c));
   } else {
     p->handle_fail_wd(fbbcomm_serialized_chdir_get_dir(c));
   }

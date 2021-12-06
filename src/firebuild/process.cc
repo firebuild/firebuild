@@ -142,13 +142,14 @@ void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, i
   fd2popen_child_[fd] = proc;
 }
 
-int Process::handle_open(const int dirfd, const char * const ar_name, const int flags,
-                         const int fd, const int error, int fd_conn, const int ack_num) {
+int Process::handle_open(const int dirfd, const char * const ar_name, const size_t ar_len,
+                         const int flags, const int fd, const int error, int fd_conn,
+                         const int ack_num) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
          dirfd, D(ar_name), flags, fd, error, D_FD(fd_conn), ack_num);
 
-  const FileName* name = get_absolute(dirfd, ar_name);
+  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
     // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to openat()");
@@ -246,12 +247,12 @@ int Process::handle_close(const int fd, const int error) {
   }
 }
 
-int Process::handle_unlink(const int dirfd, const char * const ar_name,
+int Process::handle_unlink(const int dirfd, const char * const ar_name, const size_t ar_len,
                            const int flags, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, flags=%d, error=%d",
          dirfd, D(ar_name), flags, error);
 
-  const FileName* name = get_absolute(dirfd, ar_name);
+  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
     // FIXME don't disable shortcutting if unlinkat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to unlinkat()");
@@ -277,17 +278,18 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name,
   return 0;
 }
 
-int Process::handle_rmdir(const char * const ar_name, const int error) {
+int Process::handle_rmdir(const char * const ar_name, const size_t ar_name_len, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_name=%s, error=%d", D(ar_name), error);
 
-  return handle_unlink(AT_FDCWD, ar_name, AT_REMOVEDIR, error);
+  return handle_unlink(AT_FDCWD, ar_name, ar_name_len, AT_REMOVEDIR, error);
 }
 
-int Process::handle_mkdir(const int dirfd, const char * const ar_name, const int error) {
+int Process::handle_mkdir(const int dirfd, const char * const ar_name, const size_t ar_len,
+                          const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, error=%d",
          dirfd, D(ar_name), error);
 
-  const FileName* name = get_absolute(dirfd, ar_name);
+  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
     // FIXME don't disable shortcutting if mkdirat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to mkdirat()");
@@ -416,7 +418,9 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 }
 
 int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
+                           const size_t old_ar_len,
                            const int newdirfd, const char * const new_ar_name,
+                           const size_t new_ar_len,
                            const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "olddirfd=%d, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
@@ -443,8 +447,8 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
    *   with no "mytree" component. "target" has to be an empty directory for this to work.
    */
 
-  const FileName* old_name = get_absolute(olddirfd, old_ar_name);
-  const FileName* new_name = get_absolute(newdirfd, new_ar_name);
+  const FileName* old_name = get_absolute(olddirfd, old_ar_name, old_ar_len);
+  const FileName* new_name = get_absolute(newdirfd, new_ar_name, new_ar_len);
   if (!old_name || !new_name) {
     // FIXME don't disable shortcutting if renameat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
@@ -618,10 +622,10 @@ void Process::handle_write_to_inherited(const int fd) {
   }
 }
 
-void Process::handle_set_wd(const char * const ar_d) {
+void Process::handle_set_wd(const char * const ar_d, const size_t ar_d_len) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_d=%s", ar_d);
 
-  wd_ = get_absolute(AT_FDCWD, ar_d);
+  wd_ = get_absolute(AT_FDCWD, ar_d, ar_d_len);
   assert(wd_);
   add_wd(wd_);
 }
