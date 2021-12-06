@@ -301,7 +301,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
     offset += size;
     PAD(dst, offset);
     for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
-      fbb_size_t len;
+      fbb_size_t len = 0;
       const char *str = {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(msgbldr, idx, &len);
       size = len + 1;
       *hops++ = offset;  /* build up an alternating list of offsets and lengths */
