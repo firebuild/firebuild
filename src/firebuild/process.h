@@ -97,7 +97,7 @@ class Process {
   int exit_status() const {return exit_status_;}
   void set_exit_status(const int e) {exit_status_ = e;}
   const FileName* wd() {return wd_;}
-  void handle_set_wd(const char * const d);
+  void handle_set_wd(const char * const d, const size_t d_len);
   void handle_set_fwd(const int fd);
   void set_exec_pending(bool val) {exec_pending_ = val;}
   bool exec_pending() {return exec_pending_;}
@@ -199,19 +199,20 @@ class Process {
    * (possibly AT_FDCWD for the current directory). Return nullptr if the path is relative and
    * dirfd is invalid.
    */
-  const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length = -1);
+  const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length);
 
   /**
    * Handle file opening in the monitored process
    * @param dirfd the dirfd of openat(), or AT_FDCWD
    * @param ar_name relative or absolute file name
+   * @param ar_len length of ar_name
    * @param flags flags of open()
    * @param fd the return value, or -1 if file was dlopen()ed successfully
    * @param error error code of open()
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
    */
-  int handle_open(const int dirfd, const char * const ar_name, const int flags,
+  int handle_open(const int dirfd, const char * const ar_name, const size_t ar_len, const int flags,
                   const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
 
   /**
@@ -236,25 +237,30 @@ class Process {
    * Handle unlink in the monitored process
    * @param dirfd the dirfd of unlinkat(), or AT_FDCWD
    * @param name relative or absolute file name
+   * @param name_len length of name
    * @param flags flags passed to unlinkat()
    * @param error error code of unlink()
    */
-  int handle_unlink(const int dirfd, const char * const name, const int flags, const int error = 0);
+  int handle_unlink(const int dirfd, const char * const name, const size_t name_len,
+                    const int flags, const int error = 0);
 
   /**
    * Handle rmdir in the monitored process
    * @param name relative or absolute file name
+   * @param name_len length of name
    * @param error error code of rmdir()
    */
-  int handle_rmdir(const char * const name, const int error = 0);
+  int handle_rmdir(const char * const name, const size_t name_len, const int error = 0);
 
   /**
    * Handle mkdir in the monitored process
    * @param dirfd the dirfd of mkdirat(), or AT_FDCWD
    * @param name relative or absolute file name
+   * @param name_len length of name
    * @param error error code of mkdir()
    */
-  int handle_mkdir(const int dirfd, const char * const name, const int error = 0);
+  int handle_mkdir(const int dirfd, const char * const name, const size_t name_len,
+                   const int error = 0);
 
   /**
    * Handle pipe() in the monitored process
@@ -303,13 +309,15 @@ class Process {
    * Handle rename()
    * @param olddirfd the olddirfd of renameat(), or AT_FDCWD
    * @param old_ar_name old relative or absolute file name
+   * @param old_ar_len length of old_ar_name
    * @param newdirfd the newdirfd of renameat(), or AT_FDCWD
    * @param new_ar_name new relative or absolute file name
+   * @param new_ar_len length of old_ar_name
    * @param error error code
    * @return 0 on success, -1 on failure
    */
-  int handle_rename(const int olddirfd, const char * const old_ar_name,
-                    const int newdirfd, const char * const new_ar_name,
+  int handle_rename(const int olddirfd, const char * const old_ar_name, const size_t old_ar_len,
+                    const int newdirfd, const char * const new_ar_name, const size_t new_ar_len,
                     const int error = 0);
 
   /**
