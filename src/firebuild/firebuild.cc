@@ -723,10 +723,12 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
             const char *path =
                 fbbcomm_serialized_posix_spawn_file_action_open_get_path(action_open);
+            const size_t path_len =
+                fbbcomm_serialized_posix_spawn_file_action_open_get_path_len(action_open);
             int fd = fbbcomm_serialized_posix_spawn_file_action_open_get_fd(action_open);
             int flags = fbbcomm_serialized_posix_spawn_file_action_open_get_flags(action_open);
             fork_child->handle_force_close(fd);
-            fork_child->handle_open(AT_FDCWD, path, flags, fd, 0);
+            fork_child->handle_open(AT_FDCWD, path, path_len, flags, fd, 0);
             break;
           }
           case FBBCOMM_TAG_posix_spawn_file_action_close: {
