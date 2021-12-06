@@ -28,7 +28,7 @@ class FileName {
   }
   const char * c_str() const {return name_;}
   std::string to_string() const {return std::string(name_);}
-  size_t length() const {return length_;}
+  uint32_t length() const {return length_;}
   size_t hash() const {return XXH3_64bits(name_, length_);}
   const XXH128_hash_t& hash_XXH128() const {
     auto it = hash_db_->find(this);
