@@ -1,7 +1,5 @@
-set_source_files_properties(fbbtest.c PROPERTIES COMPILE_FLAGS "-fPIC")
-
 add_custom_command(
-  OUTPUT fbbtest.c fbbtest.h fbbtest_decode.c
+  OUTPUT fbbtest.cc fbbtest.h fbbtest_decode.c
   DEPENDS fbbtest.def
   ../src/common/fbb/generate_fbb
   ../src/common/fbb/tpl.c
@@ -10,7 +8,7 @@ add_custom_command(
   COMMAND ../src/common/fbb/generate_fbb fbbtest ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating fbbtest files")
 
-add_custom_target(fbbtest_gen_files ALL DEPENDS fbbtest.c fbbtest.h fbbtest_decode.c)
+add_custom_target(fbbtest_gen_files ALL DEPENDS fbbtest.cc fbbtest.h fbbtest_decode.c)
 
 function(add_test_binary TEST_BINARY)
   add_executable("${TEST_BINARY}" EXCLUDE_FROM_ALL "${TEST_BINARY}.c")
@@ -48,7 +46,7 @@ target_link_libraries(test_static "-static")
 
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/data "${CMAKE_BINARY_DIR}/test/data" SYMBOLIC)
-add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc fbbtest.c)
+add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc fbbtest.cc)
 add_dependencies(fbb_test fbbtest_gen_files)
 add_test(fbb ./fbb_test)
 add_custom_target(check-deps)

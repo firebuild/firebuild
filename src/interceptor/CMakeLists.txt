@@ -49,7 +49,8 @@ add_library(firebuild SHARED
   ic_redirect_only.c
   intercept.c
   interceptors.c
-  $<TARGET_OBJECTS:common_objs>)
+  $<TARGET_OBJECTS:common_objs>
+  $<TARGET_OBJECTS:fbbcomm_c>)
 
 add_dependencies(firebuild gen_files fbbcomm_gen_files)
 
