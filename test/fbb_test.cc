@@ -18,19 +18,31 @@
 
 #include "./fbbtest.h"
 
-const char *my_stringarray_item_fn(int index, const void *user_data) {
+const char *my_stringarray_item_fn(int index, const void *user_data, fbb_size_t *len_out) {
   if (user_data != (void *) 42) {
     fprintf(stderr, "user_data mismatch\n");
     exit(1);
   }
 
   if (index == 0) {
+    if (len_out) {
+      *len_out = 3;
+    }
     return "one";
   } else if (index == 1) {
+    if (len_out) {
+      *len_out = 3;
+    }
     return "two";
   } else if (index == 2) {
+    if (len_out) {
+      *len_out = 5;
+    }
     return "three";
   } else {
+    if (len_out) {
+      *len_out = 4;
+    }
     return "four";
   }
 }

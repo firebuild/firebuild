@@ -405,6 +405,15 @@ NULL:
 
     const char *str = fbbns_serialized_foo_get_mystring(msg);
 
+Get the length:
+
+    fbb_size_t len = fbbns_serialized_foo_get_mystring_len(msg);
+
+Get both the string and the length:
+
+    fbb_size_t len;
+    const char *str = fbbns_serialized_foo_get_mystring_with_len(msg, &len);
+
 Check if set (only for optional strings). Same as checking if the getters returns
 NULL:
 
@@ -456,11 +465,15 @@ things is not what FBB expects; use the generic setter with the
     fbbns_builder_foo_set_mystringarray(&bldr, c_string_array);
 
 Setter - generic version. Takes the length, and a getter "item_fn"
-callback function that has to return the value for any valid index. The
-callback won't be called with out-of-bounds index. This method can work
-as an adaptor between FBB and any data structure the caller might have:
+callback function that has to return the value for any valid index and
+also the length if the given pointer is non-NULL. The callback won't be
+called with out-of-bounds index. This method can work as an adaptor
+between FBB and any data structure the caller might have:
 
-    const char *mystemfn(fbb_size_t index, void *user_data) {
+    const char *mystemfn(fbb_size_t index, void *user_data, fbb_size_t *len_out) {
+      if (len_out != NULL) {
+        *len_out = 4;
+      }
       if (index == 0) return "this" else return "that";
     }
 
@@ -474,12 +487,14 @@ Getter - get a particular item:
 
     const char *str = fbbns_serialized_foo_get_mystringarray_at(msg, index);
 
-Getter - get a particular item's length. This method is only available
-on the serialized format and not on the builder because the information
-is readily available from the serialized format, whereas the builder
-would need to run strlen().
+Getter - get a particular item's length:
 
-    size_t len = fbbns_serialized_foo_get_mystringarray_len_at(msg, index);
+    fbb_size_t len = fbbns_serialized_foo_get_mystringarray_len_at(msg, index);
+
+Getter - get a particular item along with its length:
+
+    fbb_size_t len;
+    const char *str = fbbns_serialized_foo_get_mystringarray_with_len_at(msg, index, &len);
 
 Get the entire array, C++ convenience API. Note that this allocates
 memory (hence not async-signal-safe) and copies the data:

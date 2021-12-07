@@ -26,6 +26,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "common/cstring_view.h"
+
 #pragma GCC diagnostic push
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
@@ -50,6 +52,26 @@ typedef struct {
 } {{ NS }}_Serialized;
 
 typedef uint32_t fbb_size_t;
+
+typedef enum {
+  /* A standard plain C "char**" containing the strings pointers. */
+  {{ NS }}_STRING_INPUT_FORMAT_ARRAY,
+  /* A "cstring_view*" containing the (pointer, length) pairs. */
+  {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY,
+#ifdef __cplusplus
+  /* C++ only: A "std::string*" pointing to the string array. */
+  {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY,
+#endif
+  /* An item_fn callback that returns the string pointer and length for a given index. */
+  {{ NS }}_STRING_INPUT_FORMAT_CALLBACK,
+} {{ NS }}_String_Input_Format;
+
+typedef enum {
+  /* A plain C-style array containing the FBB pointers as items. */
+  {{ NS }}_FBB_INPUT_FORMAT_ARRAY,
+  /* An item_fn callback that returns the FBB pointer for a given index. */
+  {{ NS }}_FBB_INPUT_FORMAT_CALLBACK,
+} {{ NS }}_FBB_Input_Format;
 
 enum {
   /* Values are spelled out for easier debugging.
@@ -161,18 +183,38 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 ###   for (quant, type, var) in fields
 ###     if quant == ARRAY
 ###       if type == STRING
-  /* Function to get the Nth item of the array, or NULL for the default getter which operates on the standard C array. */
-  const char * (* {{ var }}_item_fn) (int idx, const void *user_data);
+  /* In what format do we have the strings */
+  {{ NS }}_String_Input_Format {{ var }}_how;
   union {
-    const char * const *ptr;  /* if {{ var }}_item_fn is unset */
-    const void *user_data;    /* if {{ var }}_item_fn is set */
+    /* For STRING_INPUT_FORMAT_C_ARRAY */
+    const char * const *c_array;
+    /* For STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY */
+    const cstring_view *cstring_view_array;
+#ifdef __cplusplus
+    /* For STRING_INPUT_FORMAT_CXX_STRING_ARRAY */
+    const std::string *cxx_string_array;
+#endif
+    /* For STRING_INPUT_FORMAT_CALLBACK */
+    struct {
+      /* Function to get the Nth item of the string array */
+      const char * (*item_fn) (int idx, const void *user_data, fbb_size_t *len_out);
+      /* Arbitrary pointer passed to item_fn */
+      const void *user_data;
+    } callback;
   } {{ var }};
 ###       elif type == FBB
-  /* Function to get the Nth item of the array, or NULL for the default getter which operates on the standard C array. */
-  const {{ NS }}_Builder * (* {{ var }}_item_fn) (int idx, const void *user_data);
+  /* In what format do we have the strings */
+  {{ NS }}_FBB_Input_Format {{ var }}_how;
   union {
-    const {{ NS }}_Builder * const *ptr;  /* {{ var }}_item_fn is unset */
-    const void *user_data;                /* if {{ var }}_item_fn is set */
+    /* For FBB_INPUT_FORMAT_ARRAY */
+    const {{ NS }}_Builder * const *c_array;
+    /* For FBB_INPUT_FORMAT_CALLBACK */
+    struct {
+      /* Function to get the Nth item of the FBB array */
+      const {{ NS }}_Builder * (*item_fn) (int idx, const void *user_data);
+      /* Arbitrary pointer passed to item_fn */
+      const void *user_data;
+    } callback;
   } {{ var }};
 ###       endif
 ###     endif
@@ -272,7 +314,7 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
 }
 #ifdef __cplusplus
 /*
- * Builder setter -required or optional string (C++)
+ * Builder setter - required or optional string (C++)
  * {{ type }} {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::string& value) {
@@ -298,8 +340,8 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count({{ NS }}_Builder_{{ msg }} *msg, {{ ctype }} const *values, fbb_size_t count) {
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_item_fn = NULL;
-  msg->{{ var }}.ptr = values;
+  msg->{{ var }}_how = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
+  msg->{{ var }}.c_array = values;
   msg->wire.{{ var }}_count = count;
 }
 /*
@@ -313,6 +355,32 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
   }
   {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count(msg, values, count);
 }
+###         if type == STRING
+/*
+ * Builder setter - array of strings as cstring_view
+ * {{ type }}[] {{ var }}
+ */
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_cstring_views({{ NS }}_Builder_{{ msg }} *msg, const cstring_view *values, fbb_size_t count) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
+  msg->{{ var }}.cstring_view_array = values;
+  msg->wire.{{ var }}_count = count;
+}
+#ifdef __cplusplus
+/*
+ * Builder setter - array of strings as vector<cstring_view> (C++)
+ * {{ type }}[] {{ var }}
+ */
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<cstring_view>& values) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
+  msg->{{ var }}.cstring_view_array = values.data();
+  msg->wire.{{ var }}_count = values.size();
+}
+#endif
+###         endif
 #ifdef __cplusplus
 /*
  * Builder setter - array of strings or FBBs (C++)
@@ -321,20 +389,34 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ ctype }}>& values) {
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_item_fn = NULL;
-  msg->{{ var }}.user_data = values.data();
+  msg->{{ var }}_how = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
+  msg->{{ var }}.c_array = values.data();
   msg->wire.{{ var }}_count = values.size();
 }
+###         if type == STRING
+/*
+ * Builder setter - array of strings as vector<string> (C++)
+ * {{ type }}[] {{ var }}
+ */
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<std::string>& values) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how = {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY;
+  msg->{{ var }}.cxx_string_array = values.data();
+  msg->wire.{{ var }}_count = values.size();
+}
+###         endif
 #endif
 /*
  * Builder setter - array of strings or FBBs as an item getter function
  * {{ type }}[] {{ var }}
  */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Builder_{{ msg }} *msg, fbb_size_t count, {{ ctype }} (* item_fn) (int idx, const void *user_data), const void *user_data) {
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Builder_{{ msg }} *msg, fbb_size_t count, {{ ctype }} (* item_fn) (int idx, const void *user_data{% if type == STRING %}, fbb_size_t *len_out{% endif %}), const void *user_data) {
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_item_fn = item_fn;
-  msg->{{ var }}.user_data = user_data;
+  msg->{{ var }}_how = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_CALLBACK;
+  msg->{{ var }}.callback.item_fn = item_fn;
+  msg->{{ var }}.callback.user_data = user_data;
   msg->wire.{{ var }}_count = count;
 }
 ###       endif
@@ -404,6 +486,16 @@ static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(const {{ N
 
   return msg->wire.{{ var }}_len;
 }
+/*
+ * Builder getter - required or optional string along with its length
+ * {{ type }} {{ var }}
+ */
+static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t *len_out) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+  *len_out = {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(msg);
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}(msg);
+}
 #ifdef __cplusplus
 /*
  * Builder getter - required or optional string (C++, not async-signal-safe)
@@ -449,14 +541,88 @@ static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(const {{ N
 
 ###       if type not in [STRING, FBB]
   return msg->{{ var }}[idx];
-###       else
-  if (msg->{{ var }}_item_fn == NULL) {
-    return msg->{{ var }}.ptr[idx];
-  } else {
-    return (msg->{{ var }}_item_fn)(idx, msg->{{ var }}.user_data);
+###       elif type == STRING
+  switch (msg->{{ var }}_how) {
+    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
+      return msg->{{ var }}.c_array[idx];
+    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
+      return msg->{{ var }}.cstring_view_array[idx].c_str;
+#ifdef __cplusplus
+    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
+      return msg->{{ var }}.cxx_string_array[idx].c_str();
+#endif
+    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
+      return (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data, NULL);
   }
+  assert(0);
+  return NULL;
+###       else
+  switch (msg->{{ var }}_how) {
+    case {{ NS }}_FBB_INPUT_FORMAT_ARRAY:
+      return msg->{{ var }}.c_array[idx];
+    case {{ NS }}_FBB_INPUT_FORMAT_CALLBACK:
+      return (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data);
+  }
+  assert(0);
+  return NULL;
 ###       endif
 }
+###       if type == STRING
+/*
+ * Builder getter - one item's length from a string array
+ * {{ type }}[] {{ var }}
+ */
+static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count);
+
+  switch (msg->{{ var }}_how) {
+    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
+      /* This is costly, the requested length is not readily available so we have to compute it. */
+      return strlen(msg->{{ var }}.c_array[idx]);
+    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
+      return msg->{{ var }}.cstring_view_array[idx].length;
+#ifdef __cplusplus
+    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
+      return msg->{{ var }}.cxx_string_array[idx].length();
+#endif
+    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK: {
+      fbb_size_t len;
+      (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data, &len);
+      return len;
+    }
+  }
+  assert(0);
+  return 0;
+}
+/*
+ * Builder getter - one item from a string array along with its length
+ * {{ type }}[] {{ var }}
+ */
+static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count);
+
+  switch (msg->{{ var }}_how) {
+    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
+      /* This is costly, the requested length is not readily available so we have to compute it. */
+      *len_out = strlen(msg->{{ var }}.c_array[idx]);
+      return msg->{{ var }}.c_array[idx];
+    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
+      *len_out = msg->{{ var }}.cstring_view_array[idx].length;
+      return msg->{{ var }}.cstring_view_array[idx].c_str;
+#ifdef __cplusplus
+    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
+      *len_out = msg->{{ var }}.cxx_string_array[idx].length();
+      return msg->{{ var }}.cxx_string_array[idx].c_str();
+#endif
+    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
+      return (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data, len_out);
+  }
+  assert(0);
+  return NULL;
+}
+###       endif
 #ifdef __cplusplus
 /*
  * Builder getter - array (C++, not async-signal-safe)
@@ -548,6 +714,16 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(const {
 
   return msg->{{ var }}_len;
 }
+/*
+ * Serialized getter - required or optional string along with its length
+ * {{ type }} {{ var }}
+ */
+static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t *len_out) {
+  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+  *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(msg);
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
+}
 #ifdef __cplusplus
 /*
  * Serialized getter - required or optional string (C++, not async-signal-safe)
@@ -633,6 +809,19 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(cons
   const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr;
   const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
   return second_relptrs[2 * idx + 1];
+}
+/*
+ * Serialized getter - one item along with its length from an array of strings
+ * {{ type }}[] {{ var }}
+ */
+static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
+  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+#ifndef NDEBUG
+  assert(idx < msg->{{ var }}_count);
+#endif
+
+  *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx);
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx);
 }
 ###         endif
 ###       endif
