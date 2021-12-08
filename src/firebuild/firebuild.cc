@@ -1361,7 +1361,8 @@ int main(const int argc, char *argv[]) {
       break;
 
     case 'd':
-      firebuild::debug_flags = firebuild::parse_debug_flags(optarg);
+      /* Merge the values, so that multiple '-d' options are also allowed. */
+      firebuild::debug_flags |= firebuild::parse_debug_flags(optarg);
       break;
 
     case 'h':
