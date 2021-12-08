@@ -43,6 +43,8 @@ enum {
   FB_DEBUG_PIPE         = 1 << 9,
   /* Entering and leaving functions */
   FB_DEBUG_FUNC         = 1 << 10,
+  /* Similar to bash's "time" */
+  FB_DEBUG_TIME         = 1 << 11,
 };
 
 

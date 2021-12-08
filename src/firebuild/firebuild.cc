@@ -70,6 +70,9 @@ static const char *report_file = "firebuild-build-report.html";
 static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;
 
+/** only if debugging "time" */
+struct timespec start_time;
+
 static void usage() {
   printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
          "Execute BUILD COMMAND with FireBuild™ instrumentation\n"
@@ -1402,6 +1405,10 @@ int main(const int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  if (FB_DEBUGGING(firebuild::FB_DEBUG_TIME)) {
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+  }
+
   firebuild::read_config(cfg, config_file, config_strings);
 
   // Initialize the cache
@@ -1525,6 +1532,37 @@ int main(const int argc, char *argv[]) {
             "process\n");
     child_ret = EXIT_FAILURE;
   } else {
+    /* Print times, including user and sys time separately for firebuild itself and its children.
+     * The syntax is similar to bash's "time", although easier to parse (raw seconds in decimal). */
+    if (FB_DEBUGGING(firebuild::FB_DEBUG_TIME)) {
+      struct timespec end_time, diff_time;
+      struct rusage ru_myslf, ru_chldr, ru_total;
+
+      clock_gettime(CLOCK_MONOTONIC, &end_time);
+      getrusage(RUSAGE_SELF, &ru_myslf);
+      getrusage(RUSAGE_CHILDREN, &ru_chldr);
+
+      timespecsub(&end_time, &start_time, &diff_time);
+      timeradd(&ru_myslf.ru_utime, &ru_chldr.ru_utime, &ru_total.ru_utime);
+      timeradd(&ru_myslf.ru_stime, &ru_chldr.ru_stime, &ru_total.ru_stime);
+
+      fprintf(stderr, "\nResource usages, in seconds:\n"
+                      "real           %5ld.%03ld\n"
+                      "user firebuild %5ld.%03ld\n"
+                      "user children  %5ld.%03ld\n"
+                      "user total     %5ld.%03ld\n"
+                      "sys  firebuild %5ld.%03ld\n"
+                      "sys  children  %5ld.%03ld\n"
+                      "sys  total     %5ld.%03ld\n",
+                      diff_time.tv_sec, diff_time.tv_nsec / (1000 * 1000),
+                      ru_myslf.ru_utime.tv_sec, ru_myslf.ru_utime.tv_usec / 1000,
+                      ru_chldr.ru_utime.tv_sec, ru_chldr.ru_utime.tv_usec / 1000,
+                      ru_total.ru_utime.tv_sec, ru_total.ru_utime.tv_usec / 1000,
+                      ru_myslf.ru_stime.tv_sec, ru_myslf.ru_stime.tv_usec / 1000,
+                      ru_chldr.ru_stime.tv_sec, ru_chldr.ru_stime.tv_usec / 1000,
+                      ru_total.ru_stime.tv_sec, ru_total.ru_stime.tv_usec / 1000);
+    }
+
     // show process tree if needed
     if (generate_report) {
       const std::string datadir(getenv("FIREBUILD_DATA_DIR") ? getenv("FIREBUILD_DATA_DIR")

@@ -91,6 +91,7 @@ static struct flag available_flags[] = {
   { "pipe",              FB_DEBUG_PIPE },
   { "function",          FB_DEBUG_FUNC },
   { "func",              FB_DEBUG_FUNC },
+  { "time",              FB_DEBUG_TIME },
   { NULL, 0 }
 };
 
