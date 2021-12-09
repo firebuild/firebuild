@@ -86,7 +86,7 @@ HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, struct stat64
 
   if (db_.count(path) > 0) {
     HashCacheEntry& entry = db_[path];
-    if (path->is_at_locations(system_locations)) {
+    if (path->is_in_system_location()) {
       /* System locations are not expected to change. */
       return &entry;
     } else {
