@@ -16,8 +16,6 @@
 
 #include <sys/stat.h>
 
-#include <unordered_set>
-
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
@@ -25,24 +23,6 @@
 
 namespace firebuild {
 
-std::unordered_set<FileUsage, FileUsageHasher>* FileUsage::db_;
-const FileUsage* FileUsage::no_hash_not_written_states_[ISDIR_WITH_HASH + 1];
-const FileUsage* FileUsage::no_hash_written_states_[ISDIR_WITH_HASH + 1];
-
-
-FileUsage::DbInitializer::DbInitializer() {
-  db_ = new std::unordered_set<FileUsage, FileUsageHasher>();
-  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
-    const FileUsage fu(int_to_initial_state(i), Hash());
-    no_hash_not_written_states_[i] = &*db_->insert(fu).first;
-  }
-  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
-    const FileUsage fu(int_to_initial_state(i), Hash(), true);
-    no_hash_written_states_[i] = &*db_->insert(fu).first;
-  }
-}
-
-FileUsage::DbInitializer FileUsage::db_initializer_;
 
 bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
   return (lhs.initial_state_ == rhs.initial_state_
@@ -55,60 +35,36 @@ bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
           && lhs.unknown_err_ == rhs.unknown_err_);
           }
 
-const FileUsage* FileUsage::Get(const FileUsage& candidate) {
-  auto it = db_->find(candidate);
-  if (it != db_->end()) {
-    return &*it;
-  } else {
-    /* Not found, add a copy to the set. */
-    return &*db_->insert(candidate).first;
-  }
-}
-
 /**
  * Merge the other FileUsage object into this one.
  *
  * "this" describes the older event(s) which happened to a file, and
- * "that" describes the new one.
- * @return pointer to the merge result, it may be different from either "this" and "that"
+ * "other" describes the new one.
+ * @return if "this" was changed
  */
-const FileUsage* FileUsage::merge(const FileUsage* that) const {
-  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "other=%s", D(that));
-
-  if (*this == *that) {
-    return this;
-  }
-
-  FileUsage tmp = *this;
+bool FileUsage::merge(const FileUsage& other) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "other=%s", D(other));
 
   bool changed = false;
   if (initial_state_ == DONTKNOW) {
-    if (initial_state_ != that->initial_state_) {
-      tmp.initial_state_ = that->initial_state_;
+    if (initial_state_ != other.initial_state_) {
+      initial_state_ = other.initial_state_;
       changed = true;
     }
-    if (that->initial_state_ == ISREG_WITH_HASH ||
-        that->initial_state_ == ISDIR_WITH_HASH) {
-      if (initial_hash_ != that->initial_hash_) {
-        tmp.initial_hash_ = that->initial_hash_;
+    if (other.initial_state_ == ISREG_WITH_HASH ||
+        other.initial_state_ == ISDIR_WITH_HASH) {
+      if (initial_hash_ != other.initial_hash_) {
+        initial_hash_ = other.initial_hash_;
         changed = true;
       }
     }
   }
-  if (!written_ && that->written_) {
+  if (!written_ && other.written_) {
     changed = true;
+    written_ = written_ || other.written_;
   }
-  tmp.written_ = written_ || that->written_;
 
-  if (!changed) {
-    return this;
-  } else {
-    if (tmp == *that) {
-      return that;
-    } else {
-      return FileUsage::Get(tmp);
-    }
-  }
+  return changed;
 }
 
 /**

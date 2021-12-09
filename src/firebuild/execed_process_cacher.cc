@@ -308,8 +308,8 @@ static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const 
 }
 
 static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                               const FileUsage* fu) {
-  add_file_with_hash(files, file_name, fu->initial_hash());
+                               const FileUsage fu) {
+  add_file_with_hash(files, file_name, fu.initial_hash());
 }
 
 static void add_file_with_mode(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
@@ -368,11 +368,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
-    const FileUsage* fu = pair.second;
+    const FileUsage fu = pair.second;
 
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
-    switch (fu->initial_state()) {
+    switch (fu.initial_state()) {
       case DONTKNOW:
         /* Nothing to do. */
         break;
@@ -414,7 +414,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     /* If the file's final contents matter, place it in the file cache,
      * and also record it in pb's "outputs". This actually needs to
      * compute the checksums now. */
-    if (fu->written()) {
+    if (fu.written()) {
       int fd = open(filename->c_str(), O_RDONLY);
       if (fd >= 0) {
         Hash new_hash;
@@ -440,13 +440,13 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
           }
         } else {
           perror("fstat");
-          if (fu->initial_state() != NOTEXIST) {
+          if (fu.initial_state() != NOTEXIST) {
             out_path_notexist.push_back(filename->c_str());
           }
         }
         close(fd);
       } else {
-        if (fu->initial_state() != NOTEXIST) {
+        if (fu.initial_state() != NOTEXIST) {
           out_path_notexist.push_back(filename->c_str());
         }
       }
@@ -751,7 +751,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
 static bool restore_dirs(
     ExecedProcess* proc,
     const FBBSTORE_Serialized_process_outputs *outputs,
-    const FileUsage* fu) {
+    const FileUsage fu) {
   /* Construct indices 0 .. path_isdir_count()-1 and initialize them with these values */
   std::vector<int> indices(fbbstore_serialized_process_outputs_get_path_isdir_count(outputs));
   size_t i;
@@ -814,7 +814,7 @@ static bool restore_dirs(
 static void remove_files_and_dirs(
     ExecedProcess* proc,
     const FBBSTORE_Serialized_process_outputs *outputs,
-    const FileUsage* fu) {
+    const FileUsage fu) {
   /* Construct indices 0 .. path_notexist_count()-1 and initialize them with these values */
   std::vector<int> indices(fbbstore_serialized_process_outputs_get_path_notexist_count(outputs));
   size_t i;
@@ -870,7 +870,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
           (fbbstore_serialized_process_inputs_get_path_isreg_with_hash_at(inputs, i));
       Hash hash(fbbstore_serialized_file_get_hash(file));
-      const FileUsage* fu = FileUsage::Get(ISREG_WITH_HASH, hash);
+      const FileUsage fu(ISREG_WITH_HASH, hash);
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
       proc->parent_exec_point()->propagate_file_usage(path, fu);
@@ -880,20 +880,20 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
           (fbbstore_serialized_process_inputs_get_path_isdir_with_hash_at(inputs, i));
       Hash hash(fbbstore_serialized_file_get_hash(file));
-      const FileUsage* fu = FileUsage::Get(ISDIR_WITH_HASH, hash);
+      const FileUsage fu(ISDIR_WITH_HASH, hash);
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(inputs); i++) {
-      const FileUsage* fu = FileUsage::Get(ISREG);
+      const FileUsage fu(ISREG);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_isreg_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_isreg_len_at(inputs, i));
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(inputs); i++) {
-      const FileUsage* fu = FileUsage::Get(ISDIR);
+      const FileUsage fu(ISDIR);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_isdir_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_isdir_len_at(inputs, i));
@@ -901,7 +901,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_count(inputs);
          i++) {
-      const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG);
+      const FileUsage fu(NOTEXIST_OR_ISREG);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_len_at(inputs, i));
@@ -910,14 +910,14 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     for (i = 0;
          i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_count(inputs);
          i++) {
-      const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG_EMPTY);
+      const FileUsage fu(NOTEXIST_OR_ISREG_EMPTY);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_len_at(inputs, i));
       proc->parent_exec_point()->propagate_file_usage(path, fu);
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_count(inputs); i++) {
-      const FileUsage* fu = FileUsage::Get(NOTEXIST);
+      const FileUsage fu(NOTEXIST);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_notexist_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_notexist_len_at(inputs, i));
@@ -930,7 +930,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       (fbbstore_serialized_process_inputs_outputs_get_outputs(inouts));
 
   /* We'll reuse this for every file modification event to propagate. */
-  const FileUsage* fu = FileUsage::Get(DONTKNOW, true);
+  const FileUsage fu(DONTKNOW, Hash(), true);
 
   if (!restore_dirs(proc, outputs, fu)) {
     return false;

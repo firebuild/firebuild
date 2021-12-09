@@ -203,18 +203,16 @@ void ExecedProcess::do_finalize() {
  * performs the file operations, no administration is necessary there.
  */
 void ExecedProcess::propagate_file_usage(const FileName *name,
-                                         const FileUsage* fu_change) {
+                                         const FileUsage fu_change) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
 
-  const FileUsage *fu;
+  FileUsage fu;
   bool propagate = false;
   auto it = file_usages_.find(name);
   if (it != file_usages_.end()) {
-    fu = it->second;
-    const FileUsage* merged_fu = fu->merge(fu_change);
-    if (merged_fu != fu) {
-      it.value() = fu = merged_fu;
+    if (it.value().merge(fu_change)) {
       propagate = true;
+      fu = it->second;
     }
   } else {
     file_usages_[name] = fu = fu_change;
@@ -258,30 +256,25 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
   }
 
-  const FileUsage *fu = nullptr;
   auto it = file_usages_.find(name);
   if (it != file_usages_.end()) {
-    fu = it->second;
-  }
-  if (fu) {
+    FileUsage* fu = &(it.value());
     /* The process already used this file. The initial state was already
      * recorded. We obtain a new FileUsage object which represents the
      * modifications to apply currently, which is at most the written_
      * flag, and then we propagate this upwards to be applied.
      */
-    const FileUsage *fu_change = FileUsage::Get(actual_file, action, flags, error, false);
-    if (!fu_change) {
+    FileUsage fu_change(actual_file, action, flags, error, false);
+    if (fu_change.initialization_failed()) {
       /* Error */
       return false;
-    } else if (fu_change == fu) {
-      /* This file usage is already registered identically for this file and is also propoagated */
+    } else if (fu_change == *fu) {
+      /* This file usage is already registered identically for this file and is also propagated */
       return true;
     }
-    const FileUsage* merged_fu = fu->merge(fu_change);
-    if (merged_fu != fu) {
-      it.value() = merged_fu;
+    if (fu->merge(fu_change)) {
       if (parent_exec_point()) {
-        parent_exec_point()->propagate_file_usage(name, merged_fu);
+        parent_exec_point()->propagate_file_usage(name, *fu);
       }
     }
   } else {
@@ -294,8 +287,8 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     /* The process opens this file for the first time. Compute whatever
      * we need to know about its initial state. Use that same object to
      * propagate the changes upwards. */
-    fu = FileUsage::Get(actual_file, action, flags, error, true);
-    if (!fu) {
+    FileUsage fu(actual_file, action, flags, error, true);
+    if (fu.initialization_failed()) {
       /* Error */
       return false;
     }
@@ -312,7 +305,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
  * This one does not look at the file system, but instead registers the given fu_change.
  */
 bool ExecedProcess::register_file_usage(const FileName *name,
-                                        const FileUsage* fu_change) {
+                                        const FileUsage fu_change) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
 
   if (name->is_at_locations(ignore_locations)) {
@@ -320,23 +313,24 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     return true;
   }
 
-  const FileUsage *fu = nullptr;
+  FileUsage *fu = nullptr;
   auto it = file_usages_.find(name);
   if (it != file_usages_.end()) {
-    fu = it->second;
+    fu = &it.value();
   }
   if (fu) {
-    const FileUsage* merged_fu = fu->merge(fu_change);
-    if (merged_fu == fu) {
+    if (!fu->merge(fu_change)) {
       return true;
     } else {
-      it.value() = fu = merged_fu;
+      if (parent_exec_point()) {
+        parent_exec_point()->propagate_file_usage(name, *fu);
+      }
     }
   } else {
-    file_usages_[name] = fu = fu_change;
-  }
-  if (parent_exec_point()) {
-    parent_exec_point()->propagate_file_usage(name, fu);
+    file_usages_[name] = fu_change;
+    if (parent_exec_point()) {
+      parent_exec_point()->propagate_file_usage(name, fu_change);
+    }
   }
   return true;
 }
@@ -369,7 +363,7 @@ bool ExecedProcess::register_parent_directory(const FileName *name) {
   memcpy(parent_name, name->c_str(), slash_pos);
   parent_name[slash_pos] = '\0';
 
-  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage::Get(ISDIR));
+  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage(ISDIR));
 }
 
 /* Find and apply shortcut */
@@ -567,7 +561,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fcreated: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() != ISREG_WITH_HASH && ffu.usage->written()) {
+    if (ffu.usage.initial_state() != ISREG_WITH_HASH && ffu.usage.written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -575,7 +569,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fmodified: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() == ISREG_WITH_HASH && ffu.usage->written()) {
+    if (ffu.usage.initial_state() == ISREG_WITH_HASH && ffu.usage.written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -583,7 +577,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fread: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() == ISREG_WITH_HASH && !ffu.usage->written()) {
+    if (ffu.usage.initial_state() == ISREG_WITH_HASH && !ffu.usage.written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -591,7 +585,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() != ISREG_WITH_HASH && !ffu.usage->written()) {
+    if (ffu.usage.initial_state() != ISREG_WITH_HASH && !ffu.usage.written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -651,9 +645,6 @@ std::string ExecedProcess::d_internal(const int level) const {
 ExecedProcess::~ExecedProcess() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 
-  for (auto& pair : file_usages_) {
-    delete(pair.second);
-  }
   if (cacher_) {
     cacher_->erase_fingerprint(this);
   }

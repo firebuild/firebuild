@@ -9,7 +9,6 @@
 #include <xxhash.h>
 
 #include <string>
-#include <unordered_set>
 
 #include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -51,52 +50,15 @@ typedef enum {
   FILE_ACTION_MKDIR,
 } FileAction;
 
-struct FileUsageHasher;
-
 class FileUsage {
  public:
-  FileInitialState initial_state() const {return initial_state_;}
-  const Hash& initial_hash() const {return initial_hash_;}
-  bool written() const {return written_;}
-
-  int unknown_err() {return unknown_err_;}
-  void set_unknown_err(int e) {unknown_err_ = e;}
-
-  static const FileUsage* Get(FileInitialState initial_state,
-                              Hash hash, bool written = false) {
-    FileUsage tmp_file_usage(initial_state, hash, written);
-    return (Get(tmp_file_usage));
-  }
-  static const FileUsage* Get(FileInitialState initial_state = DONTKNOW, bool written = false) {
-    if (written) {
-      return no_hash_written_states_[initial_state_to_int(initial_state)];
-    } else {
-      return no_hash_not_written_states_[initial_state_to_int(initial_state)];
-    }
-  }
-
-  static const FileUsage* Get(const FileName* filename, FileAction action,
-                              int flags, int err, bool do_read) {
-    FileUsage tmp_file_usage;
-    bool hash_set = false;
-    if (!tmp_file_usage.update_from_open_params(filename, action, flags, err, do_read, &hash_set)) {
-      return nullptr;
-    } else {
-      return (Get(tmp_file_usage));
-    }
-  }
-
-  const FileUsage* merge(const FileUsage* that) const;
-  bool open(const FileName* filename, int flags, int err, Hash **hashpp);
-
-
- private:
   FileUsage(FileInitialState initial_state, Hash hash, bool written = false) :
       /*read_(false),*/
       initial_hash_(hash),
       initial_state_(initial_state),
       // TODO(rbalint) use that later
       // stated_(false),
+      initialization_failed_(false),
       written_(written),
       // TODO(rbalint) use those later
       // stat_changed_(true),
@@ -105,7 +67,26 @@ class FileUsage {
       unknown_err_(0) {}
   explicit FileUsage(FileInitialState initial_state = DONTKNOW) :
       FileUsage(initial_state, Hash()) {}
+  FileUsage(const FileName* filename, FileAction action,
+            int flags, int err, bool do_read) : FileUsage() {
+    bool hash_set = false;
+    initialization_failed_ =
+        !update_from_open_params(filename, action, flags, err, do_read, &hash_set);
+  }
 
+  FileInitialState initial_state() const {return initial_state_;}
+  bool initialization_failed() const {return initialization_failed_;}
+  const Hash& initial_hash() const {return initial_hash_;}
+  bool written() const {return written_;}
+
+  int unknown_err() {return unknown_err_;}
+  void set_unknown_err(int e) {unknown_err_ = e;}
+
+  bool merge(const FileUsage& that);
+  bool open(const FileName* filename, int flags, int err, Hash **hashpp);
+
+
+ private:
   /* Things that describe the filesystem when the process started up */
 
   /** The initial checksum, if initial_state_ == EXIST_WITH_HASH. */
@@ -117,6 +98,12 @@ class FileUsage {
    *  which files we'll need to monitor. See the comment of the
    *  individual enum numbers for more details. */
   FileInitialState initial_state_ : 4;
+
+  /**
+   * Initializing this object failed in the constructor. This is an alternative to throwing
+   * an exception from the constructor when capturing the file state fails.
+   */
+  bool initialization_failed_ : 1;
 
   /* Things that describe what the process potentially did */
 
@@ -148,21 +135,6 @@ e   *  the final state is to be remembered.
    * computed right before being placed in the cache, don't need to be
    * remembered in memory. */
 
-  /** Global FileUsage db*/
-  static std::unordered_set<FileUsage, FileUsageHasher>* db_;
-  /** Frequently used singletons */
-  static const FileUsage* no_hash_not_written_states_[ISDIR_WITH_HASH + 1];
-  static const FileUsage* no_hash_written_states_[ISDIR_WITH_HASH + 1];
-
-  /* This, along with the FileUsage::db_initializer_ definition in file_usage.cc,
-   * initializes the file usage database once at startup. */
-  class DbInitializer {
-   public:
-    DbInitializer();
-  };
-  friend class DbInitializer;
-  static DbInitializer db_initializer_;
-  friend struct FileUsageHasher;
   friend bool operator==(const FileUsage& lhs, const FileUsage& rhs);
 
   /* Misc */
@@ -199,31 +171,15 @@ e   *  the final state is to be remembered.
   /** An unhandled error occured during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
-  static const FileUsage* Get(const FileUsage& candidate);
   bool update_from_open_params(const FileName* filename, FileAction action, int flags, int err,
                                bool do_read, bool* hash_changed);
 };
 
 bool operator==(const FileUsage& lhs, const FileUsage& rhs);
 
-struct FileUsageHasher {
-  std::size_t operator()(const FileUsage& f) const noexcept {
-    XXH64_hash_t hash = XXH3_64bits_withSeed(f.initial_hash_.get_ptr(), Hash::hash_size(),
-                                             f.unknown_err_);
-    unsigned char merged_state = f.initial_state_;
-    merged_state |= f.written_ << 6;
-    // TODO(rbalint) use those later
-    // merged_state |= f.stated_ << 5;
-    // merged_state |= f.stat_changed_ << 7;
-    hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
-    return hash;
-  }
-};
-
-
 struct file_file_usage {
   const FileName* file;
-  const FileUsage* usage;
+  FileUsage usage;
 };
 
 bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs);
