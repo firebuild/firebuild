@@ -95,10 +95,11 @@ class FileUsage {
       /*read_(false),*/
       initial_hash_(hash),
       initial_state_(initial_state),
-      stated_(false),
+      // TODO(rbalint) use that later
+      // stated_(false),
       written_(written),
-      stat_changed_(true),
       // TODO(rbalint) use those later
+      // stat_changed_(true),
       // initial_stat_err_(0),
       // initial_stat_(),
       unknown_err_(0) {}
@@ -117,10 +118,6 @@ class FileUsage {
    *  individual enum numbers for more details. */
   FileInitialState initial_state_ : 4;
 
-  /** If the file was stat()'ed during the process's lifetime, that is,
-   *  its initial metadata might be relevant. */
-  bool stated_ : 1;
-
   /* Things that describe what the process potentially did */
 
   /** The file's contents were altered by the process, e.g. written to,
@@ -128,12 +125,16 @@ class FileUsage {
    *  another file getting renamed to this one. */
   bool written_ : 1;
 
+  // TODO(rbalint) make user of stat results, but store them in a more compressed
+  /** If the file was stat()'ed during the process's lifetime, that is,
+   *  its initial metadata might be relevant. */
+  // bool stated_ : 1;
+
   /** If the file's metadata (e.g. mode) was potentially altered, that is,
 e   *  the final state is to be remembered.
    *  FIXME Do we need this? We should just always stat() at the end. */
-  bool stat_changed_ : 1;
+  // bool stat_changed_ : 1;
 
-  // TODO(rbalint) make user of stat results, but store them in a more compressed
   // form instead of in the huge struct stat64
   /** The error from initially stat()'ing the file, or 0 if there was no
    *  error. */
@@ -210,9 +211,10 @@ struct FileUsageHasher {
     XXH64_hash_t hash = XXH3_64bits_withSeed(f.initial_hash_.get_ptr(), Hash::hash_size(),
                                              f.unknown_err_);
     unsigned char merged_state = f.initial_state_;
-    merged_state |= f.stated_ << 5;
     merged_state |= f.written_ << 6;
-    merged_state |= f.stat_changed_ << 7;
+    // TODO(rbalint) use those later
+    // merged_state |= f.stated_ << 5;
+    // merged_state |= f.stat_changed_ << 7;
     hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
     return hash;
   }

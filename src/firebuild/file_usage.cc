@@ -47,11 +47,11 @@ FileUsage::DbInitializer FileUsage::db_initializer_;
 bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
   return (lhs.initial_state_ == rhs.initial_state_
           && lhs.initial_hash_ == rhs.initial_hash_
-          && lhs.stated_ == rhs.stated_
+          // && lhs.stated_ == rhs.stated_
           // TODO(rbalint) no operator==()
           // && lhs.initial_stat_ == rhs.initial_stat_
           && lhs.written_ == rhs.written_
-          && lhs.stat_changed_ == rhs.stat_changed_
+          // && lhs.stat_changed_ == rhs.stat_changed_
           && lhs.unknown_err_ == rhs.unknown_err_);
           }
 
