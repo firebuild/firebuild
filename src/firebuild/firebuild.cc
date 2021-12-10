@@ -2,13 +2,13 @@
 /* This file is an unpublished work. All rights reserved. */
 
 
-#include <event2/event.h>
 #include <signal.h>
 #include <getopt.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/un.h>
 #include <time.h>
@@ -32,6 +32,7 @@
 #include "firebuild/config.h"
 #include "firebuild/blob_cache.h"
 #include "firebuild/connection_context.h"
+#include "firebuild/epoll.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
@@ -53,15 +54,16 @@
 libconfig::Config * cfg;
 bool generate_report = false;
 
-struct event_base * ev_base = NULL;
+firebuild::Epoll *epoll = nullptr;
+
+int sigchild_selfpipe[2];
 
 namespace {
 
 static char *fb_tmp_dir;
 static char *fb_conn_string;
 
-evutil_socket_t listener;
-struct event *sigchild_event;
+int listener;
 
 static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
@@ -1154,8 +1156,8 @@ static void bump_limits() {
 /**
  * Create connection sockets for the interceptor
  */
-static evutil_socket_t create_listener() {
-  evutil_socket_t listener;
+static int create_listener() {
+  int listener;
 
   if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
@@ -1179,17 +1181,16 @@ static evutil_socket_t create_listener() {
   return listener;
 }
 
-static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
+static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
-  TRACK(firebuild::FB_DEBUG_COMM, "fd_conn=%s, ctx=%s", D_FD(fd_conn), D(conn_ctx));
+  TRACK(firebuild::FB_DEBUG_COMM, "event->data.fd=%s, ctx=%s", D_FD(event->data.fd), D(conn_ctx));
 
-  (void) what; /* unused */
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
   size_t full_length;
   const msg_header * header;
 
-  int read_ret = buf.read(fd_conn, -1);
+  int read_ret = buf.read(event->data.fd, -1);
   if (read_ret < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       /* Try again later. */
@@ -1197,7 +1198,7 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
     }
   }
   if (read_ret <= 0) {
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + firebuild::d_fd(fd_conn) +
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + firebuild::d_fd(event->data.fd) +
              " hung up (" + d(proc) + ")");
     delete conn_ctx;
     return;
@@ -1221,7 +1222,8 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
         reinterpret_cast<const FBBCOMM_Serialized *>(buf.data() + sizeof(*header));
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + firebuild::d_fd(fd_conn) + ": (" + d(proc) + ")");
+      FB_DEBUG(firebuild::FB_DEBUG_COMM,
+               "fd " + firebuild::d_fd(event->data.fd) + ": (" + d(proc) + ")");
       if (header->ack_id) {
         fprintf(stderr, "ack_num: %d\n", header->ack_id);
       }
@@ -1231,10 +1233,10 @@ static void ic_conn_readcb(evutil_socket_t fd_conn, int16_t what, void *ctx) {
 
     /* Process the messaage. */
     if (proc) {
-      proc_ic_msg(fbbcomm_msg, header->ack_id, fd_conn, proc);
+      proc_ic_msg(fbbcomm_msg, header->ack_id, event->data.fd, proc);
     } else {
       /* Fist interceptor message */
-      proc_new_process_msg(fbbcomm_msg, header->ack_id, fd_conn, &conn_ctx->proc);
+      proc_new_process_msg(fbbcomm_msg, header->ack_id, event->data.fd, &conn_ctx->proc);
     }
     buf.discard(full_length);
   } while (buf.length() > 0);
@@ -1257,13 +1259,31 @@ static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
 }
 
 
-/** Stop listener on SIGCHLD */
-static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
+/* This is the installed handler for SIGCHLD, using the good ol' self-pipe trick to cooperate with
+ * epoll_wait() without race condition. Our measurements show this is faster than epoll_pwait(). */
+static void sigchild_handler(int signum) {
+  (void)signum;  /* unused */
+
+  /* listener being -1 means that we're already exiting, and might have closed sigchild_selfpipe.
+   * In case a runaway descendant dies now and we get a SIGCHLD, just ignore it. */
+  if (listener >= 0) {
+    char dummy = 0;
+    int write_ret = write(sigchild_selfpipe[1], &dummy, 1);
+    (void)write_ret;  /* unused */
+  }
+}
+
+/* This is the actual business logic for SIGCHLD, called synchronously when processing the events
+ * returned by epoll_wait(). */
+static void sigchild_cb(const struct epoll_event* event, void *arg) {
   TRACK(firebuild::FB_DEBUG_PROC, "");
 
-  auto listener_event = reinterpret_cast<struct event *>(arg);
-  (void)fd;
-  (void)what;
+  (void)event;  /* unused */
+  (void)arg;    /* unused */
+
+  char dummy;
+  int read_ret = read(sigchild_selfpipe[0], &dummy, 1);
+  (void)read_ret;  /* unused */
 
   int status = 0;
   pid_t waitpid_ret;
@@ -1279,15 +1299,18 @@ static void sigchild_cb(evutil_socket_t fd, int16_t what, void *arg) {
       save_child_status(waitpid_ret, status, &ret, true);
     }
   } while (waitpid_ret > 0);
+
   if (waitpid_ret < 0) {
-    /* All children exited. */
-    event_del(sigchild_event);
-    event_del(listener_event);
+    /* All children exited. Stop listening on the socket, and set listener to -1 to tell the main
+     * epoll loop to quit. */
+    epoll->del_fd(listener);
+    close(listener);
+    listener = -1;
   }
 }
 
 
-static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
+static void accept_ic_conn(const struct epoll_event* event, void *arg) {
   TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
 
   struct sockaddr_storage remote;
@@ -1300,11 +1323,9 @@ static void accept_ic_conn(evutil_socket_t listener, int16_t event, void *arg) {
     perror("accept");
   } else {
     firebuild::bump_fd_age(fd);
-    auto conn_ctx = new firebuild::ConnectionContext(proc_tree);
-    evutil_make_socket_nonblocking(fd);
-    auto ev = event_new(ev_base, fd, EV_READ | EV_PERSIST, ic_conn_readcb, conn_ctx);
-    conn_ctx->set_ev(ev);
-    event_add(ev, NULL);
+    auto conn_ctx = new firebuild::ConnectionContext(proc_tree, fd);
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+    epoll->add_fd(fd, EPOLLIN, ic_conn_readcb, conn_ctx);
   }
 }
 
@@ -1469,16 +1490,22 @@ int main(const int argc, char *argv[]) {
   }
   auto env_exec = get_sanitized_env();
 
-  ev_base = event_base_new();
-  /* Use two priority queues, the lowe priority queue (1) is for timers. */
-  event_base_priority_init(ev_base, 2);
+  /* Set up sigchild handler */
+  if (pipe2(sigchild_selfpipe, O_CLOEXEC | O_NONBLOCK) != 0) {
+    perror("pipe");
+    exit(EXIT_FAILURE);
+  }
+  struct sigaction sa;
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = sigchild_handler;
+  sigaction(SIGCHLD, &sa, NULL);
+
+  /* Configure epoll */
+  epoll = new firebuild::Epoll(EPOLL_CLOEXEC);
 
   /* Open listener socket before forking child to always let the child connect */
   listener = create_listener();
-  auto listener_event = event_new(ev_base, listener, EV_READ|EV_PERSIST, accept_ic_conn, NULL);
-  event_add(listener_event, NULL);
-  sigchild_event = event_new(ev_base, SIGCHLD, EV_SIGNAL|EV_PERSIST, sigchild_cb, listener_event);
-  event_add(sigchild_event, NULL);
+  epoll->add_fd(listener, EPOLLIN, accept_ic_conn, NULL);
 
   /* This creates some Pipe objects, so needs ev_base being set up. */
   proc_tree = new firebuild::ProcessTree();
@@ -1496,7 +1523,8 @@ int main(const int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
     // we don't need that
-    evutil_closesocket(listener);
+    close(listener);
+
     // create and execute build command
     for (i = 0; i < argc - optind ; i++) {
       argv_exec[i] = argv[optind + i];
@@ -1518,16 +1546,29 @@ int main(const int argc, char *argv[]) {
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
 
-    /* Main loop for processing interceptor messages */
-    event_base_dispatch(ev_base);
+    epoll->add_fd(sigchild_selfpipe[0], EPOLLIN, sigchild_cb, NULL);
 
-    /* Clean up remaining events and the event base. */
-    evutil_closesocket(listener);
-    event_free(listener_event);
-    event_free(sigchild_event);
-    /* Finish all top pipes before event_base_free() frees all their events. */
+    /* Main loop for processing interceptor messages */
+    while (listener >= 0) {
+      /* This is where the process spends its idle time: waiting for an event over a fd, or a
+       * sigchild.
+       *
+       * If our immediate child exited (rather than some runaway descendant thereof, see
+       * prctl(PR_SET_CHILD_SUBREAPER) above) then the handler sigchild_cb() will set listener to
+       * -1, that's how we'll break out of this loop. */
+      epoll->wait();
+
+      /* Process the reported events, if any. */
+      epoll->process_all_events();
+    }
+
+    /* Finish all top pipes */
     proc_tree->FinishInheritedFdPipes();
-    event_base_free(ev_base);
+    /* Close the self-pipe */
+    close(sigchild_selfpipe[0]);
+    close(sigchild_selfpipe[1]);
+    /* No more epoll needed, this also closes its fd */
+    delete epoll;
   }
 
   if (!proc_tree->root()) {

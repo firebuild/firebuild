@@ -3,9 +3,9 @@
 
 #include "firebuild/pipe.h"
 
-#include <event2/event.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <sys/epoll.h>
 #include <unistd.h>
 
 #include <cassert>
@@ -16,12 +16,13 @@
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
+#include "firebuild/epoll.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
 
 /** Timeout for closing a pipe after all fd1 ends are closed and a new hasn't been opened. */
-const struct timeval kFd1ReopenTimeout = {0, 100000};
+const int kFd1ReopenTimeoutMs = 100;
 
 namespace firebuild {
 
@@ -61,24 +62,21 @@ struct Fd1Deleter {
   }
 };
 
-void Pipe::fd1_timeout_cb(int fd, int16_t what, void *arg) {
-  (void) fd; /* unused */
-  (void) what;
-  assert(what & EV_TIMEOUT);
-
+void Pipe::fd1_timeout_cb(void *arg) {
   Pipe* pipe = reinterpret_cast<Pipe*>(arg);
+  pipe->fd1_timeout_id_ = -1;
   if (++pipe->fd1_timeout_round_ >= 2) {
     /* At least kFd1ReopenTimeout time elapsed since the
      * the pipe lost the last fd1 end and all non timer events have been processed after that. */
     pipe->finish();
   } else {
     /* Add it again, it is not persistent. */
-    evtimer_add(pipe->fd1_timeout_event_, &kFd1ReopenTimeout);
+    pipe->fd1_timeout_id_ = epoll->add_timer(kFd1ReopenTimeoutMs, fd1_timeout_cb, pipe);
   }
 }
 
 Pipe::Pipe(int fd0_conn, Process* creator)
-    : fd0_event(event_new(ev_base, fd0_conn, EV_PERSIST | EV_WRITE, Pipe::pipe_fd0_write_cb, this)),
+    : fd0_conn(fd0_conn),
       conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), send_only_mode_(false),
       fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
       fd1_timeout_round_(0), buf_(), fd0_ptrs_held_self_ptr_(nullptr),
@@ -88,6 +86,10 @@ Pipe::Pipe(int fd0_conn, Process* creator)
 
 Pipe::~Pipe() {
   TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "");
+
+  if (fd1_timeout_id_ >= 0) {
+    epoll->del_timer(fd1_timeout_id_);
+  }
 }
 
 std::shared_ptr<Pipe> Pipe::fd0_shared_ptr() {
@@ -111,26 +113,25 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
 
   assert(conn2fd1_ends.count(fd1_conn) == 0);
   assert(!finished());
-  if (fd1_timeout_event_) {
-    event_free(fd1_timeout_event_);
-    fd1_timeout_event_ = nullptr;
+  if (fd1_timeout_id_ >= 0) {
+    epoll->del_timer(fd1_timeout_id_);
+    fd1_timeout_id_ = -1;
   }
-  auto fd1_event = event_new(ev_base, fd1_conn, EV_PERSIST | EV_READ, Pipe::pipe_fd1_read_cb, this);
-  auto fd1_end = new pipe_end({fd1_event, {file_fd}, recorders, false});
+
+  auto fd1_end = new pipe_end({fd1_conn, {file_fd}, recorders, false});
   conn2fd1_ends[fd1_conn] = fd1_end;
   ffd2fd1_ends[file_fd] = fd1_end;
   if (!send_only_mode_) {
-    event_add(fd1_event, NULL);
+    epoll->add_fd(fd1_conn, EPOLLIN, Pipe::pipe_fd1_read_cb, this);
   }
   proc2recorders[proc] = recorders;
 }
 
-void Pipe::pipe_fd0_write_cb(int fd, int16_t what, void *arg) {
+void Pipe::pipe_fd0_write_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(event->data.fd));
 
-  (void) fd; /* unused */
-  (void) what; /* FIXME! unused */
+  (void) event;  /* unused */
   switch (pipe->send_buf()) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -168,7 +169,7 @@ void Pipe::close_one_fd1(int fd) {
     ffd2fd1_ends.erase(file_fd);
   }
   conn2fd1_ends.erase(it);
-  event_free(fd1_end->ev);
+  epoll->maybe_del_fd(fd);
   close(fd);
   delete(fd1_end);
   if (conn2fd1_ends.size() == 0) {
@@ -179,10 +180,9 @@ void Pipe::close_one_fd1(int fd) {
         /* There are references held to fd1 which means that a process may show up inheriting
          * the open pipe end. Set up a timer to close finish() the pipe if the new process does not
          * not register with the supervisor possibly because it is a static binary. */
-        assert_null(fd1_timeout_event_);
         fd1_timeout_round_ = 0;
-        fd1_timeout_event_ = evtimer_new(ev_base, fd1_timeout_cb, this);
-        evtimer_add(fd1_timeout_event_, &kFd1ReopenTimeout);
+        assert(fd1_timeout_id_ < 0);
+        fd1_timeout_id_ = epoll->add_timer(kFd1ReopenTimeoutMs, fd1_timeout_cb, this);
       }
     } else {
       /* Let the pipe send out the remaining data. */
@@ -229,7 +229,7 @@ void Pipe::finish() {
   // clean up all events
   for (auto it : conn2fd1_ends) {
     FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d_fd(it.first));
-    event_free(it.second->ev);
+    epoll->maybe_del_fd(it.first);
     close(it.first);
     delete it.second;
   }
@@ -241,25 +241,23 @@ void Pipe::finish() {
     send_ret = send_buf();
   } while (!buffer_empty() && send_ret == FB_PIPE_SUCCESS);
 
-  auto fd0 = event_get_fd(fd0_event);
-  FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d_fd(fd0));
-  event_free(fd0_event);
-  close(fd0);
+  FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d_fd(fd0_conn));
+  epoll->maybe_del_fd(fd0_conn);
+  close(fd0_conn);
+  fd0_conn = -1;
 
-  fd0_event = nullptr;
-  if (fd1_timeout_event_) {
-    event_free(fd1_timeout_event_);
-    fd1_timeout_event_ = nullptr;
+  if (fd1_timeout_id_ >= 0) {
+    epoll->del_timer(fd1_timeout_id_);
+    fd1_timeout_id_ = -1;
   }
   shared_self_ptr_.reset();
 }
 
-void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
+void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(fd));
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(event->data.fd));
 
-  (void) what; /* FIXME! unused */
-  auto result = pipe->forward(fd, false, true);
+  auto result = pipe->forward(event->data.fd, false, true);
   switch (result) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -271,7 +269,7 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
       break;
     }
     case FB_PIPE_FD1_EOF: {
-      pipe->close_one_fd1(fd);
+      pipe->close_one_fd1(event->data.fd);
       break;
     }
     case FB_PIPE_SUCCESS: {
@@ -285,15 +283,14 @@ void Pipe::pipe_fd1_read_cb(int fd, int16_t what, void *arg) {
 
 /**
  * Flip whether we wish to only send data from the Pipe's buffer (which we want if the buffer is
- * nonempty) or if we wish to read (and probably immediately send that). Also configure libevent
+ * nonempty) or if we wish to read (and probably immediately send that). Also configure epoll
  * accordingly.
  *
  * Note: This method can't be called if the current Pipe represents one of regular files the top
  * process inherited for writing. E.g. if you execute:
  *   firebuild command args > outfile
  * then care has to be taken not to call this method on "outfile".
- * This is because libevent's event_add() and friends, and their underlying epoll_ctl() don't
- * support regular files.
+ * This is because epoll_ctl() doesn't support regular files.
  */
 void Pipe::set_send_only_mode(const bool mode) {
   TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "mode=%s", D(mode));
@@ -304,16 +301,16 @@ void Pipe::set_send_only_mode(const bool mode) {
              std::string(mode ? "en" : "dis") + "abling send only mode on " + d(this));
     if (mode) {
       for (auto it : conn2fd1_ends) {
-        event_del(it.second->ev);
+        epoll->del_fd(it.first);
       }
       /* should try again writing when fd0 becomes writable */
-      event_add(fd0_event, NULL);
+      epoll->add_fd(fd0_conn, EPOLLOUT, Pipe::pipe_fd0_write_cb, this);
     } else {
       for (auto it : conn2fd1_ends) {
-        event_add(it.second->ev, NULL);
+        epoll->add_fd(it.first, EPOLLIN, Pipe::pipe_fd1_read_cb, this);
       }
       /* Should not be woken up by fd0 staying writable until data arrives. */
-      event_del(fd0_event);
+      epoll->del_fd(fd0_conn);
     }
     send_only_mode_ = mode;
   } else {
@@ -324,7 +321,7 @@ void Pipe::set_send_only_mode(const bool mode) {
 
 /**
  * Try to send some of the data that's in the buffers. Also flips send_only_mode (and thus
- * configures libevent) according to whether further sending is needed.
+ * configures epoll) according to whether further sending is needed.
  *
  * The Pipe might represent a regular file that the top process inherited for writing. In this case
  * this method should successfully write the entire buffer, and thus not call set_send_only_mode().
@@ -335,7 +332,6 @@ pipe_op_result Pipe::send_buf() {
   assert(!finished());
   if (!buffer_empty()) {
     /* There is data to be forwarded. */
-    auto fd0_conn = event_get_fd(fd0_event);
     ssize_t sent;
     do {
       sent = write(fd0_conn, buf_.data(), buf_.length());
@@ -398,7 +394,6 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
     int received;
     /* Try splice and tee first. */
     if (buffer_empty()) {
-      auto fd0_conn = event_get_fd(fd0_event);
       do {
         /* Forward data first to block the reader less. */
         if (PipeRecorder::has_active_recorder(fd1_end->recorders)) {
@@ -511,9 +506,7 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
   if (!fd1_end) {
     return;
   }
-  auto ev = fd1_end->ev;
-  assert(ev);
-  int fd = event_get_fd(ev);
+  int fd = fd1_end->fd;
   switch (forward(fd, true, false)) {
     case FB_PIPE_FD1_EOF: {
       /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
@@ -522,7 +515,7 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
       break;
     }
     case FB_PIPE_FD0_EPIPE: {
-      if (fd0_event) {
+      if (fd0_conn >= 0) {
         /* Clean up pipe. */
         finish();
       }
@@ -558,7 +551,7 @@ std::string d(const Pipe& pipe, const int level) {
       for (const auto& it : pipe.conn2fd1_ends) {
         ret += " " + d_fd(it.first);
       }
-      ret += ", fd0: " + d_fd(event_get_fd(pipe.fd0_event));
+      ret += ", fd0: " + d_fd(pipe.fd0_conn);
     } else {
       ret += ", finished";
     }

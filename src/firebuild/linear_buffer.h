@@ -11,8 +11,6 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
-#include <event2/event.h>
-
 #include <vector>
 
 #include "firebuild/cxx_lang_utils.h"
@@ -41,7 +39,7 @@ class LinearBuffer {
    *        the input buffer
    * @return number of bytes read
    */
-  ssize_t read(evutil_socket_t fd, ssize_t howmuch) {
+  ssize_t read(int fd, ssize_t howmuch) {
     TRACK(FB_DEBUG_COMM, "fd=%s, howmuch=%ld", D_FD(fd), howmuch);
 
     assert_cmp(howmuch, !=, 0);
@@ -126,7 +124,7 @@ class LinearBuffer {
       buffer_ = reinterpret_cast<char*>(realloc(buffer_, size_));
     }
   }
-  ssize_t readable_bytes(evutil_socket_t fd) {
+  ssize_t readable_bytes(int fd) {
     int n;
     if (ioctl(fd, FIONREAD, &n) < 0) {
       return -1;

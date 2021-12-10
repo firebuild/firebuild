@@ -40,7 +40,7 @@ ProcessTree::ProcessTree()
       pipe = (*inherited_fds_)[STDOUT_FILENO]->pipe();
     } else {
       /* Create a new Pipe for this file descriptor.
-       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with libevent.
+       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with epoll.
        * The fd is dup()-ed first to let it be closed without closing the original fd. */
       int fd_dup = fcntl(fd, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
       assert(fd_dup != -1);
