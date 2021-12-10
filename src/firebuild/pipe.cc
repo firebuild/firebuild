@@ -299,21 +299,27 @@ void Pipe::set_send_only_mode(const bool mode) {
   TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "mode=%s", D(mode));
 
   assert(!finished());
-  if (mode) {
-    FB_DEBUG(FB_DEBUG_PIPE, "switching " + d(this) + " to send only mode");
-    for (auto it : conn2fd1_ends) {
-      event_del(it.second->ev);
+  if (mode != send_only_mode_) {
+    FB_DEBUG(FB_DEBUG_PIPE,
+             std::string(mode ? "en" : "dis") + "abling send only mode on " + d(this));
+    if (mode) {
+      for (auto it : conn2fd1_ends) {
+        event_del(it.second->ev);
+      }
+      /* should try again writing when fd0 becomes writable */
+      event_add(fd0_event, NULL);
+    } else {
+      for (auto it : conn2fd1_ends) {
+        event_add(it.second->ev, NULL);
+      }
+      /* Should not be woken up by fd0 staying writable until data arrives. */
+      event_del(fd0_event);
     }
-    /* should try again writing when fd0 becomes writable */
-    event_add(fd0_event, NULL);
+    send_only_mode_ = mode;
   } else {
-    for (auto it : conn2fd1_ends) {
-      event_add(it.second->ev, NULL);
-    }
-    /* Should not be woken up by fd0 staying writable until data arrives. */
-    event_del(fd0_event);
+    FB_DEBUG(FB_DEBUG_PIPE,
+             "send only mode already " + std::string(mode ? "en" : "dis") + "abled on " + d(this));
   }
-  send_only_mode_ = mode;
 }
 
 /**
