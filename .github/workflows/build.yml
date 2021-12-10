@@ -9,7 +9,7 @@ on:
       - master
 
 env:
-  BUILD_DEPS: cmake libconfig++-dev libevent-dev libxxhash-dev libjemalloc-dev libfmt-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
+  BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libfmt-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
   TEST_DEPS: bats node-d3 graphviz moreutils fakeroot
 jobs:
   build-on-ubuntu-lts:

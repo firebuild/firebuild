@@ -10,6 +10,16 @@
 ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
                            unsigned int flags);
 
+/** Add two struct timespecs. Equivalent to the same method of BSD. */
+#define timespecadd(a, b, res) do {             \
+  (res)->tv_sec = (a)->tv_sec + (b)->tv_sec;    \
+  (res)->tv_nsec = (a)->tv_nsec + (b)->tv_nsec; \
+  if ((res)->tv_nsec >= 1000 * 1000 * 1000) {   \
+    (res)->tv_sec++;                            \
+    (res)->tv_nsec -= 1000 * 1000 * 1000;       \
+  }                                             \
+} while (0)
+
 /** Subtract two struct timespecs. Equivalent to the same method of BSD. */
 #define timespecsub(a, b, res) do {             \
   (res)->tv_sec = (a)->tv_sec - (b)->tv_sec;    \
@@ -19,6 +29,12 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
     (res)->tv_nsec += 1000 * 1000 * 1000;       \
   }                                             \
 } while (0)
+
+/** Compare two struct timespecs. Equivalent to the same method of BSD. */
+#define timespeccmp(a, b, OP)                   \
+  (((a)->tv_sec == (b)->tv_sec) ?               \
+      (((a)->tv_nsec)OP((b)->tv_nsec)) :        \
+       (((a)->tv_sec)OP((b)->tv_sec)))
 
 namespace firebuild {
 

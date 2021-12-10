@@ -8,17 +8,19 @@
 #ifndef FIREBUILD_CONNECTION_CONTEXT_H_
 #define FIREBUILD_CONNECTION_CONTEXT_H_
 
-#include <event2/event.h>
 #include <unistd.h>
 
 #include <string>
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
+#include "firebuild/epoll.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/linear_buffer.h"
 #include "firebuild/process.h"
 #include "firebuild/process_tree.h"
+
+extern firebuild::Epoll *epoll;
 
 namespace firebuild {
 
@@ -28,7 +30,8 @@ extern void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
 class ConnectionContext {
  public:
-  explicit ConnectionContext(ProcessTree *proc_tree) : buffer_(), proc_tree_(proc_tree) {}
+  ConnectionContext(ProcessTree *proc_tree, int conn)
+      : buffer_(), proc_tree_(proc_tree), conn_(conn) {}
   ~ConnectionContext() {
     if (proc) {
       auto exec_child_sock = proc_tree_->Pid2ExecChildSock(proc->pid());
@@ -40,12 +43,11 @@ class ConnectionContext {
       }
       proc->finish();
     }
-    assert(ev_);
-    evutil_socket_t conn = event_get_fd(ev_);
-    event_free(ev_);
-    close(conn);
+    assert(conn_ >= 0);
+    epoll->maybe_del_fd(conn_);
+    close(conn_);
+    conn_ = -1;
   }
-  void set_ev(struct event* ev) {ev_ = ev;}
   LinearBuffer& buffer() {return buffer_;}
   Process * proc = nullptr;
 
@@ -53,7 +55,7 @@ class ConnectionContext {
   /** Partial interceptor message including the FBB header */
   LinearBuffer buffer_;
   ProcessTree *proc_tree_;
-  struct event* ev_ = nullptr;
+  int conn_;
   DISALLOW_COPY_AND_ASSIGN(ConnectionContext);
 };
 

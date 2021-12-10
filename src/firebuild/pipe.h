@@ -4,8 +4,8 @@
 #ifndef FIREBUILD_PIPE_H_
 #define FIREBUILD_PIPE_H_
 
-#include <event2/event.h>
 #include <limits.h>
+#include <sys/epoll.h>
 #include <tsl/hopscotch_map.h>
 #include <tsl/hopscotch_set.h>
 #include <unistd.h>
@@ -18,10 +18,11 @@
 
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
+#include "firebuild/epoll.h"
 #include "firebuild/linear_buffer.h"
 #include "firebuild/pipe_recorder.h"
 
-extern event_base * ev_base;
+extern firebuild::Epoll *epoll;
 
 namespace firebuild {
 
@@ -30,8 +31,8 @@ class ExecedProcess;
 class Process;
 
 typedef struct _pipe_end {
-  /** Event listening on the pipe end */
-  struct event* ev;
+  /** fd number of this fd1 pipe end (where we get the data from) */
+  int fd;
   /* FileFDs associated with this pipe end keeping a(n fd1) reference to this pipe. */
   tsl::hopscotch_set<FileFD*> file_fds;
   /** Cache files to save the captured data to */
@@ -79,7 +80,7 @@ typedef enum {
  *
  * Forwarding data on the supervisor's side can be event-triggered or forced by calling
  * Pipe::forward():
- * - For the event-triggered method there is a libevent callback registered on each pipe end.
+ * - For the event-triggered method there is an epoll callback registered on each pipe end.
  *   fd0 and fd1 ends have different event handlers due fd0 can only be written to, and fd1-s can
  *   only be read. In Pipe's default state (send_only_mode_ == false) the fd1 ends' callback is
  *   active and whenever there is incoming data on an fd1 end it is written to the fd0 end
@@ -149,11 +150,9 @@ class Pipe {
    */
   std::shared_ptr<Pipe> shared_ptr() {return shared_self_ptr_;}
   /**
-   * Event with the callback triggered when fd0 end is writable.
-   *
-   * Cleaned up and set to nullptr in finish() only.
+   * fd number of the fd0 end (where we forward the data to).
    */
-  struct event * fd0_event;
+  int fd0_conn;
   /**
    * Fd1 ends indexed by local connection file descriptor.
    * During fd1 end's lifetime this maps the supervisor-side connections to the fd1 end.
@@ -221,7 +220,7 @@ class Pipe {
   /** All ends are closed and the pipe is not functional anymore, just exists because there are
    * references to it. */
   bool finished() const {
-    return !fd0_event;
+    return fd0_conn == -1;
   }
 
   /** Add data from the given fd to the buffer. */
@@ -237,7 +236,7 @@ class Pipe {
   /** Number of times the fd1 timeout callback visited the pipe. */
   unsigned int fd1_timeout_round_:3;
   LinearBuffer buf_;
-  struct event* fd1_timeout_event_ = nullptr;
+  int fd1_timeout_id_ = -1;
   /**
    * Shared self pointer used by fd0 references to clean oneself up only after finish() and keep
    * track of fd0 references separately . */
@@ -253,9 +252,9 @@ class Pipe {
   Process* creator_;
 
   static int id_counter_;
-  static void pipe_fd0_write_cb(evutil_socket_t fd, int16_t what, void *arg);
-  static void pipe_fd1_read_cb(evutil_socket_t fd, int16_t what, void *arg);
-  static void fd1_timeout_cb(int fd, int16_t what, void *arg);
+  static void pipe_fd0_write_cb(const struct epoll_event* event, void *arg);
+  static void pipe_fd1_read_cb(const struct epoll_event* event, void *arg);
+  static void fd1_timeout_cb(void *arg);
   pipe_end* get_fd1_end(FileFD* file_fd) {
     auto it = ffd2fd1_ends.find(file_fd);
     if (it != ffd2fd1_ends.end()) {

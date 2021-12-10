@@ -7,7 +7,6 @@ set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_V
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
-pkg_check_modules(LIBEVENT REQUIRED libevent)
 pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 find_package(tsl-hopscotch-map REQUIRED)
 
@@ -38,6 +37,7 @@ add_custom_target(fbbstore_gen_files ALL DEPENDS fbbstore.cc fbbstore.h fbbstore
 add_executable(firebuild-bin
   config.cc
   debug.cc
+  epoll.cc
   file_name.cc
   firebuild.cc
   pipe.cc
@@ -62,7 +62,7 @@ add_executable(firebuild-bin
   fbbstore.cc
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_cc>)
-target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${LIBEVENT_LIBRARIES} ${JEMALLOC_LIBRARIES} xxhash fmt::fmt)
+target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} xxhash fmt::fmt)
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_target_properties(firebuild-bin
   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True OUTPUT_NAME firebuild)
