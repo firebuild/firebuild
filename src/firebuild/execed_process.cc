@@ -314,6 +314,16 @@ bool ExecedProcess::register_file_usage(const FileName *name,
                                         const FileUsage* fu_change) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
 
+  if (!can_shortcut_ && !generate_report) {
+    /* Register at the first shortcutable ancestor instead. */
+    ExecedProcess* next = next_shortcutable_ancestor();
+    if (next) {
+      return next->register_file_usage(name, fu_change);
+    } else {
+      return true;
+    }
+  }
+
   if (name->is_at_locations(ignore_locations)) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
@@ -348,6 +358,16 @@ bool ExecedProcess::register_file_usage(const FileName *name,
  */
 bool ExecedProcess::register_parent_directory(const FileName *name) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
+
+  if (!can_shortcut_ && !generate_report) {
+    /* Register at the first shortcutable ancestor instead. */
+    ExecedProcess* next = next_shortcutable_ancestor();
+    if (next) {
+      return next->register_parent_directory(name);
+    } else {
+      return true;
+    }
+  }
 
   /* name is canonicalized, so just simply strip the last component */
   ssize_t slash_pos = name->length() - 1;
