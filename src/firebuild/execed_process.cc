@@ -56,7 +56,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
                                              ? parent->exec_point()
-                                             : parent->exec_point()->maybe_shortcutable_ancestor_)
+                                             : parent->exec_point()->next_shortcutable_ancestor())
                                    : nullptr),
       initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
       executable_(executable), executed_path_(executed_path), libs_(libs), file_usages_(),
@@ -223,10 +223,9 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
 
   /* Propagage change further if needed. */
   if (propagate) {
-    ExecedProcess *next_ancestor =
-        generate_report ? parent_exec_point() : maybe_shortcutable_ancestor_;
-    if (next_ancestor) {
-      next_ancestor->propagate_file_usage(name, fu);
+    ExecedProcess* next = generate_report ? parent_exec_point() : next_shortcutable_ancestor();
+    if (next) {
+      next->propagate_file_usage(name, fu);
     }
   }
 }
@@ -250,9 +249,9 @@ bool ExecedProcess::register_file_usage(const FileName *name,
 
   if (!can_shortcut_ && !generate_report) {
     /* Register at the first shortcutable ancestor instead. */
-    if (maybe_shortcutable_ancestor_) {
-      return maybe_shortcutable_ancestor_->register_file_usage(name, actual_file, action, flags,
-                                                               error);
+    ExecedProcess* next = next_shortcutable_ancestor();
+    if (next) {
+      return next->register_file_usage(name, actual_file, action, flags, error);
     } else {
       return true;
     }
@@ -405,7 +404,7 @@ void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
     p = this;
   }
   disable_shortcutting_only_this(reason, p);
-  if (maybe_shortcutable_ancestor_ == nullptr) {
+  if (next_shortcutable_ancestor() == nullptr) {
     /* Shortcutting is already disabled for all transitive exec parents. */
     return;
   }

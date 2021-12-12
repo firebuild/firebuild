@@ -225,6 +225,18 @@ class ExecedProcess : public Process {
    */
   std::vector<inherited_pipe_t> inherited_pipes_ = {};
   void store_in_cache();
+  ExecedProcess* next_shortcutable_ancestor() {
+    if (maybe_shortcutable_ancestor_ == nullptr || maybe_shortcutable_ancestor_->can_shortcut_) {
+      return maybe_shortcutable_ancestor_;
+    } else {
+      ExecedProcess* next = maybe_shortcutable_ancestor_->maybe_shortcutable_ancestor_;
+      while (next != nullptr && !next->can_shortcut_)  {
+        next = next->maybe_shortcutable_ancestor_;
+      }
+      maybe_shortcutable_ancestor_ = next;
+      return next;
+    }
+  }
   /// Reason for this process can't be short-cut
   const char* cant_shortcut_reason_ = nullptr;
   /// Process the event preventing short-cutting happened in
