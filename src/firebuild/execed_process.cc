@@ -651,9 +651,6 @@ std::string ExecedProcess::d_internal(const int level) const {
 ExecedProcess::~ExecedProcess() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 
-  for (auto& pair : file_usages_) {
-    delete(pair.second);
-  }
   if (cacher_) {
     cacher_->erase_fingerprint(this);
   }
