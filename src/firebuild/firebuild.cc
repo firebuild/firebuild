@@ -1567,8 +1567,6 @@ int main(const int argc, char *argv[]) {
     /* Close the self-pipe */
     close(sigchild_selfpipe[0]);
     close(sigchild_selfpipe[1]);
-    /* No more epoll needed, this also closes its fd */
-    delete epoll;
   }
 
   if (!proc_tree->root()) {
@@ -1628,6 +1626,8 @@ int main(const int argc, char *argv[]) {
       free(env_exec);
     }
 
+    /* No more epoll needed, this also closes all tracked fds */
+    delete epoll;
     free(fb_conn_string);
     free(fb_tmp_dir);
     delete(proc_tree);
