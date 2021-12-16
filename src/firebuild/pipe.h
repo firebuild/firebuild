@@ -205,9 +205,12 @@ class Pipe {
    * Drain one fd1 end corresponding to file_fd and remove file_fd references from ffd2fd1_ends and
    * fd1 end's file_fds if they were present.
    *
-   * @return if file_fd references are (possibly earlier) removed from the pipe
    */
   void drain_fd1_end(FileFD* file_fd);
+  /**
+   * Drain all fd1 ends.
+   */
+  void drain();
   /**
    * Handle closing a pipe end file descriptor in the intercepted process.
    *

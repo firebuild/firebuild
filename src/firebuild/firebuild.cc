@@ -252,11 +252,11 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
     std::vector<inherited_pipe_t> inherited_pipes = proc->inherited_pipes();
     for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
-      /* There may be incoming data from the parent, drain it. Do it before trying to shortcut. */
-      auto file_fd = proc->get_shared_fd(inherited_pipe.fds[0]);
-      auto pipe = file_fd->pipe();
+      /* There may be incoming data from the (transitive) parent(s), drain it.
+       * Do it before trying to shortcut. */
+      auto pipe = proc->get_fd(inherited_pipe.fds[0])->pipe();
       assert(pipe);
-      pipe->drain_fd1_end(file_fd.get());
+      pipe->drain();
     }
 
     /* Try to shortcut the process. */

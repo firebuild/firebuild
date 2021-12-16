@@ -527,6 +527,43 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
   }
 }
 
+void Pipe::drain() {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
+
+  if (finished()) {
+    return;
+  }
+  for (auto pair : ffd2fd1_ends) {
+    pipe_end* fd1_end = pair.second;
+    // TODO(rbalint) those should not be nullptrs
+    if (!fd1_end) {
+      FB_DEBUG(FB_DEBUG_PIPE, "file fd " + d(pair.first) + " points to " + d(pair.second) +
+               " in ffd2fd1_ends of " + d(this));
+      continue;
+    }
+    assert(fd1_end);
+    int fd = fd1_end->fd;
+    switch (forward(fd, true, false)) {
+      case FB_PIPE_FD1_EOF: {
+        /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
+           function. */
+        close_one_fd1(fd);
+        break;
+      }
+      case FB_PIPE_FD0_EPIPE: {
+        if (fd0_conn >= 0) {
+          /* Clean up pipe. */
+          finish();
+        }
+        break;
+      }
+      default:
+        /* Nothing to do, the fd1 end may keep operating. */
+        break;
+    }
+  }
+}
+
 /* Add the contents of the given file to the Pipe's buffer. This is used when shortcutting a
  * process, the cached data is injected into the Pipe. */
 void Pipe::add_data_from_fd(int fd, size_t len) {
