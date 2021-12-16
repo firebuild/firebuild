@@ -2,6 +2,7 @@
 /* This file is an unpublished work. All rights reserved. */
 
 #define _GNU_SOURCE
+#include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -87,6 +88,13 @@ int main() {
     exit(1);
   }
   close(fd);
+
+  DIR *d = opendir("./");
+  if (d == NULL) {
+    perror("opendir" LOC);
+    exit(1);
+  }
+  closedir(d);
 
   if (mkdir("test_directory", 0700) == -1) {
     perror("mkdir" LOC);

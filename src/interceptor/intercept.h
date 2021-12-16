@@ -173,8 +173,8 @@ size_t make_canonical(char *path, size_t original_length);
       c_buf[ic_cwd_len] = '/';                                          \
       memcpy(&c_buf[ic_cwd_len + 1], field, orig_len + 1);              \
       c_len =                                                           \
-          make_canonical(&c_buf[ic_cwd_len + 1], orig_len)              \
-          + ic_cwd_len + 1;                                             \
+          make_canonical(&c_buf[ic_cwd_len - 1], orig_len + 2)          \
+          + ic_cwd_len - 1;                                             \
     } else {                                                            \
       memcpy(c_buf, field, orig_len + 1);                               \
       c_len = make_canonical(c_buf, orig_len);                          \
