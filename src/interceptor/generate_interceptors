@@ -778,11 +778,12 @@ for v in ['', 'v']:
 # Intercept chdir and fchdir
 generate("int", "chdir", "const char *dir",
          msg_skip_fields=["dir"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chdir, dir);",
+         # Don't make dir absolute, since the macro would calculate it after calling chdir
+         msg_add_fields=["BUILDER_SET_CANONICAL(chdir, dir);",
                          "if (success) {",
-                         "  strncpy(ic_cwd, fbbcomm_builder_chdir_get_dir(&ic_msg), CWD_BUFSIZE);",
-                         "  ic_cwd_len = fbbcomm_builder_chdir_get_dir_len(&ic_msg);",
-                         "  assert(ic_cwd_len == strlen(ic_cwd));"
+                         "  char* getcwd_ret = ic_orig_getcwd(ic_cwd, CWD_BUFSIZE);",
+                         "  (void) getcwd_ret;",
+                         "  ic_cwd_len = strlen(ic_cwd);",
                          "}"])
 generate("int", "fchdir", "int fd",
          after_lines=["if (success) {",
