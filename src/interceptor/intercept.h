@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "common/firebuild_common.h"
 #include "./fbbcomm.h"
@@ -152,6 +153,16 @@ extern int ic_pid;
  */
 size_t make_canonical(char *path, size_t original_length);
 
+#ifndef NDEBUG
+static inline bool ic_cwd_ok() {
+  char buf[CWD_BUFSIZE];
+  /* getcwd() is not intercepted */
+  char * getcwd_ret = getcwd(buf, sizeof(buf));
+  assert(getcwd_ret);
+  return (strcmp(ic_cwd, buf) == 0);
+}
+#endif
+
 #define BUILDER_SET_CANONICAL2(msg, field, make_abs) do {               \
   const int orig_len = strlen(field);                                   \
   const bool fix_abs = make_abs && field[0] != '/';                     \
@@ -169,6 +180,7 @@ size_t make_canonical(char *path, size_t original_length);
         alloca(orig_len + (fix_abs ? (ic_cwd_len + 2) : 1));            \
     int c_len;                                                          \
     if (fix_abs) {                                                      \
+      assert(ic_cwd_ok());                                              \
       memcpy(c_buf, ic_cwd, ic_cwd_len);                                \
       c_buf[ic_cwd_len] = '/';                                          \
       memcpy(&c_buf[ic_cwd_len + 1], field, orig_len + 1);              \
