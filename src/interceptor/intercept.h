@@ -185,8 +185,12 @@ static inline bool ic_cwd_ok() {
       c_buf[ic_cwd_len] = '/';                                          \
       memcpy(&c_buf[ic_cwd_len + 1], field, orig_len + 1);              \
       c_len =                                                           \
-          make_canonical(&c_buf[ic_cwd_len - 1], orig_len + 2)          \
-          + ic_cwd_len - 1;                                             \
+          make_canonical(&c_buf[ic_cwd_len], orig_len + 1)              \
+          + ic_cwd_len;                                                 \
+      if (c_len > 1 && c_buf[c_len - 1] == '/') {                       \
+        c_buf[c_len - 1] = '\0';                                        \
+        c_len--;                                                        \
+      }                                                                 \
     } else {                                                            \
       memcpy(c_buf, field, orig_len + 1);                               \
       c_len = make_canonical(c_buf, orig_len);                          \
