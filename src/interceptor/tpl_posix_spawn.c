@@ -34,7 +34,11 @@
   } else {
     env_fixed_up = environ;
   }
-
+  /* Fix up missing out parameter for internal use */
+  pid_t tmp_pid;
+  if (!pid) {
+    pid = &tmp_pid;
+  }
   ret = ic_orig_{{ func }}({{ names_str | replace("envp", "env_fixed_up")}});
 ### endblock call_orig
 
