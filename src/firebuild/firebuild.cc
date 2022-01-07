@@ -936,6 +936,10 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_write_to_inherited *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_link: {
+      proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
+      break;
+    }
     case FBBCOMM_TAG_access:
     case FBBCOMM_TAG_chmod:
     case FBBCOMM_TAG_chown:
@@ -952,7 +956,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_futime:
     case FBBCOMM_TAG_getdomainname:
     case FBBCOMM_TAG_gethostname:
-    case FBBCOMM_TAG_link:
     case FBBCOMM_TAG_lockf:
     case FBBCOMM_TAG_NEXT:
     case FBBCOMM_TAG_pathconf:
