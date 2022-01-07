@@ -652,10 +652,9 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
 
 /**
  * Set up a supervisor connection
- * @param[in] fd if > -1 remap the connection to that fd
  * @return fd of the connection
  */
-int fb_connect_supervisor(int fd) {
+int fb_connect_supervisor() {
   int conn_ret = -1, conn = ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
 
   assert(conn != -1);
@@ -670,16 +669,6 @@ int fb_connect_supervisor(int fd) {
   if (conn_ret == -1) {
     ic_orig_perror("connect");
     assert(0 && "connection to supervisor failed");
-  }
-
-  if (fd > -1 && conn != fd) {
-    int ret = ic_orig_dup3(conn, fd, O_CLOEXEC);
-    if (ret == -1) {
-      ic_orig_perror("dup3");
-      assert(0 && "connecting standard fds to supervisor failed");
-    }
-    ic_orig_close(conn);
-    conn = fd;
   }
   return conn;
 }
@@ -738,7 +727,7 @@ void fb_init_supervisor_conn() {
   }
   // reconnect to supervisor
   ic_orig_close(fb_sv_conn);
-  fb_sv_conn = fb_connect_supervisor(-1);
+  fb_sv_conn = fb_connect_supervisor();
 }
 
 /**
