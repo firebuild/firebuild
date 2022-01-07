@@ -74,7 +74,7 @@ extern size_t ic_cwd_len;
 extern void reset_fn_infos();
 
 /** Connect to supervisor */
-extern int fb_connect_supervisor(int fd);
+extern int fb_connect_supervisor();
 
 /** Set up main supervisor connection */
 extern void fb_init_supervisor_conn();

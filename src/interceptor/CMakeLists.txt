@@ -13,6 +13,7 @@ add_custom_command (
   DEPENDS generate_interceptors
   tpl.c
   tpl_dlopen.c
+  tpl_dup2.c
   tpl_error.c
   tpl_exec.c
   tpl__exit.c
@@ -24,6 +25,7 @@ add_custom_command (
   tpl_marker_only.c
   tpl_once.c
   tpl_open.c
+  tpl_openat.c
   tpl_pclose.c
   tpl_pipe.c
   tpl_popen.c
