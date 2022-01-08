@@ -60,6 +60,48 @@ void voidp_array_deep_free(voidp_array *array, void (*fn_free)(void *)) {
   free(array->p);
 }
 
+void voidp_set_init(voidp_set *set) {
+  memset(set, 0, sizeof(*set));
+}
+
+void voidp_set_clear(voidp_set *set) {
+  set->len = 0;
+}
+
+bool voidp_set_contains(const voidp_set *set, const void *p) {
+  for (int i = 0; i < set->len; i++) {
+    if (set->p[i] == p) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/* Does NOT deep copy whatever is behind voidp - obviously */
+void voidp_set_insert(voidp_set *set, const void *p) {
+  if (!voidp_set_contains(set, p)) {
+    if (set->size_alloc == 0) {
+      set->size_alloc = 16  /* whatever */;
+      set->p = malloc(sizeof(void *) * set->size_alloc);
+    } else if (set->len == set->size_alloc) {
+      set->size_alloc *= 2;
+      set->p = realloc(set->p, sizeof(void *) * set->size_alloc);
+    }
+    set->p[set->len++] = p;
+  }
+}
+
+/* Does NOT deep free whatever is behind voidp - obviously */
+void voidp_set_erase(voidp_set *set, const void *p) {
+  for (int i = 0; i < set->len; i++) {
+    if (set->p[i] == p) {
+      set->p[i] = set->p[set->len - 1];
+      set->len--;
+      break;
+    }
+  }
+}
+
 /**
  * Checks if a path semantically begins with the given subpath.
  *

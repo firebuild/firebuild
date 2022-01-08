@@ -279,7 +279,8 @@ generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, in
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
 generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
          after_lines=["int fd = safe_fileno(ret);",
-                      "if (i_am_intercepting) clear_notify_on_read_write_state(fd);"],
+                      "if (i_am_intercepting) clear_notify_on_read_write_state(fd);",
+                      "assert(!voidp_set_contains(&popened_streams, ret));"],
          msg="open",
          msg_skip_fields=["mode", "file"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
@@ -317,14 +318,17 @@ generate("int", "close", "int fd",
          before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
-                       "if (i_am_intercepting) set_notify_on_read_write_state(fd);"],
+                       "if (i_am_intercepting) set_notify_on_read_write_state(fd);",
+                       "voidp_set_erase(&popened_streams, stream);"],
          msg="close",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_close_set_fd(&ic_msg, fd);"])
 
 # Unlike fclose(), fcloseall() only closes the high level streams and not the underlying fds.
-# So we don't care about it at all.
-skip("fcloseall")
+# So we don't need to notify the supervisor. We need to clear the popened_streams set, though.
+generate("int", "fcloseall", "",
+         msg=None,
+         after_lines=["voidp_set_clear(&popened_streams);"])
 
 # Intercept opendir, closedir (no need to intercept fdopendir)
 generate("DIR *", "opendir", "const char *file",
@@ -1185,6 +1189,9 @@ generate("FILE *", "popen", "const char *cmd, const char *type",
          tpl="popen")
 generate("int", "pclose", "FILE *stream",
          tpl="pclose",
+         # Maybe we pclose() an fopen()ed file, in that case send the "close" message (from tpl_pclose.c)
+         # but don't send the "pclose" message. See #642 for more info.
+         send_msg_condition="success && was_popened",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_pclose_set_fd(&ic_msg, fd);"],
          ack_condition="true")

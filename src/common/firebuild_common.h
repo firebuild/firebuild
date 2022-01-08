@@ -44,8 +44,23 @@ typedef struct {
 } voidp_array;
 
 void voidp_array_init(voidp_array *array);
-void voidp_array_append(voidp_array *array, void *s);
+void voidp_array_append(voidp_array *array, void *p);
 void voidp_array_deep_free(voidp_array *array, void (*fn_free)(void *));
+
+/**
+ * voidp_set allows to conveniently build up an unordered set of pointers.
+ */
+typedef struct {
+  const void **p;
+  int len;
+  int size_alloc;
+} voidp_set;
+
+void voidp_set_init(voidp_set *set);
+void voidp_set_clear(voidp_set *set);
+bool voidp_set_contains(const voidp_set *set, const void *p);
+void voidp_set_insert(voidp_set *set, const void *p);
+void voidp_set_erase(voidp_set *set, const void *p);
 
 bool is_path_at_locations(const char *path, string_array *prefix_array);
 

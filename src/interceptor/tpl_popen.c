@@ -45,6 +45,13 @@
   }
 ### endblock call_orig
 
+### block after
+  if (success) {
+    assert(!voidp_set_contains(&popened_streams, ret));
+    voidp_set_insert(&popened_streams, ret);
+  }
+### endblock
+
 ### block send_msg
   if (i_am_intercepting) {
     /* Notify the supervisor after the call */
