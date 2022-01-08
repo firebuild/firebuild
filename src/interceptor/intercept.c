@@ -223,6 +223,8 @@ bool insert_trace_markers = false;
 /** Next ACK id*/
 static uint32_t ack_id = 1;
 
+voidp_set popened_streams;
+
 psfa *psfas = NULL;
 int psfas_num = 0;
 int psfas_alloc = 0;
@@ -746,6 +748,8 @@ static void fb_ic_init() {
   assert(SIGRTMAX <= 64);
   /* Can't declare orig_signal_handlers as an array because SIGRTMAX isn't a constant */
   orig_signal_handlers = (void (**)(void)) calloc(SIGRTMAX + 1, sizeof (void (*)(void)));
+
+  voidp_set_init(&popened_streams);
 
   init_interceptors();
 

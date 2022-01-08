@@ -115,6 +115,8 @@ extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
 extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 
+extern voidp_set popened_streams;
+
 /** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
 extern char *env_ld_library_path;
 
