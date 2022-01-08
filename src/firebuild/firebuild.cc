@@ -940,6 +940,12 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
       break;
     }
+    case FBBCOMM_TAG_futime:
+    case FBBCOMM_TAG_utime: {
+      proc->exec_point()->disable_shortcutting_bubble_up(
+          "Changing file timestamps is not supported");
+      break;
+    }
     case FBBCOMM_TAG_access:
     case FBBCOMM_TAG_chmod:
     case FBBCOMM_TAG_chown:
@@ -953,7 +959,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_freopen:
     case FBBCOMM_TAG_fstat:
     case FBBCOMM_TAG_ftruncate:
-    case FBBCOMM_TAG_futime:
     case FBBCOMM_TAG_getdomainname:
     case FBBCOMM_TAG_gethostname:
     case FBBCOMM_TAG_lockf:
@@ -965,7 +970,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_syscall:
     case FBBCOMM_TAG_sysconf:
     case FBBCOMM_TAG_truncate:
-    case FBBCOMM_TAG_utime:
       {
       // TODO(rbalint)
       break;
