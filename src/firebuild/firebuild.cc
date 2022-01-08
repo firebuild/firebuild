@@ -962,7 +962,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_getdomainname:
     case FBBCOMM_TAG_gethostname:
     case FBBCOMM_TAG_lockf:
-    case FBBCOMM_TAG_NEXT:
     case FBBCOMM_TAG_pathconf:
     case FBBCOMM_TAG_readlink:
     case FBBCOMM_TAG_scproc_resp:
