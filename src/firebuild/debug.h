@@ -142,7 +142,7 @@ inline std::string d(const std::shared_ptr<T>& ptr, const int level = 0) {
 #define D(var) firebuild::d(var).c_str()
 
 
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
 /* The age of each fd, for debugging purposes. */
 extern std::vector<int> fd_ages;
 #endif
@@ -150,7 +150,7 @@ extern std::vector<int> fd_ages;
 /* Increase the "age" of a given fd. */
 inline void bump_fd_age(int fd) {
   (void)fd;  /* unused in non-debug build */
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
   if (fd >= static_cast<ssize_t>(fd_ages.size())) {
     fd_ages.resize(fd + 1);
   }
@@ -162,7 +162,7 @@ inline void bump_fd_age(int fd) {
  * If its age hasn't been bumped then report the number only, e.g. "7".
  * If its age has been bumped then report the fd number and with its age, e.g. "7.1", "7.2" etc. */
 inline std::string d_fd(int fd) {
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
   if (fd >= 0 && fd < static_cast<ssize_t>(fd_ages.size()) && fd_ages[fd] > 0) {
     return std::to_string(fd) + "." + std::to_string(fd_ages[fd]);
   }
@@ -179,7 +179,7 @@ inline std::string d_fd(int fd) {
 std::string pretty_timestamp();
 
 
-#ifdef NDEBUG
+#ifndef FB_EXTRA_DEBUG
 #define TRACK(...)
 #define TRACKX(...)
 #else

@@ -220,7 +220,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 ###     endif
 ###   endfor
 
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
   /* Whether required scalars have been set */
 ###   for (quant, type, var) in fields
 ###     if type not in [STRING, FBB] and quant == REQUIRED
@@ -252,7 +252,7 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
 
   msg->wire.{{ var }} = value;
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
   msg->has_{{ var }} = true;
 #endif
 }
@@ -300,7 +300,9 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length({{ NS }}_Builder_{{ msg }} *msg, const char *value, fbb_size_t len) {
   assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+#ifdef FB_EXTRA_DEBUG
   assert(value == NULL || strlen(value) == len);  /* if len is specified, it must be the correct value */
+#endif
 
   msg->{{ var }} = value;
   msg->wire.{{ var }}_len = len;

@@ -236,7 +236,9 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
                                               int fd, ssize_t len) {
   TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
 
+#ifdef FB_EXTRA_DEBUG
   assert(has_active_recorder(*recorders));
+#endif
   assert(len > 0);
 
   /* The first active recorder consumes the data from the pipe. */

@@ -68,6 +68,11 @@ add_definitions(-DFIREBUILD_DATADIR="${DATADIR}" -DLIBFIREBUILD_SO="${LIBFIREBUI
 if (ENABLE_XXH_INLINE_ALL)
   add_definitions(-DXXH_INLINE_ALL)
 endif()
+string(TOUPPER "${CMAKE_BUILD_TYPE}" uppercase_CMAKE_BUILD_TYPE)
+if (uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+  add_definitions(-DFB_EXTRA_DEBUG)
+endif()
+
 add_subdirectory(src)
 
 enable_testing()

@@ -215,6 +215,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
  * to make sure that they return the same length.
  */
 static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{ msg }} *msgbldr, char *dst) {
+#ifdef FB_EXTRA_DEBUG
   /* Verify that the required fields were set */
 ###   for (quant, type, var) in fields
 ###     if quant == REQUIRED
@@ -225,6 +226,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
 ###       endif
 ###     endif
 ###   endfor
+#endif
 
   fbb_size_t offset = 0;  /* relative to the beginning of this (sub)message */
 
@@ -451,7 +453,7 @@ static fbb_size_t (*{{ ns }}_builder_serializers_array[])(const {{ NS }}_Builder
  * See the documentation in tpl.h.
  */
 fbb_size_t {{ ns }}_builder_serialize(const {{ NS }}_Builder *msgbldr, char *dst) {
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
   /* If the measured value is incorrect then a nasty buffer overrun can occur.
    * In order to guarantee FBB's correct behavior, let's do the debug assertion internally here in
    * FBB, rather than the caller having to do it. Which means we need to run measure() again (the
@@ -464,7 +466,7 @@ fbb_size_t {{ ns }}_builder_serialize(const {{ NS }}_Builder *msgbldr, char *dst
   assert(tag >= 1 && tag < {{ NS }}_TAG_NEXT);
   fbb_size_t len = (*{{ ns }}_builder_serializers_array[tag])(msgbldr, dst);
 
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
   assert(len == len_measured);
 #endif
   return len;
