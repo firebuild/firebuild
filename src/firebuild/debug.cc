@@ -159,7 +159,7 @@ int32_t parse_debug_flags(const std::string& str) {
   return flags;
 }
 
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
 std::vector<int> fd_ages;
 int method_tracker_level = 0;
 #endif

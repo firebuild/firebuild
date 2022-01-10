@@ -664,7 +664,9 @@ int fb_connect_supervisor() {
   struct sockaddr_un remote;
   memset(&remote, 0, sizeof(remote));
   remote.sun_family = AF_UNIX;
+#ifdef FB_EXTRA_DEBUG
   assert(strlen(fb_conn_string) < sizeof(remote.sun_path));
+#endif
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
   conn_ret = ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote));

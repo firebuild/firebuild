@@ -111,7 +111,9 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s, proc=%s, #recorders=%ld",
          D_FD(fd1_conn), D(proc), recorders.size());
 
+#ifdef FB_EXTRA_DEBUG
   assert(conn2fd1_ends.count(fd1_conn) == 0);
+#endif
   assert(!finished());
   if (fd1_timeout_id_ >= 0) {
     epoll->del_timer(fd1_timeout_id_);

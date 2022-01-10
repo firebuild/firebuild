@@ -155,13 +155,17 @@ extern int ic_pid;
  */
 size_t make_canonical(char *path, size_t original_length);
 
-#ifndef NDEBUG
+#ifdef FB_EXTRA_DEBUG
 static inline bool ic_cwd_ok() {
   char buf[CWD_BUFSIZE];
   /* getcwd() is not intercepted */
   char * getcwd_ret = getcwd(buf, sizeof(buf));
   assert(getcwd_ret);
   return (strcmp(ic_cwd, buf) == 0);
+}
+#else
+static inline bool ic_cwd_ok() {
+  return true;
 }
 #endif
 
