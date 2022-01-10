@@ -767,9 +767,7 @@ static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}(cons
  */
 static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
   assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-#ifndef NDEBUG
   assert(idx < msg->{{ var }}_count);
-#endif
 
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
   const void *array_void = (const char *)msg + relptrs->{{ var }}_relptr;
@@ -783,9 +781,7 @@ static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{
  */
 static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
   assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-#ifndef NDEBUG
   assert(idx < msg->{{ var }}_count);
-#endif
 
   /* double jump */
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
@@ -801,9 +797,7 @@ static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {
  */
 static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
   assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-#ifndef NDEBUG
   assert(idx < msg->{{ var }}_count);
-#endif
 
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
   const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr;
@@ -816,9 +810,7 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(cons
  */
 static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
   assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-#ifndef NDEBUG
   assert(idx < msg->{{ var }}_count);
-#endif
 
   *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx);
   return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx);
