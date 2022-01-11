@@ -1,6 +1,6 @@
 ## Installation
 
-For Ubuntu earlier than 19.10:
+For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0):
 
     sudo apt-add-repository ppa:rbalint/xxhash
     
