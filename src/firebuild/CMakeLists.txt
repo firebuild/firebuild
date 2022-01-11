@@ -7,6 +7,8 @@ set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_V
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(fmt REQUIRED)
+# xxh128's algorithm changed and became officially supported in 0.8.0
+pkg_check_modules(XXHASH REQUIRED libxxhash>=0.8.0)
 if (WITH_JEMALLOC)
   pkg_check_modules(JEMALLOC REQUIRED jemalloc)
 else()
@@ -66,7 +68,7 @@ add_executable(firebuild-bin
   fbbstore.cc
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_cc>)
-target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} xxhash fmt::fmt)
+target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} ${XXHASH_LIBRARIES} fmt::fmt)
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow)
 set_target_properties(firebuild-bin
   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True OUTPUT_NAME firebuild)

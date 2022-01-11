@@ -117,7 +117,7 @@ jobs:
         key: clang-build
     - name: install-deps
       run: |
-        sudo apt-get -qq update
+        sudo add-apt-repository -y ppa:rbalint/xxhash
         sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
     - name: build
       run: |
