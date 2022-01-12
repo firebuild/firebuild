@@ -1128,7 +1128,8 @@ generate("FILE *", ["tmpfile", "tmpfile64"], "",
 # "Never use these functions"
 # FIXME Supporting them would require supervisor work, or two messages (exclusive open, then close)
 generate("char *", ["mktemp", "tmpnam", "tmpnam_r"], "char *tmplt",
-         tpl="once")
+         tpl="once",
+         diagnostic_ignored = ["-Warray-parameter="],)
 generate("char *", ["tempnam"], "const char *dir, const char *pfx",
          tpl="once")
 
