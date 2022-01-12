@@ -56,7 +56,7 @@ fi
 known_extra="stime
 ustat"
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
-libs=$(LD_PRELOAD=libpthread.so ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
+libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
 (nm -D $libs | \
      grep ' [TWi] ' | \
      cut -d' ' -f3- ; \
