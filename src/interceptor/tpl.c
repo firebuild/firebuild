@@ -24,6 +24,7 @@
 {#  ack_condition:       Whether to ask for ack 'true', 'false' or    #}
 {#                       '<condition>' (default: 'false')             #}
 {#  after_send_lines:    Things to place after sending msg            #}
+{#  diagnostic_ignored:  GCC diagnostic ignored for the function      #}
 {# ------------------------------------------------------------------ #}
 {# Jinja lacks native support for generating multiple files.          #}
 {# Work it around by running multiple times, each time with a         #}
@@ -111,6 +112,13 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 /* Make the intercepting function visible */
 #pragma GCC visibility push(default)
+#pragma GCC diagnostic push
+
+###         if diagnostic_ignored
+###           for item in diagnostic_ignored
+#pragma GCC diagnostic ignored "{{ item }}"
+###           endfor
+###         endif
 
 /* Undefine potential macro */
 #ifdef {{ func }}
@@ -304,6 +312,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   return ret;
 ###     endif
 }
+#pragma GCC diagnostic pop
 #pragma GCC visibility pop
 
 
