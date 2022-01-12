@@ -225,7 +225,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###           block set_fields
     /* Auto-generated from the function signature */
 ###             for (type, name) in types_and_names
-###               if name not in msg_skip_fields
+###               if not msg_skip_fields or name not in msg_skip_fields
     fbbcomm_builder_{{ msg }}_set_{{ name }}(&ic_msg, {{ name }});
 ###               else
     /* Skipping '{{ name }}' */
