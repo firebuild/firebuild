@@ -860,6 +860,12 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       /* ACK is sent by the msg handler if needed. */
       return;
     }
+    case FBBCOMM_TAG_freopen: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_freopen *>(fbbcomm_buf), fd_conn, ack_num);
+      /* ACK is sent by the msg handler if needed. */
+      return;
+    }
     case FBBCOMM_TAG_dlopen: {
       ::firebuild::ProcessPBAdaptor::msg(proc,
           reinterpret_cast<const FBBCOMM_Serialized_dlopen *>(fbbcomm_buf), fd_conn, ack_num);
@@ -956,7 +962,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_fchmod:
     case FBBCOMM_TAG_fchown:
     case FBBCOMM_TAG_fpathconf:
-    case FBBCOMM_TAG_freopen:
     case FBBCOMM_TAG_fstat:
     case FBBCOMM_TAG_ftruncate:
     case FBBCOMM_TAG_getdomainname:
