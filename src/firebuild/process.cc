@@ -153,6 +153,9 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
   if (!name) {
     // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to openat()");
+    if (ack_num != 0) {
+      ack_msg(fd_conn, ack_num);
+    }
     return -1;
   }
 
