@@ -302,7 +302,10 @@ generate("FILE *", ["freopen", "freopen64"], "const char *file, const char *mode
                          "BUILDER_SET_ABSOLUTE_CANONICAL(freopen, file);"],
          ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
-skip("fdopen")  # High level stream operation only
+# High level stream operation only
+generate("FILE *", "fdopen", "int fd, const char *mode",
+         msg=None,
+         after_lines=["assert(!voidp_set_contains(&popened_streams, ret));"])
 
 # FIXME add support for shm_open, memfd_create, timerfd_create, eventfd, signalfd
 # FIXME shm_open is in librt, ignore for now
