@@ -103,12 +103,12 @@
     ]),
 
     ("freopen", [
-      # file path
-      (OPTIONAL, STRING, "filename"),
+      # file path, can be NULL
+      (OPTIONAL, STRING, "file"),
       # flags, decoding is left for FireBuild supervisor
       (OPTIONAL, "int", "flags"),
       # file descriptor associated to the stream to be reopened
-      (OPTIONAL, "int", "fd"),
+      (OPTIONAL, "int", "oldfd"),
       # return value, the file descriptor if != -1
       (OPTIONAL, "int", "ret"),
       # error no., when ret = -1

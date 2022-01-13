@@ -216,6 +216,21 @@ class Process {
                   const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
 
   /**
+   * Handle file opening in the monitored process
+   * @param ar_name relative or absolute file name
+   * @param ar_len length of ar_name
+   * @param flags flags of open()
+   * @param oldfd the fd of the stream before the operation
+   * @param fd the fd of the stream after the operation
+   * @param error error code of open()
+   * @param fd_conn fd to send ACK on when needed
+   * @param ack_num ACK number to send or 0 if sending ACK is not needed
+   */
+  int handle_freopen(const char * const ar_name, const size_t ar_len, const int flags,
+                     const int oldfd, const int fd, const int error = 0, int fd_conn = -1,
+                     int ack_num = 0);
+
+  /**
    * Handle file closure in the monitored process
    * @param fd file descriptor to close
    * @param error error code of close()

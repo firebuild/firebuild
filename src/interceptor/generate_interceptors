@@ -282,7 +282,7 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
                       "if (i_am_intercepting) clear_notify_on_read_write_state(fd);",
                       "assert(!voidp_set_contains(&popened_streams, ret));"],
          msg="open",
-         msg_skip_fields=["mode", "file"],
+         msg_skip_fields=["file", "mode"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0666);",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, fd);",
@@ -290,18 +290,17 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
          ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
 # Intercept freopen
-# FIXME implement in the supervisor. Note that the behavior heavily depends on filename's nullness.
-#generate("FILE *", ["freopen", "freopen64"], "const char *filename, const char *mode, FILE *stream",
-#         before_lines=["int oldfd = safe_fileno(stream);",
-#                       "if (i_am_intercepting) clear_notify_on_read_write_state(oldfd);"],
-#         after_lines=["int newfd = safe_fileno(ret);",
-#                      "if (i_am_intercepting) clear_notify_on_read_write_state(newfd);"],
-#         msg_skip_fields=["mode", "stream"],
-#         msg_add_fields=["fbbcomm_builder_freopen_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
-#                         "fbbcomm_builder_freopen_set_fd(&ic_msg, oldfd);",
-#                         "if (success) fbbcomm_builder_freopen_set_ret(&ic_msg, newfd);"])
-generate("FILE *", ["freopen", "freopen64"], "const char *filename, const char *mode, FILE *stream",
-         tpl="once")
+generate("FILE *", ["freopen", "freopen64"], "const char *file, const char *mode, FILE *stream",
+         before_lines=["int oldfd = safe_fileno(stream);",
+                       "if (i_am_intercepting) clear_notify_on_read_write_state(oldfd);"],
+         after_lines=["int newfd = safe_fileno(ret);",
+                      "if (i_am_intercepting) clear_notify_on_read_write_state(newfd);"],
+         msg_skip_fields=["file", "mode", "stream"],
+         msg_add_fields=["fbbcomm_builder_freopen_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
+                         "if (oldfd >= 0) fbbcomm_builder_freopen_set_oldfd(&ic_msg, oldfd);",
+                         "if (success) fbbcomm_builder_freopen_set_ret(&ic_msg, newfd);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(freopen, file);"],
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
 skip("fdopen")  # High level stream operation only
 

@@ -185,6 +185,47 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
   return 0;
 }
 
+/* Handle freopen(). See #650 for some juicy details. */
+int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
+                            const int flags, const int oldfd, const int fd, const int error,
+                            int fd_conn, const int ack_num) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "ar_name=%s, flags=%d, oldfd=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
+         D(ar_name), flags, oldfd, fd, error, D_FD(fd_conn), ack_num);
+
+  if (ar_name != NULL) {
+    /* old_fd is always closed, even if freopen() fails. It comes from stdio's bookkeeping, we have
+     * no reason to assume that this close attempt failed. */
+    handle_close(oldfd, 0);
+
+    /* Register the opening of the new file, no matter if succeeded or failed. */
+    return handle_open(AT_FDCWD, ar_name, ar_len, flags, fd, error, fd_conn, ack_num);
+  } else {
+    /* Find oldfd. */
+    FileFD *file_fd = get_fd(oldfd);
+    if (!file_fd || file_fd->origin_type() != FD_ORIGIN_FILE_OPEN) {
+      /* Can't find oldfd, or wasn't opened by filename. Don't know what to do. */
+      exec_point()->disable_shortcutting_bubble_up(
+        "Could not figure out old file name for freopen(..., NULL)", oldfd);
+      if (ack_num != 0) {
+        ack_msg(fd_conn, ack_num);
+      }
+      return -1;
+    } else {
+      /* Remember oldfd's filename before closing oldfd. We've tried to reopen the same file. */
+      const FileName *filename = file_fd->filename();
+
+      /* old_fd is always closed, even if freopen() fails. It comes from stdio's bookkeeping, we have
+       * no reason to assume that this close attempt failed. */
+      handle_close(oldfd, 0);
+
+      /* Register the reopening, no matter if succeeded or failed. */
+      return handle_open(AT_FDCWD, filename->c_str(), filename->length(),
+                         flags, fd, error, fd_conn, ack_num);
+    }
+  }
+}
+
 /* close that fd if open, silently ignore if not open */
 int Process::handle_force_close(const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d", fd);

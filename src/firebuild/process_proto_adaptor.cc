@@ -19,6 +19,17 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_open *o, int fd_c
                         fbbcomm_serialized_open_get_flags(o), ret, error, fd_conn, ack_num);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_freopen *fro, int fd_conn,
+                          const int ack_num) {
+  int error = fbbcomm_serialized_freopen_get_error_no_with_fallback(fro, 0);
+  int oldfd = fbbcomm_serialized_freopen_get_ret_with_fallback(fro, -1);
+  int ret = fbbcomm_serialized_freopen_get_ret_with_fallback(fro, -1);
+  return p->handle_freopen(fbbcomm_serialized_freopen_get_file(fro),
+                           fbbcomm_serialized_freopen_get_file_len(fro),
+                           fbbcomm_serialized_freopen_get_flags(fro),
+                           oldfd, ret, error, fd_conn, ack_num);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo, int fd_conn,
                           const int ack_num) {
   if (!fbbcomm_serialized_dlopen_has_error_no(dlo) &&
