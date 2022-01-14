@@ -80,7 +80,7 @@ std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
   clock_gettime(CLOCK_REALTIME, &time);
   std::string fifo_params_fd_flags = fmt::format(FMT_COMPILE("{}: {} "), fd, flags);
   *fifo_name_offset = fifo_params_fd_flags.length();
-  std::string fifo_params = fmt::format(FMT_COMPILE("{}{}-{}-{}-{:09d}-{:09d})"),
+  std::string fifo_params = fmt::format(FMT_COMPILE("{}{}-{}-{}-{:09d}-{:09d}"),
                                         fifo_params_fd_flags,
                                         fb_conn_string, pid, fd, time.tv_sec, time.tv_nsec);
   const char* fifo = fifo_params.c_str() + *fifo_name_offset;
