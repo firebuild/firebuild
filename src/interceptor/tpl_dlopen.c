@@ -6,7 +6,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (absolute_filename != NULL) fbbcomm_builder_" + msg + "_set_absolute_filename(&ic_msg, absolute_filename);"] %}
+{% set msg_add_fields = ["if (absolute_filename != NULL) BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", absolute_filename);"] %}
 
 ### block before
   thread_libc_nesting_depth++;
@@ -19,7 +19,8 @@
   if (ret != NULL) {
     struct link_map *map;
     if (dlinfo(ret, RTLD_DI_LINKMAP, &map) == 0) {
-      /* This is also expected to be in canonical form. */
+      /* Note: contrary to the dlinfo(3) manual page, this is not necessarily absolute. See #657.
+       * We'll resolve to absolute when setting the FBB field. */
       absolute_filename = map->l_name;
     }
   }
