@@ -952,6 +952,10 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           "Changing file timestamps is not supported");
       break;
     }
+    case FBBCOMM_TAG_clone: {
+      proc->exec_point()->disable_shortcutting_bubble_up("clone() is not supported");
+      break;
+    }
     case FBBCOMM_TAG_access:
     case FBBCOMM_TAG_chmod:
     case FBBCOMM_TAG_chown:
