@@ -721,15 +721,23 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name, 
     }
 
     const size_t on_stack_buffer_size = sizeof(on_stack_buf);
-    const size_t total_buf_len = dir->length() + 1 + name_length + 1;
+    const bool separator_needed = (dir->c_str()[dir->length() - 1] != '/');
+    /* Only "/" should end with a separator */
+    assert(separator_needed || dir->length() == 1);
+    const size_t total_buf_len = dir->length() + (separator_needed ? 1 : 0) + name_length + 1;
     if (on_stack_buffer_size < total_buf_len) {
       buf = reinterpret_cast<char *>(malloc(total_buf_len));
     } else {
       buf = reinterpret_cast<char *>(on_stack_buf);
     }
+
     memcpy(buf, dir->c_str(), dir->length());
-    buf[dir->length()] = '/';
-    memcpy(buf + dir->length() + 1, name, name_length);
+    size_t offset = dir->length();
+    if (separator_needed) {
+      buf[offset++] = '/';
+    }
+
+    memcpy(buf + offset, name, name_length);
     buf[total_buf_len - 1] = '\0';
     const FileName* ret = FileName::Get(buf, total_buf_len - 1);
     if (on_stack_buffer_size < total_buf_len) {
