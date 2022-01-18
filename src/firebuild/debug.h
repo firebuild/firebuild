@@ -108,13 +108,29 @@ std::string d(const char *str, const int level = 0);
 template <typename T>
 inline std::string d(const std::vector<T>& arr, const int level = 0) {
   std::string res = "[";
-  bool add_sep = false;
+  bool first_val = true;
+  unsigned int repeats = 1;
+  const T* prev_val;
   for (const T& val : arr) {
-    if (add_sep) {
-      res += ", ";
+    if (!first_val) {
+      if (*prev_val == val) {
+        repeats += 1;
+        continue;
+      } else {
+        if (repeats == 1) {
+          res += ", ";
+        } else {
+          res += " /* times " + std::to_string(repeats) + " */, ";
+          repeats = 1;
+        }
+      }
     }
     res += d(val, level);
-    add_sep = true;
+    prev_val = &val;
+    first_val = false;
+  }
+  if (repeats != 1) {
+    res += " /* times " + std::to_string(repeats) + " */";
   }
   res += "]";
   return res;
