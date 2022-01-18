@@ -434,37 +434,40 @@ generate("ssize_t", "preadv64v2", "int fd, const struct iovec *iov, int iovcnt, 
 generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
-         success="ret > 0 || !ferror(stream)",  # unused anyway
+         success="ret > 0 || !ferror(stream)",
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("size_t", ["__fread_chk", "__fread_unlocked_chk"], "void *ptr, size_t fortify_size, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
-         success="ret > 0 || !ferror(stream)",  # unused anyway
+         success="ret > 0 || !ferror(stream)",
          msg_skip_fields=["ptr", "fortify_size", "size", "nmemb", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("int", ["fgetc", "fgetc_unlocked", "getc", "getc_unlocked", "getw"], "FILE *stream",
          tpl="read",
+         success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("wint_t", ["fgetwc", "fgetwc_unlocked", "getwc", "getwc_unlocked"], "FILE *stream",
          tpl="read",
-         success="ret != WEOF",
+         success="ret != WEOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("char *", ["fgets", "fgets_unlocked"], "char *s, int size, FILE *stream",
          tpl="read",
+         success="ret != NULL || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["s", "size", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("char *", ["__fgets_chk", "__fgets_unlocked_chk"], "char *s, size_t fortify_size, int size, FILE *stream",
+         success="ret != NULL || !ferror(stream)",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["s", "fortify_size", "size", "stream"],
@@ -472,35 +475,40 @@ generate("char *", ["__fgets_chk", "__fgets_unlocked_chk"], "char *s, size_t for
          ack_condition="true")
 generate("int", ["getchar", "getchar_unlocked"], "",
          tpl="read",
+         success="ret != EOF || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("wint_t", ["getwchar", "getwchar_unlocked"], "",
          tpl="read",
-         success="ret != WEOF",
+         success="ret != WEOF || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("char *", "gets", "char *s",  # should be never used, see man gets
          tpl="read",
+         success="ret != NULL || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["s"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("char *", "__gets_chk", "char *s, size_t fortify_size",  # should be never used, see man gets
          tpl="read",
+         success="ret != NULL || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["s", "fortify_size"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
          tpl="read",
+         success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["lineptr", "n", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
          tpl="read",
+         success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["lineptr", "n", "delim", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
@@ -529,19 +537,23 @@ for i in ['', '__isoc99_']:
         if f == '':
           sig_str = ''
           names_str = ''
+          stream="stdin"
           before_lines = ["int fd = safe_fileno(stdin);"]
           msg_skip_fields = []
           msg_add_fields = ["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"]
         elif f == 'f':
           sig_str = "FILE *stream, "
           names_str = "stream, "
+          stream="stream"
           before_lines = ["int fd = safe_fileno(stream);"]
           msg_skip_fields = ["stream"]
           msg_add_fields = ["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"]
         if w:
           sig_str += "const wchar_t *format, "
+          success="(unsigned int) ret != WEOF || !ferror(" + stream + ")"
         else:
           sig_str += "const char *format, "
+          success="ret != EOF || !ferror(" + stream + ")"
         names_str += "format, "
         msg_skip_fields += ["format"]
         if v:
@@ -553,6 +565,7 @@ for i in ['', '__isoc99_']:
           call_orig_lines = ["ret = ic_orig_" + i + "v" + f + w + "scanf(" + names_str + "ap);"]
         generate("int", func, sig_str,
                  tpl="read",
+                 success=success,
                  before_lines=before_lines,
                  call_orig_lines=call_orig_lines,
                  msg_skip_fields=msg_skip_fields,
@@ -600,7 +613,7 @@ generate("ssize_t", "pwritev64v2", "int fd, const struct iovec *iov, int iovcnt,
 generate("size_t", ["fwrite", "fwrite_unlocked"], "const void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
-         success="ret > 0 || !ferror(stream)",  # unused anyway
+         success="ret > 0 || !ferror(stream)",
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
