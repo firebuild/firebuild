@@ -645,5 +645,13 @@
     # disables interception and shortcutting
     ("clone", []),
 
+
+    # reading from /dev/urandom is allowed (GRND_RANDOM flag not set)
+    ("getrandom", [
+      (OPTIONAL, "int", "flags"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
   ]
 }
