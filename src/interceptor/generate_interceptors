@@ -1345,6 +1345,10 @@ skip("sleep", "usleep", "nanosleep", "clock_nanosleep", "pause")
 skip("alarm", "ualarm", "getitimer", "setitimer")
 skip("timer_create", "timer_delete", "timer_settime", "timer_gettime", "timer_getoverrun")
 
+# Getting high entropy randomness should disable shortcutting
+generate("ssize_t", "getrandom", "void* buf, size_t buflen, unsigned int flags",
+         msg_skip_fields = ["buf", "buflen"])
+
 # Querying current time - probably disable shortcutting, let the supervisor decide
 generate("time_t", "time", "time_t *loc",
          success="true",

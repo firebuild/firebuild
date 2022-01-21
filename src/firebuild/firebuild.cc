@@ -5,6 +5,7 @@
 #include <signal.h>
 #include <getopt.h>
 #include <sys/prctl.h>
+#include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/socket.h>
@@ -944,6 +945,14 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     }
     case FBBCOMM_TAG_link: {
       proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
+      break;
+    }
+    case FBBCOMM_TAG_getrandom: {
+      auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_getrandom *>(fbbcomm_buf);
+      const unsigned int flags = fbbcomm_serialized_getrandom_get_flags_with_fallback(ic_msg, 0);
+      if (flags & GRND_RANDOM) {
+        proc->exec_point()->disable_shortcutting_bubble_up("Using /dev/random is not supported");
+      }
       break;
     }
     case FBBCOMM_TAG_futime:
