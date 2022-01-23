@@ -127,6 +127,17 @@ setup() {
   done
 }
 
+@test "randomness handling" {
+  for i in 1 2; do
+    result=$(./run-firebuild -o 'ignore_locations -= "/dev/urandom"' -- ./test_random)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+    result=$(./run-firebuild -- ./test_random again)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
 @test "waiting for a child" {
   for i in 1 2; do
     result=$(./run-firebuild -o 'processes.skip_cache -= "touch"' -- ./test_wait)
