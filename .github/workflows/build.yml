@@ -54,7 +54,7 @@ jobs:
         git clean -dxf
         cmake -DCOVERAGE=1 .
         make -j2 check coverage-info
-        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 67.3" | bc) = 1 ]
+        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 72" | bc) = 1 ]
   # build on latest stable Ubuntu available in a docker image, which may not be an lts
   build-on-ubuntu-docker:
     needs: style-checks
