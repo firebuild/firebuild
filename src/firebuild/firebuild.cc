@@ -337,7 +337,8 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
         /* Create the pipe. */
         auto pipe =
             proc->parent()->parent()->popen_wronly_pipe(pending_popen_stdin_fd, popen_type_flags,
-                                                        fifo, pending_popen_stdin_fifo, proc);
+                                                        fifo, pending_popen_stdin_fifo,
+                                                        proc->parent());
         if (pipe) {
           proc->parent()->parent()->add_pipe(pipe);
         }
