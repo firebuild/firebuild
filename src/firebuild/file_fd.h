@@ -23,19 +23,7 @@ namespace firebuild {
     FD_ORIGIN_DUP,       /* created using dup() */                      \
     FD_ORIGIN_ROOT       /* inherited in the root process (stdin...) */ }
 
-#ifdef __GNUC__
-#  include <features.h>
-#  if __GNUC_PREREQ(4, 8)
-  enum fd_origin FD_ORIGIN_ENUM;
-#  else
-  // work around invalid conversion from unsigned char:2 to firebuild::fd_origin
-  enum FD_ORIGIN_ENUM;
-  typedef unsigned char fd_origin;
-#  endif
-#else
-  //    If not gcc
-  enum fd_origin FD_ORIGIN_ENUM;
-#endif
+enum fd_origin FD_ORIGIN_ENUM;
 
 class Process;
 class Pipe;
