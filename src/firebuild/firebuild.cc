@@ -317,6 +317,11 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
     }
 
+    if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+      fprintf(stderr, "Sending scproc response:\n");
+      fbbcomm_builder_debug(stderr, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
+    }
+
     int len = fbbcomm_builder_measure(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
     char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
     fbbcomm_builder_serialize(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg),
