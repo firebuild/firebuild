@@ -46,6 +46,10 @@
 static void {{ ns }}_debug_string(FILE *f, const char *str) {
   fputc('"', f);
   while (*str) {
+    size_t quick_run = strcspn(str, "\\\"\b\f\n\r\t");
+    fwrite(str, 1, quick_run, f);
+    str += quick_run;
+    if (!*str) break;
     switch (*str) {
       case '\\': fputs("\\\\", f); break;
       case '"':  fputs("\\\"", f); break;
@@ -54,7 +58,7 @@ static void {{ ns }}_debug_string(FILE *f, const char *str) {
       case '\n': fputs("\\n", f); break;
       case '\r': fputs("\\r", f); break;
       case '\t': fputs("\\t", f); break;
-      default:   fputc(*str, f); break;
+      default:   assert(0);
     }
     str++;
   }
