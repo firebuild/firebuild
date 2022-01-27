@@ -279,7 +279,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       fbbfp_builder_pipe_fds_init(&pipefds_builder);
       fbbfp_builder_pipe_fds_set_fds(&pipefds_builder, inherited_pipe.fds);
     }
-    fbbfp_builder_process_fingerprint_set_outbound_pipes_item_fn(&fp, pipefds_builders.size(),
+    fbbfp_builder_process_fingerprint_set_outgoing_pipes_item_fn(&fp, pipefds_builders.size(),
         fbbfp_builder_pipe_fds_vector_item_fn, &pipefds_builders);
 
     size_t len = fbbfp_builder_measure(reinterpret_cast<FBBFP_Builder *>(&fp));
