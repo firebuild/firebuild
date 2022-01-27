@@ -543,6 +543,8 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
  * See #237 for further details.
  */
 static void atfork_child_handler(void) {
+  /* ic_pid still have parent process' pid */
+  pid_t ppid = ic_pid;
   /* Reset, getrusage will report the correct self resource usage. */
   timerclear(&initial_rusage.ru_stime);
   timerclear(&initial_rusage.ru_utime);
@@ -560,7 +562,7 @@ static void atfork_child_handler(void) {
     /* Add a useful trace marker */
     if (insert_trace_markers) {
       char buf[256];
-      snprintf(buf, sizeof(buf), "launched via fork() by ppid %d", ic_orig_getppid());
+      snprintf(buf, sizeof(buf), "launched via fork() by ppid %d", ppid);
       insert_debug_msg(buf);
     }
 
@@ -575,7 +577,7 @@ static void atfork_child_handler(void) {
     FBBCOMM_Builder_fork_child ic_msg;
     fbbcomm_builder_fork_child_init(&ic_msg);
     fbbcomm_builder_fork_child_set_pid(&ic_msg, ic_pid);
-    fbbcomm_builder_fork_child_set_ppid(&ic_msg, getppid());
+    fbbcomm_builder_fork_child_set_ppid(&ic_msg, ppid);
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 }
