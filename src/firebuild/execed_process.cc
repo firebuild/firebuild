@@ -94,7 +94,7 @@ void ExecedProcess::initialize() {
     }
   }
 
-  /* Find the inherited outbound pipes.
+  /* Find the inherited outgoing pipes.
    * Group them according to which fds belongs to the same pipe and which to different.
    * E.g. if fd 1 & 2 point to the same pipe and fd 3 to another one then build up [[1, 2], [3]].
    * The outer list (according to the lowest fd) and the inner lists are all sorted. */

@@ -74,8 +74,8 @@
       (ARRAY,    STRING, "env"),
       # The initial working directory
       (REQUIRED, STRING, "wd"),
-      # For each outbound pipe, this contains the client-side fds
-      (ARRAY,    FBB,    "outbound_pipes"),  # tag "pipe_fds"
+      # For each outgoing pipe, this contains the client-side fds
+      (ARRAY,    FBB,    "outgoing_pipes"),  # tag "pipe_fds"
       # special purpose file descriptors, not having file name
       #(OPTIONAL, FBB,    "stdin"),           # tag "file"
       #(OPTIONAL, FBB,    "stdout"),          # tag "file"
