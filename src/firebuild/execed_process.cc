@@ -98,7 +98,7 @@ void ExecedProcess::initialize() {
    * Group them according to which fds belongs to the same pipe and which to different.
    * E.g. if fd 1 & 2 point to the same pipe and fd 3 to another one then build up [[1, 2], [3]].
    * The outer list (according to the lowest fd) and the inner lists are all sorted. */
-  std::vector<inherited_pipe_t> inherited_pipes;
+  std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes;
   /* This iterates over the fds in increasing order. */
   for (auto file_fd : *fds()) {
     std::shared_ptr<Pipe> pipe;
@@ -106,27 +106,27 @@ void ExecedProcess::initialize() {
       continue;
     }
     bool found = false;
-    for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
-      if (pipe.get() == get_fd(inherited_pipe.fds[0])->pipe().get()) {
-        inherited_pipe.fds.push_back(file_fd->fd());
+    for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
+      if (pipe.get() == get_fd(inherited_outgoing_pipe.fds[0])->pipe().get()) {
+        inherited_outgoing_pipe.fds.push_back(file_fd->fd());
         found = true;
         break;
       }
     }
     if (!found) {
-      inherited_pipe_t inherited_pipe;
-      inherited_pipe.fds.push_back(file_fd->fd());
-      inherited_pipes.push_back(inherited_pipe);
+      inherited_outgoing_pipe_t inherited_outgoing_pipe;
+      inherited_outgoing_pipe.fds.push_back(file_fd->fd());
+      inherited_outgoing_pipes.push_back(inherited_outgoing_pipe);
     }
   }
-  set_inherited_pipes(inherited_pipes);
+  set_inherited_outgoing_pipes(inherited_outgoing_pipes);
 
   if (FB_DEBUGGING(FB_DEBUG_PROC)) {
     FB_DEBUG(FB_DEBUG_PROC, "Client-side fds of pipes are:");
-    for (const inherited_pipe_t& inherited_pipe : inherited_pipes) {
+    for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
       std::string arr = "  [";
       bool add_sep = false;
-      for (int fd : inherited_pipe.fds) {
+      for (int fd : inherited_outgoing_pipe.fds) {
         if (add_sep) {
           arr += ", ";
         }
@@ -169,7 +169,7 @@ void ExecedProcess::do_finalize() {
 
   file_usages_.clear();
   fds()->clear();
-  inherited_pipes_.clear();
+  inherited_outgoing_pipes_.clear();
   if (!generate_report) {
     args().clear();
     env_vars().clear();
@@ -496,9 +496,9 @@ void ExecedProcess::disable_shortcutting_only_this(const char* reason,
     FB_DEBUG(FB_DEBUG_PROC, "Command " + d(executable_->c_str())
              + " can't be short-cut due to: " + reason + ", " + d(this));
 
-    for (const inherited_pipe_t& inherited_pipe : inherited_pipes_) {
-      if (inherited_pipe.recorder) {
-        inherited_pipe.recorder->deactivate();
+    for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes_) {
+      if (inherited_outgoing_pipe.recorder) {
+        inherited_outgoing_pipe.recorder->deactivate();
       }
     }
   }

@@ -39,24 +39,25 @@ class Pipe;
  *
  * - Proc0 exec()s or fork()+exec()s Proc1, Proc1 writes Text1.
  *
- *   Pipe is one of Proc1's inherited_pipes. A PipeRecorder instance Rec1 is created when Proc1 is
- *   accepted, and is placed at the corresponding inherited_pipe's recorder. Furthermore, in the
- *   Pipe object, for the pipe_end that corresponds to Proc1's reopened fd, this recorder is added
- *   as the only recorder. When Text1 is seen, Rec1 opens the backing File1 and stores Text1.
+ *   Pipe is one of Proc1's inherited_outgoing_pipes. A PipeRecorder instance Rec1 is created when
+ *   Proc1 is accepted, and is placed at the corresponding inherited_outgoing_pipe's recorder.
+ *   Furthermore, in the Pipe object, for the pipe_end that corresponds to Proc1's reopened fd, this
+ *   recorder is added as the only recorder. When Text1 is seen, Rec1 opens the backing File1 and
+ *   stores Text1.
  *
  * - Proc1 exec()s or fork()+exec()s Proc2, Proc2 writes Text2.
  *
- *   Pipe is one of Proc2's inherited_pipes. A PipeRecorder instance Rec2 is created when Proc2 is
- *   accepted, and is placed at the corresponding inherited_pipe's recorder. Furthermore, in the
- *   Pipe object, for the pipe_end that corresponds to Proc2's reopened fd, this recorder is added
- *   too, resulting in two recorders: Rec1 and Rec2. Text2 is recorded by both, i.e. into File1 and
- *   File2.
+ *   Pipe is one of Proc2's inherited_outgoing_pipes. A PipeRecorder instance Rec2 is created when
+ *   Proc2 is accepted, and is placed at the corresponding inherited_outgoing_pipe's recorder.
+ *   Furthermore, in the Pipe object, for the pipe_end that corresponds to Proc2's reopened fd, this
+ *   recorder is added too, resulting in two recorders: Rec1 and Rec2. Text2 is recorded by both,
+ *   i.e. into File1 and File2.
  *
  * - Proc2 exec()s or fork()+exec()s Proc3, Proc3 writes Text3.
  *
- *   At the corresponding inherited_pipe of Proc3, Rec3 is the recorder. At the Pipe, corresponding
- *   to Proc3's reopened fd, there are now three recorders Rec1, Rec2 and Rec3. Text3 is recorded by
- *   all, i.e. into File1, File2 and File3.
+ *   At the corresponding inherited_outgoing_pipe of Proc3, Rec3 is the recorder. At the Pipe,
+ *   corresponding to Proc3's reopened fd, there are now three recorders Rec1, Rec2 and Rec3. Text3
+ *   is recorded by all, i.e. into File1, File2 and File3.
  *
  *   Now File1 contains Text1+Text2+Text3, File2 contains Text2+Text3, and File3 contains Text3.
  *   That is, each cache entry recorded exactly what was written to the given Pipe, from below the
@@ -67,46 +68,46 @@ class Pipe;
  * pipes, from the actual intercepted processes that are represented by those Process boxes. Dashed
  * arrows on the right side show how this data travels further inside the supervisor.
  *
- *                                                  ┌───────── Pipe ──────────┐
- *                                                  │ pipe_ends:              │
- *                                                  │  ┌───────────────────┐  │
- *                                ┌╌╌ Text0 ╌╌╌╌╌╌╌╌│╌>│ recorders: (none) │  │
- *                                ┆                 │  ├───────────────────┤  │
- *                                ┆ ┌╌╌ Text1 ╌╌╌╌╌╌│╌>│ recorders:        │  │
- *                                ┆ ┆               │  │ - Rec1            │╌╌│╌┐
- *                                ┆ ┆               │  ├───────────────────┤  │ ┆
- *                                ┆ ┆ ┌╌╌ Text2 ╌╌╌╌│╌>│ recorders:        │  │ ┆
- *                                ┆ ┆ ┆             │  │ - Rec1            │╌╌│╌┆╌┐
- *                                ┆ ┆ ┆             │  │ - Rec2            │╌╌│╌┆╌┆╌╌╌┐
- *                                ┆ ┆ ┆             │  ├───────────────────┤  │ ┆ ┆   ┆
- *                                ┆ ┆ ┆ ┌╌╌ Text3 ╌╌│╌>│ recorders:        │  │ ┆ ┆   ┆
- *                                ┆ ┆ ┆ ┆           │  │ - Rec1            │╌╌│╌┆╌┆╌┐ ┆
- *                                ┆ ┆ ┆ ┆           │  │ - Rec2            │╌╌│╌┆╌┆╌┆╌┆╌┐
- *                                ┆ ┆ ┆ ┆           │  │ - Rec3            │╌╌│╌┆╌┆╌┆╌┆╌┆╌┐
- * ┌────────── Proc0 ──────────┐  ┆ ┆ ┆ ┆           │  └───────────────────┘  │ ┆ ┆ ┆ ┆ ┆ ┆
- * │ named pipe                │╌╌┘ ┆ ┆ ┆           └─────────────────────────┘ ┆ ┆ ┆ ┆ ┆ ┆
- * └───────────────────────────┘    ┆ ┆ ┆                                       ┆ ┆ ┆ ┆ ┆ ┆
- *               │                  ┆ ┆ ┆      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text1 ╌╌┘ ┆ ┆ ┆ ┆ ┆
- *               │                  ┆ ┆ ┆      ┆ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text2 ╌╌┘ ┆ ┆ ┆ ┆
- *               v                  ┆ ┆ ┆      ┆ ┆ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text3 ╌╌┘ ┆ ┆ ┆
- * ┌────────── Proc1 ──────────┐    ┆ ┆ ┆      v v v                                  ┆ ┆ ┆
- * │ named pipe                │╌╌╌╌┘ ┆ ┆    ┌── Rec1 ──┐    ┌───── File1 ─────┐      ┆ ┆ ┆
- * │ inherited_pipe's recorder │────────────>│ file     │───>│ Text1Text2Text3 │      ┆ ┆ ┆
- * └───────────────────────────┘      ┆ ┆    └──────────┘    └─────────────────┘      ┆ ┆ ┆
- *               │                    ┆ ┆                                             ┆ ┆ ┆
- *               │                    ┆ ┆      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text2 ╌╌┘ ┆ ┆
- *               v                    ┆ ┆      ┆ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text3 ╌╌┘ ┆
- * ┌────────── Proc2 ──────────┐      ┆ ┆      v v                                        ┆
- * │ named pipe                │╌╌╌╌╌╌┘ ┆    ┌── Rec2 ──┐    ┌───── File2 ─────┐          ┆
- * │ inherited_pipe's recorder │────────────>│ file     │───>│ Text2Text3      │          ┆
- * └───────────────────────────┘        ┆    └──────────┘    └─────────────────┘          ┆
- *               │                      ┆                                                 ┆
- *               │                      ┆                                                 ┆
- *               v                      ┆      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text3 ╌╌┘
- * ┌────────── Proc3 ──────────┐        ┆      v
- * │ named pipe                │╌╌╌╌╌╌╌╌┘    ┌── Rec3 ──┐    ┌───── File3 ─────┐
- * │ inherited_pipe's recorder │────────────>│ file     │───>│ Text3           │
- * └───────────────────────────┘             └──────────┘    └─────────────────┘
+ *                                                           ┌───────── Pipe ──────────┐
+ *                                                           │ pipe_ends:              │
+ *                                                           │  ┌───────────────────┐  │
+ *                                         ┌╌╌ Text0 ╌╌╌╌╌╌╌╌│╌>│ recorders: (none) │  │
+ *                                         ┆                 │  ├───────────────────┤  │
+ *                                         ┆ ┌╌╌ Text1 ╌╌╌╌╌╌│╌>│ recorders:        │  │
+ *                                         ┆ ┆               │  │ - Rec1            │╌╌│╌┐
+ *                                         ┆ ┆               │  ├───────────────────┤  │ ┆
+ *                                         ┆ ┆ ┌╌╌ Text2 ╌╌╌╌│╌>│ recorders:        │  │ ┆
+ *                                         ┆ ┆ ┆             │  │ - Rec1            │╌╌│╌┆╌┐
+ *                                         ┆ ┆ ┆             │  │ - Rec2            │╌╌│╌┆╌┆╌╌╌┐
+ *                                         ┆ ┆ ┆             │  ├───────────────────┤  │ ┆ ┆   ┆
+ *                                         ┆ ┆ ┆ ┌╌╌ Text3 ╌╌│╌>│ recorders:        │  │ ┆ ┆   ┆
+ *                                         ┆ ┆ ┆ ┆           │  │ - Rec1            │╌╌│╌┆╌┆╌┐ ┆
+ *                                         ┆ ┆ ┆ ┆           │  │ - Rec2            │╌╌│╌┆╌┆╌┆╌┆╌┐
+ *                                         ┆ ┆ ┆ ┆           │  │ - Rec3            │╌╌│╌┆╌┆╌┆╌┆╌┆╌┐
+ * ┌────────────── Proc0 ───────────────┐  ┆ ┆ ┆ ┆           │  └───────────────────┘  │ ┆ ┆ ┆ ┆ ┆ ┆
+ * │ named pipe                         │╌╌┘ ┆ ┆ ┆           └─────────────────────────┘ ┆ ┆ ┆ ┆ ┆ ┆
+ * └────────────────────────────────────┘    ┆ ┆ ┆                                       ┆ ┆ ┆ ┆ ┆ ┆
+ *                   │                       ┆ ┆ ┆      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text1 ╌╌┘ ┆ ┆ ┆ ┆ ┆
+ *                   │                       ┆ ┆ ┆      ┆ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text2 ╌╌┘ ┆ ┆ ┆ ┆
+ *                   v                       ┆ ┆ ┆      ┆ ┆ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text3 ╌╌┘ ┆ ┆ ┆
+ * ┌────────────── Proc1 ───────────────┐    ┆ ┆ ┆      v v v                                  ┆ ┆ ┆
+ * │ named pipe                         │╌╌╌╌┘ ┆ ┆    ┌── Rec1 ──┐    ┌───── File1 ─────┐      ┆ ┆ ┆
+ * │ inherited_outgoing_pipe's recorder │────────────>│ file     │───>│ Text1Text2Text3 │      ┆ ┆ ┆
+ * └────────────────────────────────────┘      ┆ ┆    └──────────┘    └─────────────────┘      ┆ ┆ ┆
+ *                   │                         ┆ ┆                                             ┆ ┆ ┆
+ *                   │                         ┆ ┆      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text2 ╌╌┘ ┆ ┆
+ *                   v                         ┆ ┆      ┆ ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text3 ╌╌┘ ┆
+ * ┌────────────── Proc2 ───────────────┐      ┆ ┆      v v                                        ┆
+ * │ named pipe                         │╌╌╌╌╌╌┘ ┆    ┌── Rec2 ──┐    ┌───── File2 ─────┐          ┆
+ * │ inherited_outgoing_pipe's recorder │────────────>│ file     │───>│ Text2Text3      │          ┆
+ * └────────────────────────────────────┘        ┆    └──────────┘    └─────────────────┘          ┆
+ *                   │                           ┆                                                 ┆
+ *                   │                           ┆                                                 ┆
+ *                   v                           ┆      ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌ Text3 ╌╌┘
+ * ┌────────────── Proc3 ───────────────┐        ┆      v
+ * │ named pipe                         │╌╌╌╌╌╌╌╌┘    ┌── Rec3 ──┐    ┌───── File3 ─────┐
+ * │ inherited_outgoing_pipe's recorder │────────────>│ file     │───>│ Text3           │
+ * └────────────────────────────────────┘             └──────────┘    └─────────────────┘
  *
  * In pipe_end, there's an array of recorders. Each incoming piece of data might need to be
  * registered for multiple processes (or none at all) as something that happened to the given
@@ -114,9 +115,9 @@ class Pipe;
  * indirectly, via the help of a child process.
  *
  * If an execed process inherits a pipe (rather than creating it on its own), exactly one of these
- * recorders is the special one (stored in inherited_pipe's recorder field) which records the
- * traffic generated by this execed process, transitively. This has to be stored in the cache as the
- * data transitively printed by this process, and replayed if we shortcut the process.
+ * recorders is the special one (stored in inherited_outgoing_pipe's recorder field) which records
+ * the traffic generated by this execed process, transitively. This has to be stored in the cache as
+ * the data transitively printed by this process, and replayed if we shortcut the process.
  */
 
 /*
@@ -182,9 +183,9 @@ class PipeRecorder {
   void add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t len);
 
   /* The ExecedProcess we're recording for, i.e. the ExecedProcess that created this PipeRecorder to
-   * add to its inherited_pipes array. Data written to the Pipe by this process or a descendant will
-   * be recorded by this PipeRecorder, data written to the Pipe by an ancestor of this process
-   * won't. Used for debugging only. */
+   * add to its inherited_outgoing_pipes array. Data written to the Pipe by this process or a
+   * descendant will be recorded by this PipeRecorder, data written to the Pipe by an ancestor of
+   * this process won't. Used for debugging only. */
   const ExecedProcess *for_proc_;
   /* The name of the backing file, if currently opened. */
   char *filename_ = NULL;

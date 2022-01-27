@@ -194,12 +194,13 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     add_to_hash_state(state, hash);
   }
 
-  /* The inherited pipes */
-  for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
-    for (int fd : inherited_pipe.fds) {
+  /* The inherited outgoing pipes */
+  for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe :
+      proc->inherited_outgoing_pipes()) {
+    for (int fd : inherited_outgoing_pipe.fds) {
       add_to_hash_state(state, fd);
     }
-    /* Close each inherited pipe with and invalid value to avoid collisions. */
+    /* Append an invalid value to each inherited outgoing pipe to avoid collisions. */
     add_to_hash_state(state, -1);
   }
 
@@ -274,10 +275,11 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
     /* The inherited pipes */
     std::vector<FBBFP_Builder_pipe_fds> pipefds_builders;
-    for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+    for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe :
+        proc->inherited_outgoing_pipes()) {
       FBBFP_Builder_pipe_fds& pipefds_builder = pipefds_builders.emplace_back();
       fbbfp_builder_pipe_fds_init(&pipefds_builder);
-      fbbfp_builder_pipe_fds_set_fds(&pipefds_builder, inherited_pipe.fds);
+      fbbfp_builder_pipe_fds_set_fds(&pipefds_builder, inherited_outgoing_pipe.fds);
     }
     fbbfp_builder_process_fingerprint_set_outgoing_pipes_item_fn(&fp, pipefds_builders.size(),
         fbbfp_builder_pipe_fds_vector_item_fn, &pipefds_builders);
@@ -331,9 +333,10 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
      * at all. But maybe go with the default code path, i.e. record the data to temporary files,
      * but at the last step purge them instead of moving them to their final location in the cache.
      * This way the code path is more similar to the regular case. */
-    for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
-      if (inherited_pipe.recorder) {
-        inherited_pipe.recorder->abandon();
+    for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe :
+        proc->inherited_outgoing_pipes()) {
+      if (inherited_outgoing_pipe.recorder) {
+        inherited_outgoing_pipe.recorder->abandon();
       }
     }
     return;
@@ -460,10 +463,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
    * because this is what matters if we want to replay; how the process later dup()ed it to other
    * fds is irrelevant. Similarly, no need to store the data written to pipes opened by this
    * process, that data won't ever be replayed. */
-  for (const inherited_pipe_t& inherited_pipe : proc->inherited_pipes()) {
+  for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe :
+      proc->inherited_outgoing_pipes()) {
     /* Record the output as belonging to the lowest fd. */
-    int fd = inherited_pipe.fds[0];
-    std::shared_ptr<PipeRecorder> recorder = inherited_pipe.recorder;
+    int fd = inherited_outgoing_pipe.fds[0];
+    std::shared_ptr<PipeRecorder> recorder = inherited_outgoing_pipe.recorder;
     if (recorder) {
       bool is_empty;
       Hash hash;
