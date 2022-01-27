@@ -38,12 +38,12 @@ class ExecedProcessCacher;
  * A pipe might have multiple file descriptors, as per dup() and friends.
  * They are stored in ascending order. There's at least one fd.
  */
-typedef struct inherited_pipe_ {
+typedef struct inherited_outgoing_pipe_ {
   /* The client-side file descriptor numbers, sorted */
   std::vector<int> fds {};
   /* The recorder of the traffic, as seen from this exec point */
   std::shared_ptr<PipeRecorder> recorder {};
-} inherited_pipe_t;
+} inherited_outgoing_pipe_t;
 
 class ExecedProcess : public Process {
  public:
@@ -96,10 +96,12 @@ class ExecedProcess : public Process {
   bool register_file_usage(const FileName *name, const FileUsage* fu_change);
   bool register_parent_directory(const FileName *name);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
-  std::vector<inherited_pipe_t>& inherited_pipes() {return inherited_pipes_;}
-  const std::vector<inherited_pipe_t>& inherited_pipes() const {return inherited_pipes_;}
-  void set_inherited_pipes(std::vector<inherited_pipe_t> inherited_pipes)
-      {inherited_pipes_ = inherited_pipes;}
+  std::vector<inherited_outgoing_pipe_t>& inherited_outgoing_pipes()
+      {return inherited_outgoing_pipes_;}
+  const std::vector<inherited_outgoing_pipe_t>& inherited_outgoing_pipes() const
+      {return inherited_outgoing_pipes_;}
+  void set_inherited_outgoing_pipes(std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes)
+      {inherited_outgoing_pipes_ = inherited_outgoing_pipes;}
 
   /**
    * Fail to change to a working directory
@@ -220,10 +222,10 @@ class ExecedProcess : public Process {
   /**
    * The outbound pipes this process had at startup.
    * Each such pipe might have multiple client-side file descriptors (see dup() and friends),
-   * they are in sorted order. Also, this inherited_pipes_ array is sorted according to the
-   * first (lowest) fd for each inherited pipe.
+   * they are in sorted order. Also, this inherited_outgoing_pipes_ array is sorted according to the
+   * first (lowest) fd for each inherited outgoing pipe.
    */
-  std::vector<inherited_pipe_t> inherited_pipes_ = {};
+  std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes_ = {};
   void store_in_cache();
   ExecedProcess* next_shortcutable_ancestor() {
     if (maybe_shortcutable_ancestor_ == nullptr || maybe_shortcutable_ancestor_->can_shortcut_) {

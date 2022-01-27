@@ -251,11 +251,12 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
     }
 
-    std::vector<inherited_pipe_t> inherited_pipes = proc->inherited_pipes();
-    for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
+    std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes =
+        proc->inherited_outgoing_pipes();
+    for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
       /* There may be incoming data from the (transitive) parent(s), drain it.
        * Do it before trying to shortcut. */
-      auto pipe = proc->get_fd(inherited_pipe.fds[0])->pipe();
+      auto pipe = proc->get_fd(inherited_outgoing_pipe.fds[0])->pipe();
       assert(pipe);
       pipe->drain();
     }
@@ -270,28 +271,28 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       /* parent forked, thus a new set of fds is needed to track outputs */
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
-      for (inherited_pipe_t& inherited_pipe : inherited_pipes) {
-        auto file_fd = proc->get_shared_fd(inherited_pipe.fds[0]);
+      for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
+        auto file_fd = proc->get_shared_fd(inherited_outgoing_pipe.fds[0]);
         auto pipe = file_fd->pipe();
         assert(pipe);
         /* For the lowest fd, create a new named pipe */
-        int fifo_fd = make_fifo_fd_conn(proc, inherited_pipe.fds[0], &fifo_fds);
+        int fifo_fd = make_fifo_fd_conn(proc, inherited_outgoing_pipe.fds[0], &fifo_fds);
         /* Find the recorders belonging to the parent process. We need to record to all those,
          * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
         auto  recorders =  proc->parent() ? pipe->proc2recorders[proc->parent_exec_point()]
             : std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
         if (proc->can_shortcut()) {
-          inherited_pipe.recorder = std::make_shared<PipeRecorder>(proc);
-          recorders.push_back(inherited_pipe.recorder);
+          inherited_outgoing_pipe.recorder = std::make_shared<PipeRecorder>(proc);
+          recorders.push_back(inherited_outgoing_pipe.recorder);
         }
         pipe->add_fd1_and_proc(fifo_fd, file_fd.get(), proc, std::move(recorders));
-        FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_pipe.fds[0])
+        FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_outgoing_pipe.fds[0])
                  + " as new fd1: " + d(fifo_fd) + " of " + d(pipe));
 
         /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
-        for (size_t i = 1; i < inherited_pipe.fds.size(); i++) {
-          fifo_params = fmt::format(FMT_COMPILE("{}:0 {}"), inherited_pipe.fds[i],
-                                    inherited_pipe.fds[0]);
+        for (size_t i = 1; i < inherited_outgoing_pipe.fds.size(); i++) {
+          fifo_params = fmt::format(FMT_COMPILE("{}:0 {}"), inherited_outgoing_pipe.fds[i],
+                                    inherited_outgoing_pipe.fds[0]);
           fifo_fds.push_back(fifo_params);
         }
       }
@@ -309,8 +310,8 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
         }
         fbbcomm_builder_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds_sa.p);
       }
-      /* inherited_pipes was updated with the recorders, save the new version */
-      proc->set_inherited_pipes(inherited_pipes);
+      /* inherited_outgoing_pipes was updated with the recorders, save the new version */
+      proc->set_inherited_outgoing_pipes(inherited_outgoing_pipes);
 
       if (debug_flags != 0) {
         fbbcomm_builder_scproc_resp_set_debug_flags(&sv_msg, debug_flags);

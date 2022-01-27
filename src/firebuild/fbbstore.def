@@ -104,7 +104,7 @@
       # chown, chmod
       # etc.
 
-      # Data written to inherited pipes
+      # Data written to inherited outgoing pipes
       (ARRAY,    FBB,    "pipe_data"),             # tag "pipe_data"
 
       (REQUIRED, "int",  "exit_status"),
