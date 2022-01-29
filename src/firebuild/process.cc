@@ -263,29 +263,14 @@ int Process::handle_close(const int fd, const int error) {
           "which means interception missed at least one open()", fd);
       return -1;
     } else {
-      if (file_fd->open() == true) {
-        file_fd->set_open(false);
-        if (file_fd->last_err() != error) {
-          file_fd->set_last_err(error);
-        }
-        auto pipe = file_fd->pipe().get();
-        if (pipe) {
-          /* There may be data pending, drain it and register closure. */
-          pipe->handle_close(file_fd);
-          file_fd->set_pipe(nullptr);
-        }
-        (*fds_)[fd].reset();
-        return 0;
-      } else if ((file_fd->last_err() == EINTR) && (error == 0)) {
-        // previous close got interrupted but the current one succeeded
-        (*fds_)[fd].reset();
-        return 0;
-      } else {
-        // already closed, it may be an error
-        // TODO(rbalint) debug
-        (*fds_)[fd].reset();
-        return 0;
+      auto pipe = file_fd->pipe().get();
+      if (pipe) {
+        /* There may be data pending, drain it and register closure. */
+        pipe->handle_close(file_fd);
+        file_fd->set_pipe(nullptr);
       }
+      (*fds_)[fd].reset();
+      return 0;
     }
   }
 }
