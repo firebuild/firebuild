@@ -68,11 +68,15 @@ setup() {
   done
 }
 
-@test "orphan sleep" {
+@test "orphan processes" {
   for i in 1 2; do
     result=$(./run-firebuild -- bash -c 'for i in $(seq 10); do (sleep 0.1; ls integration.bats; false)& done; echo foo' | sort)
     assert_streq "$result" "$(echo 'foo'; for i in $(seq 10); do echo 'integration.bats'; done)"
     assert_streq "$(strip_stderr stderr)" ""
+
+    result=$(./run-firebuild -- ./test_orphan)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)"
   done
 }
 
@@ -174,6 +178,8 @@ setup() {
     # Valgrind finds an error in fakeroot https://bugs.debian.org/983272
     if ! set | grep -q valgrind; then
       result=$(fakeroot ./run-firebuild -- id -u)
+      assert_streq "$result" "0"
+      result=$(./run-firebuild -- fakeroot id -u)
       assert_streq "$result" "0"
     fi
     result=$(./run-firebuild -- fakeroot id -u)

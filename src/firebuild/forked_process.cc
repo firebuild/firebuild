@@ -14,7 +14,7 @@ namespace firebuild {
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent,
                              std::vector<std::shared_ptr<FileFD>>* fds)
-    : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds) {
+    : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds, false) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 
   // add as fork child of parent
@@ -39,7 +39,8 @@ std::string ForkedProcess::d_internal(const int level) const {
     return Process::d_internal(level);
   } else {
     /* verbose */
-    return "{ForkedProcess " + pid_and_exec_count() + ", " + state_string() + ", parent " +
+    return "{ForkedProcess " + pid_and_exec_count() + ", " + state_string() + ", " +
+        (been_waited_for() ? "" : "not ") + "been waited for, parent " +
         parent()->pid_and_exec_count() + ", " + d(exec_point()->args_to_short_string()) +
         ", fds=" +  d(fds(), level + 1) + "}";
   }

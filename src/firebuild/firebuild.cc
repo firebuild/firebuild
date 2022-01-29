@@ -645,6 +645,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     }
     case FBBCOMM_TAG_system_ret: {
       assert(proc->system_child());
+      /* system() implicitly waits for the child to finish. */
+      proc->system_child()->set_been_waited_for();
       if (proc->system_child()->state() != firebuild::FB_PROC_FINALIZED) {
         /* The process has actually quit (otherwise the interceptor
          * couldn't send us the system_ret message), but the supervisor
@@ -719,6 +721,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         firebuild::ExecedProcess *child =
             proc->PopPopenedProcess(fbbcomm_serialized_pclose_get_fd(ic_msg));
         assert(child);
+        child->set_been_waited_for();
         if (child->state() != firebuild::FB_PROC_FINALIZED) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
           child->set_on_finalized_ack(ack_num, fd_conn);
@@ -842,8 +845,10 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_wait: {
       const FBBCOMM_Serialized_wait *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_wait *>(fbbcomm_buf);
-      firebuild::Process *child = proc_tree->pid2proc(fbbcomm_serialized_wait_get_pid(ic_msg));
+      const int pid = fbbcomm_serialized_wait_get_pid(ic_msg);
+      firebuild::Process *child = proc_tree->pid2proc(pid);
       assert(child);
+      child->set_been_waited_for();
       if (child->exec_pending()) {
         /* If the supervisor believes an exec is pending in a child proces while the parent
          * actually successfully waited for the child, it means that the child didn't sign in to
@@ -1353,9 +1358,20 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
   do {
     waitpid_ret = waitpid(-1, &status, WNOHANG);
     if (waitpid_ret == child_pid) {
+      /* This is the top process the supervisor started. */
+      firebuild::Process* proc = proc_tree->pid2proc(child_pid);
+      assert(proc);
+      proc->set_been_waited_for();
       save_child_status(waitpid_ret, status, &child_ret, false);
     } else if (waitpid_ret > 0) {
-      // TODO(rbalint) find orphan child's parent and possibly disable shortcutting
+      /* This is an orphan process. Its fork parent quit without wait()-ing for it
+       * and as a subreaper the supervisor received the SIGCHLD for it. */
+      firebuild::Process* proc = proc_tree->pid2proc(waitpid_ret);
+      if (proc) {
+        /* Since the parent of this orphan process did not wait() for it, it will not be stored in
+         * the cache even when finalizing it. */
+        assert(!proc->been_waited_for());
+      }
       int ret = -1;
       save_child_status(waitpid_ret, status, &ret, true);
     }
