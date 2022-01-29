@@ -24,10 +24,11 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
-                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
-    : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
-      pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
-      fork_children_(), expected_child_(), exec_child_(NULL) {
+                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds,
+                 bool already_been_waited_for)
+    : parent_(parent), state_(FB_PROC_RUNNING), been_waited_for_(already_been_waited_for),
+      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1),
+      wd_(wd), fds_(fds), fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
 
@@ -816,6 +817,28 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
   return nullptr;
 }
 
+void Process::set_been_waited_for() {
+  assert(!been_waited_for_);
+  been_waited_for_ = true;
+  /* Propagate up to all exec ancestors. */
+  Process* curr = parent_;
+  while (curr && curr->pid_ == pid_) {
+    assert(!curr->been_waited_for_);
+    curr->been_waited_for_ = true;
+    curr = curr->parent_;
+  }
+  /* Propagate down to exec descendants. This function could be called for processes both at the top
+   * and the bottom of an exec chain. */
+  curr = this;
+  while (curr->exec_child_) {
+    assert(!curr->exec_child_->been_waited_for_);
+    curr->exec_child_->been_waited_for_ = true;
+    curr = curr->exec_child_;
+  }
+  /* Try finalizing the process at the bottom of the exec chain. If that succeeds it bubbles up. */
+  curr->maybe_finalize();
+}
+
 bool Process::any_child_not_finalized() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
@@ -867,6 +890,32 @@ void Process::maybe_finalize() {
     /* A child is yet to be finalized. We're not ready to finalize. */
     return;
   }
+
+  /* Only finalize the process after it is clear that if the parent has waited for it. */
+  // TODO(rbalint) collect/confirm exit status in the parent to make sure that the exit
+  // status saved in the cache will be correct.
+  if (!been_waited_for()) {
+    /* Here we check only the fork parent. In theory the fork parent could exec() and the
+     * execed process could wait for this child, but this is rare and costly to detect thus
+     * we disable shortcutting in more cases than it is absolutely needed.
+     */
+    const Process* fork_parent_ptr = fork_parent();
+    if (fork_parent_ptr) {
+      if (fork_parent_ptr->state() == FB_PROC_TERMINATED) {
+        exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
+                                                     exec_point());
+        /* Can proceed with finalizing this process, it won't be saved to the cache. */
+      } else {
+        assert_cmp(fork_parent_ptr->state(), ==, FB_PROC_RUNNING);
+        /* Wait for the fork parent to wait() for this child or to terminate. */
+        return;
+      }
+    } else {
+      /* The top process will be waited for later. */
+      return;
+    }
+  }
+
   drain_all_pipes();
   do_finalize();
 
@@ -890,6 +939,22 @@ void Process::finish() {
   }
 
   set_state(FB_PROC_TERMINATED);
+  /* Here we check only the fork children. In theory this parent could exec() and the
+   * execed process could wait for its children, but this is rare and costly to detect thus
+   * we disable shortcutting in more cases than it is absolutely needed.
+   */
+  for (Process* fork_child : fork_children()) {
+    if (!fork_child->been_waited_for()) {
+      Process* last_exec_descendant = fork_child;
+      while (last_exec_descendant->exec_child()) {
+        last_exec_descendant = last_exec_descendant->exec_child();
+      }
+      /* This disables shortcutting the fork child and maybe finalizes it. Since shortcutting is
+       * disabled up to the top process this process will not be shortcuttable either. */
+      last_exec_descendant->maybe_finalize();
+    }
+  }
+
   maybe_finalize();
 }
 

@@ -25,6 +25,7 @@ class ForkedProcess : public Process {
   virtual ~ForkedProcess();
   ExecedProcess* exec_point() {return exec_point_;}
   const ExecedProcess* exec_point() const {return exec_point_;}
+  const Process* fork_parent() const {return parent();}
   /**
    * Fail to change to a working directory
    */

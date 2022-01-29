@@ -42,6 +42,15 @@ typedef enum {
    * In case of exit() or crash it might still be present as a Unix
    * zombie process, we don't care about that. Neither exec_pending_ nor
    * exec_child_ are set.
+   *
+   * When a Process in our model enters the FB_PROC_TERMINATED state it checks if
+   * it had any forked child that it did not wait for. If there were any,
+   * the process can't be shortcut.
+   *
+   * Also a forked child stays in FB_PROC_TERMINATED state until its fork parent
+   * waits for it or terminates.
+   * TODO(rbalint) as a consequence an orphaned child not quitting on its own
+   * hangs firebuild thus such children are not supported yet.
    */
   FB_PROC_TERMINATED,
   /**
@@ -49,13 +58,6 @@ typedef enum {
    * the process's parameters can change anymore. Whatever the process
    * transitively performed is stored in the cache upon entering this
    * state.
-   *
-   * We don't support orphan forked processes yet. So when the last
-   * process in an exec chain terminates, all processes in the exec
-   * chain enter this state.
-   *
-   * Once support for orphan processes is added, forked descendants
-   * will also have to be waited for before entering this state.
    */
   FB_PROC_FINALIZED,
 } process_state;
@@ -73,7 +75,7 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, int exec_count, const FileName *wd,
-          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds);
+          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds, bool already_been_waited_for);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -82,12 +84,18 @@ class Process {
   /** The nearest ExecedProcess upwards in the tree, including "this".
    *  Guaranteed to be non-NULL. */
   virtual ExecedProcess* exec_point() = 0;
+  virtual const Process* fork_parent() const = 0;
   virtual const ExecedProcess* exec_point() const = 0;
   /** The nearest ExecedProcess upwards in the tree, excluding "this".
    *  Same as the parent's exec_point, with safe NULL handling. */
   ExecedProcess* parent_exec_point() {return parent() ? parent()->exec_point() : NULL;}
   const ExecedProcess* parent_exec_point() const {return parent() ? parent()->exec_point() : NULL;}
   virtual bool exec_started() const {return false;}
+  /* This process has been wait()-ed for by the process that forked it. When the supervisor acts
+   * as a subreaper it does not set the been_waited_for_ flag thus for those processes this function
+   * never returns true. */
+  bool been_waited_for() const {return been_waited_for_;}
+  void set_been_waited_for();
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
   int fb_pid() {return fb_pid_;}
@@ -436,6 +444,7 @@ class Process {
  private:
   Process *parent_;
   process_state state_ :2;
+  bool been_waited_for_ :1;
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
