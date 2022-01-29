@@ -446,7 +446,6 @@ class Process {
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   const FileName* wd_;  ///< Current working directory
   std::vector<std::shared_ptr<FileFD>>* fds_;  ///< Active file descriptors
-  std::list<std::shared_ptr<FileFD>> closed_fds_;  ///< Closed file descriptors
   std::vector<Process*> fork_children_;  ///< children of the process
   /// the latest system() child
   ExecedProcess *system_child_ {NULL};
