@@ -27,7 +27,7 @@ Process::Process(const int pid, const int ppid, const int exec_count, const File
                  Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
     : parent_(parent), state_(FB_PROC_RUNNING), fb_pid_(fb_pid_counter++),
       pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1), wd_(wd), fds_(fds),
-      closed_fds_({}), fork_children_(), expected_child_(), exec_child_(NULL) {
+      fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
 
@@ -268,14 +268,13 @@ int Process::handle_close(const int fd, const int error) {
         if (file_fd->last_err() != error) {
           file_fd->set_last_err(error);
         }
-        /* Remove from open fds. The (*fds_)[fd].reset() is performed by the move. */
-        closed_fds_.push_back(std::move((*fds_)[fd]));
         auto pipe = file_fd->pipe().get();
         if (pipe) {
           /* There may be data pending, drain it and register closure. */
           pipe->handle_close(file_fd);
           file_fd->set_pipe(nullptr);
         }
+        (*fds_)[fd].reset();
         return 0;
       } else if ((file_fd->last_err() == EINTR) && (error == 0)) {
         // previous close got interrupted but the current one succeeded
