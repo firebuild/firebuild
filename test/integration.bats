@@ -78,7 +78,7 @@ setup() {
   done
 }
 
-@test "runaway sleep" {
+@test "orphan sleep" {
   for i in 1 2; do
     result=$(./run-firebuild -- bash -c 'for i in $(seq 10); do (sleep 0.1; ls integration.bats; false)& done; echo foo' | sort)
     assert_streq "$result" "$(echo 'foo'; for i in $(seq 10); do echo 'integration.bats'; done)"

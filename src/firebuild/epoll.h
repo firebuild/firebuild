@@ -43,7 +43,7 @@ class Epoll {
     for (size_t fd = 0; fd < fd_contexts_.size(); fd++) {
       if (fd_contexts_[fd].callback != nullptr) {
         /* This fd is still open while firebuild is quitting. This may be connected to a
-         * runaway process. Simulate the termination of the process by closing the fd and letting
+         * orphan process. Simulate the termination of the process by closing the fd and letting
          * the callback to act on it and free the user data. */
         close(fd);
         if (fd_contexts_[fd].callback_user_data) {

@@ -1277,17 +1277,17 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
 }
 
 
-static void save_child_status(pid_t pid, int status, int * ret, bool runaway) {
-  TRACK(firebuild::FB_DEBUG_PROC, "pid=%d, status=%d, runaway=%s", pid, status, D(runaway));
+static void save_child_status(pid_t pid, int status, int * ret, bool orphan) {
+  TRACK(firebuild::FB_DEBUG_PROC, "pid=%d, status=%d, orphan=%s", pid, status, D(orphan));
 
   if (WIFEXITED(status)) {
     *ret = WEXITSTATUS(status);
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(runaway ? "runaway" : "child")
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(orphan ? "orphan" : "child")
              + " process exited with status " + std::to_string(*ret) + ". ("
              + d(proc_tree->pid2proc(pid)) + ")");
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "%s process has been killed by signal %d",
-            runaway ? "Runaway" : "Child",
+            orphan ? "Orphan" : "Child",
             WTERMSIG(status));
   }
 }
@@ -1299,7 +1299,7 @@ static void sigchild_handler(int signum) {
   (void)signum;  /* unused */
 
   /* listener being -1 means that we're already exiting, and might have closed sigchild_selfpipe.
-   * In case a runaway descendant dies now and we get a SIGCHLD, just ignore it. */
+   * In case a orphan descendant dies now and we get a SIGCHLD, just ignore it. */
   if (listener >= 0) {
     char dummy = 0;
     int write_ret = write(sigchild_selfpipe[1], &dummy, 1);
@@ -1328,7 +1328,7 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
     if (waitpid_ret == child_pid) {
       save_child_status(waitpid_ret, status, &child_ret, false);
     } else if (waitpid_ret > 0) {
-      // TODO(rbalint) find runaway child's parent and possibly disable shortcutting
+      // TODO(rbalint) find orphan child's parent and possibly disable shortcutting
       int ret = -1;
       save_child_status(waitpid_ret, status, &ret, true);
     }
@@ -1544,7 +1544,7 @@ int main(const int argc, char *argv[]) {
   /* This creates some Pipe objects, so needs ev_base being set up. */
   proc_tree = new firebuild::ProcessTree();
 
-  /* Collect runaway children */
+  /* Collect orphan children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
 
   // run command and handle interceptor messages
@@ -1587,7 +1587,7 @@ int main(const int argc, char *argv[]) {
       /* This is where the process spends its idle time: waiting for an event over a fd, or a
        * sigchild.
        *
-       * If our immediate child exited (rather than some runaway descendant thereof, see
+       * If our immediate child exited (rather than some orphan descendant thereof, see
        * prctl(PR_SET_CHILD_SUBREAPER) above) then the handler sigchild_cb() will set listener to
        * -1, that's how we'll break out of this loop. */
       epoll->wait();

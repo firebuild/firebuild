@@ -50,11 +50,11 @@ typedef enum {
    * transitively performed is stored in the cache upon entering this
    * state.
    *
-   * We don't support runaway forked processes yet. So when the last
+   * We don't support orphan forked processes yet. So when the last
    * process in an exec chain terminates, all processes in the exec
    * chain enter this state.
    *
-   * Once support for runaway processes is added, forked descendants
+   * Once support for orphan processes is added, forked descendants
    * will also have to be waited for before entering this state.
    */
   FB_PROC_FINALIZED,
