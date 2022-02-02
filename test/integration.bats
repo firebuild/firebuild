@@ -68,16 +68,6 @@ setup() {
   done
 }
 
-@test "parallel sleeps" {
-  for i in 1 2; do
-    # Valgrind ignores the limit bumped internally in firebuild
-    # See: https://bugs.kde.org/show_bug.cgi?id=432508
-    result=$(set | grep -q valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait $(jobs -p)')
-    assert_streq "$result" ""
-    assert_streq "$(strip_stderr stderr)" ""
-  done
-}
-
 @test "orphan sleep" {
   for i in 1 2; do
     result=$(./run-firebuild -- bash -c 'for i in $(seq 10); do (sleep 0.1; ls integration.bats; false)& done; echo foo' | sort)
@@ -254,4 +244,14 @@ setup() {
   result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -- echo foo)
   assert_streq "$result" "quux"
   assert_streq "$(strip_stderr stderr)" ""
+}
+
+@test "parallel sleeps" {
+  for i in 1 2; do
+    # Valgrind ignores the limit bumped internally in firebuild
+    # See: https://bugs.kde.org/show_bug.cgi?id=432508
+    result=$(set | grep -q valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait $(jobs -p)')
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+  done
 }
