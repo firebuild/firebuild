@@ -235,8 +235,8 @@ setup() {
   ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
-    result=$(./run-firebuild -- ./test_cmd_system ./test_static)
-    assert_streq "$result" "I am statically linked."
+    result=$(./run-firebuild -- ./test_cmd_system './test_static 3' | tr '\n' ' ')
+    assert_streq "$result" "I am statically linked. end "
     assert_streq "$(strip_stderr stderr)" ""
   done
 }
