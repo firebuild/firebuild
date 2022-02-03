@@ -1299,7 +1299,7 @@ static void sigchild_handler(int signum) {
   (void)signum;  /* unused */
 
   /* listener being -1 means that we're already exiting, and might have closed sigchild_selfpipe.
-   * In case a orphan descendant dies now and we get a SIGCHLD, just ignore it. */
+   * In case an orphan descendant dies now and we get a SIGCHLD, just ignore it. */
   if (listener >= 0) {
     char dummy = 0;
     int write_ret = write(sigchild_selfpipe[1], &dummy, 1);
