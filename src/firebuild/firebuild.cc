@@ -206,6 +206,26 @@ static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd,
 
 namespace firebuild {
 
+static void reject_exec_child(int fd_conn) {
+    FBBCOMM_Builder_scproc_resp sv_msg;
+    fbbcomm_builder_scproc_resp_init(&sv_msg);
+    fbbcomm_builder_scproc_resp_set_dont_intercept(&sv_msg, true);
+    fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, false);
+
+    if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
+      fprintf(stderr, "Sending scproc response:\n");
+      fbbcomm_builder_debug(stderr, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
+    }
+
+    int len = fbbcomm_builder_measure(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
+    char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
+    fbbcomm_builder_serialize(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg),
+                              buf + sizeof(msg_header));
+    reinterpret_cast<msg_header *>(buf)->ack_id = 0;
+    reinterpret_cast<msg_header *>(buf)->msg_size = len;
+    fb_write(fd_conn, buf, sizeof(msg_header) + len);
+}
+
 void accept_exec_child(ExecedProcess* proc, int fd_conn,
                        ProcessTree* proc_tree, int pending_popen_stdin_fd,
                        const char* pending_popen_stdin_fifo, int popen_type_flags) {
@@ -446,7 +466,14 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
       unix_parent = proc_tree->pid2proc(ppid);
-      assert(unix_parent);
+      if (!unix_parent) {
+        /* The parent could not be found. There could be one or more statically linked binaries in
+         * the exec() - fork() chain. There is not much the supervisor can do, with so much missing
+         * information. Let the child continue unintercepted and notice the missing popen/system()
+         * child later. */
+        firebuild::reject_exec_child(fd_conn);
+        return;
+      }
 
       /* Verify that the child was expected and get inherited fds. */
       std::vector<std::string> args = fbbcomm_serialized_scproc_query_get_arg_as_vector(ic_msg);
