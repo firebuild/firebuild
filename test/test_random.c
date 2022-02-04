@@ -24,7 +24,7 @@ int main() {
     perror("getrandom" LOC);
     exit(1);
   }
-  assert(ret_len == sizeof(buf));
+  assert(ret_len <= (ssize_t) sizeof(buf));  /* With GRND_RANDOM, short read is possible. */
 
   return 0;
 }
