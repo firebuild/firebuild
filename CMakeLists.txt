@@ -98,8 +98,7 @@ endif(COVERAGE)
 add_custom_target(style-check
   cpplint --quiet --recursive ${CMAKE_SOURCE_DIR}/src/ ${CMAKE_SOURCE_DIR}/test/)
 
-file(COPY etc/firebuild.conf
-  DESTINATION "${CMAKE_BINARY_DIR}/etc")
+configure_file("${CMAKE_SOURCE_DIR}/etc/firebuild.conf" "${CMAKE_BINARY_DIR}/etc/firebuild.conf" COPYONLY)
 
-install(FILES etc/firebuild.conf DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+install(FILES "${CMAKE_BINARY_DIR}/etc/firebuild.conf" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
 install(FILES data/build-report.html DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/firebuild")
