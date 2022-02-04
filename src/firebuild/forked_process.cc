@@ -31,6 +31,23 @@ void ForkedProcess::set_been_waited_for() {
   last_exec_descendant()->maybe_finalize();
 }
 
+void ForkedProcess::set_has_orphan_descendant_bubble_up() {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
+#ifdef FB_EXTRA_DEBUG
+  assert(!exec_point() || !exec_point()->can_shortcut());
+#endif
+  /* This may set has_orphan_descendant_ again, but the bubble up needs to go up to the top
+   * for each new orphan to potentially unblock waits. */
+  has_orphan_descendant_ = true;
+  /* Unblock waits if every descendant is finalized or orphan with terminated ancestors. */
+  if (has_on_finalized_ack_set() && can_ack_parent_wait()) {
+    maybe_send_on_finalized_ack();
+  }
+  if (parent()) {
+    parent()->fork_point()->set_has_orphan_descendant_bubble_up();
+  }
+}
+
 void ForkedProcess::maybe_send_on_finalized_ack() {
   if (on_finalized_ack_id_ != -1) {
     assert(on_finalized_ack_fd_ != -1);

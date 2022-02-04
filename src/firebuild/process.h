@@ -88,6 +88,7 @@ class Process {
   virtual const ExecedProcess* exec_point() const = 0;
   virtual ForkedProcess* fork_point() = 0;
   virtual const ForkedProcess* fork_point() const = 0;
+  Process* fork_parent();
   const Process* fork_parent() const;
   /** The nearest ExecedProcess upwards in the tree, excluding "this".
    *  Same as the parent's exec_point, with safe NULL handling. */
@@ -99,6 +100,20 @@ class Process {
    * never returns true. */
   virtual bool been_waited_for() const = 0;
   virtual void set_been_waited_for() = 0;
+  /**
+   * The process is either finalized or is terminated, but in case it is just terminated it has
+   * only finalized, orphan or terminated children, recursively.
+   * In other words all the descendants that are running are orphans or descendants of those
+   * orphans and there is no terminated process that could be finalized.
+   */
+  bool finalized_or_terminated_and_has_orphan_and_finalized_children() const;
+  /**
+   * There is at least one child, that's not
+   * finalized_or_terminated_and_has_orphan_and_finalized_children(). In other words there is
+   * a running descendant that's not an orphan process or a terminated process that could be
+   * finalized.
+   */
+  bool any_child_not_finalized_or_terminated_with_orphan() const;
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
   int fb_pid() {return fb_pid_;}

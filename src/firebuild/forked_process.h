@@ -27,6 +27,8 @@ class ForkedProcess : public Process {
   ForkedProcess* fork_point() {return this;}
   const ForkedProcess* fork_point() const {return this;}
   const ExecedProcess* exec_point() const {return exec_point_;}
+  bool has_orphan_descendant() const {return has_orphan_descendant_;}
+  void set_has_orphan_descendant_bubble_up();
   /**
    * Fail to change to a working directory
    */
@@ -49,9 +51,15 @@ class ForkedProcess : public Process {
     on_finalized_ack_id_ = id;
     on_finalized_ack_fd_ = fd;
   }
+  bool has_on_finalized_ack_set() const {
+    return on_finalized_ack_id_ != -1;
+  }
+  void maybe_send_on_finalized_ack();
   /* Parent's wait for this process can be ACK-ed. */
   bool can_ack_parent_wait() const {
-    return state() == FB_PROC_FINALIZED;
+    return (state() == FB_PROC_FINALIZED)
+        || (state() == FB_PROC_TERMINATED && has_orphan_descendant()
+            && !any_child_not_finalized_or_terminated_with_orphan());
   }
   bool been_waited_for() const {return been_waited_for_;}
   void set_been_waited_for();
@@ -65,10 +73,10 @@ class ForkedProcess : public Process {
 
  private:
   ExecedProcess *exec_point_ {};
-  void maybe_send_on_finalized_ack();
   int on_finalized_ack_id_ = -1;
   bool been_waited_for_  = false;
   bool orphan_  = false;
+  bool has_orphan_descendant_ = false;
   int on_finalized_ack_fd_ = -1;
   virtual void propagate_exit_status(const int) {}
   virtual void disable_shortcutting_only_this(const std::string &reason, const Process *p = NULL) {
