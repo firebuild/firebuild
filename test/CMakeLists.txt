@@ -15,8 +15,9 @@ function(add_test_binary TEST_BINARY)
   add_dependencies(check "${TEST_BINARY}")
 endfunction()
 
-file(COPY integration.bats test_parallel_make.Makefile test_symbols
-  DESTINATION "${CMAKE_BINARY_DIR}/test")
+foreach(TESTFILE integration.bats test_parallel_make.Makefile test_symbols)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${TESTFILE}" "${CMAKE_CURRENT_BINARY_DIR}/${TESTFILE}" COPYONLY)
+endforeach()
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_helper.bash.in ${CMAKE_CURRENT_BINARY_DIR}/test_helper.bash)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run-firebuild.in ${CMAKE_CURRENT_BINARY_DIR}/run-firebuild)
