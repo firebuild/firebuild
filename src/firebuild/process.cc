@@ -35,6 +35,9 @@ Process::Process(const int pid, const int ppid, const int exec_count, const File
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
 
+Process* Process::fork_parent() {
+  return fork_point() ? fork_point()->parent() : nullptr;
+}
 
 const Process* Process::fork_parent() const {
   return fork_point() ? fork_point()->parent() : nullptr;
@@ -929,6 +932,34 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
   return nullptr;
 }
 
+bool Process::finalized_or_terminated_and_has_orphan_and_finalized_children() const {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
+
+  if (state() == FB_PROC_FINALIZED) {
+    return true;
+  } else if (state() == FB_PROC_RUNNING) {
+    return false;
+  }
+  assert_cmp(state(), ==, FB_PROC_TERMINATED);
+
+  if (fork_point()->has_orphan_descendant()) {
+    for (ForkedProcess* fork_child : fork_children()) {
+      if (!fork_child->orphan()
+          && !fork_child->finalized_or_terminated_and_has_orphan_and_finalized_children()) {
+        return false;
+      }
+    }
+
+    /* There can be orphan processes with terminated parents which were not orphan.
+     * Those are not finalized until the last process in the chain terminates, but should be
+     * treated as orphan processes.*/
+    return exec_child() ?
+        exec_child()->finalized_or_terminated_and_has_orphan_and_finalized_children() : true;
+  } else {
+    return false;
+  }
+}
+
 bool Process::any_child_not_finalized() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
@@ -942,6 +973,26 @@ bool Process::any_child_not_finalized() {
 
   for (auto fork_child : fork_children_) {
     if (fork_child->state_ != FB_PROC_FINALIZED) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Process::any_child_not_finalized_or_terminated_with_orphan() const {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
+
+  if (exec_pending_ || has_pending_popen()) {
+    return true;
+  }
+
+  if (exec_child()
+      && !exec_child()->finalized_or_terminated_and_has_orphan_and_finalized_children()) {
+    return true;
+  }
+
+  for (auto fork_child : fork_children_) {
+    if (!fork_child->finalized_or_terminated_and_has_orphan_and_finalized_children()) {
       return true;
     }
   }
@@ -987,6 +1038,7 @@ void Process::maybe_finalize() {
         fork_point()->set_orphan();
         exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
                                                      exec_point());
+        fork_parent()->fork_point()->set_has_orphan_descendant_bubble_up();
         /* Can proceed with finalizing this process, it won't be saved to the cache. */
       } else {
         assert_cmp(fork_parent_ptr->state(), ==, FB_PROC_RUNNING);
@@ -1044,6 +1096,7 @@ void Process::finish() {
       if (orphan_found) {
         curr->exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
                                                            exec_point());
+        curr->fork_point()->set_has_orphan_descendant_bubble_up();
       }
     }
   }
