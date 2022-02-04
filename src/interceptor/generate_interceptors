@@ -473,6 +473,20 @@ generate("char *", ["__fgets_chk", "__fgets_unlocked_chk"], "char *s, size_t for
          msg_skip_fields=["s", "fortify_size", "size", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
+generate("wchar_t *", ["fgetws", "fgetws_unlocked"], "wchar_t *s, int size, FILE *stream",
+         tpl="read",
+         success="ret != NULL || !ferror(stream)",
+         before_lines=["int fd = safe_fileno(stream);"],
+         msg_skip_fields=["s", "size", "stream"],
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
+         ack_condition="true")
+generate("wchar_t *", ["__fgetws_chk", "__fgetws_unlocked_chk"], "wchar_t *s, size_t fortify_size, int size, FILE *stream",
+         success="ret != NULL || !ferror(stream)",
+         tpl="read",
+         before_lines=["int fd = safe_fileno(stream);"],
+         msg_skip_fields=["s", "fortify_size", "size", "stream"],
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
+         ack_condition="true")
 generate("int", ["getchar", "getchar_unlocked"], "",
          tpl="read",
          success="ret != EOF || !ferror(stdin)",
@@ -631,6 +645,12 @@ generate("wint_t", ["fputwc", "fputwc_unlocked", "putwc", "putwc_unlocked"], "wc
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
 generate("int", ["fputs", "fputs_unlocked"], "const char *s, FILE *stream",
+         tpl="write",
+         before_lines=["int fd = safe_fileno(stream);"],
+         msg_skip_fields=["s", "stream"],
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
+         ack_condition="true")
+generate("int", ["fputws", "fputws_unlocked"], "const wchar_t *s, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          msg_skip_fields=["s", "stream"],
