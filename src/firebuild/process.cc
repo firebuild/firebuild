@@ -892,6 +892,10 @@ void Process::set_been_waited_for() {
   curr->maybe_finalize();
 }
 
+bool Process::can_ack_parent_wait() const {
+  return state_ == FB_PROC_FINALIZED;
+}
+
 bool Process::any_child_not_finalized() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
