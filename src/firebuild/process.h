@@ -436,6 +436,7 @@ class Process {
                                  unsigned int *nodeid);
 
   void set_on_finalized_ack(int id, int fd) {
+    assert(on_finalized_ack_id_ == -1 && on_finalized_ack_fd_ == -1);
     on_finalized_ack_id_ = id;
     on_finalized_ack_fd_ = fd;
   }
@@ -501,6 +502,7 @@ class Process {
   bool posix_spawn_pending_ {false};
   Process * exec_child_;
   bool any_child_not_finalized();
+  void maybe_send_on_finalized_ack();
   int on_finalized_ack_id_ = -1;
   int on_finalized_ack_fd_ = -1;
   /**
