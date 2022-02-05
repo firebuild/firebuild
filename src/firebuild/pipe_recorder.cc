@@ -63,7 +63,7 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
   ssize_t saved =
 #endif
       fb_write(fd_, buf, len);
-  assert(saved == len);
+  assert_cmp(saved, ==, len);
 
   offset_ += len;
   assert_cmp(offset_, >, 0);
@@ -94,7 +94,7 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
   ssize_t saved =
 #endif
       splice(pipe_fd, NULL, fd_, NULL, len, 0);
-  assert(saved == len);
+  assert_cmp(saved, ==, len);
 
   offset_ += len;
   assert_cmp(offset_, >, 0);
@@ -125,7 +125,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
     perror("copy_file_range");
     abort();
   }
-  assert(saved == len);
+  assert_cmp(saved, ==, len);
 
   offset_ += len;
   assert_cmp(offset_, >, 0);
@@ -209,7 +209,7 @@ void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecor
                                            const char *buf, ssize_t len) {
   TRACK(FB_DEBUG_PIPE, "#recorders=%ld, len=%ld", recorders->size(), len);
 
-  assert(len > 0);
+  assert_cmp(len, >, 0);
 
   // FIXME Would it be faster to call add_data_from_buffer() for the first active recorder only,
   // and then do add_data_from_regular_fd() (i.e. copy_file_range()) for the rest?
@@ -239,7 +239,7 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
 #ifdef FB_EXTRA_DEBUG
   assert(has_active_recorder(*recorders));
 #endif
-  assert(len > 0);
+  assert_cmp(len, >, 0);
 
   /* The first active recorder consumes the data from the pipe. */
   size_t i;
@@ -276,7 +276,7 @@ void PipeRecorder::record_data_from_regular_fd(
     int fd, ssize_t len) {
   TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
 
-  assert(len > 0);
+  assert_cmp(len, >, 0);
 
   for (std::shared_ptr<PipeRecorder>& recorder : *recorders) {
     if (!recorder->deactivated_) {
