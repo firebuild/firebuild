@@ -1559,6 +1559,7 @@ int main(const int argc, char *argv[]) {
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = sigchild_handler;
+  sa.sa_flags = SA_RESTART;
   sigaction(SIGCHLD, &sa, NULL);
 
   /* Configure epoll */
