@@ -178,7 +178,7 @@ jobs:
     - name: build-in-tree
       run: |
         export PATH=/usr/lib/ccache:$PATH
-        cmake -DWITH_JEMALLOC=OFF -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
+        cmake -DWITH_JEMALLOC=OFF -DCMAKE_C_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer -DSKIP_TEST_NULL_NONNULL_PARAMS=1" -DCMAKE_CXX_FLAGS="-O3 -static-libasan -fsanitize=undefined -fno-omit-frame-pointer" .
         make -j2 check
         export PATH=${PATH#*ccache:}
     - name: build-vte

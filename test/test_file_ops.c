@@ -101,6 +101,15 @@ int main() {
     exit(1);
   }
 
+/* Allow skipping this test since the ASAN & UBSAN build finds out that this code is incorrect. */
+#ifndef SKIP_TEST_NULL_NONNULL_PARAMS
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnonnull"
+  /* Call statx with invalid parameters, like cargo does. */
+  statx(0, NULL, 0, STATX_ALL, NULL);
+#pragma GCC diagnostic pop
+#endif
+
   /* Run part 2. */
   if (system("./test_file_ops_2") != 0) {
     exit(1);
