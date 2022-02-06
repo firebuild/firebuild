@@ -944,6 +944,7 @@ generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struc
 generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned int mask, struct statx *statx_buf",
          msg="stat",
          msg_skip_fields=["filename", "flags", "mask", "statx_buf"],
+         send_msg_condition="ret != -1 || errno != EFAULT",
          msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbbcomm_builder_stat_set_link(&ic_msg, true);",
                          "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);"])
 # Treat isfdtype() as a fstat()

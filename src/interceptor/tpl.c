@@ -226,7 +226,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###       block send_msg
 ###         if msg
   /* Maybe notify the supervisor */
-  if (i_am_intercepting && {{ send_msg_condition }}) {
+  if (i_am_intercepting && ({{ send_msg_condition }})) {
     FBBCOMM_Builder_{{ msg }} ic_msg;
     fbbcomm_builder_{{ msg }}_init(&ic_msg);
 
