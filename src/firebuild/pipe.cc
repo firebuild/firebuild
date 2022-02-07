@@ -228,7 +228,7 @@ void Pipe::finish() {
   }
 
   FB_DEBUG(FB_DEBUG_PIPE, "cleaning up " + d(this));
-  // clean up all events
+  /* clean up all events */
   for (auto it : conn2fd1_ends) {
     FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d_fd(it.first));
     epoll->maybe_del_fd(it.first);
@@ -610,4 +610,4 @@ std::string d(const Pipe *pipe, const int level) {
 /* Global counter, so that each Pipe object gets a unique ID. */
 int Pipe::id_counter_ = 0;
 
-}  // namespace firebuild
+}  /* namespace firebuild */

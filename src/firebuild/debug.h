@@ -346,5 +346,5 @@ class MethodTracker {
 #define assert_null(p)
 #endif  /* NDEBUG */
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_DEBUG_H_

@@ -325,4 +325,4 @@ std::string d(const PipeRecorder *recorder, const int level) {
 int PipeRecorder::id_counter_ = 0;
 char *PipeRecorder::base_dir_ = NULL;
 
-}  // namespace firebuild
+}  /* namespace firebuild */

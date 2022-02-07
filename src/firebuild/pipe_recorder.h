@@ -219,5 +219,5 @@ class PipeRecorder {
 std::string d(const PipeRecorder& recorder, const int level = 0);
 std::string d(const PipeRecorder *recorder, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_PIPE_RECORDER_H_

@@ -133,4 +133,4 @@ bool HashCache::store_and_get_hash(const FileName* path, Hash *hash,
   return true;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

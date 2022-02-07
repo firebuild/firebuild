@@ -92,4 +92,4 @@ std::string make_fifo(int fd, int flags, int pid, const char* fb_conn_string,
   return fifo_params;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

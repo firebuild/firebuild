@@ -33,5 +33,5 @@ class ProcessFactory {
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_PROCESS_FACTORY_H_

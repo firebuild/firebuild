@@ -55,5 +55,5 @@ class ExecedProcessCacher {
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessCacher);
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_EXECED_PROCESS_CACHER_H_

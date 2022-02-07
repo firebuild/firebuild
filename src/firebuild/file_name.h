@@ -122,6 +122,6 @@ inline const FileName* FileName::Get(const char * const name, ssize_t length,
 std::string d(const FileName& fn, const int level = 0);
 std::string d(const FileName *fn, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 
 #endif  // FIREBUILD_FILE_NAME_H_

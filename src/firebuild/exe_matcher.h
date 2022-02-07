@@ -43,5 +43,5 @@ class ExeMatcher {
   tsl::hopscotch_set<std::string> full_names_;
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_EXE_MATCHER_H_

@@ -134,4 +134,4 @@ void Epoll::del_timer(int timer_id) {
    * already elapsed. */
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

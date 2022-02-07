@@ -151,4 +151,4 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_fchdir *f) {
   return 0;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

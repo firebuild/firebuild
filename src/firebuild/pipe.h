@@ -276,5 +276,5 @@ class Pipe {
 std::string d(const Pipe& pipe, const int level = 0);
 std::string d(const Pipe *pipe, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_PIPE_H_

@@ -87,4 +87,4 @@ std::string d(const FileName *fn, const int level) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

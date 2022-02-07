@@ -300,4 +300,4 @@ std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
   return ret;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

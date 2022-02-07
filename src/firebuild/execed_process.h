@@ -116,7 +116,7 @@ class ExecedProcess : public Process {
     wds_.insert(d);
   }
 
-  /// Returns if the process can be short-cut
+  /** Returns if the process can be short-cut */
   bool can_shortcut() const {return can_shortcut_;}
 
   bool shortcut();
@@ -186,34 +186,35 @@ class ExecedProcess : public Process {
       Otherwise the process itself is not shortcutable, but the ancestor is, if the ancestor's
       maybe_shortcutable_ancestor points at itself, etc. */
   ExecedProcess * maybe_shortcutable_ancestor_;
-  /// Sum of user time in microseconds for all forked but not exec()-ed children
+  /** Sum of user time in microseconds for all forked but not exec()-ed children */
   int64_t utime_u_ = 0;
-  /// Sum of system time in microseconds for all forked but not exec()-ed
-  /// children
+  /** Sum of system time in microseconds for all forked but not exec()-ed children */
   int64_t stime_u_ = 0;
   /** Sum of user and system time in microseconds for all finalized exec()-ed children */
   int64_t children_cpu_time_u_ = 0;
-  /// Directory the process exec()-started in
+  /** Directory the process exec()-started in */
   const FileName* initial_wd_;
-  /// Working directories visited by the process and all fork()-children
+  /** Working directories visited by the process and all fork()-children */
   tsl::hopscotch_set<const FileName*> wds_;
-  /// Working directories the process and all fork()-children failed to
-  /// chdir() to
+  /** Working directories the process and all fork()-children failed to chdir() to */
   tsl::hopscotch_set<const FileName*> failed_wds_;
   std::vector<std::string> args_;
-  /// Environment variables in deterministic (sorted) order.
+  /** Environment variables in deterministic (sorted) order. */
   std::vector<std::string> env_vars_;
-  /// The executable running. In case of scripts this is the interpreter or in case of invoking
-  /// an executable via a symlink this is the executable the symlink points to.
+  /**
+   * The executable running. In case of scripts this is the interpreter or in case of invoking
+   * an executable via a symlink this is the executable the symlink points to. */
   const FileName* executable_;
-  /// The path executed. In case of scripts this is the script's name or in case of invoking
-  /// executable via a symlink this is the name of the symlink.
+  /**
+   * The path executed. In case of scripts this is the script's name or in case of invoking
+   * executable via a symlink this is the name of the symlink. */
   const FileName* executed_path_;
-  /// DSO-s loaded by the linker at process startup, in the same order.
-  /// (DSO-s later loaded via dlopen(), and DSO-s of descendant processes
-  /// are registered as regular file open operations.)
+  /**
+   * DSO-s loaded by the linker at process startup, in the same order.
+   * (DSO-s later loaded via dlopen(), and DSO-s of descendant processes are registered as regular
+   * file open operations.) */
   std::vector<const FileName*> libs_;
-  /// File usage per path for p and f. c. (t.)
+  /** File usage per path for p and f. c. (t.) */
   tsl::hopscotch_map<const FileName*, const FileUsage*> file_usages_;
   /**
    * Pipes created by this process.
@@ -239,17 +240,18 @@ class ExecedProcess : public Process {
       return next;
     }
   }
-  /// Reason for this process can't be short-cut
+  /** Reason for this process can't be short-cut */
   const char* cant_shortcut_reason_ = nullptr;
-  /// Process the event preventing short-cutting happened in
+  /** Process the event preventing short-cutting happened in */
   const Process *cant_shortcut_proc_ = NULL;
-  /// Helper object for storing in / retrieving from cache.
-  /// NULL if we prefer not to (although probably could)
-  /// cache / shortcut this process.
+  /**
+   * Helper object for storing in / retrieving from cache.
+   * NULL if we prefer not to (although probably could)
+   * cache / shortcut this process. */
   ExecedProcessCacher *cacher_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_EXECED_PROCESS_H_

@@ -35,5 +35,5 @@ class ObjCache {
 /* singleton */
 extern ObjCache *obj_cache;
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_OBJ_CACHE_H_

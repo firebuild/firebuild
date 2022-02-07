@@ -81,6 +81,6 @@ class HashCache {
 /* singleton */
 extern HashCache *hash_cache;
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 
 #endif  // FIREBUILD_HASH_CACHE_H_

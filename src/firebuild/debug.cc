@@ -164,4 +164,4 @@ std::vector<int> fd_ages;
 int method_tracker_level = 0;
 #endif
 
-}  // namespace firebuild
+}  /* namespace firebuild */

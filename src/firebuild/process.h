@@ -447,18 +447,18 @@ class Process {
   const FileName* wd_;  ///< Current working directory
   std::vector<std::shared_ptr<FileFD>>* fds_;  ///< Active file descriptors
   std::vector<Process*> fork_children_;  ///< children of the process
-  /// the latest system() child
+  /** the latest system() child */
   ExecedProcess *system_child_ {NULL};
-  /// for popen()ed children: client fd -> process mapping
+  /** for popen()ed children: client fd -> process mapping */
   tsl::hopscotch_map<int, ExecedProcess *> fd2popen_child_ {};
-  /// if the popen()ed child has appeared, but the popen_parent messages hasn't:
+  /** if the popen()ed child has appeared, but the popen_parent messages hasn't: */
   ExecedProcess *pending_popen_child_ {NULL};
   int pending_popen_child_conn_ {-1};
   int pending_popen_type_flags_ {0};
-  /// if the popen_parent message has arrived, but the popen()ed child hasn't:
+  /** if the popen_parent message has arrived, but the popen()ed child hasn't: */
   int pending_popen_fd_ {-1};
   char *pending_popen_fifo_ {nullptr};
-  /// commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear
+  /** commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear */
   ExecedProcessEnv *expected_child_;
   /** Set upon an "execv" message, cleared upon "scproc_query" (i.e. new dynamically linked process
    *  successfully started up) or "execv_failed". Also set in the child upon a "posix_spawn_parent"
@@ -505,5 +505,5 @@ inline bool Process::operator == (Process const & p) const {
 std::string d(const Process& p, const int level = 0);
 std::string d(const Process *p, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_PROCESS_H_

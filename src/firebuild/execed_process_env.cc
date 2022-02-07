@@ -32,4 +32,4 @@ std::string d(const ExecedProcessEnv *env, const int level) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */
