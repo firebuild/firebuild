@@ -40,5 +40,5 @@ class BlobCache {
 /* singleton */
 extern BlobCache *blob_cache;
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_BLOB_CACHE_H_

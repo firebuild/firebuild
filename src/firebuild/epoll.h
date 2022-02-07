@@ -158,6 +158,6 @@ class Epoll {
   int event_current_ = 0;
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 
 #endif  // FIREBUILD_EPOLL_H_

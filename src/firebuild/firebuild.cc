@@ -202,7 +202,7 @@ static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd,
 }
 
 
-}  // namespace
+}  /* namespace */
 
 namespace firebuild {
 
@@ -390,7 +390,7 @@ void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 
 namespace {
 
@@ -635,7 +635,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       const FBBCOMM_Serialized_system *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_system *>(fbbcomm_buf);
       assert_null(proc->system_child());
-      // system(cmd) launches a child of argv = ["sh", "-c", cmd]
+      /* system(cmd) launches a child of argv = ["sh", "-c", cmd] */
       auto expected_child = new ::firebuild::ExecedProcessEnv(proc->pass_on_fds(false));
       // FIXME what if !has_cmd() ?
       expected_child->set_sh_c_command(fbbcomm_serialized_system_get_cmd(ic_msg));
@@ -1114,7 +1114,7 @@ static void write_report(const std::string &html_filename,
   std::string dir = dirname(html_filename_tmp);
   delete[] html_filename_tmp;
 
-  // export profile
+  /* export profile */
   {
     FILE* dot = fopen((dir + "/" + dot_filename).c_str(), "w");
     if (dot == NULL) {
@@ -1139,7 +1139,7 @@ static void write_report(const std::string &html_filename,
     char* line = NULL;
     size_t zero = 0;
     if (getline(&line, &zero, src_file) == -1) {
-      // finished reading file
+      /* finished reading file */
       if (!feof(src_file)) {
         perror("getline");
         firebuild::fb_error("Reading from report template failed.");
@@ -1212,7 +1212,7 @@ static void bump_limits() {
   }
 }
 
-}  // namespace
+}  /* namespace */
 
 /**
  * Create connection sockets for the interceptor
@@ -1406,15 +1406,15 @@ int main(const int argc, char *argv[]) {
   std::list<std::string> config_strings = {};
   int c;
 
-  // running under BATS fd 3 is inherited
+  /* running under BATS fd 3 is inherited */
   if (fcntl(3, F_GETFD) != -1 || errno != EBADF) {
     bats_inherited_fd = 3;
   }
 
-  // init global data
+  /* init global data */
   cfg = new libconfig::Config();
 
-  // parse options
+  /* parse options */
   setenv("POSIXLY_CORRECT", "1", true);
   while (1) {
     int option_index = 0;
@@ -1452,7 +1452,7 @@ int main(const int argc, char *argv[]) {
     case 'h':
       usage();
       exit(EXIT_SUCCESS);
-      // break;
+      /* break; */
 
     case 'o':
       if (optarg != NULL) {
@@ -1496,7 +1496,7 @@ int main(const int argc, char *argv[]) {
 
   firebuild::read_config(cfg, config_file, config_strings);
 
-  // Initialize the cache
+  /* Initialize the cache */
   std::string cache_dir;
   const char *cache_dir_env = getenv("FIREBUILD_CACHE_DIR");
   if (cache_dir_env == NULL || cache_dir_env[0] == '\0') {
@@ -1575,19 +1575,19 @@ int main(const int argc, char *argv[]) {
   /* Collect orphan children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
 
-  // run command and handle interceptor messages
+  /* run command and handle interceptor messages */
   if ((child_pid = fork()) == 0) {
     int i;
-    // intercepted process
+    /* intercepted process */
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstrict-overflow"
     char* argv_exec[argc - optind + 1];
 #pragma GCC diagnostic pop
 
-    // we don't need that
+    /* we don't need that */
     close(listener);
 
-    // create and execute build command
+    /* create and execute build command */
     for (i = 0; i < argc - optind ; i++) {
       argv_exec[i] = argv[optind + i];
     }
@@ -1602,7 +1602,7 @@ int main(const int argc, char *argv[]) {
     perror("Executing build command failed");
     exit(EXIT_FAILURE);
   } else {
-    // supervisor process
+    /* supervisor process */
 
     bump_limits();
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
@@ -1667,7 +1667,7 @@ int main(const int argc, char *argv[]) {
                       ru_total.ru_stime.tv_sec, ru_total.ru_stime.tv_usec / 1000);
     }
 
-    // show process tree if needed
+    /* show process tree if needed */
     if (generate_report) {
       const std::string datadir(getenv("FIREBUILD_DATA_DIR") ? getenv("FIREBUILD_DATA_DIR")
                                 : FIREBUILD_DATADIR);
@@ -1720,4 +1720,4 @@ extern void fb_debug(const std::string &msg) {
 
 int32_t debug_flags = 0;
 
-}  // namespace firebuild
+}  /* namespace firebuild */

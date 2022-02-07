@@ -235,5 +235,5 @@ std::string d(const FileUsage& fu, const int level = 0);
 std::string d(const FileUsage *fu, const int level = 0);
 const char *file_initial_state_to_string(FileInitialState state);
 const char *file_action_to_string(FileAction action);
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_FILE_USAGE_H_

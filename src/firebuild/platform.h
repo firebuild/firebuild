@@ -63,7 +63,7 @@ inline int fdcmp(int fd1, int fd2) {
 #endif
 }
 
-}  // namespace platform
-}  // namespace firebuild
+}  /* namespace platform */
+}  /* namespace firebuild */
 
 #endif  // FIREBUILD_PLATFORM_H_

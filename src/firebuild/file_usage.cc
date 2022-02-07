@@ -292,4 +292,4 @@ const char *file_action_to_string(FileAction action) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

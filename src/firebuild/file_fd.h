@@ -122,5 +122,5 @@ class FileFD {
 std::string d(const FileFD& ffd, const int level = 0);
 std::string d(const FileFD *ffd, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_FILE_FD_H_

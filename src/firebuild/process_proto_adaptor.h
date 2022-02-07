@@ -40,5 +40,5 @@ class ProcessPBAdaptor {
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_PROCESS_PROTO_ADAPTOR_H_

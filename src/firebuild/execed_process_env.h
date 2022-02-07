@@ -46,11 +46,11 @@ class ExecedProcessEnv {
 
  private:
   std::vector<std::string> argv_;
-  /// Whether it's launched via system() or popen() or other
+  /** Whether it's launched via system() or popen() or other */
   LaunchType launch_type_;
-  /// popen(command, type)'s type encoded as O_WRONLY | O_RDONLY | O_CLOEXEC flags
+  /** popen(command, type)'s type encoded as O_WRONLY | O_RDONLY | O_CLOEXEC flags */
   int type_flags_;
-  /// File descriptor states intherited from parent
+  /** File descriptor states intherited from parent */
   std::vector<std::shared_ptr<FileFD>>* fds_;
   // TODO(egmont) add envp ?
 
@@ -63,5 +63,5 @@ class ExecedProcessEnv {
 std::string d(const ExecedProcessEnv& env, const int level = 0);
 std::string d(const ExecedProcessEnv *env, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_EXECED_PROCESS_ENV_H_

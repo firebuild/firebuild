@@ -135,6 +135,6 @@ class LinearBuffer {
   DISALLOW_COPY_AND_ASSIGN(LinearBuffer);
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 
 #endif  // FIREBUILD_LINEAR_BUFFER_H_

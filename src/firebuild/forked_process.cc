@@ -17,7 +17,7 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
     : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 
-  // add as fork child of parent
+  /* add as fork child of parent */
   if (parent) {
     exec_point_ = parent->exec_point();
     parent->fork_children().push_back(this);
@@ -45,5 +45,5 @@ std::string ForkedProcess::d_internal(const int level) const {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 

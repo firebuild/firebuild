@@ -45,4 +45,4 @@ std::string d(const FileFD *ffd, const int level) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

@@ -67,11 +67,11 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
 
   if (parent != NULL) {
     assert(parent->state() == FB_PROC_TERMINATED);
-    // add as exec child of parent
+    /* add as exec child of parent */
     parent->set_exec_pending(false);
     parent->reset_file_fd_pipe_refs();
 
-    // clear a previous exit status, just in case an atexit handler performed the exec
+    /* clear a previous exit status, just in case an atexit handler performed the exec */
     parent->set_exit_status(-1);
     parent->set_exec_child(this);
   }
@@ -153,16 +153,16 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "status=%d, utime_u=%ld, stime_u=%ld",
          status, utime_u, stime_u);
 
-  // store results for this process
+  /* store results for this process */
   Process::exit_result(status, utime_u, stime_u);
-  // propagate to parents exec()-ed this FireBuild process
+  /* propagate to parents exec()-ed this FireBuild process */
   propagate_exit_status(status);
 }
 
 void ExecedProcess::do_finalize() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
-  // store data for shortcutting
+  /* store data for shortcutting */
   if (cacher_ && !was_shortcut() && can_shortcut() && aggr_cpu_time_u() >= min_cpu_time_u) {
     cacher_->store(this);
   }
@@ -181,7 +181,7 @@ void ExecedProcess::do_finalize() {
     parent_exec_point()->add_children_cpu_time_u(aggr_cpu_time_u());
   }
 
-  // Call the base class's method
+  /* Call the base class's method */
   Process::do_finalize();
 
   for (const auto& pipe : created_pipes_) {
@@ -577,7 +577,7 @@ void ExecedProcess::export2js(const unsigned int level,
   }
   fprintf(stream, "],\n");
 
-  // sort files before printing
+  /* sort files before printing */
   std::vector<file_file_usage> ordered_file_usages;
   for (auto& pair : file_usages()) {
     ordered_file_usages.push_back({pair.first, pair.second});
@@ -617,7 +617,7 @@ void ExecedProcess::export2js(const unsigned int level,
   fprintf(stream, "],\n");
 
   if (state() != FB_PROC_FINALIZED) {
-    // something went wrong
+    // TODO(rbalint) something went wrong
   }
   if (exit_status() != -1) {
     fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
@@ -675,4 +675,4 @@ ExecedProcess::~ExecedProcess() {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

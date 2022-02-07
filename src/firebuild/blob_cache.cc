@@ -384,4 +384,4 @@ int BlobCache::get_fd_for_file(const Hash &key) {
   return fd;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

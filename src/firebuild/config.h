@@ -26,5 +26,5 @@ extern int64_t min_cpu_time_u;
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_CONFIG_H_

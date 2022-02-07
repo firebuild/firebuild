@@ -195,5 +195,5 @@ class ProcessTree {
   DISALLOW_COPY_AND_ASSIGN(ProcessTree);
 };
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_PROCESS_TREE_H_

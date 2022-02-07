@@ -63,7 +63,7 @@
 ###   if at
     /* Set for exec*at() */
     fbbcomm_builder_execv_set_dirfd(&ic_msg, dirfd);
-    // fbbcomm_builder_execv_set_flags(&ic_msg, flags);
+    // TODO(rbalint) see #32 fbbcomm_builder_execv_set_flags(&ic_msg, flags);
 ###   endif
 ###   if p
     /* Set for exec*p*() */

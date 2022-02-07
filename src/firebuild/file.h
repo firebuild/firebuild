@@ -39,5 +39,5 @@ class File {
 std::string d(const File& f, const int level = 0);
 std::string d(const File *f, const int level = 0);
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_FILE_H_

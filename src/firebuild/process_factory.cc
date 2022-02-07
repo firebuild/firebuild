@@ -52,4 +52,4 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   return e;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

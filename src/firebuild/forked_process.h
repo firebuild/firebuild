@@ -57,5 +57,5 @@ class ForkedProcess : public Process {
 };
 
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 #endif  // FIREBUILD_FORKED_PROCESS_H_

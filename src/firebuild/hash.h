@@ -111,4 +111,4 @@ std::string d(const Hash& hash, const int level = 0);
 std::string d(const Hash *hash, const int level = 0);
 
 }  /* namespace firebuild */
-#endif  /* FIREBUILD_HASH_H_ */
+#endif  // FIREBUILD_HASH_H_

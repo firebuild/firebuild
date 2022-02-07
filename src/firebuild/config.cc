@@ -41,7 +41,7 @@ int64_t min_cpu_time_u = 0;
  *  Otherwise try ~/.firebuild.conf, or if that one does not exist then /etc/firebuild.conf.
  * */
 static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) {
-  // we fall back to global configuration file
+  /* we fall back to global configuration file */
   std::string cfg_file(GLOBAL_CONFIG);
   if (custom_cfg_file != NULL) {
     cfg_file = std::string(custom_cfg_file);
@@ -51,7 +51,7 @@ static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) 
       std::string user_cfg_file = homedir + std::string("/" USER_CONFIG);
       int cfg_fd = open(user_cfg_file.c_str(), O_RDONLY);
       if (cfg_fd != -1) {
-        // fall back to private config file
+        /* fall back to private config file */
         cfg_file = user_cfg_file;
         close(cfg_fd);
       }
@@ -236,4 +236,4 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   init_matcher(&skip_cache_matcher, cfg->getRoot()["processes"]["skip_cache"]);
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

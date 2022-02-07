@@ -731,7 +731,7 @@ void fb_init_supervisor_conn() {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
     fb_conn_string_len = strlen(fb_conn_string);
   }
-  // reconnect to supervisor
+  /* reconnect to supervisor */
   ic_orig_close(fb_sv_conn);
   fb_sv_conn = fb_connect_supervisor();
 }
@@ -773,7 +773,7 @@ static void fb_ic_init() {
     insert_debug_msg(buf);
   }
 
-  // init global variables
+  /* init global variables */
 
   /* Save a copy of LD_LIBRARY_PATH before someone might modify it. */
   char *llp = getenv("LD_LIBRARY_PATH");
@@ -832,9 +832,9 @@ static void fb_ic_init() {
   qsort(env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
   fbbcomm_builder_scproc_query_set_env_var(&ic_msg, (const char **) env_copy);
 
-  // get full executable path
-  // see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
-  // and man 2 readlink
+  /* get full executable path
+   * see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
+   * and readlink(2) */
   char linkname[CWD_BUFSIZE];
   ssize_t r;
   r = ic_orig_readlink("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
@@ -843,7 +843,7 @@ static void fb_ic_init() {
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
   }
 
-  // list loaded shared libs
+  /* list loaded shared libs */
   string_array libs;
   string_array_init(&libs);
   dl_iterate_phdr(shared_libs_cb, &libs);
@@ -861,7 +861,7 @@ static void fb_ic_init() {
   FBBCOMM_Serialized_scproc_resp *sv_msg = (FBBCOMM_Serialized_scproc_resp *) sv_msg_generic;
   debug_flags = fbbcomm_serialized_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
 
-  // we may return immediately if supervisor decides that way
+  /* we may return immediately if supervisor decides that way */
   if (fbbcomm_serialized_scproc_resp_get_shortcut(sv_msg)) {
     assert(fbbcomm_serialized_scproc_resp_has_exit_status(sv_msg));
     insert_debug_msg("this process was shortcut by the supervisor, exiting");

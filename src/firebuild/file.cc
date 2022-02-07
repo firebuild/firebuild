@@ -46,8 +46,8 @@ int File::update() {
     }
     mtimes_[i] = s.st_mtim;
   }
-  // dirname may modify path and return dir pointing to a statically
-  // allocated buffer. This is how we ended up having this complicated code
+  /* dirname may modify path and return dir pointing to a statically
+   * allocated buffer. This is how we ended up having this complicated code */
   char *dir;
   while (true) {
     i++;
@@ -62,9 +62,9 @@ int File::update() {
         mtimes_.resize(i+1);
       }
       mtimes_[i] = s.st_mtim;
-      // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
-      // "A pathname that begins with two successive slashes may be interpreted
-      // in an implementation-defined manner [...]"
+      /* https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
+       * "A pathname that begins with two successive slashes may be interpreted
+       * in an implementation-defined manner [...]" */
       if ((strcmp(".", dir) == 0) || (strcmp("/", dir) == 0) || (strcmp("//", dir) == 0)) {
         break;
       } else {
@@ -74,8 +74,8 @@ int File::update() {
       }
     }
   }
-  // we could resize the vector here, but the number of dirs in the path
-  // can't change over time
+  /* we could resize the vector here, but the number of dirs in the path
+   * can't change over time */
   free(tmp_path);
   return 0;
 }
@@ -102,8 +102,8 @@ int File::is_changed() {
       return 1;
     }
   }
-  // dirname may modify path and return dir pointing to a statically
-  // allocated buffer. This is how we ended up having this complicated code
+  /* dirname may modify path and return dir pointing to a statically
+   * allocated buffer. This is how we ended up having this complicated code */
   char *dir;
   while (true) {
     i++;
@@ -117,9 +117,9 @@ int File::is_changed() {
         free(tmp_path);
         return 1;
       }
-      // https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
-      // "A pathname that begins with two successive slashes may be interpreted
-      // in an implementation-defined manner [...]"
+      /* https://pubs.opengroup.org/onlinepubs/000095399/basedefs/xbd_chap04.html#tag_04_11
+       * "A pathname that begins with two successive slashes may be interpreted
+       * in an implementation-defined manner [...]" */
       if ((strcmp(".", dir) == 0) || (strcmp("/", dir) == 0) || (strcmp("//", dir) == 0)) {
         break;
       } else {
@@ -129,8 +129,8 @@ int File::is_changed() {
       }
     }
   }
-  // we could resize the vector here, but the number of dirs in the path
-  // can't change over time
+  /* we could resize the vector here, but the number of dirs in the path
+   * can't change over time */
   free(tmp_path);
   return 0;
 }
@@ -151,4 +151,4 @@ std::string d(const File *f, const int level) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

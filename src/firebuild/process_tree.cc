@@ -66,13 +66,13 @@ ProcessTree::ProcessTree()
 ProcessTree::~ProcessTree() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
-  // clean up all processes, from the leaves towards the root
+  /* clean up all processes, from the leaves towards the root */
   delete_process_subtree(root());
-  // clean up pending exec() children
+  /* clean up pending exec() children */
   for (auto& pair : pid2exec_child_sock_) {
     delete(pair.second.incomplete_child);
   }
-  // clean up pending posix_spawn() children
+  /* clean up pending posix_spawn() children */
   for (auto& pair : pid2posix_spawn_child_sock_) {
     delete(pair.second.incomplete_child);
   }
@@ -189,8 +189,8 @@ static void hsl_to_hsv(const double hh, const double ss, const double ll,
  * @param r 0.0 .. 1.0
  */
 static std::string pct_to_hsv_str(const double p) {
-  const double hsl_min[] = {2.0/3.0, 0.80, 0.25};  // blue
-  const double hsl_max[] = {0.0, 1.0, 0.5};        // red
+  const double hsl_min[] = {2.0/3.0, 0.80, 0.25};  /* blue */
+  const double hsl_max[] = {0.0, 1.0, 0.5};        /* red */
   const double r = p / 100;
   double hsl[3];
   double hsv[3];
@@ -215,11 +215,11 @@ void ProcessTree::export_profile2dot(FILE* stream) {
   double min_penwidth = 1, max_penwidth = 8;
   int64_t build_time;
 
-  // build profile
+  /* build profile */
   build_profile(*root_, &cmd_chain);
   build_time = root_->aggr_cpu_time_u();
 
-  // print it
+  /* print it */
   fprintf(stream, "digraph {\n");
   fprintf(stream, "graph [dpi=63, ranksep=0.25, rankdir=LR, "
           "bgcolor=transparent, fontname=Helvetica, fontsize=12, "
@@ -257,4 +257,4 @@ void ProcessTree::export_profile2dot(FILE* stream) {
   fprintf(stream, "}\n");
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

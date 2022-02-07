@@ -64,7 +64,7 @@ Process::add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
   if ((*fds)[fd]) {
     firebuild::fb_error("Fd " + d(fd) + " is already tracked as being open.");
   }
-  // the shared_ptr takes care of cleaning up the old fd if needed
+  /* the shared_ptr takes care of cleaning up the old fd if needed */
   (*fds)[fd] = ffd;
   return ffd;
 }
@@ -242,22 +242,20 @@ int Process::handle_close(const int fd, const int error) {
   FileFD* file_fd = get_fd(fd);
 
   if (error == EIO) {
-    // IO prevents shortcutting
     exec_point()->disable_shortcutting_bubble_up("IO error closing fd", fd);
     return -1;
   } else if (error == 0 && !file_fd) {
-    // closing an unknown fd successfully prevents shortcutting
     exec_point()->disable_shortcutting_bubble_up(
         "Process closed an unknown fd successfully, "
         "which means interception missed at least one open()", fd);
     return -1;
   } else if (error == EBADF) {
-    // Process closed an fd unknown to it. Who cares?
+    /* Process closed an fd unknown to it. Who cares? */
     assert(!get_fd(fd));
     return 0;
   } else {
     if (!file_fd) {
-      // closing an unknown fd with not EBADF prevents shortcutting
+      /* closing an unknown fd with not EBADF prevents shortcutting */
       exec_point()->disable_shortcutting_bubble_up(
           "Process closed an unknown fd successfully, "
           "which means interception missed at least one open()", fd);
@@ -353,9 +351,9 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
     return std::shared_ptr<Pipe>(nullptr);
   }
 
-  // validate fd-s
+  /* validate fd-s */
   if (fd0_proc->get_fd(fd0)) {
-    // we already have this fd, probably missed a close()
+    /* we already have this fd, probably missed a close() */
     fd0_proc->exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", fd0);
@@ -363,7 +361,7 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
   }
 
   if (fd1 != -1 && get_fd(fd1)) {
-    // we already have this fd, probably missed a close()
+    /* we already have this fd, probably missed a close() */
     exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", fd1);
@@ -415,7 +413,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
     case EINTR:
     case EINVAL:
     case ENFILE: {
-      // dup() failed
+      /* dup() failed */
       return 0;
     }
     case 0:
@@ -423,16 +421,16 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
       break;
   }
 
-  // validate fd-s
+  /* validate fd-s */
   if (!get_fd(oldfd)) {
-    // we already have this fd, probably missed a close()
+    /* we already have this fd, probably missed a close() */
     exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", oldfd);
     return -1;
   }
 
-  // dup2()'ing an existing fd to itself returns success and does nothing
+  /* dup2()'ing an existing fd to itself returns success and does nothing */
   if (oldfd == newfd) {
     return 0;
   }
@@ -462,7 +460,7 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
    * Note: rename() is different from "mv" in at least two aspects:
    *
    * - Can't move to a containing directory, e.g.
-   *     rename("/home/user/file.txt", "/tmp");  // or "/tmp/"
+   *     rename("/home/user/file.txt", "/tmp");  (or ... "/tmp/")
    *   fails, you have to specify the full new name like
    *     rename("/home/user/file.txt", "/tmp/file.txt");
    *   instead.
@@ -935,4 +933,4 @@ std::string d(const Process *p, const int level) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

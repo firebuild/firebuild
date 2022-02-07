@@ -1045,4 +1045,4 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
   return ret;
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */

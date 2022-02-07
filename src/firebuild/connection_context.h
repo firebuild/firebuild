@@ -74,6 +74,6 @@ inline std::string d(const ConnectionContext *ctx, const int level = 0) {
   }
 }
 
-}  // namespace firebuild
+}  /* namespace firebuild */
 
 #endif  // FIREBUILD_CONNECTION_CONTEXT_H_
