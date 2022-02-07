@@ -18,6 +18,9 @@
 int main() {
   int fd, fd_dup, fd_dup2, fd_dup3, i, pipe_fds[2];
 
+  /* Close invalid file descriptior. Should not affect shortcutting. */
+  close(-1);
+
   if (pipe2(pipe_fds, 0) != 0) {
     perror("pipe2" LOC);
     exit(1);
