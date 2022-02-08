@@ -38,7 +38,8 @@
 ### endif
 ### if not send_msg_condition
 ###   if send_msg_on_error
-###     set send_msg_condition = "true"
+{# Send it in case of error too, but not on EFAULT or EINTR, see #713 and #723. #}
+###     set send_msg_condition = "success || (errno != EINTR && errno != EFAULT)"
 ###   else
 ###     set send_msg_condition = "success"
 ###   endif

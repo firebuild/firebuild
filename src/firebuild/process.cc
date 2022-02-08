@@ -261,6 +261,10 @@ int Process::handle_close(const int fd, const int error) {
   if (error == EIO) {
     exec_point()->disable_shortcutting_bubble_up("IO error closing fd", fd);
     return -1;
+  } else if (error == EINTR) {
+    /* We don't know if the fd was closed or not, see #723. */
+    exec_point()->disable_shortcutting_bubble_up("EINTR while closing fd", fd);
+    return -1;
   } else if (error == 0 && !file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
         "Process closed an unknown fd successfully, "
