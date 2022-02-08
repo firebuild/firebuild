@@ -953,7 +953,6 @@ generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned i
          # Always query type and mode to let the supervisor have valid stx_mode
          before_lines=["mask |= STATX_TYPE | STATX_MODE;"],
          msg_skip_fields=["filename", "mask", "statx_buf"],
-         send_msg_condition="ret != -1 || errno != EFAULT",
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
                          # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
@@ -1240,7 +1239,7 @@ generate("int", "pclose", "FILE *stream",
          tpl="pclose",
          # Maybe we pclose() an fopen()ed file, in that case send the "close" message (from tpl_pclose.c)
          # but don't send the "pclose" message. See #642 for more info.
-         send_msg_condition="success && was_popened",
+         send_msg_condition="was_popened && (success || (errno != EINTR && errno != EFAULT))",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_pclose_set_fd(&ic_msg, fd);"],
          ack_condition="true")
