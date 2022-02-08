@@ -256,7 +256,7 @@ setup() {
   for i in 1 2; do
     # Valgrind ignores the limit bumped internally in firebuild
     # See: https://bugs.kde.org/show_bug.cgi?id=432508
-    result=$(set | grep -q valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait $(jobs -p)')
+    result=$(set | grep -q valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait')
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
   done
