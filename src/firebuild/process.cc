@@ -53,9 +53,11 @@ void Process::exit_result(const int status, const int64_t utime_u,
   update_rusage(utime_u, stime_u);
 }
 
+/* This is a static function operating on any std::vector<std::shared_ptr<FileFD>>,
+ * without requiring a Process object. */
 std::shared_ptr<FileFD>
 Process::add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
-                    int fd,
+                    const int fd,
                     std::shared_ptr<FileFD> ffd) {
   TRACK(FB_DEBUG_PROC, "fd=%d", fd);
 
@@ -68,6 +70,14 @@ Process::add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
   /* the shared_ptr takes care of cleaning up the old fd if needed */
   (*fds)[fd] = ffd;
   return ffd;
+}
+
+/* This is the member function operating on `this` Process. */
+std::shared_ptr<FileFD>
+Process::add_filefd(const int fd, std::shared_ptr<FileFD> ffd) {
+  TRACK(FB_DEBUG_PROC, "fd=%d", fd);
+
+  return Process::add_filefd(fds_, fd, ffd);
 }
 
 void Process::add_pipe(std::shared_ptr<Pipe> pipe) {
@@ -161,7 +171,7 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
   }
 
   if (fd >= 0) {
-    add_filefd(fds_, fd, std::make_shared<FileFD>(name, fd, flags, this));
+    add_filefd(fd, std::make_shared<FileFD>(name, fd, flags, this));
   }
 
   if (ack_num != 0) {
@@ -382,7 +392,7 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
 #else
   auto pipe = (new Pipe(fd0_conn, this))->shared_ptr();
 #endif
-  fd0_proc->add_filefd(fd0_proc->fds_, fd0, std::make_shared<FileFD>(
+  fd0_proc->add_filefd(fd0, std::make_shared<FileFD>(
       fd0, (fd0_flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), fd0_proc,
       fd0_close_on_popen));
   /* Fd1_fifo may not be set. */
@@ -393,7 +403,7 @@ std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1
     auto ffd1 = std::make_shared<FileFD>(fd1, (fd1_flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
                                          this, fd1_close_on_popen);
-    add_filefd(fds_, fd1, ffd1);
+    add_filefd(fd1, ffd1);
     /* Empty recorders array. We don't start recording after a pipe(), this data wouldn't be
      * used anywhere. We only start recording after an exec(), to catch the traffic as seen
      * from that potential shortcutting point. */
@@ -438,7 +448,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 
   handle_force_close(newfd);
 
-  add_filefd(fds_, newfd, std::make_shared<FileFD>(
+  add_filefd(newfd, std::make_shared<FileFD>(
       newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
       (*fds_)[oldfd]));
   return 0;
