@@ -46,8 +46,8 @@ struct Fd0Deleter {
 
     /* The last FileFD referencing the pipe's fd1 ends is gone, which means all processes that
      * could write to this pipe terminated. */
-    pipe->reset_fd0_ptrs_self_ptr_();
     maybe_finish(pipe);
+    pipe->reset_fd0_ptrs_self_ptr_();
   }
 };
 
@@ -57,8 +57,8 @@ struct Fd1Deleter {
 
     /* The last FileFD referencing the pipe's fd0 ends is gone, which means all processes that
      * could read from this pipe terminated. */
-    pipe->reset_fd1_ptrs_self_ptr_();
     maybe_finish(pipe);
+    pipe->reset_fd1_ptrs_self_ptr_();
   }
 };
 
