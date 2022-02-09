@@ -175,9 +175,9 @@ class Process {
   const std::vector<std::shared_ptr<FileFD>>* fds() const {return fds_;}
   void set_fds(std::vector<std::shared_ptr<FileFD>>* fds) {fds_ = fds;}
   /** Add add ffd FileFD* to open fds */
-  static std::shared_ptr<FileFD>
-  add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
-             const int fd, std::shared_ptr<FileFD> ffd);
+  static std::shared_ptr<FileFD> add_filefd(std::vector<std::shared_ptr<FileFD>>* fds,
+                                            const int fd, std::shared_ptr<FileFD> ffd);
+  std::shared_ptr<FileFD> add_filefd(const int fd, std::shared_ptr<FileFD> ffd);
   std::vector<std::shared_ptr<FileFD>>* pass_on_fds(const bool execed = true) const;
   void add_pipe(std::shared_ptr<Pipe> pipe);
   /** Drain all pipes's associated with open file descriptors of the process reading as much data
