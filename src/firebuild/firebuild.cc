@@ -505,9 +505,9 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
 
       if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
         /* The new exec child should not inherit the fd connected to the unix_parent's popen()-ed
-         * stream */
+         * stream. The said fd is not necessarily open. */
         int child_fileno = is_wronly(type_flags) ? STDIN_FILENO : STDOUT_FILENO;
-        parent->handle_close(child_fileno, 0);
+        parent->handle_force_close(child_fileno);
 
         /* The new exec child also does not inherit parent's popen()-ed fds.
          * See: glibc/libio/iopopen.c:
