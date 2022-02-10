@@ -633,7 +633,7 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
     const FBBSTORE_Serialized *fbb =
         fbbstore_serialized_process_inputs_get_system_path_isdir_with_hash_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, false, fingerprint)) {
+    if (!file_matches_fs(file, true, fingerprint)) {
       return false;
     }
   }
