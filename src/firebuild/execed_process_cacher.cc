@@ -689,6 +689,9 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   const FBBSTORE_Serialized_process_inputs_outputs *inouts = nullptr;
+#ifdef FB_EXTRA_DEBUG
+  int count = 0;
+#endif
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
@@ -720,9 +723,24 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
 
     if (pi_matches_fs(inputs, subkey)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
-      *inouts_buf = candidate_inouts_buf;
-      *inouts_buf_len = candidate_inouts_buf_len;
-      inouts = candidate_inouts;
+#ifdef FB_EXTRA_DEBUG
+      count++;
+      if (count == 1) {
+#endif
+        *inouts_buf = candidate_inouts_buf;
+        *inouts_buf_len = candidate_inouts_buf_len;
+        inouts = candidate_inouts;
+#ifdef FB_EXTRA_DEBUG
+        /* Let's play safe for now and not break out of this loop, let's
+         * make sure that there are no other matches. */
+      }
+      if (count == 2) {
+        FB_DEBUG(FB_DEBUG_SHORTCUT,
+                 "│   More than 1 matching candidates found, still using the first one");
+        munmap(candidate_inouts_buf, candidate_inouts_buf_len);
+        break;
+      }
+#else
       /* In rare cases there could be multiple matches because the same content can be stored under
        * different file names. This is not likely to happen because if a process can be shortcut it
        * is shortcut from the existing cache object and the result is not cached again. OTOH if two
@@ -730,6 +748,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
        * them could be shortcut from the cache, then both can be cached generating differently named
        * cache files with identical content. */
       break;
+#endif
     } else {
       munmap(candidate_inouts_buf, candidate_inouts_buf_len);
     }
