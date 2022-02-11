@@ -315,6 +315,49 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
   return 0;
 }
 
+int Process::handle_fstat(const int fd, const int st_mode, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "fd=%d, st_mode=%d, error=%d", fd, st_mode, error);
+
+  // TODO(rbalint) handle file size and some file types
+  (void)fd;
+  (void)st_mode;
+  (void)error;
+
+  return 0;
+}
+
+int Process::handle_stat(const int dirfd, const char * const ar_name, const size_t ar_len,
+                         const int flags, const int st_mode, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, flags=%d, st_mode=%d, error=%d",
+         dirfd, D(ar_name), flags, st_mode, error);
+
+  if (flags & AT_EMPTY_PATH) {
+    // TODO(rbalint) add support for AT_EMPTY_PATH
+    exec_point()->disable_shortcutting_bubble_up(
+        "fstatat() with AT_EMPTY_PATH flag is not supported");
+    return -1;
+  }
+
+  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
+  if (!name) {
+    // FIXME don't disable shortcutting if stat() failed due to the invalid dirfd
+    exec_point()->disable_shortcutting_bubble_up(
+        "Invalid dirfd or filename passed to stat() variant");
+    return -1;
+  }
+
+  if (!exec_point()->register_file_usage(
+          name, name, S_ISDIR(st_mode) ? FILE_ACTION_STATDIR : FILE_ACTION_STATFILE,
+          flags, error)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
+    return -1;
+  }
+
+  return 0;
+}
+
 int Process::handle_rmdir(const char * const ar_name, const size_t ar_name_len, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_name=%s, error=%d", D(ar_name), error);
 

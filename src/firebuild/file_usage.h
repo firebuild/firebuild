@@ -49,6 +49,10 @@ typedef enum {
   FILE_ACTION_OPEN,
   /** Performed a mkdir() on the path */
   FILE_ACTION_MKDIR,
+  /** Performed a stat() on the path and the path which was not a directory */
+  FILE_ACTION_STATFILE,
+  /** Performed a stat() on the path and the path which was a directory */
+  FILE_ACTION_STATDIR,
 } FileAction;
 
 struct FileUsageHasher;
