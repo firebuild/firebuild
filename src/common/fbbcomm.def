@@ -189,17 +189,21 @@
     ]),
 
     ("stat", [
+      # Returned file type and mode
+      (OPTIONAL, "int", "st_mode"),
       # dir file descriptor for fstatat()
       (OPTIONAL, "int", "dirfd"),
       # path to file
       (OPTIONAL, STRING, "filename"),
-      # it was actually lstat() or fstatat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
-      (OPTIONAL, "bool", "link"),
+      # it could be lstat() encoded as AT_SYMLINK_NOFOLLOW or fstatat(..., flags)
+      (OPTIONAL, "int", "flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
 
     ("fstat", [
+      # Returned file type and mode
+      (OPTIONAL, "int", "st_mode"),
       # file fd
       (OPTIONAL, "int", "fd"),
       # error no., when ret = -1

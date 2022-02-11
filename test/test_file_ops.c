@@ -17,6 +17,7 @@
 
 int main() {
   int fd, fd_dup, fd_dup2, fd_dup3, i, pipe_fds[2];
+  struct stat st_buf;
 
   /* Close invalid file descriptior. Should not affect shortcutting. */
   close(-1);
@@ -33,6 +34,10 @@ int main() {
   fd = creat("test_empty_1.txt", 0600);
   if (fd == -1) {
     perror("open" LOC);
+    exit(1);
+  }
+  if (fstat(fd, &st_buf) != 0) {
+    perror("stat" LOC);
     exit(1);
   }
   fd_dup = dup(fd);
@@ -112,6 +117,21 @@ int main() {
   statx(0, NULL, 0, STATX_ALL, NULL);
 #pragma GCC diagnostic pop
 #endif
+
+  if (stat(".", &st_buf) != 0) {
+    perror("stat" LOC);
+    exit(1);
+  }
+
+  if (stat("test_file_ops", &st_buf) != 0) {
+    perror("stat" LOC);
+    exit(1);
+  }
+
+  if (stat("stat_nonexistent", &st_buf) == 0) {
+    fprintf(stderr, "stat() found unexpected file/dir");
+    exit(1);
+  }
 
   /* Run part 2. */
   if (system("./test_file_ops_2") != 0) {

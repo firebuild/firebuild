@@ -71,6 +71,23 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_mkdir *m) {
                          fbbcomm_serialized_mkdir_get_pathname_len(m), error);
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_fstat *f) {
+  const int st_mode = fbbcomm_serialized_fstat_get_st_mode_with_fallback(f, 0);
+  const int error = fbbcomm_serialized_fstat_get_error_no_with_fallback(f, 0);
+  const int fd = fbbcomm_serialized_fstat_get_fd_with_fallback(f, -1);
+  return p->handle_fstat(fd, st_mode, error);
+}
+
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_stat *s) {
+  const int dirfd = fbbcomm_serialized_stat_get_dirfd_with_fallback(s, AT_FDCWD);
+  const int st_mode = fbbcomm_serialized_stat_get_st_mode_with_fallback(s, 0);
+  const int flags = fbbcomm_serialized_stat_get_flags_with_fallback(s, 0);
+  const int error = fbbcomm_serialized_stat_get_error_no_with_fallback(s, 0);
+  return p->handle_stat(dirfd, fbbcomm_serialized_stat_get_filename(s),
+                        fbbcomm_serialized_stat_get_filename_len(s),
+                        flags, st_mode, error);
+}
+
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_dup3 *d) {
   const int error = fbbcomm_serialized_dup3_get_error_no_with_fallback(d, 0);
   const int flags = fbbcomm_serialized_dup3_get_flags_with_fallback(d, 0);

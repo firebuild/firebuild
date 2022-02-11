@@ -986,6 +986,16 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
       break;
     }
+    case FBBCOMM_TAG_fstat: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_fstat *>(fbbcomm_buf));
+      break;
+    }
+    case FBBCOMM_TAG_stat: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_stat *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_getrandom: {
       auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_getrandom *>(fbbcomm_buf);
       const unsigned int flags = fbbcomm_serialized_getrandom_get_flags_with_fallback(ic_msg, 0);
@@ -1017,7 +1027,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_fchmod:
     case FBBCOMM_TAG_fchown:
     case FBBCOMM_TAG_fpathconf:
-    case FBBCOMM_TAG_fstat:
     case FBBCOMM_TAG_ftruncate:
     case FBBCOMM_TAG_getdomainname:
     case FBBCOMM_TAG_gethostname:
@@ -1025,7 +1034,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_pathconf:
     case FBBCOMM_TAG_readlink:
     case FBBCOMM_TAG_scproc_resp:
-    case FBBCOMM_TAG_stat:
     case FBBCOMM_TAG_syscall:
     case FBBCOMM_TAG_sysconf:
     case FBBCOMM_TAG_truncate:

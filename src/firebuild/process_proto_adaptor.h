@@ -25,6 +25,8 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBBCOMM_Serialized_unlink *u);
   static int msg(Process *p, const FBBCOMM_Serialized_rmdir *r);
   static int msg(Process *p, const FBBCOMM_Serialized_mkdir *m);
+  static int msg(Process *p, const FBBCOMM_Serialized_fstat *f);
+  static int msg(Process *p, const FBBCOMM_Serialized_stat *s);
   static int msg(Process *p, const FBBCOMM_Serialized_dup *d);
   static int msg(Process *p, const FBBCOMM_Serialized_dup3 *d);
   static int msg(Process *p, const FBBCOMM_Serialized_rename *r);

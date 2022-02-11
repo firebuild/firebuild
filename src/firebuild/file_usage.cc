@@ -206,6 +206,13 @@ bool FileUsage::update_from_open_params(const FileName* filename,
     } else if (action == FILE_ACTION_MKDIR) {
       initial_state_ = NOTEXIST;
       written_ = true;
+    } else if (action == FILE_ACTION_STATFILE) {
+      /* The file exists. */
+      // TODO(rbalint) handle size info, and possibly other info, too
+      initial_state_ = ISREG;
+    } else if (action == FILE_ACTION_STATDIR) {
+      /* The directory exists. */
+      initial_state_ = ISDIR;
     }
   } else /* if (err) */ {
     if (action == FILE_ACTION_OPEN) {
@@ -228,6 +235,12 @@ bool FileUsage::update_from_open_params(const FileName* filename,
       /* Creating the directory failed. Could be a permission problem or so.
        * What to do? Probably nothing. */
       // FIXME...
+    } else if (action == FILE_ACTION_STATFILE) {
+      /* The file does not exist. */
+      initial_state_ = NOTEXIST;
+    } else if (action == FILE_ACTION_STATDIR) {
+      assert(0 && "If file does not exist stat() can't tell that it is a directory");
+      initial_state_ = NOTEXIST;
     }
   }
   return true;
@@ -286,6 +299,10 @@ const char *file_action_to_string(FileAction action) {
       return "open";
     case FILE_ACTION_MKDIR:
       return "mkdir";
+    case FILE_ACTION_STATFILE:
+      return "stat (on file)";
+    case FILE_ACTION_STATDIR:
+      return "stat (on dir)";
     default:
       assert(0 && "unknown action");
       return "UNKNOWN";
