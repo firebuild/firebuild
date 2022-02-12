@@ -218,9 +218,16 @@ bool FileUsage::update_from_open_params(const FileName* filename,
     if (action == FILE_ACTION_OPEN) {
       /* The attempt to open failed. */
       if (is_write(flags)) {
-        /* Opening for writing failed. Could be a permission problem or so.
-         * What to do? Probably nothing. */
-        // FIXME...
+        if (err == ENOENT) {
+          /* Probably parent dir is missing. Registering the file as missing is OK for
+           * shortcutting because the file is missing for sure. */
+          // TODO(rbalint) register only the parent dir as missing
+          initial_state_ = NOTEXIST;
+        } else {
+          /* We don't support other errors such as permission denied. */
+          unknown_err_ = err;
+          return false;
+        }
       } else {
         /* Opening for reading failed. */
         if (err == ENOENT) {
