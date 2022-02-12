@@ -128,7 +128,7 @@ bool FileUsage::update_from_open_params(const FileName* filename,
          D(filename), file_action_to_string(action), flags, err, D(do_read));
 
   if (!do_read) {
-    if ((action == FILE_ACTION_MKDIR || is_write(flags)) && !err) {
+    if (is_write(flags) && !err) {
       written_ = true;
     }
     return true;

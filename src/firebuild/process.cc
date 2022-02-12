@@ -382,7 +382,7 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const siz
     return -1;
   }
 
-  if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, 0, error)) {
+  if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, O_WRONLY, error)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the directory creation ", *name);
     return -1;
