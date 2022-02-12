@@ -237,9 +237,15 @@ bool FileUsage::update_from_open_params(const FileName* filename,
         }
       }
     } else if (action == FILE_ACTION_MKDIR) {
-      /* Creating the directory failed. Could be a permission problem or so.
-       * What to do? Probably nothing. */
-      // FIXME...
+      if (err == EEXIST) {
+        /* The directory already exists. It may not be a directory, but in that case process inputs
+         * will not match either. */
+        initial_state_ = ISDIR;
+      } else {
+        /* We don't support other errors such as permission denied. */
+        unknown_err_ = err;
+        return false;
+      }
     } else if (action == FILE_ACTION_STATFILE) {
       /* The file does not exist. */
       initial_state_ = NOTEXIST;
