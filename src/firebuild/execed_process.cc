@@ -258,6 +258,32 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
   }
 
+  if (error) {
+    switch (error) {
+      case ENOENT: {
+        if (is_write(flags)) {
+          /* When opening a file for writing the absence of the parent dir
+           * results NOTEXIST error. The grandparent dir could be missing as well,
+           * but the missing parent dir would cause the same error thus it will not be a mistake
+           * to shortcut the process if the parent dir is indeed missing.
+           */
+          return register_parent_directory(actual_file, NOTEXIST);
+        }
+        break;
+      }
+      case ENOTDIR: {
+        /* Occurs when opening the "foo/baz/bar" path when "foo/baz" is not a directory,
+         * but for example a regular file. Or when "foo" is a regular file. We can't distinguish
+         * between those cases, but if "/foo/baz" is a regular file we can safely shortcut the
+         * process, because the process could not tell the difference either. */
+        return register_parent_directory(actual_file, ISREG);
+      }
+      default:
+        break;
+        /* To be handled later. */
+    }
+  }
+
   const FileUsage *fu = nullptr;
   auto it = file_usages_.find(name);
   if (it != file_usages_.end()) {
@@ -352,12 +378,13 @@ bool ExecedProcess::register_file_usage(const FileName *name,
 }
 
 /**
- * Register that the parent (a.k.a. dirname) of the given path does exist and is a directory, and
- * bubbles it upwards to the root. See #259 for rationale.
- * To be called on the exec_point of a non-shortcutted process when something is successfully done
- * to the given file.
+ * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist
+ * and is a directory, and bubbles it upwards to the root. See #259 for rationale.
+ * To be called on the exec_point of a non-shortcutted process when something is done to
+ * the given file.
  */
-bool ExecedProcess::register_parent_directory(const FileName *name) {
+bool ExecedProcess::register_parent_directory(const FileName *name,
+                                              FileInitialState initial_state) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
 
   if (!can_shortcut_ && !generate_report) {
@@ -389,7 +416,7 @@ bool ExecedProcess::register_parent_directory(const FileName *name) {
   memcpy(parent_name, name->c_str(), slash_pos);
   parent_name[slash_pos] = '\0';
 
-  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage::Get(ISDIR));
+  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage::Get(initial_state));
 }
 
 /* Find and apply shortcut */

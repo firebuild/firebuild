@@ -107,7 +107,7 @@ class ExecedProcess : public Process {
   bool register_file_usage(const FileName *name, const FileName *actual_file,
                            FileAction action, int flags, int error);
   bool register_file_usage(const FileName *name, const FileUsage* fu_change);
-  bool register_parent_directory(const FileName *name);
+  bool register_parent_directory(const FileName *name, FileInitialState initial_state = ISDIR);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
   std::vector<inherited_outgoing_pipe_t>& inherited_outgoing_pipes()
       {return inherited_outgoing_pipes_;}

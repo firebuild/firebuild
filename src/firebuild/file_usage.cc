@@ -218,21 +218,19 @@ bool FileUsage::update_from_open_params(const FileName* filename,
     if (action == FILE_ACTION_OPEN) {
       /* The attempt to open failed. */
       if (is_write(flags)) {
-        if (err == ENOENT) {
-          /* Probably parent dir is missing. Registering the file as missing is OK for
-           * shortcutting because the file is missing for sure. */
-          // TODO(rbalint) register only the parent dir as missing
-          initial_state_ = NOTEXIST;
-        } else {
-          /* We don't support other errors such as permission denied. */
-          unknown_err_ = err;
-          return false;
-        }
+        /* ENOENT and ENOTDIR are handled in the caller. */
+        assert_cmp(err, !=, ENOENT);
+        assert_cmp(err, !=, ENOTDIR);
+        /* We don't support other errors such as permission denied. */
+        unknown_err_ = err;
+        return false;
       } else {
         /* Opening for reading failed. */
         if (err == ENOENT) {
           initial_state_ = NOTEXIST;
         } else {
+          /* ENOTDIR is handled in the caller. */
+          assert_cmp(err, !=, ENOTDIR);
           /* We don't support other errors such as permission denied. */
           unknown_err_ = err;
           return false;
