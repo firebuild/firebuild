@@ -397,26 +397,16 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
     }
   }
 
-  /* name is canonicalized, so just simply strip the last component */
-  ssize_t slash_pos = name->length() - 1;
-  for (; slash_pos >= 0; slash_pos--) {
-    if (name->c_str()[slash_pos] == '/') {
-      break;
-    }
-  }
+  const FileName* const parent_dir = FileName::GetParentDir(name->c_str(), name->length());
 
-  if (slash_pos == 0) {
+  if (!parent_dir) {
+    return false;
+  } else if (parent_dir->length() == 1 && parent_dir->c_str()[0] == '/') {
     /* don't bother registering "/" */
     return true;
-  } else if (slash_pos == -1) {
-    return false;
   }
 
-  char* parent_name = reinterpret_cast<char*>(alloca(slash_pos + 1));
-  memcpy(parent_name, name->c_str(), slash_pos);
-  parent_name[slash_pos] = '\0';
-
-  return register_file_usage(FileName::Get(parent_name, slash_pos), FileUsage::Get(initial_state));
+  return register_file_usage(parent_dir, FileUsage::Get(initial_state));
 }
 
 /* Find and apply shortcut */

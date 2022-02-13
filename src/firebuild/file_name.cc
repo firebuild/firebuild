@@ -26,6 +26,34 @@ bool FileName::isDbEmpty() {
 FileName::DbInitializer FileName::db_initializer_;
 
 /**
+ * Return parent dir or nullptr for "/"
+ */
+const FileName* FileName::GetParentDir(const char * const name, ssize_t length) {
+  /* name is canonicalized, so just simply strip the last component */
+  ssize_t slash_pos = length - 1;
+  for (; slash_pos >= 0; slash_pos--) {
+    if (name[slash_pos] == '/') {
+      break;
+    }
+  }
+
+  /* A path that does not have a '/' in it or "/" itself does not have a parent */
+  if (slash_pos == -1 || length == 1) {
+    return nullptr;
+  }
+
+  if (slash_pos == 0) {
+    /* Path is in the "/" dir. */
+    return Get("/", 0);
+  } else {
+    char* parent_name = reinterpret_cast<char*>(alloca(slash_pos + 1));
+    memcpy(parent_name, name, slash_pos);
+    parent_name[slash_pos] = '\0';
+    return Get(parent_name, slash_pos);
+  }
+}
+
+/**
  * Checks if a path semantically begins with one of the given sorted subpaths.
  *
  * Does string operations only, does not look at the file system.

@@ -45,6 +45,7 @@ class FileName {
   static const FileName* Get(const std::string& name) {
     return Get(name.c_str(), name.size(), false);
   }
+  static const FileName* GetParentDir(const char * const name, ssize_t length);
   /**
    * Checks if a path semantically begins with one of the given sorted subpaths.
    *
