@@ -325,6 +325,61 @@ static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
   return reinterpret_cast<const FBBSTORE_Builder *>(&(*fbb_file_vector)[idx]);
 }
 
+static bool dir_created_or_could_exist(
+    const char* filename, const size_t length,
+    const tsl::hopscotch_set<const FileName*>& out_path_isdir_filename_ptrs,
+    const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages) {
+  const FileName* parent_dir = FileName::GetParentDir(filename, length);
+  while (parent_dir != nullptr) {
+    const auto it = file_usages.find(parent_dir);
+    const FileUsage* fu = it->second;
+    if (fu->initial_state() == NOTEXIST) {
+      if (!fu->written()) {
+        /* The process expects the directory to be missing but it does not create it.
+         * This can't work. */
+        return false;
+      } else {
+        if (out_path_isdir_filename_ptrs.find(parent_dir) != out_path_isdir_filename_ptrs.end()) {
+          /* Directory is expected to be missing and the process creates it. Everything is OK. */
+          return true;
+        } else {
+          FB_DEBUG(FB_DEBUG_CACHING,
+                   "Regular file " + parent_dir->to_string() +
+                   " is created instead of a directory");
+          return false;
+        }
+      }
+    } else if (fu->initial_state() == ISDIR || fu->initial_state() == ISDIR_WITH_HASH) {
+      /* Directory is expected to exist. */
+      return true;
+    }
+    parent_dir = FileName::GetParentDir(parent_dir->c_str(), parent_dir->length());
+  }
+  return true;
+}
+
+static bool consistent_implicit_parent_dirs(
+    const std::vector<FBBSTORE_Builder_file>& out_path_isreg_with_hash,
+    const tsl::hopscotch_set<const FileName*>& out_path_isdir_filename_ptrs,
+    const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages) {
+  /* If the parent dir must not exist when shortcutting and the shortcut does not create it
+   * either, then creating the new regular file would fail. */
+  for (const FBBSTORE_Builder_file& file : out_path_isreg_with_hash) {
+    if (!dir_created_or_could_exist(file.path, file.wire.path_len,
+                                    out_path_isdir_filename_ptrs, file_usages)) {
+      return false;
+    }
+  }
+  /* Same for newly created dirs. */
+  for (const FileName* dir : out_path_isdir_filename_ptrs) {
+    if (!dir_created_or_could_exist(dir->c_str(), dir->length(),
+                                    out_path_isdir_filename_ptrs, file_usages)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
@@ -368,6 +423,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   std::vector<FBBSTORE_Builder_file> out_path_isreg_with_hash,
       out_path_isdir;
   std::vector<const char *> out_path_notexist;
+  /* Outputs for verification. */
+  tsl::hopscotch_set<const FileName*> out_path_isdir_filename_ptrs;
 
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
@@ -438,6 +495,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
             add_file_with_mode(&out_path_isdir, filename, mode);
+            out_path_isdir_filename_ptrs.insert(filename);
           } else {
             // TODO(egmont) handle other types of entries
           }
@@ -486,6 +544,13 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         fbbstore_builder_pipe_data_set_hash(&new_pipe_data, hash.get());
       }
     }
+  }
+
+  /* Validate cache entry to be stored. */
+  if (!consistent_implicit_parent_dirs(out_path_isreg_with_hash,
+                                       out_path_isdir_filename_ptrs,
+                                       proc->file_usages())) {
+    return;
   }
 
   fbbstore_builder_process_inputs_set_path_isreg_with_hash_item_fn(&pi,

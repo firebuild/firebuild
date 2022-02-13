@@ -956,7 +956,7 @@ generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned i
          send_msg_condition="ret != -1 || errno != EFAULT",
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
-                         # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the application)
+                         # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
                          "}",
                          "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);"])
 # Treat isfdtype() as a fstat()
