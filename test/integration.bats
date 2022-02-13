@@ -107,7 +107,7 @@ setup() {
 @test "file operations" {
   for i in 1 2; do
     # clean up before running the test
-    rm -rf test_directory/
+    rm -rf test_directory/ foo-dir/
     result=$(./run-firebuild -- ./test_file_ops)
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
@@ -118,6 +118,13 @@ setup() {
     result=$(./run-firebuild -- ./test_file_ops again)
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
+
+    # The process can find a directory missing then can create a file in it due to the directory
+    # having been created by an other parallel process
+    result=$(./run-firebuild bash -c "(bash -c 'sh -c \"echo -x > foo-dir/bar1\" 2> /dev/null; sleep 0.2; sh -c \"echo x > foo-dir/bar2\" 2> /dev/null') & (sleep 0.1; [ $i == 2 ] || mkdir foo-dir); wait")
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+    cp -r test_cache_dir cache-$i
   done
 }
 
