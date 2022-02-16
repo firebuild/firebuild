@@ -86,6 +86,7 @@ class ExecedProcess : public Process {
   }
   void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
   void do_finalize();
+  void set_on_finalized_ack(int id, int fd);
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
   void exit_result(const int status, const int64_t utime_u,
                    const int64_t stime_u);

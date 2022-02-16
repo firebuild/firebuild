@@ -13,6 +13,7 @@
 
 #include "firebuild/config.h"
 #include "firebuild/execed_process_cacher.h"
+#include "firebuild/forked_process.h"
 #include "firebuild/platform.h"
 #include "firebuild/utils.h"
 
@@ -140,6 +141,10 @@ void ExecedProcess::initialize() {
       FB_DEBUG(FB_DEBUG_PROC, arr);
     }
   }
+}
+
+void ExecedProcess::set_on_finalized_ack(int id, int fd) {
+  fork_point()->set_on_finalized_ack(id, fd);
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {

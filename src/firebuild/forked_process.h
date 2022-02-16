@@ -43,6 +43,13 @@ class ForkedProcess : public Process {
   }
   Process* exec_proc() const {return parent()->exec_proc();}
 
+  void do_finalize();
+  void set_on_finalized_ack(int id, int fd) {
+    assert(on_finalized_ack_id_ == -1 && on_finalized_ack_fd_ == -1);
+    on_finalized_ack_id_ = id;
+    on_finalized_ack_fd_ = fd;
+  }
+
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
    * See #431 for design and rationale. */
@@ -50,6 +57,9 @@ class ForkedProcess : public Process {
 
  private:
   ExecedProcess *exec_point_ {};
+  void maybe_send_on_finalized_ack();
+  int on_finalized_ack_id_ = -1;
+  int on_finalized_ack_fd_ = -1;
   virtual void propagate_exit_status(const int) {}
   virtual void disable_shortcutting_only_this(const std::string &reason, const Process *p = NULL) {
     (void) reason;  /* unused */
