@@ -155,6 +155,7 @@ class Process {
                          const bool failed = false);
   bool has_expected_child () {return expected_child_ ? true : false;}
   virtual void do_finalize();
+  virtual void set_on_finalized_ack(int id, int fd) = 0;
   virtual void maybe_finalize();
   void finish();
   virtual Process*  exec_proc() const = 0;
@@ -440,12 +441,6 @@ class Process {
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
-  void set_on_finalized_ack(int id, int fd) {
-    assert(on_finalized_ack_id_ == -1 && on_finalized_ack_fd_ == -1);
-    on_finalized_ack_id_ = id;
-    on_finalized_ack_fd_ = fd;
-  }
-
   /* For debugging. */
   std::string pid_and_exec_count() const {return d(pid()) + "." + d(exec_count());}
   /* For debugging. */
@@ -507,9 +502,6 @@ class Process {
   bool posix_spawn_pending_ {false};
   ExecedProcess * exec_child_;
   bool any_child_not_finalized();
-  void maybe_send_on_finalized_ack();
-  int on_finalized_ack_id_ = -1;
-  int on_finalized_ack_fd_ = -1;
   /**
    * Handle pipe creation in the monitored process
    * @param fd1 file descriptor to read (-1 if fd1 is not set)

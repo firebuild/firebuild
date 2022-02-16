@@ -24,6 +24,26 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
   }
 }
 
+void ForkedProcess::maybe_send_on_finalized_ack() {
+  if (on_finalized_ack_id_ != -1) {
+    assert(on_finalized_ack_fd_ != -1);
+    ack_msg(on_finalized_ack_fd_, on_finalized_ack_id_);
+    on_finalized_ack_id_ = -1;
+    on_finalized_ack_fd_ = -1;
+  }
+}
+
+void ForkedProcess::do_finalize() {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
+
+  /* Now we can ack the previous system()'s second message,
+   * or a pending pclose() or wait*(). */
+  maybe_send_on_finalized_ack();
+
+  /* Call the base class's method */
+  Process::do_finalize();
+}
+
 ForkedProcess::~ForkedProcess() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 }
