@@ -24,6 +24,7 @@
 namespace firebuild {
 
 class ExecedProcess;
+class ForkedProcess;
 
 typedef enum {
   /**
@@ -84,8 +85,10 @@ class Process {
   /** The nearest ExecedProcess upwards in the tree, including "this".
    *  Guaranteed to be non-NULL. */
   virtual ExecedProcess* exec_point() = 0;
-  virtual const Process* fork_parent() const = 0;
   virtual const ExecedProcess* exec_point() const = 0;
+  virtual ForkedProcess* fork_point() = 0;
+  virtual const ForkedProcess* fork_point() const = 0;
+  const Process* fork_parent() const;
   /** The nearest ExecedProcess upwards in the tree, excluding "this".
    *  Same as the parent's exec_point, with safe NULL handling. */
   ExecedProcess* parent_exec_point() {return parent() ? parent()->exec_point() : NULL;}

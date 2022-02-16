@@ -15,6 +15,7 @@
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
+#include "firebuild/forked_process.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"
 #include "firebuild/utils.h"
@@ -30,6 +31,11 @@ Process::Process(const int pid, const int ppid, const int exec_count, const File
       fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1),
       wd_(wd), fds_(fds), fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
+}
+
+
+const Process* Process::fork_parent() const {
+  return fork_point() ? fork_point()->parent() : nullptr;
 }
 
 void Process::update_rusage(const int64_t utime_u, const int64_t stime_u) {
