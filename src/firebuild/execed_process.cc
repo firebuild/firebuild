@@ -66,9 +66,10 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
          pid, ppid, D(initial_wd), D(executable), D(parent));
 
-  if (parent != NULL) {
+  if (parent) {
     assert(parent->state() == FB_PROC_TERMINATED);
     /* add as exec child of parent */
+    fork_point_ = parent->fork_point();
     parent->set_exec_pending(false);
     parent->reset_file_fd_pipe_refs();
 

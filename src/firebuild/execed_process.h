@@ -58,19 +58,8 @@ class ExecedProcess : public Process {
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
   const ExecedProcess* exec_point() const {return this;}
-  const Process* fork_parent() const {
-    /* Direct parent can't be a fork parent because this is an execed process. */
-    const Process* fork_parent_candidate = parent() ? parent()->parent() : nullptr;
-    /* The fork_parent() function is expected to be called very rarely itself and this loop is
-     * entered only when the process with the same pid exec()-ed more than once.
-     * this could be implemented symmetrically with exec_point(), but the exec_point() function
-     * is called very often thus it made more sense to make it quicker at the expense of an having
-     * and the extra ForkedProcess::exec_point_ private member. */
-    while (fork_parent_candidate && fork_parent_candidate->pid() == pid())  {
-      fork_parent_candidate = fork_parent_candidate->parent();
-    }
-    return fork_parent_candidate;
-  }
+  ForkedProcess* fork_point() {return fork_point_;}
+  const ForkedProcess* fork_point() const {return fork_point_;}
   void add_utime_u(int64_t t) {utime_u_ += t;}
   int64_t utime_u() const {return utime_u_;}
   void add_stime_u(int64_t t) {stime_u_ += t;}
@@ -198,6 +187,7 @@ class ExecedProcess : public Process {
   /** If points to this (self), the process can be shortcut.
       Otherwise the process itself is not shortcutable, but the ancestor is, if the ancestor's
       maybe_shortcutable_ancestor points at itself, etc. */
+  ForkedProcess *fork_point_ {};
   ExecedProcess * maybe_shortcutable_ancestor_;
   /** Sum of user time in microseconds for all forked but not exec()-ed children */
   int64_t utime_u_ = 0;
