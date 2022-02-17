@@ -460,8 +460,14 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
         return;
       }
     } else if (ppid == getpid()) {
-      /* This is the first intercepted process. */
-      fds = proc_tree->inherited_fds();
+      /* This is the first intercepted process.
+       * Add a ForkedProcess for the supervisor's forked child we never directly saw. */
+      firebuild::ForkedProcess* root =
+          new firebuild::ForkedProcess(pid, ppid, nullptr, proc_tree->inherited_fds());
+      root->set_state(firebuild::FB_PROC_TERMINATED);
+      proc_tree->insert_root(root);
+      parent = root;
+      fds = parent->pass_on_fds();
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
@@ -525,7 +531,6 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
       fds = parent->pass_on_fds();
 
       parent->set_state(firebuild::FB_PROC_TERMINATED);
-      // FIXME set exec_child_ ???
       proc_tree->insert(parent);
 
       /* Now we can ack the previous posix_spawn()'s second message. */

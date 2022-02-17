@@ -21,8 +21,6 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
   if (parent) {
     exec_point_ = parent->exec_point();
     parent->fork_children().push_back(this);
-  } else {
-    fb_error("impossible: Process without known fork parent\n");
   }
 }
 
@@ -41,7 +39,8 @@ std::string ForkedProcess::d_internal(const int level) const {
     /* verbose */
     return "{ForkedProcess " + pid_and_exec_count() + ", " + state_string() + ", " +
         (been_waited_for() ? "" : "not ") + "been waited for, parent " +
-        parent()->pid_and_exec_count() + ", " + d(exec_point()->args_to_short_string()) +
+        (parent() ? parent()->pid_and_exec_count() : "NULL") + ", " +
+        (exec_point() ? d(exec_point()->args_to_short_string()) : "<supervisor>") +
         ", fds=" +  d(fds(), level + 1) + "}";
   }
 }
