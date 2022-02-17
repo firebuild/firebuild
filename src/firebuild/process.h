@@ -116,8 +116,8 @@ class Process {
   bool exec_pending() {return exec_pending_;}
   void set_posix_spawn_pending(bool val) {posix_spawn_pending_ = val;}
   bool posix_spawn_pending() {return posix_spawn_pending_;}
-  void set_exec_child(Process *p) {exec_child_ = p;}
-  Process* exec_child() const {return exec_child_;}
+  void set_exec_child(ExecedProcess *p) {exec_child_ = p;}
+  ExecedProcess* exec_child() const {return exec_child_;}
   std::vector<Process*>& fork_children() {return fork_children_;}
   const std::vector<Process*>& fork_children() const {return fork_children_;}
   void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
@@ -505,7 +505,7 @@ class Process {
    *  detect the non-typical case when the posix_spawn'ed process appears (does an "scproc_query")
    *  sooner than the parent gets to "posix_spawn_parent". */
   bool posix_spawn_pending_ {false};
-  Process * exec_child_;
+  ExecedProcess * exec_child_;
   bool any_child_not_finalized();
   void maybe_send_on_finalized_ack();
   int on_finalized_ack_id_ = -1;

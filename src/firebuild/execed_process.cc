@@ -55,10 +55,11 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds,
             parent ? parent->been_waited_for() : false),
       can_shortcut_(true), was_shortcut_(false),
-      maybe_shortcutable_ancestor_(parent ? (parent->exec_point()->can_shortcut_
-                                             ? parent->exec_point()
-                                             : parent->exec_point()->next_shortcutable_ancestor())
-                                   : nullptr),
+      maybe_shortcutable_ancestor_(
+          (parent && parent->exec_point()) ? (parent->exec_point()->can_shortcut_
+                                              ? parent->exec_point()
+                                              : parent->exec_point()->next_shortcutable_ancestor())
+          : nullptr),
       initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
       executable_(executable), executed_path_(executed_path), libs_(libs), file_usages_(),
       created_pipes_(), cacher_(NULL) {

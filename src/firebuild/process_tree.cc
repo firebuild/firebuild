@@ -99,21 +99,18 @@ void ProcessTree::insert_process(Process *p) {
 void ProcessTree::insert(Process *p) {
   TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
 
+  if (p->parent() == NULL && p != root_) {
+    /* root's parent is firebuild which is not in the tree.
+     * If any other parent is missing, FireBuild missed process
+     * that can happen due to the missing process(es) being statically built */
+    fb_error("TODO(rbalint) handle: Process without known exec parent\n");
+  }
   insert_process(p);
 }
 
-void ProcessTree::insert(ExecedProcess *p) {
+void ProcessTree::insert_root(ForkedProcess *p) {
   TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
-
-  if (root_ == NULL) {
-    root_ = p;
-  } else if (p->parent() == NULL) {
-    // root's parent is firebuild which is not in the tree.
-    // If any other parent is missing, FireBuild missed process
-    // that can happen due to the missing process(es) being statically built
-    fb_error("TODO(rbalint) handle: Process without known exec parent\n");
-  }
-
+  root_ = p;
   insert_process(p);
 }
 
@@ -217,7 +214,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
 
   /* build profile */
   build_profile(*root_, &cmd_chain);
-  build_time = root_->aggr_cpu_time_u();
+  build_time = root_->exec_child()->aggr_cpu_time_u();
 
   /* print it */
   fprintf(stream, "digraph {\n");

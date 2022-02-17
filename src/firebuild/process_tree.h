@@ -73,10 +73,10 @@ class ProcessTree {
 
   std::vector<std::shared_ptr<FileFD>>* inherited_fds() {return inherited_fds_;}
   void insert(Process *p);
-  void insert(ExecedProcess *p);
+  void insert_root(ForkedProcess *p);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
-  ExecedProcess* root() {return root_;}
+  ForkedProcess* root() {return root_;}
   Process* pid2proc(int pid) {
     auto it = pid2proc_.find(pid);
     if (it != pid2proc_.end()) {
@@ -159,7 +159,7 @@ class ProcessTree {
   }
 
  private:
-  ExecedProcess *root_ = NULL;
+  ForkedProcess *root_ = NULL;
   /** This is somewhat analogous to Process::fds_, although cannot change over time.
    *  Represents the fds the root process inherits from the external context.
    *  (The newly execed top process inherits this set here from the ProcessTree,
