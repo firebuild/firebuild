@@ -25,9 +25,8 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
-                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds,
-                 bool already_been_waited_for)
-    : parent_(parent), state_(FB_PROC_RUNNING), been_waited_for_(already_been_waited_for),
+                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
+    : parent_(parent), state_(FB_PROC_RUNNING),
       fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1),
       wd_(wd), fds_(fds), fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
@@ -874,28 +873,6 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
                                    std::string(failed ? "  failed: " : " appeared: ") + d(argv));
   }
   return nullptr;
-}
-
-void Process::set_been_waited_for() {
-  assert(!been_waited_for_);
-  been_waited_for_ = true;
-  /* Propagate up to all exec ancestors. */
-  Process* curr = parent_;
-  while (curr && curr->pid_ == pid_) {
-    assert(!curr->been_waited_for_);
-    curr->been_waited_for_ = true;
-    curr = curr->parent_;
-  }
-  /* Propagate down to exec descendants. This function could be called for processes both at the top
-   * and the bottom of an exec chain. */
-  curr = this;
-  while (curr->exec_child_) {
-    assert(!curr->exec_child_->been_waited_for_);
-    curr->exec_child_->been_waited_for_ = true;
-    curr = curr->exec_child_;
-  }
-  /* Try finalizing the process at the bottom of the exec chain. If that succeeds it bubbles up. */
-  curr->maybe_finalize();
 }
 
 bool Process::can_ack_parent_wait() const {
