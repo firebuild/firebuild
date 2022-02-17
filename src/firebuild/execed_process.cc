@@ -53,8 +53,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::vector<const FileName*>& libs,
                              Process * parent,
                              std::vector<std::shared_ptr<FileFD>>* fds)
-    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds,
-            parent ? parent->been_waited_for() : false),
+    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(
           (parent && parent->exec_point()) ? parent->exec_point()->closest_shortcut_point()
@@ -153,6 +152,14 @@ void ExecedProcess::initialize() {
 
 void ExecedProcess::set_on_finalized_ack(int id, int fd) {
   fork_point()->set_on_finalized_ack(id, fd);
+}
+
+bool ExecedProcess::been_waited_for() const {
+  return fork_point()->been_waited_for();
+}
+
+void ExecedProcess::set_been_waited_for() {
+  fork_point()->set_been_waited_for();
 }
 
 void ExecedProcess::propagate_exit_status(const int status) {

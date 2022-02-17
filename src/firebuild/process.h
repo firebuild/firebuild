@@ -76,7 +76,7 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, int exec_count, const FileName *wd,
-          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds, bool already_been_waited_for);
+          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -97,8 +97,8 @@ class Process {
   /* This process has been wait()-ed for by the process that forked it. When the supervisor acts
    * as a subreaper it does not set the been_waited_for_ flag thus for those processes this function
    * never returns true. */
-  bool been_waited_for() const {return been_waited_for_;}
-  void set_been_waited_for();
+  virtual bool been_waited_for() const = 0;
+  virtual void set_been_waited_for() = 0;
   /* Parent's wait for this process can be ACK-ed. */
   bool can_ack_parent_wait() const;
   int state() const {return state_;}
@@ -465,7 +465,6 @@ class Process {
  private:
   Process *parent_;
   process_state state_ :2;
-  bool been_waited_for_ :1;
   int fb_pid_;       ///< internal FireBuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid

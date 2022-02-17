@@ -14,7 +14,7 @@ namespace firebuild {
 ForkedProcess::ForkedProcess(const int pid, const int ppid,
                              Process* parent,
                              std::vector<std::shared_ptr<FileFD>>* fds)
-    : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds, false) {
+    : Process(pid, ppid, 0, parent ? parent->wd() : FileName::Get(""), parent, fds) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 
   /* add as fork child of parent */
@@ -22,6 +22,17 @@ ForkedProcess::ForkedProcess(const int pid, const int ppid,
     exec_point_ = parent->exec_point();
     parent->fork_children().push_back(this);
   }
+}
+
+void ForkedProcess::set_been_waited_for() {
+  assert(!been_waited_for_);
+  been_waited_for_ = true;
+  Process* curr = this;
+  while (curr->exec_child()) {
+    curr = curr->exec_child();
+  }
+  /* Try finalizing the process at the bottom of the exec chain. If that succeeds it bubbles up. */
+  curr->maybe_finalize();
 }
 
 void ForkedProcess::maybe_send_on_finalized_ack() {
