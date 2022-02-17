@@ -49,6 +49,8 @@ class ForkedProcess : public Process {
     on_finalized_ack_id_ = id;
     on_finalized_ack_fd_ = fd;
   }
+  bool been_waited_for() const {return been_waited_for_;}
+  void set_been_waited_for();
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
@@ -59,6 +61,7 @@ class ForkedProcess : public Process {
   ExecedProcess *exec_point_ {};
   void maybe_send_on_finalized_ack();
   int on_finalized_ack_id_ = -1;
+  bool been_waited_for_  = false;
   int on_finalized_ack_fd_ = -1;
   virtual void propagate_exit_status(const int) {}
   virtual void disable_shortcutting_only_this(const std::string &reason, const Process *p = NULL) {

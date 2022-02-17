@@ -61,6 +61,8 @@ class ExecedProcess : public Process {
   ForkedProcess* fork_point() {return fork_point_;}
   const ForkedProcess* fork_point() const {return fork_point_;}
   void set_parent(Process *parent);
+  bool been_waited_for() const;
+  void set_been_waited_for();
   void add_utime_u(int64_t t) {utime_u_ += t;}
   int64_t utime_u() const {return utime_u_;}
   void add_stime_u(int64_t t) {stime_u_ += t;}
