@@ -83,7 +83,7 @@ void ProcessTree::delete_process_subtree(Process *p) {
     return;
   }
   delete_process_subtree(p->exec_child());
-  for (Process *fork_child : p->fork_children()) {
+  for (ForkedProcess *fork_child : p->fork_children()) {
     delete_process_subtree(fork_child);
   }
   delete p;
