@@ -936,6 +936,7 @@ void Process::maybe_finalize() {
     const Process* fork_parent_ptr = fork_parent();
     if (fork_parent_ptr) {
       if (fork_parent_ptr->state() == FB_PROC_TERMINATED) {
+        fork_point()->set_orphan();
         exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
                                                      exec_point());
         /* Can proceed with finalizing this process, it won't be saved to the cache. */
@@ -977,8 +978,15 @@ void Process::finish() {
    * execed process could wait for its children, but this is rare and costly to detect thus
    * we disable shortcutting in more cases than it is absolutely needed.
    */
-  for (Process* fork_child : fork_children()) {
+  for (ForkedProcess* fork_child : fork_children()) {
     if (!fork_child->been_waited_for()) {
+      /* This may also be set in last_exec_descendant->maybe_finalize(), but not when
+       * last_exec_descendant has not finalized children. */
+      fork_child->set_orphan();
+      /* This could be outside of this loop, but given that orphans are very rare
+       * this may actually be faster. */
+      exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
+                                                   exec_point());
       Process* last_exec_descendant = fork_child;
       while (last_exec_descendant->exec_child()) {
         last_exec_descendant = last_exec_descendant->exec_child();

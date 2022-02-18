@@ -118,8 +118,8 @@ class Process {
   bool posix_spawn_pending() {return posix_spawn_pending_;}
   void set_exec_child(ExecedProcess *p) {exec_child_ = p;}
   ExecedProcess* exec_child() const {return exec_child_;}
-  std::vector<Process*>& fork_children() {return fork_children_;}
-  const std::vector<Process*>& fork_children() const {return fork_children_;}
+  std::vector<ForkedProcess*>& fork_children() {return fork_children_;}
+  const std::vector<ForkedProcess*>& fork_children() const {return fork_children_;}
   void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
   ExecedProcess *system_child() const {return system_child_;}
   void set_expected_child(ExecedProcessEnv *ec) {
@@ -475,7 +475,7 @@ class Process {
   int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   const FileName* wd_;  ///< Current working directory
   std::vector<std::shared_ptr<FileFD>>* fds_;  ///< Active file descriptors
-  std::vector<Process*> fork_children_;  ///< children of the process
+  std::vector<ForkedProcess*> fork_children_;  ///< children of the process
   /** the latest system() child */
   ExecedProcess *system_child_ {NULL};
   /** for popen()ed children: client fd -> process mapping */
