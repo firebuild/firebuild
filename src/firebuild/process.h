@@ -99,8 +99,6 @@ class Process {
    * never returns true. */
   virtual bool been_waited_for() const = 0;
   virtual void set_been_waited_for() = 0;
-  /* Parent's wait for this process can be ACK-ed. */
-  bool can_ack_parent_wait() const;
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
   int fb_pid() {return fb_pid_;}

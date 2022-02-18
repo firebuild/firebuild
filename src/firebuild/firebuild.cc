@@ -652,7 +652,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       assert(proc->system_child());
       /* system() implicitly waits for the child to finish. */
       proc->system_child()->set_been_waited_for();
-      if (!proc->system_child()->can_ack_parent_wait()) {
+      if (!proc->system_child()->fork_point()->can_ack_parent_wait()) {
         /* The process has actually quit (otherwise the interceptor
          * couldn't send us the system_ret message), but the supervisor
          * hasn't seen this event yet. Thus we have to slightly defer
@@ -727,7 +727,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             proc->PopPopenedProcess(fbbcomm_serialized_pclose_get_fd(ic_msg));
         assert(child);
         child->set_been_waited_for();
-        if (!child->can_ack_parent_wait()) {
+        if (!child->fork_point()->can_ack_parent_wait()) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
           child->set_on_finalized_ack(ack_num, fd_conn);
           return;
@@ -866,7 +866,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         child->reset_file_fd_pipe_refs();
         child->maybe_finalize();
         /* Ack it straight away. */
-      } else if (!child->can_ack_parent_wait()) {
+      } else if (!child->fork_point()->can_ack_parent_wait()) {
         /* We haven't seen the process quitting yet. Defer sending the ACK. */
         child->set_on_finalized_ack(ack_num, fd_conn);
         return;
