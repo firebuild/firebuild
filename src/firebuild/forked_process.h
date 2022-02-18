@@ -49,6 +49,10 @@ class ForkedProcess : public Process {
     on_finalized_ack_id_ = id;
     on_finalized_ack_fd_ = fd;
   }
+  /* Parent's wait for this process can be ACK-ed. */
+  bool can_ack_parent_wait() const {
+    return state() == FB_PROC_FINALIZED;
+  }
   bool been_waited_for() const {return been_waited_for_;}
   void set_been_waited_for();
   bool orphan() const {return orphan_;}
