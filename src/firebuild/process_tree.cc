@@ -99,6 +99,8 @@ void ProcessTree::insert_process(Process *p) {
 void ProcessTree::insert(Process *p) {
   TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
 
+  assert(p->fork_point());
+  assert(p->exec_point() || p == root_);
   if (p->parent() == NULL && p != root_) {
     /* root's parent is firebuild which is not in the tree.
      * If any other parent is missing, FireBuild missed process

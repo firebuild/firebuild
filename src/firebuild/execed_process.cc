@@ -81,6 +81,11 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
   }
 }
 
+void ExecedProcess::set_parent(Process *parent) {
+  Process::set_parent(parent);
+  fork_point_ = parent->fork_point();
+}
+
 /**
  * Initialization stuff that can only be done after placing the
  * ExecedProcess in the ProcessTree.
