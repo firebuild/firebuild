@@ -451,10 +451,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
         fds = parent->pass_on_fds();
       } else {
         /* Queue the ExecedProcess until parent's connection is closed */
-        fds = new std::vector<std::shared_ptr<firebuild::FileFD>>();
-        auto proc =
-            firebuild::ProcessFactory::getExecedProcess(
-                ic_msg, parent, fds);
+        auto proc = firebuild::ProcessFactory::getIncompleteExecedProcess(ic_msg);
         proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
         *new_proc = proc;
         return;
@@ -817,11 +814,10 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       if (posix_spawn_child_sock) {
         /* The child has already appeared, but had to wait for this "posix_spawn_parent" message.
          * Let the child continue (respond to the pending "scproc_query" with "scproc_resp"). */
-        auto posix_spawn_child = posix_spawn_child_sock->incomplete_child;
-        fork_child->set_exec_child(posix_spawn_child);
-        posix_spawn_child->set_parent(fork_child);
-        posix_spawn_child->set_fds(fork_child->pass_on_fds());
+        auto posix_spawn_child = new ExecedProcess(posix_spawn_child_sock->incomplete_child,
+                                                   fork_child, fork_child->pass_on_fds());
         accept_exec_child(posix_spawn_child, posix_spawn_child_sock->sock, proc_tree);
+        delete posix_spawn_child_sock->incomplete_child;
         proc_tree->DropQueuedPosixSpawnChild(proc->pid());
       } else {
         /* The child hasn't appeared yet. Register a pending exec, just like we do at exec*()

@@ -20,6 +20,7 @@
 #include "firebuild/process.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
+#include "firebuild/incomplete_execed_process.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/utils.h"
 
@@ -55,7 +56,7 @@ struct exec_child_sock {
   /** Connection exec() child is waiting on */
   int sock;
   /** Child data without fds filled */
-  ExecedProcess* incomplete_child;
+  IncompleteExecedProcess* incomplete_child;
 };
 
 /** ACK a parent process is waiting for when the child appears */
@@ -89,10 +90,10 @@ class ProcessTree {
     assert(!Pid2ForkChildSock(pid));
     pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
   }
-  void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
+  void QueueExecChild(int pid, int sock, IncompleteExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
   }
-  void QueuePosixSpawnChild(int pid, int sock, ExecedProcess* incomplete_child) {
+  void QueuePosixSpawnChild(int pid, int sock, IncompleteExecedProcess* incomplete_child) {
     pid2posix_spawn_child_sock_[pid] = {sock, incomplete_child};
   }
   void QueueParentAck(int ppid, int ack, int sock) {

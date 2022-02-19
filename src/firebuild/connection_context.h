@@ -36,9 +36,9 @@ class ConnectionContext {
     if (proc) {
       auto exec_child_sock = proc_tree_->Pid2ExecChildSock(proc->pid());
       if (exec_child_sock) {
-        auto exec_child = exec_child_sock->incomplete_child;
-        exec_child->set_fds(proc->pass_on_fds());
+        auto exec_child = new ExecedProcess(exec_child_sock->incomplete_child, proc, proc->pass_on_fds());
         accept_exec_child(exec_child, exec_child_sock->sock, proc_tree_);
+        delete exec_child_sock->incomplete_child;
         proc_tree_->DropQueuedExecChild(proc->pid());
       }
       proc->finish();

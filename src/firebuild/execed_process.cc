@@ -14,6 +14,7 @@
 #include "firebuild/config.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/forked_process.h"
+#include "firebuild/incomplete_execed_process.h"
 #include "firebuild/platform.h"
 #include "firebuild/utils.h"
 

@@ -16,6 +16,8 @@
 
 #include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
+#include "firebuild/file_usage.h"
+#include "firebuild/incomplete_execed_process.h"
 #include "firebuild/pipe.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
@@ -54,6 +56,10 @@ class ExecedProcess : public Process {
                          const std::vector<const FileName*>& libs,
                          Process * parent,
                          std::vector<std::shared_ptr<FileFD>>* fds);
+  explicit ExecedProcess(const IncompleteExecedProcess* iep, Process* parent,
+                         std::vector<std::shared_ptr<FileFD>>* fds)
+      : ExecedProcess(iep->pid_, iep->ppid_, iep->initial_wd_, iep->executable_, iep->executed_path_,
+                      iep->args_, iep->env_vars_, iep->libs_, parent, fds) {}
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
