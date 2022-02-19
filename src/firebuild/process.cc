@@ -941,13 +941,11 @@ void Process::maybe_finalize() {
   // TODO(rbalint) collect/confirm exit status in the parent to make sure that the exit
   // status saved in the cache will be correct.
   if (!been_waited_for()) {
-    /* Here we check only the fork parent. In theory the fork parent could exec() and the
-     * execed process could wait for this child, but this is rare and costly to detect thus
-     * we disable shortcutting in more cases than it is absolutely needed.
-     */
     const Process* fork_parent_ptr = fork_parent();
     if (fork_parent_ptr) {
-      if (fork_parent_ptr->state() == FB_PROC_TERMINATED) {
+      const Process* potential_waiter = fork_parent_ptr->last_exec_descendant();
+      if (potential_waiter->state() != FB_PROC_RUNNING && !potential_waiter->exec_pending()) {
+        /* The process that could wait for this one is not running anymore. */
         fork_point()->set_orphan();
         exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
                                                      exec_point());
@@ -990,18 +988,25 @@ void Process::finish() {
    * execed process could wait for its children, but this is rare and costly to detect thus
    * we disable shortcutting in more cases than it is absolutely needed.
    */
-  for (ForkedProcess* fork_child : fork_children()) {
-    if (!fork_child->been_waited_for()) {
-      /* This may also be set in last_exec_descendant->maybe_finalize(), but not when
-       * last_exec_descendant has not finalized children. */
-      fork_child->set_orphan();
-      /* This could be outside of this loop, but given that orphans are very rare
-       * this may actually be faster. */
-      exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
-                                                   exec_point());
-      /* This disables shortcutting the fork child and maybe finalizes it. Since shortcutting is
-       * disabled up to the top process this process will not be shortcuttable either. */
-      fork_child->last_exec_descendant()->maybe_finalize();
+  if (!exec_child() && !exec_pending()) {
+    /* This is the last process in the exec chain. Let's see if orphans were left behind. */
+    for (Process* curr = fork_point(); curr; curr = curr->exec_child()) {
+      bool orphan_found = false;
+      for (ForkedProcess* fork_child : curr->fork_children()) {
+        if (!fork_child->been_waited_for()) {
+          /* This may also be set in last_exec_descendant->maybe_finalize(), but not when
+           * last_exec_descendant has not finalized children. */
+          fork_child->set_orphan();
+          orphan_found = true;
+          /* This disables shortcutting the fork child and maybe finalizes it. Since shortcutting is
+           * disabled up to the top process this process will not be shortcuttable either. */
+          fork_child->last_exec_descendant()->maybe_finalize();
+        }
+      }
+      if (orphan_found) {
+        curr->exec_point()->disable_shortcutting_bubble_up("Orphan processes can't be shortcut",
+                                                           exec_point());
+      }
     }
   }
 
