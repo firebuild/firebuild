@@ -116,6 +116,8 @@ class Process {
   bool posix_spawn_pending() {return posix_spawn_pending_;}
   void set_exec_child(ExecedProcess *p) {exec_child_ = p;}
   ExecedProcess* exec_child() const {return exec_child_;}
+  Process* last_exec_descendant();
+  const Process* last_exec_descendant() const;
   std::vector<ForkedProcess*>& fork_children() {return fork_children_;}
   const std::vector<ForkedProcess*>& fork_children() const {return fork_children_;}
   void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
