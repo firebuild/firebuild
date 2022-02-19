@@ -111,7 +111,7 @@ class Process {
   void handle_set_wd(const char * const d, const size_t d_len);
   void handle_set_fwd(const int fd);
   void set_exec_pending(bool val) {exec_pending_ = val;}
-  bool exec_pending() {return exec_pending_;}
+  bool exec_pending() const {return exec_pending_;}
   void set_posix_spawn_pending(bool val) {posix_spawn_pending_ = val;}
   bool posix_spawn_pending() {return posix_spawn_pending_;}
   void set_exec_child(ExecedProcess *p) {exec_child_ = p;}
