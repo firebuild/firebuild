@@ -37,6 +37,22 @@ const Process* Process::fork_parent() const {
   return fork_point() ? fork_point()->parent() : nullptr;
 }
 
+Process* Process::last_exec_descendant() {
+  Process* ret = this;
+  while (ret->exec_child()) {
+    ret = ret->exec_child();
+  }
+  return ret;
+}
+
+const Process* Process::last_exec_descendant() const {
+  const Process* ret = this;
+  while (ret->exec_child()) {
+    ret = ret->exec_child();
+  }
+  return ret;
+}
+
 void Process::update_rusage(const int64_t utime_u, const int64_t stime_u) {
   ExecedProcess* ep = exec_point();
   if (ep) {
@@ -985,13 +1001,9 @@ void Process::finish() {
        * last_exec_descendant has not finalized children. */
       fork_child->set_orphan();
       orphan_found = true;
-      Process* last_exec_descendant = fork_child;
-      while (last_exec_descendant->exec_child()) {
-        last_exec_descendant = last_exec_descendant->exec_child();
-      }
       /* This disables shortcutting the fork child and maybe finalizes it. Since shortcutting is
        * disabled up to the top process this process will not be shortcuttable either. */
-      last_exec_descendant->maybe_finalize();
+      fork_child->last_exec_descendant()->maybe_finalize();
     }
   }
   if (orphan_found) {
