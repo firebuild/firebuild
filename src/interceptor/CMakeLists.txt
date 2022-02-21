@@ -48,7 +48,6 @@ add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_init
 add_library(firebuild SHARED
   env.c
   ic_file_ops.c
-  ic_redirect_only.c
   intercept.c
   interceptors.c
   $<TARGET_OBJECTS:common_objs>

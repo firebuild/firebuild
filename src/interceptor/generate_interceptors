@@ -275,6 +275,16 @@ generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, in
          send_ret_on_success=True,
          ack_condition="success && !is_path_at_locations(file, &system_locations)")
 
+# Intercept creat()
+generate("int", ["creat", "creat64"], "const char *file, mode_t mode",
+         after_lines=["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"],
+         msg_skip_fields=["file"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "fbbcomm_builder_open_set_flags(&ic_msg, O_CREAT | O_WRONLY | O_TRUNC);"],
+         msg="open",
+         send_ret_on_success=True,
+         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+
 # Intercept fopen
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
 generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
@@ -1014,10 +1024,9 @@ generate("int", "dup3", "int oldfd, int newfd, int flags",
 generate("int", "access", "const char *pathname, int mode",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(access, pathname);"])
-generate("int", "euidaccess", "const char *pathname, int mode",
+generate("int", ["euidaccess", "eaccess"], "const char *pathname, int mode",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(euidaccess, pathname);"])
-# eaccess() is handled in ic_redirect_only.cc
 generate("int", "faccessat", "int dirfd, const char *pathname, int mode, int flags",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(faccessat, dirfd, pathname);"])
@@ -1225,8 +1234,10 @@ generate("void", ["_exit", "_Exit", "quick_exit"], "int status",
 #         tpl="_exit")
 skip("exit_group")
 
-# Intercept fork
+# Intercept fork and vfork
 generate("pid_t", "fork", "",
+         tpl="fork")
+generate("pid_t", "vfork", "",
          tpl="fork")
 
 # Intercept system
