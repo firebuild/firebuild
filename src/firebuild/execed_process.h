@@ -245,6 +245,9 @@ class ExecedProcess : public Process {
       return next;
     }
   }
+  ExecedProcess* closest_shortcut_point() {
+    return can_shortcut() ? this : next_shortcutable_ancestor();
+  }
   /** Reason for this process can't be short-cut */
   const char* cant_shortcut_reason_ = nullptr;
   /** Process the event preventing short-cutting happened in */
