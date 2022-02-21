@@ -57,9 +57,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
             parent ? parent->been_waited_for() : false),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(
-          (parent && parent->exec_point()) ? (parent->exec_point()->can_shortcut_
-                                              ? parent->exec_point()
-                                              : parent->exec_point()->next_shortcutable_ancestor())
+          (parent && parent->exec_point()) ? parent->exec_point()->closest_shortcut_point()
           : nullptr),
       initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
       executable_(executable), executed_path_(executed_path), libs_(libs), file_usages_(),
@@ -82,8 +80,13 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
 }
 
 void ExecedProcess::set_parent(Process *parent) {
+  /* set_parent() is called only on processes which are created by posix_spawn(). */
+  assert(parent);
+  ExecedProcess* parent_exec_point = parent->exec_point();
+  assert(parent_exec_point);
   Process::set_parent(parent);
   fork_point_ = parent->fork_point();
+  maybe_shortcutable_ancestor_ = parent_exec_point->closest_shortcut_point();
 }
 
 /**
