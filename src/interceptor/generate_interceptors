@@ -1054,17 +1054,22 @@ generate("int", "futimens", "int fd, const struct timespec times[2]",
          msg_skip_fields=["times"])
 
 # Intercept dlopen
-# The new library's constructor may generate intercepted calls
+# The new library's constructor may generate intercepted calls.
+# Also note that dlopen() does not set errno, and we always want to notify the supervisor,
+# in send_msg_condition we have to skip the default exception on EINTR and EFAULT.
 generate("void *", "dlopen", "const char *filename, int flag",
          tpl="dlopen",
          before_lines=["thread_intercept_on = NULL;"],
-         after_lines=["thread_intercept_on = \"dlopen\";"])
+         after_lines=["thread_intercept_on = \"dlopen\";"],
+         send_msg_condition="true",
+         msg_skip_fields=["error_no"])
 generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
          tpl="dlopen",
          msg="dlopen",
-         msg_skip_fields=["lmid"],
          before_lines=["thread_intercept_on = NULL;"],
-         after_lines=["thread_intercept_on = \"dlmopen\";"])
+         after_lines=["thread_intercept_on = \"dlmopen\";"],
+         send_msg_condition="true",
+         msg_skip_fields=["lmid", "error_no"])
 
 # Intercept the pipe family
 generate("int", "pipe", "int pipefd[2]",

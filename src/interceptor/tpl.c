@@ -257,10 +257,12 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 ###           if send_msg_on_error
     /* Send errno on failure */
-###             if not no_saved_errno
+###             if not msg_skip_fields or 'error_no' not in msg_skip_fields
+###               if not no_saved_errno
     if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, saved_errno);
-###             else
+###               else
     if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, errno);
+###               endif
 ###             endif
 ###           endif
 ###           if ack_condition

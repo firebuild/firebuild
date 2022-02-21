@@ -400,8 +400,9 @@
       (OPTIONAL, "int", "flag"),
       # absolute filename where (if) the library was found
       (OPTIONAL, STRING, "absolute_filename"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
+      # dlopen() does not set errno. We don't have access to an error code,
+      # but to an error string.
+      (OPTIONAL, STRING, "error_string"),
     ]),
 
     ("execv", [
