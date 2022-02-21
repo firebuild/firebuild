@@ -6,7 +6,8 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (absolute_filename != NULL) BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", absolute_filename);"] %}
+{% set msg_add_fields = ["if (absolute_filename != NULL) BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", absolute_filename);",
+                         "if (!success) fbbcomm_builder_dlopen_set_error_string(&ic_msg, dlerror());"] %}
 
 ### block before
   thread_libc_nesting_depth++;

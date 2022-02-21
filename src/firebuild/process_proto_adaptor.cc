@@ -32,7 +32,7 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_freopen *fro, int
 
 int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo, int fd_conn,
                           const int ack_num) {
-  if (!fbbcomm_serialized_dlopen_has_error_no(dlo) &&
+  if (!fbbcomm_serialized_dlopen_has_error_string(dlo) &&
       fbbcomm_serialized_dlopen_has_absolute_filename(dlo)) {
     return p->handle_open(AT_FDCWD, fbbcomm_serialized_dlopen_get_absolute_filename(dlo),
                           fbbcomm_serialized_dlopen_get_absolute_filename_len(dlo),
