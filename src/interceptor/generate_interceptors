@@ -1245,10 +1245,6 @@ generate("int", "pclose", "FILE *stream",
          ack_condition="true")
 
 # Intercept the posix_spawn family
-# FIXME Check the error condition. The manpage is weird:
-# "these functions return an error number" suggesting that the
-# error code is returned directly (as in the kernel interface),
-# rather than stored in errno.
 generate("int", "posix_spawn", "pid_t *pid, const char *file, " +
                                "const posix_spawn_file_actions_t *file_actions, " +
                                "const posix_spawnattr_t *attrp, " +

@@ -57,10 +57,13 @@
       fbbcomm_builder_posix_spawn_parent_set_pid(&ic_msg, *pid);
       fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     } else {
+      /* Unlike at most other methods where we skip on EINTR or EFAULT, here we always have to send
+       * a counterpart to the posix_spawn message. */
       FBBCOMM_Builder_posix_spawn_failed ic_msg;
       fbbcomm_builder_posix_spawn_failed_init(&ic_msg);
       fbbcomm_builder_posix_spawn_failed_set_arg(&ic_msg, (const char **) argv);
-      fbbcomm_builder_posix_spawn_failed_set_error_no(&ic_msg, saved_errno);
+      /* errno is not documented to be set, the error code is in the return value. */
+      fbbcomm_builder_posix_spawn_failed_set_error_no(&ic_msg, ret);
       fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     }
     pthread_mutex_unlock(&ic_system_popen_lock);
