@@ -2,7 +2,7 @@
 {# Copyright (c) 2020 Interri Kft.                                    #}
 {# This file is an unpublished work. All rights reserved.             #}
 {# ------------------------------------------------------------------ #}
-{# Template for the fork() call.                                      #}
+{# Template for the fork() and vfork() calls.                         #}
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
@@ -16,6 +16,14 @@
 
   thread_libc_nesting_depth++;
 ### endblock before
+
+### block call_orig
+###   if func == 'vfork'
+  /* vfork interception would be a bit complicated to implement properly
+   * and most of the programs will work properly with fork */
+###   endif
+  ret = ic_orig_fork();
+### endblock call_orig
 
 ### block after
   thread_libc_nesting_depth--;
