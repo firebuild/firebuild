@@ -175,13 +175,15 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   if (proc->executable() == proc->executed_path()) {
     add_to_hash_state(state, proc->executable());
     add_to_hash_state(state, hash);
-  } else {
+  } else if (proc->executed_path()) {
     add_to_hash_state(state, proc->executed_path());
     if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
       maybe_XXH3_freeState(state);
       return false;
     }
     add_to_hash_state(state, hash);
+  } else {
+    add_to_hash_state(state, "");
   }
 
   add_to_hash_state(state, proc->libs().size());
