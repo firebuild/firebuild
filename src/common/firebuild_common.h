@@ -108,7 +108,8 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
 }  /* extern "C" */
 #endif
 
-/** Wrapper macro for read() or write() retrying on recoverable errors */
+/** Wrapper macro for read() or write() retrying on recoverable errors
+ *  (EINTR and short read/write). */
 #define FB_READ_WRITE(op, fd, buf, count)                               \
   {                                                                     \
     ssize_t ret;                                                        \
@@ -134,7 +135,7 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
 /**
  * Wrapper macro for readv() or writev(), with the following differences:
  *
- * - retries/continues on recoverable errors (EINTR and short write);
+ * - retries/continues on recoverable errors (EINTR and short read/write);
  *
  * - iov/iovcnt can be arbitrarily large (if it's larger than IOV_MAX then
  *   the operation will not be atomic though);
