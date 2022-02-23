@@ -412,7 +412,7 @@ static void accept_fork_child(firebuild::Process* parent, int parent_fd, int par
  * Process message coming from interceptor
  * @param fb_conn file desctiptor of the connection
  */
-void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id, int fd_conn,
+void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id, int fd_conn,
                           firebuild::Process** new_proc) {
   TRACK(firebuild::FB_DEBUG_PROC, "fd_conn=%s, ack_id=%d", D_FD(fd_conn), ack_id);
 
@@ -596,7 +596,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint32_t ack_id
 }
 
 void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
-                 uint32_t ack_num,
+                 uint16_t ack_num,
                  int fd_conn,
                  firebuild::Process* proc) {
   TRACKX(firebuild::FB_DEBUG_COMM, 1, 1, firebuild::Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",

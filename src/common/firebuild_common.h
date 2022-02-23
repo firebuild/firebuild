@@ -16,9 +16,12 @@
 extern "C" {
 #endif
 
+/* This structure's size needs to be a multiple of 8 bytes, so that reads from the serialized FBB
+ * message, which follows this structure in memory, are properly aligned. */
 typedef struct msg_header_ {
   uint32_t msg_size;
-  uint32_t ack_id;
+  uint16_t ack_id;
+  uint16_t padding;
 } msg_header;
 
 /**
