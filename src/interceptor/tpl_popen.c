@@ -56,43 +56,80 @@
   if (i_am_intercepting) {
     /* Notify the supervisor after the call */
     if (success) {
-      int ret_fileno = ic_orig_fileno(ret), tmp_rdonly_fd;
-      char fd_fifo[fb_conn_string_len + 64];
-      struct timespec time;
+      /* No signal between sending the "popen_parent" message and receiving its "popen_fd" response. */
+      thread_signal_danger_zone_enter();
+
+      int ret_fileno = ic_orig_fileno(ret);
       FBBCOMM_Builder_popen_parent ic_msg;
       fbbcomm_builder_popen_parent_init(&ic_msg);
-
-      ic_orig_clock_gettime(CLOCK_REALTIME, &time);
-      snprintf(fd_fifo, sizeof(fd_fifo), "%s-%d-%d-%09ld-%09ld",
-               fb_conn_string, getpid(), ret_fileno, time.tv_sec, time.tv_nsec);
-      int fifo_ret = ic_orig_mkfifo(fd_fifo, 0666);
-      if (fifo_ret == -1) {
-        // TODO(rbalint) maybe continue without shortcutting being possible
-        assert(ret == 0 && "mkfifo for popen() failed");
-      }
       fbbcomm_builder_popen_parent_set_fd(&ic_msg, ret_fileno);
-      fbbcomm_builder_popen_parent_set_fifo(&ic_msg, fd_fifo);
-      if (is_wronly(type_flags)) {
-        /* The returned fd will be connected to the child's stdin. */
-        /* Open fd1 for reading just to not block in opening for writing. */
-        tmp_rdonly_fd = ic_orig_open(fd_fifo, O_RDONLY | O_NONBLOCK);
-      }
-      /* Send fifo to supervisor to open it there because opening in blocking
-         mode blocks until the other end is opened, too (see fifo(7)) */
-      int tmp_fifo_fd = ic_orig_open(fd_fifo, type_flags | O_NONBLOCK);
-      assert(tmp_fifo_fd != -1);
-      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
-      ic_orig_fcntl(tmp_fifo_fd, F_SETFL, ic_orig_fcntl(ret_fileno, F_GETFL));
+      fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+
+      /* Receive the response from the supervisor, which carries
+       * the file descriptor as ancillary data (SCM_RIGHTS).
+       * The real data we're expecting to arrive is the usual message header
+       * followed by a serialized FBB "popen_fd" message. */
+      msg_header sv_msg_hdr;
+      char sv_msg_buf[64];  /* Should be large enough for the serialized "popen_fd" message. */
+
+      /* Read the header. */
 #ifndef NDEBUG
-      int dup2_ret =
+      ssize_t received =
 #endif
-          ic_orig_dup2(tmp_fifo_fd, ret_fileno);
-      assert(dup2_ret == ret_fileno);
-      /* The pipe will be kept open by ret_fileno, tmp_fifo_fd is not needed anymore. */
-      ic_orig_close(tmp_fifo_fd);
-      if (is_wronly(type_flags)) {
-        /* This fd is not needed either. */
-        ic_orig_close(tmp_rdonly_fd);
+          fb_read(fb_sv_conn, &sv_msg_hdr, sizeof(sv_msg_hdr));
+      assert(received == sizeof(sv_msg_hdr));
+      assert(sv_msg_hdr.ack_id == 0);  // FIXME maybe send a real ack_id
+
+      /* Taken from cmsg(3). */
+      union {  /* Ancillary data buffer, wrapped in a union
+                  in order to ensure it is suitably aligned */
+        char buf[CMSG_SPACE(1 * sizeof(int))];
+        struct cmsghdr align;
+      } u = { 0 };
+
+      struct iovec iov = { 0 };
+      iov.iov_base = sv_msg_buf;
+      iov.iov_len = sv_msg_hdr.msg_size;
+
+      struct msghdr msgh = { 0 };
+      msgh.msg_iov = &iov;
+      msgh.msg_iovlen = 1;
+      msgh.msg_control = u.buf;
+      msgh.msg_controllen = sizeof(u.buf);
+
+      /* Read the payload, with the attached fd as ancillary data.
+       *
+       * The supervisor places this in the socket as an atomic step when the queue is almost empty,
+       * so we don't expect a short read. However, a signal interrupt might occur. */
+#ifndef NDEBUG
+      received =
+#endif
+          TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, 0));
+      assert(received == sv_msg_hdr.msg_size);
+      assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_popen_fd);
+      assert(sv_msg_hdr.fd_count == 1);
+
+      thread_signal_danger_zone_leave();
+
+      struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msgh);
+      if (!cmsg || cmsg->cmsg_level != SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS || cmsg->cmsg_len != CMSG_LEN(1 * sizeof(int))) {
+        assert(0 && "expected ancillary fd missing");
+      } else {
+        /* fd found as expected. */
+        int ancillary_fd;
+        memcpy(&ancillary_fd, CMSG_DATA(cmsg), sizeof(int));
+        /* Move to the desired slot. Set the O_CLOEXEC bit to the desired value.
+         * The fcntl(..., F_SETFL, ...) bits were set by the supervisor. */
+        assert(ancillary_fd != ret_fileno);  /* because ret_fileno is still open */
+        if (TEMP_FAILURE_RETRY(ic_orig_dup3(ancillary_fd, ret_fileno, type_flags & O_CLOEXEC))
+            != ret_fileno) {
+          assert(0 && "dup3() on the popened fd failed");
+        }
+        /* POSIX says to retry close() on EINTR (e.g. wrap in TEMP_FAILURE_RETRY())
+         * but Linux probably disagrees, see #723. */
+        if (ic_orig_close(ancillary_fd) < 0) {
+          assert(0 && "close() on the dup3()d popened fd failed");
+        }
       }
     } else {
       FBBCOMM_Builder_popen_failed ic_msg;

@@ -30,9 +30,19 @@
       (OPTIONAL, STRING, "version"),
     ]),
 
+    # Submessage within "scproc_resp". Contains the list of client-side fds (dups of each other)
+    # where to reopen one particular attached fd.
+    # Does not contain "flags": the supervisor sets up fcntl(..., F_SETFL, ...) correctly and the
+    # interceptor knows the desired CLOEXEC state.
+    ("scproc_resp_reopen_fd", [
+      (ARRAY, "int", "fds"),
+    ]),
+
     # FireBuild supervisor's response with details of shortcutting.
-    # Unlike the others, this message type is used in the supervisor->interceptor direction of the
+    # Unlike most others, this message type is used in the supervisor->interceptor direction of the
     # communication. Nevertheless, it resides in the same namespace.
+    # Ancillary data (SCM_RIGHTS) contains the fds to reopen, excatly as many as the number of items
+    # in "reopen_fds".
     ("scproc_resp", [
       (REQUIRED, "bool", "shortcut"),
       (OPTIONAL, "int", "exit_status"),
@@ -40,9 +50,9 @@
       (OPTIONAL, "bool", "dont_intercept"),
       # makes sense only for shortcut = false
       (OPTIONAL, "int32_t", "debug_flags"),
-      # fifos for fds to reopen
-      # the format is "<fd>:<flags as int> <fifo path>"
-      (ARRAY, STRING, "reopen_fd_fifos"),
+      # Client-side fds to reopen to, messages of type "scproc_resp_reopen_fd".
+      # Each item in this array corresponds to one ancillary fd.
+      (ARRAY, FBB, "reopen_fds"),
     ]),
 
     # Those function calls are not handled specially in interceptor lib and
@@ -355,20 +365,26 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    # pipe2() with flags = 0 is equivalent to pipe()
-    ("pipe2", [
-      # pipe fd[0] in case of success
-      (OPTIONAL, "int", "fd0"),
-      # pipe fd[1] in case of success
-      (OPTIONAL, "int", "fd1"),
-      # flags
+    # Step 1/3 of intercepting a pipe() or pipe2() call. See #656 for design rationale.
+    # Request the supervisor to create an intercepted unnamed pipe for the interceptor.
+    ("pipe_request", [
       (OPTIONAL, "int", "flags"),
-      # error no., when ret = -1
+    ]),
+
+    # Step 2/3 of intercepting a pipe() or pipe2() call. This message is sent from the supervisor
+    # to the interceptor, with the two fds attached as ancillary data (SCM_RIGHTS).
+    ("pipe_created", [
+      # if an error occurred in the supervisor while creating the pipe
       (OPTIONAL, "int", "error_no"),
-      # named pipe which is read by the intercepted process when reading fd[0]
-      (OPTIONAL, STRING, "fd0_fifo"),
-      # named pipe which is written by the intercepted process when reading fd[1]
-      (OPTIONAL, STRING, "fd1_fifo"),
+    ]),
+
+    # Step 3/3 of intercepting a pipe() or pipe2() call.
+    # Notify the supervisor about the fd numbers in the interceptor.
+    ("pipe_fds", [
+      # The fd used for reading
+      (REQUIRED, "int", "fd0"),
+      # The fd used for writing
+      (REQUIRED, "int", "fd1"),
     ]),
 
     # for dup
@@ -458,8 +474,11 @@
     ("popen_parent", [
       # return value
       (REQUIRED, "int", "fd"),
-      # fifo
-      (OPTIONAL, STRING, "fifo"),
+    ]),
+
+    # This message goes from the supervisor to the interceptor, ACKing the "popen_parent" message.
+    # The FBB message is empty, but there's the pipe's reopened fd attached as ancillary data.
+    ("popen_fd", [
     ]),
 
     ("popen_failed", [

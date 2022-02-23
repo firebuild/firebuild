@@ -168,4 +168,17 @@ int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_fchdir *f) {
   return 0;
 }
 
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_pipe_request *r, int fd_conn) {
+  const int flags = fbbcomm_serialized_pipe_request_get_flags_with_fallback(r, 0);
+  p->handle_pipe_request(flags, fd_conn);
+  return 0;
+}
+
+int ProcessPBAdaptor::msg(Process *p, const FBBCOMM_Serialized_pipe_fds *f) {
+  const int fd0 = fbbcomm_serialized_pipe_fds_get_fd0(f);
+  const int fd1 = fbbcomm_serialized_pipe_fds_get_fd1(f);
+  p->handle_pipe_fds(fd0, fd1);
+  return 0;
+}
+
 }  /* namespace firebuild */

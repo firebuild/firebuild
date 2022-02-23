@@ -17,8 +17,11 @@
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/execed_process_env.h"
+#include "firebuild/process_tree.h"
 #include "firebuild/debug.h"
 #include "firebuild/utils.h"
+
+extern firebuild::ProcessTree *proc_tree;
 
 namespace firebuild {
 
@@ -152,25 +155,7 @@ std::vector<std::shared_ptr<FileFD>>* Process::pass_on_fds(const bool execed) co
   return ret_fds;
 }
 
-void Process::AddPopenedProcess(int fd, const char *fifo, ExecedProcess *proc, int type_flags) {
-  /* The stdin/stdout of the child needs to be conected to parent's fd */
-  int child_fileno = is_wronly(type_flags) ? STDIN_FILENO : STDOUT_FILENO;
-  if (child_fileno == STDOUT_FILENO) {
-    /* Since only fd0 is passed only fd0's FileFD inherits O_CLOEXEC from type_flags. */
-    auto pipe = handle_pipe_internal(fd, -1, type_flags, 0 /* fd1_flags */, 0, fifo, nullptr,
-                                     true, false, this);
-    auto ffd1 = std::make_shared<FileFD>(child_fileno, O_WRONLY, pipe->fd1_shared_ptr(),
-                                         proc->parent_);
-
-    (*proc->parent_->fds_)[child_fileno] = ffd1;
-    (*proc->fds_)[child_fileno] = ffd1;
-    add_pipe(pipe);
-  } else {
-    /* child_fileno == STDIN_FILENO */
-    /* Create the pipe later, in accept_exec_child(). */
-    assert(!fifo);
-  }
-
+void Process::AddPopenedProcess(int fd, ExecedProcess *proc) {
   fd2popen_child_[fd] = proc;
 }
 
@@ -416,69 +401,118 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const siz
   return 0;
 }
 
-std::shared_ptr<Pipe> Process::handle_pipe_internal(const int fd0, const int fd1,
-                                                    const int fd0_flags, const int fd1_flags,
-                                                    const int error, const char *fd0_fifo,
-                                                    const char *fd1_fifo, bool fd0_close_on_popen,
-                                                    bool fd1_close_on_popen,  Process *fd0_proc) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "fd0=%d, fd1=%d, fd0_flags=%d, fd1_flags=%d, error=%d, fd0_fifo=%s, fd1_fifo=%s,"
-         " fd0_proc=%s",
-         fd0, fd1, fd0_flags, fd1_flags, error, fd0_fifo, fd1_fifo, D(fd0_proc));
+void Process::handle_pipe_request(const int flags, const int fd_conn) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d", flags);
 
-  if (error) {
-    return std::shared_ptr<Pipe>(nullptr);
+  pending_pipe_t pending_pipe {};
+
+  /* Creating a pipe consists of multiple steps, but they are all guarded by a single lock in the
+   * interceptor, so we can't have two pipe creations running in parallel in the same Process. */
+  assert(!proc_tree->Proc2PendingPipe(this));
+
+  /* Create an intercepted unnamed pipe, which is actually two unnamed pipes: one from the
+   * interceptor up to the supervisor, and one from the supervisor back down to the interceptor. */
+  int up[2], down[2];
+
+  FBBCOMM_Builder_pipe_created response;
+  fbbcomm_builder_pipe_created_init(&response);
+
+  if (pipe2(up, flags) < 0) {
+    fbbcomm_builder_pipe_created_set_error_no(&response, errno);
+    send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response));
+    return;
+  }
+  if (pipe2(down, flags) < 0) {
+    fbbcomm_builder_pipe_created_set_error_no(&response, errno);
+    send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response));
+    close(up[0]);
+    close(up[1]);
+    return;
   }
 
-  /* validate fd-s */
-  if (fd0_proc->get_fd(fd0)) {
-    /* we already have this fd, probably missed a close() */
-    fd0_proc->exec_point()->disable_shortcutting_bubble_up(
+  /* Send the "pipe_created" message with two attached fds.
+   * down[0] becomes pipefd[0], up[1] becomes pipefd[1] in the interceptor. */
+  int fds_to_send[2] = { down[0], up[1] };
+  send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response), fds_to_send, 2);
+
+  /* The endpoints we've just sent are no longer needed in the supervisor. */
+  close(down[0]);
+  close(up[1]);
+
+  /* Remember the other two fds, we'll need them in the "pipe_fds" step.
+   * According to the supervisor terminology:
+   *  - fd0 corresponds to the original pipe's fd0, where we're writing to, which is now down[1];
+   *  - fd1 corresponds to the original pipe's fd1, where we're reading from, which is now up[0]. */
+  pending_pipe.fd0 = down[1];
+  pending_pipe.fd1 = up[0];
+  pending_pipe.flags = flags;
+
+  /* We need the supervisor end of theses pipes to be nonblocking. Maybe they already are. */
+  if (!(flags & O_NONBLOCK)) {
+    fcntl(pending_pipe.fd0, F_SETFL, flags | O_NONBLOCK);
+    fcntl(pending_pipe.fd1, F_SETFL, flags | O_NONBLOCK);
+  }
+
+  firebuild::bump_fd_age(pending_pipe.fd0);
+  firebuild::bump_fd_age(pending_pipe.fd1);
+
+  proc_tree->QueuePendingPipe(this, pending_pipe);
+
+  /* To be continued in handle_pipe_fds() upon the next interceptor message. */
+}
+
+void Process::handle_pipe_fds(const int fd0, const int fd1) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd0=%d fd1=%d", fd0, fd1);
+
+  /* Continuing from a previous handle_pipe_request(). */
+
+  /* Creating a pipe consists of multiple steps, but they are all guarded by a single lock in the
+   * interceptor, so we can't have two pipe creations running in parallel in the same Process. */
+  const pending_pipe_t *pending_pipe = proc_tree->Proc2PendingPipe(this);
+  assert(pending_pipe != nullptr);
+
+  /* Validate fds. */
+  if (get_fd(fd0)) {
+    /* We already have this fd, probably missed a close(). */
+    exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", fd0);
-    return std::shared_ptr<Pipe>(nullptr);
-  }
-
-  if (fd1 != -1 && get_fd(fd1)) {
-    /* we already have this fd, probably missed a close() */
+    close(pending_pipe->fd0);
+    close(pending_pipe->fd1);
+  } else if (get_fd(fd1)) {
+    /* we already have this fd, probably missed a close(). */
     exec_point()->disable_shortcutting_bubble_up(
         "Process created an fd which is known to be open, "
         "which means interception missed at least one close()", fd1);
-    return std::shared_ptr<Pipe>(nullptr);
-  }
-
-  assert(fd0_fifo);
-  int fd0_conn = open(fd0_fifo, O_WRONLY | O_NONBLOCK);
-  assert(fd0_conn != -1 && "opening fd0_fifo failed");
-  firebuild::bump_fd_age(fd0_conn);
-
+    close(pending_pipe->fd0);
+    close(pending_pipe->fd1);
+  } else {
 #ifdef __clang_analyzer__
-  /* Scan-build reports a false leak for the correct code. This is used only in static
-   * analysis. It is broken because all shared pointers to the Pipe must be copies of
-   * the shared self pointer stored in it. */
-  auto pipe = std::make_shared<Pipe>(fd0_conn, this);
+    /* Scan-build reports a false leak for the correct code. This is used only in static
+     * analysis. It is broken because all shared pointers to the Pipe must be copies of
+     * the shared self pointer stored in it. */
+    auto pipe = std::make_shared<Pipe>(pending_pipe.fd0, this);
 #else
-  auto pipe = (new Pipe(fd0_conn, this))->shared_ptr();
+    auto pipe = (new Pipe(pending_pipe->fd0, this))->shared_ptr();
 #endif
-  fd0_proc->add_filefd(fd0, std::make_shared<FileFD>(
-      fd0, (fd0_flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), fd0_proc,
-      fd0_close_on_popen));
-  /* Fd1_fifo may not be set. */
-  if (fd1_fifo) {
-    int fd1_conn = open(fd1_fifo, O_NONBLOCK | O_RDONLY);
-    assert(fd1_conn != -1 && "opening fd1_fifo failed");
-    firebuild::bump_fd_age(fd1_conn);
-    auto ffd1 = std::make_shared<FileFD>(fd1, (fd1_flags & ~O_ACCMODE) | O_WRONLY,
+    add_filefd(fd0, std::make_shared<FileFD>(
+        fd0, (pending_pipe->flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this, false));
+
+    auto ffd1 = std::make_shared<FileFD>(fd1, (pending_pipe->flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
-                                         this, fd1_close_on_popen);
+                                         this, false);
     add_filefd(fd1, ffd1);
     /* Empty recorders array. We don't start recording after a pipe(), this data wouldn't be
      * used anywhere. We only start recording after an exec(), to catch the traffic as seen
      * from that potential shortcutting point. */
     auto recorders = std::vector<std::shared_ptr<PipeRecorder>>();
-    pipe->add_fd1_and_proc(fd1_conn, ffd1.get(), exec_point(), recorders);
+    pipe->add_fd1_and_proc(pending_pipe->fd1, ffd1.get(), exec_point(), recorders);
+
+    add_pipe(pipe);
   }
-  return pipe;
+
+  /* Back to the default state. */
+  proc_tree->DropPendingPipe(this);
 }
 
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
@@ -898,7 +932,7 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
 bool Process::any_child_not_finalized() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
-  if (exec_pending_ || pending_popen_child_) {
+  if (exec_pending_ || has_pending_popen()) {
     return true;
   }
   if (exec_child() && exec_child()->state() != FB_PROC_FINALIZED) {
@@ -982,7 +1016,7 @@ void Process::finish() {
     FB_DEBUG(FB_DEBUG_PROC, "  " + d(expected_child_));
   }
 
-  if (!exec_pending_ && !pending_popen_child_) {
+  if (!exec_pending_ && !has_pending_popen()) {
     /* The pending child may show up and it needs to inherit the pipes. */
     reset_file_fd_pipe_refs();
   }
@@ -1038,7 +1072,6 @@ std::string Process::d_internal(const int level) const {
 Process::~Process() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 
-  free(pending_popen_fifo_);
   delete(expected_child_);
   delete(fds_);
 }

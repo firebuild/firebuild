@@ -6,6 +6,8 @@
 
 #include <string>
 
+#include "./fbbcomm.h"
+
 /** Wrapper retrying on recoverable errors */
 ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
                            unsigned int flags);
@@ -39,9 +41,7 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
 namespace firebuild {
 
 void ack_msg(const int conn, const uint16_t ack_num);
-
-std::string make_fifo(int fd, int flags, int pid, const char *fb_conn_string,
-                      int *fifo_name_offset);
+void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds = NULL, int fd_count = 0);
 
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_
