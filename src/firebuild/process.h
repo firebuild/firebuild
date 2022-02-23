@@ -126,34 +126,14 @@ class Process {
     assert_null(expected_child_);
     expected_child_ = ec;
   }
-  ExecedProcess *pending_popen_child() const {return pending_popen_child_;}
-  void set_pending_popen_child(ExecedProcess *proc) {
-    assert(!pending_popen_child_ || !proc);
-    pending_popen_child_ = proc;
-  }
-  int pending_popen_child_conn() const {return pending_popen_child_conn_;}
-  void set_pending_popen_child_conn(int child_conn) {
-    pending_popen_child_conn_ = child_conn;
-  }
-  int pending_popen_fd() const {return pending_popen_fd_;}
-  void set_pending_popen_fd(int fd) {
-    pending_popen_fd_ = fd;
-  }
-  char *pending_popen_fifo() const {return pending_popen_fifo_;}
-  void set_pending_popen_fifo(char *fifo) {
-    free(pending_popen_fifo_);
-    pending_popen_fifo_ = fifo;
-  }
-  int pending_popen_type_flags() const {return pending_popen_type_flags_;}
-  void set_pending_popen_type_flags(int flags) {
-    pending_popen_type_flags_ = flags;
-  }
   std::vector<std::shared_ptr<FileFD>>*
   pop_expected_child_fds(const std::vector<std::string>&,
                          LaunchType *launch_type_p,
                          int *type_flags_p = nullptr,
                          const bool failed = false);
   bool has_expected_child () {return expected_child_ ? true : false;}
+  void set_has_pending_popen(bool value) {has_pending_popen_ = value;}
+  bool has_pending_popen() const {return has_pending_popen_;}
   virtual void do_finalize();
   virtual void set_on_finalized_ack(int id, int fd) = 0;
   virtual void maybe_finalize();
@@ -199,7 +179,7 @@ class Process {
     }
   }
 
-  void AddPopenedProcess(int fd, const char* fifo, ExecedProcess *proc, int type_flags);
+  void AddPopenedProcess(int fd, ExecedProcess *proc);
 
   ExecedProcess *PopPopenedProcess(int fd) {
     assert_cmp(fd2popen_child_.count(fd), >, 0);
@@ -312,36 +292,18 @@ class Process {
                    const int error = 0);
 
   /**
-   * Handle pipe() in the monitored process
-   * @param fd0 file descriptor to read
-   * @param fd1 file descriptor to write (-1 if fd1 is not set)
-   * @param flags flags passed in pipe2()
-   * @param error error code
-   * @param fd0_fifo fifo to write to intercepted pipe's fd[0]
-   * @param fd1_fifo fifo to read from intercepted pipe's fd[1] (NULL if not set)
-   * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
+   * Handle pipe creation in the monitored process, steps 1 and 2 out of 3. See #656 for the design.
+   * @param flags The flags passed to pipe2(), or 0 if pipe() was called
+   * @param fd_conn fd to send the pipe_fds message to
    */
-  std::shared_ptr<Pipe> handle_pipe(const int fd0, const int fd1, const int flags,
-                                    const int error, const char *fd0_fifo, const char *fd1_fifo) {
-    return handle_pipe_internal(fd0, fd1, flags, flags, error, fd0_fifo, fd1_fifo, false, false,
-                                this);
-  }
+  void handle_pipe_request(const int flags, const int fd_conn);
 
   /**
-   * Create pipe for popen(..., "w")
-   * @param fd1 file descriptor to write
-   * @param type_flags popen()'s type encoded as flags
-   * @param fd0_fifo fifo to write to STDIN of the intercepted child process
-   * @param fd1_fifo fifo to read from intercepted parent process
-   * @param fd0_proc child process to attach fd0 to
-   * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
+   * Handle pipe creation in the monitored process, step 3 out of 3. See #656 for the design.
+   * @param fd0 fd number of the reading end in the monitored process
+   * @param fd1 fd number of the writing end in the monitored process
    */
-  std::shared_ptr<Pipe> popen_wronly_pipe(const int fd1, const int type_flags,
-                                          const char *fd0_fifo, const char *fd1_fifo,
-                                          Process *fd0_proc) {
-    return handle_pipe_internal(STDIN_FILENO, fd1, type_flags & ~O_CLOEXEC, type_flags, 0, fd0_fifo,
-                                fd1_fifo, false, true, fd0_proc);
-  }
+  void handle_pipe_fds(const int fd0, const int fd1);
 
   /**
    * Handle dup(), dup2() or dup3() in the monitored process
@@ -478,15 +440,11 @@ class Process {
   std::vector<ForkedProcess*> fork_children_;  ///< children of the process
   /** the latest system() child */
   ExecedProcess *system_child_ {NULL};
+  /** Same as `proc_tree->Proc2PendingPopen(this) != nullptr`, redundantly repeated here
+   *  for better performance. */
+  bool has_pending_popen_ {false};
   /** for popen()ed children: client fd -> process mapping */
   tsl::hopscotch_map<int, ExecedProcess *> fd2popen_child_ {};
-  /** if the popen()ed child has appeared, but the popen_parent messages hasn't: */
-  ExecedProcess *pending_popen_child_ {NULL};
-  int pending_popen_child_conn_ {-1};
-  int pending_popen_type_flags_ {0};
-  /** if the popen_parent message has arrived, but the popen()ed child hasn't: */
-  int pending_popen_fd_ {-1};
-  char *pending_popen_fifo_ {nullptr};
   /** commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear */
   ExecedProcessEnv *expected_child_;
   /** Set upon an "execv" message, cleared upon "scproc_query" (i.e. new dynamically linked process
@@ -501,23 +459,6 @@ class Process {
   bool posix_spawn_pending_ {false};
   ExecedProcess * exec_child_;
   bool any_child_not_finalized();
-  /**
-   * Handle pipe creation in the monitored process
-   * @param fd1 file descriptor to read (-1 if fd1 is not set)
-   * @param fd2 file descriptor to write
-   * @param flags flags passed in pipe2()
-   * @param error error code
-   * @param fd0_fifo fifo to write to intercepted pipe's fd[0]
-   * @param fd1_fifo fifo to read from intercepted pipe's fd[1] (NULL if not set)
-   * @param origin FD_ORIGIN_PIPE or FD_ORIGIN_POPEN when created by pipe() or popen() respectively
-   * @param fd0_proc child process to attach fd0 to
-   * @return created (shared_ptr to) pipe on success, (shared_ptr) nullptr on failure
-   */
-  std::shared_ptr<Pipe> handle_pipe_internal(const int fd1, const int fd2,
-                                             const int fd0_flags, const int fd1_flags,
-                                             const int error, const char *fd0_fifo,
-                                             const char *fd1_fifo, bool fd0_close_on_popen,
-                                             bool fd1_close_on_popen, Process *fd0_proc);
 
   DISALLOW_COPY_AND_ASSIGN(Process);
 };

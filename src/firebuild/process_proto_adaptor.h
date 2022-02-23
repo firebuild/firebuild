@@ -37,6 +37,8 @@ class ProcessPBAdaptor {
   static int msg(Process *p, const FBBCOMM_Serialized_write_to_inherited *w);
   static int msg(Process *p, const FBBCOMM_Serialized_chdir *c);
   static int msg(Process *p, const FBBCOMM_Serialized_fchdir *f);
+  static int msg(Process *p, const FBBCOMM_Serialized_pipe_request *r, int fd_conn);
+  static int msg(Process *p, const FBBCOMM_Serialized_pipe_fds *d);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);

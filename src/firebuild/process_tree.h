@@ -66,6 +66,35 @@ struct pending_parent_ack {
   int sock;
 };
 
+/** Details about a pending pipe() operation. */
+struct pending_pipe_t {
+  /** The flags parameter of pipe2() */
+  int flags;
+  /** The supervisor-side end of fd0, i.e. where the intercepted process reads from
+   *  and the supervisor writes to */
+  int fd0;
+  /*  The supervisor-side end of fd1, i.e. where the intercepted process writes to
+   *  and the supervisor reads from */
+  int fd1;
+};
+
+/** Details about a pending popen() operation. */
+struct pending_popen_t {
+  /** popen()'s "type", converted to O_* flags. [Set at the opening "popen" message.] */
+  int type_flags {0};
+  /** The child "sh -c". [Set at the "scproc_query" message.] */
+  ExecedProcess *child {nullptr};
+  /** Connection fd of the child. [Set at the "scproc_query" message.] */
+  int child_conn {-1};
+  /** Connection fd of the parent that's performing the popen(). [Set at the "popen_parent"
+   *  message.] */
+  int parent_conn {-1};
+  /** ACK ID to send to the parent. [Set at the "popen_parent" message.] */
+  uint16_t ack_num {0};
+  /** The client fd of the pipe in the parent. [Set at the "popen_parent" message.] */
+  int fd {-1};
+};
+
 class ProcessTree {
  public:
   ProcessTree();
@@ -99,6 +128,14 @@ class ProcessTree {
     assert(!PPid2ParentAck(ppid));
     ppid2pending_parent_ack_[ppid] = {ack, sock};
   }
+  void QueuePendingPipe(Process *proc, pending_pipe_t pending_pipe) {
+    assert(!Proc2PendingPipe(proc));
+    proc2pending_pipe_[proc] = pending_pipe;
+  }
+  void QueuePendingPopen(Process *proc, pending_popen_t pending_popen) {
+    assert(!Proc2PendingPopen(proc));
+    proc2pending_popen_[proc] = pending_popen;
+  }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
     auto it = pid2fork_child_sock_.find(pid);
     if (it != pid2fork_child_sock_.end()) {
@@ -131,6 +168,22 @@ class ProcessTree {
       return nullptr;
     }
   }
+  pending_pipe_t* Proc2PendingPipe(Process *proc) {
+    auto it = proc2pending_pipe_.find(proc);
+    if (it != proc2pending_pipe_.end()) {
+      return &it.value();  /* tsl::hopscotch_map'ism */
+    } else {
+      return nullptr;
+    }
+  }
+  pending_popen_t* Proc2PendingPopen(Process *proc) {
+    auto it = proc2pending_popen_.find(proc);
+    if (it != proc2pending_popen_.end()) {
+      return &it.value();  /* tsl::hopscotch_map'ism */
+    } else {
+      return nullptr;
+    }
+  }
   void DropQueuedForkChild(const int pid) {
     pid2fork_child_sock_.erase(pid);
   }
@@ -142,6 +195,12 @@ class ProcessTree {
   }
   void DropParentAck(const int ppid) {
     ppid2pending_parent_ack_.erase(ppid);
+  }
+  void DropPendingPipe(Process *proc) {
+    proc2pending_pipe_.erase(proc);
+  }
+  void DropPendingPopen(Process *proc) {
+    proc2pending_popen_.erase(proc);
   }
   void AckParent(const int ppid) {
     const pending_parent_ack *ack = PPid2ParentAck(ppid);
@@ -179,6 +238,18 @@ class ProcessTree {
    *  we get to this point in the parent. The key is the parent's pid. */
   tsl::hopscotch_map<int, exec_child_sock> pid2posix_spawn_child_sock_;
   tsl::hopscotch_map<int, pending_parent_ack> ppid2pending_parent_ack_ = {};
+  /** A process can only have one pending pipe() or pipe2() operation
+   *  because the interceptor holds the global mutex for its duration.
+   *  Store this rarely used data here to decrease the size of Process objects.
+   *  The key is the process that performs the pipe() call. */
+  tsl::hopscotch_map<Process *, pending_pipe_t> proc2pending_pipe_ = {};
+  /** Although a process can have multiple popen()ed children running in parallel,
+   *  it can only have at most one pending popen() operation at a given time.
+   *  This is because the parent process holds the global interceptor mutex and waits for an ACK,
+   *  and the supervisor only sends that ACK when the child "sh -c" has already appeared.
+   *  Store this rarely used data here to decrease the size of Process objects.
+   *  The key is the process that performs the popen() call. */
+  tsl::hopscotch_map<Process *, pending_popen_t> proc2pending_popen_ = {};
   /**
    * Profile is aggregated by command name (argv[0]).
    * For each command (C) we store the cumulated CPU time in microseconds

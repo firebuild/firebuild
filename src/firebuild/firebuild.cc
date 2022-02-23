@@ -59,6 +59,8 @@ firebuild::Epoll *epoll = nullptr;
 
 int sigchild_selfpipe[2];
 
+firebuild::ProcessTree *proc_tree;
+
 namespace {
 
 static char *fb_tmp_dir;
@@ -70,7 +72,6 @@ static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
-static firebuild::ProcessTree *proc_tree;
 static firebuild::ExecedProcessCacher *cacher;
 
 /** only if debugging "time" */
@@ -185,23 +186,6 @@ static char** get_sanitized_env() {
   return ret_env;
 }
 
-static int make_fifo_fd_conn(firebuild::ExecedProcess* proc, int fd,
-                             std::vector<std::string>* fifo_fds) {
-  int fifo_name_offset;
-  std::string fifo_params =
-      firebuild::make_fifo(fd, O_WRONLY, proc->pid(), fb_conn_string, &fifo_name_offset);
-  const char *fifo = fifo_params.c_str() + fifo_name_offset;
-  int ret = open(fifo, O_NONBLOCK | O_RDONLY);
-  if (ret == -1) {
-    perror("could not open fifo for intercepting bytes written to the pipe");
-    assert(0);
-  }
-  firebuild::bump_fd_age(ret);
-  fifo_fds->push_back(fifo_params);
-  return ret;
-}
-
-
 }  /* namespace */
 
 namespace firebuild {
@@ -212,35 +196,25 @@ static void reject_exec_child(int fd_conn) {
     fbbcomm_builder_scproc_resp_set_dont_intercept(&sv_msg, true);
     fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, false);
 
-    if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      fprintf(stderr, "Sending scproc response:\n");
-      fbbcomm_builder_debug(stderr, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
-    }
-
-    int len = fbbcomm_builder_measure(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
-    char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
-    fbbcomm_builder_serialize(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg),
-                              buf + sizeof(msg_header));
-    reinterpret_cast<msg_header *>(buf)->ack_id = 0;
-    reinterpret_cast<msg_header *>(buf)->msg_size = len;
-    fb_write(fd_conn, buf, sizeof(msg_header) + len);
+    send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
 }
 
 void accept_exec_child(ExecedProcess* proc, int fd_conn,
-                       ProcessTree* proc_tree, int pending_popen_stdin_fd,
-                       const char* pending_popen_stdin_fifo, int popen_type_flags) {
-    TRACKX(FB_DEBUG_PROC, 1, 1, Process, proc, "fd_conn=%s", D_FD(fd_conn));
+                       ProcessTree* proc_tree, int fd0_reopen) {
+    TRACKX(FB_DEBUG_PROC, 1, 1, Process, proc, "fd_conn=%s, fd0_reopen=%s",
+        D_FD(fd_conn), D_FD(fd0_reopen));
 
-    /* The pipe for popen(..., "r") has been created earlier. */
-    assert(!pending_popen_stdin_fifo || is_wronly(popen_type_flags));
+    /* We build up an FBB referring to this value, so it has to be valid until we send that FBB. */
+    const int stdin_fileno = STDIN_FILENO;
 
     FBBCOMM_Builder_scproc_resp sv_msg;
     fbbcomm_builder_scproc_resp_init(&sv_msg);
-    std::string fifo_params;
-    int fifo_name_offset;
-    std::vector<std::string> fifo_fds = {};
-    string_array fifo_fds_sa;
-    string_array_init(&fifo_fds_sa);
+
+    /* These two have the same number of items and they correspond to each other.
+     * "reopened_dups" is for the "reopen_fd_fifos" array in FBB "scproc_resp",
+     * "fifo_fds" is for the ancillary data. */
+    std::vector<const FBBCOMM_Builder *> reopened_dups = {};
+    std::vector<int> fifo_fds = {};
 
     proc_tree->insert(proc);
     proc->initialize();
@@ -289,14 +263,37 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     } else {
       fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, false);
       /* parent forked, thus a new set of fds is needed to track outputs */
+
+      /* For popen(..., "w") pipes we couldn't reopen its stdin in the short-lived forked process,
+       * so connect our Pipe object with the stdin of the child process here.
+       * (The stdout side of a popen(..., "r") child is handled below by the generic
+       * code that reopens all inherited outgoing pipes.) */
+      if (fd0_reopen >= 0) {
+        fifo_fds.push_back(fd0_reopen);
+        /* alloca()'s lifetime is the entire function, not just the brace-block. This is what we
+         * need because the data has to live until the send_fbb() below. */
+        auto dups = reinterpret_cast<FBBCOMM_Builder_scproc_resp_reopen_fd *>(
+            alloca(sizeof(FBBCOMM_Builder_scproc_resp_reopen_fd)));
+        fbbcomm_builder_scproc_resp_reopen_fd_init(dups);
+        fbbcomm_builder_scproc_resp_reopen_fd_set_fds(dups, &stdin_fileno, 1);
+        reopened_dups.push_back(reinterpret_cast<FBBCOMM_Builder *>(dups));
+      }
+
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
       for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
         auto file_fd = proc->get_shared_fd(inherited_outgoing_pipe.fds[0]);
         auto pipe = file_fd->pipe();
         assert(pipe);
-        /* For the lowest fd, create a new named pipe */
-        int fifo_fd = make_fifo_fd_conn(proc, inherited_outgoing_pipe.fds[0], &fifo_fds);
+        /* Create a new unnamed pipe. */
+        int fifo_fd[2];
+        int ret = pipe2(fifo_fd, file_fd->flags() & ~O_ACCMODE);
+        (void)ret;
+        assert(ret == 0);
+        bump_fd_age(fifo_fd[0]);
+        /* The supervisor needs nonblocking fds for the pipes. */
+        fcntl(fifo_fd[0], F_SETFL, O_NONBLOCK);
+
         /* Find the recorders belonging to the parent process. We need to record to all those,
          * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
         auto  recorders =  proc->parent() ? pipe->proc2recorders[proc->parent_exec_point()]
@@ -305,31 +302,25 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
           inherited_outgoing_pipe.recorder = std::make_shared<PipeRecorder>(proc);
           recorders.push_back(inherited_outgoing_pipe.recorder);
         }
-        pipe->add_fd1_and_proc(fifo_fd, file_fd.get(), proc, std::move(recorders));
+        pipe->add_fd1_and_proc(fifo_fd[0], file_fd.get(), proc, std::move(recorders));
         FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_outgoing_pipe.fds[0])
-                 + " as new fd1: " + d(fifo_fd) + " of " + d(pipe));
+                 + " as new fd1: " + d(fifo_fd[0]) + " of " + d(pipe));
 
-        /* For the other fds, just ask the intercepted process to dup2() the lowest to here. */
-        for (size_t i = 1; i < inherited_outgoing_pipe.fds.size(); i++) {
-          fifo_params = fmt::format(FMT_COMPILE("{}:0 {}"), inherited_outgoing_pipe.fds[i],
-                                    inherited_outgoing_pipe.fds[0]);
-          fifo_fds.push_back(fifo_params);
-        }
-      }
-      if (pending_popen_stdin_fifo) {
-        /* Needed for opening STDIN in child for popen(..., "w") */
-        fifo_params = firebuild::make_fifo(STDIN_FILENO, O_RDONLY, proc->pid(), fb_conn_string,
-                                           &fifo_name_offset);
-        fifo_fds.push_back(fifo_params);
+        fifo_fds.push_back(fifo_fd[1]);
+        /* alloca()'s lifetime is the entire function, not just the brace-block. This is what we
+         * need because the data has to live until the send_fbb() below.
+         * Calling alloca() from a loop is often frowned upon because it can quickly eat up the
+         * stack. Here we only need a tiny amount of data, typically less than 10 integers in all
+         * the alloca()d areas combined. */
+        auto dups = reinterpret_cast<FBBCOMM_Builder_scproc_resp_reopen_fd *>(
+            alloca(sizeof(FBBCOMM_Builder_scproc_resp_reopen_fd)));
+        fbbcomm_builder_scproc_resp_reopen_fd_init(dups);
+        fbbcomm_builder_scproc_resp_reopen_fd_set_fds(dups, inherited_outgoing_pipe.fds);
+        reopened_dups.push_back(reinterpret_cast<FBBCOMM_Builder *>(dups));
       }
 
-      {
-        for (std::string& fifo_str : fifo_fds) {
-          /* Constness is cast away, but it is OK because the string array is not deep freed. */
-          string_array_append(&fifo_fds_sa, const_cast<char*>(fifo_str.c_str()));
-        }
-        fbbcomm_builder_scproc_resp_set_reopen_fd_fifos(&sv_msg, fifo_fds_sa.p);
-      }
+      fbbcomm_builder_scproc_resp_set_reopen_fds(&sv_msg, reopened_dups);
+
       /* inherited_outgoing_pipes was updated with the recorders, save the new version */
       proc->set_inherited_outgoing_pipes(inherited_outgoing_pipes);
 
@@ -338,56 +329,151 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
     }
 
-    if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      fprintf(stderr, "Sending scproc response:\n");
-      fbbcomm_builder_debug(stderr, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
-    }
+    /* Send "scproc_resp", possibly with attached fds to reopen. */
+    send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg),
+             fifo_fds.data(), fifo_fds.size());
 
-    int len = fbbcomm_builder_measure(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
-    char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
-    fbbcomm_builder_serialize(reinterpret_cast<FBBCOMM_Builder *>(&sv_msg),
-                              buf + sizeof(msg_header));
-    reinterpret_cast<msg_header *>(buf)->ack_id = 0;
-    reinterpret_cast<msg_header *>(buf)->msg_size = len;
-    fb_write(fd_conn, buf, sizeof(msg_header) + len);
-
-    if (pending_popen_stdin_fifo) {
-      if (shortcutting_succeeded) {
-        /* Shortcutting is not supported when the process read data on any file descriptor thus
-         * it did not read from STDIN either. It is safe to skip setting up the pipe. */
-      } else {
-        assert(pending_popen_stdin_fd != -1);
-        const char *fifo = fifo_params.c_str() + fifo_name_offset;
-        /* This open blocks until the interceptor opens the other end. */
-        int tmp_fd0_conn = open(fifo, O_WRONLY);
-        /* Create the pipe. */
-        auto pipe =
-            proc->parent()->parent()->popen_wronly_pipe(pending_popen_stdin_fd, popen_type_flags,
-                                                        fifo, pending_popen_stdin_fifo,
-                                                        proc->parent());
-        if (pipe) {
-          proc->parent()->parent()->add_pipe(pipe);
-        }
-        /* The pipe reopened the connection in non-blocking mode. This fd is now obsolete. */
-        close(tmp_fd0_conn);
-        /* The fifo is open on both ends, the file is not needed anymore, either. */
-        unlink(fifo);
-      }
+    /* Close the sides that we transferred to the interceptor. This includes the stdin of a
+     * popen(... "w") child, as well as the inherited outgoing pipes of every process. */
+    for (int fd : fifo_fds) {
+      close(fd);
     }
-    free(fifo_fds_sa.p);
 }
 
-void accept_popen_child(ExecedProcess* proc, int fd_conn, const int type_flags,
-                        Process* unix_parent, int fd, const char* fifo) {
-  /* With popen(..., "r") the pipe is created in AddPopenedProcess(), while with "w"
-     accept_exec_child() opens it to avoid having a pipe with no fd0. */
-  if (is_rdonly(type_flags)) {
-    unix_parent->AddPopenedProcess(fd, fifo, proc, type_flags);
-    accept_exec_child(proc, fd_conn, proc_tree);
+/* This is run when we've received both the parent's "popen_parent" and the child's "scproc_query"
+ * message, no matter in what order they arrived. */
+void accept_popen_child(Process* unix_parent, const pending_popen_t *pending_popen) {
+  ExecedProcess *proc = pending_popen->child;
+
+  /* This is for the special treatment of the fd if the process does another popen(). */
+  unix_parent->AddPopenedProcess(pending_popen->fd, proc);
+
+  /* The short-lived forked process was added in proc_new_process_msg() when "scproc_query" arrived.
+   *
+   * Now we create the Pipe object and register its file handles for the execed process.
+   *
+   * TODO We should ideally register it to new process's exec parent (the short-lived fork of the
+   * popening process) too. However, it really doesn't matter. */
+
+  int up[2], down[2];
+  int fd_send_to_parent;
+  int fd0_reopen = -1;
+  int flags = pending_popen->type_flags;
+  if (is_rdonly(flags)) {
+    /* For popen(..., "r") (parent reads <- child writes) create only the parent-side backing Unix
+     * pipe, and the Pipe object. The child-side backing Unix pipe will be created in
+     * accept_exec_child() when reopening inherited_outgoing_pipes. */
+    FB_DEBUG(FB_DEBUG_PROC, "This is a popen(..., \"r...\") child");
+
+    if (pipe2(down, flags & ~O_ACCMODE) < 0) {
+      assert(0 && "pipe2() failed");
+    }
+    bump_fd_age(down[0]);
+    bump_fd_age(down[1]);
+    FB_DEBUG(FB_DEBUG_PROC, "down[0]: " + d_fd(down[0]) + ", down[1]: " + d_fd(down[1]));
+
+    fd_send_to_parent = down[0];
+
+    if (!(flags & O_NONBLOCK)) {
+      /* The supervisor needs nonblocking fds for the pipes. */
+      fcntl(down[1], F_SETFL, flags | O_NONBLOCK);
+    }
+
+#ifdef __clang_analyzer__
+    /* Scan-build reports a false leak for the correct code. This is used only in static
+     * analysis. It is broken because all shared pointers to the Pipe must be copies of
+     * the shared self pointer stored in it. */
+    auto pipe = std::make_shared<Pipe>(down[1] /* server fd */, unix_parent);
+#else
+    auto pipe = (new Pipe(down[1] /* server fd */, unix_parent))->shared_ptr();
+#endif
+
+    /* The reading side of this pipe is in the popening (parent) process. */
+    auto ffd0 = std::make_shared<FileFD>(pending_popen->fd /* client fd */,
+                                         (flags & ~O_ACCMODE) | O_RDONLY,
+                                         pipe->fd0_shared_ptr(),
+                                         unix_parent /* creator */,
+                                         true /* close_on_popen */);
+    unix_parent->add_filefd(pending_popen->fd /* client fd */, ffd0);
+
+    /* The writing side of this pipe is in the forked and the execed processes.
+     * We're lazy and we don't register it for the forked process, no one cares. */
+    auto ffd1 = std::make_shared<FileFD>(STDOUT_FILENO /* client fd */,
+                                         (flags & ~O_ACCMODE) | O_WRONLY,
+                                         pipe->fd1_shared_ptr(),
+                                         unix_parent /* creator */,
+                                         false /* close_on_popen */);
+    proc->add_filefd(STDOUT_FILENO /* client fd */, ffd1);
   } else {
-    unix_parent->AddPopenedProcess(fd, nullptr, proc, type_flags);
-    accept_exec_child(proc, fd_conn, proc_tree, fd, fifo, type_flags);
+    /* For popen(..., "w") (parent writes -> child reads) create both backing Unix unnamed
+     * pipes, as well as the Pipe object handling them. */
+    FB_DEBUG(FB_DEBUG_PROC, "This is a popen(..., \"w...\") child");
+
+    if (pipe2(up, flags & ~O_ACCMODE) < 0 || pipe2(down, flags & ~O_ACCMODE) < 0) {
+      assert(0 && "pipe2() failed");
+    }
+    bump_fd_age(up[0]);
+    bump_fd_age(up[1]);
+    bump_fd_age(down[0]);
+    bump_fd_age(down[1]);
+    FB_DEBUG(FB_DEBUG_PROC, "up[0]: " + d_fd(up[0]) + ", up[1]: " + d_fd(up[1]) +
+                            ", down[0]: " + d_fd(down[0]) + ", down[1]: " + d_fd(down[1]));
+
+    fd_send_to_parent = up[1];
+
+    if (!(flags & O_NONBLOCK)) {
+      /* The supervisor needs nonblocking fds for the pipes. */
+      fcntl(up[0], F_SETFL, flags | O_NONBLOCK);
+      fcntl(down[1], F_SETFL, flags | O_NONBLOCK);
+    }
+
+#ifdef __clang_analyzer__
+    /* Scan-build reports a false leak for the correct code. This is used only in static
+     * analysis. It is broken because all shared pointers to the Pipe must be copies of
+     * the shared self pointer stored in it. */
+    auto pipe = std::make_shared<Pipe>(down[1] /* server fd */, unix_parent);
+#else
+    auto pipe = (new Pipe(down[1] /* server fd */, unix_parent))->shared_ptr();
+#endif
+
+    /* The reading side of this pipe is in the forked and the execed processes.
+     * We're lazy and we don't register it for the forked process, no one cares. */
+    auto ffd0 = std::make_shared<FileFD>(STDIN_FILENO /* client fd */,
+                                         (flags & ~O_ACCMODE) | O_RDONLY,
+                                         pipe->fd0_shared_ptr(),
+                                         unix_parent /* creator */,
+                                         false /* close_on_popen */);
+    proc->add_filefd(STDIN_FILENO /* client fd */, ffd0);
+
+    /* The (so far only) writing side of this pipe is in the popening (parent) process. */
+    auto ffd1 = std::make_shared<FileFD>(pending_popen->fd /* client fd */,
+                                         (flags & ~O_ACCMODE) | O_WRONLY,
+                                         pipe->fd1_shared_ptr(),
+                                         unix_parent /* creator */,
+                                         true /* close_on_popen */);
+    unix_parent->add_filefd(pending_popen->fd /* client fd */, ffd1);
+
+    auto recorders = std::vector<std::shared_ptr<PipeRecorder>>();
+    pipe->add_fd1_and_proc(up[0] /* server fd */, ffd1.get(), proc, recorders);
+
+    /* This is an incoming pipe in the child process that needs to be reopened because we
+     * couldn't catch the pipe() call inside popen() and thus we couldn't do it yet.
+     * Add this to the "reopen_fd_fifos" array of "scproc_resp", and to the ancillary data. */
+    fd0_reopen = down[0];
   }
+
+  /* ACK the parent, using a "popen_fd" message with the fd attached as ancillary data.
+   * Then close that fd. */
+  FBBCOMM_Builder_popen_fd msg;
+  fbbcomm_builder_popen_fd_init(&msg);
+  send_fbb(pending_popen->parent_conn, pending_popen->ack_num,
+      reinterpret_cast<FBBCOMM_Builder *>(&msg), &fd_send_to_parent, 1);
+  close(fd_send_to_parent);
+
+  accept_exec_child(proc, pending_popen->child_conn, proc_tree, fd0_reopen);
+
+  proc_tree->DropPendingPopen(unix_parent);
+  unix_parent->set_has_pending_popen(false);
 }
 
 }  /* namespace firebuild */
@@ -546,26 +632,21 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
     if (launch_type == firebuild::LAUNCH_TYPE_SYSTEM) {
       unix_parent->set_system_child(proc);
     } else if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
-      if (unix_parent->pending_popen_fd() != -1) {
-        /* The popen_parent message has already arrived. Take a note of the fd -> child mapping. */
-        assert_null(unix_parent->pending_popen_child());
-        accept_popen_child(proc, fd_conn, type_flags, unix_parent,
-                           unix_parent->pending_popen_fd(), unix_parent->pending_popen_fifo());
-        proc_tree->AckParent(unix_parent->pid());
-        unix_parent->set_pending_popen_fd(-1);
-        unix_parent->set_pending_popen_fifo(nullptr);
-        *new_proc = proc;
-        return;
-      } else {
-        /* The popen_parent message has not yet arrived.
-         * Remember the new child, the handler of the popen_parent message will need to accept it. */
-        assert_null(unix_parent->pending_popen_child());
-        unix_parent->set_pending_popen_child(proc);
-        unix_parent->set_pending_popen_child_conn(fd_conn);
-        unix_parent->set_pending_popen_type_flags(type_flags);
-        *new_proc = proc;
-        return;
+      /* Entry must have been created at the "popen" message */
+      firebuild::pending_popen_t *pending_popen = proc_tree->Proc2PendingPopen(unix_parent);
+      assert(pending_popen);
+      /* Fill in the new fields */
+      assert_null(pending_popen->child);
+      pending_popen->child = proc;
+      pending_popen->child_conn = fd_conn;
+      /* If the "popen_parent" message has already arrived then accept the popened child,
+       * which will also ACK the parent.
+       * Otherwise this will be done whenever the "popen_parent" message arrives. */
+      if (pending_popen->fd >= 0) {
+        accept_popen_child(unix_parent, pending_popen);
       }
+      *new_proc = proc;
+      return;
     }
     accept_exec_child(proc, fd_conn, proc_tree);
     *new_proc = proc;
@@ -668,8 +749,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_popen: {
       const FBBCOMM_Serialized_popen *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_popen *>(fbbcomm_buf);
-      assert_null(proc->pending_popen_child());
-      assert_cmp(proc->pending_popen_fd(), ==, -1);
+      assert_null(proc_tree->Proc2PendingPopen(proc));
+
       int type_flags = fbbcomm_serialized_popen_get_type_flags(ic_msg);
       auto fds = proc->pass_on_fds(false);
       /* popen(cmd) launches a child of argv = ["sh", "-c", cmd] */
@@ -679,34 +760,31 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       expected_child->set_launch_type(firebuild::LAUNCH_TYPE_POPEN);
       expected_child->set_type_flags(type_flags);
       proc->set_expected_child(expected_child);
+
+      firebuild::pending_popen_t pending_popen;
+      pending_popen.type_flags = type_flags;  // FIXME why set it at two places?
+      proc_tree->QueuePendingPopen(proc, pending_popen);
+      proc->set_has_pending_popen(true);
       break;
     }
     case FBBCOMM_TAG_popen_parent: {
       const FBBCOMM_Serialized_popen_parent *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_popen_parent *>(fbbcomm_buf);
-      int fd = fbbcomm_serialized_popen_parent_get_fd(ic_msg);
-      const char *fifo = fbbcomm_serialized_popen_parent_get_fifo(ic_msg);
-      if (proc->has_expected_child()) {
-        /* The child hasn't appeared yet. Defer sending the ACK and setting up
-         * the fd -> child mapping. */
-        assert_null(proc->pending_popen_child());
-        proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
-        proc->set_pending_popen_fd(fd);
-        proc->set_pending_popen_fifo(fifo ? strdup(fifo) : nullptr);
-        return;
-      } else {
-        /* The child has already appeared. Take a note of the fd -> child mapping. */
-        firebuild::ExecedProcess *child = proc->pending_popen_child();
-        int child_conn = proc->pending_popen_child_conn();
-        assert(child);
-        assert_cmp(child_conn, !=, -1);
-        int type_flags = proc->pending_popen_type_flags();
-        accept_popen_child(child, child_conn, type_flags, proc, fd, fifo);
-        proc->set_pending_popen_child(NULL);
-        proc->set_pending_popen_child_conn(-1);
-        proc->set_pending_popen_type_flags(0);
+      /* Entry must have been created at the "popen" message */
+      firebuild::pending_popen_t *pending_popen = proc_tree->Proc2PendingPopen(proc);
+      assert(pending_popen);
+      /* Fill in the new fields */
+      assert(pending_popen->fd == -1);
+      pending_popen->fd = fbbcomm_serialized_popen_parent_get_fd(ic_msg);
+      pending_popen->parent_conn = fd_conn;
+      pending_popen->ack_num = ack_num;
+      /* If the child's "scproc_query" message has already arrived then accept the popened child,
+       * which will also ACK the parent.
+       * Otherwise this will be done whenever the child's "scproc_query" message arrives.*/
+      if (pending_popen->child) {
+        accept_popen_child(proc, pending_popen);
       }
-      break;
+      return;
     }
     case FBBCOMM_TAG_popen_failed: {
       const FBBCOMM_Serialized_popen_failed *ic_msg =
@@ -874,20 +952,14 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       /* Else we can ACK straight away. */
       break;
     }
-    case FBBCOMM_TAG_pipe2: {
-      auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_pipe2 *>(fbbcomm_buf);
-      const int fd0 = fbbcomm_serialized_pipe2_get_fd0_with_fallback(ic_msg, -1);
-      const int fd1 = fbbcomm_serialized_pipe2_get_fd1_with_fallback(ic_msg, -1);
-      auto fd0_fifo = fbbcomm_serialized_pipe2_get_fd0_fifo(ic_msg);
-      auto fd1_fifo = fbbcomm_serialized_pipe2_get_fd1_fifo(ic_msg);
-      assert(fd0_fifo && fd1_fifo);
-      const int flags = fbbcomm_serialized_pipe2_get_flags_with_fallback(ic_msg, 0);
-      const int error = fbbcomm_serialized_pipe2_get_error_no_with_fallback(ic_msg, 0);
-      auto pipe = proc->handle_pipe(fd0, fd1, flags, error, fd0_fifo, fd1_fifo);
-      if (pipe) {
-        proc->add_pipe(pipe);
-      }
-      /* Else we can ACK straight away. */
+    case FBBCOMM_TAG_pipe_request: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_pipe_request *>(fbbcomm_buf), fd_conn);
+      break;
+    }
+    case FBBCOMM_TAG_pipe_fds: {
+      ::firebuild::ProcessPBAdaptor::msg(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_pipe_fds *>(fbbcomm_buf));
       break;
     }
     case FBBCOMM_TAG_execv: {

@@ -323,6 +323,7 @@ void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint16_t ack_nu
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
 #endif
+  memset(buf, 0, sizeof(msg_header));
   ((msg_header *)buf)->ack_id = ack_num;
   ((msg_header *)buf)->msg_size = len;
 #pragma GCC diagnostic pop
@@ -685,52 +686,6 @@ int fb_connect_supervisor() {
   return conn;
 }
 
-static void reopen_fd_fifo(const char* fd_fifo_str) {
-  int reopen_fd, reopen_flags, fifo_name_offset;
-  sscanf(fd_fifo_str, "%d:%d %n", &reopen_fd, &reopen_flags, &fifo_name_offset);
-  const char* reopen_fd_fifo = fd_fifo_str + fifo_name_offset;
-  /* reopen_fd_fifo is either a full path for the file to reopen, or an integer
-   * for the fd to dup2(). */
-  if (reopen_fd_fifo[0] == '/') {
-    int fd;
-    if (is_wronly(reopen_flags)) {
-      /* Open the the fifo in O_RDONLY mode because the supervisor's side may have already been
-       * closed. This can happen when the supervisor-side Pipe's fd0 end is closed and this fifo's
-       * Pipe fd1 end is cleaned up. */
-      int tmp_fd = ic_orig_open(reopen_fd_fifo, O_NONBLOCK | O_RDONLY);
-      fd = ic_orig_open(reopen_fd_fifo, reopen_flags);
-      ic_orig_close(tmp_fd);
-    } else {
-      /* O_RDONLY */
-      fd = ic_orig_open(reopen_fd_fifo, reopen_flags);
-    }
-    assert(fd != -1 && "reopening fd failed");
-    if (fd != reopen_fd) {
-      /* dup2, because fds to be reopened can't have O_CLOEXEC */
-#ifndef NDEBUG
-      int dup2_ret =
-#endif
-          ic_orig_dup2(fd, reopen_fd);
-      assert(dup2_ret == reopen_fd);
-      ic_orig_close(fd);
-    }
-    if (is_wronly(reopen_flags)) {
-      /* The fifo is opened on both ends, there is no need for the file. */
-      ic_orig_unlink(reopen_fd_fifo);
-    } else {
-      /* The fifo has to be kept because the supervisor opens it later. */
-    }
-  } else {
-    int fd;
-    sscanf(reopen_fd_fifo, "%d", &fd);
-#ifndef NDEBUG
-    int dup2_ret =
-#endif
-        ic_orig_dup2(fd, reopen_fd);
-    assert(dup2_ret == reopen_fd);
-  }
-}
-
 /**  Set up the main supervisor connection */
 void fb_init_supervisor_conn() {
   if (fb_conn_string == NULL) {
@@ -859,13 +814,45 @@ static void fb_ic_init() {
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
 
-  FBBCOMM_Serialized *sv_msg_generic = NULL;
-#ifndef NDEBUG
-  ssize_t len =
-#endif
-      fb_recv_msg(NULL, (char **)&sv_msg_generic, fb_sv_conn);
-  assert(len >= (ssize_t) sizeof(int));
+  /* Read the scproc_resp message header. */
+  msg_header header;
+  ssize_t ret = fb_read(fb_sv_conn, &header, sizeof(header));
+  assert(ret == sizeof(header));
+  assert(header.msg_size > 0);
+  uint16_t fd_count = header.fd_count;
+
+  /* Read the scproc_resp message body.
+   *
+   * This message may have file descriptors attached as ancillary data. */
+  FBBCOMM_Serialized *sv_msg_generic = alloca(header.msg_size);
+
+  void *anc_buf = NULL;
+  size_t anc_buf_size = 0;
+  if (fd_count > 0) {
+    anc_buf_size = CMSG_SPACE(fd_count * sizeof(int));
+    anc_buf = alloca(anc_buf_size);
+    memset(anc_buf, 0, anc_buf_size);
+  }
+
+  struct iovec iov = { 0 };
+  iov.iov_base = sv_msg_generic;
+  iov.iov_len = header.msg_size;
+
+  struct msghdr msgh = { 0 };
+  msgh.msg_iov = &iov;
+  msgh.msg_iovlen = 1;
+  msgh.msg_control = anc_buf;
+  msgh.msg_controllen = anc_buf_size;
+
+  /* This is the first message arriving on the socket, and it's reasonably small.
+   * We can safely expect that the header and the payload are fully available (no short read).
+   * However, a signal interrupt might occur. */
+  do {
+    ret = recvmsg(fb_sv_conn, &msgh, 0);
+  } while (ret < 0 && errno == EINTR);
+  assert(ret == header.msg_size);
   assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
+
   FBBCOMM_Serialized_scproc_resp *sv_msg = (FBBCOMM_Serialized_scproc_resp *) sv_msg_generic;
   debug_flags = fbbcomm_serialized_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
 
@@ -884,12 +871,80 @@ static void fb_ic_init() {
     intercepting_enabled = false;
     env_purge(environ);
   }
-  /* reopen fds */
-  for (size_t i = 0; i < fbbcomm_serialized_scproc_resp_get_reopen_fd_fifos_count(sv_msg); i++) {
-    reopen_fd_fifo(fbbcomm_serialized_scproc_resp_get_reopen_fd_fifos_at(sv_msg, i));
-  }
 
-  free(sv_msg);
+  /* Reopen the fds.
+   *
+   * The current temporary fd numbers were received as ancillary data, and are in the corresponding
+   * slot of CMSG_DATA(cmsg).
+   *
+   * The list of desired final file descriptors are in the received FBB message. There might be
+   * multiple desired slots (dups of each other) for each received fd.
+   *
+   * We're always reopening to a slot that should currently be open in the interceptor (and thus
+   * we'll implicitly close that by the dup2). So the set of source fds and the set of targets fds
+   * are disjoint. We don't have to worry about dup2ing to a target fd which we'd later need to use
+   * as a source fd.
+   */
+  assert(fd_count == fbbcomm_serialized_scproc_resp_get_reopen_fds_count(sv_msg));
+  if (fd_count > 0) {
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msgh);
+    assert(cmsg);
+    assert(cmsg->cmsg_level == SOL_SOCKET);
+    assert(cmsg->cmsg_type == SCM_RIGHTS);
+    assert(cmsg->cmsg_len == CMSG_LEN(fd_count * sizeof(int)));
+
+#ifdef FB_EXTRA_DEBUG
+    /* Assert that the set of source fds and the set of target fds are disjoint. */
+    for (size_t i = 0; i < fbbcomm_serialized_scproc_resp_get_reopen_fds_count(sv_msg); i++) {
+      FBBCOMM_Serialized_scproc_resp_reopen_fd *fds = (FBBCOMM_Serialized_scproc_resp_reopen_fd *)
+          fbbcomm_serialized_scproc_resp_get_reopen_fds_at(sv_msg, i);
+      assert(fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_count(fds) >= 1);
+      for (size_t j = 0; j < fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_count(fds); j++) {
+        int dst_fd = fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, j);
+        for (size_t k = 0; k < fd_count; k++) {
+          int src_fd;
+          memcpy(&src_fd, CMSG_DATA(cmsg) + k * sizeof(int), sizeof(int));
+          assert(src_fd != dst_fd);
+        }
+      }
+    }
+#endif
+
+    /* For each source fd, dup2 it to all the desired target fds and then close the source fd. */
+    for (size_t i = 0; i < fbbcomm_serialized_scproc_resp_get_reopen_fds_count(sv_msg); i++) {
+      FBBCOMM_Serialized_scproc_resp_reopen_fd *fds = (FBBCOMM_Serialized_scproc_resp_reopen_fd *)
+          fbbcomm_serialized_scproc_resp_get_reopen_fds_at(sv_msg, i);
+      int src_fd;
+      memcpy(&src_fd, CMSG_DATA(cmsg) + i * sizeof(int), sizeof(int));
+
+      /* Preserve the fcntl(..., F_SETFL, ...) mode.
+       * The supervisor doesn't track this value, so take the old local fd as reference. If there
+       * are more than one local fds, they are supposedly dups of each other (at least this is what
+       * the supervisor's bookkeeping said) and thus share these flags, so arbitrarily use the first
+       * one as reference.
+       * Similarly, since the targets will be dups of each other, it's enough to set the flags once.
+       * In fact, set them on the source fd just because it's simpler this way. */
+      int flags =
+          ic_orig_fcntl(fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, 0), F_GETFL);
+      assert(flags != -1);
+#ifndef NDEBUG
+      int fcntl_ret =
+#endif
+          ic_orig_fcntl(src_fd, F_SETFL, flags);
+      assert(fcntl_ret != -1);
+
+      /* Dup2 the source fd to the desired places and then close the original. */
+      for (size_t j = 0; j < fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_count(fds); j++) {
+        int dst_fd = fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, j);
+#ifndef NDEBUG
+        int dup2_ret =
+#endif
+            ic_orig_dup2(src_fd, dst_fd);
+        assert(dup2_ret == dst_fd);
+      }
+      ic_orig_close(src_fd);
+    }
+  }
 
   /* pthread_sigmask() is only available if we're linked against libpthread.
    * Otherwise use the single-threaded sigprocmask(). */

@@ -19,9 +19,12 @@ extern "C" {
 /* This structure's size needs to be a multiple of 8 bytes, so that reads from the serialized FBB
  * message, which follows this structure in memory, are properly aligned. */
 typedef struct msg_header_ {
+  /* message payload size (without the header or the attached fds), in bytes */
   uint32_t msg_size;
+  /* ack_id, or 0 if unused */
   uint16_t ack_id;
-  uint16_t padding;
+  /* the number of fds attached as ancillary data (SCM_RIGHTS) */
+  uint16_t fd_count;
 } msg_header;
 
 /**
