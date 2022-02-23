@@ -221,7 +221,7 @@ char *env_ld_library_path = NULL;
 bool insert_trace_markers = false;
 
 /** Next ACK id*/
-static uint32_t ack_id = 1;
+static uint16_t ack_id = 1;
 
 voidp_set popened_streams;
 
@@ -256,9 +256,14 @@ void insert_end_marker(const char* m) {
   }
 }
 
-/** Get next unique ACK id */
-static uint32_t get_next_ack_id() {
-  return ack_id++;
+/** Get next ACK id */
+static uint16_t get_next_ack_id() {
+  ack_id++;
+  /* Start over after 65535, but skip the value of 0 because that means no ACK is expected. */
+  if (ack_id == 0) {
+    ack_id = 1;
+  }
+  return ack_id;
 }
 
 /**
@@ -279,7 +284,7 @@ static uint32_t get_next_ack_id() {
  * @param fd the communication file descriptor
  * @return the received payload length (0 for empty messages), or -1 on error
  */
-static ssize_t fb_recv_msg(uint32_t *ack_id_p, char **bufp, int fd) {
+static ssize_t fb_recv_msg(uint16_t *ack_id_p, char **bufp, int fd) {
   /* read serialized length and ack_id */
   msg_header header;
   ssize_t ret = fb_read(fd, &header, sizeof(header));
@@ -309,9 +314,10 @@ static ssize_t fb_recv_msg(uint32_t *ack_id_p, char **bufp, int fd) {
 
 /** Send the serialized version of the given message over the wire,
  *  prefixed with the ack num and the message length */
-void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint32_t ack_num) {
+void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint16_t ack_num) {
   int len = fbbcomm_builder_measure(ic_msg);
   char *buf = alloca(sizeof(msg_header) + len);
+  memset(buf, 0, sizeof(msg_header));
   fbbcomm_builder_serialize(ic_msg, buf + sizeof(msg_header));
 #pragma GCC diagnostic push
 #ifdef __clang__
@@ -338,10 +344,10 @@ void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
 void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
-  uint32_t ack_num = get_next_ack_id();
+  uint16_t ack_num = get_next_ack_id();
   fb_send_msg(fd, ic_msg, ack_num);
 
-  uint32_t ack_num_resp = 0;
+  uint16_t ack_num_resp = 0;
   fb_recv_msg(&ack_num_resp, NULL, fd);
   assert(ack_num_resp == ack_num);
 

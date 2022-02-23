@@ -17,8 +17,8 @@ The transfer protocol is:
 
     ┌─────────────────────┐      ┐
     │ msg_size (uint32_t) │      │
-    ├─────────────────────┤      ├ msg_header
-    │ ack_id   (uint32_t) │      │
+    │ ack_id   (uint16_t) │      ├ msg_header
+    │ padding  (uint16_t) │      │
     ├─────────────────────┤    ┐ ┘
     ┆ FBBCOMM             ┆    ├ payload ("msg_size" bytes)
     └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘    ┘
@@ -27,7 +27,7 @@ A nonzero "ack_id" indicates that the interceptor wishes to receive a
 response from the supervisor with the same ack_id. A value of 0 means
 that no response is expected, or ack_id is otherwise irrelevant.
 
-"msg_size" is the payload length, i.e. excluding "ack_id" and "msg_size".
+"msg_size" is the payload length, i.e. excluding the header.
 
 An empty message ends here ("msg_size" is 0).
 
