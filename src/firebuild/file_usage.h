@@ -135,7 +135,7 @@ class FileUsage {
   // bool stated_ : 1;
 
   /** If the file's metadata (e.g. mode) was potentially altered, that is,
-e   *  the final state is to be remembered.
+   *  the final state is to be remembered.
    *  FIXME Do we need this? We should just always stat() at the end. */
   // bool stat_changed_ : 1;
 
@@ -200,7 +200,7 @@ e   *  the final state is to be remembered.
     }
   }
 
-  /** An unhandled error occured during operation on the file. The process
+  /** An unhandled error occurred during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
   int unknown_err_;
   static const FileUsage* Get(const FileUsage& candidate);
