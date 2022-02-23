@@ -58,17 +58,17 @@ class Epoll {
   /** Whether we've added an fd to epollfd (according to our own bookkeeping */
   bool is_added_fd(int fd);
 
-  /** Thin wrapper around epoll_ctl(). Makes sure that the fd isn't added yet to eventfd
+  /** Thin wrapper around epoll_ctl(). Makes sure that the fd isn't added yet to epollfd
    *  (according to our own bookkeeping) and adds it with the given parameters. */
   void add_fd(int fd, uint32_t events,
               void (*callback)(const struct epoll_event* event, void *callback_user_data),
               void *callback_user_data);
 
-  /** Thin wrapper around epoll_ctl(). Makes sure that the fd is already added to eventfd
+  /** Thin wrapper around epoll_ctl(). Makes sure that the fd is already added to epollfd
    *  (according to our own bookkeeping) and removes it. */
   void del_fd(int fd);
 
-  /** Thin wrapper around epoll_ctl(). Checks if fd is already added to eventfd
+  /** Thin wrapper around epoll_ctl(). Checks if fd is already added to epollfd
    *  (according to our own bookkeeping) and if so then removes it. */
   void maybe_del_fd(int fd);
 
