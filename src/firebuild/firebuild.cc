@@ -1398,7 +1398,7 @@ static void save_child_status(pid_t pid, int status, int * ret, bool orphan) {
              + " process exited with status " + std::to_string(*ret) + ". ("
              + d(proc_tree->pid2proc(pid)) + ")");
   } else if (WIFSIGNALED(status)) {
-    fprintf(stderr, "%s process has been killed by signal %d",
+    fprintf(stderr, "%s process has been killed by signal %d\n",
             orphan ? "Orphan" : "Child",
             WTERMSIG(status));
   }
