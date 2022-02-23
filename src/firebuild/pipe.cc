@@ -120,7 +120,7 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
     fd1_timeout_id_ = -1;
   }
 
-  auto fd1_end = new pipe_end({fd1_conn, {file_fd}, recorders, false});
+  auto fd1_end = new pipe_end({fd1_conn, {file_fd}, recorders});
   conn2fd1_ends[fd1_conn] = fd1_end;
   ffd2fd1_ends[file_fd] = fd1_end;
   if (!send_only_mode_) {
@@ -259,7 +259,7 @@ void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(event->data.fd));
 
-  auto result = pipe->forward(event->data.fd, false, true);
+  auto result = pipe->forward(event->data.fd, false);
   switch (result) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -373,9 +373,9 @@ pipe_op_result Pipe::send_buf() {
   return FB_PIPE_SUCCESS;
 }
 
-pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1=%s, drain=%s, in_callback=%s",
-         D_FD(fd1), D(drain), D(in_callback));
+pipe_op_result Pipe::forward(int fd1, bool drain) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1=%s, drain=%s",
+         D_FD(fd1), D(drain));
 
   pipe_op_result send_ret;
   if (finished()) {
@@ -422,9 +422,6 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
                      + d_fd(fd0_conn) + " using splice");
           }
         }
-
-        /* Already successfully read data from the fd, it must have been fully opened. */
-        fd1_end->known_to_be_opened = true;
       } while (received > 0);
     }
     /* Read one round to the buffer and try to send it. */
@@ -441,43 +438,11 @@ pipe_op_result Pipe::forward(int fd1, bool drain, bool in_callback) {
         return FB_PIPE_FD1_EOF;
       }
     } else if (received == 0) {
-        pipe_op_result ret = FB_PIPE_FD1_EOF;
-        if (!in_callback && !fd1_end->known_to_be_opened) {
-          /* Fd1 never received any data and it received 0 bytes now that can be either mean an EOF
-           * or the interceptor may not have opened the other end for writing at all.
-           *
-           * (Callbacks are called when there was activity on the fd, thus the other side must have
-           * opened it, thus there is no need for the extra check for the EOF, 0 in a callback
-           * means EOF).
-           *
-           * Check if there were any activity on the fd using poll(). */
-          struct pollfd pfd = {fd1, POLLIN, 0};
-          if (poll(&pfd, 1, 0) == 0) {
-            /* In case of EOF the pipe has been hung up, therefore poll() would have returned 1 with
-               POLLHUP set. Thus the interceptor hasn't opened the other end yet. */
-            FB_DEBUG(FB_DEBUG_PIPE, "interceptor has not opened the other end of fd: "
-                     + d_fd(fd1) + " yet");
-            ret = FB_PIPE_WOULDBLOCK;
-            /* There could still be data in the buffer from an other fd1, continue with trying to
-             * send it. */
-          } else {
-            /* There was _some_ activity on the fd, which implies either EOF or new data, because
-             * the other end just got connected.
-             * By default the situation is already handled as EOF, thus this event does not have
-             * to be checked. */
-            if (pfd.revents & POLLIN) {
-              /* There is data to read. It could occur if the interceptor's end just connected.
-                 Try again.*/
-              send_ret = FB_PIPE_SUCCESS;
-              fd1_end->known_to_be_opened = true;
-              continue;
-            }
-          }
-        }
+      FB_DEBUG(FB_DEBUG_PIPE, "received EOF from fd: " + d_fd(fd1));
       /* Try emptying the buffer if there is any data to send. */
       send_buf();
       /* pipe end is closed */
-      return ret;
+      return FB_PIPE_FD1_EOF;
     } else {
       FB_DEBUG(FB_DEBUG_PIPE, "received " + d(received) + " bytes from fd: " + d_fd(fd1));
       /* Locate the new data in the buffer. */
@@ -509,7 +474,7 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
     return;
   }
   int fd = fd1_end->fd;
-  switch (forward(fd, true, false)) {
+  switch (forward(fd, true)) {
     case FB_PIPE_FD1_EOF: {
       /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
          function. */
@@ -545,7 +510,7 @@ void Pipe::drain() {
     }
     assert(fd1_end);
     int fd = fd1_end->fd;
-    switch (forward(fd, true, false)) {
+    switch (forward(fd, true)) {
       case FB_PIPE_FD1_EOF: {
         /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
            function. */

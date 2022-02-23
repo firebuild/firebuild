@@ -37,7 +37,6 @@ typedef struct _pipe_end {
   tsl::hopscotch_set<FileFD*> file_fds;
   /** Cache files to save the captured data to */
   std::vector<std::shared_ptr<PipeRecorder>> recorders;
-  bool known_to_be_opened;
 } pipe_end;
 
 /**
@@ -96,9 +95,8 @@ typedef enum {
  *   mode until the internal buffer is emptied. Then the fd0 callback is disabled and all fd1
  *   callbacks are enabled again. send_only_mode_ is set to false.
  *
- * - Pipe::forward(int fd1, bool drain, bool in_callback) can be used to reading from an fd1 end
- *   with or without draining it. It tries to read once, or all the readable data in case of
- *   draining it.
+ * - Pipe::forward(int fd1, bool drain) can be used to reading from an fd1 end with or without
+ *   draining it. It tries to read once, or all the readable data in case of draining it.
  *   Pipe::forward() reads from fd1 irrespective to the send_only_mode_ state, possibly adding more
  *   data to the already used buffer. Drain mode is used when trying to receive all sent
  *   data from a process that exec()-ed or terminated.
@@ -122,16 +120,6 @@ typedef enum {
  *   closing all fd1 ends. This is detected when receiving EPIPE on fd0.
  * The forward() and send_buf() functions don't change the Pipe ends, it is the responsibility of
  * the caller of forward() and send_buf() based on the Pipe operation result.
- *
- * Pipe end connection lifecycle:
- *  1. The remote side hasn't opened it yet. read() returns 0, poll() gives no POLLHUP.
- *  2. It's open by the remote side. read() returns != 0, poll() gives no POLLHUP.
- *  3. It's closed by the remote side, but there's still data buffered.
- *     read() returns != 0, poll() gives POLLHUP.
- *  4. It's closed by the remote side, the buffer is emptied (i.e. EOF). read() returns 0,
- *     poll() gives POLLHUP.
- *  If we've encountered state 2 or 3 or 4 then we flip pipe_end.known_to_be_opened for a faster
- *  code path. Otherwise poll()'s POLLHUP allows to distinguish case 1 from case 4.
  */
 class Pipe {
  public:
@@ -197,10 +185,9 @@ class Pipe {
    * Read from fd1 and try to forward it to fd0
    * @param fd1 connection to read from
    * @param drain false: read() available data only once true: read till EOF
-   * @param in_callback: called from an event callback
    * @return result of the read or write operation, whichever could be executed last
    */
-  pipe_op_result forward(int fd1, bool drain, bool in_callback);
+  pipe_op_result forward(int fd1, bool drain);
   /**
    * Drain one fd1 end corresponding to file_fd and remove file_fd references from ffd2fd1_ends and
    * fd1 end's file_fds if they were present.
