@@ -267,49 +267,26 @@ static uint16_t get_next_ack_id() {
 }
 
 /**
- * Receive a message consisting of an ack_id, followed by either an FBB or the empty message.
- * See common/msg/README_MSG_FRAME.txt for details.
- *
- * If bufp == NULL, the received message has to be an empty one, and this method is
- * async-signal-safe.
- *
- * If bufp != NULL, the received message is stored in a newly allocated buffer which the caller
- * will have to free().
+ * Receive a message consisting solely of an ack_id.
  *
  * It's the caller's responsibility to lock.
  *
- * @param msg the decoded message, or unchanged if the empty message is received
- * @param ack_id_p if non-NULL, store the received ack_id here
- * @param bufp if non-NULL, store the received message here
  * @param fd the communication file descriptor
- * @return the received payload length (0 for empty messages), or -1 on error
+ * @return the received ack_id
  */
-static ssize_t fb_recv_msg(uint16_t *ack_id_p, char **bufp, int fd) {
-  /* read serialized length and ack_id */
+static uint16_t fb_recv_ack(int fd) {
+  /* read the header */
   msg_header header;
-  ssize_t ret = fb_read(fd, &header, sizeof(header));
-  if (ret == -1 || ret == 0) {
-    return ret;
-  }
-  if (ack_id_p) {
-    *ack_id_p = header.ack_id;
-  }
+#ifndef NDEBUG
+  ssize_t ret =
+#endif
+      fb_read(fd, &header, sizeof(header));
+  assert(ret == sizeof(header));
 
-  if (header.msg_size == 0) {
-    /* empty message, only an ack_id */
-    return 0;
-  }
+  assert(header.msg_size == 0);
+  assert(header.fd_count == 0);
 
-  /* bufp can be NULL only if we expect an empty message (ack_id only) */
-  assert(bufp != NULL);
-
-  /* read serialized msg */
-  *bufp = (char *) malloc(header.msg_size);
-  if ((ret = fb_read(fd, *bufp, header.msg_size)) == -1) {
-    return ret;
-  }
-  assert(ret > 0);
-  return ret;
+  return header.ack_id;
 }
 
 /** Send the serialized version of the given message over the wire,
@@ -348,8 +325,10 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
   uint16_t ack_num = get_next_ack_id();
   fb_send_msg(fd, ic_msg, ack_num);
 
-  uint16_t ack_num_resp = 0;
-  fb_recv_msg(&ack_num_resp, NULL, fd);
+#ifndef NDEBUG
+  uint16_t ack_num_resp =
+#endif
+      fb_recv_ack(fd);
   assert(ack_num_resp == ack_num);
 
   thread_signal_danger_zone_leave();
