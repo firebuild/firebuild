@@ -21,17 +21,17 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
-/** wrapper for writev() retrying on recoverable errors */
+/** wrapper for writev() retrying on recoverable errors (EINTR and short write) */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(write, fd, buf, count);
 }
 
-/** wrapper for writev() retrying on recoverable errors */
+/** wrapper for writev() retrying on recoverable errors (EINTR and short write) */
 ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
   FB_READV_WRITEV(writev, fd, iov, iovcnt);
 }
 
-/** Wrapper retrying on recoverable errors */
+/** Wrapper retrying on recoverable errors (short copy) */
 ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
                            unsigned int flags) {
   ssize_t ret;

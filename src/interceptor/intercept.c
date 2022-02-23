@@ -659,8 +659,7 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
  * @return fd of the connection
  */
 int fb_connect_supervisor() {
-  int conn_ret = -1, conn = ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
-
+  int conn = TEMP_FAILURE_RETRY(ic_orig_socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
   assert(conn != -1);
 
   struct sockaddr_un remote;
@@ -671,7 +670,8 @@ int fb_connect_supervisor() {
 #endif
   strncpy(remote.sun_path, fb_conn_string, sizeof(remote.sun_path));
 
-  conn_ret = ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote));
+  int conn_ret = TEMP_FAILURE_RETRY(
+      ic_orig_connect(conn, (struct sockaddr *)&remote, sizeof(remote)));
   if (conn_ret == -1) {
     ic_orig_perror("connect");
     assert(0 && "connection to supervisor failed");
@@ -731,7 +731,9 @@ void fb_init_supervisor_conn() {
     fb_conn_string = strdup(getenv("FB_SOCKET"));
     fb_conn_string_len = strlen(fb_conn_string);
   }
-  /* reconnect to supervisor */
+  /* Reconnect to supervisor.
+   * POSIX says to retry close() on EINTR (e.g. wrap in TEMP_FAILURE_RETRY())
+   * but Linux probably disagrees, see #723. */
   ic_orig_close(fb_sv_conn);
   fb_sv_conn = fb_connect_supervisor();
 }
@@ -922,12 +924,12 @@ static void fb_ic_cleanup() {
 }
 
 
-/** wrapper for read() retrying on recoverable errors */
+/** wrapper for read() retrying on recoverable errors (EINTR and short read) */
 ssize_t fb_read(int fd, void *buf, size_t count) {
   FB_READ_WRITE(*ic_orig_read, fd, buf, count);
 }
 
-/** wrapper for write() retrying on recoverable errors */
+/** wrapper for write() retrying on recoverable errors (EINTR and short write) */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(*ic_orig_write, fd, buf, count);
 }
