@@ -5,7 +5,9 @@
 #include "firebuild/process.h"
 
 #include <fcntl.h>
+#include <signal.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <utility>
@@ -1000,6 +1002,34 @@ bool Process::any_child_not_finalized_or_terminated_with_orphan() const {
 }
 
 /**
+ * Terminate orphan descendant processes which have only terminated ancestors.
+ *
+ * Those are likely the ones which are not terminated by their parents
+ * thus would be left behind by the build.
+ *
+ * Note: This function should be called on the top (execed) process of the build to
+ * clean up all orphans.
+ */
+void Process::terminate_top_orphans() const {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
+  if (fork_point()->orphan() && state() == FB_PROC_RUNNING) {
+    /* If the supervisor is a subreaper and there is no subreaper among the supervised processes,
+     * then it is safe to assume that all orphans are still running or are zombies waiting for being
+     * reaped, thus they can be kill()-ed by pid. */
+    kill(pid(), SIGTERM);
+    return;
+  }
+  if (state() == FB_PROC_TERMINATED) {
+    for (const ForkedProcess* child : fork_children()) {
+      child->terminate_top_orphans();
+    }
+    if (exec_child()) {
+      exec_child()->terminate_top_orphans();
+    }
+  }
+}
+
+/**
  * Finalize the current process.
  */
 void Process::do_finalize() {
@@ -1022,8 +1052,20 @@ void Process::maybe_finalize() {
     return;
   }
   if (any_child_not_finalized()) {
-    /* A child is yet to be finalized. We're not ready to finalize. */
-    return;
+    if (!fork_point()->parent()
+        && fork_point()->has_orphan_descendant()
+        && finalized_or_terminated_and_has_orphan_and_finalized_children()) {
+      /* Kill all orphan processes when the root exec process can't be finalized because of them.
+       * They may or may not quit on their own, but it is impossible to tell. */
+      fork_point()->terminate_top_orphans();
+      /* This top exec process can now be finalized, because no ancestor of the just terminated
+       * orphans would be cached. The supervisor will exit after the descendants of the orphans
+       * terminate, too. Otherwise if we return from this function here the supervisor would quickly
+       * kill all the descendants of the just killed orphans because those became orphans, too. */
+    } else {
+      /* We're not ready to finalize. */
+      return;
+    }
   }
 
   /* Only finalize the process after it is clear that if the parent has waited for it. */

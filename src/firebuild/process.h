@@ -114,6 +114,7 @@ class Process {
    * finalized.
    */
   bool any_child_not_finalized_or_terminated_with_orphan() const;
+  void terminate_top_orphans() const;
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
   int fb_pid() {return fb_pid_;}
