@@ -15,7 +15,7 @@ jobs:
   build-on-ubuntu-lts:
     needs: style-checks
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - uses: hendrikmuhs/ccache-action@v1
@@ -60,7 +60,7 @@ jobs:
     needs: style-checks
     runs-on: ubuntu-latest
     container: ubuntu:impish
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     # TODO(rbalint) use ccache action when it starts working in docker
@@ -94,7 +94,7 @@ jobs:
     # wait for clang-build because scan-build fails if the former fails
     needs: [style-checks, clang-build]
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - name: install-deps
@@ -109,7 +109,7 @@ jobs:
   clang-build:
     needs: style-checks
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - uses: hendrikmuhs/ccache-action@v1
@@ -128,7 +128,7 @@ jobs:
   rebuild-self:
     needs: style-checks
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - uses: hendrikmuhs/ccache-action@v1
@@ -161,7 +161,7 @@ jobs:
   build-other-projects:
     needs: style-checks
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - uses: hendrikmuhs/ccache-action@v1
@@ -194,7 +194,7 @@ jobs:
   build-deb:
     needs: style-checks
     runs-on: ubuntu-20.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - uses: hendrikmuhs/ccache-action@v1
