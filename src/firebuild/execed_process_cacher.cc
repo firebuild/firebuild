@@ -335,10 +335,15 @@ static bool dir_created_or_could_exist(
   while (parent_dir != nullptr) {
     const auto it = file_usages.find(parent_dir);
     const FileUsage* fu = it->second;
-    if (fu->initial_state() == NOTEXIST) {
+    const FileInitialState initial_state = fu->initial_state();
+    if (initial_state == NOTEXIST || initial_state == NOTEXIST_OR_ISREG
+        || initial_state == NOTEXIST_OR_ISREG_EMPTY) {
       if (!fu->written()) {
         /* The process expects the directory to be missing but it does not create it.
          * This can't work. */
+#ifdef FB_EXTRA_DEBUG
+        assert(0 && "This should have been caught by FileUsage::merge()");
+#endif
         return false;
       } else {
         if (out_path_isdir_filename_ptrs.find(parent_dir) != out_path_isdir_filename_ptrs.end()) {
