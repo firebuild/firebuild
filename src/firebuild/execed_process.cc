@@ -235,6 +235,10 @@ void ExecedProcess::propagate_file_usage(const FileName *name,
   if (it != file_usages_.end()) {
     fu = it->second;
     const FileUsage* merged_fu = fu->merge(fu_change);
+    if (!merged_fu) {
+      disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
+      return;
+    }
     if (merged_fu != fu) {
       it.value() = fu = merged_fu;
       propagate = true;
@@ -326,6 +330,10 @@ bool ExecedProcess::register_file_usage(const FileName *name,
       return true;
     }
     const FileUsage* merged_fu = fu->merge(fu_change);
+    if (!merged_fu) {
+      disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
+      return false;
+    }
     if (merged_fu != fu) {
       it.value() = merged_fu;
       if (parent_exec_point()) {
@@ -385,6 +393,10 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   }
   if (fu) {
     const FileUsage* merged_fu = fu->merge(fu_change);
+    if (!merged_fu) {
+      disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
+      return false;
+    }
     if (merged_fu == fu) {
       return true;
     } else {

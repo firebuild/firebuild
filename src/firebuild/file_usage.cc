@@ -69,8 +69,12 @@ const FileUsage* FileUsage::Get(const FileUsage& candidate) {
  * Merge the other FileUsage object into this one.
  *
  * "this" describes the older event(s) which happened to a file, and
- * "that" describes the new one.
- * @return pointer to the merge result, it may be different from either "this" and "that"
+ * "that" describes the new one. Sometimes the file usages to merge are conflicting, like
+ * a directory was expected to not exist, then it is expected to exist without creating it in
+ * the meantime. In those cases the return is nullptr and it should disable shortcutting of the
+ * process and its ancestors.
+ * @return pointer to the merge result, it may be different from either "this" and "that" and
+ *        can be nullptr
  */
 const FileUsage* FileUsage::merge(const FileUsage* that) const {
   TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "other=%s", D(that));
@@ -82,19 +86,34 @@ const FileUsage* FileUsage::merge(const FileUsage* that) const {
   FileUsage tmp = *this;
 
   bool changed = false;
-  if (initial_state_ == DONTKNOW) {
-    if (initial_state_ != that->initial_state_) {
-      tmp.initial_state_ = that->initial_state_;
-      changed = true;
-    }
-    if (that->initial_state_ == ISREG_WITH_HASH ||
-        that->initial_state_ == ISDIR_WITH_HASH) {
-      if (initial_hash_ != that->initial_hash_) {
-        tmp.initial_hash_ = that->initial_hash_;
+  switch (initial_state_) {
+    case DONTKNOW: {
+      if (initial_state_ != that->initial_state_) {
+        tmp.initial_state_ = that->initial_state_;
         changed = true;
       }
+      if (that->initial_state_ == ISREG_WITH_HASH ||
+          that->initial_state_ == ISDIR_WITH_HASH) {
+        if (initial_hash_ != that->initial_hash_) {
+          tmp.initial_hash_ = that->initial_hash_;
+          changed = true;
+        }
+      }
+      break;
     }
+    case NOTEXIST:
+    case NOTEXIST_OR_ISREG:
+    case NOTEXIST_OR_ISREG_EMPTY: {
+      if (!written_ && !that->written_
+          && (that->initial_state_ == ISDIR || that->initial_state_ == ISDIR_WITH_HASH)) {
+        return nullptr;
+      }
+      break;
+    }
+    default:
+      break;
   }
+
   if (!written_ && that->written_) {
     changed = true;
   }
