@@ -546,13 +546,8 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
         return;
       }
     } else if (ppid == getpid()) {
-      /* This is the first intercepted process.
-       * Add a ForkedProcess for the supervisor's forked child we never directly saw. */
-      firebuild::ForkedProcess* root =
-          new firebuild::ForkedProcess(pid, ppid, nullptr, proc_tree->inherited_fds());
-      root->set_state(firebuild::FB_PROC_TERMINATED);
-      proc_tree->insert_root(root);
-      parent = root;
+      /* This is the first intercepted process. */
+      parent = proc_tree->root();
       fds = parent->pass_on_fds();
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
@@ -1670,9 +1665,6 @@ int main(const int argc, char *argv[]) {
   listener = create_listener();
   epoll->add_fd(listener, EPOLLIN, accept_ic_conn, NULL);
 
-  /* This creates some Pipe objects, so needs ev_base being set up. */
-  proc_tree = new firebuild::ProcessTree();
-
   /* Collect orphan children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
 
@@ -1704,6 +1696,12 @@ int main(const int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   } else {
     /* supervisor process */
+
+    /* This creates some Pipe objects, so needs ev_base being set up. */
+    proc_tree = new firebuild::ProcessTree();
+
+    /* Add a ForkedProcess for the supervisor's forked child we never directly saw. */
+    proc_tree->insert_root(child_pid, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
 
     bump_limits();
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */

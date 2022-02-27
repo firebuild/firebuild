@@ -97,12 +97,13 @@ struct pending_popen_t {
 
 class ProcessTree {
  public:
-  ProcessTree();
+  ProcessTree()
+      : inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(), pid2fork_child_sock_(),
+        pid2exec_child_sock_(), pid2posix_spawn_child_sock_(), cmd_profs_() {}
   ~ProcessTree();
 
-  std::vector<std::shared_ptr<FileFD>>* inherited_fds() {return inherited_fds_;}
   void insert(Process *p);
-  void insert_root(ForkedProcess *p);
+  void insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int stderr_fd);
   void export2js(FILE* stream);
   void export_profile2dot(FILE* stream);
   ForkedProcess* root() {return root_;}
@@ -219,11 +220,6 @@ class ProcessTree {
 
  private:
   ForkedProcess *root_ = NULL;
-  /** This is somewhat analogous to Process::fds_, although cannot change over time.
-   *  Represents the fds the root process inherits from the external context.
-   *  (The newly execed top process inherits this set here from the ProcessTree,
-   *  while a newly execed non-top process inherits its parent's fds_.) */
-  std::vector<std::shared_ptr<FileFD>>* inherited_fds_;
   /** The pipes (or terminal lines) inherited from the external world,
    *  each represented by a Pipe object created by this ProcessTree. */
   tsl::hopscotch_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;

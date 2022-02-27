@@ -14,55 +14,6 @@
 
 namespace firebuild {
 
-ProcessTree::ProcessTree()
-    : inherited_fds_(new std::vector<std::shared_ptr<FileFD>>()),
-      inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(),
-      pid2fork_child_sock_(), pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
-      cmd_profs_() {
-  TRACK(FB_DEBUG_PROCTREE, "");
-
-  // TODO(rbalint) support other inherited fds
-  /* Create the FileFD representing stdin of the top process. */
-  Process::add_filefd(inherited_fds_, STDIN_FILENO,
-                      std::make_shared<FileFD>(STDIN_FILENO, O_RDONLY));
-
-  /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
-  // FIXME Make this more generic, for all the received pipes / terminal outputs.
-  bool stdout_stderr_match = platform::fdcmp(STDOUT_FILENO, STDERR_FILENO) == 0;
-  FB_DEBUG(FB_DEBUG_PROCTREE, stdout_stderr_match ? "Top level stdout and stderr are the same" :
-           "Top level stdout and stderr are distinct");
-
-  std::shared_ptr<Pipe> pipe;
-  for (auto fd : {STDOUT_FILENO, STDERR_FILENO}) {
-    if (fd == STDERR_FILENO && stdout_stderr_match) {
-      /* stdout and stderr point to the same location (changing one's flags did change the
-       * other's). Reuse the Pipe object that we created in the loop's first iteration. */
-      pipe = (*inherited_fds_)[STDOUT_FILENO]->pipe();
-    } else {
-      /* Create a new Pipe for this file descriptor.
-       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with epoll.
-       * The fd is dup()-ed first to let it be closed without closing the original fd. */
-      int fd_dup = fcntl(fd, F_DUPFD_CLOEXEC, STDERR_FILENO + 1);
-      assert(fd_dup != -1);
-#ifdef __clang_analyzer__
-      /* Scan-build reports a false leak for the correct code. This is used only in static
-       * analysis. It is broken because all shared pointers to the Pipe must be copies of
-       * the shared self pointer stored in it. */
-      pipe = std::make_shared<Pipe>(fd_dup, nullptr);
-#else
-      pipe = (new Pipe(fd_dup, nullptr))->shared_ptr();
-#endif
-      FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", dup()-ed as: " + d(fd_dup));
-      /* Top level inherited fds are special, they should not be closed. */
-      inherited_fd_pipes_.insert(pipe);
-    }
-
-    std::shared_ptr<FileFD> file_fd =
-        Process::add_filefd(inherited_fds_, fd, std::make_shared<FileFD>(fd, O_WRONLY));
-    file_fd->set_pipe(pipe);
-  }
-}
-
 ProcessTree::~ProcessTree() {
   TRACK(FB_DEBUG_PROCTREE, "");
 
@@ -110,10 +61,50 @@ void ProcessTree::insert(Process *p) {
   insert_process(p);
 }
 
-void ProcessTree::insert_root(ForkedProcess *p) {
-  TRACK(FB_DEBUG_PROCTREE, "p=%s", D(p));
-  root_ = p;
-  insert_process(p);
+void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int stderr_fd) {
+  TRACK(FB_DEBUG_PROCTREE, "root_pid=%d", root_pid);
+  root_ = new firebuild::ForkedProcess(root_pid, getpid(), nullptr,
+                                       new std::vector<std::shared_ptr<FileFD>>());
+  root_->set_state(firebuild::FB_PROC_TERMINATED);
+  // TODO(rbalint) support other inherited fds
+  /* Create the FileFD representing stdin of the top process. */
+  root_->add_filefd(stdin_fd, std::make_shared<FileFD>(stdin_fd, O_RDONLY));
+
+  /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
+  // FIXME Make this more generic, for all the received pipes / terminal outputs.
+  bool stdout_stderr_match = platform::fdcmp(stdout_fd, stderr_fd) == 0;
+  FB_DEBUG(FB_DEBUG_PROCTREE, stdout_stderr_match ? "Top level stdout and stderr are the same" :
+           "Top level stdout and stderr are distinct");
+
+  std::shared_ptr<Pipe> pipe;
+  for (auto fd : {stdout_fd, stderr_fd}) {
+    if (fd == stderr_fd && stdout_stderr_match) {
+      /* stdout and stderr point to the same location (changing one's flags did change the
+       * other's). Reuse the Pipe object that we created in the loop's first iteration. */
+      pipe = (*root_->fds())[stdout_fd]->pipe();
+    } else {
+      /* Create a new Pipe for this file descriptor.
+       * The fd keeps blocking/non-blocking behaviour, it seems to be ok with epoll.
+       * The fd is dup()-ed first to let it be closed without closing the original fd. */
+      int fd_dup = fcntl(fd, F_DUPFD_CLOEXEC, stderr_fd + 1);
+      assert(fd_dup != -1);
+#ifdef __clang_analyzer__
+      /* Scan-build reports a false leak for the correct code. This is used only in static
+       * analysis. It is broken because all shared pointers to the Pipe must be copies of
+       * the shared self pointer stored in it. */
+      pipe = std::make_shared<Pipe>(fd_dup, nullptr);
+#else
+      pipe = (new Pipe(fd_dup, nullptr))->shared_ptr();
+#endif
+      FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", dup()-ed as: " + d(fd_dup));
+      /* Top level inherited fds are special, they should not be closed. */
+      inherited_fd_pipes_.insert(pipe);
+    }
+
+    std::shared_ptr<FileFD> file_fd = root_->add_filefd(fd, std::make_shared<FileFD>(fd, O_WRONLY));
+    file_fd->set_pipe(pipe);
+  }
+  insert_process(root_);
 }
 
 void ProcessTree::export2js(FILE * stream) {
