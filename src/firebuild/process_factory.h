@@ -16,10 +16,10 @@
 namespace firebuild {
 
 /**
- * Converts ProtoBuf messages from monitored processes to new Process
+ * Converts FBB messages from monitored processes to new Process
  * instances. It is an implementation of the GoF Factory pattern.
  * The class itself is never instantiated, but groups a set of
- * static functions which accept a ProcessTree reference and an incoming ProtoBuf
+ * static functions which accept a ProcessTree reference and an incoming FBB
  * message to the process from.
  */
 class ProcessFactory {

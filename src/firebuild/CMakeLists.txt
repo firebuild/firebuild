@@ -55,7 +55,7 @@ add_executable(firebuild-bin
   forked_process.cc
   process_factory.cc
   process_tree.cc
-  process_proto_adaptor.cc
+  process_fbb_adaptor.cc
   hash.cc
   hash_cache.cc
   file.cc
