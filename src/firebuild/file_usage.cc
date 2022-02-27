@@ -110,7 +110,29 @@ const FileUsage* FileUsage::merge(const FileUsage* that) const {
       }
       break;
     }
-    default:
+    case ISREG: {
+      if (!written_ && !that->written_
+          && that->initial_state_ == ISREG_WITH_HASH) {
+        /* Update initial state and add hash. */
+        tmp.initial_state_ = ISREG_WITH_HASH;
+        tmp.initial_hash_ = that->initial_hash_;
+        changed = true;
+      }
+      break;
+    }
+    case ISDIR: {
+      if (!written_ && !that->written_
+          && that->initial_state_ == ISDIR_WITH_HASH) {
+        /* Update initial state and add hash. */
+        tmp.initial_state_ = ISDIR_WITH_HASH;
+        tmp.initial_hash_ = that->initial_hash_;
+        changed = true;
+      }
+      break;
+    }
+    case ISREG_WITH_HASH:
+    case ISDIR_WITH_HASH:
+      /* nothing to do here */
       break;
   }
 

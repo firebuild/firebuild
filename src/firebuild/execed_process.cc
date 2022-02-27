@@ -317,11 +317,13 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   }
   if (fu) {
     /* The process already used this file. The initial state was already
-     * recorded. We obtain a new FileUsage object which represents the
-     * modifications to apply currently, which is at most the written_
-     * flag, and then we propagate this upwards to be applied.
+     * recorded, but it can be extended. We obtain a new FileUsage object which represents the
+     * modifications to apply currently, and then we propagate this upwards to be applied.
      */
-    const FileUsage *fu_change = FileUsage::Get(actual_file, action, flags, error, false);
+    /* If hash is not stored yet it may need to be. */
+    bool read_again = !fu->written()
+        && (fu->initial_state() != ISDIR_WITH_HASH && fu->initial_state() != ISREG_WITH_HASH);
+    const FileUsage *fu_change = FileUsage::Get(actual_file, action, flags, error, read_again);
     if (!fu_change) {
       /* Error */
       return false;
