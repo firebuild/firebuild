@@ -1,8 +1,8 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
-#define FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
+#ifndef FIREBUILD_PROCESS_FBB_ADAPTOR_H_
+#define FIREBUILD_PROCESS_FBB_ADAPTOR_H_
 
 #include "./fbbcomm.h"
 #include "firebuild/process.h"
@@ -13,10 +13,10 @@ namespace firebuild  {
    * Converts messages from monitored processes to calls to Process instances.
    * It is not a clean implementation of the GoF Adaptor pattern, but something
    * like that. The class itself is never instantiated, but groups a set of
-   * static functions which accept a Process reference and an incoming ProtoBuf
+   * static functions which accept a Process reference and an incoming FBB
    * message for the process.
    */
-class ProcessPBAdaptor {
+class ProcessFBBAdaptor {
  public:
   static int handle(Process *proc, const FBBCOMM_Serialized_open *msg, int fd_conn, int ack_num);
   static int handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn, int ack_num);
@@ -41,8 +41,8 @@ class ProcessPBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_pipe_fds *msg);
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
+  DISALLOW_COPY_AND_ASSIGN(ProcessFBBAdaptor);
 };
 
 }  /* namespace firebuild */
-#endif  // FIREBUILD_PROCESS_PROTO_ADAPTOR_H_
+#endif  // FIREBUILD_PROCESS_FBB_ADAPTOR_H_
