@@ -18,27 +18,27 @@ namespace firebuild  {
    */
 class ProcessPBAdaptor {
  public:
-  static int msg(Process *p, const FBBCOMM_Serialized_open *o, int fd_conn, int ack_num);
-  static int msg(Process *p, const FBBCOMM_Serialized_freopen *fro, int fd_conn, int ack_num);
-  static int msg(Process *p, const FBBCOMM_Serialized_dlopen *dlo, int fd_conn, int ack_num);
-  static int msg(Process *p, const FBBCOMM_Serialized_close *c);
-  static int msg(Process *p, const FBBCOMM_Serialized_unlink *u);
-  static int msg(Process *p, const FBBCOMM_Serialized_rmdir *r);
-  static int msg(Process *p, const FBBCOMM_Serialized_mkdir *m);
-  static int msg(Process *p, const FBBCOMM_Serialized_fstat *f);
-  static int msg(Process *p, const FBBCOMM_Serialized_stat *s);
-  static int msg(Process *p, const FBBCOMM_Serialized_dup *d);
-  static int msg(Process *p, const FBBCOMM_Serialized_dup3 *d);
-  static int msg(Process *p, const FBBCOMM_Serialized_rename *r);
-  static int msg(Process *p, const FBBCOMM_Serialized_symlink *s);
-  static int msg(Process *p, const FBBCOMM_Serialized_fcntl *f);
-  static int msg(Process *p, const FBBCOMM_Serialized_ioctl *i);
-  static int msg(Process *p, const FBBCOMM_Serialized_read_from_inherited *r);
-  static int msg(Process *p, const FBBCOMM_Serialized_write_to_inherited *w);
-  static int msg(Process *p, const FBBCOMM_Serialized_chdir *c);
-  static int msg(Process *p, const FBBCOMM_Serialized_fchdir *f);
-  static int msg(Process *p, const FBBCOMM_Serialized_pipe_request *r, int fd_conn);
-  static int msg(Process *p, const FBBCOMM_Serialized_pipe_fds *d);
+  static int handle(Process *proc, const FBBCOMM_Serialized_open *msg, int fd_conn, int ack_num);
+  static int handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn, int ack_num);
+  static int handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn, int ack_num);
+  static int handle(Process *proc, const FBBCOMM_Serialized_close *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_unlink *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_rmdir *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_mkdir *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_fstat *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_stat *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_dup *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_dup3 *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_rename *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_symlink *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_fcntl *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_ioctl *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_read_from_inherited *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_write_to_inherited *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_chdir *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_fchdir *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_pipe_request *msg, int fd_conn);
+  static int handle(Process *proc, const FBBCOMM_Serialized_pipe_fds *msg);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessPBAdaptor);
