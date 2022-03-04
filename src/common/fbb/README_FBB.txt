@@ -1,4 +1,4 @@
-FireBuildBuffers (FBB) – User documentation
+FirebuildBuffers (FBB) – User documentation
 ===========================================
 
 FBB is a similar concept to many popular data serialization solutions,

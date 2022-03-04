@@ -79,7 +79,7 @@ struct timespec start_time;
 
 static void usage() {
   printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
-         "Execute BUILD COMMAND with FireBuild™ instrumentation\n"
+         "Execute BUILD COMMAND with Firebuild™ instrumentation\n"
          "\n"
          "Mandatory arguments to long options are mandatory for short options too.\n"
          "   -c --config-file=FILE     use FILE as configuration file\n"
@@ -1571,7 +1571,7 @@ int main(const int argc, char *argv[]) {
       break;
 
     case 'v':
-      printf("FireBuild " FIREBUILD_VERSION "\n\n"
+      printf("Firebuild " FIREBUILD_VERSION "\n\n"
              "This is an unpublished work. All rights reserved.\n");
       exit(EXIT_SUCCESS);
       break;
@@ -1809,7 +1809,7 @@ namespace firebuild {
 
 /** Print error message */
 extern void fb_error(const std::string &msg) {
-  fprintf(stderr, "FireBuild error: %s\n", msg.c_str());
+  fprintf(stderr, "Firebuild error: %s\n", msg.c_str());
 }
 
 /** Print debug message if debug level is at least lvl */

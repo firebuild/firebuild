@@ -1,4 +1,4 @@
-FireBuild TODO items
+Firebuild TODO items
 ====================
 - track changes to shared library search path
   Now processes report all the loaded shared libraries at start and exit.

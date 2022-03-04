@@ -29,7 +29,7 @@ bool env_needs_fixup(char **env);
 int get_env_fixup_size(char **env);
 
 /**
- * Fixes up the environment to hold the essential stuff required for FireBuild.
+ * Fixes up the environment to hold the essential stuff required for Firebuild.
  *
  * Wherever possible, only the pointers are copied. Wherever necessary, a copy and
  * fix of the string is created.

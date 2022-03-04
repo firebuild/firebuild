@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.9)
 
-project(FireBuild C CXX)
+project(Firebuild C CXX)
 
 include(CMakeOptions.txt)
 
@@ -23,7 +23,7 @@ set(LIBFIREBUILD_SO "libfirebuild.so")
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
-set(DATADIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/firebuild" CACHE STRING "FireBuild's architecture-independent files' location")
+set(DATADIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/firebuild" CACHE STRING "Firebuild's architecture-independent files' location")
 set(TENTATIVE_C_CXX_FLAGS
   -std=c++17
   -W

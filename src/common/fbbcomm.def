@@ -8,7 +8,7 @@
 
 {
   "tags": [
-    # interceptor library queries FireBuild supervisor if it can shortcut execution of the process
+    # interceptor library queries Firebuild supervisor if it can shortcut execution of the process
     ("scproc_query", [
       # process id
       (OPTIONAL, "pid_t", "pid"),
@@ -38,7 +38,7 @@
       (ARRAY, "int", "fds"),
     ]),
 
-    # FireBuild supervisor's response with details of shortcutting.
+    # Firebuild supervisor's response with details of shortcutting.
     # Unlike most others, this message type is used in the supervisor->interceptor direction of the
     # communication. Nevertheless, it resides in the same namespace.
     # Ancillary data (SCM_RIGHTS) contains the fds to reopen, excatly as many as the number of items
@@ -62,12 +62,12 @@
       (REQUIRED, STRING, "call"),
     ]),
 
-    # FireBuild error
+    # Firebuild error
     ("fb_error", [
       # error message
       (REQUIRED, STRING, "msg"),
     ]),
-    # FireBuild debugging message
+    # Firebuild debugging message
     ("fb_debug", [
       # error message
       (REQUIRED, STRING, "msg"),
@@ -102,9 +102,9 @@
       (OPTIONAL, "int", "dirfd"),
       # file path
       (OPTIONAL, STRING, "file"),
-      # flags, decoding is left for FireBuild supervisor
+      # flags, decoding is left for Firebuild supervisor
       (REQUIRED, "int", "flags"),
-      # mode if (flags & O_CREAT), decoding is left for FireBuild supervisor
+      # mode if (flags & O_CREAT), decoding is left for Firebuild supervisor
       (OPTIONAL, "mode_t", "mode"),
       # return value, the file descriptor if != -1
       (OPTIONAL, "int", "ret"),
@@ -115,7 +115,7 @@
     ("freopen", [
       # file path, can be NULL
       (OPTIONAL, STRING, "file"),
-      # flags, decoding is left for FireBuild supervisor
+      # flags, decoding is left for Firebuild supervisor
       (OPTIONAL, "int", "flags"),
       # file descriptor associated to the stream to be reopened
       (OPTIONAL, "int", "oldfd"),
@@ -412,7 +412,7 @@
     ("dlopen", [
       # file path
       (OPTIONAL, STRING, "filename"),
-      # flag, decoding is left for FireBuild supervisor
+      # flag, decoding is left for Firebuild supervisor
       (OPTIONAL, "int", "flag"),
       # absolute filename where (if) the library was found
       (OPTIONAL, STRING, "absolute_filename"),
