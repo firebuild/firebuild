@@ -71,7 +71,7 @@ typedef enum {
  * Note the difference from UNIX's process concept. In Unix a process can call
  * exec() successfully several time preserving process id and some process
  * attributes, while replacing the process image. Those periods are handled as
- * different (but related) Processes in FireBuild.
+ * different (but related) Processes in Firebuild.
  */
 class Process {
  public:
@@ -427,7 +427,7 @@ class Process {
  private:
   Process *parent_;
   process_state state_ :2;
-  int fb_pid_;       ///< internal FireBuild id for the process
+  int fb_pid_;       ///< internal Firebuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
   /** For debugging: The "age" of a given PID, i.e. how many execve() hops happened to it.

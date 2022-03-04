@@ -178,7 +178,7 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
 
   /* store results for this process */
   Process::exit_result(status, utime_u, stime_u);
-  /* propagate to parents exec()-ed this FireBuild process */
+  /* propagate to parents exec()-ed this Firebuild process */
   propagate_exit_status(status);
 }
 

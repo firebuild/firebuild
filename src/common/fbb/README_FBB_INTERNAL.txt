@@ -1,4 +1,4 @@
-FireBuildBuffers (FBB) – Internals
+FirebuildBuffers (FBB) – Internals
 ==================================
 
 This document assumes that you're already familiar with README_FBB.txt.
