@@ -1068,6 +1068,26 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_stat *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_memfd_create: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_memfd_create *>(fbbcomm_buf));
+      break;
+    }
+    case FBBCOMM_TAG_timerfd_create: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_timerfd_create *>(fbbcomm_buf));
+      break;
+    }
+    case FBBCOMM_TAG_eventfd: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_eventfd *>(fbbcomm_buf));
+      break;
+    }
+    case FBBCOMM_TAG_signalfd: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_signalfd *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_getrandom: {
       auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_getrandom *>(fbbcomm_buf);
       const unsigned int flags = fbbcomm_serialized_getrandom_get_flags_with_fallback(ic_msg, 0);

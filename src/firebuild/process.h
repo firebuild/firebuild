@@ -290,6 +290,29 @@ class Process {
                   const int flags, const int st_mode, const int error = 0);
 
   /**
+   * Handle memfd_create in the monitored process
+   */
+  int handle_memfd_create(const int flags, const int fd);
+
+  /**
+   * Handle timerfd_create in the monitored process
+   */
+  int handle_timerfd_create(const int flags, int fd);
+
+  /**
+   * Handle eventfd in the monitored process
+   */
+  int handle_eventfd(const int flags, const int fd);
+
+  /**
+   * Handle signalfd in the monitored process
+   * @param oldfd fd passed to signalfd() to be reused (if not -1)
+   * @param flags flags passed to signalfd()
+   * @param newfd new fd returned by signalfd()
+   */
+  int handle_signalfd(const int oldfd, const int flags, const int newfd);
+
+  /**
    * Handle rmdir in the monitored process
    * @param name relative or absolute file name
    * @param name_len length of name

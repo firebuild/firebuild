@@ -421,6 +421,35 @@
       (OPTIONAL, STRING, "error_string"),
     ]),
 
+    ("memfd_create", [
+      # name
+      (REQUIRED, STRING, "name"),
+      # flags, decoding is left for Firebuild supervisor
+      (REQUIRED, "int", "flags"),
+      # return value, the file descriptor if != -1
+      (REQUIRED, "int", "ret"),
+    ]),
+
+    ("timerfd_create", [
+      (REQUIRED, "int", "ret"),
+      # flags, decoding is left for Firebuild supervisor
+      (REQUIRED, "int", "flags"),
+    ]),
+
+    ("eventfd", [
+      # flags, decoding is left for Firebuild supervisor
+      (REQUIRED, "int", "flags"),
+      (REQUIRED, "int", "ret"),
+    ]),
+
+    ("signalfd", [
+      # old file fd
+      (REQUIRED, "int", "fd"),
+      # flags, decoding is left for Firebuild supervisor
+      (REQUIRED, "int", "flags"),
+      (REQUIRED, "int", "ret"),
+    ]),
+
     ("execv", [
       # file to execute
       (OPTIONAL, STRING, "file"),
