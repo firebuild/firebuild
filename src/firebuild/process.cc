@@ -343,14 +343,10 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
          "dirfd=%d, ar_name=%s, flags=%d, st_mode=%d, error=%d",
          dirfd, D(ar_name), flags, st_mode, error);
 
-  if (flags & AT_EMPTY_PATH) {
-    // TODO(rbalint) add support for AT_EMPTY_PATH
-    exec_point()->disable_shortcutting_bubble_up(
-        "fstatat() with AT_EMPTY_PATH flag is not supported");
-    return -1;
-  }
+  const FileName* name =
+      ((flags & AT_EMPTY_PATH) && (ar_name[0] == '\0')) ? get_fd_filename(dirfd)
+      : get_absolute(dirfd, ar_name, ar_len);
 
-  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
     // FIXME don't disable shortcutting if stat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up(
@@ -784,6 +780,19 @@ void Process::handle_set_fwd(const int fd) {
   add_wd(wd_);
 }
 
+const FileName* Process::get_fd_filename(int fd) const {
+  if (fd == AT_FDCWD) {
+    return wd();
+  } else {
+    const FileFD* ffd = get_fd(fd);
+    if (ffd) {
+      return ffd->filename();
+    } else {
+      return nullptr;
+    }
+  }
+}
+
 const FileName* Process::get_absolute(const int dirfd, const char * const name, ssize_t length) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, name=%s, length=%ld",
          dirfd, D(name), length);
@@ -793,19 +802,9 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name, 
   } else {
     char on_stack_buf[2048], *buf;
 
-    const FileName* dir;
-    if (dirfd == AT_FDCWD) {
-      dir = wd();
-    } else {
-      const FileFD* ffd = get_fd(dirfd);
-      if (ffd) {
-        dir = ffd->filename();
-        if (!dir) {
-          return nullptr;
-        }
-      } else {
-        return nullptr;
-      }
+    const FileName* dir = get_fd_filename(dirfd);
+    if (!dir) {
+      return nullptr;
     }
 
     const ssize_t name_length = (length == -1) ? strlen(name) : length;

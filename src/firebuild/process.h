@@ -107,7 +107,7 @@ class Process {
   int exec_count() const {return exec_count_;}
   int exit_status() const {return exit_status_;}
   void set_exit_status(const int e) {exit_status_ = e;}
-  const FileName* wd() {return wd_;}
+  const FileName* wd() const {return wd_;}
   void handle_set_wd(const char * const d, const size_t d_len);
   void handle_set_fwd(const int fd);
   void set_exec_pending(bool val) {exec_pending_ = val;}
@@ -141,7 +141,7 @@ class Process {
   virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_u, int64_t stime_u);
   virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
-  FileFD* get_fd(int fd) {
+  FileFD* get_fd(int fd) const {
     assert(fds_);
     if (fd < 0 || static_cast<unsigned int>(fd) >= fds_->size()) {
       return nullptr;
@@ -458,8 +458,8 @@ class Process {
    *  sooner than the parent gets to "posix_spawn_parent". */
   bool posix_spawn_pending_ {false};
   ExecedProcess * exec_child_;
+  const FileName* get_fd_filename(int fd) const;
   bool any_child_not_finalized();
-
   DISALLOW_COPY_AND_ASSIGN(Process);
 };
 
