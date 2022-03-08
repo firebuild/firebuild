@@ -6,7 +6,11 @@
 
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/eventfd.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/signalfd.h>
+#include <sys/timerfd.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -370,6 +374,40 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
     return -1;
   }
 
+  return 0;
+}
+
+int Process::handle_memfd_create(const int flags, const int fd) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  return 0;
+}
+
+int Process::handle_timerfd_create(const int flags, const int fd) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & TFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  return 0;
+}
+
+int Process::handle_eventfd(const int flags, const int fd) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  return 0;
+}
+
+int Process::handle_signalfd(const int oldfd, const int flags, const int newfd) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "oldfd=%d, flags=%d newfd=%d", oldfd, flags, newfd);
+  if (oldfd == -1) {
+    add_filefd(newfd, std::make_shared<FileFD>(newfd, (flags & SFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  } else {
+    /* Reusing old fd, nothing to do.*/
+    // TODO(rbalint) maybe the O_CLOEXEC flag could be updated, but the man page sounds like as
+    // if the flags are not used when reusing the old fd.
+  }
   return 0;
 }
 

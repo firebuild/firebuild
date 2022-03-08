@@ -88,6 +88,27 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_stat *msg)
                            flags, st_mode, error);
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
+  return proc->handle_memfd_create(fbbcomm_serialized_memfd_create_get_flags(msg),
+                                   fbbcomm_serialized_memfd_create_get_ret(msg));
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_timerfd_create *msg) {
+  return proc->handle_timerfd_create(fbbcomm_serialized_timerfd_create_get_flags(msg),
+                                     fbbcomm_serialized_timerfd_create_get_ret(msg));
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_eventfd *msg) {
+  return proc->handle_eventfd(fbbcomm_serialized_eventfd_get_ret(msg),
+                              fbbcomm_serialized_eventfd_get_flags(msg));
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_signalfd *msg) {
+  return proc->handle_signalfd(fbbcomm_serialized_signalfd_get_fd(msg),
+                               fbbcomm_serialized_signalfd_get_flags(msg),
+                               fbbcomm_serialized_signalfd_get_ret(msg));
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dup3 *msg) {
   const int error = fbbcomm_serialized_dup3_get_error_no_with_fallback(msg, 0);
   const int flags = fbbcomm_serialized_dup3_get_flags_with_fallback(msg, 0);

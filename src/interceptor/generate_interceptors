@@ -317,12 +317,25 @@ generate("FILE *", "fdopen", "int fd, const char *mode",
          msg=None,
          after_lines=["assert(!voidp_set_contains(&popened_streams, ret));"])
 
-# FIXME add support for shm_open, memfd_create, timerfd_create, eventfd, signalfd
+# FIXME add support for shm_open
 # FIXME shm_open is in librt, ignore for now
 #generate("int", "shm_open", "const char *name, int oflag, mode_t mode",
 #         tpl="once")
 generate("int", "memfd_create", "const char *name, unsigned int flags",
-         tpl="once")
+         send_ret_on_success=True,
+         send_msg_on_error=False)
+generate("int", "timerfd_create", "int clockid, int flags",
+         msg_skip_fields=["clockid"],
+         send_ret_on_success=True,
+         send_msg_on_error=False)
+generate("int", "eventfd", "unsigned int initval, int flags",
+         msg_skip_fields=["initval"],
+         send_ret_on_success=True,
+         send_msg_on_error=False)
+generate("int", "signalfd", "int fd, const sigset_t *mask, int flags",
+         msg_skip_fields=["mask"],
+         send_ret_on_success=True,
+         send_msg_on_error=False)
 
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.

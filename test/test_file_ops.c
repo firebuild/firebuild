@@ -4,10 +4,15 @@
 #define _GNU_SOURCE
 #include <dirent.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/eventfd.h>
+#include <sys/mman.h>
+#include <sys/signalfd.h>
 #include <sys/stat.h>
+#include <sys/timerfd.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -108,6 +113,36 @@ int main() {
     perror("mkdir" LOC);
     exit(1);
   }
+
+  fd = memfd_create("foo", MFD_CLOEXEC);
+  if (fd == -1) {
+    perror("memfd_create" LOC);
+    exit(1);
+  }
+  close(fd);
+
+  fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+  if (fd == -1) {
+    perror("timerfd_create" LOC);
+    exit(1);
+  }
+  close(fd);
+
+  fd = eventfd(0, EFD_CLOEXEC);
+  if (fd == -1) {
+    perror("eventfd" LOC);
+    exit(1);
+  }
+  close(fd);
+
+  sigset_t mask;
+  sigemptyset(&mask);
+  fd = signalfd(-1, &mask, SFD_CLOEXEC);
+  if (fd == -1) {
+    perror("signalfd" LOC);
+    exit(1);
+  }
+  close(fd);
 
 /* Allow skipping this test since the ASAN & UBSAN build finds out that this code is incorrect. */
 #ifndef SKIP_TEST_NULL_NONNULL_PARAMS
