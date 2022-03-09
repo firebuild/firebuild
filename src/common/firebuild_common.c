@@ -75,6 +75,24 @@ void cstring_view_array_deep_free(cstring_view_array *array) {
   free(array->p);
 }
 
+bool is_in_sorted_cstring_view_array(const char *str, const ssize_t len,
+                                     const cstring_view_array *array) {
+  for (int i = 0; i < array->len; i++) {
+    const char * const entry = array->p[i].c_str;
+    const ssize_t entry_len = array->p[i].length;
+    if (len != entry_len) {
+      continue;
+    }
+    const int memcmp_res = memcmp(entry, str, len);
+    if (memcmp_res < 0) {
+      continue;
+    } else {
+      return memcmp_res == 0;
+    }
+  }
+  return false;
+}
+
 void voidp_array_init(voidp_array *array) {
   memset(array, 0, sizeof(*array));
 }

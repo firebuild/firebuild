@@ -92,6 +92,19 @@ class ExecedProcess : public Process {
   ForkedProcess* fork_point() {return fork_point_;}
   const ForkedProcess* fork_point() const {return fork_point_;}
   void set_parent(Process *parent);
+  /**
+   * Set jobserver fds if they are reasonably small and fit in the member's type.
+   */
+  void maybe_set_jobserver_fds(int fd_r, int fd_w) {
+    if (fd_w >= 0 && fd_r <= INT16_MAX) {
+      jobserver_fd_r_ = fd_r;
+    }
+    if (fd_w >= 0 && fd_w <= INT16_MAX) {
+      jobserver_fd_w_ = fd_w;
+    }
+  }
+  int jobserver_fd_r() const {return jobserver_fd_r_;}
+  int jobserver_fd_w() const {return jobserver_fd_w_;}
   bool been_waited_for() const;
   void set_been_waited_for();
   void add_utime_u(int64_t t) {utime_u_ += t;}
@@ -240,6 +253,8 @@ class ExecedProcess : public Process {
  private:
   bool can_shortcut_:1;
   bool was_shortcut_:1;
+  int16_t jobserver_fd_r_ = -1;
+  int16_t jobserver_fd_w_ = -1;
   /** If points to this (self), the process can be shortcut.
       Otherwise the process itself is not shortcutable, but the ancestor is, if the ancestor's
       maybe_shortcutable_ancestor points at itself, etc. */

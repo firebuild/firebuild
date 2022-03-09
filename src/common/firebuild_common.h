@@ -59,6 +59,9 @@ void cstring_view_array_deep_free(cstring_view_array *array);
 bool is_cstring_view_array_full(cstring_view_array *array);
 void cstring_view_array_append_noalloc(cstring_view_array *array, char *s);
 
+bool is_in_sorted_cstring_view_array(const char *str, const ssize_t len,
+                                     const cstring_view_array *array);
+
 #define STATIC_CSTRING_VIEW_ARRAY(name, size)       \
   cstring_view name##_ptrs[size] = {0};             \
   cstring_view_array name = {name##_ptrs, 0, size}

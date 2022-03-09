@@ -1290,6 +1290,12 @@ void Process::handle_read_from_inherited(const int fd, const bool is_pread) {
         "Process successfully read from fd which is known to be closed, which means interception"
         " missed at least one open()", fd);
     return;
+  } else if (file_fd->type() == FD_PIPE_IN
+             && file_fd->pipe() && file_fd->fd() == exec_point()->jobserver_fd_r()) {
+    // TODO(rbalint) add further check that the process chain did not reopen the fd breaking the
+    // connection to the jobserver
+    /* It is OK to read from the jobserver. It should not affect the build results. */
+    return;
   }
 
   const ExecedProcess *file_fd_opened_by_exec_point =
@@ -1317,6 +1323,12 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
     exec_point()->disable_shortcutting_bubble_up(
         "Process successfully wrote to fd which is known to be closed, which means interception"
         " missed at least one open()", fd);
+    return;
+  } else if (file_fd->type() == FD_PIPE_OUT
+             && file_fd->pipe() && file_fd->fd() == exec_point()->jobserver_fd_w()) {
+    // TODO(rbalint) add further check that the process chain did not reopen the fd breaking the
+    // connection to the jobserver
+    /* It is OK to write to the jobserver, but jobserver communication should not be cached. */
     return;
   }
 
