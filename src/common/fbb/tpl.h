@@ -459,6 +459,20 @@ static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}
 ###         endif
   return msg->wire.{{ var }};
 }
+/*
+ * Builder getter - pointer to required or optional scalar
+ * {{ type }} {{ var }}
+ */
+static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+###         if quant == OPTIONAL
+  if (!msg->wire.has_{{ var }}) {
+    return NULL;
+  }
+###         endif
+  return &msg->wire.{{ var }};
+}
 ###         if quant == OPTIONAL
 /*
  * Builder getter - optional scalar with fallback default
@@ -677,6 +691,20 @@ static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS
   assert(msg->has_{{ var }});
 ###         endif
   return msg->{{ var }};
+}
+/*
+ * Serialized getter - pointer to required or optional scalar
+ * {{ type }} {{ var }}
+ */
+static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+
+###         if quant == OPTIONAL
+  if (!msg->has_{{ var }}) {
+    return NULL;
+  }
+###         endif
+  return &msg->{{ var }};
 }
 ###         if quant == OPTIONAL
 /*
