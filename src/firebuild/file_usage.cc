@@ -26,17 +26,17 @@
 namespace firebuild {
 
 std::unordered_set<FileUsage, FileUsageHasher>* FileUsage::db_;
-const FileUsage* FileUsage::no_hash_not_written_states_[ISDIR_WITH_HASH + 1];
-const FileUsage* FileUsage::no_hash_written_states_[ISDIR_WITH_HASH + 1];
+const FileUsage* FileUsage::no_hash_not_written_states_[INITIAL_STATE_MAX + 1];
+const FileUsage* FileUsage::no_hash_written_states_[INITIAL_STATE_MAX + 1];
 
 
 FileUsage::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileUsage, FileUsageHasher>();
-  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
+  for (int i = 0; i <= INITIAL_STATE_MAX; i++) {
     const FileUsage fu(int_to_initial_state(i), Hash());
     no_hash_not_written_states_[i] = &*db_->insert(fu).first;
   }
-  for (int i = 0; i <= ISDIR_WITH_HASH; i++) {
+  for (int i = 0; i <= INITIAL_STATE_MAX; i++) {
     const FileUsage fu(int_to_initial_state(i), Hash(), true);
     no_hash_written_states_[i] = &*db_->insert(fu).first;
   }
