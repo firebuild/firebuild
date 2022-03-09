@@ -115,6 +115,9 @@
       # umask
       (REQUIRED, "mode_t", "umask"),
       # full path of the binary, it is expected to be in absolute and canonical form
+      # fds (2: [<read fd>, <write fd>]) likely being used by GNU Make's jobserver
+      (ARRAY, "int", "jobserver_fds"),
+      # full path of the binary
       (OPTIONAL, STRING, "executable"),
       # original executed_path converted to canonical and absolute path
       # set only when the original executed path is different from executable

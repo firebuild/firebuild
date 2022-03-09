@@ -80,8 +80,14 @@ char read_only_locations_env_buf[4096];
 /** Ignore locations to not ask ACK for when opening them, as set in the environment variable. */
 char ignore_locations_env_buf[4096];
 
+/**
+ * Jobserver users for which the jobserver fds have to be detected, as set in the environment
+ * variable. */
+char jobserver_users_env_buf[4096];
+
 STATIC_CSTRING_VIEW_ARRAY(read_only_locations, 32);
 STATIC_CSTRING_VIEW_ARRAY(ignore_locations, 32);
+STATIC_CSTRING_VIEW_ARRAY(jobserver_users, 8);
 
 bool intercepting_enabled = true;
 
@@ -786,6 +792,35 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
 }
 
 /**
+ * Parses and returns GNU Make jobserver fds if they are present in makeflags.
+ * e.g. --jobserver-auth=R,W where ‘R’ and ‘W’ are non-negative integers representing fds
+ *
+ * @param[in] makeflags Make flags as set in environment's MAKEFLAGS
+ * @param[out] fd_r R fd
+ * @param[out] fd_w W fd
+ * @return true, if jobserver fds were set and parsed
+ */
+static bool extract_jobserver_fds(const char* makeflags_env, int *fd_r, int *fd_w) {
+  const char *makeflags = getenv(makeflags_env);
+  if (!makeflags) {
+    return false;
+  }
+  const char *needle = "--jobserver-auth=";
+  const char *jobserver_option = strstr(makeflags, needle);
+  if (!jobserver_option) {
+    needle = "--jobserver-fds=";
+    jobserver_option = strstr(makeflags, needle);
+  }
+  if (jobserver_option) {
+    if (sscanf(jobserver_option + strlen(needle), "%d,%d", fd_r, fd_w) == 2) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+/**
  * Set up a supervisor connection
  * @return fd of the connection
  */
@@ -874,6 +909,8 @@ static void fb_ic_init() {
                 sizeof(read_only_locations_env_buf));
   store_entries("FB_IGNORE_LOCATIONS", &ignore_locations, ignore_locations_env_buf,
                 sizeof(ignore_locations_env_buf));
+  store_entries("FB_JOBSERVER_USERS", &jobserver_users, jobserver_users_env_buf,
+                sizeof(jobserver_users_env_buf));
 
 #ifndef __mips__
   /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay.
@@ -955,15 +992,28 @@ static void fb_ic_init() {
     const char *fb_socket = "FB_SOCKET=";
     const char *fb_read_only_locations = "FB_READ_ONLY_LOCATIONS=";
     const char *fb_ignore_locations = "FB_IGNORE_LOCATIONS=";
+    const char *fb_jobserver_users = "FB_JOBSERVER_USERS=";
     if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0 &&
         strncmp(*cursor, fb_read_only_locations, strlen(fb_read_only_locations)) != 0 &&
-        strncmp(*cursor, fb_ignore_locations, strlen(fb_ignore_locations)) != 0) {
+        strncmp(*cursor, fb_ignore_locations, strlen(fb_ignore_locations)) != 0 &&
+        strncmp(*cursor, fb_jobserver_users, strlen(fb_jobserver_users)) != 0) {
       env_copy[env_copy_len++] = *cursor;
     }
   }
   env_copy[env_copy_len] = NULL;
   qsort(env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
   fbbcomm_builder_scproc_query_set_env_var(&ic_msg, (const char **) env_copy);
+
+  const char* slash_pos = strrchr(ic_argv[0], '/');
+  const char* cmd_name = slash_pos ? slash_pos + 1 : ic_argv[0];
+  int jobserver_fds[] = {-1, -1};
+  if (is_in_sorted_cstring_view_array(cmd_name, strlen(cmd_name), &jobserver_users)) {
+    if (extract_jobserver_fds("CARGO_MAKEFLAGS", &jobserver_fds[0], &jobserver_fds[1])) {
+      fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
+    } else if (extract_jobserver_fds("MAKEFLAGS", &jobserver_fds[0], &jobserver_fds[1])) {
+      fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
+    }
+  }
 
   /* get full executable path
    * see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe

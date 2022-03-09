@@ -73,6 +73,12 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   FB_DEBUG(FB_DEBUG_PROC, "- lib = " + d(msg->get_libs_as_vector()));
   FB_DEBUG(FB_DEBUG_PROC, "- umask = " + d(e->umask()));
 
+  if (fbbcomm_serialized_scproc_query_get_jobserver_fds_count(msg) == 2) {
+    const int* jobserver_fds = fbbcomm_serialized_scproc_query_get_jobserver_fds(msg);
+    e->maybe_set_jobserver_fds(jobserver_fds[0], jobserver_fds[1]);
+    FB_DEBUG(FB_DEBUG_PROC, "- jobserver_fd_r = " + d(e->jobserver_fd_r()));
+    FB_DEBUG(FB_DEBUG_PROC, "- jobserver_fd_w = " + d(e->jobserver_fd_w()));
+  }
   return e;
 }
 

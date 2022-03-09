@@ -156,8 +156,14 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
 
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
+      const int jobserver_fd_w = proc->jobserver_fd_w();
       for (inherited_file_t& inherited_file : inherited_files) {
         if (inherited_file.type == FD_PIPE_OUT) {
+          if (inherited_file.fds[0] == jobserver_fd_w
+              && inherited_file.fds.size() == 1) {
+            /* Skip reopening the jobserver pipe. */
+            continue;
+          }
           auto file_fd_old = proc->get_shared_fd(inherited_file.fds[0]);
           auto pipe = file_fd_old->pipe();
           assert(pipe);
