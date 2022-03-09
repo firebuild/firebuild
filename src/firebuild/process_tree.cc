@@ -110,7 +110,7 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
 void ProcessTree::export2js(FILE * stream) {
   fprintf(stream, "data = ");
   unsigned int nodeid = 0;
-  root_->export2js_recurse(0, stream, &nodeid);
+  root_->exec_child()->export2js_recurse(0, stream, &nodeid);
 }
 
 void ProcessTree::
