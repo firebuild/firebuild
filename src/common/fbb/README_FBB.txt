@@ -8,6 +8,10 @@ It is tailored to Firebuild's needs, including these features:
  - high performance,
  - async-signal-safety (e.g. doesn't malloc) (*).
 
+On the other hand, it does *NOT* support the following typical features:
+ - architecture independence,
+ - backwards compatibility with earlier FBB defitions.
+
 (*) The basic plain C API, including setters, getters, serializing etc.
 does not perform malloc. However, the debugging methods, and the
 convenience C++ API might malloc.
@@ -324,9 +328,12 @@ Nothing special. Setter:
 
     fbbns_builder_foo_set_myuint(&bldr, 42);
 
-Getter:
+Getter for the value or its address:
 
     uint16_t val = fbbns_serialized_foo_get_myuint(msg);
+
+    const uint16_t *ptr = fbbns_serialized_foo_get_myuint_ptr(msg);
+    /* ptr is non-NULL */
 
 
 ### Optional scalar
@@ -348,9 +355,14 @@ error and results in assertion failure.
       uint16_t val = fbbns_serialized_foo_get_myuint(msg);
     }
 
-However, you can use this convenience wrapper which returns the given
-fallback value if the field was unset. Needless to say, it cannot tell
-if the field was actually set to that fallback value.
+Or get a pointer, which returns NULL if the value wasn't set:
+
+    const uint16_t *ptr = fbbns_serialized_foo_get_myuint_ptr(msg);
+    if (ptr == NULL) { ... }
+
+Or you can use this convenience wrapper which returns the given fallback
+value if the field was unset. Needless to say, it cannot tell if the
+field was actually set to that fallback value.
 
     uint16_t val = fbbns_serialized_foo_get_myuint_with_fallback(msg, 100);
 
