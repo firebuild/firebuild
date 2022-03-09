@@ -1231,7 +1231,8 @@ static void write_report(const std::string &html_filename,
   }
 
   auto system_cmd =
-      dot_cmd + " -Tsvg -o" + dir + "/" + svg_filename + " " + dir + "/" + dot_filename;
+      dot_cmd + " -Tsvg " + dir + "/" + dot_filename
+      + " | sed 's/viewBox=\\\"[^\\\"]*\\\" //' > " + dir + "/" + svg_filename;
   if (system(system_cmd.c_str()) != 0) {
     perror("system");
     firebuild::fb_error("Failed to generate profile graph with the following command: "
