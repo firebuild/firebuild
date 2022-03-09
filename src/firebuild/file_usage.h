@@ -42,6 +42,7 @@ typedef enum {
   /** We know and care that the directory existed with the given file listing hash
    *  (e.g. an opendir() was performed. */
   ISDIR_WITH_HASH,
+  INITIAL_STATE_MAX = ISDIR_WITH_HASH
 } FileInitialState;
 
 typedef enum {
@@ -155,8 +156,8 @@ class FileUsage {
   /** Global FileUsage db*/
   static std::unordered_set<FileUsage, FileUsageHasher>* db_;
   /** Frequently used singletons */
-  static const FileUsage* no_hash_not_written_states_[ISDIR_WITH_HASH + 1];
-  static const FileUsage* no_hash_written_states_[ISDIR_WITH_HASH + 1];
+  static const FileUsage* no_hash_not_written_states_[INITIAL_STATE_MAX + 1];
+  static const FileUsage* no_hash_written_states_[INITIAL_STATE_MAX + 1];
 
   /* This, along with the FileUsage::db_initializer_ definition in file_usage.cc,
    * initializes the file usage database once at startup. */
