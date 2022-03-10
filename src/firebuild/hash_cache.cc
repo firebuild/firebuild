@@ -26,21 +26,21 @@ HashCache *hash_cache;
  * Update the file's hash in the hash_cache if the file changed
  * @param path       the file's path
  * @param fd         if fd != -1 then the file content is read from this file descriptor
- * @param stat_ptr   if set this stat data is used instead of reading the stat data of the path
+ * @param stat_ptr   optionally the file's parameters already stat()'ed
  * @param[out] entry updated cache entry
  * @param store      whether to store the file in the blob cache
  * @param force      always update the entry
  * @return           true on success, false on failure to get and update the file's hash
  */
-static bool update(const FileName* path, int fd, struct stat64 *stat_ptr, HashCacheEntry *entry,
-                   bool store, bool force) {
+static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
+                   HashCacheEntry *entry, bool store, bool force) {
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, store=%s, force=%s", D(path), fd, D(store), D(force));
 
-  struct stat64 st_local, *st;
-  st = stat_ptr ? stat_ptr : &st_local;
-  if (!stat_ptr && (fd >= 0 ? fstat64(fd, st) : stat64(path->c_str(), st)) == -1) {
+  struct stat64 st_local;
+  if (!stat_ptr && (fd >= 0 ? fstat64(fd, &st_local) : stat64(path->c_str(), &st_local)) == -1) {
     return false;
   }
+  const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
   if (!force &&
       (!store || entry->is_stored) &&
       st->st_size == entry->size &&
@@ -80,7 +80,7 @@ static bool update(const FileName* path, int fd, struct stat64 *stat_ptr, HashCa
   }
 }
 
-HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, struct stat64 *stat_ptr,
+HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, const struct stat64 *stat_ptr,
                                      bool store) {
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, store=%s", D(path), fd, D(store));
 
@@ -107,7 +107,7 @@ HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, struct stat64
 }
 
 bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, int fd,
-                         struct stat64 *stat_ptr) {
+                         const struct stat64 *stat_ptr) {
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d", D(path), fd);
 
   HashCacheEntry *entry = get_entry(path, fd, stat_ptr, false);
@@ -122,7 +122,7 @@ bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, int fd,
 }
 
 bool HashCache::store_and_get_hash(const FileName* path, Hash *hash,
-                                   int fd, struct stat64 *stat_ptr) {
+                                   int fd, const struct stat64 *stat_ptr) {
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d", D(path), fd);
 
   HashCacheEntry *entry = get_entry(path, fd, stat_ptr, true);

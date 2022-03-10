@@ -39,10 +39,10 @@ class HashCache {
    * @param[out]     hash to retrive/calculate
    * @param[out]     is_dir path is a dir
    * @param fd       when set to a valid fd the file is read from there
-   * @param stat_ptr when fd is set this parameter is set to the fd's stat data
+   * @param stat_ptr optionally the file's parameters already stat()'ed
    */
   bool get_hash(const FileName* path, Hash *hash, bool *is_dir = NULL, int fd = -1,
-                struct stat64 *stat_ptr = NULL);
+                const struct stat64 *stat_ptr = NULL);
 
   /**
    * Calculate hash of a regular file on the path, and update the hash cache.
@@ -53,9 +53,9 @@ class HashCache {
    * @param path     file's path
    * @param[out]     hash to retrive/calculate
    * @param fd       the file is read from there
-   * @param stat_ptr when fd is set this parameter is set to the fd's stat data
+   * @param stat_ptr optionally the file's parameters already stat()'ed
    */
-  bool store_and_get_hash(const FileName* path, Hash *hash, int fd, struct stat64 *stat_ptr);
+  bool store_and_get_hash(const FileName* path, Hash *hash, int fd, const struct stat64 *stat_ptr);
 
  private:
   tsl::hopscotch_map<const FileName*, HashCacheEntry> db_ = {};
@@ -72,7 +72,7 @@ class HashCache {
    * @param stat_ptr when fd is set this parameter is set to the fd's stat data
    * @param store    whether to store the file in the blob cache
    */
-  HashCacheEntry* get_entry(const FileName* path, int fd = -1, struct stat64 *stat_ptr = NULL,
+  HashCacheEntry* get_entry(const FileName* path, int fd = -1, const struct stat64 *stat_ptr = NULL,
                             bool store = false);
 
   DISALLOW_COPY_AND_ASSIGN(HashCache);

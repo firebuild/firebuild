@@ -22,7 +22,7 @@ class BlobCache {
 
   bool store_file(const FileName *path,
                   int fd_src,
-                  struct stat64 *stat_ptr,
+                  const struct stat64 *stat_ptr,
                   Hash *key_out);
   bool move_store_file(const std::string &path,
                        int fd,
