@@ -27,7 +27,7 @@ BlobCache::BlobCache(const std::string &base_dir) : base_dir_(base_dir) {
  * Copy the contents from an open file descriptor to another,
  * preferring advanced technologies like copy on write.
  */
-static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
+static bool copy_file(int fd_src, int fd_dst, const struct stat64 *stat_ptr = NULL) {
   /* Try CoW first. */
   if (ioctl(fd_dst, FICLONE, fd_src) == 0) {
     /* CoW succeeded. Moo! */
@@ -36,14 +36,12 @@ static bool copy_file(int fd_src, int fd_dst, struct stat64 *st = NULL) {
 
   /* Try copy_file_range(). Gotta get the source file's size. */
   struct stat64 st_local;
-  if (!st) {
-    st = &st_local;
-    if (fstat64(fd_src, st) == -1) {
-      perror("fstat");
-      assert(0);
-      return false;
-    }
+  if (!stat_ptr && fstat64(fd_src, &st_local) == -1) {
+    perror("fstat");
+    assert(0);
+    return false;
   }
+  const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
 
   if (!S_ISREG(st->st_mode)) {
     FB_DEBUG(FB_DEBUG_CACHING, "not a regular file");
@@ -125,7 +123,7 @@ static void construct_cached_file_name(const std::string &base, const Hash &key,
  */
 bool BlobCache::store_file(const FileName *path,
                            int fd_src,
-                           struct stat64 *stat_ptr,
+                           const struct stat64 *stat_ptr,
                            Hash *key_out) {
   TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d", D(path), fd_src);
 
@@ -142,9 +140,9 @@ bool BlobCache::store_file(const FileName *path,
     close_fd_src = true;
   }
 
-  struct stat64 st_local, *st;
-  st = stat_ptr ? stat_ptr : &st_local;
-  if (!stat_ptr && (fd_src >= 0 ? fstat64(fd_src, st) : stat64(path->c_str(), st)) == -1) {
+  struct stat64 st_local;
+  if (!stat_ptr &&
+      (fd_src >= 0 ? fstat64(fd_src, &st_local) : stat64(path->c_str(), &st_local)) == -1) {
     perror("Failed fstat64()-ing file to be stored in cache");
     assert(0);
     if (close_fd_src) {
@@ -152,6 +150,7 @@ bool BlobCache::store_file(const FileName *path,
     }
     return false;
   }
+  const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
 
   /* Copy the file to a temporary one under the cache */
   char *tmpfile;

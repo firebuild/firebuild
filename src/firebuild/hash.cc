@@ -50,15 +50,15 @@ void Hash::set_from_data(const void *data, ssize_t size) {
  * @param is_dir_out Optionally store here whether fd refers to a directory
  * @return Whether succeeded
  */
-bool Hash::set_from_fd(int fd, struct stat64 *stat_ptr, bool *is_dir_out) {
+bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "fd=%d", fd);
 
-  struct stat64 st_local, *st;
-  st = stat_ptr ? stat_ptr : &st_local;
-  if (!stat_ptr && fstat64(fd, st) == -1) {
+  struct stat64 st_local;
+  if (!stat_ptr && fstat64(fd, &st_local) == -1) {
     perror("fstat");
     return false;
   }
+  const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
 
   if (S_ISREG(st->st_mode)) {
     /* Compute the hash of a regular file. */
