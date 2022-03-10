@@ -99,8 +99,8 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_timerfd_cr
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_eventfd *msg) {
-  return proc->handle_eventfd(fbbcomm_serialized_eventfd_get_ret(msg),
-                              fbbcomm_serialized_eventfd_get_flags(msg));
+  return proc->handle_eventfd(fbbcomm_serialized_eventfd_get_flags(msg),
+                              fbbcomm_serialized_eventfd_get_ret(msg));
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_signalfd *msg) {
