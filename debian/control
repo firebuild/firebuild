@@ -20,7 +20,10 @@ Rules-Requires-Root: no
 
 Package: firebuild
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+Recommends: graphviz,
+            node-d3
 Description: Build analyzer and catalyst
  Firebuild analyzes the build process and speeds them up.
 
