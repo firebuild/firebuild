@@ -35,16 +35,18 @@ enum {
   FB_DEBUG_HASH         = 1 << 5,
   /* The data stored in the cache */
   FB_DEBUG_CACHE        = 1 << 6,
+  /* Sort the records in the cache */
+  FB_DEBUG_CACHESORT    = 1 << 7,
   /* Placing in / retrieving from the cache */
-  FB_DEBUG_CACHING      = 1 << 7,
+  FB_DEBUG_CACHING      = 1 << 8,
   /* Shortcutting */
-  FB_DEBUG_SHORTCUT     = 1 << 8,
+  FB_DEBUG_SHORTCUT     = 1 << 9,
   /* Emulating pipes */
-  FB_DEBUG_PIPE         = 1 << 9,
+  FB_DEBUG_PIPE         = 1 << 10,
   /* Entering and leaving functions */
-  FB_DEBUG_FUNC         = 1 << 10,
+  FB_DEBUG_FUNC         = 1 << 11,
   /* Similar to bash's "time" */
-  FB_DEBUG_TIME         = 1 << 11,
+  FB_DEBUG_TIME         = 1 << 12,
 };
 
 

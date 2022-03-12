@@ -560,6 +560,34 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     return;
   }
 
+  /* Possibly sort the entries for easier debugging. */
+  if (FB_DEBUGGING(FB_DEBUG_CACHESORT)) {
+    struct {
+      bool operator()(const FBBSTORE_Builder_file& a, const FBBSTORE_Builder_file& b) const {
+        return strcmp(fbbstore_builder_file_get_path(&a), fbbstore_builder_file_get_path(&b)) < 0;
+      }
+    } file_less;
+    std::sort(in_path_isreg_with_hash.begin(), in_path_isreg_with_hash.end(), file_less);
+    std::sort(in_system_path_isreg_with_hash.begin(), in_system_path_isreg_with_hash.end(),
+              file_less);
+    std::sort(in_path_isdir_with_hash.begin(), in_path_isdir_with_hash.end(), file_less);
+    std::sort(in_system_path_isdir_with_hash.begin(), in_system_path_isdir_with_hash.end(),
+              file_less);
+
+    struct {
+      bool operator()(const cstring_view& a, const cstring_view& b) const {
+        return strcmp(a.c_str, b.c_str) < 0;
+      }
+    } cstring_view_less;
+    std::sort(in_path_isreg.begin(), in_path_isreg.end(), cstring_view_less);
+    std::sort(in_path_isdir.begin(), in_path_isdir.end(), cstring_view_less);
+    std::sort(in_path_notexist_or_isreg.begin(), in_path_notexist_or_isreg.end(),
+              cstring_view_less);
+    std::sort(in_path_notexist_or_isreg_empty.begin(), in_path_notexist_or_isreg_empty.end(),
+              cstring_view_less);
+    std::sort(in_path_notexist.begin(), in_path_notexist.end(), cstring_view_less);
+  }
+
   fbbstore_builder_process_inputs_set_path_isreg_with_hash_item_fn(&pi,
       in_path_isreg_with_hash.size(),
       file_item_fn,
