@@ -132,7 +132,8 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
     sep = ",";
   }
   indent -= indent_step;
-  fprintf(f, "\n%*s]", indent, "");
+  if ({{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_count(msg) > 0) fprintf(f, "\n%*s", indent, "");
+  fprintf(f, "]");
 ###       endif
 ###     endfor
   indent -= indent_step;
