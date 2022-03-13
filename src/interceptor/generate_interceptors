@@ -293,8 +293,9 @@ generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
                       "assert(!voidp_set_contains(&popened_streams, ret));"],
          msg="open",
          msg_skip_fields=["file", "mode"],
-         msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
-                         "fbbcomm_builder_open_set_mode(&ic_msg, 0666);",
+         msg_add_fields=["int open_flags = intercept_fopen_mode_to_open_flags_helper(mode);"
+                         "fbbcomm_builder_open_set_flags(&ic_msg, open_flags);",
+                         "if (open_flags & O_CREAT) fbbcomm_builder_open_set_mode(&ic_msg, 0666);",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, fd);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);"],
          ack_condition="success && !is_path_at_locations(file, &system_locations)")
