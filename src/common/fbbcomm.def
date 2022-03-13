@@ -7,6 +7,14 @@
 # This is a Python dictionary, to be read and processed by "generate_fbb".
 
 {
+  "types_with_custom_debugger": ["mode_t"],
+
+  "extra_c": """
+    static void fbbcomm_debug_mode_t(FILE *f, mode_t mode) {
+      fprintf(f, "\\"(octal) %03o\\"", mode);
+    }
+  """,
+
   "tags": [
     # interceptor library queries Firebuild supervisor if it can shortcut execution of the process
     ("scproc_query", [
