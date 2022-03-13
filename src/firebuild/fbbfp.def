@@ -7,25 +7,24 @@
 # This is a Python dictionary, to be read and processed by "generate_fbb".
 
 {
-  "types_with_custom_debugger": ["XXH128_hash_t"],
+  "types_with_custom_debugger": ["mode_t", "XXH128_hash_t"],
 
   "extra_c": """
+    static void fbbfp_debug_mode_t(FILE *f, mode_t mode) {
+      fprintf(f, "\\"(octal) 0%03o\\"", mode);
+    }
+
     static void fbbfp_debug_XXH128_hash_t(FILE *f, XXH128_hash_t value) {
-      fputs("[ ", f);
-      const char *sep = "";
-      for (int i = 0; i < 8; i++) {
-        fprintf(f, "%s%lu", sep, (value.high64 >> ((7 - i) * 8)) & 0xff);
-        sep = ", ";
-      }
-      for (int i = 0; i < 8; i++) {
-        fprintf(f, "%s%lu", sep, (value.low64 >> ((7 - i) * 8)) & 0xff);
-      }
-      fputs(" ]", f);
+      firebuild::Hash hash(value);
+      char ascii[firebuild::Hash::kAsciiLength + 1];
+      hash.to_ascii(ascii);
+      fprintf(f, "\\"%s\\"", ascii);
     }
   """,
 
   "extra_h": """
     #include <xxhash.h>
+    #include "firebuild/hash.h"
   """,
 
   "tags": [
