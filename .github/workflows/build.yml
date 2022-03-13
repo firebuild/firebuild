@@ -9,7 +9,7 @@ on:
       - master
 
 env:
-  BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libfmt-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
+  BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
   TEST_DEPS: bats node-d3 graphviz moreutils fakeroot
 jobs:
   build-on-ubuntu-lts:
@@ -23,7 +23,6 @@ jobs:
         key: build-on-ubuntu-lts
     - name: install-deps
       run: |
-        sudo add-apt-repository -y -n ppa:rbalint/fmtlib
         sudo add-apt-repository -y -n ppa:rbalint/valgrind
         sudo add-apt-repository -y -u ppa:rbalint/xxhash
         sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
@@ -136,7 +135,6 @@ jobs:
         key: rebuild-self
     - name: install-deps
       run: |
-        sudo add-apt-repository -y -n ppa:rbalint/fmtlib
         sudo add-apt-repository -y ppa:rbalint/xxhash
         # work around breaking 18.04's make https://github.com/rbalint/fb/issues/174
         sudo eatmydata apt-get -y install $BUILD_DEPS
@@ -171,7 +169,6 @@ jobs:
       run: |
         sudo sed -i 's/# deb-src/deb-src/' /etc/apt/sources.list
         sudo apt-get update
-        sudo add-apt-repository -y -n ppa:rbalint/fmtlib
         sudo add-apt-repository -y ppa:rbalint/xxhash
         sudo eatmydata apt-get -y install devscripts $BUILD_DEPS $TEST_DEPS
         sudo eatmydata apt-get build-dep vte2.91

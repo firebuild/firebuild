@@ -8,13 +8,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <fmt/core.h>
-#if FMT_VERSION > 70000
-#include <fmt/compile.h>
-#else
-#define FMT_COMPILE FMT_STRING
-#endif
-#include <fmt/format.h>
 #include <string>
 #include <cstdlib>
 #include <vector>

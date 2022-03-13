@@ -16,13 +16,6 @@
 #include <fcntl.h>
 #include <libgen.h>
 
-#include <fmt/core.h>
-#if FMT_VERSION > 70000
-#include <fmt/compile.h>
-#else
-#define FMT_COMPILE FMT_STRING
-#endif
-#include <fmt/format.h>
 #include <map>
 #include <string>
 #include <stdexcept>
