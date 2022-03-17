@@ -573,6 +573,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     std::sort(in_path_isdir_with_hash.begin(), in_path_isdir_with_hash.end(), file_less);
     std::sort(in_system_path_isdir_with_hash.begin(), in_system_path_isdir_with_hash.end(),
               file_less);
+    std::sort(out_path_isreg_with_hash.begin(), out_path_isreg_with_hash.end(), file_less);
+    std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
 
     struct {
       bool operator()(const cstring_view& a, const cstring_view& b) const {
@@ -586,6 +588,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     std::sort(in_path_notexist_or_isreg_empty.begin(), in_path_notexist_or_isreg_empty.end(),
               cstring_view_less);
     std::sort(in_path_notexist.begin(), in_path_notexist.end(), cstring_view_less);
+
+    std::sort(out_path_notexist.begin(), out_path_notexist.end());
   }
 
   fbbstore_builder_process_inputs_set_path_isreg_with_hash_item_fn(&pi,
