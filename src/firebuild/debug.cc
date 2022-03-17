@@ -86,6 +86,8 @@ static struct flag available_flags[] = {
   { "fs",                FB_DEBUG_FS },
   { "hash",              FB_DEBUG_HASH },
   { "cache",             FB_DEBUG_CACHE },
+  // TODO(egmont) This sorts the obj entries and also uses contents-based filename for deterministic
+  // contents. Needs a better name than "cachesort".
   { "cachesort",         FB_DEBUG_CACHESORT },
   { "caching",           FB_DEBUG_CACHING },
   { "shortcut",          FB_DEBUG_SHORTCUT },

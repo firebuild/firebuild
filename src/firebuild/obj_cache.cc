@@ -162,7 +162,6 @@ bool ObjCache::store(const Hash &key,
   char *entry_serial = reinterpret_cast<char *>(malloc(len));
   fbbstore_builder_serialize(entry, entry_serial);
   fb_write(fd_dst, entry_serial, len);
-  free(entry_serial);
   close(fd_dst);
 
   /* Create randomized object file */
@@ -171,9 +170,15 @@ bool ObjCache::store(const Hash &key,
   // make it more apparent that the subkey is not a hash of anything
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
-  Hash subkey({static_cast<uint64_t>(time.tv_sec),
-      static_cast<uint64_t>(time.tv_nsec)});
+  Hash subkey({static_cast<uint64_t>(time.tv_sec), static_cast<uint64_t>(time.tv_nsec)});
+  if (FB_DEBUGGING(FB_DEBUG_CACHESORT)) {
+    /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
+     * hash for a deterministic filename. */
+    subkey.set_from_data(entry_serial, len);
+  }
   construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
+  free(entry_serial);
+
   if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
     perror("Failed rename() while storing cache object");
     assert(0);
@@ -182,7 +187,7 @@ bool ObjCache::store(const Hash &key,
     return false;
   }
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "  time based subkey " + d(subkey));
+    FB_DEBUG(FB_DEBUG_CACHING, "  subkey " + d(subkey));
   }
   free(tmpfile);
 
