@@ -16,7 +16,8 @@
 
 namespace firebuild {
 
-extern std::vector<const FileName*> *ignore_locations;
+extern std::vector<std::string> *ignore_locations;
+extern std::vector<std::string> *system_locations;
 extern ExeMatcher* dont_shortcut_matcher;
 extern ExeMatcher* dont_intercept_matcher;
 extern ExeMatcher* skip_cache_matcher;

@@ -23,7 +23,8 @@ class FileName {
  public:
   FileName(const FileName& other)
       : name_(reinterpret_cast<const char *>(malloc(other.length_ + 1))),
-        length_(other.length_), in_system_location_(other.in_system_location_) {
+        length_(other.length_), in_ignore_location_(other.in_ignore_location_),
+        in_system_location_(other.in_system_location_) {
     memcpy(const_cast<char*>(name_), other.name_, other.length_ + 1);
   }
   const char * c_str() const {return name_;}
@@ -40,31 +41,35 @@ class FileName {
     }
   }
   static bool isDbEmpty();
-  static const FileName* Get(const char * const name, ssize_t length,
-                             bool force_set_system_location);
+  static const FileName* Get(const char * const name, ssize_t length);
   static const FileName* Get(const std::string& name) {
-    return Get(name.c_str(), name.size(), false);
+    return Get(name.c_str(), name.size());
   }
   static const FileName* GetParentDir(const char * const name, ssize_t length);
-  /**
-   * Checks if a path semantically begins with one of the given sorted subpaths.
-   *
-   * Does string operations only, does not look at the file system.
-   */
-  bool is_at_locations(const std::vector<const FileName *> *locations) const;
+
+  bool is_in_ignore_location() const {return in_ignore_location_;}
   bool is_in_system_location() const {return in_system_location_;}
 
  private:
-  FileName(const char * const name, size_t length, bool copy_name, bool in_system_location)
+  FileName(const char * const name, size_t length, bool copy_name)
       : name_(copy_name ? reinterpret_cast<const char *>(malloc(length + 1)) : name),
-        length_(length), in_system_location_(in_system_location) {
+        length_(length), in_ignore_location_(false), in_system_location_(false) {
     if (copy_name) {
       memcpy(const_cast<char*>(name_), name, length);
       const_cast<char*>(name_)[length] = '\0';
     }
   }
+
+  /**
+   * Checks if a path semantically begins with one of the given sorted subpaths.
+   *
+   * Does string operations only, does not look at the file system.
+   */
+  bool is_at_locations(const std::vector<std::string> *locations) const;
+
   const char * const name_;
   const uint32_t length_;
+  const bool in_ignore_location_;
   const bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
@@ -98,11 +103,11 @@ struct FileNameLess {
   }
 };
 
-extern std::vector<const FileName*>* system_locations;
+extern std::vector<std::string> *ignore_locations;
+extern std::vector<std::string> *system_locations;
 
-inline const FileName* FileName::Get(const char * const name, ssize_t length,
-                                     bool force_set_system_location = false) {
-  FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false, false);
+inline const FileName* FileName::Get(const char * const name, ssize_t length) {
+  FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false);
 #ifdef FB_EXTRA_DEBUG
   assert(is_canonical(tmp_file_name.name_, tmp_file_name.length_));
 #endif
@@ -110,8 +115,10 @@ inline const FileName* FileName::Get(const char * const name, ssize_t length,
   if (it != db_->end()) {
     return &*it;
   } else {
+    *const_cast<bool*>(&tmp_file_name.in_ignore_location_) =
+        tmp_file_name.is_at_locations(ignore_locations);
     *const_cast<bool*>(&tmp_file_name.in_system_location_) =
-        force_set_system_location ? true : tmp_file_name.is_at_locations(system_locations);
+        tmp_file_name.is_at_locations(system_locations);
     /* Not found, add a copy to the set. */
     return &*db_->insert(tmp_file_name).first;
   }
