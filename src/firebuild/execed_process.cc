@@ -274,6 +274,11 @@ bool ExecedProcess::register_file_usage(const FileName *name,
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, actual_file=%s, flags=%d, error=%d",
          D(name), D(actual_file), flags, error);
 
+  if (name->is_in_ignore_location()) {
+    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
+    return true;
+  }
+
   if (!can_shortcut_ && !generate_report) {
     /* Register at the first shortcutable ancestor instead. */
     ExecedProcess* next = next_shortcutable_ancestor();
@@ -343,12 +348,6 @@ bool ExecedProcess::register_file_usage(const FileName *name,
       }
     }
   } else {
-    /* Checking only here because files at ignore locations would never be added, thus found. */
-    if (name->is_in_ignore_location()) {
-      FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
-      return true;
-    }
-
     /* The process opens this file for the first time. Compute whatever
      * we need to know about its initial state. Use that same object to
      * propagate the changes upwards. */
