@@ -469,7 +469,7 @@ void Pipe::drain_fd1_end(FileFD* file_fd) {
   if (finished()) {
     return;
   }
-  auto fd1_end = ffd2fd1_ends[file_fd];
+  auto fd1_end = get_fd1_end(file_fd);
   if (!fd1_end) {
     return;
   }
@@ -502,12 +502,6 @@ void Pipe::drain() {
   }
   for (auto pair : ffd2fd1_ends) {
     pipe_end* fd1_end = pair.second;
-    // TODO(rbalint) those should not be nullptrs
-    if (!fd1_end) {
-      FB_DEBUG(FB_DEBUG_PIPE, "file fd " + d(pair.first) + " points to " + d(pair.second) +
-               " in ffd2fd1_ends of " + d(this));
-      continue;
-    }
     assert(fd1_end);
     int fd = fd1_end->fd;
     switch (forward(fd, true)) {
