@@ -1086,8 +1086,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       const unsigned int flags = fbbcomm_serialized_getrandom_get_flags_with_fallback(ic_msg, 0);
       if (flags & GRND_RANDOM) {
         proc->exec_point()->disable_shortcutting_bubble_up("Using /dev/random is not supported");
-      } else if (!firebuild::FileName::Get("/dev/urandom")->is_at_locations(
-          firebuild::ignore_locations)) {
+      } else if (!firebuild::FileName::Get("/dev/urandom")->is_in_ignore_location()) {
         proc->exec_point()->disable_shortcutting_bubble_up("Using /dev/urandom is not allowed");
       }
       break;
@@ -1807,6 +1806,7 @@ int main(const int argc, char *argv[]) {
     free(fb_tmp_dir);
     delete(proc_tree);
     delete(firebuild::ignore_locations);
+    delete(firebuild::system_locations);
     delete(cfg);
     fclose(stdin);
     fclose(stdout);

@@ -344,7 +344,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
   } else {
     /* Checking only here because files at ignore locations would never be added, thus found. */
-    if (name->is_at_locations(ignore_locations)) {
+    if (name->is_in_ignore_location()) {
       FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
       return true;
     }
@@ -383,7 +383,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
     }
   }
 
-  if (name->is_at_locations(ignore_locations)) {
+  if (name->is_in_ignore_location()) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
   }
