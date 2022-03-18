@@ -302,6 +302,16 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
   }
 }
 
+static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
+                     const FileUsage* fu) {
+  FBBSTORE_Builder_file& new_file = files->emplace_back();
+  fbbstore_builder_file_init(&new_file);
+  fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+  if (fu->initial_hash_known()) {
+    fbbstore_builder_file_set_hash(&new_file, fu->initial_hash().get());
+  }
+}
+
 static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
                                const Hash& content_hash, const int mode = -1) {
     FBBSTORE_Builder_file& new_file = files->emplace_back();
@@ -309,11 +319,6 @@ static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const 
     fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
     fbbstore_builder_file_set_hash(&new_file, content_hash.get());
     if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
-}
-
-static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                               const FileUsage* fu) {
-  add_file_with_hash(files, file_name, fu->initial_hash());
 }
 
 static void add_file_with_mode(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
@@ -356,7 +361,7 @@ static bool dir_created_or_could_exist(
           return false;
         }
       }
-    } else if (fu->initial_state() == ISDIR || fu->initial_state() == ISDIR_WITH_HASH) {
+    } else if (fu->initial_state() == ISDIR) {
       /* Directory is expected to exist. */
       return true;
     }
@@ -414,13 +419,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   FBBSTORE_Builder_process_inputs pi;
   fbbstore_builder_process_inputs_init(&pi);
 
-  std::vector<FBBSTORE_Builder_file> in_path_isreg_with_hash,
-      in_system_path_isreg_with_hash,
-      in_path_isdir_with_hash,
-      in_system_path_isdir_with_hash;
-  std::vector<cstring_view> in_path_isreg,
+  std::vector<FBBSTORE_Builder_file> in_path_isreg,
+      in_system_path_isreg,
       in_path_isdir,
-      in_path_notexist_or_isreg,
+      in_system_path_isdir;
+  std::vector<cstring_view> in_path_notexist_or_isreg,
       in_path_notexist_or_isreg_empty,
       in_path_notexist;
 
@@ -443,28 +446,22 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       case DONTKNOW:
         /* Nothing to do. */
         break;
-      case ISREG_WITH_HASH: {
+      case ISREG: {
         if (filename->is_in_system_location()) {
-          add_file_with_hash(&in_system_path_isreg_with_hash, filename, fu);
+          add_file(&in_system_path_isreg, filename, fu);
         } else {
-          add_file_with_hash(&in_path_isreg_with_hash, filename, fu);
+          add_file(&in_path_isreg, filename, fu);
         }
         break;
       }
-      case ISREG:
-        in_path_isreg.push_back({filename->c_str(), filename->length()});
-        break;
-      case ISDIR_WITH_HASH: {
+      case ISDIR: {
         if (filename->is_in_system_location()) {
-          add_file_with_hash(&in_system_path_isdir_with_hash, filename, fu);
+          add_file(&in_system_path_isdir, filename, fu);
         } else {
-          add_file_with_hash(&in_path_isdir_with_hash, filename, fu);
+          add_file(&in_path_isdir, filename, fu);
         }
         break;
       }
-      case ISDIR:
-        in_path_isdir.push_back({filename->c_str(), filename->length()});
-        break;
       case NOTEXIST_OR_ISREG:
         in_path_notexist_or_isreg.push_back({filename->c_str(), filename->length()});
         break;
@@ -567,12 +564,10 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         return strcmp(fbbstore_builder_file_get_path(&a), fbbstore_builder_file_get_path(&b)) < 0;
       }
     } file_less;
-    std::sort(in_path_isreg_with_hash.begin(), in_path_isreg_with_hash.end(), file_less);
-    std::sort(in_system_path_isreg_with_hash.begin(), in_system_path_isreg_with_hash.end(),
-              file_less);
-    std::sort(in_path_isdir_with_hash.begin(), in_path_isdir_with_hash.end(), file_less);
-    std::sort(in_system_path_isdir_with_hash.begin(), in_system_path_isdir_with_hash.end(),
-              file_less);
+    std::sort(in_path_isreg.begin(), in_path_isreg.end(), file_less);
+    std::sort(in_system_path_isreg.begin(), in_system_path_isreg.end(), file_less);
+    std::sort(in_path_isdir.begin(), in_path_isdir.end(), file_less);
+    std::sort(in_system_path_isdir.begin(), in_system_path_isdir.end(), file_less);
     std::sort(out_path_isreg_with_hash.begin(), out_path_isreg_with_hash.end(), file_less);
     std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
 
@@ -581,8 +576,6 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         return strcmp(a.c_str, b.c_str) < 0;
       }
     } cstring_view_less;
-    std::sort(in_path_isreg.begin(), in_path_isreg.end(), cstring_view_less);
-    std::sort(in_path_isdir.begin(), in_path_isdir.end(), cstring_view_less);
     std::sort(in_path_notexist_or_isreg.begin(), in_path_notexist_or_isreg.end(),
               cstring_view_less);
     std::sort(in_path_notexist_or_isreg_empty.begin(), in_path_notexist_or_isreg_empty.end(),
@@ -592,26 +585,22 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     std::sort(out_path_notexist.begin(), out_path_notexist.end());
   }
 
-  fbbstore_builder_process_inputs_set_path_isreg_with_hash_item_fn(&pi,
-      in_path_isreg_with_hash.size(),
+  fbbstore_builder_process_inputs_set_path_isreg_item_fn(&pi,
+      in_path_isreg.size(),
       file_item_fn,
-      &in_path_isreg_with_hash);
-  fbbstore_builder_process_inputs_set_system_path_isreg_with_hash_item_fn(&pi,
-      in_system_path_isreg_with_hash.size(),
+      &in_path_isreg);
+  fbbstore_builder_process_inputs_set_system_path_isreg_item_fn(&pi,
+      in_system_path_isreg.size(),
       file_item_fn,
-      &in_system_path_isreg_with_hash);
-  fbbstore_builder_process_inputs_set_path_isreg(&pi,
-      in_path_isreg);
-  fbbstore_builder_process_inputs_set_path_isdir_with_hash_item_fn(&pi,
-      in_path_isdir_with_hash.size(),
+      &in_system_path_isreg);
+  fbbstore_builder_process_inputs_set_path_isdir_item_fn(&pi,
+      in_path_isdir.size(),
       file_item_fn,
-      &in_path_isdir_with_hash);
-  fbbstore_builder_process_inputs_set_system_path_isdir_with_hash_item_fn(&pi,
-      in_system_path_isdir_with_hash.size(),
+      &in_path_isdir);
+  fbbstore_builder_process_inputs_set_system_path_isdir_item_fn(&pi,
+      in_system_path_isdir.size(),
       file_item_fn,
-      &in_system_path_isdir_with_hash);
-  fbbstore_builder_process_inputs_set_path_isdir(&pi,
-      in_path_isdir);
+      &in_system_path_isdir);
   fbbstore_builder_process_inputs_set_path_notexist_or_isreg(&pi,
       in_path_notexist_or_isreg);
   fbbstore_builder_process_inputs_set_path_notexist_or_isreg_empty(&pi,
@@ -660,20 +649,36 @@ static bool file_matches_fs(const FBBSTORE_Serialized_file *file, bool is_dir,
     const Hash& fingerprint) {
   Hash on_fs_hash, in_cache_hash;
   bool on_fs_is_dir = false;
-  const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
-                                  fbbstore_serialized_file_get_path_len(file));
-  if (!hash_cache->get_hash(path, &on_fs_hash, &on_fs_is_dir) || (is_dir != on_fs_is_dir)) {
-    FB_DEBUG(FB_DEBUG_SHORTCUT,
-             "│   " + d(fingerprint)
-             + " mismatches e.g. at " + d(path)
-             + ": regular file expected but does not exist or something else found");
-    return false;
-  }
-  in_cache_hash.set(fbbstore_serialized_file_get_hash(file));
-  if (on_fs_hash != in_cache_hash) {
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
-             d(path) + ": hash differs");
-    return false;
+  const char *filename = fbbstore_serialized_file_get_path(file);
+
+  if (fbbstore_serialized_file_has_hash(file)) {
+    /* Verify the file type and contents via hash_cache. */
+    const auto path = FileName::Get(filename, fbbstore_serialized_file_get_path_len(file));
+    if (!hash_cache->get_hash(path, &on_fs_hash, &on_fs_is_dir) || (is_dir != on_fs_is_dir)) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + d(fingerprint)
+               + " mismatches e.g. at " + d(path)
+               + ": mismatching or unexpected file type");
+      return false;
+    }
+    in_cache_hash.set(fbbstore_serialized_file_get_hash(file));
+    if (on_fs_hash != in_cache_hash) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
+               d(path) + ": hash differs");
+      return false;
+    }
+  } else {
+    /* Verify the file type manually, without relying on hash_cache. */
+    struct stat64 st;
+    if (stat64(filename, &st) == -1 ||
+        (!is_dir && !S_ISREG(st.st_mode)) ||
+        (is_dir && !S_ISDIR(st.st_mode))) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   " + d(fingerprint)
+               + " mismatches e.g. at " + d(filename)
+               + ": entry missing or is of different type");
+      return false;
+    }
   }
   return true;
 }
@@ -687,55 +692,31 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
 
   struct stat64 st;
   size_t i;
-  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_with_hash_count(pi); i++) {
-    const FBBSTORE_Serialized *fbb =
-        fbbstore_serialized_process_inputs_get_path_isreg_with_hash_at(pi, i);
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(pi); i++) {
+    const FBBSTORE_Serialized *fbb = fbbstore_serialized_process_inputs_get_path_isreg_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
     if (!file_matches_fs(file, false, fingerprint)) {
       return false;
     }
   }
-  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_with_hash_count(pi); i++) {
-    const FBBSTORE_Serialized *fbb =
-        fbbstore_serialized_process_inputs_get_path_isdir_with_hash_at(pi, i);
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(pi); i++) {
+    const FBBSTORE_Serialized *fbb = fbbstore_serialized_process_inputs_get_path_isdir_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
     if (!file_matches_fs(file, true, fingerprint)) {
       return false;
     }
   }
-  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(pi); i++) {
-    const char *filename = fbbstore_serialized_process_inputs_get_path_isreg_at(pi, i);
-    if (stat64(filename, &st) == -1 || !S_ISREG(st.st_mode)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename)
-               + ": regular file expected but does not exist or something else found");
-      return false;
-    }
-  }
-  for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(pi); i++) {
-    const char *filename = fbbstore_serialized_process_inputs_get_path_isdir_at(pi, i);
-    if (stat64(filename, &st) == -1 || !S_ISDIR(st.st_mode)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename)
-               + ": directory expected but does not exist or something else found");
-      return false;
-    }
-  }
-  for (i = 0; i < fbbstore_serialized_process_inputs_get_system_path_isreg_with_hash_count(pi);
-       i++) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_system_path_isreg_count(pi); i++) {
     const FBBSTORE_Serialized *fbb =
-        fbbstore_serialized_process_inputs_get_system_path_isreg_with_hash_at(pi, i);
+        fbbstore_serialized_process_inputs_get_system_path_isreg_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
     if (!file_matches_fs(file, false, fingerprint)) {
       return false;
     }
   }
-  for (i = 0; i < fbbstore_serialized_process_inputs_get_system_path_isdir_with_hash_count(pi);
-       i++) {
+  for (i = 0; i < fbbstore_serialized_process_inputs_get_system_path_isdir_count(pi); i++) {
     const FBBSTORE_Serialized *fbb =
-        fbbstore_serialized_process_inputs_get_system_path_isdir_with_hash_at(pi, i);
+        fbbstore_serialized_process_inputs_get_system_path_isdir_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
     if (!file_matches_fs(file, true, fingerprint)) {
       return false;
@@ -986,39 +967,33 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>
         (fbbstore_serialized_process_inputs_outputs_get_inputs(inouts));
 
-    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_with_hash_count(inputs);
-         i++) {
-      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
-          (fbbstore_serialized_process_inputs_get_path_isreg_with_hash_at(inputs, i));
-      Hash hash(fbbstore_serialized_file_get_hash(file));
-      const FileUsage* fu = FileUsage::Get(ISREG_WITH_HASH, hash);
-      const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
-                                      fbbstore_serialized_file_get_path_len(file));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
-    }
-    for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_with_hash_count(inputs);
-         i++) {
-      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
-          (fbbstore_serialized_process_inputs_get_path_isdir_with_hash_at(inputs, i));
-      Hash hash(fbbstore_serialized_file_get_hash(file));
-      const FileUsage* fu = FileUsage::Get(ISDIR_WITH_HASH, hash);
-      const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
-                                      fbbstore_serialized_file_get_path_len(file));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
-    }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(inputs); i++) {
-      const FileUsage* fu = FileUsage::Get(ISREG);
-      const auto path = FileName::Get(
-          fbbstore_serialized_process_inputs_get_path_isreg_at(inputs, i),
-          fbbstore_serialized_process_inputs_get_path_isreg_len_at(inputs, i));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
+          (fbbstore_serialized_process_inputs_get_path_isreg_at(inputs, i));
+      const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
+                                      fbbstore_serialized_file_get_path_len(file));
+      if (fbbstore_serialized_file_has_hash(file)) {
+        Hash hash(fbbstore_serialized_file_get_hash(file));
+        const FileUsage* fu = FileUsage::Get(ISREG, hash);
+        proc->parent_exec_point()->propagate_file_usage(path, fu);
+      } else {
+        const FileUsage* fu = FileUsage::Get(ISREG);
+        proc->parent_exec_point()->propagate_file_usage(path, fu);
+      }
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(inputs); i++) {
-      const FileUsage* fu = FileUsage::Get(ISDIR);
-      const auto path = FileName::Get(
-          fbbstore_serialized_process_inputs_get_path_isdir_at(inputs, i),
-          fbbstore_serialized_process_inputs_get_path_isdir_len_at(inputs, i));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
+          (fbbstore_serialized_process_inputs_get_path_isdir_at(inputs, i));
+      const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
+                                      fbbstore_serialized_file_get_path_len(file));
+      if (fbbstore_serialized_file_has_hash(file)) {
+        Hash hash(fbbstore_serialized_file_get_hash(file));
+        const FileUsage* fu = FileUsage::Get(ISDIR, hash);
+        proc->parent_exec_point()->propagate_file_usage(path, fu);
+      } else {
+        const FileUsage* fu = FileUsage::Get(ISDIR);
+        proc->parent_exec_point()->propagate_file_usage(path, fu);
+      }
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_count(inputs);
          i++) {

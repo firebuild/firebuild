@@ -92,48 +92,37 @@ const FileUsage* FileUsage::merge(const FileUsage* that) const {
         tmp.initial_state_ = that->initial_state_;
         changed = true;
       }
-      if (that->initial_state_ == ISREG_WITH_HASH ||
-          that->initial_state_ == ISDIR_WITH_HASH) {
-        if (initial_hash_ != that->initial_hash_) {
-          tmp.initial_hash_ = that->initial_hash_;
-          changed = true;
-        }
+      if (that->initial_hash_known_ && initial_hash_ != that->initial_hash_) {
+        tmp.initial_hash_ = that->initial_hash_;
+        tmp.initial_hash_known_ = true;
+        changed = true;
       }
       break;
     }
     case NOTEXIST:
     case NOTEXIST_OR_ISREG:
     case NOTEXIST_OR_ISREG_EMPTY: {
-      if (!written_ && !that->written_
-          && (that->initial_state_ == ISDIR || that->initial_state_ == ISDIR_WITH_HASH)) {
+      if (!written_ && !that->written_ && that->initial_state_ == ISDIR) {
         return nullptr;
       }
       break;
     }
     case ISREG: {
-      if (!written_ && !that->written_
-          && that->initial_state_ == ISREG_WITH_HASH) {
-        /* Update initial state and add hash. */
-        tmp.initial_state_ = ISREG_WITH_HASH;
+      if (!written_ && !that->written_ && !initial_hash_known_ && that->initial_hash_known_) {
         tmp.initial_hash_ = that->initial_hash_;
+        tmp.initial_hash_known_ = true;
         changed = true;
       }
       break;
     }
     case ISDIR: {
-      if (!written_ && !that->written_
-          && that->initial_state_ == ISDIR_WITH_HASH) {
-        /* Update initial state and add hash. */
-        tmp.initial_state_ = ISDIR_WITH_HASH;
+      if (!written_ && !that->written_ && !initial_hash_known_ && that->initial_hash_known_) {
         tmp.initial_hash_ = that->initial_hash_;
+        tmp.initial_hash_known_ = true;
         changed = true;
       }
       break;
     }
-    case ISREG_WITH_HASH:
-    case ISDIR_WITH_HASH:
-      /* nothing to do here */
-      break;
   }
 
   if (!written_ && that->written_) {
@@ -210,7 +199,8 @@ bool FileUsage::update_from_open_params(const FileName* filename,
               unknown_err_ = errno;
               return false;
             }
-            initial_state_ = ISREG_WITH_HASH;
+            initial_hash_known_ = true;
+            initial_state_ = ISREG;
             *hash_changed  = true;
           } else {
             /* E: Another nasty combo. We can't distinguish a newly
@@ -226,7 +216,8 @@ bool FileUsage::update_from_open_params(const FileName* filename,
                 unknown_err_ = errno;
                 return false;
               }
-              initial_state_ = ISREG_WITH_HASH;
+              initial_hash_known_ = true;
+              initial_state_ = ISREG;
               *hash_changed  = true;
             } else {
               initial_state_ = NOTEXIST_OR_ISREG_EMPTY;
@@ -242,7 +233,8 @@ bool FileUsage::update_from_open_params(const FileName* filename,
           unknown_err_ = errno;
           return false;
         }
-        initial_state_ = is_dir ? ISDIR_WITH_HASH : ISREG_WITH_HASH;
+        initial_hash_known_ = true;
+        initial_state_ = is_dir ? ISDIR : ISREG;
       }
     } else if (action == FILE_ACTION_MKDIR) {
       initial_state_ = NOTEXIST;
@@ -309,7 +301,7 @@ std::string d(const FileUsage& fu, const int level) {
   (void)level;  /* unused */
   return std::string("{FileUsage initial_state=") +
       file_initial_state_to_string(fu.initial_state()) +
-      (fu.initial_state() == ISREG_WITH_HASH || fu.initial_state() == ISDIR_WITH_HASH ?
+      (fu.initial_hash_known() ?
           ", hash=" + d(fu.initial_hash()) : "") +
       ", written=" + d(fu.written()) + "}";
 }
@@ -333,12 +325,8 @@ const char *file_initial_state_to_string(FileInitialState state) {
       return "notexist_or_isreg";
     case ISREG:
       return "isreg";
-    case ISREG_WITH_HASH:
-      return "isreg_with_hash";
     case ISDIR:
       return "isdir";
-    case ISDIR_WITH_HASH:
-      return "isdir_with_hash";
     default:
       assert(0 && "unknown state");
       return "UNKNOWN";
