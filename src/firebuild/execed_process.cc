@@ -326,8 +326,7 @@ bool ExecedProcess::register_file_usage(const FileName *name,
      * modifications to apply currently, and then we propagate this upwards to be applied.
      */
     /* If hash is not stored yet it may need to be. */
-    bool read_again = !fu->written()
-        && (fu->initial_state() != ISDIR_WITH_HASH && fu->initial_state() != ISREG_WITH_HASH);
+    bool read_again = !fu->written() && !fu->initial_hash_known();
     const FileUsage *fu_change = FileUsage::Get(actual_file, action, flags, error, read_again);
     if (!fu_change) {
       /* Error */
@@ -639,7 +638,8 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fcreated: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() != ISREG_WITH_HASH && ffu.usage->written()) {
+    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    if (!isreg_with_hash && ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -647,7 +647,8 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fmodified: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() == ISREG_WITH_HASH && ffu.usage->written()) {
+    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    if (isreg_with_hash && ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -655,7 +656,8 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fread: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() == ISREG_WITH_HASH && !ffu.usage->written()) {
+    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    if (isreg_with_hash && !ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
@@ -663,7 +665,8 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_state() != ISREG_WITH_HASH && !ffu.usage->written()) {
+    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    if (!isreg_with_hash && !ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }

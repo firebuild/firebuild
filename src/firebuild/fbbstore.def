@@ -31,11 +31,11 @@
     ("file", [
       # file path, absolute or relative
       (REQUIRED, STRING,          "path"),
-      # checksum (binary) of the file content, empty if file is not found
-      (REQUIRED, "XXH128_hash_t", "hash"),
+      # checksum (binary) of the file content, if relevant and known
+      (OPTIONAL, "XXH128_hash_t", "hash"),
       # TODO add alternate hash values generated after preprocessing the file
       # with programs keeping the semantic content (e.g. removing white spaces)
-      #(REQUIRED, "XXH128_hash_t", "alt_hash"),
+      #(OPTIONAL, "XXH128_hash_t", "alt_hash"),
 
       # last modification time - FIXME in what unit?
       #(OPTIONAL, "long",          "mtime"),
@@ -66,12 +66,10 @@
     # that matches the current world.
     ("process_inputs", [
       # Files that are opened for reading, with various results.
-      (ARRAY, FBB,    "path_isreg_with_hash"),         # tag "file"
-      (ARRAY, FBB,    "system_path_isreg_with_hash"),  # tag "file"
-      (ARRAY, STRING, "path_isreg"),
-      (ARRAY, FBB,    "path_isdir_with_hash"),         # tag "file"
-      (ARRAY, FBB,    "system_path_isdir_with_hash"),  # tag "file"
-      (ARRAY, STRING, "path_isdir"),
+      (ARRAY, FBB,    "path_isreg"),                   # tag "file"
+      (ARRAY, FBB,    "system_path_isreg"),            # tag "file"
+      (ARRAY, FBB,    "path_isdir"),                   # tag "file"
+      (ARRAY, FBB,    "system_path_isdir"),            # tag "file"
       (ARRAY, STRING, "path_notexist_or_isreg"),
       (ARRAY, STRING, "path_notexist_or_isreg_empty"),
       (ARRAY, STRING, "path_notexist"),

@@ -30,19 +30,17 @@ typedef enum {
   /** We know and care that the file either did not exist before, or was a
    *  regular file (e.g. a creat() a.k.a. open(O_CREAT|O_WRONLY|O_TRUNC) succeeded). */
   NOTEXIST_OR_ISREG,
-  /** We know and care that the regular file existed before, but don't care
-   *  about its previous contents (e.g. an open(O_WRONLY|O_TRUNC) succeeded). */
+  /** We know and care that the regular file existed before.
+   *  (Maybe we don't know more, e.g. an open(O_WRONLY|O_TRUNC) succeeded.
+   *  Maybe we know the size, e.g. a stat() succeeded.
+   *  Maybe we know the size and the checksum, e.g. an open() succeeded for reading,
+   *  or for writing without truncating.) */
   ISREG,
-  /** We know and care that the file existed with the given hash (we opened it
-   *  for reading). */
-  ISREG_WITH_HASH,
-  /** We know and care that the directory existed before, but don't care about
-   *  its previous listing (e.g. we successfully created a file underneath it). */
+  /** We know and care that the directory existed before.
+   *  (Maybe we don't know more, e.g. a stat() succeeded.
+   *  Maybe we know the listing's checksum, e.g. an opendir() was performed.) */
   ISDIR,
-  /** We know and care that the directory existed with the given file listing hash
-   *  (e.g. an opendir() was performed. */
-  ISDIR_WITH_HASH,
-  INITIAL_STATE_MAX = ISDIR_WITH_HASH
+  INITIAL_STATE_MAX = ISDIR
 } FileInitialState;
 
 typedef enum {
@@ -61,6 +59,7 @@ struct FileUsageHasher;
 class FileUsage {
  public:
   FileInitialState initial_state() const {return initial_state_;}
+  bool initial_hash_known() const {return initial_hash_known_;}
   const Hash& initial_hash() const {return initial_hash_;}
   bool written() const {return written_;}
 
@@ -100,6 +99,7 @@ class FileUsage {
       /*read_(false),*/
       initial_hash_(hash),
       initial_state_(initial_state),
+      initial_hash_known_(false),
       // TODO(rbalint) use that later
       // stated_(false),
       written_(written),
@@ -113,7 +113,8 @@ class FileUsage {
 
   /* Things that describe the filesystem when the process started up */
 
-  /** The initial checksum, if initial_state_ == EXIST_WITH_HASH. */
+  /** The initial checksum, if known. Only if initial_state_ is ISREG or ISDIR.
+   *  For directories, it's the checksum of its listing. */
   Hash initial_hash_;
 
   /** The file's contents at the process's startup. More precisely, at
@@ -121,7 +122,11 @@ class FileUsage {
    *  that could be relevant, because at process startup we have no idea
    *  which files we'll need to monitor. See the comment of the
    *  individual enum numbers for more details. */
-  FileInitialState initial_state_ : 4;
+  FileInitialState initial_state_ : 3;
+
+  /** Whether the initial checksum of the file or directory is known.
+   *  Only if initial_state_ is ISREG or ISDIR. */
+  bool initial_hash_known_ : 1;
 
   /* Things that describe what the process potentially did */
 
@@ -178,9 +183,7 @@ class FileUsage {
       case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
-      case ISREG_WITH_HASH: return ISREG_WITH_HASH;
       case ISDIR: return ISDIR;
-      case ISDIR_WITH_HASH: return ISDIR_WITH_HASH;
       default:
         abort();
     }
@@ -193,9 +196,7 @@ class FileUsage {
       case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
-      case ISREG_WITH_HASH: return ISREG_WITH_HASH;
       case ISDIR: return ISDIR;
-      case ISDIR_WITH_HASH: return ISDIR_WITH_HASH;
       default:
         abort();
     }
