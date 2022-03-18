@@ -11,7 +11,9 @@
 
   "extra_c": """
     static void fbbstore_debug_mode_t(FILE *f, mode_t mode) {
-      fprintf(f, "\\"(octal) %03o\\"", mode);
+      fprintf(f, "\\"");
+      debug_mode_t(f, mode);
+      fprintf(f, "\\"");
     }
 
     static void fbbstore_debug_XXH128_hash_t(FILE *f, XXH128_hash_t value) {
@@ -25,6 +27,7 @@
   "extra_h": """
     #include <xxhash.h>
     #include "firebuild/hash.h"
+    #include "common/debug_sysflags.h"
   """,
 
   "tags": [

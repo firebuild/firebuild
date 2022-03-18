@@ -33,8 +33,17 @@ FBB = "fbb"
 
 def gen_fbb(params):
   msgs = params.get("tags")
+
+  # Python can easily unpack tuples whose size isn't known in advance. Jinja cannot. I don't want to
+  # bloat the FBB definitions by requiring a None for all the rarely used debugging-related 4th
+  # fields. Alter the big msgs object here so that all its tuples contain all 4 fields.
   for (msg, fields) in msgs:
-    for (req, type, var) in fields:
+    for (index, (req, type, var, *args)) in enumerate(fields):
+      debugger_method = args[0] if len(args) > 0 else None
+      fields[index] = (req, type, var, debugger_method)
+
+  for (msg, fields) in msgs:
+    for (req, type, var, dbgfn) in fields:
       if req not in [REQUIRED, OPTIONAL, ARRAY]:
         print("Unknown value instead of REQUIRED, OPTIONAL or ARRAY", file=sys.stderr)
         exit(1)
@@ -44,6 +53,7 @@ def gen_fbb(params):
     rendered = template.render(ns=namespace,
                                msgs=msgs,
                                types_with_custom_debugger=params.get("types_with_custom_debugger", []),
+                               varnames_with_custom_debugger=params.get("varnames_with_custom_debugger", []),
                                extra_c=params.get("extra_c", ""),
                                extra_h=params.get("extra_h", ""),
                                REQUIRED=REQUIRED,
