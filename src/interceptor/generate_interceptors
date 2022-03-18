@@ -1013,9 +1013,9 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
          msg="lockf")
 
 # Intercept fcntl and fcntl64
+# The return value is selectively set from tpl_fcntl.c for certain commands.
 generate("int", ["fcntl", "fcntl64"], "int fd, int cmd, ...",
-         tpl="fcntl",
-         send_ret_on_success=True)
+         tpl="fcntl")
 
 # Intercept ioctl
 generate("int", "ioctl", "int fd, unsigned long cmd, ...",
