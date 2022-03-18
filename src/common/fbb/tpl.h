@@ -14,6 +14,10 @@
 #ifndef {{ NS }}_H
 #define {{ NS }}_H 1
 
+/* Beginning of extra_h */
+{{ extra_h }}
+/* End of extra_h */
+
 #ifdef __cplusplus
 #include <string>
 #include <vector>
@@ -32,10 +36,6 @@
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
 #endif
-
-/* Beginning of extra_h */
-{{ extra_h }}
-/* End of extra_h */
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,7 +93,7 @@ enum {
  ******************************************************************************/
 
 ###   set jinjans = namespace(has_relptr=False)
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY or type in [STRING, FBB]
 ###       set jinjans.has_relptr = True
 ###     endif
@@ -108,14 +108,14 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
   /* It's important that the tag is the very first field */
   int {{ ns }}_tag;
   /* Required and optional scalar fields */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant != ARRAY and type not in [STRING, FBB]
   {{ type }} {{ var }};
 ###     endif
 ###   endfor
 
   /* Required and optional string and FBB fields */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant != ARRAY and type in [STRING, FBB]
 ###       if type == STRING
   fbb_size_t {{ var }}_len;
@@ -124,14 +124,14 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
 ###   endfor
 
   /* Arrays of anything */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY
   fbb_size_t {{ var }}_count;
 ###     endif
 ###   endfor
 
   /* Whether optional scalars have been set */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == OPTIONAL and type not in [STRING, FBB]
   bool has_{{ var }} : 1;
 ###     endif
@@ -144,7 +144,7 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
  */
 ###   if jinjans.has_relptr
 typedef struct _{{ NS }}_Relptrs_{{ msg }} {
-###     for (quant, type, var) in fields
+###     for (quant, type, var, dbgfn) in fields
 ###       if quant == ARRAY or type in [STRING, FBB]
   fbb_size_t {{ var }}_relptr;
 ###       endif
@@ -162,14 +162,14 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
   {{ NS }}_Serialized_{{ msg }} wire;
 
   /* Arrays of scalars (pointers only, owned by the caller) */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type not in [STRING, FBB]
   const {{ type }} *{{ var }};
 ###     endif
 ###   endfor
 
   /* Single strings and FBBs (pointers only, owned by the caller */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant != ARRAY
 ###       if type == STRING
   const char *{{ var }};
@@ -180,7 +180,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 ###   endfor
 
   /* Arrays of strings and FBBs (pointers only, owned by the caller) */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY
 ###       if type == STRING
   /* In what format do we have the strings */
@@ -222,7 +222,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 
 #ifdef FB_EXTRA_DEBUG
   /* Whether required scalars have been set */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if type not in [STRING, FBB] and quant == REQUIRED
   bool has_{{ var }} : 1;
 ###     endif
@@ -240,7 +240,7 @@ static inline void {{ ns }}_builder_{{ msg }}_init({{ NS }}_Builder_{{ msg }} *m
 
 /***** Setters *****/
 
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 {% set ctype = "const char *" if type == STRING else "const " + NS + "_Builder *" if type == FBB else type %}
 ###     if type not in [STRING, FBB]
 ###       if quant == REQUIRED
@@ -427,7 +427,7 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Bui
 
 /***** Getters on the builder *****/
 
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 {% set ctype = "const char *" if type == STRING else "const " + NS + "_Builder *" if type == FBB else type %}
 ###     if quant == OPTIONAL
 /*
@@ -659,7 +659,7 @@ static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ n
 
 /***** Getters on the serialized format *****/
 
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 {% set ctype = "const char *" if type == STRING else "const " + NS + "_Serialized *" if type == FBB else type %}
 ###     if quant == OPTIONAL
 /*

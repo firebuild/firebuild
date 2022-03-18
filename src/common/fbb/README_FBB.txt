@@ -140,8 +140,9 @@ Create a <namespace>.def file, i.e. "fbbns.def" with contents like this
     {
       "tags": [
         ("foo", [
-          (OPTIONAL, "uint16_t", "myuint"),
+          (REQUIRED, "uint16_t", "myuint"),
           (OPTIONAL, STRING,     "mystring"),
+          (OPTIONAL, "int",      "myint",          "myint_debugger"),
           (ARRAY,    "uint16_t", "myuintarray"),
           (ARRAY,    STRING,     "mystringarray"),
           (ARRAY,    FBB,        "myfbbarray"),
@@ -552,13 +553,75 @@ might need to include some header files to declare them.
 
 Also you must write a debugger method for them, unless the type can be
 automatically converted to a "long long int" and you're okay with
-printing the value as such.
+printing the value as such, or if you specify a custom debugger method
+for every such field.
+
+
+Custom debugging of certain types
+---------------------------------
+
+It is possible to define a custom debugger for fields of a certain type,
+overriding the default debugger, or implementing one if it has no
+default. For example, you can have a custom debugger for all mode_t
+fields to print them differently than just simply a decimal integer, or
+all XXH128hash_t fields that don't have a default debugger.
 
 Next to the outmost "tags" key in the Python definition file, add the
 keys "extra_h" for source code to place in the .h file and "extra_c" for
 a snippet placed in the .c file, and "types_with_custom_debugger" being
 a list of all the scalar types that need a custom debugger. These
 debuggers should be implemented in "extra_c" or elsewhere.
+
+The debugger method has to have the name "fbbns_debug_type", whereas
+"fbbns" is the actual namespace, and "type" is the type we're talking
+about. For example, in fbbcomm.def we overwrite the debugger of type
+"mode_t" by adding "mode_t" to the "types_with_custom_debugger" array
+and defining the "fbbcomm_debug_mode_t" function.
+
+The debugger method takes two parameters: the stdio stream to print to,
+and the value to print.
+
+
+Custom debugging of certain variable names
+------------------------------------------
+
+It is possible to define a custom debugger for fields of a certain name,
+across all the tags in the FBB. For example, you can have a custom
+debugger for all the error_no fields. This overrides the debugger
+determined by the variable's type.
+
+Next to the outmost "tags" key in the Python definition file, add the
+keys "extra_h" for source code to place in the .h file and "extra_c" for
+a snippet placed in the .c file, and "varnames_with_custom_debugger"
+being a list of all the variable names that need a custom debugger.
+These debuggers should be implemented in "extra_c" or elsewhere.
+
+The debugger method has to have the name "fbbns_debug_varname", whereas
+"fbbns" is the actual namespace, and "varname" is the name of the fields
+we're talking about. For example, in fbbcomm.def we overwrite the
+debugger of variables named "error_no" by adding "error_no" to the
+"varnames_with_custom_debugger" array and defining the
+"fbbcomm_debug_error_no" function.
+
+The debugger method takes two parameters: the stdio stream to print to,
+and the value to print.
+
+
+Custom debugging of certain fields
+----------------------------------
+
+Individual fields can have a custom debugger method. This overrides the
+debugger determined by the variable's type or name. Just specify the
+method name as the 4th field in the field's tuple, e.g. as for
+"myint_debugger" above.
+
+The debugger method takes four parameters: the stdio stream to print to,
+the value to print, whether we're debugging a builder (false) or
+serialized (true) FBB object, and a pointer to that builder or
+serialized FBB. The 3rd and 4th parameters are useful if the way to
+debug a field depends on other FBB fields, for example fcntl's argument
+or return value should be debug-printed differently based on fcntl's
+command.
 
 
 Serialization format

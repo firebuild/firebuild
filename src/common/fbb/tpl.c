@@ -74,7 +74,7 @@ void {{ ns }}_serialized_debug_indent(FILE *f, const {{ NS }}_Serialized *msg, i
  ******************************************************************************/
 
 ###   set jinjans = namespace(has_relptr=False)
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY or type in [STRING, FBB]
 ###       set jinjans.has_relptr = True
 ###     endif
@@ -89,7 +89,7 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
   const int indent_step = 4;
   indent += indent_step;
   fprintf(f, "{\n%*s\"[{{ NS }}_TAG]\": \"%s\"", indent, "", "{{ msg }}");
-###     for (quant, type, var) in fields
+###     for (quant, type, var, dbgfn) in fields
 ###       if quant in [REQUIRED, OPTIONAL]
 ###         if quant == OPTIONAL
   /* Optional {{ type }} '{{ var }}' */
@@ -99,7 +99,12 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
   if (1) {
 ###         endif
     fprintf(f, ",\n%*s\"{{ var }}\": ", indent, "");
-###         if type == STRING
+###         if dbgfn
+    {{ dbgfn }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg),
+              {% if variant == 'builder' %}false{% else %}true {% endif %}, msg);
+###         elif var in varnames_with_custom_debugger
+    {{ ns }}_debug_{{ var }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg));
+###         elif type == STRING
     {{ ns }}_debug_string(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg));
 ###         elif type == FBB
     {{ ns }}_{{ variant }}_debug_indent(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg), indent);
@@ -120,7 +125,12 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
   sep = "";
   for (fbb_size_t idx = 0; idx < {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_count(msg); idx++) {
     fprintf(f, "%s\n%*s", sep, indent, "");
-###         if type == STRING
+###         if dbgfn
+    {{ dbgfn }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx)
+              {% if variant == 'builder' %}false{% else %}true {% endif %}, msg);
+###         elif var in varnames_with_custom_debugger
+    {{ ns }}_debug_{{ var }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx));
+###         elif type == STRING
     {{ ns }}_debug_string(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx));
 ###         elif type == FBB
     {{ ns }}_{{ variant }}_debug_indent(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx), indent);
@@ -160,7 +170,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
   ADD_PADDING_LEN(len);
 
   /* Sizes of scalar arrays */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type not in [STRING, FBB]
   len += msgbldr->wire.{{ var }}_count * sizeof(*msgbldr->{{ var }});
   ADD_PADDING_LEN(len);
@@ -168,7 +178,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
 ###   endfor
 
   /* Sizes of required and optional strings */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == STRING
   if (msgbldr->{{ var }} != NULL) {
     len += msgbldr->wire.{{ var }}_len + 1;
@@ -178,7 +188,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
 ###   endfor
 
   /* Recurse into required and optional FBBs */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == FBB
   if (msgbldr->{{ var }} != NULL) {
     len += {{ ns }}_builder_measure(msgbldr->{{ var }});  /* already includes padding */
@@ -187,7 +197,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
 ###   endfor
 
     /* The second hop for arrays of strings */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == STRING
   len += 2 * msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);  /* we'll build an alternating list of offsets and lengths */
   ADD_PADDING_LEN(len);
@@ -199,7 +209,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
 ###   endfor
 
     /* The second hop for arrays of FBBs, including recursion */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == FBB
   len += msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);
   ADD_PADDING_LEN(len);
@@ -222,7 +232,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
 static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{ msg }} *msgbldr, char *dst) {
 #ifdef FB_EXTRA_DEBUG
   /* Verify that the required fields were set */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == REQUIRED
 ###       if type in [STRING, FBB]
   assert(msgbldr->{{ var }} != NULL);
@@ -255,7 +265,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
   PAD(dst, offset);
 
   /* Arrays of scalars */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type not in [STRING, FBB]
   if (msgbldr->wire.{{ var }}_count > 0) {
     relptrs->{{ var }}_relptr = offset;
@@ -270,7 +280,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
 ###   endfor
 
   /* Required and optional strings */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == STRING
   if (msgbldr->{{ var }} != NULL) {
     relptrs->{{ var }}_relptr = offset;
@@ -285,7 +295,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
 ###   endfor
 
   /* Required and optional FBBs */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == FBB
   if (msgbldr->{{ var }} != NULL) {
     relptrs->{{ var }}_relptr = offset;
@@ -299,7 +309,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
 ###   endfor
 
   /* Arrays of strings */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == STRING
   if (msgbldr->wire.{{ var }}_count > 0) {
     relptrs->{{ var }}_relptr = offset;
@@ -324,7 +334,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
 ###   endfor
 
   /* Arrays of FBBs */
-###   for (quant, type, var) in fields
+###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == FBB
   if (msgbldr->wire.{{ var }}_count > 0) {
     relptrs->{{ var }}_relptr = offset;

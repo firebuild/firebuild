@@ -8,11 +8,55 @@
 
 {
   "types_with_custom_debugger": ["mode_t"],
+  "varnames_with_custom_debugger": ["error_no"],
 
   "extra_c": """
+    /* Debugger method for mode_t fields. */
     static void fbbcomm_debug_mode_t(FILE *f, mode_t mode) {
-      fprintf(f, "\\"(octal) %03o\\"", mode);
+      fprintf(f, "\\"");
+      debug_mode_t(f, mode);
+      fprintf(f, "\\"");
     }
+
+    /* Debugger method for error_no values. */
+    static void fbbcomm_debug_error_no(FILE *f, int error_no) {
+      fprintf(f, "\\"");
+      debug_error_no(f, error_no);
+      fprintf(f, "\\"");
+    }
+
+    /* Debugger method for int fields that represent open()'s O_* flags. */
+    static void fbbcomm_debug_open_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_open_flags(f, flags);
+      fprintf(f, "\\"");
+    }
+
+    /* Debugger method for int fields that represent fcntl()'s F_* command. */
+    static void fbbcomm_debug_fcntl_cmd(FILE *f, int cmd, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_fcntl_cmd(f, cmd);
+      fprintf(f, "\\"");
+    }
+
+    /* Debugger method for int fields that represent fcntl()'s argument or non-error return value,
+     * which could be FD_* or O_* or other flags depending on the command. */
+    static void fbbcomm_debug_fcntl_arg_or_ret(FILE *f, int arg_or_ret, bool is_serialized, const void *fbb) {
+      int cmd = is_serialized ?
+          fbbcomm_serialized_fcntl_get_cmd((FBBCOMM_Serialized_fcntl *)fbb) :
+          fbbcomm_builder_fcntl_get_cmd((FBBCOMM_Builder_fcntl *)fbb);
+      fprintf(f, "\\"");
+      debug_fcntl_arg_or_ret(f, cmd, arg_or_ret);
+      fprintf(f, "\\"");
+    }
+  """,
+
+  "extra_h": """
+    #include "common/debug_sysflags.h"
   """,
 
   "tags": [
@@ -85,11 +129,11 @@
       # file descriptor
       (OPTIONAL, "int", "fd"),
       # command
-      (OPTIONAL, "int", "cmd"),
+      (OPTIONAL, "int", "cmd", "fbbcomm_debug_fcntl_cmd"),
       # arg, if present
-      (OPTIONAL, "int", "arg"),
+      (OPTIONAL, "int", "arg", "fbbcomm_debug_fcntl_arg_or_ret"),
       # return value, depends on cmd
-      (OPTIONAL, "int", "ret"),
+      (OPTIONAL, "int", "ret", "fbbcomm_debug_fcntl_arg_or_ret"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -111,7 +155,7 @@
       # file path
       (OPTIONAL, STRING, "file"),
       # flags, decoding is left for Firebuild supervisor
-      (REQUIRED, "int", "flags"),
+      (REQUIRED, "int", "flags", "fbbcomm_debug_open_flags"),
       # mode if (flags & O_CREAT), decoding is left for Firebuild supervisor
       (OPTIONAL, "mode_t", "mode"),
       # return value, the file descriptor if != -1
@@ -124,7 +168,7 @@
       # file path, can be NULL
       (OPTIONAL, STRING, "file"),
       # flags, decoding is left for Firebuild supervisor
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_open_flags"),
       # file descriptor associated to the stream to be reopened
       (OPTIONAL, "int", "oldfd"),
       # return value, the file descriptor if != -1
@@ -208,7 +252,7 @@
 
     ("stat", [
       # Returned file type and mode
-      (OPTIONAL, "int", "st_mode"),
+      (OPTIONAL, "mode_t", "st_mode"),
       # dir file descriptor for fstatat()
       (OPTIONAL, "int", "dirfd"),
       # path to file
@@ -221,7 +265,7 @@
 
     ("fstat", [
       # Returned file type and mode
-      (OPTIONAL, "int", "st_mode"),
+      (OPTIONAL, "mode_t", "st_mode"),
       # file fd
       (OPTIONAL, "int", "fd"),
       # error no., when ret = -1
@@ -376,7 +420,7 @@
     # Step 1/3 of intercepting a pipe() or pipe2() call. See #656 for design rationale.
     # Request the supervisor to create an intercepted unnamed pipe for the interceptor.
     ("pipe_request", [
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_open_flags"),
     ]),
 
     # Step 2/3 of intercepting a pipe() or pipe2() call. This message is sent from the supervisor
@@ -412,7 +456,7 @@
       # new file fd
       (REQUIRED, "int", "newfd"),
       # flags
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_open_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -505,7 +549,7 @@
       # command
       (OPTIONAL, STRING, "cmd"),
       # type, represented as flags
-      (REQUIRED, "int", "type_flags"),
+      (REQUIRED, "int", "type_flags", "fbbcomm_debug_open_flags"),
     ]),
 
     ("popen_parent", [
@@ -537,7 +581,7 @@
     ("posix_spawn_file_action_open", [
       (REQUIRED, "int", "fd"),
       (REQUIRED, STRING,    "path"),
-      (REQUIRED, "int", "flags"),
+      (REQUIRED, "int", "flags", "fbbcomm_debug_open_flags"),
       (REQUIRED, "mode_t", "mode"),
     ]),
 
