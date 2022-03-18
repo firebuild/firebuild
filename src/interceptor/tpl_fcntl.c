@@ -6,12 +6,14 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (has_int_arg) fbbcomm_builder_" + msg + "_set_arg(&ic_msg, int_arg);"] %}
+{% set msg_add_fields = ["if (has_int_arg) fbbcomm_builder_" + msg + "_set_arg(&ic_msg, int_arg);",
+                         "if (send_ret) fbbcomm_builder_" + msg + "_set_ret(&ic_msg, ret);"] %}
 {% set send_msg_condition = "to_send" %}
 
 ### block before
   /* Preparations */
   bool to_send = false;
+  bool send_ret = false;
   bool has_int_arg = false;
   int int_arg;
 
@@ -46,9 +48,16 @@
       break;
     }
 
-    /* Commands taking an int arg that the supervisor needs to know about. */
+    /* Commands taking an int arg that the supervisor needs to know about,
+     * and the return value is also relevant. */
     case F_DUPFD:
-    case F_DUPFD_CLOEXEC:
+    case F_DUPFD_CLOEXEC: {
+      send_ret = true;
+    }
+    __attribute__ ((fallthrough));
+
+    /* Commands taking an int arg that the supervisor needs to know about,
+     * but the return value is irrelevant (other than not being an error value). */
     case F_SETFD: {
       to_send = true;
       has_int_arg = true;
