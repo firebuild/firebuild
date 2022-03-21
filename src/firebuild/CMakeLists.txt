@@ -15,6 +15,10 @@ else()
 endif()
 find_package(tsl-hopscotch-map REQUIRED)
 
+if (SANITIZE)
+  set(SANITIZE_SUPERVISOR_LINK_OPTIONS -fsanitize=address -fsanitize=undefined)
+endif()
+
 add_custom_command(
   OUTPUT fbbfp.cc fbbfp.h fbbfp_decode.c
   DEPENDS fbbfp.def
@@ -68,7 +72,7 @@ add_executable(firebuild-bin
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_cc>)
 target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} ${XXHASH_LIBRARIES})
-target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow)
+target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow ${SANITIZE_SUPERVISOR_LINK_OPTIONS})
 set_target_properties(firebuild-bin
   PROPERTIES INTERPROCEDURAL_OPTIMIZATION True OUTPUT_NAME firebuild)
 add_dependencies(firebuild-bin fbbcomm_gen_files fbbfp_gen_files fbbstore_gen_files)
