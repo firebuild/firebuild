@@ -8,6 +8,10 @@ set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89 
 set_source_files_properties(intercept.c
   PROPERTIES COMPILE_FLAGS "-Wno-unknown-warning-option -Wno-stringop-truncation -DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
+if (SANITIZE)
+  set(SANITIZE_INTERCEPTOR_LINK_OPTIONS -fsanitize=undefined)
+endif()
+
 add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c
   DEPENDS generate_interceptors
@@ -59,6 +63,6 @@ set_target_properties(firebuild PROPERTIES
   INTERPROCEDURAL_OPTIMIZATION True
   VERSION "0.0.0" SOVERSION 0)
 target_link_libraries(firebuild dl)
-target_link_options(firebuild PUBLIC -Wno-strict-overflow)
+target_link_options(firebuild PUBLIC -Wno-strict-overflow ${SANITIZE_INTERCEPTOR_LINK_OPTIONS})
 
 install(TARGETS firebuild DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -7,3 +7,6 @@ option(ENABLE_XXH_INLINE_ALL "Enable -DXXH_INLINE_ALL" ON)
 
 # Disable linking with jemalloc may help in triaging memory handling issues
 option(WITH_JEMALLOC "Link with jemalloc" ON)
+
+# Enables ASan for the supervisor and UBSan for the supervisor and the interceptor
+option(SANITIZE "Enable Address and Undefined behaviour sanitizer" OFF)
