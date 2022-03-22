@@ -18,6 +18,15 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: build-on-ubuntu-lts-debs-${{ needs.style-checks.outputs.week }}
+    # TODO: This and saving the debs can be dropped and and the debs can be saved directly like in docker
+    # when https://github.com/actions/cache/issues/324 gets fixed
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: hendrikmuhs/ccache-action@v1
       with:
         key: build-on-ubuntu-lts
@@ -54,6 +63,11 @@ jobs:
         cmake -DCOVERAGE=1 .
         make -j2 check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 72" | bc) = 1 ]
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
+
   # build on latest stable Ubuntu available in a docker image, which may not be an lts
   build-on-ubuntu-docker:
     needs: style-checks
@@ -62,6 +76,14 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
+    - name: disable-apt-docker-clean
+      run: |
+        # don't clean apt archive cache to make deb caching work
+        rm -f /etc/apt/apt.conf.d/docker-clean
+    - uses: actions/cache@v3
+      with:
+        path: /var/cache/apt/archives/*deb
+        key: build-on-ubuntu-docker-debs-${{ needs.style-checks.outputs.week }}
     # TODO(rbalint) use ccache action when it starts working in docker
     # https://github.com/hendrikmuhs/ccache-action/issues/30#issuecomment-948013472
     # - uses: hendrikmuhs/ccache-action@v1
@@ -89,12 +111,20 @@ jobs:
         export PATH=/usr/lib/ccache:$PATH
         cmake -DCMAKE_BUILD_TYPE=Debug .
         make -j2 check
+
   clang-build:
     needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: clang-build-debs-${{ needs.style-checks.outputs.week }}
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: hendrikmuhs/ccache-action@v1
       with:
         key: clang-build
@@ -115,12 +145,24 @@ jobs:
         # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
         env CCACHE_DISABLE=1 scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
         env CCACHE_DISABLE=1 scan-build-12 --status-bugs make -j2
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
+
   rebuild-self:
     needs: style-checks
     runs-on: ubuntu-20.04
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: rebuild-self-debs-${{ needs.style-checks.outputs.week }}
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: hendrikmuhs/ccache-action@v1
       with:
         key: rebuild-self
@@ -146,6 +188,10 @@ jobs:
         time ./run-firebuild make -j8 -C ../../build all
         ./run-firebuild make -C ../../build clean
         time ./run-firebuild make -j8 -C ../../build all
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
   build-other-projects:
     needs: style-checks
@@ -153,6 +199,13 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: build-other-projects-debs-${{ needs.style-checks.outputs.week }}
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: hendrikmuhs/ccache-action@v1
       with:
         key: build-other-projects
@@ -178,6 +231,10 @@ jobs:
         ./run-firebuild ninja -j8 -C ../vte2.91-*/build
         ninja -C ../vte2.91-*/build clean
         ./run-firebuild ninja -j8 -C ../vte2.91-*/build
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
   build-deb:
     needs: style-checks
@@ -185,6 +242,13 @@ jobs:
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: build-deb-debs-${{ needs.style-checks.outputs.week }}
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: hendrikmuhs/ccache-action@v1
       with:
         key: build-deb
@@ -200,9 +264,15 @@ jobs:
         dpkg-buildpackage -j2 -us -uc
         sudo apt-get install ../*.deb
         firebuild -- ls
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
   style-checks:
     runs-on: ubuntu-20.04
+    outputs:
+      week: ${{ steps.week-of-year.outputs.week }} # map step output to job output
     timeout-minutes: 2
     steps:
     - uses: actions/checkout@v2
@@ -212,4 +282,7 @@ jobs:
         pip3 install cpplint==1.5.4
     - name: style-check
       run: env PATH=$HOME/.local/bin:$PATH cpplint --recursive src test
-
+      # this will be used by other jobs to invalidate cache after a week
+    - name: week of year
+      id: week-of-year
+      run: echo "::set-output name=week::$(/bin/date -u "+%V")"
