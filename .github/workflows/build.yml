@@ -65,8 +65,8 @@ jobs:
     # TODO(rbalint) use ccache action when it starts working in docker
     # https://github.com/hendrikmuhs/ccache-action/issues/30#issuecomment-948013472
     # - uses: hendrikmuhs/ccache-action@v1
-      with:
-        key: build-on-ubuntu-docker
+    #  with:
+    #    key: build-on-ubuntu-docker
     - name: install-deps
       run: |
         sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list
