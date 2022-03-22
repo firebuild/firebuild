@@ -89,22 +89,6 @@ jobs:
         export PATH=/usr/lib/ccache:$PATH
         cmake -DCMAKE_BUILD_TYPE=Debug .
         make -j2 check
-  scan-build:
-    # wait for clang-build because scan-build fails if the former fails
-    needs: [style-checks, clang-build]
-    runs-on: ubuntu-20.04
-    timeout-minutes: 15
-    steps:
-    - uses: actions/checkout@v2
-    - name: install-deps
-      run: |
-        sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
-    - name: scan-build
-      run: |
-        # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
-        scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
-        scan-build-12 --status-bugs make -j2
   clang-build:
     needs: style-checks
     runs-on: ubuntu-20.04
@@ -124,6 +108,13 @@ jobs:
         env CXX=clang++ CC=clang cmake .
         # the interceptor does not work when building it with Clang, thus make check always fails
         make -j2
+    - name: clean
+      run: make clean
+    - name: scan-build
+      run: |
+        # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
+        env CCACHE_DISABLE=1 scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
+        env CCACHE_DISABLE=1 scan-build-12 --status-bugs make -j2
   rebuild-self:
     needs: style-checks
     runs-on: ubuntu-20.04
