@@ -19,6 +19,10 @@
 #ifndef FIREBUILD_ENV_H_
 #define FIREBUILD_ENV_H_
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#endif
 #include <stdbool.h>
 
 /**
