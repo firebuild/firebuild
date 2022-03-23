@@ -93,6 +93,11 @@ __thread bool thread_has_global_lock = false;
 __thread sig_atomic_t thread_signal_handler_running_depth = 0;
 __thread sig_atomic_t thread_libc_nesting_depth = 0;
 __thread uint64_t thread_delayed_signals_bitmap = 0;
+#ifdef __APPLE__
+/* OS X does not support RT signals https://flylib.com/books/en/3.126.1.110/1/ ,
+ * but we can handle 64 signals safely. */
+#define SIGRTMAX ((int)sizeof(thread_delayed_signals_bitmap) * 8)
+#endif
 
 void (*orig_signal_handlers[IC_WRAP_SIGRTMAX])(void) = {NULL};
 
