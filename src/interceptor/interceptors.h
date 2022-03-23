@@ -30,7 +30,11 @@
 #include <dlfcn.h>
 #include <err.h>
 #include <errno.h>
+#ifdef __APPLE__
+#include <mach/error.h>
+#else
 #include <error.h>
+#endif
 #include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
