@@ -17,7 +17,11 @@
  */
 
 #include <errno.h>
+#ifdef __APPLE__
+#include <mach/error.h>
+#else
 #include <error.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
