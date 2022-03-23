@@ -46,12 +46,17 @@ struct ustat;
 
 #include "./fbbcomm.h"
 
+#ifndef __GLIBC_PREREQ
+#define FB_SSIZE_T ssize_t
+#define FB_VA_LIST va_list
+#else
 #if __GLIBC_PREREQ (2, 28)
 #define FB_SSIZE_T ssize_t
 #define FB_VA_LIST va_list
 #else
 #define FB_SSIZE_T _IO_ssize_t
 #define FB_VA_LIST _G_va_list
+#endif
 #endif
 
 void init_interceptors();
