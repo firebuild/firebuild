@@ -799,6 +799,9 @@ void fb_init_supervisor_conn() {
  * mpicc the constructor is called first, thus this heuristics is not used.
  */
 static void init_argc_argv() {
+#ifdef __APPLE__
+  char** __environ = environ;
+#endif
   if (ic_argv == NULL) {
     char* arg = *(__environ - 2);
     unsigned long int argc_guess = 0;
@@ -895,7 +898,11 @@ static void fb_ic_init() {
   fbbcomm_builder_scproc_query_set_umask(&ic_msg, initial_umask);
 
   /* make a sorted and filtered copy of env */
+#ifdef __APPLE__
+  char **env = environ;
+#else
   char **env = __environ;
+#endif
   int env_len = 0, env_copy_len = 0;
   for (char** cursor = env; *cursor != NULL; cursor++) {
     env_len++;
