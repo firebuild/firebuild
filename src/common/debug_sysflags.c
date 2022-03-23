@@ -105,18 +105,28 @@ void debug_open_flags(FILE *f, int flags) {
   DEBUG_BITMAP_FLAG(f, flags, O_ASYNC)
   DEBUG_BITMAP_FLAG(f, flags, O_CLOEXEC)
   DEBUG_BITMAP_FLAG(f, flags, O_CREAT)
+#ifdef O_DIRECT
   DEBUG_BITMAP_FLAG(f, flags, O_DIRECT)
+#endif
   DEBUG_BITMAP_FLAG(f, flags, O_DIRECTORY)
   DEBUG_BITMAP_FLAG(f, flags, O_DSYNC)
   DEBUG_BITMAP_FLAG(f, flags, O_EXCL)
+#ifdef O_LARGEFILE
   DEBUG_BITMAP_FLAG(f, flags, O_LARGEFILE)
+#endif
+#ifdef O_NOATIME
   DEBUG_BITMAP_FLAG(f, flags, O_NOATIME)
+#endif
   DEBUG_BITMAP_FLAG(f, flags, O_NOCTTY)
   DEBUG_BITMAP_FLAG(f, flags, O_NOFOLLOW)
   DEBUG_BITMAP_FLAG(f, flags, O_NONBLOCK)
+#ifdef O_PATH
   DEBUG_BITMAP_FLAG(f, flags, O_PATH)
+#endif
   DEBUG_BITMAP_FLAG(f, flags, O_SYNC)
+#ifdef O_TMPFILE
   DEBUG_BITMAP_FLAG(f, flags, O_TMPFILE)
+#endif
   DEBUG_BITMAP_FLAG(f, flags, O_TRUNC)
   DEBUG_BITMAP_END_HEX(f, flags)
 }
@@ -130,8 +140,12 @@ void debug_at_flags(FILE *f, int flags) {
   /* AT_EACCESS has different semantics but the same value as AT_REMOVEDIR.
    * FIXME Print whichever semantically matches the current context. */
   /* DEBUG_BITMAP_FLAG(f, flags, AT_EACCESS) */
+#ifdef AT_EMPTY_PATH
   DEBUG_BITMAP_FLAG(f, flags, AT_EMPTY_PATH)
+#endif
+#ifdef AT_NO_AUTOMOUNT
   DEBUG_BITMAP_FLAG(f, flags, AT_NO_AUTOMOUNT)
+#endif
 #ifdef AT_RECURSIVE
   DEBUG_BITMAP_FLAG(f, flags, AT_RECURSIVE)
 #endif
@@ -169,21 +183,51 @@ void debug_fcntl_cmd(FILE *f, int cmd) {
   DEBUG_VALUE_VALUE(f, cmd, F_SETLKW)
   DEBUG_VALUE_VALUE(f, cmd, F_GETOWN)
   DEBUG_VALUE_VALUE(f, cmd, F_SETOWN)
+#ifdef F_GETOWN_EX
   DEBUG_VALUE_VALUE(f, cmd, F_GETOWN_EX)
+#endif
+#ifdef F_SETOWN_EX
   DEBUG_VALUE_VALUE(f, cmd, F_SETOWN_EX)
+#endif
+#ifdef F_GETSIG
   DEBUG_VALUE_VALUE(f, cmd, F_GETSIG)
+#endif
+#ifdef F_SETSIG
   DEBUG_VALUE_VALUE(f, cmd, F_SETSIG)
+#endif
+#ifdef F_GETLEASE
   DEBUG_VALUE_VALUE(f, cmd, F_GETLEASE)
+#endif
+#ifdef F_SETLEASE
   DEBUG_VALUE_VALUE(f, cmd, F_SETLEASE)
+#endif
+#ifdef F_NOTIFY
   DEBUG_VALUE_VALUE(f, cmd, F_NOTIFY)
+#endif
+#ifdef F_GETPIPE_SZ
   DEBUG_VALUE_VALUE(f, cmd, F_GETPIPE_SZ)
+#endif
+#ifdef F_SETPIPE_SZ
   DEBUG_VALUE_VALUE(f, cmd, F_SETPIPE_SZ)
+#endif
+#ifdef F_ADD_SEALS
   DEBUG_VALUE_VALUE(f, cmd, F_ADD_SEALS)
+#endif
+#ifdef F_GET_SEALS
   DEBUG_VALUE_VALUE(f, cmd, F_GET_SEALS)
+#endif
+#ifdef F_GET_RW_HINT
   DEBUG_VALUE_VALUE(f, cmd, F_GET_RW_HINT)
+#endif
+#ifdef F_SET_RW_HINT
   DEBUG_VALUE_VALUE(f, cmd, F_SET_RW_HINT)
+#endif
+#ifdef F_GET_FILE_RW_HINT
   DEBUG_VALUE_VALUE(f, cmd, F_GET_FILE_RW_HINT)
+#endif
+#ifdef F_SET_FILE_RW_HINT
   DEBUG_VALUE_VALUE(f, cmd, F_SET_FILE_RW_HINT)
+#endif
   DEBUG_VALUE_END_DEC(f, cmd)
 }
 
@@ -221,23 +265,41 @@ void debug_error_no(FILE *f, int error_no) {
   DEBUG_VALUE_VALUE(f, error_no, EACCES)
   DEBUG_VALUE_VALUE(f, error_no, EADDRINUSE)
   DEBUG_VALUE_VALUE(f, error_no, EADDRNOTAVAIL)
+#ifdef EADV
   DEBUG_VALUE_VALUE(f, error_no, EADV)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EAFNOSUPPORT)
   DEBUG_VALUE_VALUE(f, error_no, EAGAIN)
   DEBUG_VALUE_VALUE(f, error_no, EALREADY)
+#ifdef EBADE
   DEBUG_VALUE_VALUE(f, error_no, EBADE)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EBADF)
+#ifdef EBADFD
   DEBUG_VALUE_VALUE(f, error_no, EBADFD)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EBADMSG)
+#ifdef EBADR
   DEBUG_VALUE_VALUE(f, error_no, EBADR)
+#endif
+#ifdef EBADRQC
   DEBUG_VALUE_VALUE(f, error_no, EBADRQC)
+#endif
+#ifdef EBADSLT
   DEBUG_VALUE_VALUE(f, error_no, EBADSLT)
+#endif
+#ifdef EBFONT
   DEBUG_VALUE_VALUE(f, error_no, EBFONT)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EBUSY)
   DEBUG_VALUE_VALUE(f, error_no, ECANCELED)
   DEBUG_VALUE_VALUE(f, error_no, ECHILD)
+#ifdef ECHRNG
   DEBUG_VALUE_VALUE(f, error_no, ECHRNG)
+#endif
+#ifdef ECOMM
   DEBUG_VALUE_VALUE(f, error_no, ECOMM)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ECONNABORTED)
   DEBUG_VALUE_VALUE(f, error_no, ECONNREFUSED)
   DEBUG_VALUE_VALUE(f, error_no, ECONNRESET)
@@ -245,14 +307,18 @@ void debug_error_no(FILE *f, int error_no) {
   /* DEBUG_VALUE_VALUE(f, error_no, EDEADLOCK) - same as EDEADLK on Linux */
   DEBUG_VALUE_VALUE(f, error_no, EDESTADDRREQ)
   DEBUG_VALUE_VALUE(f, error_no, EDOM)
+#ifdef EDOTDOT
   DEBUG_VALUE_VALUE(f, error_no, EDOTDOT)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EDQUOT)
   DEBUG_VALUE_VALUE(f, error_no, EEXIST)
   DEBUG_VALUE_VALUE(f, error_no, EFAULT)
   DEBUG_VALUE_VALUE(f, error_no, EFBIG)
   DEBUG_VALUE_VALUE(f, error_no, EHOSTDOWN)
   DEBUG_VALUE_VALUE(f, error_no, EHOSTUNREACH)
+#ifdef EHWPOISON
   DEBUG_VALUE_VALUE(f, error_no, EHWPOISON)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EIDRM)
   DEBUG_VALUE_VALUE(f, error_no, EILSEQ)
   DEBUG_VALUE_VALUE(f, error_no, EINPROGRESS)
@@ -261,47 +327,91 @@ void debug_error_no(FILE *f, int error_no) {
   DEBUG_VALUE_VALUE(f, error_no, EIO)
   DEBUG_VALUE_VALUE(f, error_no, EISCONN)
   DEBUG_VALUE_VALUE(f, error_no, EISDIR)
+#ifdef EISNAM
   DEBUG_VALUE_VALUE(f, error_no, EISNAM)
+#endif
+#ifdef EKEYEXPIRED
   DEBUG_VALUE_VALUE(f, error_no, EKEYEXPIRED)
+#endif
+#ifdef EKEYREJECTED
   DEBUG_VALUE_VALUE(f, error_no, EKEYREJECTED)
+#endif
+#ifdef EKEYREVOKED
   DEBUG_VALUE_VALUE(f, error_no, EKEYREVOKED)
+#endif
+#ifdef EL2HLT
   DEBUG_VALUE_VALUE(f, error_no, EL2HLT)
+#endif
+#ifdef EL2NSYNC
   DEBUG_VALUE_VALUE(f, error_no, EL2NSYNC)
+#endif
+#ifdef EL3HLT
   DEBUG_VALUE_VALUE(f, error_no, EL3HLT)
+#endif
+#ifdef EL3RST
   DEBUG_VALUE_VALUE(f, error_no, EL3RST)
+#endif
+#ifdef ELIBACC
   DEBUG_VALUE_VALUE(f, error_no, ELIBACC)
+#endif
+#ifdef ELIBBAD
   DEBUG_VALUE_VALUE(f, error_no, ELIBBAD)
+#endif
+#ifdef ELIBEXEC
   DEBUG_VALUE_VALUE(f, error_no, ELIBEXEC)
+#endif
+#ifdef ELIBMAX
   DEBUG_VALUE_VALUE(f, error_no, ELIBMAX)
+#endif
+#ifdef ELIBSCN
   DEBUG_VALUE_VALUE(f, error_no, ELIBSCN)
+#endif
+#ifdef ELNRNG
   DEBUG_VALUE_VALUE(f, error_no, ELNRNG)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ELOOP)
+#ifdef EMEDIUMTYPE
   DEBUG_VALUE_VALUE(f, error_no, EMEDIUMTYPE)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EMFILE)
   DEBUG_VALUE_VALUE(f, error_no, EMLINK)
   DEBUG_VALUE_VALUE(f, error_no, EMSGSIZE)
   DEBUG_VALUE_VALUE(f, error_no, EMULTIHOP)
   DEBUG_VALUE_VALUE(f, error_no, ENAMETOOLONG)
+#ifdef ENAVAIL
   DEBUG_VALUE_VALUE(f, error_no, ENAVAIL)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENETDOWN)
   DEBUG_VALUE_VALUE(f, error_no, ENETRESET)
   DEBUG_VALUE_VALUE(f, error_no, ENETUNREACH)
   DEBUG_VALUE_VALUE(f, error_no, ENFILE)
+#ifdef ENOANO
   DEBUG_VALUE_VALUE(f, error_no, ENOANO)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENOBUFS)
+#ifdef ENOCSI
   DEBUG_VALUE_VALUE(f, error_no, ENOCSI)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENODATA)
   DEBUG_VALUE_VALUE(f, error_no, ENODEV)
   DEBUG_VALUE_VALUE(f, error_no, ENOENT)
   DEBUG_VALUE_VALUE(f, error_no, ENOEXEC)
+#ifdef ENOKEY
   DEBUG_VALUE_VALUE(f, error_no, ENOKEY)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENOLCK)
   DEBUG_VALUE_VALUE(f, error_no, ENOLINK)
+#ifdef ENOMEDIUM
   DEBUG_VALUE_VALUE(f, error_no, ENOMEDIUM)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENOMEM)
   DEBUG_VALUE_VALUE(f, error_no, ENOMSG)
+#ifdef ENONET
   DEBUG_VALUE_VALUE(f, error_no, ENONET)
+#endif
+#ifdef ENOPKG
   DEBUG_VALUE_VALUE(f, error_no, ENOPKG)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENOPROTOOPT)
   DEBUG_VALUE_VALUE(f, error_no, ENOSPC)
   DEBUG_VALUE_VALUE(f, error_no, ENOSR)
@@ -311,12 +421,16 @@ void debug_error_no(FILE *f, int error_no) {
   DEBUG_VALUE_VALUE(f, error_no, ENOTCONN)
   DEBUG_VALUE_VALUE(f, error_no, ENOTDIR)
   DEBUG_VALUE_VALUE(f, error_no, ENOTEMPTY)
+#ifdef ENOTNAM
   DEBUG_VALUE_VALUE(f, error_no, ENOTNAM)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENOTRECOVERABLE)
   DEBUG_VALUE_VALUE(f, error_no, ENOTSOCK)
   DEBUG_VALUE_VALUE(f, error_no, ENOTSUP)
   DEBUG_VALUE_VALUE(f, error_no, ENOTTY)
+#ifdef ENOTUNIQ
   DEBUG_VALUE_VALUE(f, error_no, ENOTUNIQ)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ENXIO)
   /* DEBUG_VALUE_VALUE(f, error_no, EOPNOTSUPP) - same as ENOTSUPP on Linux */
   DEBUG_VALUE_VALUE(f, error_no, EOVERFLOW)
@@ -328,29 +442,47 @@ void debug_error_no(FILE *f, int error_no) {
   DEBUG_VALUE_VALUE(f, error_no, EPROTONOSUPPORT)
   DEBUG_VALUE_VALUE(f, error_no, EPROTOTYPE)
   DEBUG_VALUE_VALUE(f, error_no, ERANGE)
+#ifdef EREMCHG
   DEBUG_VALUE_VALUE(f, error_no, EREMCHG)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EREMOTE)
+#ifdef EREMOTEIO
   DEBUG_VALUE_VALUE(f, error_no, EREMOTEIO)
+#endif
+#ifdef ERESTART
   DEBUG_VALUE_VALUE(f, error_no, ERESTART)
+#endif
+#ifdef ERFKILL
   DEBUG_VALUE_VALUE(f, error_no, ERFKILL)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EROFS)
   DEBUG_VALUE_VALUE(f, error_no, ESHUTDOWN)
   DEBUG_VALUE_VALUE(f, error_no, ESOCKTNOSUPPORT)
   DEBUG_VALUE_VALUE(f, error_no, ESPIPE)
   DEBUG_VALUE_VALUE(f, error_no, ESRCH)
+#ifdef ESRMNT
   DEBUG_VALUE_VALUE(f, error_no, ESRMNT)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ESTALE)
+#ifdef ESTRPIPE
   DEBUG_VALUE_VALUE(f, error_no, ESTRPIPE)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, ETIME)
   DEBUG_VALUE_VALUE(f, error_no, ETIMEDOUT)
   DEBUG_VALUE_VALUE(f, error_no, ETOOMANYREFS)
   DEBUG_VALUE_VALUE(f, error_no, ETXTBSY)
+#ifdef EUCLEAN
   DEBUG_VALUE_VALUE(f, error_no, EUCLEAN)
+#endif
+#ifdef EUNATCH
   DEBUG_VALUE_VALUE(f, error_no, EUNATCH)
+#endif
   DEBUG_VALUE_VALUE(f, error_no, EUSERS)
   /* DEBUG_VALUE_VALUE(f, error_no, EWOULDBLOCK) - same as EAGAIN on Linux */
   DEBUG_VALUE_VALUE(f, error_no, EXDEV)
+#ifdef EXFULL
   DEBUG_VALUE_VALUE(f, error_no, EXFULL)
+#endif
   DEBUG_VALUE_END_DEC(f, error_no)
 }
 
