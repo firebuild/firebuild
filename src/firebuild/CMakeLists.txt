@@ -73,8 +73,11 @@ add_executable(firebuild-bin
   $<TARGET_OBJECTS:fbbcomm_cc>)
 target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} ${XXHASH_LIBRARIES})
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow ${SANITIZE_SUPERVISOR_LINK_OPTIONS})
-set_target_properties(firebuild-bin
-  PROPERTIES INTERPROCEDURAL_OPTIMIZATION True OUTPUT_NAME firebuild)
+set_target_properties(firebuild-bin PROPERTIES OUTPUT_NAME firebuild)
+if (NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+  set_target_properties(firebuild-bin PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
+endif()
+
 add_dependencies(firebuild-bin fbbcomm_gen_files fbbfp_gen_files fbbstore_gen_files)
 
 install(TARGETS firebuild-bin DESTINATION bin)
