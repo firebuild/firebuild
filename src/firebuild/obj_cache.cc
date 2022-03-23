@@ -179,7 +179,7 @@ bool ObjCache::store(const Hash &key,
   construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
   free(entry_serial);
 
-  if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+  if (rename(tmpfile, path_dst) == -1) {
     perror("Failed rename() while storing cache object");
     assert(0);
     unlink(tmpfile);
