@@ -138,6 +138,17 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
 }  /* extern "C" */
 #endif
 
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(expression) ({       \
+      ssize_t ret;                              \
+      do {                                      \
+        ret = (expression);                     \
+      } while (ret == -1 && errno == EINTR);    \
+      ret;                                      \
+    })
+#endif
+
+
 /** Wrapper macro for read() or write() retrying on recoverable errors
  *  (EINTR and short read/write). */
 #define FB_READ_WRITE(op, fd, buf, count)                               \
