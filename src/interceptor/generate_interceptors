@@ -431,7 +431,7 @@ generate("FILE *", "fdopen", "int fd, const char *mode",
          msg=None,
          after_lines=["assert(!voidp_set_contains(&popened_streams, ret));"])
 
-generate("int", "shm_open", "const char *name, int oflag, mode_t mode",
+generate("int", "shm_open", "const char *name, int oflag, " + ("mode_t mode" if target == 'linux' else "..."),
          tpl="once")
 generate("int", "shm_unlink", "const char *name",
          tpl="once")
@@ -2131,7 +2131,7 @@ generate("int", ["setresuid", "SYS_setresuid"], "uid_t uid, uid_t euid, uid_t su
          tpl="once")
 generate("int", ["setresgid", "SYS_setresgid"], "gid_t gid, gid_t egid, gid_t sgid",
          tpl="once")
-generate("int", ["setgroups", "SYS_setgroups"], "size_t size, const gid_t *list",
+generate("int", ["setgroups", "SYS_setgroups"], ("size_t" if target == 'linux' else "int") + " size, const gid_t *list",
          tpl="once")
 
 # Shells
@@ -2164,7 +2164,7 @@ skip("mmap", "SYS_mmap", "SYS_mmap2", "mremap", "SYS_mremap", "munmap", "SYS_mun
 generate("int", ["gethostname", "SYS_gethostname"], "char *name, size_t len")
 generate("int", "__gethostname_chk", "char *name, size_t len, size_t fortify_size",
          tpl="once")
-generate("int", "getdomainname", "char *name, size_t len",
+generate("int", "getdomainname", "char *name, " + ("size_t" if target == 'linux' else "int") + " len",
          tpl="once")
 generate("int", "__getdomainname_chk", "char *name, size_t len, size_t fortify_size",
          tpl="once")
@@ -2173,12 +2173,12 @@ generate("long", "gethostid", "",
          tpl="once")
 
 # Disable shortcutting on sethostname, setdomainname, sethostid
-generate("int", ["sethostname", "SYS_sethostname"], "const char *name, size_t len",
+generate("int", ["sethostname", "SYS_sethostname"], "const char *name, " + ("size_t" if target == 'linux' else "int") + " len",
          tpl="once")
-generate("int", ["setdomainname", "SYS_setdomainname"], "const char *name, size_t len",
+generate("int", ["setdomainname", "SYS_setdomainname"], "const char *name, " + ("size_t" if target == 'linux' else "int") + " len",
          tpl="once")
 # FIXME SYS_osf_gethostid
-generate("int", "sethostid", "long hostid",
+generate("int" if target == 'linux' else "void", "sethostid", "long hostid",
          tpl="once")
 
 generate("int", ["socket", "SYS_socket", "__socket"], "int domain, int type, int protocol",
