@@ -66,7 +66,8 @@ extern "C" {
   }
 
 /**
- * Debug-print the 'flags' parameter of an open() call.
+ * Debug-print O_* flags, as usually seen in the 'flags' parameter of dup3(), open(), pipe2(),
+ * posix_spawn_file_actions_addopen() etc. calls.
  */
 void debug_open_flags(FILE *f, int flags) {
   DEBUG_BITMAP_START(f, flags)
@@ -98,6 +99,25 @@ void debug_open_flags(FILE *f, int flags) {
   DEBUG_BITMAP_FLAG(f, flags, O_SYNC)
   DEBUG_BITMAP_FLAG(f, flags, O_TMPFILE)
   DEBUG_BITMAP_FLAG(f, flags, O_TRUNC)
+  DEBUG_BITMAP_END_HEX(f, flags)
+}
+
+/**
+ * Debug-print AT_* flags, as usually seen in the 'flags' parameter of execveat(), faccessat(),
+ * fchmodat(), fchownat(), fstatat(), linkat(), statx(), unlinkat(), utimensat() etc. calls.
+ */
+void debug_at_flags(FILE *f, int flags) {
+  DEBUG_BITMAP_START(f, flags)
+  DEBUG_BITMAP_FLAG(f, flags, AT_EMPTY_PATH)
+  DEBUG_BITMAP_FLAG(f, flags, AT_NO_AUTOMOUNT)
+  DEBUG_BITMAP_FLAG(f, flags, AT_RECURSIVE)
+  DEBUG_BITMAP_FLAG(f, flags, AT_REMOVEDIR)
+  DEBUG_BITMAP_FLAG(f, flags, AT_STATX_DONT_SYNC)
+  DEBUG_BITMAP_FLAG(f, flags, AT_STATX_FORCE_SYNC)
+  DEBUG_BITMAP_FLAG(f, flags, AT_STATX_SYNC_AS_STAT)
+  DEBUG_BITMAP_FLAG(f, flags, AT_STATX_SYNC_TYPE)
+  DEBUG_BITMAP_FLAG(f, flags, AT_SYMLINK_FOLLOW)
+  DEBUG_BITMAP_FLAG(f, flags, AT_SYMLINK_NOFOLLOW)
   DEBUG_BITMAP_END_HEX(f, flags)
 }
 
