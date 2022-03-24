@@ -765,10 +765,9 @@ for i in ['', '__isoc99_']:
           msg_add_fields = ["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"]
         if w:
           sig_str += "const wchar_t *format, "
-          success="(unsigned int) ret != WEOF || !ferror(" + stream + ")"
         else:
           sig_str += "const char *format, "
-          success="ret != EOF || !ferror(" + stream + ")"
+        success="ret != EOF || !ferror(" + stream + ")"
         names_str += "format, "
         msg_skip_fields += ["format"]
         if v:
