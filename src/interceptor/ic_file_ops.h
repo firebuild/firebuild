@@ -19,7 +19,9 @@
 #ifndef FIREBUILD_IC_FILE_OPS_H_
 #define FIREBUILD_IC_FILE_OPS_H_
 
+#ifdef __linux__
 #include <link.h>
+#endif
 #include <dirent.h>
 #include <stdio.h>
 

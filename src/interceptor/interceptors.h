@@ -51,12 +51,16 @@
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/timeb.h>
+#ifdef __linux__
 #include <bits/timex.h>
+#endif
 // #include <sys/timex.h>
 struct ntptimeval;
 #include <sys/types.h>
 #include <sys/uio.h>
+#ifdef __linux__
 #include <sys/vfs.h>
+#endif
 #include <sys/wait.h>
 #include <unistd.h>
 // #include <ustat.h>

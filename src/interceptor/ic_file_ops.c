@@ -22,17 +22,23 @@
 #include "interceptor/ic_file_ops.h"
 
 #include <fcntl.h>
+#ifdef __linux__
 #include <mntent.h>
+#endif
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef __linux__
 #include <sys/vfs.h>
+#endif
 #include <sys/statvfs.h>
 #include <dirent.h>
+#ifdef __linux__
 #include <link.h>
+#endif
 #include <sys/resource.h>
 
 #include <assert.h>
