@@ -134,13 +134,6 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_rename *ms
                              fbbcomm_serialized_rename_get_newpath_len(msg), error);
 }
 
-int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_symlink *msg) {
-  const int newdirfd = fbbcomm_serialized_symlink_get_newdirfd_with_fallback(msg, AT_FDCWD);
-  const int error = fbbcomm_serialized_symlink_get_error_no_with_fallback(msg, 0);
-  return proc->handle_symlink(fbbcomm_serialized_symlink_get_oldpath(msg), newdirfd,
-                              fbbcomm_serialized_symlink_get_newpath(msg), error);
-}
-
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fcntl *msg) {
   const int error = fbbcomm_serialized_fcntl_get_error_no_with_fallback(msg, 0);
   int arg = fbbcomm_serialized_fcntl_get_arg_with_fallback(msg, 0);

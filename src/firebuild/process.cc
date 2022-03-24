@@ -362,6 +362,18 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
         "Invalid dirfd or filename passed to stat() variant");
     return -1;
   }
+  if (flags & AT_SYMLINK_NOFOLLOW) {
+    /* lstat() and friends, see #784. */
+    if (error) {
+      exec_point()->disable_shortcutting_bubble_up(
+        "Could not register lstat() returning an error");
+      return -1;
+    } else if (S_ISLNK(st_mode)) {
+      exec_point()->disable_shortcutting_bubble_up(
+        "Could not register lstat() returning a symlink");
+      return -1;
+    }
+  }
 
   if (!exec_point()->register_file_usage(
           name, name, S_ISDIR(st_mode) ? FILE_ACTION_STATDIR : FILE_ACTION_STATFILE,
@@ -669,22 +681,6 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
     return -1;
   }
 
-  return 0;
-}
-
-int Process::handle_symlink(const char * const old_ar_name,
-                            const int newdirfd, const char * const new_ar_name,
-                            const int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
-         D(old_ar_name), newdirfd, D(new_ar_name), error);
-
-  if (!error) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Process created a symlink",
-        " ([" + d(newdirfd) + "]" + d(new_ar_name) + " -> " + d(old_ar_name) + ")");
-    return -1;
-  }
   return 0;
 }
 
