@@ -22,9 +22,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef __APPLE__
+#include "libproc.h"
+#endif
 #include <link.h>
 #include <pthread.h>
+#ifdef __linux__
 #include <sys/auxv.h>
+#endif
 #include <sys/un.h>
 #include <sys/resource.h>
 #include <spawn.h>
@@ -948,8 +953,14 @@ static void fb_ic_init() {
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
   }
 
+#ifdef __APPLE__
+  char original_executed_path[PROC_PIDPATHINFO_MAXSIZE];
+  if (proc_pidpath(getpid(), original_executed_path, sizeof(original_executed_path)) != -1
+#else
   const char *original_executed_path = (const char*)getauxval(AT_EXECFN);
-  if (original_executed_path && strcmp(original_executed_path, linkname) != 0) {
+  if (original_executed_path
+#endif
+      && strcmp(original_executed_path, linkname) != 0) {
     /* The macro relies on the field name matching the variable name. */
     const char *executed_path = original_executed_path;
     BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, executed_path);
