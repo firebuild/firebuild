@@ -30,8 +30,26 @@
 ### block after
   thread_libc_nesting_depth--;
 
-  char *absolute_filename = NULL;
+  const char *absolute_filename = NULL;
   if (success) {
+###   if target == "darwin"
+    /* From https://github.com/JuliaLang/julia/blob/0027ed143e90d0f965694de7ea8c692d75ffa1a5/src/sys.c#L572-L583 .
+     * MIT licensed originally.
+     */
+    /* Iterate through all images currently in memory */
+    int32_t i;
+    for (i = _dyld_image_count() - 1; i > 1 ; i--) {
+      /* dlopen() each image, check handle */
+      const char *image_name = _dyld_get_image_name(i);
+      void *probe_handle = ic_orig_dlopen(image_name, RTLD_LAZY | RTLD_NOLOAD);
+      /* If the handle is the same as what was passed in (modulo mode bits), return this image name */
+      dlclose(probe_handle);
+      if (((intptr_t)ret & (-4)) == ((intptr_t)probe_handle & (-4))) {
+        absolute_filename = image_name;
+        break;
+      }
+    }
+###   else
     struct link_map *map;
     if (dlinfo(ret, RTLD_DI_LINKMAP, &map) == 0) {
       /* Note: contrary to the dlinfo(3) manual page, this is not necessarily absolute. See #657.
@@ -44,5 +62,6 @@
        * would any app invoke dlerror() after a successful dlopen()? Let's hope that in practice no
        * application does this. */
     }
+###   endif
   }
 ### endblock after
