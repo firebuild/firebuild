@@ -39,11 +39,14 @@
     case F_GETLK:
     case F_SETLK:
     case F_SETLKW:
+#ifdef __linux__
     case F_OFD_GETLK:
     case F_OFD_SETLK:
     case F_OFD_SETLKW:
+#endif
     case F_GETOWN:
     case F_SETOWN:
+#ifdef __linux__
     case F_GETOWN_EX:
     case F_SETOWN_EX:
     case F_GETSIG:
@@ -58,7 +61,9 @@
     case F_GET_RW_HINT:
     case F_SET_RW_HINT:
     case F_GET_FILE_RW_HINT:
-    case F_SET_FILE_RW_HINT: {
+    case F_SET_FILE_RW_HINT:
+#endif
+      {
       break;
     }
 
