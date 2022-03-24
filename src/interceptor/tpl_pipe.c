@@ -71,6 +71,11 @@
      *
      * Set the O_CLOEXEC bit to the desired value.
      * The fcntl(..., F_SETFL, ...) bits were set by the supervisor. */
+###   if target == "darwin"
+/* MSG_CMSG_CLOEXEC is not defined on OS X, but it would not be used anyway because pipe2 is
+ * missing, too. */
+#define MSG_CMSG_CLOEXEC 0
+###   endif
 #ifndef NDEBUG
     received =
 #endif
@@ -102,7 +107,11 @@
     }
   } else {
     /* just create the pipe */
+###   if target == "darwin"
+    ret = get_ic_orig_pipe()(pipefd);
+###   else
     ret = get_ic_orig_pipe2()(pipefd, flags);
+###   endif
   }
 ### endblock call_orig
 
