@@ -102,7 +102,11 @@ std::string pretty_timestamp() {
   int abs_diff_min = std::abs(local.tm_gmtoff) / 60;
   char buf[64];
   /* Note: strftime() doesn't support sub-seconds. */
+#ifdef __APPLE__
+  snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%06d %c%02d%02d",
+#else
   snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%06ld %c%02d%02d",
+#endif
       1900 + local.tm_year, 1 + local.tm_mon, local.tm_mday,
       local.tm_hour, local.tm_min, local.tm_sec, tv.tv_usec,
       local.tm_gmtoff >= 0 ? '+' : '-', abs_diff_min / 60, abs_diff_min % 60);
