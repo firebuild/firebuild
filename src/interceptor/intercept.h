@@ -27,7 +27,10 @@
 #define _GNU_SOURCE 1
 #endif
 
+#ifdef __linux__
 #include <bits/types/FILE.h>
+#endif
+
 #include <dlfcn.h>
 #ifdef __linux__
 #include <link.h>
