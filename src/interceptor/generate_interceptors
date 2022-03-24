@@ -1562,12 +1562,12 @@ generate("int", ["utime", "SYS_utime", "__utime64"], "const char *pathname, cons
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", ["utimes", "SYS_utimes", "__utimes64"], "const char *pathname, const struct timeval times[2]",
+generate("int", ["utimes", "SYS_utimes", "__utimes64"], "const char *pathname, const struct timeval " + ("times[2]" if target == 'linux' else "*times"),
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", ["lutimes", "__lutimes64"], "const char *pathname, const struct timeval times[2]",
+generate("int", ["lutimes", "__lutimes64"], "const char *pathname, const struct timeval " + ("times[2]" if target == 'linux' else "*times"),
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
@@ -1585,7 +1585,7 @@ generate("int", ["futimesat", "SYS_futimesat", "__futimesat64"], "int dirfd, con
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 
 # Intercept the futime family
-generate("int", ["futimes", "__futimes64"], "int fd, const struct timeval times[2]",
+generate("int", ["futimes", "__futimes64"], "int fd, const struct timeval " + ("times[2]" if target == 'linux' else "*times"),
          msg="futime",
          msg_skip_fields=["times"],
          msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL);"])
