@@ -32,6 +32,7 @@
 #include <errno.h>
 #ifdef __APPLE__
 #include <mach/error.h>
+#include <mach-o/dyld.h>
 #else
 #include <error.h>
 #endif
