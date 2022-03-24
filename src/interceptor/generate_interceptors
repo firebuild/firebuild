@@ -1624,6 +1624,7 @@ generate("int", ["pipe", "SYS_pipe", "__pipe"], "int pipefd[2]",
                          "  fbbcomm_builder_pipe_fds_set_fd1(&ic_msg, pipefd[1]);",
                          "}"])
 generate("int", ["pipe2", "SYS_pipe2"], "int pipefd[2], int flags",
+         platforms=['linux'],
          tpl="pipe",
          after_lines=["if (i_am_intercepting && success) { clear_notify_on_read_write_state(pipefd[0]); clear_notify_on_read_write_state(pipefd[1]); }"],
          msg_skip_fields=["pipefd"],
