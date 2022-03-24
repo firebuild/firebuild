@@ -107,6 +107,12 @@ struct statx {
 #define PRIssize "d"
 #endif
 
+#ifdef __APPLE__
+#define PRIoff "lld"
+#else
+#define PRIoff "ld"
+#endif
+
 #if __WORDSIZE == 64
 #define PRIoff64 "ld"
 #else

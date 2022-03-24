@@ -82,7 +82,7 @@ def add_debug_to_dict(type, name, dict):
     "gid_t":         ("before", "%u"),
     "long":          ("before", "%ld"),
     "ssize_t":       ("before", "%\" PRIssize \""),
-    "off_t":         ("before", "%ld"),
+    "off_t":         ("before", "%\" PRIoff \""),
     "off64_t":       ("before", "%\" PRIoff64 \""),
     "unsigned long": ("before", "%lu"),
     "size_t":        ("before", "%\" PRIsize \""),

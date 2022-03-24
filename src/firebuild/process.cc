@@ -398,7 +398,7 @@ int Process::handle_close_range(const unsigned int first, const unsigned int las
 int Process::handle_truncate(const char * const ar_name, const size_t ar_len,
                              const off_t length, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "ar_name=%s, length=%ld, error=%d", D(ar_name), length, error);
+         "ar_name=%s, length=%" PRIoff ", error=%d", D(ar_name), length, error);
 
   const FileName* name = get_absolute(AT_FDCWD, ar_name, ar_len);
   if (!name) {
@@ -460,7 +460,7 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
                             const int flags, const mode_t st_mode, const off_t st_size,
                             const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "fd=%d, ar_name=%s, flags=%d, st_mode=%d, st_size=%ld, error=%d",
+         "fd=%d, ar_name=%s, flags=%d, st_mode=%d, st_size=%" PRIoff ", error=%d",
          fd, D(ar_name), flags, st_mode, st_size, error);
 
   const FileName *name;
@@ -1316,7 +1316,7 @@ void Process::handle_seek_in_inherited(const int fd, const bool modify_offset) {
 }
 
 void Process::handle_inherited_fd_offset(const int fd, const int64_t offset) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, offset==%ld", fd, offset);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, offset==%" PRIoff, fd, offset);
   FileFD *file_fd = exec_point()->get_fd(fd);
   if (!file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
