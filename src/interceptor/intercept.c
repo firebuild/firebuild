@@ -762,7 +762,16 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
  * @return fd of the connection
  */
 int fb_connect_supervisor() {
+#ifdef SOCK_CLOEXEC
   int conn = TEMP_FAILURE_RETRY(get_ic_orig_socket()(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0));
+#else
+  int conn = TEMP_FAILURE_RETRY(get_ic_orig_socket()(AF_UNIX, SOCK_STREAM, 0));
+#ifndef NDEBUG
+  int fcntl_ret =
+#endif
+      TEMP_FAILURE_RETRY(get_ic_orig_fcntl()(conn, F_SETFD, FD_CLOEXEC));
+  assert(fcntl_ret != -1);
+#endif
   assert(conn != -1);
 
   struct sockaddr_un remote;
