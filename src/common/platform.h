@@ -119,6 +119,10 @@ struct statx {
 #define PRIoff64 "lld"
 #endif
 
+#ifdef __APPLE__
+#define sighandler_t sig_t
+#endif
+
 static inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
