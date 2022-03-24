@@ -40,9 +40,17 @@
 ### block before
 {{ super() }}
 ###   if vararg
+###     if target == "darwin"
+  int mode = 0;
+###     else
   mode_t mode = 0;
+###     endif
   if (__OPEN_NEEDS_MODE(flags)) {
+###     if target == "darwin"
+    mode = va_arg(ap, int);
+###     else
     mode = va_arg(ap, mode_t);
+###     endif
   }
 ###   endif
 ###   if "dirfd" not in sig_str

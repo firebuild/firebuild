@@ -194,7 +194,15 @@ case {{ func }}: {
   va_list ap_args;
   va_start(ap_args, number);
 ###       for arg in args
+###         if arg['vatype'] == "mode_t"
+###           if target == "darwin"
+  int {{ arg['name'] }} = va_arg(ap_args, int);
+###           else
   {{ arg['vatype_and_name'] }} = va_arg(ap_args, {{ arg['vatype'] }});
+###           endif
+###         else
+  {{ arg['vatype_and_name'] }} = va_arg(ap_args, {{ arg['vatype'] }});
+###         endif
 ###       endfor
   va_end(ap_args);
 

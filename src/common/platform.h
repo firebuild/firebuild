@@ -93,6 +93,12 @@ struct statx {
 #endif  // STATX_TYPE
 #endif  // __linux__
 
+#ifdef __APPLE__
+#define PRImode "uh"
+#else
+#define PRImode "u"
+#endif
+
 #if SIZE_WIDTH == 64
 #define PRIsize "lu"
 #define PRIssize "ld"
