@@ -92,7 +92,11 @@
           FBBCOMM_Builder_gen_call ic_msg;
           fbbcomm_builder_gen_call_init(&ic_msg);
           char call[32];
+###     if rettype == "long"
           snprintf(call, sizeof(call), "{{ func }}(%ld)", number);
+###     else
+          snprintf(call, sizeof(call), "{{ func }}(%d)", number);
+###     endif
           fbbcomm_builder_gen_call_set_call(&ic_msg, call);
           fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
 

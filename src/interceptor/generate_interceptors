@@ -2218,7 +2218,7 @@ generate("long", ["sysconf", "__sysconf"], "int name",
 
 # Intercept syscall
 # FIXME What does syscall(SYS_syscall, ...) do? :)
-generate("long", "syscall", "long number, ...",
+generate("long" if target == 'linux' else "int", "syscall", ("long" if target == 'linux' else "int") + " number, ...",
          tpl="syscall",
          send_ret_on_success=True,
          ack_condition="true")
