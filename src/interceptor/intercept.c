@@ -25,7 +25,9 @@
 #ifdef __APPLE__
 #include "libproc.h"
 #endif
+#ifdef __linux__
 #include <link.h>
+#endif
 #include <pthread.h>
 #ifdef __linux__
 #include <sys/auxv.h>
@@ -576,6 +578,26 @@ static void store_locations(const char* env_var, cstring_view_array *locations,
   }
 }
 
+#ifdef __APPLE__
+static void collect_shared_libs(cstring_view_array* libs, char *canonized_libs) {
+  /* Skip first image because it is the binary itself. */
+  for (int32_t i = _dyld_image_count() - 1; i > 1 ; i--) {
+    const char *image_name = _dyld_get_image_name(i);
+    const size_t len = strlen(image_name);
+    if (is_canonical(image_name, len)) {
+      assert(!is_cstring_view_array_full(libs));
+      cstring_view_array_append_noalloc(libs, (/* not const */ char *)image_name);
+    } else {
+      char *canonical_name = &canonized_libs[i * IC_PATH_BUFSIZE];
+      memcpy(canonical_name, image_name, len + 1);
+      make_canonical(canonical_name, len);
+      assert(!is_cstring_view_array_full(libs));
+      cstring_view_array_append_noalloc(libs, canonical_name);
+    }
+  }
+}
+
+#else
 static bool skip_shared_lib(const char *name, const size_t len) {
   if (name[0] == '\0') {
     /* FIXME does this really happen? */
@@ -646,6 +668,7 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
   }
   return 0;
 }
+#endif
 
 void atfork_parent_handler(void) {
   /* The variable i_am_intercepting from the intercepted fork() is
@@ -971,6 +994,13 @@ static void fb_ic_init() {
   }
 
   /* list loaded shared libs */
+#ifdef __APPLE__
+  const int image_count = _dyld_image_count();
+  cstring_view *libs_ptrs = alloca((image_count + 1) * sizeof(cstring_view));
+  cstring_view_array libs = {libs_ptrs, 0, image_count + 1};
+  char *canonized_libs = alloca(image_count * IC_PATH_BUFSIZE);
+  collect_shared_libs(&libs, canonized_libs);
+#else
   STATIC_CSTRING_VIEW_ARRAY(libs, 64);
   int canonized_libs_size = 8;
   char *canonized_libs = alloca(canonized_libs_size * IC_PATH_BUFSIZE);
@@ -997,6 +1027,7 @@ static void fb_ic_init() {
     dl_iterate_phdr(shared_libs_cb, &cb_data2);
     assert(cb_data.collectable_entries == cb_data2.array->len);
   }
+#endif
   fbbcomm_builder_scproc_query_set_libs_cstring_views(&ic_msg, libs.p, libs.len);
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
