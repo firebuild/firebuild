@@ -29,7 +29,9 @@
 
 #include <bits/types/FILE.h>
 #include <dlfcn.h>
+#ifdef __linux__
 #include <link.h>
+#endif
 #include <pthread.h>
 #include <dirent.h>
 #include <signal.h>
