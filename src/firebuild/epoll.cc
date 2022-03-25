@@ -36,14 +36,14 @@ void Epoll::add_fd(int fd, uint32_t events,
   memset(&ee, 0, sizeof(ee));
   ee.events = events;
   ee.data.fd = fd;
-  epoll_ctl(epollfd_, EPOLL_CTL_ADD, fd, &ee);
+  epoll_ctl(main_fd_, EPOLL_CTL_ADD, fd, &ee);
 }
 
 void Epoll::del_fd(int fd) {
   ensure_room_fd(fd);
   assert(fd_contexts_[fd].callback != nullptr);
   fd_contexts_[fd].callback = nullptr;
-  epoll_ctl(epollfd_, EPOLL_CTL_DEL, fd, NULL);
+  epoll_ctl(main_fd_, EPOLL_CTL_DEL, fd, NULL);
 
   /* When deleting an fd, make sure to also delete it from the yet unprocessed part of
    * epoll_wait()'s returned events. Do this by setting .data.fd to -1.

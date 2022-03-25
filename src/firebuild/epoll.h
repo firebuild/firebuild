@@ -36,10 +36,10 @@ typedef struct timer_context_ {
 class Epoll {
  public:
   explicit Epoll(int flags) {
-    epollfd_ = epoll_create1(flags);
+    main_fd_ = epoll_create1(flags);
   }
   ~Epoll() {
-    close(epollfd_);
+    close(main_fd_);
     for (size_t fd = 0; fd < fd_contexts_.size(); fd++) {
       if (fd_contexts_[fd].callback != nullptr) {
         /* This fd is still open while firebuild is quitting. This may be connected to a
@@ -97,7 +97,7 @@ class Epoll {
       timespecsub(&timer_contexts_[next_timer_].when, &now, &diff);
       timeout_ms = diff.tv_sec * 1000 + diff.tv_nsec / (1000 * 1000);
     }
-    event_count_ = epoll_wait(epollfd_, events_, sizeof(events_) / sizeof(events_[0]), timeout_ms);
+    event_count_ = epoll_wait(main_fd_, events_, sizeof(events_) / sizeof(events_[0]), timeout_ms);
   }
 
   /** Call the relevant callback for all the returned events in events_, and all the expired
@@ -136,7 +136,7 @@ class Epoll {
   inline void ensure_room_fd(int fd);
 
   /* Our main epoll fd. */
-  int epollfd_ = -1;
+  int main_fd_ = -1;
 
   /* For each fd, tells its current role in epollfd. The entry is "active" (part of epoll's set)
    * if and only if its callback is non-null. */
