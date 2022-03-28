@@ -429,6 +429,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain) {
    */
   do {
     int received;
+#ifdef __linux__
     /* Try splice and tee first. */
     if (buffer_empty()) {
       do {
@@ -459,6 +460,7 @@ pipe_op_result Pipe::forward(int fd1, bool drain) {
         }
       } while (received > 0);
     }
+#endif
     /* Read one round to the buffer and try to send it. */
     received = buf_.read(fd1, -1);
     if (received == -1) {
