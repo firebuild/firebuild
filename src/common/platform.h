@@ -94,6 +94,13 @@ struct statx {
 #endif  // __linux__
 
 #ifdef __APPLE__
+#define stat64 stat
+#define lstat64 lstat
+#define fstat64 fstat
+#define st_mtim st_mtimespec
+#endif
+
+#ifdef __APPLE__
 #define PRImode "uh"
 #else
 #define PRImode "u"
