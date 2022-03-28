@@ -36,7 +36,7 @@ ExecedProcessCacher::ExecedProcessCacher(bool no_store,
     no_store_(no_store), no_fetch_(no_fetch),
     envs_skip_(), fingerprints_(), fingerprint_msgs_() {
   for (int i = 0; i < envs_skip.getLength(); i++) {
-    envs_skip_.insert(envs_skip[i]);
+    envs_skip_.insert(envs_skip[i].c_str());
   }
 }
 

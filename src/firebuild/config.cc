@@ -127,8 +127,8 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
     /* Unfortunately there's no operator= to assign from another Setting. */
     switch (type) {
       case libconfig::Setting::TypeString: {
-        std::string x_str = x;
-        adding = x_str;
+        std::string x_str(x.c_str());
+        adding = x_str.c_str();
         break;
       }
       default:
@@ -143,8 +143,8 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
       /* Unfortunately there's no operator== to compare with another Setting. */
       switch (type) {
         case libconfig::Setting::TypeString: {
-          std::string item_str = item;
-          std::string x_str = x;
+          std::string item_str(item.c_str());
+          std::string x_str(x.c_str());
           if (item_str == x_str) {
             array.remove(i);
             i--;
@@ -165,8 +165,8 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
     /* Unfortunately there's no operator= to assign from another Setting. */
     switch (type) {
       case libconfig::Setting::TypeString: {
-        std::string x_str = x;
-        adding = x_str;
+        std::string x_str(x.c_str());
+        adding = x_str.c_str();
         break;
       }
       case libconfig::Setting::TypeFloat: {
@@ -187,7 +187,7 @@ static void init_locations(std::vector<std::string> **locations, const libconfig
   assert(!*locations);
   *locations = new std::vector<std::string>();
   for (int i = 0; i < items.getLength(); i++) {
-    (*locations)->push_back(items[i]);
+    (*locations)->push_back(items[i].c_str());
   }
   std::sort((*locations)->begin(), (*locations)->end());
 }
@@ -196,7 +196,7 @@ static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) 
   assert(!*matcher);
   *matcher = new ExeMatcher();
   for (int i = 0; i < items.getLength(); i++) {
-    (*matcher)->add(items[i]);
+    (*matcher)->add(items[i].c_str());
   }
 }
 

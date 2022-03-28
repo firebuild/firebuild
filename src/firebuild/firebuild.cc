@@ -109,11 +109,12 @@ static char** get_sanitized_env() {
   const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
   std::map<std::string, std::string> env;
   for (int i = 0; i < pass_through.getLength(); i++) {
-    char * got_env = getenv(pass_through[i].c_str());
+    std::string pass_through_env(pass_through[i].c_str());
+    char * got_env = getenv(pass_through_env.c_str());
     if (got_env != NULL) {
-      env[pass_through[i]] = std::string(got_env);
-      FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + std::string(pass_through[i]) + "="
-               + env[pass_through[i]]);
+      env[pass_through_env] = std::string(got_env);
+      FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + std::string(pass_through_env) + "="
+               + env[pass_through_env]);
     }
   }
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
@@ -121,7 +122,7 @@ static char** get_sanitized_env() {
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "Setting preset environment variables:");
   const libconfig::Setting& preset = root["env_vars"]["preset"];
   for (int i = 0; i < preset.getLength(); i++) {
-    std::string str = preset[i];
+    std::string str(preset[i].c_str());
     size_t eq_pos = str.find('=');
     if (eq_pos == std::string::npos) {
       firebuild::fb_error("Invalid present environment variable: " + str);
@@ -136,7 +137,7 @@ static char** get_sanitized_env() {
   std::string system_locations;
   const libconfig::Setting& system_locations_setting = root["system_locations"];
   for (int i = 0; i < system_locations_setting.getLength(); i++) {
-    const std::string loc = system_locations_setting[i];
+    const std::string loc(system_locations_setting[i].c_str());
     if (system_locations.length() == 0) {
       system_locations.append(loc);
     } else {
