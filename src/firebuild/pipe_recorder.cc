@@ -92,7 +92,11 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
 #ifndef NDEBUG
   ssize_t saved =
 #endif
+#ifdef __linux__
       splice(pipe_fd, NULL, fd_, NULL, len, 0);
+#else
+      fb_copy_file_range(pipe_fd, NULL, fd_, NULL, len, 0);
+#endif
   assert_cmp(saved, ==, len);
 
   offset_ += len;
