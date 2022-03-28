@@ -20,7 +20,9 @@
 
 #include <signal.h>
 #include <getopt.h>
+#ifdef __linux__
 #include <sys/prctl.h>
+#endif
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -388,8 +390,10 @@ int main(const int argc, char *argv[]) {
   listener = create_listener();
   firebuild::epoll->add_fd(listener, EPOLLIN, accept_ic_conn, NULL);
 
+#ifdef __linux__
   /* Collect orphan children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
+#endif
 
   /* run command and handle interceptor messages */
   if ((child_pid = fork()) == 0) {
