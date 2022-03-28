@@ -22,12 +22,16 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/epoll.h>
+#ifdef __linux__
 #include <sys/eventfd.h>
+#endif
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#ifdef __linux__
 #include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/timerfd.h>
+#endif
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -707,6 +711,7 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
   return 0;
 }
 
+#ifdef __linux__
 int Process::handle_memfd_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
   add_filefd(fd, std::make_shared<FileFD>(fd, (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0,
@@ -747,6 +752,7 @@ int Process::handle_signalfd(const int oldfd, const int flags, const int newfd) 
   }
   return 0;
 }
+#endif
 
 int Process::handle_rmdir(const char * const ar_name, const size_t ar_name_len, const int error,
                           const bool pre_open_sent) {
