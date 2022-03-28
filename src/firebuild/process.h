@@ -368,6 +368,7 @@ class Process {
   int handle_fchmodat(const int fd, const char * const name, const size_t name_len,
                       const mode_t mode, const int flags, const int error = 0);
 
+#ifdef __linux__
   /**
    * Handle memfd_create in the monitored process
    */
@@ -395,6 +396,7 @@ class Process {
    * @param newfd new fd returned by signalfd()
    */
   int handle_signalfd(const int oldfd, const int flags, const int newfd);
+#endif
 
   /**
    * Handle rmdir in the monitored process

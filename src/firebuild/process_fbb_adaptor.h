@@ -138,6 +138,7 @@ class ProcessFBBAdaptor {
                                  mode, flags, error);
   }
 
+#ifdef __linux__
   static int handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
     return proc->handle_memfd_create(msg->get_flags(), msg->get_ret());
   }
@@ -157,6 +158,7 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_signalfd *msg) {
     return proc->handle_signalfd(msg->get_fd(), msg->get_flags(), msg->get_ret());
   }
+#endif
 
   static int handle(Process *proc, const FBBCOMM_Serialized_dup *msg) {
     const int error = msg->get_error_no_with_fallback(0);
