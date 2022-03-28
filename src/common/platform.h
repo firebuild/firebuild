@@ -200,7 +200,21 @@ static inline int mkdirhier(const char *pathname, const mode_t mode) {
 }
 
 inline int fb_pipe2(int pipefd[2], int flags) {
+#ifdef __APPLE__
+  if (pipe(pipefd) == -1) {
+    return -1;
+  } else if (fcntl(pipefd[0], F_SETFL, flags) == -1 || fcntl(pipefd[1], F_SETFL, flags) == -1) {
+    int saved_errno = errno;
+    close(pipefd[0]);
+    close(pipefd[1]);
+    errno = saved_errno;
+    return -1;
+  } else {
+    return 0;
+  }
+#else
   return pipe2(pipefd, flags);
+#endif
 }
 
 #endif  // COMMON_PLATFORM_H_
