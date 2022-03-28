@@ -44,7 +44,6 @@ set(TENTATIVE_C_CXX_FLAGS
   -Warray-bounds
   -fvisibility=hidden
   -Woverflow
-  -Weffc++
 #  -Wlogical-op clang does not like that
   -Wredundant-decls
   -Wno-format-zero-length)
@@ -61,6 +60,10 @@ foreach(FLAG ${TENTATIVE_C_CXX_FLAGS})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${FLAG}")
   endif()
 endforeach()
+
+if (NOT APPLE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weffc++")
+endif()
 
 if(COVERAGE)
   # minimal (lines) coverage
