@@ -48,7 +48,7 @@ class Epoll {
         close(fd);
         if (fd_contexts_[fd].callback_user_data) {
           struct epoll_event fake_event;
-          fake_event.data.fd = fd;
+          set_event_fd(&fake_event, fd);
           (*fd_contexts_[fd].callback)(&fake_event, fd_contexts_[fd].callback_user_data);
         }
       }
@@ -82,6 +82,13 @@ class Epoll {
    *  automatically. */
   void del_timer(int timer_id);
 
+  static int event_fd(const struct epoll_event* event) {
+    return event->data.fd;
+  }
+  static void set_event_fd(struct epoll_event* event, int fd) {
+    event->data.fd = fd;
+  }
+
   /** Wrapper around epoll_wait(). Places the result in events_ and event_count_. */
   inline void wait() {
     int timeout_ms = -1;
@@ -106,7 +113,7 @@ class Epoll {
     /* Loop through the file descriptors.
      * In case of a signal, event_count_ might be -1, but that's fine for this loop. */
     for (event_current_ = 0; event_current_ < event_count_; event_current_++) {
-      int fd = events_[event_current_].data.fd;
+      int fd = event_fd(&events_[event_current_]);
       /* fd might be -1, see in del_fd() for explanation. Skip those.
        * For the rest, call the appropriate callback. */
       if (fd >= 0) {

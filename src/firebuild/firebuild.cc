@@ -1342,14 +1342,15 @@ static int create_listener() {
 
 static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
-  TRACK(firebuild::FB_DEBUG_COMM, "event->data.fd=%s, ctx=%s", D_FD(event->data.fd), D(conn_ctx));
+  TRACK(firebuild::FB_DEBUG_COMM, "event's fd=%s, ctx=%s",
+        D_FD(firebuild::Epoll::event_fd(event)), D(conn_ctx));
 
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
   size_t full_length;
   const msg_header * header;
 
-  int read_ret = buf.read(event->data.fd, -1);
+  int read_ret = buf.read(firebuild::Epoll::event_fd(event), -1);
   if (read_ret < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       /* Try again later. */
@@ -1357,7 +1358,8 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
     }
   }
   if (read_ret <= 0) {
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " + firebuild::d_fd(event->data.fd) +
+    FB_DEBUG(firebuild::FB_DEBUG_COMM, "socket " +
+             firebuild::d_fd(firebuild::Epoll::event_fd(event)) +
              " hung up (" + d(proc) + ")");
     delete conn_ctx;
     return;
@@ -1382,7 +1384,7 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
       FB_DEBUG(firebuild::FB_DEBUG_COMM,
-               "fd " + firebuild::d_fd(event->data.fd) + ": (" + d(proc) + ")");
+               "fd " + firebuild::d_fd(firebuild::Epoll::event_fd(event)) + ": (" + d(proc) + ")");
       if (header->ack_id) {
         fprintf(stderr, "ack_num: %d\n", header->ack_id);
       }
@@ -1392,10 +1394,11 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
 
     /* Process the messaage. */
     if (proc) {
-      proc_ic_msg(fbbcomm_msg, header->ack_id, event->data.fd, proc);
+      proc_ic_msg(fbbcomm_msg, header->ack_id, firebuild::Epoll::event_fd(event), proc);
     } else {
       /* Fist interceptor message */
-      proc_new_process_msg(fbbcomm_msg, header->ack_id, event->data.fd, &conn_ctx->proc);
+      proc_new_process_msg(fbbcomm_msg, header->ack_id, firebuild::Epoll::event_fd(event),
+                           &conn_ctx->proc);
     }
     buf.discard(full_length);
   } while (buf.length() > 0);

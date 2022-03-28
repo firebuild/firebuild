@@ -35,7 +35,7 @@ void Epoll::add_fd(int fd, uint32_t events,
   struct epoll_event ee;
   memset(&ee, 0, sizeof(ee));
   ee.events = events;
-  ee.data.fd = fd;
+  set_event_fd(&ee, fd);
   epoll_ctl(main_fd_, EPOLL_CTL_ADD, fd, &ee);
 }
 
@@ -54,8 +54,8 @@ void Epoll::del_fd(int fd) {
    * the next iteration of process_all_events()'s loop could result in uncontrollable bad
    * consequences. */
   for (int i = event_current_ + 1; i < event_count_; i++) {
-    if (events_[i].data.fd == fd) {
-      events_[i].data.fd = -1;
+    if (event_fd(&events_[i]) == fd) {
+      set_event_fd(&events_[i], -1);
       break;
     }
   }
