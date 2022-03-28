@@ -89,12 +89,20 @@ setup() {
       result=$(./run-firebuild -o 'processes.dont_shortcut += "sleep"' -- bash -c 'for i in $(seq 10); do (sleep 1; ls integration.bats; false)& done; /bin/echo foo' | sort)
     fi
     assert_streq "$result" "foo"
-    assert_streq "$(strip_stderr stderr | uniq -c)" "     10 Orphan process has been killed by signal 15"
+    if [ "$(uname)" = "Linux" ]; then
+      assert_streq "$(strip_stderr stderr | uniq -c)" "     10 Orphan process has been killed by signal 15"
+    else
+      assert_streq "$(strip_stderr stderr)" ""
+    fi
 
     result=$(./run-firebuild -- ./test_orphan)
     assert_streq "$result" ""
-    # there may be one or two detected orphan processes
-    assert_streq "$(strip_stderr stderr | uniq)" "Orphan process has been killed by signal 15"
+    if [ "$(uname)" = "Linux" ]; then
+      # there may be one or two detected orphan processes
+      assert_streq "$(strip_stderr stderr | uniq)" "Orphan process has been killed by signal 15"
+    else
+      assert_streq "$(strip_stderr stderr)" ""
+    fi
   done
 }
 
