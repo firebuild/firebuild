@@ -18,6 +18,9 @@
 
 #include "firebuild/firebuild.h"
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+#endif
 #include <signal.h>
 #include <getopt.h>
 #ifdef __linux__
@@ -418,7 +421,12 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
+#ifdef __APPLE__
+    *_NSGetEnviron() = env_exec;
+    execvp(argv[optind], argv_exec);
+#else
     execvpe(argv[optind], argv_exec, env_exec);
+#endif
     firebuild::fb_perror("Executing build command failed");
     exit(EXIT_FAILURE);
   } else {
