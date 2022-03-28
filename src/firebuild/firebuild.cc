@@ -373,7 +373,7 @@ int main(const int argc, char *argv[]) {
                                                insert_trace_markers);
 
   /* Set up sigchild handler */
-  if (pipe2(sigchild_selfpipe, O_CLOEXEC | O_NONBLOCK) != 0) {
+  if (fb_pipe2(sigchild_selfpipe, O_CLOEXEC | O_NONBLOCK) != 0) {
     firebuild::fb_perror("pipe");
     exit(EXIT_FAILURE);
   }

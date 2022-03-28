@@ -822,12 +822,12 @@ void Process::handle_pipe_request(const int flags, const int fd_conn) {
 
   FBBCOMM_Builder_pipe_created response;
 
-  if (pipe2(up, flags) < 0) {
+  if (fb_pipe2(up, flags) < 0) {
     response.set_error_no(errno);
     send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response));
     return;
   }
-  if (pipe2(down, flags) < 0) {
+  if (fb_pipe2(down, flags) < 0) {
     response.set_error_no(errno);
     send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response));
     close(up[0]);

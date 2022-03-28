@@ -199,4 +199,8 @@ static inline int mkdirhier(const char *pathname, const mode_t mode) {
   }
 }
 
+inline int fb_pipe2(int pipefd[2], int flags) {
+  return pipe2(pipefd, flags);
+}
+
 #endif  // COMMON_PLATFORM_H_
