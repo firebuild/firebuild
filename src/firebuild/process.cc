@@ -461,7 +461,15 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
 
   const FileName *name;
 
-  if (ar_name == nullptr || (ar_name[0] == '\0' && (flags & AT_EMPTY_PATH))) {
+#ifndef AT_EMPTY_PATH
+  (void)flags;
+#endif
+
+  if (ar_name == nullptr
+#ifdef AT_EMPTY_PATH
+      || (ar_name[0] == '\0' && (flags & AT_EMPTY_PATH))
+#endif
+      ) {
     /* Operating on an opened fd, i.e. fstat() or fstatat("", AT_EMPTY_PATH). */
     FileFD *file_fd = get_fd(fd);
     if (!file_fd) {
@@ -652,7 +660,15 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
    * Let's just go on assuming it's supported to make our code consistent with fstatat(), future
    * fchownat() and possibly some other methods too. */
 
-  if (ar_name == nullptr || (ar_name[0] == '\0' && (flags & AT_EMPTY_PATH))) {
+#ifndef AT_EMPTY_PATH
+  (void)flags;
+#endif
+
+  if (ar_name == nullptr
+#ifdef AT_EMPTY_PATH
+      || (ar_name[0] == '\0' && (flags & AT_EMPTY_PATH))
+#endif
+      ) {
     /* Operating on an opened fd, i.e. fchmod() or fchmodat("", AT_EMPTY_PATH). */
     FileFD *file_fd = get_fd(fd);
     if (!file_fd) {
