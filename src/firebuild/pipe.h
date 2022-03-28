@@ -20,7 +20,10 @@
 #define FIREBUILD_PIPE_H_
 
 #include <limits.h>
+
+#ifndef __APPLE__
 #include <sys/epoll.h>
+#endif
 #include <tsl/hopscotch_map.h>
 #include <tsl/hopscotch_set.h>
 #include <unistd.h>

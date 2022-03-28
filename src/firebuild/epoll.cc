@@ -19,12 +19,19 @@
 #include "firebuild/epoll.h"
 
 #include <string.h>
+#ifdef __APPLE__
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+#else
 #include <sys/epoll.h>
+#endif
 #include <time.h>
 
 #include <cassert>
 #include <vector>
 
+#include "common/firebuild_common.h"
 #include "firebuild/utils.h"
 
 namespace firebuild {
@@ -34,7 +41,12 @@ Epoll *epoll = nullptr;
 
 void Epoll::delete_closed_fd_context(int fd) {
       if (fd_contexts_[fd].callback_user_data) {
+#ifdef __APPLE__
+        struct kevent fake_event;
+        EV_SET(&fake_event, fd, EVFILT_READ|EVFILT_WRITE, EV_EOF, 0, 0, 0);
+#else
         struct epoll_event fake_event {EPOLLHUP, {}};
+#endif
         set_event_fd(&fake_event, fd);
         (*fd_contexts_[fd].callback)(&fake_event, fd_contexts_[fd].callback_user_data);
       }
@@ -88,6 +100,18 @@ void Epoll::add_fd(int fd, uint32_t events,
   assert(fd_contexts_[fd].callback == nullptr);
   fd_contexts_[fd].callback = callback;
   fd_contexts_[fd].callback_user_data = callback_user_data;
+#ifdef __APPLE__
+  timespec ts = {0, 0};
+  struct kevent ke = {static_cast<uintptr_t>(fd),
+    static_cast<int16_t>((events & EPOLLIN) ? EVFILT_READ : EVFILT_WRITE),
+    EV_ADD | KEVENT_FLAG_IMMEDIATE | EV_RECEIPT, 0, reinterpret_cast<intptr_t>(nullptr), &ts};
+  int kevent_ret = kevent(main_fd_, &ke, 1, nullptr, 0, nullptr);
+  if (kevent_ret == -1) {
+    perror("kevent");
+    abort();
+  }
+  assert(kevent_ret == 0);
+#else
   struct epoll_event ee;
   memset(&ee, 0, sizeof(ee));
   ee.events = events;
@@ -96,13 +120,27 @@ void Epoll::add_fd(int fd, uint32_t events,
     fb_perror("Error adding epoll fd");
     abort();
   }
+#endif
 }
 
 void Epoll::del_fd(int fd) {
   ensure_room_fd(fd);
   assert(fd_contexts_[fd].callback != nullptr);
   fd_contexts_[fd].callback = nullptr;
+#ifdef __APPLE__
+  timespec ts = {0, 0};
+  struct kevent ke = {static_cast<uintptr_t>(fd),
+    EV_DELETE, EV_ADD | KEVENT_FLAG_IMMEDIATE | EV_RECEIPT, 0, reinterpret_cast<intptr_t>(nullptr),
+    &ts};
+  int kevent_ret = kevent(main_fd_, &ke, 1, nullptr, 0, nullptr);
+  /* With closing the fd the monitored events are automatically cleared. */
+  if (kevent_ret == -1 && errno != EINVAL) {
+    perror("kevent");
+    abort();
+  }
+#else
   epoll_ctl(main_fd_, EPOLL_CTL_DEL, fd, NULL);
+#endif
 
   /* When deleting an fd, make sure to also delete it from the yet unprocessed part of
    * epoll_wait()'s returned events. Do this by setting .data.fd to -1.
@@ -193,4 +231,37 @@ void Epoll::del_timer(int timer_id) {
    * already elapsed. */
 }
 
+void Epoll::wait() {
+#ifndef __APPLE__
+    int timeout_ms = -1;
+#else
+    struct timespec diff;
+#endif
+    if (next_timer_ >= 0) {
+      struct timespec now;
+#ifndef __APPLE__
+      struct timespec diff;
+#endif
+      clock_gettime(CLOCK_MONOTONIC, &now);
+      if (timespeccmp(&timer_contexts_[next_timer_].when, &now, <)) {
+        /* The next timer should already fire, calling timespecsub() would give a negative diff.
+           Save the epoll_wait() system call and return immediately to process the timers. */
+        event_count_ = 0;
+        return;
+      }
+      timespecsub(&timer_contexts_[next_timer_].when, &now, &diff);
+#ifndef __APPLE__
+      timeout_ms = diff.tv_sec * 1000 + diff.tv_nsec / (1000 * 1000);
+#endif
+    }
+#ifdef __APPLE__
+    event_count_ = TEMP_FAILURE_RETRY(
+        kevent(main_fd_, nullptr, 0, events_, sizeof(events_) / sizeof(events_[0]),
+               (next_timer_ >= 0) ? &diff : nullptr));
+#else
+    event_count_ = TEMP_FAILURE_RETRY(
+        epoll_wait(main_fd_, events_, sizeof(events_) / sizeof(events_[0]), timeout_ms));
+
+#endif
+  }
 }  /* namespace firebuild */

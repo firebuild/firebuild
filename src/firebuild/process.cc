@@ -21,8 +21,9 @@
 
 #include <fcntl.h>
 #include <signal.h>
-#include <sys/epoll.h>
+
 #ifdef __linux__
+#include <sys/epoll.h>
 #include <sys/eventfd.h>
 #endif
 #include <sys/ioctl.h>
@@ -746,12 +747,14 @@ int Process::handle_timerfd_create(const int flags, const int fd) {
   return 0;
 }
 
+#ifdef __linux__
 int Process::handle_epoll_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
   add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EPOLL_CLOEXEC) ? O_CLOEXEC : 0,
                                           FD_SPECIAL, this));
   return 0;
 }
+#endif
 
 int Process::handle_eventfd(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);

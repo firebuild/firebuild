@@ -384,7 +384,7 @@ int main(const int argc, char *argv[]) {
   sigaction(SIGCHLD, &sa, NULL);
 
   /* Configure epoll */
-  firebuild::epoll = new firebuild::Epoll(EPOLL_CLOEXEC);
+  firebuild::epoll = new firebuild::Epoll();
 
   /* Open listener socket before forking child to always let the child connect */
   listener = create_listener();
