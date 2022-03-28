@@ -1221,7 +1221,7 @@ void MessageProcessor::ic_conn_readcb(const struct epoll_event* event, void *ctx
   const msg_header * header;
   ProcessDebugSuppressor debug_suppressor(proc);
 
-  if (!(event->events & EPOLLIN)) {
+  if (!Epoll::ready_for_read(event)) {
     FB_DEBUG(FB_DEBUG_COMM, "socket " +
              d_fd(Epoll::event_fd(event)) +
              " hung up (" + d(proc) + ")");

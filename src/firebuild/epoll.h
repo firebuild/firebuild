@@ -19,7 +19,17 @@
 #ifndef FIREBUILD_EPOLL_H_
 #define FIREBUILD_EPOLL_H_
 
+#ifdef __APPLE__
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/time.h>
+// TODO(rbalint) this is hackish, we should rather have a wrapper class
+#define epoll_event kevent
+#define EPOLLIN 0x001
+#define EPOLLOUT 0x004
+#else
 #include <sys/epoll.h>
+#endif
 #include <time.h>
 #include <unistd.h>
 
@@ -34,7 +44,11 @@ namespace firebuild {
 typedef struct fd_context_ {
   /* The callback to call for this fd, passing the struct epoll_event as returned by epoll_wait(),
    * as well callback_user_data. Non-null if and only if the given fd is added to epollfd. */
+#ifdef SET_EV
+  void (*callback)(const struct kevent* event, void *callback_user_data);
+#else
   void (*callback)(const struct epoll_event* event, void *callback_user_data);
+#endif
   /* User data, as usual for callbacks. */
   void *callback_user_data;
 } fd_context;
@@ -51,8 +65,16 @@ typedef struct timer_context_ {
 
 class Epoll {
  public:
-  explicit Epoll(int flags) {
-    main_fd_ = epoll_create1(flags);
+  Epoll() {
+#ifdef __APPLE__
+    main_fd_ = kqueue();
+    if (main_fd_ == -1) {
+      perror("kqueue");
+      abort();
+    }
+#else
+    main_fd_ = epoll_create1(EPOLL_CLOEXEC);
+#endif
   }
   ~Epoll();
 
@@ -88,30 +110,36 @@ class Epoll {
    *  automatically. */
   void del_timer(int timer_id);
 
+#ifdef __APPLE__
+  static int event_fd(const struct kevent* event) {
+    return event->ident;
+  }
+  static void set_event_fd(struct kevent* event, int fd) {
+    event->ident = static_cast<uintptr_t>(fd);
+  }
+  static bool ready_for_read(const struct epoll_event* event) {
+    return event->ident & EVFILT_READ && !(event->ident & EV_EOF);
+  }
+  static bool ready_for_write(const struct epoll_event* event) {
+    return event->ident & EVFILT_WRITE && !(event->ident & EV_EOF);
+  }
+#else
   static int event_fd(const struct epoll_event* event) {
     return event->data.fd;
   }
   static void set_event_fd(struct epoll_event* event, int fd) {
     event->data.fd = fd;
   }
+  static bool ready_for_read(const struct epoll_event* event) {
+    return event->events & EPOLLIN;
+  }
+  static bool ready_for_write(const struct epoll_event* event) {
+    return event->events & EPOLLOUT;
+  }
+#endif
 
   /** Wrapper around epoll_wait(). Places the result in events_ and event_count_. */
-  inline void wait() {
-    int timeout_ms = -1;
-    if (next_timer_ >= 0) {
-      struct timespec now, diff;
-      clock_gettime(CLOCK_MONOTONIC, &now);
-      if (timespeccmp(&timer_contexts_[next_timer_].when, &now, <)) {
-        /* The next timer should already fire, calling timespecsub() would give a negative diff.
-           Save the epoll_wait() system call and return immediately to process the timers. */
-        event_count_ = 0;
-        return;
-      }
-      timespecsub(&timer_contexts_[next_timer_].when, &now, &diff);
-      timeout_ms = diff.tv_sec * 1000 + diff.tv_nsec / (1000 * 1000);
-    }
-    event_count_ = epoll_wait(main_fd_, events_, sizeof(events_) / sizeof(events_[0]), timeout_ms);
-  }
+  void wait();
 
   /** Call the relevant callback for all the returned events in events_, and all the expired
    *  timers. */
@@ -127,6 +155,12 @@ class Epoll {
     /* Loop through the file descriptors.
      * In case of a signal, event_count_ might be -1, but that's fine for this loop. */
     for (event_current_ = 0; event_current_ < event_count_; event_current_++) {
+#ifdef __APPLE__
+      const int16_t filter = events_[event_current_].filter;
+      if (filter != EVFILT_READ && filter != EVFILT_WRITE) {
+        continue;
+      }
+#endif
       int fd = event_fd(&events_[event_current_]);
       /* fd might be -1, see in del_fd() for explanation. Skip those.
        * For the rest, call the appropriate callback. */

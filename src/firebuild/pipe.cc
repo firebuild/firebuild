@@ -20,7 +20,9 @@
 
 #include <fcntl.h>
 #include <poll.h>
+#ifndef __APPLE__
 #include <sys/epoll.h>
+#endif
 #include <tsl/hopscotch_set.h>
 #include <unistd.h>
 
@@ -153,7 +155,7 @@ void Pipe::pipe_fd0_write_cb(const struct epoll_event* event, void *arg) {
   ProcessDebugSuppressor debug_suppressor(pipe->creator());
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
-  if (!(event->events & EPOLLOUT)) {
+  if (!Epoll::ready_for_write(event)) {
     /* Clean up pipe. */
     pipe->finish();
     return;
@@ -292,7 +294,7 @@ void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   ProcessDebugSuppressor debug_suppressor(pipe->creator());
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
-  if (!(event->events & EPOLLIN)) {
+  if (!Epoll::ready_for_read(event)) {
     pipe->close_one_fd1(Epoll::event_fd(event));
     return;
   }
