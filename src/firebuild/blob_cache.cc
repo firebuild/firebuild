@@ -19,8 +19,13 @@
 #include "firebuild/blob_cache.h"
 
 #include <dirent.h>
+#ifdef __APPLE__
+#include <copyfile.h>
+#endif
 #include <fcntl.h>
+#ifdef __linux__
 #include <linux/fs.h>
+#endif
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -56,7 +61,11 @@ static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst, bool append
                       const struct stat64 *src_stat_ptr = NULL) {
   /* Try CoW first. */
   if (src_skip_bytes == 0 && !append) {
+#ifdef __APPLE__
+  if (fcopyfile(fd_src, fd_dst, nullptr, COPYFILE_DATA) == 0) {
+#else
     if (ioctl(fd_dst, FICLONE, fd_src) == 0) {
+#endif
       /* CoW succeeded. Moo! */
       return true;
     }
