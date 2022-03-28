@@ -131,7 +131,7 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
 
 void Pipe::pipe_fd0_write_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(event->data.fd));
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
   (void) event;  /* unused */
   switch (pipe->send_buf()) {
@@ -257,9 +257,9 @@ void Pipe::finish() {
 
 void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(event->data.fd));
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
-  auto result = pipe->forward(event->data.fd, false);
+  auto result = pipe->forward(Epoll::event_fd(event), false);
   switch (result) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -271,7 +271,7 @@ void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
       break;
     }
     case FB_PIPE_FD1_EOF: {
-      pipe->close_one_fd1(event->data.fd);
+      pipe->close_one_fd1(Epoll::event_fd(event));
       break;
     }
     case FB_PIPE_SUCCESS: {
