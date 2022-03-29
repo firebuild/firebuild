@@ -1327,8 +1327,7 @@ static int create_listener() {
   local.sun_family = AF_UNIX;
   strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path) - 1);
 
-  auto len = strlen(local.sun_path) + sizeof(local.sun_family);
-  if (bind(listener, (struct sockaddr *)&local, len) == -1) {
+  if (bind(listener, (struct sockaddr *)&local, sizeof(local)) == -1) {
     perror("bind");
     exit(EXIT_FAILURE);
   }
@@ -1422,7 +1421,6 @@ static void save_child_status(pid_t pid, int status, int * ret, bool orphan) {
  * epoll_wait() without race condition. Our measurements show this is faster than epoll_pwait(). */
 static void sigchild_handler(int signum) {
   (void)signum;  /* unused */
-
   /* listener being -1 means that we're already exiting, and might have closed sigchild_selfpipe.
    * In case an orphan descendant dies now and we get a SIGCHLD, just ignore it. */
   if (listener >= 0) {
