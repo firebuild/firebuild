@@ -44,8 +44,13 @@ int main() {
   /* Close invalid file descriptior. Should not affect shortcutting. */
   close(-1);
 
+#ifdef __linux__
   if (pipe2(pipe_fds, 0) != 0) {
     perror("pipe2" LOC);
+#else
+  if (pipe(pipe_fds) != 0) {
+    perror("pipe" LOC);
+#endif
     exit(1);
   } else {
     close(pipe_fds[0]);
