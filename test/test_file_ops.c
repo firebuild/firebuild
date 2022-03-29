@@ -24,12 +24,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __linux__
 #include <sys/eventfd.h>
+#endif
 #include <sys/mman.h>
+#ifdef __linux__
 #include <sys/signalfd.h>
+#endif
 #include <sys/socket.h>
 #include <sys/stat.h>
+#ifdef __linux__
 #include <sys/timerfd.h>
+#endif
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -164,6 +170,7 @@ int main() {
   }
   rmdir(mkdtemp_ret);
 
+#ifdef __linux__
   fd = memfd_create("foo", MFD_CLOEXEC);
   if (fd == -1 && errno != ENOSYS) {
     perror("memfd_create" LOC);
@@ -193,6 +200,7 @@ int main() {
     exit(1);
   }
   close(fd);
+#endif
 
   fd = socket(AF_INET, SOCK_DGRAM, 0);
   if (fd == -1) {
