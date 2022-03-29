@@ -34,6 +34,15 @@
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for int fields that represent AT_* flags. */
+    static void fbbcomm_debug_at_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_at_flags(f, flags);
+      fprintf(f, "\\"");
+    }
+
     /* Debugger method for int fields that represent fcntl()'s F_* command. */
     static void fbbcomm_debug_fcntl_cmd(FILE *f, int cmd, bool is_serialized, const void *fbb) {
       (void)is_serialized;  /* unused */
@@ -245,7 +254,7 @@
       # access mode
       (OPTIONAL, "int", "mode"),
       # flags
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -258,7 +267,7 @@
       # path to file
       (OPTIONAL, STRING, "filename"),
       # it could be lstat() encoded as AT_SYMLINK_NOFOLLOW or fstatat(..., flags)
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -305,7 +314,7 @@
       # mode
       (OPTIONAL, "mode_t", "mode"),
       # flags for fchmodat()
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # it was actually lchmod() or fchmodat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
       (OPTIONAL, "bool", "link"),
       # error no., when ret = -1
@@ -331,7 +340,7 @@
       # gid
       (OPTIONAL, "gid_t", "group"),
       # flags for fchownat()
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # it was actually lchown() or fchownat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
       (OPTIONAL, "bool", "link"),
       # error no., when ret = -1
@@ -346,7 +355,7 @@
       # gid
       (OPTIONAL, "gid_t", "group"),
       # flags for fchownat()
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -357,7 +366,7 @@
       # path name
       (OPTIONAL, STRING, "pathname"),
       # flags for unlinkat()
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -372,7 +381,7 @@
       # new file path
       (OPTIONAL, STRING, "newpath"),
       # flags for linkat()
-      (OPTIONAL, "int", "flags"),
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
