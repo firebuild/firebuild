@@ -1012,6 +1012,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_rename *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_symlink: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_symlink *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_fcntl: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
           reinterpret_cast<const FBBCOMM_Serialized_fcntl *>(fbbcomm_buf));
@@ -1044,14 +1049,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     }
     case FBBCOMM_TAG_link: {
       proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
-      break;
-    }
-    case FBBCOMM_TAG_symlink: {
-      proc->exec_point()->disable_shortcutting_bubble_up("Creating a symlink is not supported");
-      break;
-    }
-    case FBBCOMM_TAG_readlink: {
-      proc->exec_point()->disable_shortcutting_bubble_up("Calling readlink() is not supported");
       break;
     }
     case FBBCOMM_TAG_fstat: {
@@ -1119,6 +1116,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_gethostname:
     case FBBCOMM_TAG_lockf:
     case FBBCOMM_TAG_pathconf:
+    case FBBCOMM_TAG_readlink:
     case FBBCOMM_TAG_scproc_resp:
     case FBBCOMM_TAG_syscall:
     case FBBCOMM_TAG_sysconf:
