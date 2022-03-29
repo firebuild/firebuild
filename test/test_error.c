@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #ifdef __APPLE__
+#include <err.h>
 #include <mach/error.h>
 #else
 #include <error.h>
@@ -31,11 +32,14 @@ void atexit_handler() {
 
 int main() {
   atexit(atexit_handler);
-
+#ifdef __APPLE__
+  err(1, "error%d", ENOENT);
+#else
   error(0, ENOENT, "error%d", 1);
   error(0, EACCES, "error%d", 2);
   error(1, ENOENT, "error%d", 3);
   /* should not reach here */
   error(1, EACCES, "error%d", 4);
+#endif
   return 0;
 }
