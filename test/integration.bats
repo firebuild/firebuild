@@ -210,6 +210,7 @@ setup() {
 }
 
 @test "error()" {
+  [ -x ./test_error ] || skip
   stderr_expected=$'./test_error: error1: No such file or directory\n./test_error: error2: Permission denied\n./test_error: error3: No such file or directory\natexit_handler'
 
   for i in 1 2; do
