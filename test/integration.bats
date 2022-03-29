@@ -245,9 +245,11 @@ setup() {
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
-    result=$(./run-firebuild -- ./test_cmd_popen ./test_static r)
-    assert_streq "$result" "I am statically linked."
-    assert_streq "$(strip_stderr stderr)" ""
+    if [ -x ./test_static ]; then
+      result=$(./run-firebuild -- ./test_cmd_popen ./test_static r)
+      assert_streq "$result" "I am statically linked."
+      assert_streq "$(strip_stderr stderr)" ""
+    fi
     result=$(./run-firebuild -- bash -c "echo -e 'bar\nfoo\nbar' | ./test_cmd_popen 'grep foo' w")
     assert_streq "$result" "foo"
     assert_streq "$(strip_stderr stderr)" ""
@@ -255,6 +257,7 @@ setup() {
 }
 
 @test "fork() + exec() a statically linked binary" {
+  [ -x ./test_static ] || skip
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
@@ -272,6 +275,7 @@ setup() {
 }
 
 @test "posix_spawn() a statically linked binary" {
+  [ -x ./test_static ] || skip
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
@@ -292,6 +296,7 @@ setup() {
 }
 
 @test "system() a statically linked binary" {
+  [ -x ./test_static ] || skip
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do

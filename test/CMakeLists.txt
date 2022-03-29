@@ -49,8 +49,10 @@ add_test_binary(test_err)
 add_test_binary(test_error)
 add_test_binary(test_env_fixup)
 
+if(NOT APPLE)
 add_test_binary(test_static)
 target_link_libraries(test_static "-static")
+endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/data "${CMAKE_BINARY_DIR}/test/data" SYMBOLIC)
