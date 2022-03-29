@@ -26,6 +26,7 @@
 #define LOC "[" __FILE__ ":" TOSTR(__LINE__) "]"
 
 int main() {
+#ifdef __linux__
   char buf[4];
   ssize_t ret_len = getrandom(buf, sizeof(buf), 0);
   if (ret_len == -1) {
@@ -40,6 +41,6 @@ int main() {
     exit(1);
   }
   assert(ret_len <= (ssize_t) sizeof(buf));  /* With GRND_RANDOM, short read is possible. */
-
+#endif
   return 0;
 }
