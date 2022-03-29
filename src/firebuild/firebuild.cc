@@ -195,7 +195,7 @@ static void accept_ic_conn(const struct epoll_event* event, void *arg) {
 }
 
 static bool running_under_valgrind() {
-  const char *v = getenv("LD_PRELOAD");
+  const char *v = getenv(LD_PRELOAD);
   if (v == NULL) {
     return false;
   } else {

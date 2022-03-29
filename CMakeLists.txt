@@ -24,8 +24,6 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(GNUInstallDirs)
 
-set(LIBFIREBUILD_SO "libfirebuild.so")
-
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
 set(DATADIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/firebuild" CACHE STRING "Firebuild's architecture-independent files' location")
@@ -64,6 +62,22 @@ endforeach()
 if (NOT APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weffc++")
 endif()
+
+# dynamic library handling
+if (APPLE)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLD_PRELOAD=\\\"DYLD_INSERT_LIBRARIES\\\" -DLD_LIBRARY_PATH=\\\"DYLD_LIBRARY_PATH\\\"")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLD_PRELOAD=\\\"DYLD_INSERT_LIBRARIES\\\" -DLD_LIBRARY_PATH=\\\"DYLD_LIBRARY_PATH\\\"")
+  set(LIBFIREBUILD_SO "libfirebuild.dylib")
+  set(CMAKE_TARGET_LD_LIBRARY_PATH "DYLD_LIBRARY_PATH")
+else()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLD_PRELOAD=\\\"LD_PRELOAD\\\" -DLD_LIBRARY_PATH=\\\"LD_LIBRARY_PATH\\\"")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLD_PRELOAD=\\\"LD_PRELOAD\\\" -DLD_LIBRARY_PATH=\\\"LD_LIBRARY_PATH\\\"")
+  set(LIBFIREBUILD_SO "libfirebuild.so")
+  set(CMAKE_TARGET_LD_LIBRARY_PATH "LD_LIBRARY_PATH")
+endif()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLD_LIBRARY_PATH=\\\"${CMAKE_TARGET_LD_LIBRARY_PATH}\\\"")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLD_LIBRARY_PATH=\\\"${CMAKE_TARGET_LD_LIBRARY_PATH}\\\"")
 
 if(COVERAGE)
   # minimal (lines) coverage

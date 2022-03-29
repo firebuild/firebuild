@@ -1,5 +1,5 @@
 #!/bin/bash
-export LD_LIBRARY_PATH=@CMAKE_BINARY_DIR@/src/interceptor:$LD_LIBRARY_PATH
+export @CMAKE_TARGET_LD_LIBRARY_PATH@=@CMAKE_BINARY_DIR@/src/interceptor:$@CMAKE_TARGET_LD_LIBRARY_PATH@
 export PATH=@CMAKE_BINARY_DIR@/src/firebuild:${PATH/ccache/ccache-DISABLED/}
 export FIREBUILD_CACHE_DIR=@CMAKE_CURRENT_BINARY_DIR@/test_cache_dir
 export GCOV_PREFIX=@CMAKE_BINARY_DIR@/gcov
