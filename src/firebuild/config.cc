@@ -396,12 +396,19 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
   export_sorted_locations(cfg, "system_locations", "FB_SYSTEM_LOCATIONS", &env);
   export_sorted_locations(cfg, "ignore_locations", "FB_IGNORE_LOCATIONS", &env);
 
-  const char *ld_preload_value = getenv("LD_PRELOAD");
+  const char *ld_preload_value = getenv(LD_PRELOAD);
   if (ld_preload_value) {
-    env["LD_PRELOAD"] = LIBFIREBUILD_SO ":" + std::string(ld_preload_value);
+    env[LD_PRELOAD] = LIBFIREBUILD_SO ":" + std::string(ld_preload_value);
   } else {
-    env["LD_PRELOAD"] = LIBFIREBUILD_SO;
+    env[LD_PRELOAD] = LIBFIREBUILD_SO;
   }
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, " " LD_PRELOAD "=" + env[LD_PRELOAD]);
+
+#ifdef __APPLE__
+  env["DYLD_FORCE_FLAT_NAMESPACE"] = "0";
+  FB_DEBUG(firebuild::FB_DEBUG_PROC, " DYLD_FORCE_FLAT_NAMESPACE=" +
+           env["DYLD_FORCE_FLAT_NAMESPACE"]);
+#endif
   env["FB_SOCKET"] = fb_conn_string;
   FB_DEBUG(FB_DEBUG_PROC, " FB_SOCKET=" + env["FB_SOCKET"]);
 

@@ -31,8 +31,6 @@
 /* Avoid typos in repetitive names */
 #define FB_INSERT_TRACE_MARKERS "FB_INSERT_TRACE_MARKERS"
 #define FB_SOCKET               "FB_SOCKET"
-#define LD_LIBRARY_PATH         "LD_LIBRARY_PATH"
-#define LD_PRELOAD              "LD_PRELOAD"
 #define LIBFIREBUILD_SO_LEN     ((int) strlen(LIBFIREBUILD_SO))
 
 /* Like getenv(), but from a custom environment array */
