@@ -38,7 +38,7 @@
 #define LOC "[" __FILE__ ":" TOSTR(__LINE__) "]"
 
 int main() {
-  int fd, fd_dup, fd_dup2, fd_dup3, i, pipe_fds[2];
+  int fd, fd_dup, fd_dup2, i, pipe_fds[2];
   struct stat st_buf;
 
   /* Close invalid file descriptior. Should not affect shortcutting. */
@@ -72,12 +72,15 @@ int main() {
     perror("dup2" LOC);
     exit(1);
   }
+#ifdef __linux__
+  int fd_dup3;
   fd_dup3 = dup3(fd, fd_dup2, O_CLOEXEC);
   if (fd_dup3 == -1) {
     perror("dup3" LOC);
     exit(1);
   }
   close(fd);
+#endif
 
   fd = creat("test_empty_2.txt", 0600);
   if (fd == -1) {
