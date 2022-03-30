@@ -969,8 +969,25 @@ static void fb_ic_init() {
    * see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
    * and readlink(2) */
   char linkname[IC_PATH_BUFSIZE];
-  ssize_t r;
-  r = get_ic_orig_readlink()("/proc/self/exe", linkname, IC_PATH_BUFSIZE - 1);
+#ifdef __APPLE__
+  uint32_t r = sizeof(linkname);
+  if (_NSGetExecutablePath(linkname, &r) == 0) {
+    r = strlen(linkname);
+  } else {
+    /* A bigger buffer is needed. */
+    char* linkname2 = alloca(++r);
+    if (_NSGetExecutablePath(linkname2, &r) != 0) {
+      assert(0 && "Could not get the executable path even with the buffer "
+             "that should have been enough.");
+      r = 0;
+    } else {
+      r = strlen(linkname2);
+      fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname2, r);
+    }
+  }
+#else
+  ssize_t r = get_ic_orig_readlink()("/proc/self/exe", linkname, IC_PATH_BUFSIZE - 1);
+#endif
   if (r > 0 && r < IC_PATH_BUFSIZE) {
     linkname[r] = '\0';
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
