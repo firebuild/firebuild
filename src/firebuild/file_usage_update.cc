@@ -277,6 +277,10 @@ FileUsageUpdate FileUsageUpdate::get_from_stat_params(const FileName *filename, 
       update.set_initial_type(ISREG);
     } else if (S_ISDIR(mode)) {
       update.set_initial_type(ISDIR);
+    } else if (S_ISLNK(mode)) {
+      /* It's a symlink. We got to know absolutely nothing about the underlying file, directory, or
+       * lack thereof. FIXME: Refine this logic as per #784. */
+      update.set_initial_type(DONTKNOW);
     } else {
       /* Neither regular file nor directory. Pretend for now that there's nothing there. */
       update.set_initial_type(NOTEXIST);
