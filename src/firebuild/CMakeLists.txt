@@ -63,7 +63,9 @@ add_executable(firebuild-bin
   hash_cache.cc
   file.cc
   file_fd.cc
+  file_info.cc
   file_usage.cc
+  file_usage_update.cc
   blob_cache.cc
   obj_cache.cc
   utils.cc
