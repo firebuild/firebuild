@@ -120,6 +120,12 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
         }
         break;
       }
+      case NOTEXIST_OR_ISREG:
+      case NOTEXIST_OR_ISREG_EMPTY: {
+        /* These two initial states, without the written_ bit, are possible intermittently while
+         * shortcutting a process. See #791. */
+        break;
+      }
       case ISREG: {
         if (update_initial_type != DONTKNOW &&
             update_initial_type != NOTEXIST_OR_ISREG &&
@@ -152,12 +158,6 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
           tmp.set_initial_hash(hash);
           changed = true;
         }
-        break;
-      }
-      case NOTEXIST_OR_ISREG:
-      case NOTEXIST_OR_ISREG_EMPTY: {
-        /* These imply the written_ bit, so cannot happen here. */
-        assert(0);
         break;
       }
     }
