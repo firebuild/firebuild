@@ -63,19 +63,19 @@
     # not included here. Things that only become known while the process is
     # running, such as the files it reads, aren't included either.
     ("process_fingerprint", [
+      # The initial working directory
+      (REQUIRED, STRING, "wd"),
       # Program file
       (REQUIRED, FBB,    "executable"),      # tag "file"
       # Pathname used to execute the program
       (REQUIRED, FBB,    "executed_path"),   # tag "file"
-      # Libraries loaded upon startup
-      (ARRAY,    FBB,    "libs"),            # tag "file"
       # Command parameters, starting with name of the command
       (ARRAY,    STRING, "args"),
       # Environment variables, filtered (to exclude e.g. $FB_SOCKET)
       # and sorted to a deterministic order
       (ARRAY,    STRING, "env"),
-      # The initial working directory
-      (REQUIRED, STRING, "wd"),
+      # Libraries loaded upon startup
+      (ARRAY,    FBB,    "libs"),            # tag "file"
       # For each outgoing pipe, this contains the client-side fds
       (ARRAY,    FBB,    "outgoing_pipes"),  # tag "pipe_fds"
       # special purpose file descriptors, not having file name
