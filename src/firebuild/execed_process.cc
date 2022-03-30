@@ -98,10 +98,11 @@ void ExecedProcess::initialize() {
   /* Propagate the opening of the executable and libraries upwards as
    * regular file open events. */
   if (parent_exec_point()) {
-    parent_exec_point()->register_file_usage(executable(), executable(),
-                                             FILE_ACTION_OPEN, O_RDONLY, 0);
+    FileUsageUpdate exe_update = FileUsageUpdate::get_from_open_params(executable(), O_RDONLY, 0);
+    parent_exec_point()->register_file_usage_update(executable(), exe_update);
     for (const auto& lib : libs_) {
-      parent_exec_point()->register_file_usage(lib, lib, FILE_ACTION_OPEN, O_RDONLY, 0);
+      FileUsageUpdate lib_update = FileUsageUpdate::get_from_open_params(lib, O_RDONLY, 0);
+      parent_exec_point()->register_file_usage_update(lib, lib_update);
     }
   }
 
@@ -213,223 +214,108 @@ void ExecedProcess::do_finalize() {
 }
 
 /**
- * This is called on file operation methods, for all the ExecedProcess
- * ancestors, excluding the exec_point where the file operation
- * occurred. The method does the necessary administration, and bubbles
- * it upwards to the root.
+ * Registers a file operation described in "update" into the filename "name", and bubbles it up to
+ * the root.
  *
- * In case of non-shortcutted processes, in the exec_point the method
- * register_file_usage() performed the necessary administration before
- * beginning to bubble up this event.
+ * "update" might contain some lazy bits that will be computed on demand.
  *
- * In case of shortcutted processes, it's the shortcutting itself that
- * performs the file operations, no administration is necessary there.
+ * In some rare cases the filename within "update" might differ from "name", in that case the
+ * filename mentioned in "update" is used to lazily figure out the required values (such as
+ * checksum), but it is registered as if it belonged to the file mentioned in this method's "name"
+ * parameter. Currently this trick is only used for a rename()'s source path.
+ *
+ * This method also registers the implicit parent directory and bubbles it up, as per the
+ * information contained in "update".
  */
-void ExecedProcess::propagate_file_usage(const FileName *name,
-                                         const FileUsage* fu_change) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
+bool ExecedProcess::register_file_usage_update(const FileName *name,
+                                        const FileUsageUpdate& update) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, update=%s", D(name), D(update));
 
-  const FileUsage *fu;
-  bool propagate = false;
-  auto it = file_usages_.find(name);
-  if (it != file_usages_.end()) {
-    fu = it->second;
-    const FileUsage* merged_fu = fu->merge(fu_change);
-    if (!merged_fu) {
-      disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
-      return;
-    }
-    if (merged_fu != fu) {
-      it.value() = fu = merged_fu;
-      propagate = true;
-    }
-  } else {
-    file_usages_[name] = fu = fu_change;
-    propagate = true;
-  }
-
-  /* Propagage change further if needed. */
-  if (propagate) {
-    ExecedProcess* next = generate_report ? parent_exec_point() : next_shortcutable_ancestor();
-    if (next) {
-      next->propagate_file_usage(name, fu);
-    }
-  }
-}
-
-/**
- * This is called on the exec_point of a non-shortcutted process when an
- * open() or similar call is intercepted. Converts the input into a
- * FileUsage, stat'ing the file, computing its checksum if necessary.
- * Registers the file operation, and bubbles it upwards to the root via
- * propagate_file_usage().
- * Looks at the contents of `actual_file`, but registers as if the event
- * happened to `name`.
- */
-bool ExecedProcess::register_file_usage(const FileName *name,
-                                        const FileName *actual_file,
-                                        FileAction action,
-                                        int flags,
-                                        int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, actual_file=%s, flags=%d, error=%d",
-         D(name), D(actual_file), flags, error);
+  /* What the FileUsage was before the update, on the previous (descendant) level. The initial value
+   * should differ from any valid value, including NULL which is valid too (indicating no prior
+   * knowledge about that file), to allow to detect if we're about the perform the same update
+   * operation as we did on the previous (descendant) level. It should also differ from fu_new's
+   * initial value, to allow to detect if the update didn't change anything. */
+  const FileUsage *fu_old = reinterpret_cast<FileUsage *>(-1);
+  /* What the FileUsage became after the update, on the previous (descendant) level. */
+  const FileUsage *fu_new = nullptr;
 
   if (name->is_in_ignore_location()) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
   }
 
-  if (!can_shortcut_ && !generate_report) {
+  ExecedProcess *proc = this;
+  if (!proc->can_shortcut_ && !generate_report) {
     /* Register at the first shortcutable ancestor instead. */
-    ExecedProcess* next = next_shortcutable_ancestor();
-    if (next) {
-      return next->register_file_usage(name, actual_file, action, flags, error);
-    } else {
-      return true;
-    }
+    proc = proc->next_shortcutable_ancestor();
   }
-
-  if (error) {
-    switch (error) {
-      case ENOENT: {
-        if (is_write(flags)) {
-          /* When opening a file for writing the absence of the parent dir
-           * results NOTEXIST error. The grandparent dir could be missing as well,
-           * but the missing parent dir would cause the same error thus it will not be a mistake
-           * to shortcut the process if the parent dir is indeed missing.
-           */
-          return register_parent_directory(actual_file, NOTEXIST);
-        }
-        break;
-      }
-      case ENOTDIR: {
-        /* Occurs when opening the "foo/baz/bar" path when "foo/baz" is not a directory,
-         * but for example a regular file. Or when "foo" is a regular file. We can't distinguish
-         * between those cases, but if "/foo/baz" is a regular file we can safely shortcut the
-         * process, because the process could not tell the difference either. */
-        return register_parent_directory(actual_file, ISREG);
-      }
-      default:
-        break;
-        /* To be handled later. */
-    }
-  }
-
-  const FileUsage *fu = nullptr;
-  auto it = file_usages_.find(name);
-  if (it != file_usages_.end()) {
-    fu = it->second;
-  }
-  if (fu) {
-    /* The process already used this file. The initial state was already
-     * recorded, but it can be extended. We obtain a new FileUsage object which represents the
-     * modifications to apply currently, and then we propagate this upwards to be applied.
-     */
-    /* If hash is not stored yet it may need to be. */
-    bool read_again = !fu->written() && !fu->initial_hash_known();
-    const FileUsage *fu_change = FileUsage::Get(actual_file, action, flags, error, read_again);
-    if (!fu_change) {
-      /* Error */
-      return false;
-    } else if (fu_change == fu) {
-      /* This file usage is already registered identically for this file and is also propoagated */
-      return true;
-    }
-    const FileUsage* merged_fu = fu->merge(fu_change);
-    if (!merged_fu) {
-      disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
-      return false;
-    }
-    if (merged_fu != fu) {
-      it.value() = merged_fu;
-      if (parent_exec_point()) {
-        parent_exec_point()->propagate_file_usage(name, merged_fu);
-      }
-    }
-  } else {
-    /* The process opens this file for the first time. Compute whatever
-     * we need to know about its initial state. Use that same object to
-     * propagate the changes upwards. */
-    fu = FileUsage::Get(actual_file, action, flags, error, true);
-    if (!fu) {
-      /* Error */
-      return false;
-    }
-    file_usages_[name] = fu;
-    if (parent_exec_point()) {
-      parent_exec_point()->propagate_file_usage(name, fu);
-    }
-  }
-  return true;
-}
-
-/**
- * See the other register_file_usage().
- * This one does not look at the file system, but instead registers the given fu_change.
- */
-bool ExecedProcess::register_file_usage(const FileName *name,
-                                        const FileUsage* fu_change) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, fu_change=%s", D(name), D(fu_change));
-
-  if (!can_shortcut_ && !generate_report) {
-    /* Register at the first shortcutable ancestor instead. */
-    ExecedProcess* next = next_shortcutable_ancestor();
-    if (next) {
-      return next->register_file_usage(name, fu_change);
-    } else {
-      return true;
-    }
-  }
-
-  if (name->is_in_ignore_location()) {
-    FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
+  if (!proc) {
     return true;
   }
 
-  const FileUsage *fu = nullptr;
-  auto it = file_usages_.find(name);
-  if (it != file_usages_.end()) {
-    fu = it->second;
+  /* Register (and bubble up) what we implicitly got to know about the parent directory. This call
+   * will in turn call back to us, but it's not a recursion since 'update' will then have
+   * parent_type_ == DONTKNOW. */
+  if (update.parent_type() != DONTKNOW) {
+    proc->register_parent_directory(name, update.parent_type());
   }
-  if (fu) {
-    const FileUsage* merged_fu = fu->merge(fu_change);
-    if (!merged_fu) {
-      disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
-      return false;
+
+  /* Bubble up to the root, but abort the loop if at a certain level we didn't do anything (fu_new
+   * became the same as fu_old was) because then continuing to bubble up wouldn't do anything new
+   * either. */
+  while (proc && fu_new != fu_old) {
+    const FileUsage *fu = nullptr;
+
+    auto it = proc->file_usages_.find(name);
+    if (it != proc->file_usages_.end()) {
+      fu = it->second;
     }
-    if (merged_fu == fu) {
-      return true;
+
+    if (fu == fu_old) {
+      /* Quick path: We need to do the same as we did on the previous level (fu and fu_old can be
+       * NULL or non-NULL, the same quick path logic applies). The new value is fu_new (which can be
+       * the same as fu_old or can differ, again, the same quick path logic applies for both cases),
+       * just as it was on the previous level. Nothing to do here. */
     } else {
-      it.value() = fu = merged_fu;
+      /* Need to merge "update" into "fu". */
+      fu_old = fu;
+      if (!fu) {
+        fu = FileUsage::Get(DONTKNOW);
+      }
+      /* Note: This can update "update" if some value is computed now and cached there. In that
+       * case, in the next iteration of the loop "update" will already contain this value. */
+      fu_new = fu->merge(update);
+      if (!fu_new) {
+        disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
+        return false;
+      }
     }
-  } else {
-    file_usages_[name] = fu = fu_change;
-  }
-  if (parent_exec_point()) {
-    parent_exec_point()->propagate_file_usage(name, fu);
+
+    if (it != proc->file_usages_.end()) {
+      /* Update the previous value. */
+      it.value() = fu_new;
+    } else {
+      /* Insert a new value. */
+      proc->file_usages_[name] = fu_new;
+    }
+
+    if (!generate_report) {
+      proc = proc->next_shortcutable_ancestor();
+    } else {
+      proc = proc->exec_point();
+    }
   }
   return true;
 }
 
 /**
- * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist
- * and is a directory, and bubbles it upwards to the root. See #259 for rationale.
- * To be called on the exec_point of a non-shortcutted process when something is done to
- * the given file.
+ * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist and is of
+ * the given "type" (e.g. ISDIR, NOTEXIST), and bubbles it up to the root.
  */
 bool ExecedProcess::register_parent_directory(const FileName *name,
-                                              FileInitialState initial_state) {
+                                              FileType type) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
-
-  if (!can_shortcut_ && !generate_report) {
-    /* Register at the first shortcutable ancestor instead. */
-    ExecedProcess* next = next_shortcutable_ancestor();
-    if (next) {
-      return next->register_parent_directory(name);
-    } else {
-      return true;
-    }
-  }
 
   const FileName* const parent_dir = FileName::GetParentDir(name->c_str(), name->length());
 
@@ -440,7 +326,9 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
     return true;
   }
 
-  return register_file_usage(parent_dir, FileUsage::Get(initial_state));
+  FileUsageUpdate update(parent_dir, type);
+  assert(update.parent_type() == DONTKNOW);
+  return register_file_usage_update(parent_dir, update);
 }
 
 /* Find and apply shortcut */
@@ -638,7 +526,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fcreated: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (!isreg_with_hash && ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
@@ -647,7 +535,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fmodified: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (isreg_with_hash && ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
@@ -656,7 +544,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fread: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (isreg_with_hash && !ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
@@ -665,7 +553,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_state() == ISREG && ffu.usage->initial_hash_known();
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (!isreg_with_hash && !ffu.usage->written()) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }

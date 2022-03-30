@@ -14,8 +14,10 @@
 #include <string>
 #include <vector>
 
+#include "firebuild/file_info.h"
 #include "firebuild/file_name.h"
 #include "firebuild/file_usage.h"
+#include "firebuild/file_usage_update.h"
 #include "firebuild/pipe.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
@@ -95,12 +97,8 @@ class ExecedProcess : public Process {
                    const int64_t stime_u);
 
   void initialize();
-  void propagate_file_usage(const FileName *name,
-                            const FileUsage* fu_change);
-  bool register_file_usage(const FileName *name, const FileName *actual_file,
-                           FileAction action, int flags, int error);
-  bool register_file_usage(const FileName *name, const FileUsage* fu_change);
-  bool register_parent_directory(const FileName *name, FileInitialState initial_state = ISDIR);
+  bool register_file_usage_update(const FileName *name, const FileUsageUpdate& update);
+  bool register_parent_directory(const FileName *name, FileType type = ISDIR);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
   std::vector<inherited_outgoing_pipe_t>& inherited_outgoing_pipes()
       {return inherited_outgoing_pipes_;}

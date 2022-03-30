@@ -193,17 +193,8 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
     ack_msg(fd_conn, ack_num);
   }
 
-  /* Registering parent directory is obsolete when the file is opened as read-only
-   * or without O_CREAT because it must have existed before the call.
-   * Even with O_CREAT the file could exist before, but register parent to stay on the safe side. */
-  if (!error && ((flags & O_ACCMODE) != O_RDONLY) && (flags & O_CREAT)
-      && !exec_point()->register_parent_directory(name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register an implicit parent directory", *name);
-    return -1;
-  }
-
-  if (!exec_point()->register_file_usage(name, name, FILE_ACTION_OPEN, flags, error)) {
+  FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, flags, error);
+  if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     return -1;
   }
@@ -323,8 +314,8 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
      */
 
     // FIXME When a directory is removed, register that it was an _empty_ directory
-    const FileUsage* fu = FileUsage::Get(flags & AT_REMOVEDIR ? ISDIR : ISREG, true);
-    if (!exec_point()->register_file_usage(name, fu)) {
+    FileUsageUpdate update = FileUsageUpdate(name, flags & AT_REMOVEDIR ? ISDIR : ISREG, true);
+    if (!exec_point()->register_file_usage_update(name, update)) {
       exec_point()->disable_shortcutting_bubble_up(
           "Could not register the unlink or rmdir", *name);
       return -1;
@@ -363,9 +354,8 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
     return -1;
   }
 
-  if (!exec_point()->register_file_usage(
-          name, name, S_ISDIR(st_mode) ? FILE_ACTION_STATDIR : FILE_ACTION_STATFILE,
-          flags, error)) {
+  FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, error);
+  if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     return -1;
   }
@@ -425,13 +415,8 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const siz
     return -1;
   }
 
-  if (!error && !exec_point()->register_parent_directory(name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register the implicit parent directory", *name);
-    return -1;
-  }
-
-  if (!exec_point()->register_file_usage(name, name, FILE_ACTION_MKDIR, O_WRONLY, error)) {
+  FileUsageUpdate update = FileUsageUpdate::get_from_mkdir_params(name, error);
+  if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the directory creation ", *name);
     return -1;
@@ -641,29 +626,25 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
     return -1;
   }
 
-  /* No need to register the parent dir of old_name, registering new_name should be enough. */
-  if (!exec_point()->register_parent_directory(new_name)) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Could not register the implicit parent directory", *new_name);
-    return -1;
-  }
-
   /* It's tricky because the renaming has already happened, there's supposedly nothing
    * at the old filename. Yet we need to register that we read that file with its
    * particular hash value.
    * FIXME we compute the hash twice, both for the old and new location.
-   * FIXME refactor so that it plays nicer together with register_file_usage(). */
+   * FIXME refactor so that it plays nicer together with register_file_usage_update(). */
 
-  /* Register the opening for reading at the old location */
-  if (!exec_point()->register_file_usage(old_name, new_name, FILE_ACTION_OPEN, O_RDONLY, error)) {
+  /* Register the opening for reading at the old location, although read the file's hash from the
+   * new location. */
+  FileUsageUpdate update_old = FileUsageUpdate::get_from_open_params(new_name, O_RDONLY, error);
+  if (!exec_point()->register_file_usage_update(old_name, update_old)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the renaming (from)", *old_name);
     return -1;
   }
 
   /* Register the opening for writing at the new location */
-  if (!exec_point()->register_file_usage(new_name, new_name,
-                                         FILE_ACTION_OPEN, O_CREAT|O_WRONLY|O_TRUNC, error)) {
+  FileUsageUpdate update_new =
+      FileUsageUpdate::get_from_open_params(new_name, O_CREAT|O_WRONLY|O_TRUNC, error);
+  if (!exec_point()->register_file_usage_update(new_name, update_new)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the renaming (to)", *new_name);
     return -1;

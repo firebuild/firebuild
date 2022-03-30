@@ -312,18 +312,13 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   }
 }
 
-static void add_file_with_hash(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                               const Hash& content_hash, const int mode = -1) {
+static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
+                     const Hash *content_hash, const int mode = -1) {
     FBBSTORE_Builder_file& new_file = files->emplace_back();
     fbbstore_builder_file_init(&new_file);
     fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
-    fbbstore_builder_file_set_hash(&new_file, content_hash.get());
+    if (content_hash) fbbstore_builder_file_set_hash(&new_file, content_hash->get());
     if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
-}
-
-static void add_file_with_mode(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                               const int mode = -1) {
-  add_file_with_hash(files, file_name, Hash(), mode);
 }
 
 static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
@@ -340,9 +335,8 @@ static bool dir_created_or_could_exist(
   while (parent_dir != nullptr) {
     const auto it = file_usages.find(parent_dir);
     const FileUsage* fu = it->second;
-    const FileInitialState initial_state = fu->initial_state();
-    if (initial_state == NOTEXIST || initial_state == NOTEXIST_OR_ISREG
-        || initial_state == NOTEXIST_OR_ISREG_EMPTY) {
+    if (fu->initial_type() == NOTEXIST || fu->initial_type() == NOTEXIST_OR_ISREG
+        || fu->initial_type() == NOTEXIST_OR_ISREG_EMPTY) {
       if (!fu->written()) {
         /* The process expects the directory to be missing but it does not create it.
          * This can't work. */
@@ -361,7 +355,7 @@ static bool dir_created_or_could_exist(
           return false;
         }
       }
-    } else if (fu->initial_state() == ISDIR) {
+    } else if (fu->initial_type() == ISDIR) {
       /* Directory is expected to exist. */
       return true;
     }
@@ -442,7 +436,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
-    switch (fu->initial_state()) {
+    switch (fu->initial_type()) {
       case DONTKNOW:
         /* Nothing to do. */
         break;
@@ -481,10 +475,10 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     if (fu->written()) {
       int fd = open(filename->c_str(), O_RDONLY);
       if (fd >= 0) {
-        Hash new_hash;
         struct stat64 st;
         if (fstat64(fd, &st) == 0) {
           if (S_ISREG(st.st_mode)) {
+            Hash new_hash;
             /* TODO don't store and don't record if it was read with the same hash. */
             if (!hash_cache->store_and_get_hash(filename, &new_hash, fd, &st)) {
               /* unexpected error, now what? */
@@ -494,24 +488,24 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
             int mode = st.st_mode & 07777;
-            add_file_with_hash(&out_path_isreg_with_hash, filename, new_hash, mode);
+            add_file(&out_path_isreg_with_hash, filename, &new_hash, mode);
           } else if (S_ISDIR(st.st_mode)) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
-            add_file_with_mode(&out_path_isdir, filename, mode);
+            add_file(&out_path_isdir, filename, nullptr, mode);
             out_path_isdir_filename_ptrs.insert(filename);
           } else {
             // TODO(egmont) handle other types of entries
           }
         } else {
           perror("fstat");
-          if (fu->initial_state() != NOTEXIST) {
+          if (fu->initial_type() != NOTEXIST) {
             out_path_notexist.push_back(filename->c_str());
           }
         }
         close(fd);
       } else {
-        if (fu->initial_state() != NOTEXIST) {
+        if (fu->initial_type() != NOTEXIST) {
           out_path_notexist.push_back(filename->c_str());
         }
       }
@@ -852,8 +846,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
  */
 static bool restore_dirs(
     ExecedProcess* proc,
-    const FBBSTORE_Serialized_process_outputs *outputs,
-    const FileUsage* fu) {
+    const FBBSTORE_Serialized_process_outputs *outputs) {
   /* Construct indices 0 .. path_isdir_count()-1 and initialize them with these values */
   std::vector<int> indices(fbbstore_serialized_process_outputs_get_path_isdir_count(outputs));
   size_t i;
@@ -897,7 +890,8 @@ static bool restore_dirs(
       return false;
     }
     if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      proc->parent_exec_point()->register_file_usage_update(
+          path, FileUsageUpdate(path, DONTKNOW, true));
     }
   }
   return true;
@@ -915,8 +909,7 @@ static bool restore_dirs(
  */
 static void remove_files_and_dirs(
     ExecedProcess* proc,
-    const FBBSTORE_Serialized_process_outputs *outputs,
-    const FileUsage* fu) {
+    const FBBSTORE_Serialized_process_outputs *outputs) {
   /* Construct indices 0 .. path_notexist_count()-1 and initialize them with these values */
   std::vector<int> indices(fbbstore_serialized_process_outputs_get_path_notexist_count(outputs));
   size_t i;
@@ -944,7 +937,8 @@ static void remove_files_and_dirs(
       rmdir(path->c_str());
     }
     if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      proc->parent_exec_point()->register_file_usage_update(
+          path, FileUsageUpdate(path, DONTKNOW, true));
     }
   }
 }
@@ -972,52 +966,47 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
           (fbbstore_serialized_process_inputs_get_path_isreg_at(inputs, i));
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
+      FileInfo info(ISREG);
       if (fbbstore_serialized_file_has_hash(file)) {
         Hash hash(fbbstore_serialized_file_get_hash(file));
-        const FileUsage* fu = FileUsage::Get(ISREG, hash);
-        proc->parent_exec_point()->propagate_file_usage(path, fu);
-      } else {
-        const FileUsage* fu = FileUsage::Get(ISREG);
-        proc->parent_exec_point()->propagate_file_usage(path, fu);
+        info.set_hash(hash);
       }
+      proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, info));
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(inputs); i++) {
       const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
           (fbbstore_serialized_process_inputs_get_path_isdir_at(inputs, i));
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
+      FileInfo info(ISDIR);
       if (fbbstore_serialized_file_has_hash(file)) {
         Hash hash(fbbstore_serialized_file_get_hash(file));
-        const FileUsage* fu = FileUsage::Get(ISDIR, hash);
-        proc->parent_exec_point()->propagate_file_usage(path, fu);
-      } else {
-        const FileUsage* fu = FileUsage::Get(ISDIR);
-        proc->parent_exec_point()->propagate_file_usage(path, fu);
+        info.set_hash(hash);
       }
+      proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, info));
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_count(inputs);
          i++) {
-      const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_len_at(inputs, i));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      proc->parent_exec_point()->register_file_usage_update(
+          path, FileUsageUpdate(path, NOTEXIST_OR_ISREG));
     }
     for (i = 0;
          i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_count(inputs);
          i++) {
-      const FileUsage* fu = FileUsage::Get(NOTEXIST_OR_ISREG_EMPTY);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_len_at(inputs, i));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      proc->parent_exec_point()->register_file_usage_update(
+          path, FileUsageUpdate(path, NOTEXIST_OR_ISREG_EMPTY));
     }
     for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_count(inputs); i++) {
-      const FileUsage* fu = FileUsage::Get(NOTEXIST);
       const auto path = FileName::Get(
           fbbstore_serialized_process_inputs_get_path_notexist_at(inputs, i),
           fbbstore_serialized_process_inputs_get_path_notexist_len_at(inputs, i));
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, NOTEXIST));
     }
   }
 
@@ -1025,10 +1014,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
       (fbbstore_serialized_process_inputs_outputs_get_outputs(inouts));
 
-  /* We'll reuse this for every file modification event to propagate. */
-  const FileUsage* fu = FileUsage::Get(DONTKNOW, true);
-
-  if (!restore_dirs(proc, outputs, fu)) {
+  if (!restore_dirs(proc, outputs)) {
     return false;
   }
 
@@ -1049,11 +1035,12 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       chmod(path->c_str(), fbbstore_serialized_file_get_mode(file) & 0777);
     }
     if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->propagate_file_usage(path, fu);
+      proc->parent_exec_point()->register_file_usage_update(
+          path, FileUsageUpdate(path, DONTKNOW, true));
     }
   }
 
-  remove_files_and_dirs(proc, outputs, fu);
+  remove_files_and_dirs(proc, outputs);
 
   /* See what the process originally wrote to its pipes. Add these to the Pipes' buffers. */
   for (i = 0; i < fbbstore_serialized_process_outputs_get_pipe_data_count(outputs); i++) {
