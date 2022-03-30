@@ -356,6 +356,13 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
   add_to_hash_state(state, proc->libs().size());
   for (const auto lib : proc->libs()) {
+#ifdef __APPLE__
+    /* SDK libraries are not present as files, see:
+     * https://developer.apple.com/forums/thread/655588 */
+    if (strncmp(lib->c_str(), "/usr/lib/", strlen("/usr/lib/")) == 0) {
+      continue;
+    }
+#endif
     if (!hash_cache->get_hash(lib, 0, &hash)) {
       FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of library: " + d(lib));
       maybe_XXH3_freeState(state);
@@ -445,6 +452,13 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     lib_builders.reserve(proc->libs().size());
 
     for (const auto& lib : proc->libs()) {
+#ifdef __APPLE__
+      /* SDK libraries are not present as files, see:
+       * https://developer.apple.com/forums/thread/655588 */
+      if (strncmp(lib->c_str(), "/usr/lib/", strlen("/usr/lib/")) == 0) {
+        continue;
+      }
+#endif
       if (!hash_cache->get_hash(lib, 0, &hash)) {
         FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of library: " + d(lib));
         maybe_XXH3_freeState(state);
