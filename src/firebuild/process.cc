@@ -36,7 +36,7 @@ static int fb_pid_counter;
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
                  Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
     : parent_(parent), state_(FB_PROC_RUNNING),
-      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count), exit_status_(-1),
+      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count),
       wd_(wd), fds_(fds), fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
@@ -82,7 +82,7 @@ void Process::exit_result(const int status, const int64_t utime_u,
    * via signal.
    * We use -1 if there's no exit status available (the process is still
    * running, or exited due to an unhandled signal). */
-  exit_status_ = status & 0xff;
+  fork_point()->set_exit_status(status & 0xff);
   update_rusage(utime_u, stime_u);
 }
 

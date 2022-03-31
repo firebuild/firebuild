@@ -121,8 +121,6 @@ class Process {
   int pid() const {return pid_;}
   int ppid() const {return ppid_;}
   int exec_count() const {return exec_count_;}
-  int exit_status() const {return exit_status_;}
-  void set_exit_status(const int e) {exit_status_ = e;}
   const FileName* wd() const {return wd_;}
   void handle_set_wd(const char * const d, const size_t d_len);
   void handle_set_fwd(const int fd);
@@ -436,9 +434,6 @@ class Process {
    */
   virtual void add_wd(const FileName *d) = 0;
 
-  /** Propagate exit status upward through exec()-ed processes */
-  virtual void propagate_exit_status(const int status) = 0;
-
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
@@ -473,7 +468,6 @@ class Process {
    *  0 for a ForkedProcess, 1 for its first ExecedProcess child, 2 for the execed child of
    *  that one, etc. -1 temporarily while constructing a Process object. */
   int exec_count_;
-  int exit_status_;  ///< exit status 0..255, or -1 if no exit() performed yet
   const FileName* wd_;  ///< Current working directory
   std::vector<std::shared_ptr<FileFD>>* fds_;  ///< Active file descriptors
   std::vector<ForkedProcess*> fork_children_;  ///< children of the process
