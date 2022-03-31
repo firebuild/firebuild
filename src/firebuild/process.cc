@@ -515,7 +515,7 @@ void Process::handle_pipe_fds(const int fd0, const int fd1) {
     /* Scan-build reports a false leak for the correct code. This is used only in static
      * analysis. It is broken because all shared pointers to the Pipe must be copies of
      * the shared self pointer stored in it. */
-    auto pipe = std::make_shared<Pipe>(pending_pipe.fd0, this);
+    auto pipe = std::make_shared<Pipe>(pending_pipe->fd0, this);
 #else
     auto pipe = (new Pipe(pending_pipe->fd0, this))->shared_ptr();
 #endif
