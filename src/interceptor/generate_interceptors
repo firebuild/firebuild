@@ -1865,9 +1865,11 @@ generate("int", "posix_spawn_file_actions_addfchdir_np", "posix_spawn_file_actio
 
 # Insert a trace marker for clone and pthread_create
 generate("int", ["clone", "__clone"], "int (*fn)(void *), void *stack, int flags, void *arg, ...",
+         platforms=['linux'],
          tpl="clone")
 # Don't bother spelling out SYS_clone's parameters, it's heavily architecture dependent
 generate("int", "SYS_clone", "...",
+         platforms=['linux'],
          tpl="clone")
 generate("int", "pthread_create", "pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine)(void *), void *arg",
          tpl="pthread_create")
