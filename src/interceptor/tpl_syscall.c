@@ -54,6 +54,37 @@
   }
 ### endblock no_intercept
 
+{# TODO fix syscall() interception with clang #}
+###   block decl_h
+#ifndef __clang__
+  {{ super() }}
+#endif
+###   endblock decl_h
+
+###   block decl_c
+#ifndef __clang__
+  {{ super() }}
+#endif
+###   endblock decl_c
+
+###   block init_c
+#ifndef __clang__
+  {{ super() }}
+#endif
+###   endblock init_c
+
+###   block reset_c
+#ifndef __clang__
+  {{ super() }}
+#endif
+###   endblock reset_c
+
+###   block impl_c
+#ifndef __clang__
+  {{ super() }}
+#endif
+###   endblock impl_c
+
 ### block call_orig
   /* FIXME Find a different solution, see #178. */
   void *args = __builtin_apply_args();

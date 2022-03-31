@@ -12,8 +12,6 @@
 #include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
-#include "interceptor/ic_platform.h"
-
 
 void init_interceptors() {
 /* Include the auto-generated initializations of the ic_orig function pointers */
