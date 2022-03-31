@@ -12,10 +12,12 @@
  * Nonexisting files are not cached.
  */
 
+#include "firebuild/hash_cache.h"
+
 #include "firebuild/debug.h"
 #include "firebuild/blob_cache.h"
+#include "firebuild/file_info.h"
 #include "firebuild/file_name.h"
-#include "firebuild/hash_cache.h"
 
 namespace firebuild {
 
@@ -43,12 +45,12 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
   const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
   if (!force &&
       (!store || entry->is_stored) &&
+      ((S_ISREG(st->st_mode) && entry->info.type() == ISREG) ||
+       (S_ISDIR(st->st_mode) && entry->info.type() == ISDIR)) &&
       st->st_size == entry->size &&
       st->st_mtim.tv_sec == entry->mtime.tv_sec &&
       st->st_mtim.tv_nsec == entry->mtime.tv_nsec &&
-      st->st_ino == entry->inode &&
-      ((S_ISREG(st->st_mode) && !entry->is_dir) ||
-       (S_ISDIR(st->st_mode) && entry->is_dir))) {
+      st->st_ino == entry->inode) {
     /* Metadata is the same, and don't need to store now in the blob cache.
      * Assume contents didn't change, nothing else to do. */
     return true;
@@ -63,8 +65,10 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
     /* We need to not only remember this entry in this hash cache, but also store the underlying
      * file in the blob cache. So use blob_cache's methods which in turn will compute the hash.
      * The file needs to be a regular file, cannot be a directory. */
-    entry->is_dir = false;
-    bool ret = blob_cache->store_file(path, fd, st, &entry->hash);
+    Hash hash;
+    bool ret = blob_cache->store_file(path, fd, st, &hash);
+    entry->info.set_type(ISREG);
+    entry->info.set_hash(hash);
     if (ret) {
       entry->is_stored = true;
     }
@@ -72,11 +76,19 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
   } else {
     /* We don't store the file in the blob cache, so just compute the hash directly.
      * The file can be a regular file or a directory (do we use the latter, though??). */
+    Hash hash;
+    bool is_dir;
+    bool ret;
     if (fd == -1) {
-      return entry->hash.set_from_file(path, &entry->is_dir);
+      ret = hash.set_from_file(path, &is_dir);
     } else {
-      return entry->hash.set_from_fd(fd, st, &entry->is_dir);
+      ret = hash.set_from_fd(fd, st, &is_dir);
     }
+    if (ret) {
+      entry->info.set_type(is_dir ? ISDIR : ISREG);
+      entry->info.set_hash(hash);
+    }
+    return ret;
   }
 }
 
@@ -115,9 +127,9 @@ bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, int fd,
     return false;
   }
   if (is_dir) {
-    *is_dir = entry->is_dir;
+    *is_dir = entry->info.type() == ISDIR;
   }
-  *hash = entry->hash;
+  *hash = entry->info.hash();
   return true;
 }
 
@@ -129,7 +141,7 @@ bool HashCache::store_and_get_hash(const FileName* path, Hash *hash,
   if (!entry) {
     return false;
   }
-  *hash = entry->hash;
+  *hash = entry->info.hash();
   return true;
 }
 
