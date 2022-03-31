@@ -28,3 +28,9 @@
     }
   }
 ### endblock before
+
+### block call_orig
+  /* Treating the optional parameter as 'void *' should work, see #178. */
+  void *voidp_arg = va_arg(ap, void *);
+  ret = ic_orig_{{ func }}(fd, cmd, voidp_arg);
+### endblock call_orig

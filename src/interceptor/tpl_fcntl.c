@@ -61,7 +61,11 @@
     case F_SETFD: {
       to_send = true;
       has_int_arg = true;
-      int_arg = va_arg(ap, int);
+      /* Start another vararg business that doesn't conflict with the one in call_orig, see #178. */
+      va_list ap_int;
+      va_start(ap_int, cmd);
+      int_arg = va_arg(ap_int, int);
+      va_end(ap_int);
       break;
     }
 
@@ -76,3 +80,9 @@
     }
   }
 ### endblock before
+
+### block call_orig
+  /* Treating the optional parameter as 'void *' should work, see #178. */
+  void *voidp_arg = va_arg(ap, void *);
+  ret = ic_orig_{{ func }}(fd, cmd, voidp_arg);
+### endblock call_orig

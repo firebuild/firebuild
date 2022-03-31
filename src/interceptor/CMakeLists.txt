@@ -16,6 +16,7 @@ add_custom_command (
   OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c
   DEPENDS generate_interceptors
   tpl.c
+  tpl_clone.c
   tpl_dlopen.c
   tpl_dup2.c
   tpl_error.c
