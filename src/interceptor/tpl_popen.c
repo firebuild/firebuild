@@ -70,7 +70,7 @@
        * The real data we're expecting to arrive is the usual message header
        * followed by a serialized FBB "popen_fd" message. */
       msg_header sv_msg_hdr;
-      char sv_msg_buf[64];  /* Should be large enough for the serialized "popen_fd" message. */
+      uint64_t sv_msg_buf[8];  /* Should be large enough for the serialized "popen_fd" message. */
 
       /* Read the header. */
 #ifndef NDEBUG
