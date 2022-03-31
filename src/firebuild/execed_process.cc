@@ -71,9 +71,6 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     fork_point_ = parent->fork_point();
     parent->set_exec_pending(false);
     parent->reset_file_fd_pipe_refs();
-
-    /* clear a previous exit status, just in case an atexit handler performed the exec */
-    parent->set_exit_status(-1);
     parent->set_exec_child(this);
   }
 }
@@ -163,15 +160,6 @@ void ExecedProcess::set_been_waited_for() {
   fork_point()->set_been_waited_for();
 }
 
-void ExecedProcess::propagate_exit_status(const int status) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "status=%d", status);
-
-  if (parent()) {
-    parent()->set_exit_status(status);
-    parent()->propagate_exit_status(status);
-  }
-}
-
 void ExecedProcess::exit_result(const int status, const int64_t utime_u,
                                 const int64_t stime_u) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "status=%d, utime_u=%ld, stime_u=%ld",
@@ -179,8 +167,6 @@ void ExecedProcess::exit_result(const int status, const int64_t utime_u,
 
   /* store results for this process */
   Process::exit_result(status, utime_u, stime_u);
-  /* propagate to parents exec()-ed this Firebuild process */
-  propagate_exit_status(status);
 }
 
 void ExecedProcess::do_finalize() {
@@ -563,8 +549,8 @@ void ExecedProcess::export2js(const unsigned int level,
   if (state() != FB_PROC_FINALIZED) {
     // TODO(rbalint) something went wrong
   }
-  if (exit_status() != -1) {
-    fprintf(stream, "%s exit_status: %u,\n", indent, exit_status());
+  if (fork_point()->exit_status() != -1) {
+    fprintf(stream, "%s exit_status: %u,\n", indent, fork_point()->exit_status());
   }
   fprintf(stream, "%s utime_u: %lu,\n", indent, utime_u());
   fprintf(stream, "%s stime_u: %lu,\n", indent, stime_u());

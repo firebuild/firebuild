@@ -125,7 +125,6 @@ class ExecedProcess : public Process {
 
   bool shortcut();
 
-  virtual void propagate_exit_status(const int status);
   /**
    * This particular process can't be short-cut because it performed calls preventing that.
    * @param reason reason for can't being short-cut

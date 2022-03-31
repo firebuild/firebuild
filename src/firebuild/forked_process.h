@@ -27,6 +27,8 @@ class ForkedProcess : public Process {
   ForkedProcess* fork_point() {return this;}
   const ForkedProcess* fork_point() const {return this;}
   const ExecedProcess* exec_point() const {return exec_point_;}
+  int exit_status() const {return exit_status_;}
+  void set_exit_status(const int e) {exit_status_ = e;}
   bool has_orphan_descendant() const {return has_orphan_descendant_;}
   void set_has_orphan_descendant_bubble_up();
   /**
@@ -72,13 +74,19 @@ class ForkedProcess : public Process {
   virtual std::string d_internal(const int level = 0) const;
 
  private:
+  /**
+   * Exit status of the process.
+   * 0..255 if the process exited cleanly and the parent successfully waited for it.
+   * -1, if the process did not exit cleanly (died due to a signal) or the parent has not
+   * waited for it yet.
+   */
+  int exit_status_ = -1;
   ExecedProcess *exec_point_ {};
   int on_finalized_ack_id_ = -1;
   bool been_waited_for_  = false;
   bool orphan_  = false;
   bool has_orphan_descendant_ = false;
   int on_finalized_ack_fd_ = -1;
-  virtual void propagate_exit_status(const int) {}
   virtual void disable_shortcutting_only_this(const std::string &reason, const Process *p = NULL) {
     (void) reason;  /* unused */
     (void) p;       /* unused */

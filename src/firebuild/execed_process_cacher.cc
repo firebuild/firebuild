@@ -14,6 +14,7 @@
 
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
+#include "firebuild/forked_process.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
 #include "firebuild/fbbfp.h"
@@ -616,8 +617,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       out_pipe_data.size(),
       fbbstore_builder_pipe_data_vector_item_fn,
       &out_pipe_data);
-  fbbstore_builder_process_outputs_set_exit_status(&po,
-      proc->exit_status());
+  fbbstore_builder_process_outputs_set_exit_status(&po, proc->fork_point()->exit_status());
 
   // TODO(egmont) Add all sorts of other stuff
 
@@ -1114,7 +1114,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
 
   if (inouts) {
     ret = apply_shortcut(proc, inouts);
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Exiting with " + d(proc->exit_status()));
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Exiting with " + d(proc->fork_point()->exit_status()));
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;
     munmap(inouts_buf, inouts_buf_len);
