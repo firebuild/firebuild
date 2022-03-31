@@ -568,12 +568,10 @@ static void atfork_child_handler(void) {
   }
 }
 
-static void on_exit_handler(const int status, void *arg) {
-  (void) arg;  /* unused */
-
-  insert_debug_msg("our_on_exit_handler-begin");
-  handle_exit(status);
-  insert_debug_msg("our_on_exit_handler-end");
+static void atexit_handler() {
+  insert_debug_msg("our_atexit_handler-begin");
+  handle_exit();
+  insert_debug_msg("our_atexit_handler-end");
 
   /* Destruction of global objects is not done here, because other exit handlers
    * may perform actions that need to be reported to the supervisor.
@@ -581,7 +579,7 @@ static void on_exit_handler(const int status, void *arg) {
    */
 }
 
-void handle_exit(const int status) {
+void handle_exit() {
   /* On rare occasions (e.g. two threads attempting to exit at the same
    * time) this method is called multiple times. The server can safely
    * handle it. */
@@ -598,17 +596,16 @@ void handle_exit(const int status) {
     }
     thread_signal_danger_zone_leave();
 
-    FBBCOMM_Builder_exit ic_msg;
-    fbbcomm_builder_exit_init(&ic_msg);
-    fbbcomm_builder_exit_set_exit_status(&ic_msg, status);
+    FBBCOMM_Builder_rusage ic_msg;
+    fbbcomm_builder_rusage_init(&ic_msg);
 
     struct rusage ru;
     ic_orig_getrusage(RUSAGE_SELF, &ru);
     timersub(&ru.ru_stime, &initial_rusage.ru_stime, &ru.ru_stime);
     timersub(&ru.ru_utime, &initial_rusage.ru_utime, &ru.ru_utime);
-    fbbcomm_builder_exit_set_utime_u(&ic_msg,
+    fbbcomm_builder_rusage_set_utime_u(&ic_msg,
         (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
-    fbbcomm_builder_exit_set_stime_u(&ic_msg,
+    fbbcomm_builder_rusage_set_stime_u(&ic_msg,
         (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
@@ -726,7 +723,7 @@ static void fb_ic_init() {
   fb_init_supervisor_conn();
 
   pthread_atfork(NULL, NULL, atfork_child_handler);
-  on_exit(on_exit_handler, NULL);
+  atexit(atexit_handler);
 
   char **argv, **env;
   get_argv_env(&argv, &env);
@@ -957,10 +954,9 @@ void fb_ic_load() {
 
 static void fb_ic_cleanup() {
   /* Don't put anything here, unless you really know what you're doing!
-   * Our on_exit_handler, which reports the exit code and resource usage
-   * to the supervisor, is run _after_ this destructor, and still needs
-   * pretty much all the functionality that we have (including the
-   * communication channel). */
+   * Our atexit_handler, which reports the resource usage to the supervisor,
+   * is run _after_ this destructor, and still needs pretty much all the
+   * functionality that we have (including the communication channel). */
 }
 
 

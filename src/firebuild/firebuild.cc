@@ -698,12 +698,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->set_exec_pending(false);
       break;
     }
-    case FBBCOMM_TAG_exit: {
-      const FBBCOMM_Serialized_exit *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_exit *>(fbbcomm_buf);
-      proc->exit_result(fbbcomm_serialized_exit_get_exit_status(ic_msg),
-                        fbbcomm_serialized_exit_get_utime_u(ic_msg),
-                        fbbcomm_serialized_exit_get_stime_u(ic_msg));
+    case FBBCOMM_TAG_rusage: {
+      const FBBCOMM_Serialized_rusage *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_rusage *>(fbbcomm_buf);
+      proc->resource_usage(fbbcomm_serialized_rusage_get_utime_u(ic_msg),
+                        fbbcomm_serialized_rusage_get_stime_u(ic_msg));
       break;
     }
     case FBBCOMM_TAG_system: {
@@ -720,7 +719,18 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     }
     case FBBCOMM_TAG_system_ret: {
       assert(proc->system_child());
+      const FBBCOMM_Serialized_system_ret *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_system_ret *>(fbbcomm_buf);
       /* system() implicitly waits for the child to finish. */
+      int ret = fbbcomm_serialized_system_ret_get_ret(ic_msg);
+      if (ret == -1 || !WIFEXITED(ret)) {
+        proc->system_child()->exec_point()->disable_shortcutting_bubble_up_to_excl(
+            proc->system_child()->fork_point()->exec_point(),
+            "Process started by system() exited abnormally or the exit status could not be"
+            " collected");
+      } else {
+        proc->system_child()->fork_point()->set_exit_status(WEXITSTATUS(ret));
+      }
       proc->system_child()->set_been_waited_for();
       if (!proc->system_child()->fork_point()->can_ack_parent_wait()) {
         /* The process has actually quit (otherwise the interceptor
@@ -793,6 +803,15 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         firebuild::ExecedProcess *child =
             proc->PopPopenedProcess(fbbcomm_serialized_pclose_get_fd(ic_msg));
         assert(child);
+        int ret = fbbcomm_serialized_pclose_get_ret(ic_msg);
+        if (ret == -1 || !WIFEXITED(ret)) {
+          child->exec_point()->disable_shortcutting_bubble_up_to_excl(
+              child->fork_point()->exec_point(),
+              "Process started by popen() exited abnormally or the exit status could not be"
+              " collected");
+        } else {
+          child->fork_point()->set_exit_status(WEXITSTATUS(ret));
+        }
         child->set_been_waited_for();
         if (!child->fork_point()->can_ack_parent_wait()) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
@@ -920,6 +939,26 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       const int pid = fbbcomm_serialized_wait_get_pid(ic_msg);
       firebuild::Process *child = proc_tree->pid2proc(pid);
       assert(child);
+      int status;
+      bool exited;
+
+      if (fbbcomm_serialized_wait_has_si_code(ic_msg)) {
+        /* The intercepted call was waitid() actually. */
+        status = fbbcomm_serialized_wait_get_si_status(ic_msg);
+        exited = fbbcomm_serialized_wait_get_si_code(ic_msg) == CLD_EXITED;
+      } else {
+        const int wstatus = fbbcomm_serialized_wait_get_wstatus(ic_msg);
+        status = WEXITSTATUS(wstatus);
+        exited = WIFEXITED(wstatus);
+      }
+      if (exited) {
+        child->fork_point()->set_exit_status(status);
+      } else {
+        child->exec_point()->disable_shortcutting_bubble_up_to_excl(
+            child->fork_point()->exec_point(),
+            "Process exited abnormally");
+      }
+
       child->set_been_waited_for();
       if (child->exec_pending()) {
         /* If the supervisor believes an exec is pending in a child proces while the parent
@@ -1410,6 +1449,10 @@ static void save_child_status(pid_t pid, int status, int * ret, bool orphan) {
 
   if (WIFEXITED(status)) {
     *ret = WEXITSTATUS(status);
+    firebuild::Process* proc = proc_tree->pid2proc(pid);
+    if (proc && proc->fork_point()) {
+      proc->fork_point()->set_exit_status(*ret);
+    }
     FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(orphan ? "orphan" : "child")
              + " process exited with status " + std::to_string(*ret) + ". ("
              + d(proc_tree->pid2proc(pid)) + ")");
@@ -1456,8 +1499,8 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
       /* This is the top process the supervisor started. */
       firebuild::Process* proc = proc_tree->pid2proc(child_pid);
       assert(proc);
-      proc->set_been_waited_for();
       save_child_status(waitpid_ret, status, &child_ret, false);
+      proc->set_been_waited_for();
     } else if (waitpid_ret > 0) {
       /* This is an orphan process. Its fork parent quit without wait()-ing for it
        * and as a subreaper the supervisor received the SIGCHLD for it. */

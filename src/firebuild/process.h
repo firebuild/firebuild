@@ -154,7 +154,7 @@ class Process {
   void finish();
   virtual Process*  exec_proc() const = 0;
   void update_rusage(int64_t utime_u, int64_t stime_u);
-  virtual void exit_result(int status, int64_t utime_u, int64_t stime_u);
+  virtual void resource_usage(int64_t utime_u, int64_t stime_u);
   FileFD* get_fd(int fd) const {
     assert(fds_);
     if (fd < 0 || static_cast<unsigned int>(fd) >= fds_->size()) {

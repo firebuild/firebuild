@@ -160,20 +160,19 @@ void ExecedProcess::set_been_waited_for() {
   fork_point()->set_been_waited_for();
 }
 
-void ExecedProcess::exit_result(const int status, const int64_t utime_u,
-                                const int64_t stime_u) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "status=%d, utime_u=%ld, stime_u=%ld",
-         status, utime_u, stime_u);
+void ExecedProcess::resource_usage(const int64_t utime_u, const int64_t stime_u) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "utime_u=%ld, stime_u=%ld", utime_u, stime_u);
 
-  /* store results for this process */
-  Process::exit_result(status, utime_u, stime_u);
+  /* store resource usage for this process */
+  Process::resource_usage(utime_u, stime_u);
 }
 
 void ExecedProcess::do_finalize() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   /* store data for shortcutting */
-  if (cacher_ && !was_shortcut() && can_shortcut() && aggr_cpu_time_u() >= min_cpu_time_u) {
+  if (cacher_ && !was_shortcut() && can_shortcut() && fork_point()->exit_status() != -1
+      && aggr_cpu_time_u() >= min_cpu_time_u) {
     cacher_->store(this);
   }
 

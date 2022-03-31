@@ -1072,7 +1072,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
 
   /* Set the exit code, propagate upwards. */
   // TODO(egmont) what to do with resource usage?
-  proc->exit_result(fbbstore_serialized_process_outputs_get_exit_status(outputs), 0, 0);
+  proc->fork_point()->set_exit_status(fbbstore_serialized_process_outputs_get_exit_status(outputs));
 
   return true;
 }

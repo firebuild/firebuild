@@ -93,8 +93,7 @@ class ExecedProcess : public Process {
   void do_finalize();
   void set_on_finalized_ack(int id, int fd);
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
-  void exit_result(const int status, const int64_t utime_u,
-                   const int64_t stime_u);
+  void resource_usage(const int64_t utime_u, const int64_t stime_u);
 
   void initialize();
   bool register_file_usage_update(const FileName *name, const FileUsageUpdate& update);
