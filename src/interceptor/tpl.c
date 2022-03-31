@@ -197,11 +197,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   {%+ if rettype != 'void' %}ret = {% endif -%}
   ic_orig_{{ func }}({{ names_str }});
 ###           else
-  void *args = __builtin_apply_args();
-  {%+ if rettype != 'void' %}void const * const result ={% endif -%}
-  __builtin_apply((void *) ic_orig_{{ func }}, args, 100);
-  {%+ if rettype != 'void' %}ret = *({{ rettype }}*)result;{% endif %}
-
+#error "Need to implement call_orig for vararg function {{ func }}()"
 ###           endif
 ###         endif
 ###       endblock call_orig
