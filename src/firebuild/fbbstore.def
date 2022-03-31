@@ -34,6 +34,9 @@
     ("file", [
       # file path, absolute or relative
       (REQUIRED, STRING,          "path"),
+
+      # file size
+      (OPTIONAL, "size_t",        "size"),
       # checksum (binary) of the file content, if relevant and known
       (OPTIONAL, "XXH128_hash_t", "hash"),
       # TODO add alternate hash values generated after preprocessing the file
@@ -42,8 +45,6 @@
 
       # last modification time - FIXME in what unit?
       #(OPTIONAL, "long",          "mtime"),
-      # file size, length in case of stdio
-      #(OPTIONAL, "size_t",        "size"),
       # TODO refine mode
       (OPTIONAL, "mode_t",        "mode"),
       # The reason why the file could not be opened.

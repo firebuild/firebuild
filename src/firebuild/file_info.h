@@ -39,8 +39,9 @@ typedef enum {
 
 class FileInfo {
  public:
-  explicit FileInfo(FileType type = DONTKNOW, const Hash *hash = nullptr) :
+  explicit FileInfo(FileType type = DONTKNOW, ssize_t size = -1, const Hash *hash = nullptr) :
       type_(type),
+      size_(size),
       hash_known_(hash != nullptr),
       hash_(hash != nullptr ? *hash : Hash()) {
     assert(type == ISREG || type == ISDIR || hash == nullptr);
@@ -48,6 +49,11 @@ class FileInfo {
 
   FileType type() const {return type_;}
   void set_type(FileType type) {type_ = type;}
+  bool size_known() const {return size_ >= 0;}
+  ssize_t size() const {return size_;}
+  void set_size(ssize_t size) {
+    size_ = size;
+  }
   bool hash_known() const {return hash_known_;}
   const Hash& hash() const {return hash_;}
   void set_hash(const Hash& hash) {
@@ -86,26 +92,19 @@ class FileInfo {
   /** File type. */
   FileType type_;
 
-  /** Whether the checksum is known. Only if type_ is ISREG or ISDIR. */
+  /** The size, if known. Only if type_ is ISREG. For ISREG, if the checksum is known then the size
+   *  is also known. If the size is not known or is irrelevant (type_ isn't ISREG) then -1. */
+  ssize_t size_;
+
+  /** Whether the checksum is known. Only if type_ is ISREG or ISDIR.
+   *  For regular files, knowing the checksum implies we know the size, too. */
+  // FIXME(egmont) Do we want to have special treatment for zero-length files,
+  // either always set the hash (copy from a global variable), or never set it?
   bool hash_known_ : 1;
 
   /** The checksum, if known. Only if type_ is ISREG or ISDIR.
    *  For directories, it's the checksum of its listing. */
   Hash hash_;
-
-  // TODO(rbalint) make user of stat results, but store them in a more compressed
-  /** If the file was stat()'ed during the process's lifetime, that is,
-   *  its initial metadata might be relevant. */
-  // bool stated_ : 1;
-
-  // form instead of in the huge struct stat64
-  /** The error from initially stat()'ing the file, or 0 if there was no
-   *  error. */
-  // int initial_stat_err_;
-
-  /** The result of initially stat()'ing the file. Only valid if stated_
-   *  && !initial_stat_err_. */
-  // struct stat64 initial_stat_;
 
   friend bool operator==(const FileInfo& lhs, const FileInfo& rhs);
 };

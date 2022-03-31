@@ -43,12 +43,19 @@ namespace firebuild {
 void FileUsageUpdate::type_computer_open_rdonly() const {
   Hash hash;
   bool is_dir;
-  if (!hash_cache->get_hash(filename_, &hash, &is_dir)) {
+  ssize_t size = -1;
+  if (!hash_cache->get_hash(filename_, &hash, &is_dir, &size)) {
     unknown_err_ = errno;
     return;
   }
-  initial_state_.set_type(is_dir ? ISDIR : ISREG);
-  initial_state_.set_hash(hash);
+  if (is_dir) {
+    initial_state_.set_type(ISDIR);
+    initial_state_.set_hash(hash);
+  } else {
+    initial_state_.set_type(ISREG);
+    initial_state_.set_size(size);
+    initial_state_.set_hash(hash);
+  }
   type_computer_ = nullptr;
   hash_computer_ = nullptr;
 }
@@ -70,6 +77,7 @@ void FileUsageUpdate::type_computer_open_wronly_creat_notrunc_noexcl() const {
     // FIXME handle if we see a directory. This cannot normally happen due to O_CREAT, but can if
     // the file has just been replaced by a directory.
     initial_state_.set_type(ISREG);
+    initial_state_.set_size(st.st_size);
     /* We got to know that this was a regular non-empty file. Delay hash computation until
      * necessary. */
     hash_computer_ = &FileUsageUpdate::hash_computer;
