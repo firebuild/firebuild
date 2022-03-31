@@ -1256,6 +1256,8 @@ generate("pid_t", "vfork", "",
 
 # Intercept system
 generate("int", "system", "const char *cmd",
+         # ignore calls just checking for available shell
+         send_msg_condition="cmd != NULL",
          tpl="system")
 
 # Intercept popen and pclose
@@ -1268,6 +1270,7 @@ generate("int", "pclose", "FILE *stream",
          send_msg_condition="was_popened && (success || (errno != EINTR && errno != EFAULT))",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_pclose_set_fd(&ic_msg, fd);"],
+         send_ret_on_success=True,
          ack_condition="true")
 
 # Intercept the posix_spawn family
@@ -1309,11 +1312,14 @@ generate("int", "pthread_create", "pthread_t *thread, const pthread_attr_t *attr
 # Lock only for the communication, see #338
 generate("pid_t", "wait", "int *wstatus",
          success="ret > 0",
+         before_lines=["int wstatus_fallback;",
+                       "if (!wstatus) wstatus = &wstatus_fallback;"],
          global_lock='after',
          send_msg_on_error=False,
          msg="wait",
          msg_skip_fields=["wstatus"],
-         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
+                         "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
 generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
          global_lock='after',
@@ -1324,7 +1330,8 @@ generate("pid_t", "waitpid", "pid_t pid, int *wstatus, int options",
          send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
          msg="wait",
          msg_skip_fields=["pid", "wstatus", "options"],
-         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
+                         "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
 generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
          global_lock='after',
@@ -1335,7 +1342,8 @@ generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
          send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
          msg="wait",
          msg_skip_fields=["wstatus", "options", "rusage"],
-         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
+                         "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
 generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage *rusage",
          global_lock='after',
@@ -1346,16 +1354,21 @@ generate("pid_t", "wait4", "pid_t pid, int *wstatus, int options, struct rusage 
          send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
          msg="wait",
          msg_skip_fields=["pid", "wstatus", "options", "rusage"],
-         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
+                         "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
 # Note: See BUGS in the waitid(2) manual page for the infop==NULL case.
 generate("int", "waitid", "idtype_t idtype, id_t id, siginfo_t *infop, int options",
          global_lock='after',
+         before_lines=["siginfo_t infop_fallback;",
+                       "if (!infop) infop = &infop_fallback;"],
          send_msg_on_error=False,
-         send_msg_condition="success && infop && !((options & WNOHANG) && (infop->si_pid == 0)) && infop->si_code != CLD_STOPPED && infop->si_code != CLD_TRAPPED && infop->si_code != CLD_CONTINUED",
+         send_msg_condition="success && !((options & WNOHANG) && (infop->si_pid == 0)) && infop->si_code != CLD_STOPPED && infop->si_code != CLD_TRAPPED && infop->si_code != CLD_CONTINUED",
          msg="wait",
          msg_skip_fields=["idtype", "id", "infop", "options"],
-         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, infop->si_pid);"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, infop->si_pid);",
+                         "fbbcomm_builder_wait_set_si_code(&ic_msg, infop->si_code);",
+                         "fbbcomm_builder_wait_set_si_status(&ic_msg, infop->si_status);"],
          ack_condition="true")
 
 # Intercept the exec family

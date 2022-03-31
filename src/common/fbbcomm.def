@@ -590,6 +590,8 @@
     ("pclose", [
       # file descriptor
       (REQUIRED, "int", "fd"),
+      # return value
+      (REQUIRED, "int", "ret", "fbbcomm_debug_wstatus"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -648,6 +650,12 @@
     ("wait", [
       # pid whose termination the parent has successfully waited for
       (REQUIRED, "pid_t", "pid"),
+      # not set for waitid
+      (OPTIONAL, "int", "wstatus", "fbbcomm_debug_wstatus"),
+      # only set for waitid
+      (OPTIONAL, "int", "si_status"),
+      # only set for waitid
+      (OPTIONAL, "int", "si_code"),
     ]),
 
     ("sysconf", [
@@ -742,9 +750,8 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("exit", [
-      # exit status of the process
-      (REQUIRED, "int", "exit_status"),
+    # Resource usage collected at exit. The exit status will be collected by the wait() in the parent
+    ("rusage", [
       # user CPU time in microseconds
       (REQUIRED, "int64_t", "utime_u"),
       # system CPU time in microseconds
