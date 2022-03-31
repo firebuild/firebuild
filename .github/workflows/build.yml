@@ -131,13 +131,12 @@ jobs:
     - name: install-deps
       run: |
         sudo add-apt-repository -y ppa:rbalint/xxhash
-        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS
+        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS $TEST_DEPS
     - name: build
       run: |
         export PATH=/usr/lib/ccache:$PATH
         env CXX=clang++ CC=clang cmake .
-        # the interceptor does not work when building it with Clang, thus make check always fails
-        make -j2
+        make -j2 check
     - name: clean
       run: make clean
     - name: scan-build
