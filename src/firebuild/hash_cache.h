@@ -11,6 +11,7 @@
 
 #include <string>
 
+#include "firebuild/file_info.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 #include "firebuild/cxx_lang_utils.h"
@@ -18,11 +19,10 @@
 namespace firebuild {
 
 struct HashCacheEntry {
-  bool is_dir {};
+  FileInfo info {};
   ssize_t size {};
   struct timespec mtime {};
   ino_t inode {};  /* skip device, it's unlikely to change */
-  Hash hash {};
   bool is_stored {};  /* it's known to be present in the blob cache because we stored it earlier */
 };
 
