@@ -18,6 +18,7 @@ namespace firebuild {
 
 bool operator==(const FileInfo& lhs, const FileInfo& rhs) {
   return lhs.type_ == rhs.type_ &&
+         lhs.size_ == rhs.size_ &&
          lhs.hash_known_ == rhs.hash_known_ &&
          lhs.hash_ == rhs.hash_;
 }
@@ -29,6 +30,8 @@ std::string d(const FileInfo& fi, const int level) {
   (void)level;  /* unused */
   return std::string("{FileInfo type=") +
       file_type_to_string(fi.type()) +
+      (fi.size_known() ?
+          ", size=" + d(fi.size()) : "") +
       (fi.hash_known() ?
           ", hash=" + d(fi.hash()) : "") + "}";
 }

@@ -28,6 +28,9 @@ class FileUsage {
 
   FileType initial_type() const {return initial_state_.type();}
   void set_initial_type(FileType type) {initial_state_.set_type(type);}
+  bool initial_size_known() const {return initial_state_.size_known();}
+  size_t initial_size() const {return initial_state_.size();}
+  void set_initial_size(size_t size) {initial_state_.set_size(size);}
   bool initial_hash_known() const {return initial_state_.hash_known();}
   const Hash& initial_hash() const {return initial_state_.hash();}
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
@@ -103,6 +106,8 @@ struct FileUsageHasher {
   std::size_t operator()(const FileUsage& f) const noexcept {
     XXH64_hash_t hash = XXH3_64bits_withSeed(f.initial_hash().get_ptr(), Hash::hash_size(),
                                              f.unknown_err_);
+    ssize_t size = f.initial_size();
+    hash = XXH3_64bits_withSeed(&size, sizeof(size), hash);
     unsigned char merged_state = f.initial_type();
     merged_state |= f.written_ << 6;
     // TODO(rbalint) use those later

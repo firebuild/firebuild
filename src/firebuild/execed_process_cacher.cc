@@ -307,16 +307,21 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   fbbstore_builder_file_init(&new_file);
   fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+  if (fu->initial_size_known()) {
+    fbbstore_builder_file_set_size(&new_file, fu->initial_size());
+  }
   if (fu->initial_hash_known()) {
     fbbstore_builder_file_set_hash(&new_file, fu->initial_hash().get());
   }
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     const Hash *content_hash, const int mode = -1) {
+                     const ssize_t content_size = -1, const Hash *content_hash = nullptr,
+                     const int mode = -1) {
     FBBSTORE_Builder_file& new_file = files->emplace_back();
     fbbstore_builder_file_init(&new_file);
     fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+    if (content_size >= 0) fbbstore_builder_file_set_size(&new_file, content_size);
     if (content_hash) fbbstore_builder_file_set_hash(&new_file, content_hash->get());
     if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
 }
@@ -488,11 +493,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
             int mode = st.st_mode & 07777;
-            add_file(&out_path_isreg_with_hash, filename, &new_hash, mode);
+            add_file(&out_path_isreg_with_hash, filename, st.st_size, &new_hash, mode);
           } else if (S_ISDIR(st.st_mode)) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
-            add_file(&out_path_isdir, filename, nullptr, mode);
+            add_file(&out_path_isdir, filename, -1, nullptr, mode);
             out_path_isdir_filename_ptrs.insert(filename);
           } else {
             // TODO(egmont) handle other types of entries
@@ -967,6 +972,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       const auto path = FileName::Get(fbbstore_serialized_file_get_path(file),
                                       fbbstore_serialized_file_get_path_len(file));
       FileInfo info(ISREG);
+      if (fbbstore_serialized_file_has_size(file)) {
+        info.set_size(fbbstore_serialized_file_get_size(file));
+      }
       if (fbbstore_serialized_file_has_hash(file)) {
         Hash hash(fbbstore_serialized_file_get_hash(file));
         info.set_hash(hash);

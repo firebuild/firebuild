@@ -47,7 +47,7 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
       (!store || entry->is_stored) &&
       ((S_ISREG(st->st_mode) && entry->info.type() == ISREG) ||
        (S_ISDIR(st->st_mode) && entry->info.type() == ISDIR)) &&
-      st->st_size == entry->size &&
+      st->st_size == entry->info.size() &&
       st->st_mtim.tv_sec == entry->mtime.tv_sec &&
       st->st_mtim.tv_nsec == entry->mtime.tv_nsec &&
       st->st_ino == entry->inode) {
@@ -57,7 +57,6 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
   }
 
   /* Update entry, compute hash. */
-  entry->size = st->st_size;
   entry->mtime = st->st_mtim;
   entry->inode = st->st_ino;
 
@@ -68,6 +67,7 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
     Hash hash;
     bool ret = blob_cache->store_file(path, fd, st, &hash);
     entry->info.set_type(ISREG);
+    entry->info.set_size(st->st_size);
     entry->info.set_hash(hash);
     if (ret) {
       entry->is_stored = true;
@@ -85,8 +85,14 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
       ret = hash.set_from_fd(fd, st, &is_dir);
     }
     if (ret) {
-      entry->info.set_type(is_dir ? ISDIR : ISREG);
-      entry->info.set_hash(hash);
+      if (is_dir) {
+        entry->info.set_type(ISDIR);
+        entry->info.set_hash(hash);
+      } else {
+        entry->info.set_type(ISREG);
+        entry->info.set_size(st->st_size);
+        entry->info.set_hash(hash);
+      }
     }
     return ret;
   }
@@ -118,16 +124,19 @@ HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, const struct 
   }
 }
 
-bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, int fd,
-                         const struct stat64 *stat_ptr) {
+bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, ssize_t *size,
+                         int fd, const struct stat64 *stat_ptr) {
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d", D(path), fd);
 
   HashCacheEntry *entry = get_entry(path, fd, stat_ptr, false);
   if (!entry) {
     return false;
   }
-  if (is_dir) {
+  if (is_dir != nullptr) {
     *is_dir = entry->info.type() == ISDIR;
+  }
+  if (entry->info.type() != ISDIR && size != nullptr) {
+    *size = entry->info.size();
   }
   *hash = entry->info.hash();
   return true;

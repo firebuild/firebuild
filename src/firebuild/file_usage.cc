@@ -100,6 +100,10 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
           tmp.set_initial_type(update_initial_type);
           changed = true;
         }
+        if (!initial_size_known() && update.initial_size_known()) {
+          tmp.set_initial_size(update.initial_size());
+          changed = true;
+        }
         if (!initial_hash_known() && update.initial_hash_known()) {
           Hash hash;
           /* Note: this might lazily compute the hash now. */
@@ -132,6 +136,11 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
             update_initial_type != NOTEXIST_OR_ISREG_EMPTY &&
             update_initial_type != ISREG) {
           return nullptr;
+        }
+        if (!initial_size_known() && update.initial_size_known()) {
+          /* Note this might lazily figure out the size now. */
+          tmp.set_initial_size(update.initial_size());
+          changed = true;
         }
         if (!initial_hash_known() && update.initial_hash_known()) {
           Hash hash;

@@ -26,6 +26,9 @@ class FileUsageUpdate {
 
   bool get_initial_type(FileType *type_ptr) const;
   void set_initial_type(FileType type) {initial_state_.set_type(type);}
+  bool initial_size_known() const {return initial_state_.size_known();}
+  size_t initial_size() const {return initial_state_.size();}
+  void set_initial_size(size_t size) {initial_state_.set_size(size);}
   bool initial_hash_known() const {return initial_state_.hash_known() || hash_computer_ != nullptr;}
   bool get_initial_hash(Hash *hash_ptr) const;
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
