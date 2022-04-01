@@ -16,14 +16,13 @@
 #include "firebuild/pipe.h"
 
 namespace firebuild {
-#define FD_ORIGIN_ENUM {                                                \
-    FD_ORIGIN_FILE_OPEN, /* backed by open()-ed file */                 \
-    FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using fmemopen()) */ \
-    FD_ORIGIN_PIPE,      /* pipe endpoint (e.g. using pipe()) */        \
-    FD_ORIGIN_DUP,       /* created using dup() */                      \
-    FD_ORIGIN_ROOT       /* inherited in the root process (stdin...) */ }
-
-enum fd_origin FD_ORIGIN_ENUM;
+enum fd_origin : char {
+  FD_ORIGIN_FILE_OPEN, /* backed by open()-ed file */
+  FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using fmemopen()) */
+  FD_ORIGIN_PIPE,      /* pipe endpoint (e.g. using pipe()) */
+  FD_ORIGIN_DUP,       /* created using dup() */
+  FD_ORIGIN_ROOT,       /* inherited in the root process (stdin...) */
+};
 
 class Process;
 class Pipe;
@@ -32,15 +31,13 @@ class FileFD {
  public:
   /** Constructor for fds inherited from the supervisor (stdin, stdout, stderr). */
   FileFD(int fd, int flags)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), close_on_popen_(false),
-        read_(false), written_(false), origin_fd_(NULL),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), origin_fd_(NULL),
         filename_(), pipe_(), opened_by_(NULL) {
     assert(fd >= 0);
   }
   /** Constructor for fds backed by internal memory. */
   FileFD(int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL), close_on_popen_(false),
-        read_(false), written_(false), origin_fd_(NULL),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL), origin_fd_(NULL),
         filename_(), pipe_(), opened_by_(p) {
     assert(fd >= 0);
   }
@@ -48,14 +45,13 @@ class FileFD {
   FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process * const p,
          bool close_on_popen = false)
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_PIPE), close_on_popen_(close_on_popen),
-        read_(false), written_(false), origin_fd_(NULL),
+        origin_fd_(NULL),
         filename_(), pipe_(pipe), opened_by_(p) {
     assert(fd >= 0);
   }
   /** Constructor for fds created from other fds through dup() or exec() */
   FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
-      : fd_(fd), curr_flags_(flags), origin_type_(o), close_on_popen_(false),
-        read_(false), written_(false), origin_fd_(o_fd),
+      : fd_(fd), curr_flags_(flags), origin_type_(o), origin_fd_(o_fd),
         filename_(o_fd->filename()), pipe_(o_fd->pipe_),
         opened_by_(o_fd->opened_by()) {
     assert(fd >= 0);
@@ -65,8 +61,7 @@ class FileFD {
   }
   /** Constructor for fds obtained through opening files. */
   FileFD(const FileName* f, int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN), close_on_popen_(false),
-        read_(false), written_(false), origin_fd_(NULL),
+      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN), origin_fd_(NULL),
         filename_(f), pipe_(), opened_by_(p) {
     assert(fd >= 0);
   }
@@ -103,10 +98,10 @@ class FileFD {
  private:
   int fd_;
   int curr_flags_;
-  fd_origin origin_type_ : 3;
-  bool close_on_popen_ : 1;
-  bool read_ : 1;
-  bool written_ : 1;
+  fd_origin origin_type_;
+  bool close_on_popen_ = false;
+  bool read_ = false;
+  bool written_ = false;
   std::shared_ptr<FileFD> origin_fd_;
   const FileName* filename_;
   std::shared_ptr<Pipe> pipe_;
