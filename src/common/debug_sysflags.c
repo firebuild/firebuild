@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -352,6 +353,35 @@ void debug_mode_t(FILE *f, mode_t mode) {
 
   mode &= ~S_IFMT;
   fprintf(f, "%s0%03o", sep, mode);
+}
+
+/*
+ * Debug-print a "wait status", as usually seen in the non-error return value of system() and
+ * pclose(), and in the "wstatus" out parameter of the wait*() family.
+ */
+void debug_wstatus(FILE *f, int wstatus) {
+  const char *sep = "";
+  fprintf(f, "%d (", wstatus);
+  if (WIFEXITED(wstatus)) {
+    fprintf(f, "%sexitstatus=%d", sep, WEXITSTATUS(wstatus));
+    sep = ", ";
+  }
+  if (WIFSIGNALED(wstatus)) {
+    fprintf(f, "%stermsig=%d", sep, WTERMSIG(wstatus));
+    if (WCOREDUMP(wstatus)) {
+      fprintf(f, ", coredump");
+    }
+    sep = ", ";
+  }
+  if (WIFSTOPPED(wstatus)) {
+    fprintf(f, "%sstopsig=%d", sep, WSTOPSIG(wstatus));
+    sep = ", ";
+  }
+  if (WIFCONTINUED(wstatus)) {
+    fprintf(f, "%scontinued", sep);
+    sep = ", ";
+  }
+  fprintf(f, ")");
 }
 
 #ifdef __cplusplus

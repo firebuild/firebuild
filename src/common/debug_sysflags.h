@@ -22,6 +22,7 @@ void debug_fcntl_cmd(FILE *f, int cmd);
 void debug_fcntl_arg_or_ret(FILE *f, int cmd, int arg);
 void debug_error_no(FILE *f, int error_no);
 void debug_mode_t(FILE *f, mode_t mode);
+void debug_wstatus(FILE *f, int wstatus);
 
 #ifdef __cplusplus
 }  /* extern "C" */

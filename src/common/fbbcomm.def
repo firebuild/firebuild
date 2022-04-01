@@ -25,6 +25,15 @@
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for fields that represent wstatus values. */
+    static void fbbcomm_debug_wstatus(FILE *f, int wstatus, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_wstatus(f, wstatus);
+      fprintf(f, "\\"");
+    }
+
     /* Debugger method for int fields that represent open()'s O_* flags. */
     static void fbbcomm_debug_open_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
       (void)is_serialized;  /* unused */
@@ -548,7 +557,7 @@
       # command, not present when it was NULL
       (OPTIONAL, STRING, "cmd"),
       # return value
-      (REQUIRED, "int", "ret"),
+      (REQUIRED, "int", "ret", "fbbcomm_debug_wstatus"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
