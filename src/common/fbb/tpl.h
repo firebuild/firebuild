@@ -44,11 +44,11 @@ extern "C" {
 /* These are just so that you can "FBB_Builder *" or "FBB_Serialized *" instead of the more generic "void *",
  * resulting in nicer code. */
 typedef struct {
-  int {{ ns }}_tag;
+  int {{ ns }}_tag_;
 } {{ NS }}_Builder;
 
 typedef struct {
-  int {{ ns }}_tag;
+  int {{ ns }}_tag_;
 } {{ NS }}_Serialized;
 
 typedef uint32_t fbb_size_t;
@@ -106,11 +106,11 @@ enum {
  */
 typedef struct _{{ NS }}_Serialized_{{ msg }} {
   /* It's important that the tag is the very first field */
-  int {{ ns }}_tag;
+  int {{ ns }}_tag_;
   /* Required and optional scalar fields */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant != ARRAY and type not in [STRING, FBB]
-  {{ type }} {{ var }};
+  {{ type }} {{ var }}_;
 ###     endif
 ###   endfor
 
@@ -118,7 +118,7 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant != ARRAY and type in [STRING, FBB]
 ###       if type == STRING
-  fbb_size_t {{ var }}_len;
+  fbb_size_t {{ var }}_len_;
 ###       endif
 ###     endif
 ###   endfor
@@ -126,14 +126,14 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
   /* Arrays of anything */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY
-  fbb_size_t {{ var }}_count;
+  fbb_size_t {{ var }}_count_;
 ###     endif
 ###   endfor
 
   /* Whether optional scalars have been set */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == OPTIONAL and type not in [STRING, FBB]
-  bool has_{{ var }} : 1;
+  bool has_{{ var }}_ : 1;
 ###     endif
 ###   endfor
 } {{ NS }}_Serialized_{{ msg }};
@@ -146,7 +146,7 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
 typedef struct _{{ NS }}_Relptrs_{{ msg }} {
 ###     for (quant, type, var, dbgfn) in fields
 ###       if quant == ARRAY or type in [STRING, FBB]
-  fbb_size_t {{ var }}_relptr;
+  fbb_size_t {{ var }}_relptr_;
 ###       endif
 ###     endfor
 } {{ NS }}_Relptrs_{{ msg }};
@@ -164,7 +164,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
   /* Arrays of scalars (pointers only, owned by the caller) */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type not in [STRING, FBB]
-  const {{ type }} *{{ var }};
+  const {{ type }} *{{ var }}_;
 ###     endif
 ###   endfor
 
@@ -172,9 +172,9 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant != ARRAY
 ###       if type == STRING
-  const char *{{ var }};
+  const char *{{ var }}_;
 ###       elif type == FBB
-  const {{ NS }}_Builder *{{ var }};
+  const {{ NS }}_Builder *{{ var }}_;
 ###       endif
 ###     endif
 ###   endfor
@@ -184,7 +184,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 ###     if quant == ARRAY
 ###       if type == STRING
   /* In what format do we have the strings */
-  {{ NS }}_String_Input_Format {{ var }}_how;
+  {{ NS }}_String_Input_Format {{ var }}_how_;
   union {
     /* For STRING_INPUT_FORMAT_C_ARRAY */
     const char * const *c_array;
@@ -201,10 +201,10 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
       /* Arbitrary pointer passed to item_fn */
       const void *user_data;
     } callback;
-  } {{ var }};
+  } {{ var }}_;
 ###       elif type == FBB
   /* In what format do we have the strings */
-  {{ NS }}_FBB_Input_Format {{ var }}_how;
+  {{ NS }}_FBB_Input_Format {{ var }}_how_;
   union {
     /* For FBB_INPUT_FORMAT_ARRAY */
     const {{ NS }}_Builder * const *c_array;
@@ -215,7 +215,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
       /* Arbitrary pointer passed to item_fn */
       const void *user_data;
     } callback;
-  } {{ var }};
+  } {{ var }}_;
 ###       endif
 ###     endif
 ###   endfor
@@ -224,7 +224,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
   /* Whether required scalars have been set */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if type not in [STRING, FBB] and quant == REQUIRED
-  bool has_{{ var }} : 1;
+  bool has_{{ var }}_ : 1;
 ###     endif
 ###   endfor
 #endif
@@ -235,7 +235,7 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
  */
 static inline void {{ ns }}_builder_{{ msg }}_init({{ NS }}_Builder_{{ msg }} *msg) {
   memset(msg, 0, sizeof(*msg));
-  msg->wire.{{ ns }}_tag = {{ NS }}_TAG_{{ msg }};
+  msg->wire.{{ ns }}_tag_ = {{ NS }}_TAG_{{ msg }};
 }
 
 /***** Setters *****/
@@ -249,11 +249,11 @@ static inline void {{ ns }}_builder_{{ msg }}_init({{ NS }}_Builder_{{ msg }} *m
  * {{ type }} {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ type }} value) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->wire.{{ var }} = value;
+  msg->wire.{{ var }}_ = value;
 #ifdef FB_EXTRA_DEBUG
-  msg->has_{{ var }} = true;
+  msg->has_{{ var }}_ = true;
 #endif
 }
 ###       elif quant == OPTIONAL
@@ -262,10 +262,10 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }} {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ type }} value) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->wire.{{ var }} = value;
-  msg->wire.has_{{ var }} = true;
+  msg->wire.{{ var }}_ = value;
+  msg->wire.has_{{ var }}_ = true;
 }
 ###       else
 /*
@@ -273,10 +273,10 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const {{ type }} *values, fbb_size_t count) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }} = values;
-  msg->wire.{{ var }}_count = count;
+  msg->{{ var }}_ = values;
+  msg->wire.{{ var }}_count_ = count;
 }
 #ifdef __cplusplus
 /*
@@ -284,10 +284,10 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ type }}>& values) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }} = values.data();
-  msg->wire.{{ var }}_count = values.size();
+  msg->{{ var }}_ = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
 }
 #endif
 ###       endif
@@ -299,13 +299,13 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }} {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length({{ NS }}_Builder_{{ msg }} *msg, const char *value, fbb_size_t len) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 #ifdef FB_EXTRA_DEBUG
   assert(value == NULL || strlen(value) == len);  /* if len is specified, it must be the correct value */
 #endif
 
-  msg->{{ var }} = value;
-  msg->wire.{{ var }}_len = len;
+  msg->{{ var }}_ = value;
+  msg->wire.{{ var }}_len_ = len;
 }
 /*
  * Builder setter - required or optional string
@@ -329,9 +329,9 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }} {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const {{ NS }}_Builder *value) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }} = value;
+  msg->{{ var }}_ = value;
 }
 ###         endif
 ###       else
@@ -340,11 +340,11 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count({{ NS }}_Builder_{{ msg }} *msg, {{ ctype }} const *values, fbb_size_t count) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_how = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
-  msg->{{ var }}.c_array = values;
-  msg->wire.{{ var }}_count = count;
+  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
+  msg->{{ var }}_.c_array = values;
+  msg->wire.{{ var }}_count_ = count;
 }
 /*
  * Builder setter - array of strings or FBBs
@@ -363,11 +363,11 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_cstring_views({{ NS }}_Builder_{{ msg }} *msg, const cstring_view *values, fbb_size_t count) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_how = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
-  msg->{{ var }}.cstring_view_array = values;
-  msg->wire.{{ var }}_count = count;
+  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
+  msg->{{ var }}_.cstring_view_array = values;
+  msg->wire.{{ var }}_count_ = count;
 }
 #ifdef __cplusplus
 /*
@@ -375,11 +375,11 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_cstring_views({{ NS 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<cstring_view>& values) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_how = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
-  msg->{{ var }}.cstring_view_array = values.data();
-  msg->wire.{{ var }}_count = values.size();
+  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
+  msg->{{ var }}_.cstring_view_array = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
 }
 #endif
 ###         endif
@@ -389,11 +389,11 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ ctype }}>& values) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_how = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
-  msg->{{ var }}.c_array = values.data();
-  msg->wire.{{ var }}_count = values.size();
+  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
+  msg->{{ var }}_.c_array = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
 }
 ###         if type == STRING
 /*
@@ -401,11 +401,11 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<std::string>& values) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_how = {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY;
-  msg->{{ var }}.cxx_string_array = values.data();
-  msg->wire.{{ var }}_count = values.size();
+  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY;
+  msg->{{ var }}_.cxx_string_array = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
 }
 ###         endif
 #endif
@@ -414,12 +414,12 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ 
  * {{ type }}[] {{ var }}
  */
 static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Builder_{{ msg }} *msg, fbb_size_t count, {{ ctype }} (* item_fn) (int idx, const void *user_data{% if type == STRING %}, fbb_size_t *len_out{% endif %}), const void *user_data) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  msg->{{ var }}_how = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_CALLBACK;
-  msg->{{ var }}.callback.item_fn = item_fn;
-  msg->{{ var }}.callback.user_data = user_data;
-  msg->wire.{{ var }}_count = count;
+  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_CALLBACK;
+  msg->{{ var }}_.callback.item_fn = item_fn;
+  msg->{{ var }}_.callback.user_data = user_data;
+  msg->wire.{{ var }}_count_ = count;
 }
 ###       endif
 ###     endif
@@ -435,12 +435,12 @@ static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Bui
  * {{ type }} {{ var }}
  */
 static inline bool {{ ns }}_builder_{{ msg }}_has_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
 ###       if type in [STRING, FBB]
-  return msg->{{ var }} != NULL;
+  return msg->{{ var }}_ != NULL;
 ###       else
-  return msg->wire.has_{{ var }};
+  return msg->wire.has_{{ var }}_;
 ###       endif
 }
 ###     endif
@@ -452,26 +452,26 @@ static inline bool {{ ns }}_builder_{{ msg }}_has_{{ var }}(const {{ NS }}_Build
  * {{ type }} {{ var }}
  */
 static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
 ###         if quant == OPTIONAL
-  assert(msg->wire.has_{{ var }});
+  assert(msg->wire.has_{{ var }}_);
 ###         endif
-  return msg->wire.{{ var }};
+  return msg->wire.{{ var }}_;
 }
 /*
  * Builder getter - pointer to required or optional scalar
  * {{ type }} {{ var }}
  */
 static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
 ###         if quant == OPTIONAL
-  if (!msg->wire.has_{{ var }}) {
+  if (!msg->wire.has_{{ var }}_) {
     return NULL;
   }
 ###         endif
-  return &msg->wire.{{ var }};
+  return &msg->wire.{{ var }}_;
 }
 ###         if quant == OPTIONAL
 /*
@@ -479,7 +479,7 @@ static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}_ptr(con
  * {{ type }} {{ var }}
  */
 static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_fallback(const {{ NS }}_Builder_{{ msg }} *msg, {{ type }} fallback) {
-  return msg->wire.has_{{ var }} ? msg->wire.{{ var }} : fallback;
+  return msg->wire.has_{{ var }}_ ? msg->wire.{{ var }}_ : fallback;
 }
 ###         endif
 ###       else
@@ -488,9 +488,9 @@ static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_fallback(
  * {{ type }} {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  return msg->{{ var }};
+  return msg->{{ var }}_;
 }
 ###         if type == STRING
 /*
@@ -498,16 +498,16 @@ static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }
  * {{ type }} {{ var }}
  */
 static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  return msg->wire.{{ var }}_len;
+  return msg->wire.{{ var }}_len_;
 }
 /*
  * Builder getter - required or optional string along with its length
  * {{ type }} {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t *len_out) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   *len_out = {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(msg);
   return {{ ns }}_builder_{{ msg }}_get_{{ var }}(msg);
@@ -518,10 +518,10 @@ static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len(cons
  * {{ type }} {{ var }}
  */
 static inline std::string {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(msg->{{ var }} != NULL);
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ var }}_ != NULL);
 
-  return std::string(msg->{{ var }}, msg->wire.{{ var }}_len);
+  return std::string(msg->{{ var }}_, msg->wire.{{ var }}_len_);
 }
 #endif
 ###         endif
@@ -532,9 +532,9 @@ static inline std::string {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string(con
  * {{ type }}[] {{ var }}
  */
 static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_count(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  return msg->wire.{{ var }}_count;
+  return msg->wire.{{ var }}_count_;
 }
 ###       if type not in [STRING, FBB]
 /*
@@ -542,9 +542,9 @@ static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_count(const {{
  * {{ type }}[] {{ var }}
  */
 static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  return msg->{{ var }};
+  return msg->{{ var }}_;
 }
 ###       endif
 /*
@@ -552,32 +552,32 @@ static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}(const {
  * {{ type }}[] {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->wire.{{ var }}_count);
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count_);
 
 ###       if type not in [STRING, FBB]
-  return msg->{{ var }}[idx];
+  return msg->{{ var }}_[idx];
 ###       elif type == STRING
-  switch (msg->{{ var }}_how) {
+  switch (msg->{{ var }}_how_) {
     case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
-      return msg->{{ var }}.c_array[idx];
+      return msg->{{ var }}_.c_array[idx];
     case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
-      return msg->{{ var }}.cstring_view_array[idx].c_str;
+      return msg->{{ var }}_.cstring_view_array[idx].c_str;
 #ifdef __cplusplus
     case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
-      return msg->{{ var }}.cxx_string_array[idx].c_str();
+      return msg->{{ var }}_.cxx_string_array[idx].c_str();
 #endif
     case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
-      return (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data, NULL);
+      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, NULL);
   }
   assert(0);
   return NULL;
 ###       else
-  switch (msg->{{ var }}_how) {
+  switch (msg->{{ var }}_how_) {
     case {{ NS }}_FBB_INPUT_FORMAT_ARRAY:
-      return msg->{{ var }}.c_array[idx];
+      return msg->{{ var }}_.c_array[idx];
     case {{ NS }}_FBB_INPUT_FORMAT_CALLBACK:
-      return (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data);
+      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data);
   }
   assert(0);
   return NULL;
@@ -589,22 +589,22 @@ static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(const {{ N
  * {{ type }}[] {{ var }}
  */
 static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->wire.{{ var }}_count);
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count_);
 
-  switch (msg->{{ var }}_how) {
+  switch (msg->{{ var }}_how_) {
     case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
       /* This is costly, the requested length is not readily available so we have to compute it. */
-      return strlen(msg->{{ var }}.c_array[idx]);
+      return strlen(msg->{{ var }}_.c_array[idx]);
     case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
-      return msg->{{ var }}.cstring_view_array[idx].length;
+      return msg->{{ var }}_.cstring_view_array[idx].length;
 #ifdef __cplusplus
     case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
-      return msg->{{ var }}.cxx_string_array[idx].length();
+      return msg->{{ var }}_.cxx_string_array[idx].length();
 #endif
     case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK: {
       fbb_size_t len;
-      (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data, &len);
+      (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, &len);
       return len;
     }
   }
@@ -616,24 +616,24 @@ static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(const {
  * {{ type }}[] {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->wire.{{ var }}_count);
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count_);
 
-  switch (msg->{{ var }}_how) {
+  switch (msg->{{ var }}_how_) {
     case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
       /* This is costly, the requested length is not readily available so we have to compute it. */
-      *len_out = strlen(msg->{{ var }}.c_array[idx]);
-      return msg->{{ var }}.c_array[idx];
+      *len_out = strlen(msg->{{ var }}_.c_array[idx]);
+      return msg->{{ var }}_.c_array[idx];
     case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
-      *len_out = msg->{{ var }}.cstring_view_array[idx].length;
-      return msg->{{ var }}.cstring_view_array[idx].c_str;
+      *len_out = msg->{{ var }}_.cstring_view_array[idx].length;
+      return msg->{{ var }}_.cstring_view_array[idx].c_str;
 #ifdef __cplusplus
     case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
-      *len_out = msg->{{ var }}.cxx_string_array[idx].length();
-      return msg->{{ var }}.cxx_string_array[idx].c_str();
+      *len_out = msg->{{ var }}_.cxx_string_array[idx].length();
+      return msg->{{ var }}_.cxx_string_array[idx].c_str();
 #endif
     case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
-      return (msg->{{ var }}.callback.item_fn)(idx, msg->{{ var }}.callback.user_data, len_out);
+      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, len_out);
   }
   assert(0);
   return NULL;
@@ -645,11 +645,11 @@ static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(c
  * {{ type }}[] {{ var }}
  */
 static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
-  ret.reserve(msg->wire.{{ var }}_count);
-  for (fbb_size_t idx = 0; idx < msg->wire.{{ var }}_count; idx++)
+  ret.reserve(msg->wire.{{ var }}_count_);
+  for (fbb_size_t idx = 0; idx < msg->wire.{{ var }}_count_; idx++)
     ret.emplace_back({{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msg, idx));
   return ret;
 }
@@ -667,13 +667,13 @@ static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ n
  * {{ type }} {{ var }}
  */
 static inline bool {{ ns }}_serialized_{{ msg }}_has_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
 ###       if type in [STRING, FBB]
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  return relptrs->{{ var }}_relptr != 0;
+  return relptrs->{{ var }}_relptr_ != 0;
 ###       else
-  return msg->has_{{ var }};
+  return msg->has_{{ var }}_;
 ###       endif
 }
 ###     endif
@@ -685,26 +685,26 @@ static inline bool {{ ns }}_serialized_{{ msg }}_has_{{ var }}(const {{ NS }}_Se
  * {{ type }} {{ var }}
  */
 static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
 ###         if quant == OPTIONAL
-  assert(msg->has_{{ var }});
+  assert(msg->has_{{ var }}_);
 ###         endif
-  return msg->{{ var }};
+  return msg->{{ var }}_;
 }
 /*
  * Serialized getter - pointer to required or optional scalar
  * {{ type }} {{ var }}
  */
 static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
 ###         if quant == OPTIONAL
-  if (!msg->has_{{ var }}) {
+  if (!msg->has_{{ var }}_) {
     return NULL;
   }
 ###         endif
-  return &msg->{{ var }};
+  return &msg->{{ var }}_;
 }
 ###         if quant == OPTIONAL
 /*
@@ -712,7 +712,7 @@ static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}_ptr(
  * {{ type }} {{ var }}
  */
 static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_fallback(const {{ NS }}_Serialized_{{ msg }} *msg, {{ type }} fallback) {
-  return msg->has_{{ var }} ? msg->{{ var }} : fallback;
+  return msg->has_{{ var }}_ ? msg->{{ var }}_ : fallback;
 }
 ###         endif
 ###       else
@@ -721,17 +721,17 @@ static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_fallba
  * {{ type }} {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  if (relptrs->{{ var }}_relptr == 0) {
+  if (relptrs->{{ var }}_relptr_ == 0) {
 ###         if quant == REQUIRED
-    assert(relptrs->{{ var }}_relptr != 0);
+    assert(relptrs->{{ var }}_relptr_ != 0);
 ###         else
     return NULL;
 ###         endif
   }
-  const char *ret = (const char *)msg + relptrs->{{ var }}_relptr;
+  const char *ret = (const char *)msg + relptrs->{{ var }}_relptr_;
   return ({{ ctype }}) ret;
 }
 ###         if type == STRING
@@ -740,16 +740,16 @@ static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ N
  * {{ type }} {{ var }}
  */
 static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  return msg->{{ var }}_len;
+  return msg->{{ var }}_len_;
 }
 /*
  * Serialized getter - required or optional string along with its length
  * {{ type }} {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t *len_out) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(msg);
   return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
@@ -760,11 +760,11 @@ static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len(c
  * {{ type }} {{ var }}
  */
 static inline std::string {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   const char *c_str = {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
   assert(c_str != NULL);
-  return std::string(c_str, msg->{{ var }}_len);
+  return std::string(c_str, msg->{{ var }}_len_);
 }
 #endif
 ###         endif
@@ -775,9 +775,9 @@ static inline std::string {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string(
  * {{ type }}[] {{ var }}
  */
 static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_count(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
-  return msg->{{ var }}_count;
+  return msg->{{ var }}_count_;
 }
 ###       if type not in [STRING, FBB]
 /*
@@ -785,10 +785,10 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_count(const
  * {{ type }}[] {{ var }}
  */
 static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const char *array = (const char *)msg + relptrs->{{ var }}_relptr;
+  const char *array = (const char *)msg + relptrs->{{ var }}_relptr_;
   return (const {{ type }} *) array;
 }
 /*
@@ -796,11 +796,11 @@ static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}(cons
  * {{ type }}[] {{ var }}
  */
 static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count);
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
 
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const void *array_void = (const char *)msg + relptrs->{{ var }}_relptr;
+  const void *array_void = (const char *)msg + relptrs->{{ var }}_relptr_;
   const {{ type }} *array = (const {{ type }} *)array_void;
   return array[idx];
 }
@@ -810,12 +810,12 @@ static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{
  * {{ type }}[] {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count);
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
 
   /* double jump */
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr;
+  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr_;
   const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
   const char *ret = (const char *)msg + second_relptrs[{{ "2 * " if type == STRING }}idx];
   return ({{ ctype }}) ret;
@@ -826,11 +826,11 @@ static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {
  * {{ type }}[] {{ var }}
  */
 static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count);
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
 
   const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr;
+  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr_;
   const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
   return second_relptrs[2 * idx + 1];
 }
@@ -839,8 +839,8 @@ static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(cons
  * {{ type }}[] {{ var }}
  */
 static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count);
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
 
   *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx);
   return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx);
@@ -853,11 +853,11 @@ static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_a
  * {{ type }}[] {{ var }}
  */
 static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
 
   std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
-  ret.reserve( msg->{{ var }}_count);
-  for (fbb_size_t idx = 0; idx < msg->{{ var }}_count; idx++) {
+  ret.reserve( msg->{{ var }}_count_);
+  for (fbb_size_t idx = 0; idx < msg->{{ var }}_count_; idx++) {
     ret.emplace_back({{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx) {% if type == STRING %}, (size_t){{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx) {% endif %});
   }
   return ret;
@@ -878,14 +878,14 @@ extern "C" {
  * Get the tag from the builder
  */
 static inline int {{ ns }}_builder_get_tag(const {{ NS }}_Builder *msg) {
-  return msg->{{ ns }}_tag;
+  return msg->{{ ns }}_tag_;
 }
 
 /*
  * Get the tag from the serialized version
  */
 static inline int {{ ns }}_serialized_get_tag(const {{ NS }}_Serialized *msg) {
-  return msg->{{ ns }}_tag;
+  return msg->{{ ns }}_tag_;
 }
 
 /*

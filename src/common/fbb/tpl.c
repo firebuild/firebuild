@@ -172,7 +172,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
   /* Sizes of scalar arrays */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type not in [STRING, FBB]
-  len += msgbldr->wire.{{ var }}_count * sizeof(*msgbldr->{{ var }});
+  len += msgbldr->wire.{{ var }}_count_ * sizeof(*msgbldr->{{ var }}_);
   ADD_PADDING_LEN(len);
 ###     endif
 ###   endfor
@@ -180,8 +180,8 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
   /* Sizes of required and optional strings */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == STRING
-  if (msgbldr->{{ var }} != NULL) {
-    len += msgbldr->wire.{{ var }}_len + 1;
+  if (msgbldr->{{ var }}_ != NULL) {
+    len += msgbldr->wire.{{ var }}_len_ + 1;
     ADD_PADDING_LEN(len);
   }
 ###     endif
@@ -190,8 +190,8 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
   /* Recurse into required and optional FBBs */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == FBB
-  if (msgbldr->{{ var }} != NULL) {
-    len += {{ ns }}_builder_measure(msgbldr->{{ var }});  /* already includes padding */
+  if (msgbldr->{{ var }}_ != NULL) {
+    len += {{ ns }}_builder_measure(msgbldr->{{ var }}_);  /* already includes padding */
   }
 ###     endif
 ###   endfor
@@ -199,9 +199,9 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
     /* The second hop for arrays of strings */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == STRING
-  len += 2 * msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);  /* we'll build an alternating list of offsets and lengths */
+  len += 2 * msgbldr->wire.{{ var }}_count_ * sizeof(fbb_size_t);  /* we'll build an alternating list of offsets and lengths */
   ADD_PADDING_LEN(len);
-  for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
+  for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count_; idx++) {
     len += {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(msgbldr, idx) + 1;
     ADD_PADDING_LEN(len);
   }
@@ -211,9 +211,9 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
     /* The second hop for arrays of FBBs, including recursion */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == FBB
-  len += msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);
+  len += msgbldr->wire.{{ var }}_count_ * sizeof(fbb_size_t);
   ADD_PADDING_LEN(len);
-  for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
+  for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count_; idx++) {
     len +=  {{ ns }}_builder_measure({{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msgbldr, idx));  /* already includes padding */
   }
 ###     endif
@@ -235,9 +235,9 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == REQUIRED
 ###       if type in [STRING, FBB]
-  assert(msgbldr->{{ var }} != NULL);
+  assert(msgbldr->{{ var }}_ != NULL);
 ###       else
-  assert(msgbldr->has_{{ var }});
+  assert(msgbldr->has_{{ var }}_);
 ###       endif
 ###     endif
 ###   endfor
@@ -267,14 +267,14 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
   /* Arrays of scalars */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type not in [STRING, FBB]
-  if (msgbldr->wire.{{ var }}_count > 0) {
-    relptrs->{{ var }}_relptr = offset;
-    fbb_size_t size = msgbldr->wire.{{ var }}_count * sizeof(msgbldr->{{ var }}[0]);
-    memcpy(dst + offset, msgbldr->{{ var }}, size);
+  if (msgbldr->wire.{{ var }}_count_ > 0) {
+    relptrs->{{ var }}_relptr_ = offset;
+    fbb_size_t size = msgbldr->wire.{{ var }}_count_ * sizeof(msgbldr->{{ var }}_[0]);
+    memcpy(dst + offset, msgbldr->{{ var }}_, size);
     offset += size;
     PAD(dst, offset);
   } else {
-    relptrs->{{ var }}_relptr = 0;
+    relptrs->{{ var }}_relptr_ = 0;
   }
 ###     endif
 ###   endfor
@@ -282,14 +282,14 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
   /* Required and optional strings */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == STRING
-  if (msgbldr->{{ var }} != NULL) {
-    relptrs->{{ var }}_relptr = offset;
-    fbb_size_t size = msgbldr->wire.{{ var }}_len + 1;
-    memcpy(dst + offset, msgbldr->{{ var }}, size);
+  if (msgbldr->{{ var }}_ != NULL) {
+    relptrs->{{ var }}_relptr_ = offset;
+    fbb_size_t size = msgbldr->wire.{{ var }}_len_ + 1;
+    memcpy(dst + offset, msgbldr->{{ var }}_, size);
     offset += size;
     PAD(dst, offset);
   } else {
-    relptrs->{{ var }}_relptr = 0;
+    relptrs->{{ var }}_relptr_ = 0;
   }
 ###     endif
 ###   endfor
@@ -297,13 +297,13 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
   /* Required and optional FBBs */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant in [REQUIRED, OPTIONAL] and type == FBB
-  if (msgbldr->{{ var }} != NULL) {
-    relptrs->{{ var }}_relptr = offset;
-    fbb_size_t size = {{ ns }}_builder_serialize(msgbldr->{{ var }}, dst + offset);
+  if (msgbldr->{{ var }}_ != NULL) {
+    relptrs->{{ var }}_relptr_ = offset;
+    fbb_size_t size = {{ ns }}_builder_serialize(msgbldr->{{ var }}_, dst + offset);
     offset += size;
     /* FBB is serialized with a final padding, so no more padding is added here */
   } else {
-    relptrs->{{ var }}_relptr = 0;
+    relptrs->{{ var }}_relptr_ = 0;
   }
 ###     endif
 ###   endfor
@@ -311,13 +311,13 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
   /* Arrays of strings */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == STRING
-  if (msgbldr->wire.{{ var }}_count > 0) {
-    relptrs->{{ var }}_relptr = offset;
+  if (msgbldr->wire.{{ var }}_count_ > 0) {
+    relptrs->{{ var }}_relptr_ = offset;
     fbb_size_t *hops = (fbb_size_t *) (dst + offset);
-    fbb_size_t size = 2 * msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);  /* room for alternating list of offsets and lengths */
+    fbb_size_t size = 2 * msgbldr->wire.{{ var }}_count_ * sizeof(fbb_size_t);  /* room for alternating list of offsets and lengths */
     offset += size;
     PAD(dst, offset);
-    for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
+    for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count_; idx++) {
       fbb_size_t len = 0;
       const char *str = {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(msgbldr, idx, &len);
       size = len + 1;
@@ -328,7 +328,7 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
       PAD(dst, offset);
     }
   } else {
-    relptrs->{{ var }}_relptr = 0;
+    relptrs->{{ var }}_relptr_ = 0;
   }
 ###     endif
 ###   endfor
@@ -336,20 +336,20 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{
   /* Arrays of FBBs */
 ###   for (quant, type, var, dbgfn) in fields
 ###     if quant == ARRAY and type == FBB
-  if (msgbldr->wire.{{ var }}_count > 0) {
-    relptrs->{{ var }}_relptr = offset;
+  if (msgbldr->wire.{{ var }}_count_ > 0) {
+    relptrs->{{ var }}_relptr_ = offset;
     fbb_size_t *hops = (fbb_size_t *) (dst + offset);
-    fbb_size_t size = msgbldr->wire.{{ var }}_count * sizeof(fbb_size_t);
+    fbb_size_t size = msgbldr->wire.{{ var }}_count_ * sizeof(fbb_size_t);
     offset += size;
     PAD(dst, offset);
-    for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count; idx++) {
+    for (fbb_size_t idx = 0; idx < msgbldr->wire.{{ var }}_count_; idx++) {
       *hops++ = offset;
       const {{ NS }}_Builder *fbb = {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msgbldr, idx);
       offset += {{ ns }}_builder_serialize(fbb, dst + offset);  /* recurse */
       /* FBB is serialized with a final padding, so no more padding is added here */
     }
   } else {
-    relptrs->{{ var }}_relptr = 0;
+    relptrs->{{ var }}_relptr_ = 0;
   }
 ###     endif
 ###   endfor
