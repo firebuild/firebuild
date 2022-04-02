@@ -371,7 +371,8 @@ static bool consistent_implicit_parent_dirs(
   /* If the parent dir must not exist when shortcutting and the shortcut does not create it
    * either, then creating the new regular file would fail. */
   for (const FBBSTORE_Builder_file& file : out_path_isreg_with_hash) {
-    if (!dir_created_or_could_exist(file.path, file.wire.path_len,
+    if (!dir_created_or_could_exist(fbbstore_builder_file_get_path(&file),
+                                    fbbstore_builder_file_get_path_len(&file),
                                     out_path_isdir_filename_ptrs, file_usages)) {
       return false;
     }
