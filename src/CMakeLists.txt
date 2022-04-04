@@ -1,9 +1,9 @@
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
-set_source_files_properties(common/debug_sysflags.c PROPERTIES COMPILE_FLAGS "-fPIC")
-set_source_files_properties(common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC")
-set_source_files_properties(fbbcomm.c PROPERTIES COMPILE_FLAGS "-fPIC")
+set_source_files_properties(common/debug_sysflags.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
+set_source_files_properties(common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
+set_source_files_properties(fbbcomm.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
 
 add_custom_command(
   OUTPUT fbbcomm.c fbbcomm.cc fbbcomm.h fbbcomm_decode.c

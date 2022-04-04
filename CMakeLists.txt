@@ -79,6 +79,13 @@ endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLD_LIBRARY_PATH=\\\"${CMAKE_TARGET_LD_LIBRARY_PATH}\\\"")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLD_LIBRARY_PATH=\\\"${CMAKE_TARGET_LD_LIBRARY_PATH}\\\"")
 
+if (APPLE)
+  # build the interceptor for multiple architectures
+  set(FAT_ARCH_C_FLAGS "-arch arm64 -arch arm64e -arch x86_64")
+  set(CMAKE_SHARED_LINKER_FLAGS ${FAT_ARCH_C_FLAGS})
+  # TODO build the supervisor, too, for multiple architectures
+endif()
+
 if(COVERAGE)
   # minimal (lines) coverage
   set(MIN_COVERAGE "65")
