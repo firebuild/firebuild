@@ -1131,7 +1131,20 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       }
       break;
     }
-    case FBBCOMM_TAG_futime:
+    case FBBCOMM_TAG_futime: {
+      auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_futime *>(fbbcomm_buf);
+      const int fd = fbbcomm_serialized_futime_get_fd(ic_msg);
+      const firebuild::FileFD* ffd = proc->get_fd(fd);
+      if (!fbbcomm_serialized_futime_has_error_no(ic_msg) && ffd && is_write(ffd->flags())
+          && fbbcomm_serialized_futime_get_all_utime_now(ic_msg)) {
+        /* The fd has been opened for writing and the access and modification times should be set to
+         * current time which happens automatically when the process is shortcut. This is safe. */
+      } else {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Changing file timestamps is not supported");
+      }
+      break;
+    }
     case FBBCOMM_TAG_utime: {
       proc->exec_point()->disable_shortcutting_bubble_up(
           "Changing file timestamps is not supported");
