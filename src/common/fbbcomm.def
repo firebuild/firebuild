@@ -422,6 +422,8 @@
       (OPTIONAL, "int", "dirfd"),
       # file name
       (OPTIONAL, STRING, "file"),
+      # all timestamps should be set to current time
+      (REQUIRED, "bool", "all_utime_now"),
       # it was actually lutime() or utimensat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
       (OPTIONAL, "bool", "link"),
       # error no., when ret = -1
@@ -430,7 +432,9 @@
 
     ("futime", [
       # file fd
-      (OPTIONAL, "int", "fd"),
+      (REQUIRED, "int", "fd"),
+      # all timestamps should be set to current time
+      (REQUIRED, "bool", "all_utime_now"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),

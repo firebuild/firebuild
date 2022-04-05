@@ -1070,34 +1070,41 @@ generate("int", "faccessat", "int dirfd, const char *pathname, int mode, int fla
 # Intercept the (l)utime family
 generate("int", "utime", "const char *file, const struct utimbuf *times",
          msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 generate("int", "utimes", "const char *file, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 generate("int", "lutimes", "const char *file, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["file", "times"],
          msg_add_fields=["fbbcomm_builder_utime_set_link(&ic_msg, true);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);"])
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 generate("int", "utimensat", "int dirfd, const char *file, const struct timespec times[2], int flags",
          msg="utime",
          msg_skip_fields=["file", "times", "flags"],
          msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbbcomm_builder_utime_set_link(&ic_msg, true);",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);"])
+                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
 # futimesat is badly named and badly designed, and is obsoleted by utimensat
 generate("int", "futimesat", "int dirfd, const char *file, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);"])
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 
 # Intercept the futime family
 generate("int", "futimes", "int fd, const struct timeval times[2]",
          msg="futime",
-         msg_skip_fields=["times"])
+         msg_skip_fields=["times"],
+         msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL);"])
 generate("int", "futimens", "int fd, const struct timespec times[2]",
          msg="futime",
-         msg_skip_fields=["times"])
+         msg_skip_fields=["times"],
+         msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
 
 # Intercept dlopen
 # The new library's constructor may generate intercepted calls.
