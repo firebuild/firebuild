@@ -62,7 +62,7 @@ setup() {
   for i in 1 2; do
     # clean up previous run
     make -s -f test_parallel_make.Makefile clean
-    result=$(./run-firebuild -- make -s -j8 -f test_parallel_make.Makefile)
+    result=$(env PATH="${PATH/ccache/ccache-DISABLED/}" ./run-firebuild -- make -s -j8 -f test_parallel_make.Makefile)
     assert_streq "$result" "ok"
     assert_streq "$(strip_stderr stderr)" ""
   done
