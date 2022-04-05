@@ -303,7 +303,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
     if (!generate_report) {
       proc = proc->next_shortcutable_ancestor();
     } else {
-      proc = proc->exec_point();
+      proc = proc->parent_exec_point();
     }
   }
   return true;
