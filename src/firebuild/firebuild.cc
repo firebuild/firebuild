@@ -254,6 +254,9 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     if (shortcutting_succeeded) {
       fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, true);
       fbbcomm_builder_scproc_resp_set_exit_status(&sv_msg, proc->fork_point()->exit_status());
+      if (fd0_reopen >= 0) {
+        close(fd0_reopen);
+      }
     } else {
       fbbcomm_builder_scproc_resp_set_shortcut(&sv_msg, false);
       /* parent forked, thus a new set of fds is needed to track outputs */
