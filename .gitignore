@@ -1,4 +1,5 @@
 *~
+*.gcno
 *.lock
 *.DS_Store
 *.swp
@@ -14,7 +15,16 @@ Doxyfile
 Makefile
 build/
 cmake_install.cmake
+doc/html/
 *_generated.h
 fbb.c
 fbb.h
+gcov/
+gcovhtml/
+src/fbbcomm.cc
+src/firebuild/fbbfp.cc
+src/firebuild/fbbstore.cc
 src/firebuild/firebuild
+test/fbbtest.cc
+test/test_orphan
+test/test_random
