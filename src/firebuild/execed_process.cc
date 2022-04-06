@@ -176,10 +176,10 @@ void ExecedProcess::do_finalize() {
     cacher_->store(this);
   }
 
-  file_usages_.clear();
   fds()->clear();
   inherited_outgoing_pipes_.clear();
   if (!generate_report) {
+    file_usages_.clear();
     args().clear();
     env_vars().clear();
     libs_.clear();
