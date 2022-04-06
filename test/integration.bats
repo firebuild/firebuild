@@ -125,7 +125,6 @@ setup() {
     result=$(./run-firebuild bash -c "(bash -c 'sh -c \"echo -x > foo-dir/bar1\" 2> /dev/null; sleep 0.2; sh -c \"echo x > foo-dir/bar2\" 2> /dev/null') & (sleep 0.1; [ $i == 2 ] || mkdir foo-dir); wait")
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
-    cp -r test_cache_dir cache-$i
   done
 }
 
