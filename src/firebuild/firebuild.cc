@@ -1227,15 +1227,6 @@ static void write_report(const std::string &html_filename,
   const char html_orig_filename[] = "build-report.html";
   const std::string dot_cmd = "dot";
 
-  int d3 = open((d3_datadir + "/" + d3_filename).c_str(), O_RDONLY);
-  if (d3 == -1) {
-    perror("open");
-    firebuild::fb_error("Opening file " + (datadir + "/" + d3_filename) +
-                        " failed.");
-    firebuild::fb_error("Can not write build report.");
-    return;
-  }
-
   FILE* src_file = fopen((datadir + "/" + html_orig_filename).c_str(), "r");
   if (src_file == NULL) {
     perror("fopen");
@@ -1286,12 +1277,20 @@ static void write_report(const std::string &html_filename,
       break;
     }
     if (strstr(line, d3_filename) != NULL) {
-      fprintf(dst_file, "<script type=\"text/javascript\">\n");
-
-      fflush(dst_file);
-      ret = sendfile_full(fileno(dst_file), d3);
-      fsync(fileno(dst_file));
-      fprintf(dst_file, "    </script>\n");
+      int d3 = open((d3_datadir + "/" + d3_filename).c_str(), O_RDONLY);
+      if (d3 == -1) {
+        /* File is not available locally, use the online version. */
+        fprintf(dst_file, "<script type=\"text/javascript\" "
+                "src=\"https://firebuild.io/d3.v5.min.js\"></script>\n");
+        fflush(dst_file);
+      } else {
+        fprintf(dst_file, "<script type=\"text/javascript\">\n");
+        fflush(dst_file);
+        ret = sendfile_full(fileno(dst_file), d3);
+        fsync(fileno(dst_file));
+        fprintf(dst_file, "    </script>\n");
+        close(d3);
+      }
     } else if (strstr(line, tree_filename) != NULL) {
       fprintf(dst_file, "<script type=\"text/javascript\">\n");
       proc_tree->export2js(dst_file);
@@ -1307,7 +1306,6 @@ static void write_report(const std::string &html_filename,
     }
     free(line);
   }
-  close(d3);
   fclose(src_file);
   fclose(dst_file);
 }
