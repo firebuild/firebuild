@@ -9,6 +9,12 @@
 #include "firebuild/execed_process.h"
 
 namespace firebuild {
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_pre_open *msg) {
+  return proc->handle_pre_open(fbbcomm_serialized_pre_open_get_dirfd_with_fallback(msg, AT_FDCWD),
+                               fbbcomm_serialized_pre_open_get_file(msg),
+                               fbbcomm_serialized_pre_open_get_file_len(msg));
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_open *msg, int fd_conn,
                              const int ack_num) {
   const int dirfd = fbbcomm_serialized_open_get_dirfd_with_fallback(msg, AT_FDCWD);
@@ -16,7 +22,9 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_open *msg,
   int ret = fbbcomm_serialized_open_get_ret_with_fallback(msg, -1);
   return proc->handle_open(dirfd, fbbcomm_serialized_open_get_file(msg),
                            fbbcomm_serialized_open_get_file_len(msg),
-                           fbbcomm_serialized_open_get_flags(msg), ret, error, fd_conn, ack_num);
+                           fbbcomm_serialized_open_get_flags(msg),
+                           ret, error, fd_conn, ack_num,
+                           fbbcomm_serialized_open_get_pre_open_sent(msg));
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn,
@@ -27,7 +35,8 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_freopen *m
   return proc->handle_freopen(fbbcomm_serialized_freopen_get_file(msg),
                               fbbcomm_serialized_freopen_get_file_len(msg),
                               fbbcomm_serialized_freopen_get_flags(msg),
-                              oldfd, ret, error, fd_conn, ack_num);
+                              oldfd, ret, error, fd_conn, ack_num,
+                              fbbcomm_serialized_freopen_get_pre_open_sent(msg));
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn,

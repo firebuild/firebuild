@@ -13,10 +13,12 @@ namespace firebuild {
 
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
 tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
+tsl::hopscotch_map<const FileName*, int>* FileName::write_fds_db_;
 
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
   hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();
+  write_fds_db_ = new tsl::hopscotch_map<const FileName*, int>();
 }
 
 bool FileName::isDbEmpty() {

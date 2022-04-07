@@ -159,12 +159,28 @@ void Process::AddPopenedProcess(int fd, ExecedProcess *proc) {
   fd2popen_child_[fd] = proc;
 }
 
-int Process::handle_open(const int dirfd, const char * const ar_name, const size_t ar_len,
-                         const int flags, const int fd, const int error, int fd_conn,
-                         const int ack_num) {
+int Process::handle_pre_open(const int dirfd, const char * const ar_name, const size_t ar_len) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
-         dirfd, D(ar_name), flags, fd, error, D_FD(fd_conn), ack_num);
+         "dirfd=%d, ar_name=%s", dirfd, D(ar_name));
+
+  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
+  if (!name) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not find file name to mark as opened for writing");
+    return -1;
+  } else {
+    name->open_for_writing();
+    return 0;
+  }
+}
+
+int Process::handle_open(const int dirfd, const char * const ar_name, const size_t ar_len,
+                         const int flags, const int fd, const int error,
+                         int fd_conn, const int ack_num, const bool pre_open_sent) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, flags=%d, pre_open_sent=%d, fd=%d, error=%d, fd_conn=%s, "
+         "ack_num=%d",
+         dirfd, D(ar_name), flags, fd, pre_open_sent, error, D_FD(fd_conn), ack_num);
 
   const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
@@ -178,6 +194,16 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
 
   if (fd >= 0) {
     add_filefd(fd, std::make_shared<FileFD>(name, fd, flags, this));
+  }
+
+  if (pre_open_sent) {
+    /* When pre_open is sent the not interceptor nor the supervisor knew the outcome of open, but
+     * the path's refcount is increased in the supervisor (+1).
+     * In handle_open() std::make_shared<FileFD>(name, fd, flags, this) increases the refcount again
+     * due to the FileFD construction if the file really got opened (+2), or the refcount is not
+     * touched in case of an error (still +1). In both cases the refcount has to be decremented to
+     * reflect actual usage (+1 vs +0) after the open(). */
+    name->close_for_writing();
   }
 
   if (ack_num != 0) {
@@ -195,8 +221,9 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
 
 /* Handle freopen(). See #650 for some juicy details. */
 int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
-                            const int flags, const int oldfd, const int fd, const int error,
-                            int fd_conn, const int ack_num) {
+                            const int flags, const int oldfd, const int fd,
+                            const int error, int fd_conn, const int ack_num,
+                            const bool pre_open_sent) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "ar_name=%s, flags=%d, oldfd=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
          D(ar_name), flags, oldfd, fd, error, D_FD(fd_conn), ack_num);
@@ -207,8 +234,11 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
     handle_close(oldfd, 0);
 
     /* Register the opening of the new file, no matter if succeeded or failed. */
-    return handle_open(AT_FDCWD, ar_name, ar_len, flags, fd, error, fd_conn, ack_num);
+    return handle_open(AT_FDCWD, ar_name, ar_len, flags, fd, error, fd_conn,
+                       ack_num, pre_open_sent);
   } else {
+    /* Without a name pre_open should not have been sent. */
+    assert(!pre_open_sent);
     /* Find oldfd. */
     FileFD *file_fd = get_fd(oldfd);
     if (!file_fd || file_fd->origin_type() != FD_ORIGIN_FILE_OPEN) {
@@ -229,7 +259,7 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
 
       /* Register the reopening, no matter if succeeded or failed. */
       return handle_open(AT_FDCWD, filename->c_str(), filename->length(),
-                         flags, fd, error, fd_conn, ack_num);
+                         flags, fd, error, fd_conn, ack_num, pre_open_sent);
     }
   }
 }

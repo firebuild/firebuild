@@ -334,6 +334,21 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
   thread_signal_danger_zone_leave();
 }
 
+bool maybe_send_pre_open(const int dirfd, const char* file, int flags) {
+  if (file && is_write(flags) && (flags & O_TRUNC)
+      && !(flags & (O_EXCL | O_DIRECTORY |O_TMPFILE))) {
+    FBBCOMM_Builder_pre_open ic_msg;
+    fbbcomm_builder_pre_open_init(&ic_msg);
+    fbbcomm_builder_pre_open_set_dirfd(&ic_msg, dirfd);
+    BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(pre_open, dirfd, file);
+    /* Sending ack is mandatory */
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 /**
  * Make the filename canonical in place.
  *
