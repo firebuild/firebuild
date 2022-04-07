@@ -831,6 +831,33 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       expected_child->set_argv(argv);
       proc->set_expected_child(expected_child);
       proc->set_posix_spawn_pending(true);
+      /* The actual forked process might perform some file operations according to
+       * posix_spawn()'s file_actions. Pre-open the files to be written. */
+      for (size_t i = 0;
+           i < fbbcomm_serialized_posix_spawn_get_file_actions_count(ic_msg); i++) {
+        const FBBCOMM_Serialized *action =
+            fbbcomm_serialized_posix_spawn_get_file_actions_at(ic_msg, i);
+        switch (fbbcomm_serialized_get_tag(action)) {
+          case FBBCOMM_TAG_posix_spawn_file_action_open: {
+            /* A successful open to a particular fd, silently closing the previous file if any. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
+            int flags = fbbcomm_serialized_posix_spawn_file_action_open_get_flags(action_open);
+            if (is_write(flags)) {
+              const firebuild::FileName* file_name = proc->get_absolute(
+                  AT_FDCWD, fbbcomm_serialized_posix_spawn_file_action_open_get_path(action_open),
+                  fbbcomm_serialized_posix_spawn_file_action_open_get_path_len(action_open));
+              if (file_name) {
+                file_name->open_for_writing();
+              }
+            }
+            break;
+          }
+          default:
+            /* Only opens are handled (as pre_opens). */
+            break;
+        }
+      }
       break;
     }
     case FBBCOMM_TAG_posix_spawn_parent: {
@@ -861,6 +888,14 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             int flags = fbbcomm_serialized_posix_spawn_file_action_open_get_flags(action_open);
             fork_child->handle_force_close(fd);
             fork_child->handle_open(AT_FDCWD, path, path_len, flags, fd, 0);
+            /* Revert the effect of "pre-opening" paths to be written in the posix_spawn message.*/
+            if (is_write(flags)) {
+              const firebuild::FileName* file_name = fork_child->get_absolute(AT_FDCWD, path,
+                                                                              path_len);
+              if (file_name) {
+                file_name->close_for_writing();
+              }
+            }
             break;
           }
           case FBBCOMM_TAG_posix_spawn_file_action_close: {
@@ -932,6 +967,36 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           fbbcomm_serialized_posix_spawn_failed_get_arg_as_vector(ic_msg);
       delete(proc->pop_expected_child_fds(arg, nullptr, nullptr, true));
       proc->set_posix_spawn_pending(false);
+      /* The actual forked process might perform some file operations according to
+       * posix_spawn()'s file_actions. Revert the pre-opening of the files to be written. */
+      for (size_t i = 0;
+           i < fbbcomm_serialized_posix_spawn_failed_get_file_actions_count(ic_msg); i++) {
+        const FBBCOMM_Serialized *action =
+            fbbcomm_serialized_posix_spawn_failed_get_file_actions_at(ic_msg, i);
+        switch (fbbcomm_serialized_get_tag(action)) {
+          case FBBCOMM_TAG_posix_spawn_file_action_open: {
+            /* A successful open to a particular fd, silently closing the previous file if any. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(
+                    action);
+            int flags =
+                fbbcomm_serialized_posix_spawn_file_action_open_get_flags(action_open);
+            if (is_write(flags)) {
+              const firebuild::FileName* file_name = proc->get_absolute(
+                  AT_FDCWD,
+                  fbbcomm_serialized_posix_spawn_file_action_open_get_path(action_open),
+                  fbbcomm_serialized_posix_spawn_file_action_open_get_path_len(action_open));
+              if (file_name) {
+                file_name->close_for_writing();
+              }
+            }
+            break;
+          }
+          default:
+            /* Only opens are handled (as pre_opens). */
+            break;
+        }
+      }
       break;
     }
     case FBBCOMM_TAG_wait: {
@@ -999,6 +1064,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       // FIXME(rbalint) save execv parameters
       proc->set_exec_pending(true);
       break;
+    }
+    case FBBCOMM_TAG_pre_open: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_pre_open *>(fbbcomm_buf));
+     break;
     }
     case FBBCOMM_TAG_open: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
@@ -1191,7 +1261,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
   if (ack_num != 0) {
     firebuild::ack_msg(fd_conn, ack_num);
   }
-}
+} /* NOLINT(readability/fn_size) */
 
 
 /**

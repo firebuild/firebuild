@@ -18,6 +18,7 @@
 ###   else
 ###     do msg_add_fields.append("BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", file);")
 ###   endif
+###   do msg_add_fields.append("fbbcomm_builder_" + msg + "_set_pre_open_sent(&ic_msg, pre_open_sent);")
 ### endif
 ### set after_lines = ["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"]
 ### set send_ret_on_success=True
@@ -31,6 +32,7 @@
     mode = va_arg(ap, mode_t);
   }
 ###   endif
+  const int pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, file, flags);
 ### endblock before
 
 ### block call_orig

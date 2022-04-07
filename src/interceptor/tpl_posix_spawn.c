@@ -13,6 +13,11 @@
     FBBCOMM_Builder_posix_spawn ic_msg;
     fbbcomm_builder_posix_spawn_init(&ic_msg);
     fbbcomm_builder_posix_spawn_set_file(&ic_msg, file);
+    if (file_actions) {
+      voidp_array *p = psfa_find(file_actions);
+      assert(p);
+      fbbcomm_builder_posix_spawn_set_file_actions(&ic_msg, (const FBBCOMM_Builder **) (p->p));
+    }
 ###   if func == 'posix_spawnp'
     fbbcomm_builder_posix_spawn_set_is_spawnp(&ic_msg, true);
 ###   else

@@ -218,6 +218,14 @@ class Process {
   const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length);
 
   /**
+   * Handle preparation for file opening in the monitored process
+   * @param dirfd the dirfd of openat(), or AT_FDCWD
+   * @param ar_name relative or absolute file name
+   * @param ar_len length of ar_name
+   */
+  int handle_pre_open(const int dirfd, const char * const ar_name, const size_t ar_len);
+
+  /**
    * Handle file opening in the monitored process
    * @param dirfd the dirfd of openat(), or AT_FDCWD
    * @param ar_name relative or absolute file name
@@ -227,9 +235,11 @@ class Process {
    * @param error error code of open()
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
+   * @param pre_open_sent interceptor already sent pre_open for this open
    */
   int handle_open(const int dirfd, const char * const ar_name, const size_t ar_len, const int flags,
-                  const int fd, const int error = 0, int fd_conn = -1, int ack_num = 0);
+                  const int fd, const int error = 0, int fd_conn = -1,
+                  int ack_num = 0, const bool pre_open_sent = false);
 
   /**
    * Handle file opening in the monitored process
@@ -241,10 +251,11 @@ class Process {
    * @param error error code of open()
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
+   * @param pre_open_sent interceptor already sent pre_open for this open
    */
   int handle_freopen(const char * const ar_name, const size_t ar_len, const int flags,
-                     const int oldfd, const int fd, const int error = 0, int fd_conn = -1,
-                     int ack_num = 0);
+                     const int oldfd, const int fd, const int error = 0,
+                     int fd_conn = -1, int ack_num = 0, bool pre_open_sent = false);
 
   /**
    * Handle file closure in the monitored process

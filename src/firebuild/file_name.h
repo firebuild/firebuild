@@ -40,6 +40,33 @@ class FileName {
       return (hash_db_->insert({this,  XXH3_128bits(name_, length_)}).first)->second;
     }
   }
+  bool is_open_for_writing() const {
+    auto it = write_fds_db_->find(this);
+    if (it != write_fds_db_->end()) {
+      assert(it->second > 0);
+      return true;
+    } else {
+      return false;
+    }
+  }
+  void open_for_writing() const {
+    auto it = write_fds_db_->find(this);
+    if (it != write_fds_db_->end()) {
+      it.value()++;
+    } else {
+      write_fds_db_->insert({this, 1});
+    }
+  }
+  void close_for_writing() const {
+    auto it = write_fds_db_->find(this);
+    assert(it != write_fds_db_->end());
+    assert(it->second > 0);
+    if (it->second > 1) {
+      it.value()--;
+    } else {
+      write_fds_db_->erase(it);
+    }
+  }
   static bool isDbEmpty();
   static const FileName* Get(const char * const name, ssize_t length);
   static const FileName* Get(const std::string& name) {
@@ -73,6 +100,8 @@ class FileName {
   const bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
+  /** Number of FileFDs open for writing referencing this file. */
+  static tsl::hopscotch_map<const FileName*, int>* write_fds_db_;
   /* Disable assignment. */
   void operator=(const FileName&);
 

@@ -167,6 +167,13 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("pre_open", [
+      # dir file descriptor for openat()
+      (OPTIONAL, "int", "dirfd"),
+      # file path
+      (OPTIONAL, STRING, "file"),
+    ]),
+
     ("open", [
       # dir file descriptor for openat()
       (OPTIONAL, "int", "dirfd"),
@@ -180,6 +187,8 @@
       (OPTIONAL, "int", "ret"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
+      # pre_open message has been sent before this message
+      (REQUIRED, "bool", "pre_open_sent"),
     ]),
 
     ("freopen", [
@@ -193,6 +202,8 @@
       (OPTIONAL, "int", "ret"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
+      # pre_open message has been sent before this message
+      (REQUIRED, "bool", "pre_open_sent"),
     ]),
 
     ("chdir", [
@@ -604,6 +615,7 @@
     # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addopen() call.
     ("posix_spawn_file_action_open", [
       (REQUIRED, "int", "fd"),
+      # Note: path is not absolute!
       (REQUIRED, STRING,    "path"),
       (REQUIRED, "int", "flags", "fbbcomm_debug_open_flags"),
       (REQUIRED, "mode_t", "mode"),
@@ -630,6 +642,9 @@
       (ARRAY, STRING, "arg"),
       # environment variables in unprocessed NAME=value form
       (ARRAY, STRING, "env"),
+      # posix_spawn_file_actions_t, each action is an FBB message of one of
+      # posix_spawn_file_action_{open,close,dup2}
+      (ARRAY, FBB, "file_actions"),
       # spawn or spawnp
       (REQUIRED, "bool", "is_spawnp"),
     ]),
@@ -647,6 +662,9 @@
     ("posix_spawn_failed", [
       # command args repeated, to let the supervisor remove it from expected_child
       (ARRAY, STRING, "arg"),
+      # posix_spawn_file_actions_t, each action is an FBB message of one of
+      # posix_spawn_file_action_{open,close,dup2}
+      (ARRAY, FBB, "file_actions"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),

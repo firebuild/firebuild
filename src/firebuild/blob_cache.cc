@@ -129,6 +129,11 @@ bool BlobCache::store_file(const FileName *path,
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
+  if (path->is_open_for_writing()) {
+    FB_DEBUG(FB_DEBUG_CACHING, "File is being written by the build process, "
+             "thus it can't be cached.");
+    return false;
+  }
   bool close_fd_src = false;
   if (fd_src == -1) {
     fd_src = open(path->c_str(), O_RDONLY);

@@ -18,6 +18,7 @@ namespace firebuild  {
    */
 class ProcessFBBAdaptor {
  public:
+  static int handle(Process *proc, const FBBCOMM_Serialized_pre_open *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_open *msg, int fd_conn, int ack_num);
   static int handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn, int ack_num);
   static int handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn, int ack_num);

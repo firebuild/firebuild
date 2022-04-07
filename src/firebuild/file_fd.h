@@ -55,6 +55,9 @@ class FileFD {
         filename_(o_fd->filename()), pipe_(o_fd->pipe_),
         opened_by_(o_fd->opened_by()) {
     assert(fd >= 0);
+    if (filename_ && is_write(curr_flags_)) {
+      filename_->open_for_writing();
+    }
     if (pipe_) {
       pipe_->handle_dup(o_fd.get(), this);
     }
@@ -64,10 +67,45 @@ class FileFD {
       : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN), origin_fd_(NULL),
         filename_(f), pipe_(), opened_by_(p) {
     assert(fd >= 0);
+    if (is_write(curr_flags_)) {
+      f->open_for_writing();
+    }
   }
-  FileFD(FileFD&) = default;
-  FileFD(const FileFD&) = default;
-  FileFD& operator= (const FileFD&) = default;
+  FileFD(const FileFD& other)
+      : fd_(other.fd_), curr_flags_(other.curr_flags_), origin_type_(other.origin_type_),
+        close_on_popen_(other.close_on_popen_), read_(other.read_), written_(other.written_),
+        origin_fd_(other.origin_fd_), filename_(other.filename_), pipe_(other.pipe_),
+        opened_by_(other.opened_by_) {
+    if (filename_ && is_write(curr_flags_)) {
+      filename_->open_for_writing();
+    }
+  }
+  FileFD& operator= (const FileFD& other) {
+    fd_ = other.fd_;
+    origin_type_ = other.origin_type_;
+    close_on_popen_ = other.close_on_popen_;
+    read_ = other.read_;
+    written_ = other.written_;
+    origin_fd_ = other.origin_fd_;
+    if (filename_ != other.filename_) {
+      if (filename_ && is_write(curr_flags_)) {
+        filename_->close_for_writing();
+      }
+      filename_ = other.filename_;
+      if (filename_ && is_write(other.curr_flags_)) {
+        filename_->open_for_writing();
+      }
+    }
+    curr_flags_ = other.curr_flags_;
+    pipe_ = other.pipe_;
+    opened_by_ = other.opened_by_;
+    return *this;
+  }
+  ~FileFD() {
+    if (is_write(curr_flags_) && filename_) {
+      filename_->close_for_writing();
+    }
+  }
   int fd() const {return fd_;}
   int flags() const {return curr_flags_;}
   Process * opened_by() {return opened_by_;}
