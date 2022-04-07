@@ -171,6 +171,13 @@ class Process {
       return (*fds_)[fd];
     }
   }
+  void close_fds() {
+    for (int i = fds_->size() - 1; i >= 0; i--) {
+      if ((*fds_)[i]) {
+        handle_close(i, 0);
+      }
+    }
+  }
   std::vector<std::shared_ptr<FileFD>>* fds() {return fds_;}
   const std::vector<std::shared_ptr<FileFD>>* fds() const {return fds_;}
   void set_fds(std::vector<std::shared_ptr<FileFD>>* fds) {fds_ = fds;}

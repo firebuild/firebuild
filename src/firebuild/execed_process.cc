@@ -170,13 +170,14 @@ void ExecedProcess::resource_usage(const int64_t utime_u, const int64_t stime_u)
 void ExecedProcess::do_finalize() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
+  close_fds();
+
   /* store data for shortcutting */
   if (cacher_ && !was_shortcut() && can_shortcut() && fork_point()->exit_status() != -1
       && aggr_cpu_time_u() >= min_cpu_time_u) {
     cacher_->store(this);
   }
 
-  fds()->clear();
   inherited_outgoing_pipes_.clear();
   if (!generate_report) {
     file_usages_.clear();

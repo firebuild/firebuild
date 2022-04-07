@@ -64,6 +64,8 @@ void ForkedProcess::do_finalize() {
    * or a pending pclose() or wait*(). */
   maybe_send_on_finalized_ack();
 
+  close_fds();
+
   /* Call the base class's method */
   Process::do_finalize();
 }
