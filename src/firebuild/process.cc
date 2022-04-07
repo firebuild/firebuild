@@ -1044,8 +1044,6 @@ void Process::terminate_top_orphans() const {
 void Process::do_finalize() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
-  reset_file_fd_pipe_refs();
-
   assert_cmp(state(), ==, FB_PROC_TERMINATED);
   set_state(FB_PROC_FINALIZED);
 }
