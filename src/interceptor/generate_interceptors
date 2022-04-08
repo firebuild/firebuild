@@ -20,7 +20,8 @@ env = Environment(loader=FileSystemLoader('.'),
                   line_statement_prefix='###',
                   trim_blocks=True,
                   lstrip_blocks=True,
-                  keep_trailing_newline=True)
+                  keep_trailing_newline=True,
+                  extensions=['jinja2.ext.do'])
 
 # Use a practically unique temporary filename, see #314
 tmpsuffix = ".tmp." + str(os.getpid())
@@ -247,43 +248,29 @@ for gen in outputs:
 # Intercept vararg open() and friends
 generate("int", ["open", "open64"], "const char *file, int flags, ...",
          tpl="open",
-         after_lines=["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"],
-         msg_skip_fields=["file"],
-         send_ret_on_success=True,
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         msg_skip_fields=["file"])
 generate("int", ["openat", "openat64"], "int dirfd, const char *file, int flags, ...",
-         tpl="openat",
-         after_lines=["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"],
+         tpl="open",
          msg_skip_fields=["file"],
-         msg="open",
-         send_ret_on_success=True,
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         msg="open")
 
 # Intercept open_2 variants
 generate("int", ["__open_2", "__open64_2"], "const char *file, int flags",
-         after_lines=["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"],
+         tpl="open",
          msg_skip_fields=["file"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(open, file);"],
-         msg="open",
-         send_ret_on_success=True,
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         msg="open")
 generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, int flags",
-         after_lines=["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"],
+         tpl="open",
          msg_skip_fields=["file"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(open, dirfd, file);"],
-         msg="open",
-         send_ret_on_success=True,
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         msg="open")
 
 # Intercept creat()
 generate("int", ["creat", "creat64"], "const char *file, mode_t mode",
-         after_lines=["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"],
+         tpl="open",
          msg_skip_fields=["file"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
                          "fbbcomm_builder_open_set_flags(&ic_msg, O_CREAT | O_WRONLY | O_TRUNC);"],
-         msg="open",
-         send_ret_on_success=True,
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         msg="open")
 
 # Intercept fopen
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
