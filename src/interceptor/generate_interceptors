@@ -1251,7 +1251,8 @@ skip("exit_group")
 # Intercept fork and vfork
 generate("pid_t", "fork", "",
          tpl="fork")
-generate("pid_t", "vfork", "",
+# NOTE: Mapping those to fork() breaks the ABI since the fork handlers were not supposed to run for those calls.
+generate("pid_t", ["vfork", "_Fork"], "",
          tpl="fork")
 
 # Intercept system

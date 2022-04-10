@@ -52,8 +52,9 @@ fi
 
 # Get the list of libc, libdl and libpthread symbols.
 
-# Some symbols have been removed from glibc
-known_extra="stime
+# Some symbols have been removed from or introduced recently to glibc
+known_extra="_Fork
+stime
 ustat"
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
 libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
