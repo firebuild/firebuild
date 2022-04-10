@@ -76,7 +76,10 @@ add_executable(firebuild-bin
 target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LIBRARIES} ${XXHASH_LIBRARIES})
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow ${SANITIZE_SUPERVISOR_LINK_OPTIONS})
 set_target_properties(firebuild-bin PROPERTIES OUTPUT_NAME firebuild)
-if (NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+# GCC 9's LTO implementation seem to have a bug we hit, but did not fully triage yet
+# https://github.com/Tessil/hopscotch-map/issues/55
+if ((NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10))
   set_target_properties(firebuild-bin PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 endif()
 
