@@ -1242,10 +1242,11 @@ generate("void", ["_exit", "_Exit", "quick_exit"], "int status",
 #         tpl="_exit")
 skip("exit_group")
 
-# Intercept fork and vfork
+# Intercept fork() and variants
 generate("pid_t", "fork", "",
          tpl="fork")
-# NOTE: Mapping those to fork() breaks the ABI since the fork handlers were not supposed to run for those calls.
+# NOTE: Mapping those to fork() breaks the ABI since the fork handlers were not supposed to run for those calls,
+#       OTOH the fork handlers notify the supervisor about the calls.
 generate("pid_t", ["vfork", "_Fork"], "",
          tpl="fork")
 

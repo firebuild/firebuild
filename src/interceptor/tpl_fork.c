@@ -42,11 +42,8 @@
     /* Error, nothing here to do */
   } else if (ret == 0) {
     /* The child signed in to the supervisor in atfork_child_handler(), nothing else here to do. */
-  } else if (i_am_intercepting) {
-    /* Parent */
-    FBBCOMM_Builder_fork_parent ic_msg;
-    fbbcomm_builder_fork_parent_init(&ic_msg);
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+  } else {
+    /* Parent sends the fork_parent message in atfork_parent_handler(). */
   }
 
   /* Common for all three outcomes: re-enable signal delivery */
