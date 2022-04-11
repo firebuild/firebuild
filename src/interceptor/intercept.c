@@ -523,6 +523,22 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
 }
 
 /**
+ * Notify the supervisor after a fork(). Do it from the first registered pthread_atfork
+ * handler so that it happens before other such handlers are run.
+ * See #819 for further details.
+ */
+static void atfork_parent_handler(void) {
+  /* The variable i_am_intercepting from the intercepted fork() is
+   * not available here, and storing it in a thread-global variable is
+   * probably not worth the trouble. */
+  if (intercepting_enabled) {
+    FBBCOMM_Builder_fork_parent ic_msg;
+    fbbcomm_builder_fork_parent_init(&ic_msg);
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+  }
+}
+
+/**
  * Reconnect to the supervisor and reinitialize other stuff in the child
  * after a fork(). Do it from the first registered pthread_atfork
  * handler so that it happens before other such handlers are run.
@@ -722,7 +738,7 @@ static void fb_ic_init() {
 
   fb_init_supervisor_conn();
 
-  pthread_atfork(NULL, NULL, atfork_child_handler);
+  pthread_atfork(NULL, atfork_parent_handler, atfork_child_handler);
   atexit(atexit_handler);
 
   char **argv, **env;
