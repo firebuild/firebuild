@@ -42,8 +42,8 @@ struct cmd_prof {
 struct fork_child_sock {
   /** Connection fork child is waiting on */
   int sock;
-  /** PID of fork parent */
-  int ppid;
+  /** PID of fork child */
+  int child_pid;
   /** ACK number the process is waiting for */
   int ack_num;
   /** Location to save child's pointer to after it is created */
@@ -98,7 +98,7 @@ struct pending_popen_t {
 class ProcessTree {
  public:
   ProcessTree()
-      : inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(), pid2fork_child_sock_(),
+      : inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(), ppid2fork_child_sock_(),
         pid2exec_child_sock_(), pid2posix_spawn_child_sock_(), cmd_profs_() {}
   ~ProcessTree();
 
@@ -116,8 +116,8 @@ class ProcessTree {
     }
   }
   void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
-    assert(!Pid2ForkChildSock(pid));
-    pid2fork_child_sock_[pid] = {sock, ppid, ack_num, fork_child_ref};
+    assert(!Pid2ForkChildSock(ppid));
+    ppid2fork_child_sock_[ppid] = {sock, pid, ack_num, fork_child_ref};
   }
   void QueueExecChild(int pid, int sock, ExecedProcess* incomplete_child) {
     pid2exec_child_sock_[pid] = {sock, incomplete_child};
@@ -138,8 +138,8 @@ class ProcessTree {
     proc2pending_popen_[proc] = pending_popen;
   }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
-    auto it = pid2fork_child_sock_.find(pid);
-    if (it != pid2fork_child_sock_.end()) {
+    auto it = ppid2fork_child_sock_.find(pid);
+    if (it != ppid2fork_child_sock_.end()) {
       return &it->second;
     } else {
       return nullptr;
@@ -186,7 +186,7 @@ class ProcessTree {
     }
   }
   void DropQueuedForkChild(const int pid) {
-    pid2fork_child_sock_.erase(pid);
+    ppid2fork_child_sock_.erase(pid);
   }
   void DropQueuedExecChild(const int pid) {
     pid2exec_child_sock_.erase(pid);
@@ -225,7 +225,7 @@ class ProcessTree {
   tsl::hopscotch_set<std::shared_ptr<Pipe>> inherited_fd_pipes_;
   tsl::hopscotch_map<int, Process*> fb_pid2proc_;
   tsl::hopscotch_map<int, Process*> pid2proc_;
-  tsl::hopscotch_map<int, fork_child_sock> pid2fork_child_sock_;
+  tsl::hopscotch_map<int, fork_child_sock> ppid2fork_child_sock_;
   /** Whenever an exec*() child appears, but we haven't yet fully processed its exec parent,
    *  we need to put aside the new process until we finish processing its ancestor. */
   tsl::hopscotch_map<int, exec_child_sock> pid2exec_child_sock_;
