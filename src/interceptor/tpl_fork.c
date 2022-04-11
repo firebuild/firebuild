@@ -46,7 +46,6 @@
     /* Parent */
     FBBCOMM_Builder_fork_parent ic_msg;
     fbbcomm_builder_fork_parent_init(&ic_msg);
-    fbbcomm_builder_fork_parent_set_pid(&ic_msg, ret);
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 

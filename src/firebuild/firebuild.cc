@@ -679,19 +679,17 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
   assert(proc);
   switch (tag) {
     case FBBCOMM_TAG_fork_parent: {
-      const FBBCOMM_Serialized_fork_parent *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_fork_parent *>(fbbcomm_buf);
-      auto child_pid = fbbcomm_serialized_fork_parent_get_pid(ic_msg);
-      auto fork_child_sock = proc_tree->Pid2ForkChildSock(child_pid);
+      auto parent_pid = proc->pid();
+      auto fork_child_sock = proc_tree->Pid2ForkChildSock(parent_pid);
       if (!fork_child_sock) {
         /* wait for child */
-        proc_tree->QueueParentAck(proc->pid(), ack_num, fd_conn);
+        proc_tree->QueueParentAck(parent_pid, ack_num, fd_conn);
       } else {
         /* record new child process */
         accept_fork_child(proc, fd_conn, ack_num,
-                          fork_child_sock->fork_child_ref, child_pid, fork_child_sock->sock,
-                          fork_child_sock->ack_num, proc_tree);
-        proc_tree->DropQueuedForkChild(child_pid);
+                          fork_child_sock->fork_child_ref, fork_child_sock->child_pid,
+                          fork_child_sock->sock, fork_child_sock->ack_num, proc_tree);
+        proc_tree->DropQueuedForkChild(parent_pid);
       }
       return;
     }

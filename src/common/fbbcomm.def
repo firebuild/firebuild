@@ -772,8 +772,6 @@
 
     # process that called fork()
     ("fork_parent", [
-      # child process id
-      (REQUIRED, "pid_t", "pid"),
     ]),
 
     # disables interception and shortcutting
