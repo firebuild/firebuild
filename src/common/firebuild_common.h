@@ -148,6 +148,9 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
     })
 #endif
 
+#ifndef __OPEN_NEEDS_MODE
+#define __OPEN_NEEDS_MODE(flags) (((flags) & O_CREAT) != 0)
+#endif
 
 /** Wrapper macro for read() or write() retrying on recoverable errors
  *  (EINTR and short read/write). */
