@@ -36,7 +36,8 @@ HashCache *hash_cache;
  */
 static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
                    HashCacheEntry *entry, bool store, bool force) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, store=%s, force=%s", D(path), fd, D(store), D(force));
+  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s, store=%s, force=%s",
+        D(path), fd, D(stat_ptr), D(store), D(force));
 
   struct stat64 st_local;
   if (!stat_ptr && (fd >= 0 ? fstat64(fd, &st_local) : stat64(path->c_str(), &st_local)) == -1) {
@@ -100,7 +101,7 @@ static bool update(const FileName* path, int fd, const struct stat64 *stat_ptr,
 
 HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, const struct stat64 *stat_ptr,
                                      bool store) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, store=%s", D(path), fd, D(store));
+  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s, store=%s", D(path), fd, D(stat_ptr), D(store));
 
   if (db_.count(path) > 0) {
     HashCacheEntry& entry = db_[path];
@@ -126,7 +127,7 @@ HashCacheEntry* HashCache::get_entry(const FileName* path, int fd, const struct 
 
 bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, ssize_t *size,
                          int fd, const struct stat64 *stat_ptr) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d", D(path), fd);
+  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s", D(path), fd, D(stat_ptr));
 
   HashCacheEntry *entry = get_entry(path, fd, stat_ptr, false);
   if (!entry) {
@@ -144,7 +145,7 @@ bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, ssize_t
 
 bool HashCache::store_and_get_hash(const FileName* path, Hash *hash,
                                    int fd, const struct stat64 *stat_ptr) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d", D(path), fd);
+  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s", D(path), fd, D(stat_ptr));
 
   HashCacheEntry *entry = get_entry(path, fd, stat_ptr, true);
   if (!entry) {

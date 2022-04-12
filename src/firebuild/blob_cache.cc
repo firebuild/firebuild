@@ -125,7 +125,7 @@ bool BlobCache::store_file(const FileName *path,
                            int fd_src,
                            const struct stat64 *stat_ptr,
                            Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d", D(path), fd_src);
+  TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d, stat=%s", D(path), fd_src, D(stat_ptr));
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
