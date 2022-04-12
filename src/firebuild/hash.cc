@@ -52,7 +52,7 @@ void Hash::set_from_data(const void *data, ssize_t size) {
  * @return Whether succeeded
  */
 bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, ssize_t *size_out) {
-  TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "fd=%d", fd);
+  TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "fd=%d, stat=%s", fd, D(stat_ptr));
 
   struct stat64 st_local;
   if (!stat_ptr && fstat64(fd, &st_local) == -1) {

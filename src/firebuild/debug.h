@@ -6,6 +6,7 @@
 
 #include <stdarg.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <cassert>
 #include <memory>
@@ -100,6 +101,9 @@ inline std::string d(bool value, const int level = 0) {
 
 std::string d(const std::string& str, const int level = 0);
 std::string d(const char *str, const int level = 0);
+
+std::string d(const struct stat64& st, const int level = 0);
+std::string d(const struct stat64 *st, const int level = 0);
 
 /**
  * Get a human friendly representation of an array of anything that is d()-debuggable,

@@ -1,10 +1,14 @@
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
+#include "firebuild/debug.h"
+
 #include <time.h>
+#include <stdio.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 
-#include "firebuild/debug.h"
+#include "common/debug_sysflags.h"
 
 namespace firebuild {
 
@@ -41,6 +45,34 @@ std::string d(const char *str, const int level) {
     return d(std::string(str), level);
   } else {
     return "NULL";
+  }
+}
+
+/**
+ * Get a human friendly representation of a struct stat, for debugging purposes.
+ */
+std::string d(const struct stat64& st, const int level) {
+  (void)level;  /* unused */
+
+  char *modestring_ptr = NULL;
+  size_t modestring_sizeloc = -1;
+  FILE *f = open_memstream(&modestring_ptr, &modestring_sizeloc);
+  debug_mode_t(f, st.st_mode);
+  fclose(f);
+
+  std::string ret = std::string("{stat mode=") + modestring_ptr + " size=" + d(st.st_size) + "}";
+  free(modestring_ptr);
+  return ret;
+}
+
+/**
+ * Get a human friendly representation of a struct stat, for debugging purposes.
+ */
+std::string d(const struct stat64 *st, const int level) {
+  if (st) {
+    return d(*st, level);
+  } else {
+    return "{stat NULL}";
   }
 }
 
