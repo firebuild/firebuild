@@ -17,6 +17,7 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/epoll.h"
+#include "firebuild/execed_process.h"
 #include "firebuild/file_fd.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
