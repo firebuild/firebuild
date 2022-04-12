@@ -751,7 +751,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_popen: {
       const FBBCOMM_Serialized_popen *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_popen *>(fbbcomm_buf);
-      assert_null(proc_tree->Proc2PendingPopen(proc));
+      assert(proc_tree->Proc2PendingPopen(proc) == nullptr);
 
       int type_flags = fbbcomm_serialized_popen_get_type_flags(ic_msg);
       auto fds = proc->pass_on_fds(false);
