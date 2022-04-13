@@ -41,6 +41,8 @@ class FileName {
     }
   }
   bool is_open_for_writing() const {
+    /* Files in ignored locations should not even be queried. */
+    assert(!is_in_ignore_location());
     auto it = write_fds_db_->find(this);
     if (it != write_fds_db_->end()) {
       assert(it->second > 0);
@@ -50,6 +52,10 @@ class FileName {
     }
   }
   void open_for_writing() const {
+    if (is_in_ignore_location()) {
+      /* Ignored locations can be ignored here, too. */
+      return;
+    }
     auto it = write_fds_db_->find(this);
     if (it != write_fds_db_->end()) {
       it.value()++;
@@ -58,6 +64,10 @@ class FileName {
     }
   }
   void close_for_writing() const {
+    if (is_in_ignore_location()) {
+      /* Ignored locations can be ignored here, too. */
+      return;
+    }
     auto it = write_fds_db_->find(this);
     assert(it != write_fds_db_->end());
     assert(it->second > 0);
