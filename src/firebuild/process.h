@@ -173,8 +173,9 @@ class Process {
   }
   void close_fds() {
     for (int i = fds_->size() - 1; i >= 0; i--) {
-      if ((*fds_)[i]) {
-        handle_close(i, 0);
+      FileFD* file_fd = get_fd(i);
+      if (file_fd) {
+        handle_close(file_fd);
       }
     }
   }
@@ -251,6 +252,12 @@ class Process {
    * @param error error code of close()
    */
   int handle_close(const int fd, const int error = 0);
+
+  /**
+   * Handle file closure in the monitored process
+   * @param file_fd FileFD* to close
+   */
+  void handle_close(FileFD * file_fd);
 
   /**
    * Handle file closure in the monitored process when we don't know
