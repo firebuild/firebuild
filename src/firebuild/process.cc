@@ -244,10 +244,18 @@ int Process::handle_force_close(const int fd) {
   return 0;
 }
 
+void Process::handle_close(FileFD * file_fd) {
+  auto pipe = file_fd->pipe().get();
+  if (pipe) {
+    /* There may be data pending, drain it and register closure. */
+    pipe->handle_close(file_fd);
+    file_fd->set_pipe(nullptr);
+  }
+  (*fds_)[file_fd->fd()].reset();
+}
+
 int Process::handle_close(const int fd, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, error=%d", fd, error);
-
-  FileFD* file_fd = get_fd(fd);
 
   if (error == EIO) {
     exec_point()->disable_shortcutting_bubble_up("IO error closing fd", fd);
@@ -256,30 +264,26 @@ int Process::handle_close(const int fd, const int error) {
     /* We don't know if the fd was closed or not, see #723. */
     exec_point()->disable_shortcutting_bubble_up("EINTR while closing fd", fd);
     return -1;
-  } else if (error == 0 && !file_fd) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Process closed an unknown fd successfully, "
-        "which means interception missed at least one open()", fd);
-    return -1;
   } else if (error == EBADF) {
     /* Process closed an fd unknown to it. Who cares? */
     assert(!get_fd(fd));
     return 0;
   } else {
+    FileFD* file_fd = get_fd(fd);
     if (!file_fd) {
-      /* closing an unknown fd with not EBADF prevents shortcutting */
-      exec_point()->disable_shortcutting_bubble_up(
-          "Process closed an unknown fd successfully, "
-          "which means interception missed at least one open()", fd);
-      return -1;
-    } else {
-      auto pipe = file_fd->pipe().get();
-      if (pipe) {
-        /* There may be data pending, drain it and register closure. */
-        pipe->handle_close(file_fd);
-        file_fd->set_pipe(nullptr);
+      if (error == 0) {
+        exec_point()->disable_shortcutting_bubble_up(
+            "Process closed an unknown fd successfully, "
+            "which means interception missed at least one open()", fd);
+        return -1;
+      } else {
+        exec_point()->disable_shortcutting_bubble_up(
+            "Process closed an unknown, but valid fd unsuccessfully, "
+            "which could mean that interception missed at least one open()", fd);
+        return -1;
       }
-      (*fds_)[fd].reset();
+    } else {
+      handle_close(file_fd);
       return 0;
     }
   }
