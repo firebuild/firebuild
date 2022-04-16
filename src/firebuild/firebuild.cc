@@ -848,7 +848,10 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
                   AT_FDCWD, fbbcomm_serialized_posix_spawn_file_action_open_get_path(action_open),
                   fbbcomm_serialized_posix_spawn_file_action_open_get_path_len(action_open));
               if (file_name) {
-                file_name->open_for_writing();
+                /* Pretend that the parent opened the file for writing and not the fork child.
+                 * This is not accurate, but the fork child does not exist yet. A parallel
+                 * process opening the file for writing would disable shortcutting the same way. */
+                file_name->open_for_writing(proc);
               }
             }
             break;

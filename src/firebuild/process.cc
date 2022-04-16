@@ -169,7 +169,7 @@ int Process::handle_pre_open(const int dirfd, const char * const ar_name, const 
         "Could not find file name to mark as opened for writing");
     return -1;
   } else {
-    name->open_for_writing();
+    name->open_for_writing(this);
     return 0;
   }
 }

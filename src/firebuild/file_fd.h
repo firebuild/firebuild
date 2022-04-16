@@ -56,7 +56,7 @@ class FileFD {
         opened_by_(o_fd->opened_by()) {
     assert(fd >= 0);
     if (filename_ && is_write(curr_flags_)) {
-      filename_->open_for_writing();
+      filename_->open_for_writing(opened_by_);
     }
     if (pipe_) {
       pipe_->handle_dup(o_fd.get(), this);
@@ -68,7 +68,7 @@ class FileFD {
         filename_(f), pipe_(), opened_by_(p) {
     assert(fd >= 0);
     if (is_write(curr_flags_)) {
-      f->open_for_writing();
+      f->open_for_writing(opened_by_);
     }
   }
   FileFD(const FileFD& other)
@@ -77,7 +77,7 @@ class FileFD {
         origin_fd_(other.origin_fd_), filename_(other.filename_), pipe_(other.pipe_),
         opened_by_(other.opened_by_) {
     if (filename_ && is_write(curr_flags_)) {
-      filename_->open_for_writing();
+      filename_->open_for_writing(opened_by_);
     }
   }
   FileFD& operator= (const FileFD& other) {
@@ -93,7 +93,7 @@ class FileFD {
       }
       filename_ = other.filename_;
       if (filename_ && is_write(other.curr_flags_)) {
-        filename_->open_for_writing();
+        filename_->open_for_writing(opened_by_);
       }
     }
     curr_flags_ = other.curr_flags_;

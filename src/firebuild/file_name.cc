@@ -5,20 +5,22 @@
 
 #include <cstring>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "firebuild/file_name.h"
+#include "firebuild/execed_process.h"
 
 namespace firebuild {
 
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
 tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
-tsl::hopscotch_map<const FileName*, int>* FileName::write_fds_db_;
+tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* FileName::write_fds_db_;
 
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
   hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();
-  write_fds_db_ = new tsl::hopscotch_map<const FileName*, int>();
+  write_fds_db_ = new tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>();
 }
 
 bool FileName::isDbEmpty() {
@@ -26,6 +28,33 @@ bool FileName::isDbEmpty() {
 }
 
 FileName::DbInitializer FileName::db_initializer_;
+
+void FileName::open_for_writing(Process* proc) const {
+  if (is_in_ignore_location()) {
+    /* Ignored locations can be ignored here, too. */
+    return;
+  }
+  assert(proc);
+  auto it = write_fds_db_->find(this);
+  if (it != write_fds_db_->end()) {
+    auto& pair = it.value();
+    assert(pair.first > 0);
+    pair.first++;
+    if (proc != pair.second && proc->exec_point() != pair.second->exec_point()) {
+      /* A different process opened the file for writing. Disable shortcutting both. */
+      /* TODO(rbalint) if the process opening the file first is an ancestor of the second
+       * then shortcutting could be disabled only up to the ancestor. */
+      proc->exec_point()->disable_shortcutting_bubble_up(
+          "Opened a file for writing which is already opened for writing by a different process");
+      pair.second->exec_point()->disable_shortcutting_bubble_up(
+          "An other process opened a file for writing which is already opened for writing by this "
+          "process");
+    }
+  } else {
+    write_fds_db_->insert({this, {1, proc}});
+  }
+}
+
 
 /**
  * Return parent dir or nullptr for "/"

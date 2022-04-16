@@ -10,6 +10,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "common/firebuild_common.h"
@@ -17,6 +18,8 @@
 #include "firebuild/platform.h"
 
 namespace firebuild {
+
+class Process;
 
 struct FileNameHasher;
 class FileName {
@@ -45,24 +48,13 @@ class FileName {
     assert(!is_in_ignore_location());
     auto it = write_fds_db_->find(this);
     if (it != write_fds_db_->end()) {
-      assert(it->second > 0);
+      assert(it->second.first > 0);
       return true;
     } else {
       return false;
     }
   }
-  void open_for_writing() const {
-    if (is_in_ignore_location()) {
-      /* Ignored locations can be ignored here, too. */
-      return;
-    }
-    auto it = write_fds_db_->find(this);
-    if (it != write_fds_db_->end()) {
-      it.value()++;
-    } else {
-      write_fds_db_->insert({this, 1});
-    }
-  }
+  void open_for_writing(Process* proc) const;
   void close_for_writing() const {
     if (is_in_ignore_location()) {
       /* Ignored locations can be ignored here, too. */
@@ -70,9 +62,9 @@ class FileName {
     }
     auto it = write_fds_db_->find(this);
     assert(it != write_fds_db_->end());
-    assert(it->second > 0);
-    if (it->second > 1) {
-      it.value()--;
+    assert(it->second.first > 0);
+    if (it->second.first > 1) {
+      it.value().first--;
     } else {
       write_fds_db_->erase(it);
     }
@@ -111,7 +103,7 @@ class FileName {
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
   /** Number of FileFDs open for writing referencing this file. */
-  static tsl::hopscotch_map<const FileName*, int>* write_fds_db_;
+  static tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* write_fds_db_;
   /* Disable assignment. */
   void operator=(const FileName&);
 
