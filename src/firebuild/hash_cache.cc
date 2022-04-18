@@ -149,6 +149,12 @@ static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_
     struct stat64 st;
     st.st_mode = entry->info.type() == ISREG ? S_IFREG : S_IFDIR;
     st.st_size = entry->info.size();
+
+    if (path->is_open_for_writing()) {
+      /* The file could be written while calculating the hash, don't take that risk. */
+      return false;
+    }
+
     if (fd == -1) {
       ret = hash.set_from_file(path, &st, &is_dir);
     } else {
