@@ -15,10 +15,12 @@ namespace firebuild {
 class FileUsageUpdate {
  public:
   FileUsageUpdate(const FileName *filename, FileInfo info, bool written = false)
-      : initial_state_(info), filename_(filename), written_(written) {}
+      : initial_state_(info), filename_(filename), written_(written),
+        generation_(filename->generation()) {}
 
   explicit FileUsageUpdate(const FileName *filename, FileType type = DONTKNOW, bool written = false)
-      : initial_state_(type), filename_(filename), written_(written) {}
+      : initial_state_(type), filename_(filename), written_(written),
+        generation_(filename->generation()) {}
 
   static FileUsageUpdate get_from_open_params(const FileName *filename, int flags, int err);
   static FileUsageUpdate get_from_mkdir_params(const FileName *filename, int err);
@@ -36,6 +38,7 @@ class FileUsageUpdate {
 
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}
+  file_generation_t generation() const {return generation_;}
   bool unknown_err() const {return unknown_err_;}
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
@@ -71,6 +74,9 @@ class FileUsageUpdate {
   /* The file's contents were altered by the process, e.g. written to, or modified in any other way,
    * including removal of the file, or another file getting renamed to this one. */
   bool written_ {false};
+
+  /* File's current generation. */
+  file_generation_t generation_;
 
   /* What we know and are interested in about the parent path. E.g.
    * - DONTKNOW = nothing of interest

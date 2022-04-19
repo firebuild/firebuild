@@ -16,11 +16,13 @@ namespace firebuild {
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
 tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
 tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* FileName::write_fds_db_;
+tsl::hopscotch_map<const FileName*, file_generation_t>* FileName::generation_db_;
 
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
   hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();
   write_fds_db_ = new tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>();
+  generation_db_ = new tsl::hopscotch_map<const FileName*, file_generation_t>();
 }
 
 bool FileName::isDbEmpty() {
@@ -52,6 +54,13 @@ void FileName::open_for_writing(Process* proc) const {
     }
   } else {
     write_fds_db_->insert({this, {1, proc}});
+    auto it2 = generation_db_->find(this);
+    if (it2 != generation_db_->end()) {
+      assert(it2->second < UINT32_MAX);
+      it2.value()++;
+    } else {
+      generation_db_->insert({this, 1});
+    }
   }
 }
 
