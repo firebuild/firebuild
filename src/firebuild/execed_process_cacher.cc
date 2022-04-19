@@ -443,6 +443,12 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;
 
+    if (fu->generation() != filename->generation()) {
+      // TODO(rbalint) extend hash cache and blob cache to reuse previously saved generations
+      FB_DEBUG(FB_DEBUG_CACHING, "A file (" + d(filename)+ ") changed since the process used it.");
+      return;
+    }
+
     /* If the file's initial contents matter, record it in pb's "inputs".
      * This is purely data conversion from one format to another. */
     switch (fu->initial_type()) {

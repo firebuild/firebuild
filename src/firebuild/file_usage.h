@@ -23,6 +23,7 @@ struct FileUsageHasher;
 class FileUsage {
  public:
   bool written() const {return written_;}
+  file_generation_t generation() const {return generation_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
 
@@ -48,11 +49,13 @@ class FileUsage {
   std::string d_internal(const int level = 0) const;
 
  private:
-  explicit FileUsage(FileType type = DONTKNOW, bool written = false) :
-      initial_state_(type), written_(written), unknown_err_(0) {}
+  explicit FileUsage(FileType type = DONTKNOW) :
+      initial_state_(type), written_(false), generation_(0), unknown_err_(0) {}
 
-  FileUsage(const FileInfo *initial_state, bool written, int unknown_err):
-      initial_state_(*initial_state), written_(written), unknown_err_(unknown_err) {}
+  FileUsage(const FileName* filename, const FileInfo *initial_state, bool written,
+            int unknown_err):
+      initial_state_(*initial_state), written_(written), generation_(filename->generation()),
+      unknown_err_(unknown_err) {}
 
   /* Things that describe the filesystem when the process started up */
   FileInfo initial_state_;
@@ -68,6 +71,9 @@ class FileUsage {
    *  the final state is to be remembered.
    *  FIXME Do we need this? We should just always stat() at the end. */
   // bool stat_changed_ : 1;
+
+  /** Generation of the file the process last seen (either by reading or writing to the file). */
+  file_generation_t generation_;
 
   /* Note: stuff like the final hash are not stored here. They are
    * computed right before being placed in the cache, don't need to be
@@ -104,11 +110,15 @@ struct FileUsageHasher {
                                              f.unknown_err_);
     ssize_t size = f.initial_size();
     hash = XXH3_64bits_withSeed(&size, sizeof(size), hash);
-    unsigned char merged_state = f.initial_type();
-    merged_state |= f.written_ << 6;
-    // TODO(rbalint) use those later
-    // merged_state |= f.stated_ << 5;
-    // merged_state |= f.stat_changed_ << 7;
+    struct {
+      uint64_t initial_type : 4;
+      uint64_t written : 1;
+      uint64_t unused : 27;
+      // TODO(rbalint) use those later
+      // uint64_t stated: 1; ( = f.stated_)
+      // uint64_t stat_changed : 1; (= f.stat_changed_)
+      uint64_t generation : 32;
+    } merged_state = {f.initial_type(), f.written_, 0, f.generation_};
     hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
     return hash;
   }

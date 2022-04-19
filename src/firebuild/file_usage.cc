@@ -43,9 +43,10 @@ FileUsage::DbInitializer FileUsage::db_initializer_;
 
 bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
   return lhs.initial_state_ == rhs.initial_state_ &&
-         lhs.written_ == rhs.written_ &&
-         // lhs.stat_changed_ == rhs.stat_changed_ &&
-         lhs.unknown_err_ == rhs.unknown_err_;
+      lhs.written_ == rhs.written_ &&
+      lhs.generation_ == rhs.generation_ &&
+      // lhs.stat_changed_ == rhs.stat_changed_ &&
+      lhs.unknown_err_ == rhs.unknown_err_;
 }
 
 const FileUsage* FileUsage::Get(const FileUsage& candidate) {
@@ -81,6 +82,11 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
   FileUsage tmp = *this;
 
   bool changed = false;
+
+  if (generation() != update.generation()) {
+    tmp.generation_ = update.generation();
+    changed = true;
+  }
 
   if (!written_) {
     /* Note: this might lazily query the type now. Avoid calling it multiple times. */

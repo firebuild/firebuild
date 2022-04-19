@@ -21,6 +21,8 @@ namespace firebuild {
 
 class Process;
 
+typedef uint32_t file_generation_t;
+
 struct FileNameHasher;
 class FileName {
  public:
@@ -69,6 +71,16 @@ class FileName {
       write_fds_db_->erase(it);
     }
   }
+
+  file_generation_t generation() const {
+    auto it = generation_db_->find(this);
+    if (it != generation_db_->end()) {
+      assert(it->second > 0);
+      return it->second;
+    } else {
+      return 0;
+    }
+  }
   static bool isDbEmpty();
   static const FileName* Get(const char * const name, ssize_t length);
   static const FileName* Get(const std::string& name) {
@@ -104,6 +116,14 @@ class FileName {
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
   /** Number of FileFDs open for writing referencing this file. */
   static tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* write_fds_db_;
+  /**
+   * A generation of the file is when it is kept open by a set of writers.
+   * Whenever all writers close the file and thus the refcount in write_fds_db_ decreases to zero
+   * the generation is closed, but the generation number stays the same. When the new writer opens
+   * the file a new generation is opened.
+   * A file's generation number is 0 until it is opened for writing for the first time.
+   */
+  static tsl::hopscotch_map<const FileName*, file_generation_t>* generation_db_;
   /* Disable assignment. */
   void operator=(const FileName&);
 
