@@ -36,12 +36,8 @@ class FileUsage {
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
   const FileInfo& initial_state() const {return initial_state_;}
 
-  static const FileUsage* Get(FileType type = DONTKNOW, bool written = false) {
-    if (written) {
-      return no_hash_written_states_[FileInfo::file_type_to_int(type)];
-    } else {
-      return no_hash_not_written_states_[FileInfo::file_type_to_int(type)];
-    }
+  static const FileUsage* Get(FileType type = DONTKNOW) {
+    return no_hash_not_written_states_[FileInfo::file_type_to_int(type)];
   }
 
   const FileUsage *merge(const FileUsageUpdate& update) const;
@@ -81,7 +77,6 @@ class FileUsage {
   static std::unordered_set<FileUsage, FileUsageHasher>* db_;
   /** Frequently used singletons */
   static const FileUsage* no_hash_not_written_states_[FILE_TYPE_MAX + 1];
-  static const FileUsage* no_hash_written_states_[FILE_TYPE_MAX + 1];
 
   /* This, along with the FileUsage::db_initializer_ definition in file_usage.cc,
    * initializes the file usage database once at startup. */
