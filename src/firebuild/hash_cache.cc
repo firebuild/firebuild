@@ -144,15 +144,14 @@ static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_
     Hash hash;
     bool is_dir;
     bool ret;
+    /* In order to save an fstat64() call in set_from_fd(), create a "fake" stat result here. We
+     * know that it's a regular file, we know its size, and the rest are irrelevant. */
+    struct stat64 st;
+    st.st_mode = entry->info.type() == ISREG ? S_IFREG : S_IFDIR;
+    st.st_size = entry->info.size();
     if (fd == -1) {
-      // FIXME set_from_file should also take an st parameter, in case we have already stat()ed it.
-      ret = hash.set_from_file(path, &is_dir);
+      ret = hash.set_from_file(path, &st, &is_dir);
     } else {
-      /* In order to save an fstat64() call in set_from_fd(), create a "fake" stat result here. We
-       * know that it's a regular file, we know its size, and the rest are irrelevant. */
-      struct stat64 st;
-      st.st_mode = entry->info.type() == ISREG ? S_IFREG : S_IFDIR;
-      st.st_size = entry->info.size();
       ret = hash.set_from_fd(fd, &st, &is_dir);
     }
     // FIXME verify that is_dir matches entry->info.type()

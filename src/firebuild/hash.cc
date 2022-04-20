@@ -147,11 +147,13 @@ bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, 
  * If a directory is specified, its sorted listing is hashed.
  *
  * @param filename The filename
+ * @param stat_ptr Optionally the stat data of fd
  * @param is_dir_out Optionally store here whether filename refers to a directory
  * @param size_out Optionally store the file's size (only if it's a regular file)
  * @return Whether succeeded
  */
-bool Hash::set_from_file(const FileName *filename, bool *is_dir_out, ssize_t *size_out) {
+bool Hash::set_from_file(const FileName *filename, const struct stat64 *stat_ptr,
+                         bool *is_dir_out, ssize_t *size_out) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "filename=%s", D(filename));
 
   int fd;
@@ -165,7 +167,7 @@ bool Hash::set_from_file(const FileName *filename, bool *is_dir_out, ssize_t *si
     return false;
   }
 
-  if (!set_from_fd(fd, NULL, is_dir_out, size_out)) {
+  if (!set_from_fd(fd, stat_ptr, is_dir_out, size_out)) {
     close(fd);
     return false;
   }
