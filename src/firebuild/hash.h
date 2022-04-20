@@ -53,7 +53,8 @@ class Hash {
   void set_from_data(const void *data, ssize_t size);
   bool set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out,
                    ssize_t *size_out = NULL);
-  bool set_from_file(const FileName *filename, bool *is_dir_out = NULL, ssize_t *size_out = NULL);
+  bool set_from_file(const FileName *filename, const struct stat64 *stat_ptr,
+                     bool *is_dir_out = NULL, ssize_t *size_out = NULL);
 
   void set(XXH128_hash_t);
   bool set_from_ascii(const std::string &ascii);
