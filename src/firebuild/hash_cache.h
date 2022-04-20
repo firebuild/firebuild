@@ -67,6 +67,15 @@ class HashCache {
    */
   bool store_and_get_hash(const FileName* path, Hash *hash, int fd, const struct stat64 *stat_ptr);
 
+  /**
+   * Check if the given FileInfo query matches the file system.
+   *
+   * @param path   file's path
+   * @param query  the query to match against
+   * @return       whether the query matches the file
+   */
+  bool file_info_matches(const FileName *path, const FileInfo& query);
+
  private:
   tsl::hopscotch_map<const FileName*, HashCacheEntry> db_ = {};
 

@@ -290,6 +290,69 @@ bool HashCache::store_and_get_hash(const FileName* path, Hash *hash,
   return true;
 }
 
+bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
+  TRACK(FB_DEBUG_HASH, "path=%s, query=%s", D(path), D(query));
+
+  const HashCacheEntry *entry = get_entry_with_statinfo(path, -1, nullptr);
+
+  /* We do have an up-to-date stat information now. Check if the query matches it. */
+  switch (query.type()) {
+    case DONTKNOW:
+      assert(0 && "shouldn't query the HashCache to see if <no information> matches");
+      return true;
+    case NOTEXIST:
+      if (entry->info.type() != NOTEXIST) {
+        return false;
+      }
+      break;
+    case NOTEXIST_OR_ISREG_EMPTY:
+      if (!(entry->info.type() == NOTEXIST ||
+            (entry->info.type() == ISREG && entry->info.size() == 0))) {
+        return false;
+      }
+      break;
+    case NOTEXIST_OR_ISREG:
+      if (!(entry->info.type() == NOTEXIST || entry->info.type() == ISREG)) {
+        return false;
+      }
+      break;
+    case ISREG:
+      /* Compare the file size as well, if the query contains one. */
+      if (!(entry->info.type() == ISREG &&
+            (query.size() < 0 || query.size() == entry->info.size()))) {
+        return false;
+      }
+      break;
+    case ISDIR:
+      if (entry->info.type() != ISDIR) {
+        return false;
+      }
+      break;
+  }
+
+  // FIXME permission checking comes here
+
+  /* Everything matches so far. If the query doesn't contain a hash then it's a match. */
+  if (!query.hash_known()) {
+    return true;
+  }
+
+  assert(query.type() == ISREG || query.type() == ISDIR);
+  assert(entry->info.type() == query.type());
+
+  /* We need to compare the hash. The current cache entry does not necessarily contain this
+   * information, because it's expensive to compute it so we defer it as long as possible. But if
+   * the entry already contains it then save some time by not looking it up in the cache again. */
+  if (!entry->info.hash_known()) {
+    entry = get_entry_with_statinfo_and_hash(path, -1, nullptr, false, true /* don't stat again */);
+
+    assert(entry->info.type() == ISREG || entry->info.type() == ISDIR);
+    assert(entry->info.hash_known());
+  }
+
+  return entry->info.hash() == query.hash();
+}
+
 const HashCacheEntry HashCache::notexist_ {FileInfo(NOTEXIST)};
 
 /* Global debugging methods.
