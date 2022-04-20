@@ -34,6 +34,7 @@ class FileUsage {
   bool initial_hash_known() const {return initial_state_.hash_known();}
   const Hash& initial_hash() const {return initial_state_.hash();}
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
+  const FileInfo& initial_state() const {return initial_state_;}
 
   static const FileUsage* Get(FileType type = DONTKNOW, bool written = false) {
     if (written) {

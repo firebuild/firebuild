@@ -304,29 +304,29 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     const FileUsage* fu) {
+                     const FileInfo& fi) {
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   fbbstore_builder_file_init(&new_file);
   fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
-  fbbstore_builder_file_set_type(&new_file, fu->initial_type());
-  if (fu->initial_size_known()) {
-    fbbstore_builder_file_set_size(&new_file, fu->initial_size());
+  fbbstore_builder_file_set_type(&new_file, fi.type());
+  if (fi.size_known()) {
+    fbbstore_builder_file_set_size(&new_file, fi.size());
   }
-  if (fu->initial_hash_known()) {
-    fbbstore_builder_file_set_hash(&new_file, fu->initial_hash().get());
+  if (fi.hash_known()) {
+    fbbstore_builder_file_set_hash(&new_file, fi.hash().get());
   }
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
                      FileType type, const ssize_t content_size = -1,
                      const Hash *content_hash = nullptr, const int mode = -1) {
-    FBBSTORE_Builder_file& new_file = files->emplace_back();
-    fbbstore_builder_file_init(&new_file);
-    fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
-    fbbstore_builder_file_set_type(&new_file, type);
-    if (content_size >= 0) fbbstore_builder_file_set_size(&new_file, content_size);
-    if (content_hash) fbbstore_builder_file_set_hash(&new_file, content_hash->get());
-    if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
+  FBBSTORE_Builder_file& new_file = files->emplace_back();
+  fbbstore_builder_file_init(&new_file);
+  fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+  fbbstore_builder_file_set_type(&new_file, type);
+  if (content_size >= 0) fbbstore_builder_file_set_size(&new_file, content_size);
+  if (content_hash) fbbstore_builder_file_set_hash(&new_file, content_hash->get());
+  if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
 }
 
 static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
@@ -451,17 +451,17 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         break;
       case ISREG: {
         if (filename->is_in_system_location()) {
-          add_file(&in_system_path_isreg, filename, fu);
+          add_file(&in_system_path_isreg, filename, fu->initial_state());
         } else {
-          add_file(&in_path_isreg, filename, fu);
+          add_file(&in_path_isreg, filename, fu->initial_state());
         }
         break;
       }
       case ISDIR: {
         if (filename->is_in_system_location()) {
-          add_file(&in_system_path_isdir, filename, fu);
+          add_file(&in_system_path_isdir, filename, fu->initial_state());
         } else {
-          add_file(&in_path_isdir, filename, fu);
+          add_file(&in_path_isdir, filename, fu->initial_state());
         }
         break;
       }
