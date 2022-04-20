@@ -32,6 +32,7 @@ class FileUsageUpdate {
   bool initial_hash_known() const {return initial_state_.hash_known() || hash_computer_ != nullptr;}
   bool get_initial_hash(Hash *hash_ptr) const;
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
+  const FileInfo& initial_state() const {return initial_state_;}
 
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}
