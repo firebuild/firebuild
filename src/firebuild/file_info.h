@@ -60,6 +60,15 @@ class FileInfo {
     hash_ = hash;
     hash_known_ = true;
   }
+  void set_hash(const Hash *hash) {
+    if (hash) {
+      hash_ = *hash;
+      hash_known_ = true;
+    } else {
+      hash_ = Hash();
+      hash_known_ = false;
+    }
+  }
 
   /* Misc */
   static int file_type_to_int(const FileType t) {

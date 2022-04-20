@@ -113,19 +113,18 @@ static void construct_cached_file_name(const std::string &base, const Hash &key,
  * Uses advanced technologies, such as copy on write, if available.
  *
  * If fd >= 0 then that is used as the data source, the path is only used for debugging.
- * If st != NULL then it contains the file's stat info.
  *
  * @param path The file to place in the cache
  * @param fd_src Optionally the opened file descriptor to copy
- * @param stat_ptr Optionally the file's parameters already stat()'ed
+ * @param len The file's size
  * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
 bool BlobCache::store_file(const FileName *path,
                            int fd_src,
-                           const struct stat64 *stat_ptr,
+                           size_t len,
                            Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d, stat=%s", D(path), fd_src, D(stat_ptr));
+  TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d, size=%ld", D(path), fd_src, len);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
@@ -142,17 +141,11 @@ bool BlobCache::store_file(const FileName *path,
     close_fd_src = true;
   }
 
-  struct stat64 st_local;
-  if (!stat_ptr &&
-      (fd_src >= 0 ? fstat64(fd_src, &st_local) : stat64(path->c_str(), &st_local)) == -1) {
-    perror("Failed fstat64()-ing file to be stored in cache");
-    assert(0);
-    if (close_fd_src) {
-      close(fd_src);
-    }
-    return false;
-  }
-  const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
+  /* In order to save an fstat64() call in copy_file() and set_from_fd(), create a "fake" stat
+   * result here. We know it's a regular file, we know its size, and the rest are irrelevant. */
+  struct stat64 st;
+  st.st_mode = S_IFREG;
+  st.st_size = len;
 
   /* Copy the file to a temporary one under the cache */
   char *tmpfile;
@@ -172,7 +165,7 @@ bool BlobCache::store_file(const FileName *path,
     return false;
   }
 
-  if (!copy_file(fd_src, fd_dst, st)) {
+  if (!copy_file(fd_src, fd_dst, &st)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to copy file");
     if (close_fd_src) {
       close(fd_src);
@@ -191,7 +184,7 @@ bool BlobCache::store_file(const FileName *path,
   Hash key;
   /* Note that st belongs to fd_src, but we use it for fd_dst because the file type (regular file)
    * and the size are the same, and the rest are irrelevant. */
-  if (!key.set_from_fd(fd_dst, st, NULL)) {
+  if (!key.set_from_fd(fd_dst, &st, NULL)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd_dst);
     unlink(tmpfile);

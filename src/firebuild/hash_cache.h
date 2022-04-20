@@ -30,30 +30,40 @@ class HashCache {
   HashCache() {}
   ~HashCache();
   /**
-   * Calculate hash of a file or directory on the path, and update the hash cache.
+   * Get some stat information (currently the file type and size) from the cache. This method
+   * doesn't compute and doesn't return the hash.
    *
-   * If the file with this name and the same metadata (size, timestamp etc.) is already cached
-   * then return the hash from the cache.
    * @param path         file's path
-   * @param[out] hash    store the file's hash here
    * @param[out] is_dir  optionally store if path is a dir
    * @param[out] size    optionally store the size if it's a regular file
-   * @param fd           if >= 0 then the file is read from there
-   * @param stat_ptr     optionally the file's parameters already stat()'ed
+   * @return             false if not a regular file or directory
    */
-  bool get_hash(const FileName* path, Hash *hash, bool *is_dir = NULL, ssize_t *size = NULL,
-                int fd = -1, const struct stat64 *stat_ptr = NULL);
+  bool get_statinfo(const FileName* path, bool *is_dir, ssize_t *size);
 
   /**
-   * Calculate hash of a regular file on the path, and update the hash cache.
-   * Also store this file in the blob cache.
+   * Get some stat information (currently the file type and size) as well as the hash from the
+   * cache.
    *
-   * If the file with this name and the same metadata (size, timestamp etc.) is already cached
-   * and the contents are already in the blob cache then return the hash from the hash cache.
+   * @param path         file's path
+   * @param[out] hash    hash to retrive/calculate
+   * @param[out] is_dir  optionally store if path is a dir
+   * @param[out] size    optionally store the size if it's a regular file
+   * @param fd           if >= 0 then read the file from there
+   * @param stat_ptr     optionally the file's parameters already stat()'ed
+   * @return             false if not a regular file or directory
+   */
+  bool get_hash(const FileName* path, Hash *hash, bool *is_dir = nullptr,
+                ssize_t *size = nullptr, int fd = -1,
+                const struct stat64 *stat_ptr = nullptr);
+
+  /**
+   * Return the hash of a regular file. Also store this file in the blob cache.
+   *
    * @param path       file's path
-   * @param[out] hash  store the file's hash here
-   * @param fd         if >= 0 then the file is read from there
+   * @param[out] hash  hash to retrive/calculate
+   * @param fd         if >= 0 then read the file from there
    * @param stat_ptr   optionally the file's parameters already stat()'ed
+   * @return           false if not a regular file or directory
    */
   bool store_and_get_hash(const FileName* path, Hash *hash, int fd, const struct stat64 *stat_ptr);
 
@@ -61,23 +71,63 @@ class HashCache {
   tsl::hopscotch_map<const FileName*, HashCacheEntry> db_ = {};
 
   /**
-   * Calculate hash of a file or directory on the path, and update the hash cache.
+   * Returns an up-to-date HashCacheEntry corresponding to the given file.
    *
-   * If the file with this name and the same metadata (size, timestamp etc.) is already cached
-   * then return the hash from the cache.
+   * It's either of type NOTEXIST if path doesn't correspond to a regular file or directory, or of
+   * type ISREG or ISDIR containing some stat information (currently the size in case of ISREG).
+   *
+   * The hash is also returned if it's cached, but if it wasn't cached then it will not be present
+   * in the returned structure, it is not computed by this method.
+   *
+   * The returned pointer is always non-NULL, readonly, and only valid until the next operation on
+   * HashCache.
+   *
    * @param path      file's path
-   * @param fd        if >= 0 then the file is read from there
+   * @param fd        if >= 0 then read the file from there
    * @param stat_ptr  optionally the file's parameters already stat()'ed
-   * @param store     whether to store the file in the blob cache
+   * @return          the requested information about the file
    */
-  HashCacheEntry* get_entry(const FileName* path, int fd = -1, const struct stat64 *stat_ptr = NULL,
-                            bool store = false);
+  const HashCacheEntry* get_entry_with_statinfo(const FileName* path, int fd,
+                                                const struct stat64 *stat_ptr);
+
+  /**
+   * Returns an up-to-date HashCacheEntry corresponding to the given file.
+   *
+   * It's either of type NOTEXIST if path doesn't correspond to a regular file or directory, or of
+   * type ISREG or ISDIR containing some stat information (currently the size in case of ISREG) and
+   * the hash.
+   *
+   * The returned pointer is always non-NULL, readonly, and only valid until the next operation on
+   * HashCache.
+   *
+   * @param path                  file's path
+   * @param fd                    if >= 0 then read the file from there
+   * @param stat_ptr              optionally the file's parameters already stat()'ed
+   * @param store                 whether to store the file in the blob cache
+   * @param skip_statinfo_update  assume that the stat info is up-to-date
+   * @return                      the requested information about the file
+   */
+  const HashCacheEntry* get_entry_with_statinfo_and_hash(const FileName* path, int fd,
+                                                         const struct stat64 *stat_ptr, bool store,
+                                                         bool skip_statinfo_update = false);
+
+  /**
+   * A singleton structure representing a file system path that does not point to a regular file or
+   * directory. get_entry_...() might return its address.
+   */
+  static const HashCacheEntry notexist_;
 
   DISALLOW_COPY_AND_ASSIGN(HashCache);
 };
 
 /* singleton */
 extern HashCache *hash_cache;
+
+/* Global debugging methods.
+ * level is the nesting level of objects calling each other's d(), bigger means less info to print.
+ * See #431 for design and rationale. */
+std::string d(const HashCacheEntry& hce, const int level = 0);
+std::string d(const HashCacheEntry *hce, const int level = 0);
 
 }  /* namespace firebuild */
 
