@@ -30,7 +30,11 @@
 #pragma GCC visibility push(default)
 #pragma GCC diagnostic push
 
+###     if target == "darwin"
+{{ rettype }} interposing_{{ func }} ({{ sig_str }}) {
+###     else
 {{ rettype }} {{ func }} ({{ sig_str }}) {
+###     endif
   bool skip_interception = false;
 
   switch (number) {
