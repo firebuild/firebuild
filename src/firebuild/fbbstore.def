@@ -7,15 +7,22 @@
 # This is a Python dictionary, to be read and processed by "generate_fbb".
 
 {
-  "types_with_custom_debugger": ["mode_t", "XXH128_hash_t"],
+  "types_with_custom_debugger": ["mode_t", "firebuild::FileType", "XXH128_hash_t"],
 
   "extra_c": """
+    /* Debugger method for mode_t fields. */
     static void fbbstore_debug_mode_t(FILE *f, mode_t mode) {
       fprintf(f, "\\"");
       debug_mode_t(f, mode);
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for firebuild::FileType fields. */
+    static void fbbstore_debug_firebuild__FileType(FILE *f, firebuild::FileType type) {
+      fprintf(f, "\\"%s\\"", file_type_to_string(type));
+    }
+
+    /* Debugger method for XXH128_hash_t fields. */
     static void fbbstore_debug_XXH128_hash_t(FILE *f, XXH128_hash_t value) {
       firebuild::Hash hash(value);
       char ascii[firebuild::Hash::kAsciiLength + 1];
@@ -27,28 +34,31 @@
   "extra_h": """
     #include <xxhash.h>
     #include "firebuild/hash.h"
+    #include "firebuild/file_info.h"
     #include "common/debug_sysflags.h"
   """,
 
   "tags": [
     ("file", [
       # file path, absolute or relative
-      (REQUIRED, STRING,          "path"),
+      (REQUIRED, STRING,                "path"),
 
+      # file type, e.g. ISREG, NOTEXIST_OR_ISREG_EMPTY, ISDIR etc.
+      (REQUIRED, "firebuild::FileType", "type"),
       # file size
-      (OPTIONAL, "size_t",        "size"),
+      (OPTIONAL, "size_t",              "size"),
       # checksum (binary) of the file content, if relevant and known
-      (OPTIONAL, "XXH128_hash_t", "hash"),
+      (OPTIONAL, "XXH128_hash_t",       "hash"),
       # TODO add alternate hash values generated after preprocessing the file
       # with programs keeping the semantic content (e.g. removing white spaces)
-      #(OPTIONAL, "XXH128_hash_t", "alt_hash"),
+      #(OPTIONAL, "XXH128_hash_t",       "alt_hash"),
 
       # last modification time - FIXME in what unit?
-      #(OPTIONAL, "long",          "mtime"),
+      #(OPTIONAL, "long",                "mtime"),
       # TODO refine mode
-      (OPTIONAL, "mode_t",        "mode"),
+      (OPTIONAL, "mode_t",              "mode"),
       # The reason why the file could not be opened.
-      #(OPTIONAL, "int",           "error_no"),
+      #(OPTIONAL, "int",                 "error_no"),
     ]),
 
     ("dir", [

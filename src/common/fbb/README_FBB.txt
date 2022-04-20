@@ -574,9 +574,10 @@ debuggers should be implemented in "extra_c" or elsewhere.
 
 The debugger method has to have the name "fbbns_debug_type", whereas
 "fbbns" is the actual namespace, and "type" is the type we're talking
-about. For example, in fbbcomm.def we overwrite the debugger of type
-"mode_t" by adding "mode_t" to the "types_with_custom_debugger" array
-and defining the "fbbcomm_debug_mode_t" function.
+about, with ' ' and ':' characters replaced by '_'. For example, in
+fbbcomm.def we overwrite the debugger of type "mode_t" by adding
+"mode_t" to the "types_with_custom_debugger" array and defining the
+"fbbcomm_debug_mode_t" function.
 
 The debugger method takes two parameters: the stdio stream to print to,
 and the value to print.

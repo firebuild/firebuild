@@ -308,6 +308,7 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   fbbstore_builder_file_init(&new_file);
   fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+  fbbstore_builder_file_set_type(&new_file, fu->initial_type());
   if (fu->initial_size_known()) {
     fbbstore_builder_file_set_size(&new_file, fu->initial_size());
   }
@@ -317,11 +318,12 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     const ssize_t content_size = -1, const Hash *content_hash = nullptr,
-                     const int mode = -1) {
+                     FileType type, const ssize_t content_size = -1,
+                     const Hash *content_hash = nullptr, const int mode = -1) {
     FBBSTORE_Builder_file& new_file = files->emplace_back();
     fbbstore_builder_file_init(&new_file);
     fbbstore_builder_file_set_path_with_length(&new_file, file_name->c_str(), file_name->length());
+    fbbstore_builder_file_set_type(&new_file, type);
     if (content_size >= 0) fbbstore_builder_file_set_size(&new_file, content_size);
     if (content_hash) fbbstore_builder_file_set_hash(&new_file, content_hash->get());
     if (mode != -1) fbbstore_builder_file_set_mode(&new_file, mode);
@@ -495,11 +497,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
             int mode = st.st_mode & 07777;
-            add_file(&out_path_isreg_with_hash, filename, st.st_size, &new_hash, mode);
+            add_file(&out_path_isreg_with_hash, filename, ISREG, st.st_size, &new_hash, mode);
           } else if (S_ISDIR(st.st_mode)) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
-            add_file(&out_path_isdir, filename, -1, nullptr, mode);
+            add_file(&out_path_isdir, filename, ISDIR, -1, nullptr, mode);
             out_path_isdir_filename_ptrs.insert(filename);
           } else {
             // TODO(egmont) handle other types of entries
@@ -645,12 +647,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 /**
  * Check whether the given File matches the file system's current contents.
  */
-static bool file_matches_fs(const FBBSTORE_Serialized_file *file, bool is_dir,
-    const Hash& fingerprint) {
+static bool file_matches_fs(const FBBSTORE_Serialized_file *file, const Hash& fingerprint) {
   const char *filename = fbbstore_serialized_file_get_path(file);
   const auto path = FileName::Get(filename, fbbstore_serialized_file_get_path_len(file));
 
-  FileInfo query(is_dir ? ISDIR : ISREG);
+  FileInfo query(fbbstore_serialized_file_get_type(file));
   if (fbbstore_serialized_file_has_size(file)) {
     query.set_size(fbbstore_serialized_file_get_size(file));
   }
@@ -677,14 +678,14 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
   for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(pi); i++) {
     const FBBSTORE_Serialized *fbb = fbbstore_serialized_process_inputs_get_path_isreg_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, false, fingerprint)) {
+    if (!file_matches_fs(file, fingerprint)) {
       return false;
     }
   }
   for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isdir_count(pi); i++) {
     const FBBSTORE_Serialized *fbb = fbbstore_serialized_process_inputs_get_path_isdir_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, true, fingerprint)) {
+    if (!file_matches_fs(file, fingerprint)) {
       return false;
     }
   }
@@ -692,7 +693,7 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
     const FBBSTORE_Serialized *fbb =
         fbbstore_serialized_process_inputs_get_system_path_isreg_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, false, fingerprint)) {
+    if (!file_matches_fs(file, fingerprint)) {
       return false;
     }
   }
@@ -700,7 +701,7 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
     const FBBSTORE_Serialized *fbb =
         fbbstore_serialized_process_inputs_get_system_path_isdir_at(pi, i);
     const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, true, fingerprint)) {
+    if (!file_matches_fs(file, fingerprint)) {
       return false;
     }
   }
