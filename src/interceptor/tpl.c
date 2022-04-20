@@ -95,7 +95,11 @@ extern {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }});
 ###   endif
 ###   block def_c
 ###     if not syscall
-###       if target != "darwin"
+###       if target == "darwin"
+{{ rettype }} interposing_{{ func }} ({{ sig_str }});
+static struct {const void* new; const void* original;} interpose_map_{{ func }} __attribute__ ((used, section("__DATA, __interpose"))) =
+  {(const void*)interposing_{{ func }}, (const void*){{ func }}};
+###       else
 inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
   static {{ rettype }}(*resolved)({{ sig_str }}) = NULL;
   if (resolved == NULL) {
@@ -131,7 +135,11 @@ inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
 {# duplicates.                                                        #}
 ###   block list_txt
 ###     if not syscall
+###       if target == "darwin"
+_{{ func }}
+###       else
 {{ func }}
+###       endif
 ###     endif
 ###   endblock list_txt
 ### endif
