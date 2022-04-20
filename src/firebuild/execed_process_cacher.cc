@@ -647,38 +647,21 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
  */
 static bool file_matches_fs(const FBBSTORE_Serialized_file *file, bool is_dir,
     const Hash& fingerprint) {
-  Hash on_fs_hash, in_cache_hash;
-  bool on_fs_is_dir = false;
   const char *filename = fbbstore_serialized_file_get_path(file);
+  const auto path = FileName::Get(filename, fbbstore_serialized_file_get_path_len(file));
 
+  FileInfo query(is_dir ? ISDIR : ISREG);
+  if (fbbstore_serialized_file_has_size(file)) {
+    query.set_size(fbbstore_serialized_file_get_size(file));
+  }
   if (fbbstore_serialized_file_has_hash(file)) {
-    /* Verify the file type and contents via hash_cache. */
-    const auto path = FileName::Get(filename, fbbstore_serialized_file_get_path_len(file));
-    if (!hash_cache->get_hash(path, &on_fs_hash, &on_fs_is_dir) || (is_dir != on_fs_is_dir)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(path)
-               + ": mismatching or unexpected file type");
-      return false;
-    }
-    in_cache_hash.set(fbbstore_serialized_file_get_hash(file));
-    if (on_fs_hash != in_cache_hash) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " +
-               d(path) + ": hash differs");
-      return false;
-    }
-  } else {
-    /* Verify the file type manually, without relying on hash_cache. */
-    struct stat64 st;
-    if (stat64(filename, &st) == -1 ||
-        (!is_dir && !S_ISREG(st.st_mode)) ||
-        (is_dir && !S_ISDIR(st.st_mode))) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename)
-               + ": entry missing or is of different type");
-      return false;
-    }
+    Hash hash(fbbstore_serialized_file_get_hash(file));
+    query.set_hash(hash);
+  }
+
+  if (!hash_cache->file_info_matches(path, query)) {
+    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " + d(path));
+    return false;
   }
   return true;
 }
@@ -690,7 +673,6 @@ static bool file_matches_fs(const FBBSTORE_Serialized_file *file, bool is_dir,
 static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Hash& fingerprint) {
   TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
 
-  struct stat64 st;
   size_t i;
   for (i = 0; i < fbbstore_serialized_process_inputs_get_path_isreg_count(pi); i++) {
     const FBBSTORE_Serialized *fbb = fbbstore_serialized_process_inputs_get_path_isreg_at(pi, i);
@@ -724,7 +706,10 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
   }
   for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_count(pi); i++) {
     const char *filename = fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_at(pi, i);
-    if (stat64(filename, &st) != -1 && !S_ISREG(st.st_mode)) {
+    const auto path = FileName::Get(filename,
+        fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_len_at(pi, i));
+    FileInfo query(NOTEXIST_OR_ISREG);
+    if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename)
@@ -736,7 +721,10 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
        i++) {
     const char *filename =
         fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_at(pi, i);
-    if (stat64(filename, &st) != -1 && (!S_ISREG(st.st_mode) || st.st_size > 0)) {
+    const auto path = FileName::Get(filename,
+        fbbstore_serialized_process_inputs_get_path_notexist_or_isreg_empty_len_at(pi, i));
+    FileInfo query(NOTEXIST_OR_ISREG_EMPTY);
+    if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename)
@@ -746,7 +734,10 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
   }
   for (i = 0; i < fbbstore_serialized_process_inputs_get_path_notexist_count(pi); i++) {
     const char *filename = fbbstore_serialized_process_inputs_get_path_notexist_at(pi, i);
-    if (stat64(filename, &st) != -1) {
+    const auto path = FileName::Get(filename,
+        fbbstore_serialized_process_inputs_get_path_notexist_len_at(pi, i));
+    FileInfo query(NOTEXIST);
+    if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
                + " mismatches e.g. at " + d(filename)
