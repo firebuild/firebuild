@@ -10,12 +10,14 @@
   "types_with_custom_debugger": ["mode_t", "XXH128_hash_t"],
 
   "extra_c": """
+    /* Debugger method for mode_t fields. */
     static void fbbfp_debug_mode_t(FILE *f, mode_t mode) {
       fprintf(f, "\\"");
       debug_mode_t(f, mode);
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for XXH128_hash_t fields. */
     static void fbbfp_debug_XXH128_hash_t(FILE *f, XXH128_hash_t value) {
       firebuild::Hash hash(value);
       char ascii[firebuild::Hash::kAsciiLength + 1];

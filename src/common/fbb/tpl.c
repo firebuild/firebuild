@@ -109,7 +109,7 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
 ###         elif type == FBB
     {{ ns }}_{{ variant }}_debug_indent(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg), indent);
 ###         elif type in types_with_custom_debugger
-    {{ ns }}_debug_{{ type|replace(" ","_") }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg));
+    {{ ns }}_debug_{{ type|replace(" ","_")|replace(":","_") }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg));
 ###         else
     fprintf(f, "%lld", (long long) {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}(msg));
 ###         endif
@@ -135,7 +135,7 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
 ###         elif type == FBB
     {{ ns }}_{{ variant }}_debug_indent(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx), indent);
 ###         elif type in types_with_custom_debugger
-    {{ ns }}_debug_{{ type|replace(" ","_") }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx));
+    {{ ns }}_debug_{{ type|replace(" ","_")|replace(":","_") }}(f, {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx));
 ###         else
     fprintf(f, "%lld", (long long) {{ ns }}_{{ variant }}_{{ msg }}_get_{{ var }}_at(msg, idx));
 ###         endif
