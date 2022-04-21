@@ -67,6 +67,8 @@ void FileName::open_for_writing(Process* proc) const {
     if (it2 != generation_db_->end()) {
       assert(it2->second < UINT32_MAX);
       it2.value()++;
+      /* Bubble up the generation change */
+      proc->exec_point()->register_file_usage_update(this, FileUsageUpdate(this));
     } else {
       generation_db_->insert({this, 1});
     }

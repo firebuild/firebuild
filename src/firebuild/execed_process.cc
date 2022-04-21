@@ -272,6 +272,28 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
       fu_old = fu;
       if (!fu) {
         fu = FileUsage::Get(DONTKNOW);
+      } else {
+        if (fu->generation() != update.generation()
+            && fu->generation() + 1 != update.generation()) {
+          /* If all file changes were performed by descendants then the generation updates should
+           * always be incremented by one. Otherwise the file could have been changed outside of the
+           * process's subtree wich makes the process not shortcutable. */
+          proc->disable_shortcutting_only_this("A parallel process modified the file");
+          /* Still bubble up to the root because an ancestor may still be shortcutable and also
+           * been updated with the parallel change. */
+          if (!generate_report) {
+            proc = proc->next_shortcutable_ancestor();
+          } else {
+            proc = proc->parent_exec_point();
+          }
+          if (proc) {
+            /* There is no merged file usage, it can't be carried in this loop. Recurse instead. */
+            return proc->register_file_usage_update(name, update);
+          } else {
+            /* No process to bubble up to, file usage registration in finshed. */
+            return true;
+          }
+        }
       }
       /* Note: This can update "update" if some value is computed now and cached there. In that
        * case, in the next iteration of the loop "update" will already contain this value. */
