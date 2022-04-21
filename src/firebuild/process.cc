@@ -330,6 +330,8 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to unlinkat()");
     return -1;
   }
+  /* Unlink always sends pre_open, which pretends that the file was opened for writing. */
+  name->close_for_writing();
 
   if (!error) {
     /* There is no need to call register_parent_directory().
@@ -613,10 +615,6 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
          "olddirfd=%d, old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
          olddirfd, D(old_ar_name), newdirfd, D(new_ar_name), error);
 
-  if (error) {
-    return 0;
-  }
-
   /*
    * Note: rename() is different from "mv" in at least two aspects:
    *
@@ -636,6 +634,15 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
 
   const FileName* old_name = get_absolute(olddirfd, old_ar_name, old_ar_len);
   const FileName* new_name = get_absolute(newdirfd, new_ar_name, new_ar_len);
+
+  /* Rename always sends pre_open, which pretends that the file was opened for writing. */
+  if (old_name) old_name->close_for_writing();
+  if (new_name) new_name->close_for_writing();
+
+  if (error) {
+    return 0;
+  }
+
   if (!old_name || !new_name) {
     // FIXME don't disable shortcutting if renameat() failed due to the invalid dirfd
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to renameat()");
