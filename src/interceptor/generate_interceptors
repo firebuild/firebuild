@@ -319,6 +319,10 @@ def generate(rettype, funcs, sig, **dict):
           dict['ifdef_guard'] = glibc_ge(2, 34) + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
         else:
           dict['ifdef_guard'] = dict['ifdef_guard'] + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
+      if target == 'darwin' and (func.endswith("_unlocked") or func.endswith("_chk") \
+                                 or func.endswith("64") or func.endswith("64v2") \
+                                 or func.startswith("__")):
+        return
     for gen in outputs:
       rendered = template.render(gen=gen, rettype=rettype, func=func, syscall=syscall,
                                  call_ic_orig_func=call_ic_orig_func, **dict)
@@ -438,20 +442,24 @@ generate("int", "shm_unlink", "const char *name",
 generate("int", "shmget", "key_t key, size_t size, int shmflg",
          tpl="once")
 generate("int", ["memfd_create", "SYS_memfd_create"], "const char *name, unsigned int flags",
+         platforms=['linux'],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", ["timerfd_create", "SYS_timerfd_create"], "int clockid, int flags",
+         platforms=['linux'],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["clockid"],
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", ["epoll_create", "SYS_epoll_create"], "int size",
+         platforms=['linux'],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["size"],
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", ["epoll_create1", "SYS_epoll_create1"], "int flags",
+         platforms=['linux'],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg="epoll_create",
          send_ret_on_success=True,
@@ -459,6 +467,7 @@ generate("int", ["epoll_create1", "SYS_epoll_create1"], "int flags",
 # SYS_eventfd only takes the initial value as parameter.
 # glibc's eventfd() corresponds to SYS_eventfd2 which takes an additional flags parameter.
 generate("int", "SYS_eventfd", "unsigned int initval",
+         platforms=['linux'],
          msg="eventfd",
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["initval"],
@@ -466,16 +475,19 @@ generate("int", "SYS_eventfd", "unsigned int initval",
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", ["eventfd", "SYS_eventfd2"], "unsigned int initval, int flags",
+         platforms=['linux'],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["initval"],
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", "signalfd", "int fd, const sigset_t *mask, int flags",
+         platforms=['linux'],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["mask"],
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", "SYS_signalfd", "int fd, const sigset_t *mask, size_t sizemask",
+         platforms=['linux'],
          msg="signalfd",
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["mask", "sizemask"],
@@ -483,6 +495,7 @@ generate("int", "SYS_signalfd", "int fd, const sigset_t *mask, size_t sizemask",
          send_ret_on_success=True,
          send_msg_on_error=False)
 generate("int", "SYS_signalfd4", "int fd, const sigset_t *mask, size_t sizemask, int flags",
+         platforms=['linux'],
          msg="signalfd",
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          msg_skip_fields=["mask", "sizemask"],
@@ -504,15 +517,18 @@ generate("int", "fclose", "FILE *stream",
 
 # Intercept closefrom and close_range
 generate("void", ["closefrom"], "int lowfd",
+         platforms=['linux'],
          tpl="closefrom",
          send_msg_on_error=False)
 # The manpage says "unsigned int flags" but in unistd.h it's "int flags".
 generate("int", ["close_range", "SYS_close_range"], "unsigned int first, unsigned int last, int flags",
+         platforms=['linux'],
          tpl="close_range")
 
 # Unlike fclose(), fcloseall() only closes the high level streams and not the underlying fds.
 # So we don't need to notify the supervisor. We need to clear the popened_streams set, though.
 generate("int", "fcloseall", "",
+         platforms=['linux'],
          msg=None,
          after_lines=["voidp_set_clear(&popened_streams);"])
 
@@ -582,6 +598,7 @@ generate("int", ["renameat", "SYS_renameat"], "int olddirfd, const char *oldpath
 for func_guard in [("SYS_renameat2", None), ("renameat2", glibc_ge(2, 28))]:
   (func, ifdef_guard) = func_guard
   generate("int", func, "int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags",
+           platforms=['linux'],
            ifdef_guard=ifdef_guard,
            before_lines=["if (i_am_intercepting) {",
                          "  send_pre_open_without_ack_request(olddirfd, oldpath);",
@@ -643,6 +660,7 @@ generate("ssize_t", "preadv64", "int fd, const struct iovec *iov, int iovcnt, of
          is_pread="true",
          msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "preadv2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
+         platforms=['linux'],
          tpl="read",
          is_pread="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
@@ -650,6 +668,7 @@ generate("ssize_t", "preadv2", "int fd, const struct iovec *iov, int iovcnt, off
 # The manpage says "These arguments contain, respectively, the low order and high order 32 bits of offset."
 # This seems to be true on 32-bit architectures only. On 64-bit they take 64 bits each, making offset_h unused.
 generate("ssize_t", "SYS_preadv2", "long fd, const struct iovec *iov, unsigned long iovcnt, unsigned long offset_l, unsigned long offset_h, int flags",
+         platforms=['linux'],
          tpl="read",
          before_lines=["off64_t offset = sizeof(long) >= 8 ? offset_l : (off64_t)offset_h << 32 | offset_l;"],
          is_pread="offset != -1",
@@ -880,6 +899,7 @@ generate("ssize_t", "pwritev64", "int fd, const struct iovec *iov, int iovcnt, o
          is_pwrite="true",
          msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "pwritev2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
+         platforms=['linux'],
          tpl="write",
          is_pwrite="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
@@ -963,6 +983,7 @@ generate("wint_t", "__woverflow", "FILE *stream, wint_t ch",
 # Construct the message ourselves so that we don't have to rely on
 # gcc's __builtin_apply() with its arbitrarily guessed size parameter.
 generate("void", "error", "int status, int errnum, const char *format, ...",
+         platforms=['linux'],
          tpl="error",
          before_lines=["int fd = safe_fileno(stderr);"],
          call_orig_lines=["int msglen = vsnprintf(NULL, 0, format, ap);",
@@ -974,6 +995,7 @@ generate("void", "error", "int status, int errnum, const char *format, ...",
          msg_skip_fields=["status", "errnum", "format"],
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("void", "error_at_line", "int status, int errnum, const char *filename, unsigned int linenum, const char *format, ...",
+         platforms=['linux'],
          tpl="error",
          before_lines=["int fd = safe_fileno(stderr);"],
          call_orig_lines=["int msglen = vsnprintf(NULL, 0, format, ap);",
@@ -1443,6 +1465,7 @@ for func_guard in [("SYS_statx", None), ("statx", glibc_ge(2, 28))]:
                            "}"])
 # Treat isfdtype() as a fstat()
 generate("int", "isfdtype", "int fd, int fdtype",
+         platforms=['linux'],
          msg="fstatat",
          msg_skip_fields=["fdtype"])
 
@@ -1532,8 +1555,10 @@ generate("int", ["dup2", "SYS_dup2", "__dup2"], "int oldfd, int newfd",
          tpl="dup2",
          msg="dup3")
 generate("int", ["dup3", "SYS_dup3"], "int oldfd, int newfd, int flags",
+         platforms=['linux'],
          tpl="dup2",
          msg="dup3")
+
 
 # Intercept access variants
 generate("int", ["access", "SYS_access"], "const char *pathname, int mode",
@@ -1541,6 +1566,7 @@ generate("int", ["access", "SYS_access"], "const char *pathname, int mode",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(faccessat, pathname);"])
 generate("int", ["euidaccess", "eaccess"], "const char *pathname, int mode",
+         platforms=['linux'],
          msg="faccessat",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(faccessat, pathname);",
@@ -1579,6 +1605,7 @@ generate("int", ["utimensat", "SYS_utimensat", "__utimensat64"], "int dirfd, con
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
 generate("int", ["futimesat", "SYS_futimesat", "__futimesat64"], "int dirfd, const char *pathname, const struct timeval times[2]",
+         platforms=['linux'],
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["if (pathname) BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
@@ -1658,6 +1685,7 @@ generate("int", ["ftruncate", "SYS_ftruncate"], "int fd, off_t len",
 
 # Intercept the fallocate() family
 generate("int", "posix_fallocate", "int fd, off_t offset, off_t len",
+         platforms=['linux'],
          is_pwrite="true",
          msg_skip_fields=["offset", "len"],
          tpl="write")
@@ -1667,6 +1695,7 @@ generate("int", "posix_fallocate64", "int fd, off64_t offset, off64_t len",
          msg_skip_fields=["offset", "len"],
          tpl="write")
 generate("int", ["fallocate", "SYS_fallocate"], "int fd, int mode, off_t offset, off_t len",
+         platforms=['linux'],
          is_pwrite="true",
          msg_skip_fields=["mode", "offset", "len"],
          tpl="write")
@@ -1739,9 +1768,13 @@ generate("FILE *", ["tmpfile", "tmpfile64"], "",
          tpl="once")
 # "Never use these functions"
 # FIXME Supporting them would require supervisor work, or two messages (exclusive open, then close)
-generate("char *", ["mktemp", "tmpnam", "tmpnam_r", "__mktemp"], "char *tmplt",
+generate("char *", ["mktemp", "tmpnam", "__mktemp"], "char *tmplt",
          tpl="once",
-         diagnostic_ignored = ["-Warray-parameter="],)
+         diagnostic_ignored = ["-Warray-parameter="])
+generate("char *", "tmpnam_r", "char *tmplt",
+         platforms=['linux'],
+         tpl="once",
+         diagnostic_ignored = ["-Warray-parameter="])
 generate("char *", ["tempnam"], "const char *dir, const char *pfx",
          tpl="once")
 
@@ -1773,6 +1806,7 @@ generate("int", ["mknodat", "SYS_mknodat"], "int dirfd, const char *path, mode_t
 generate("int", "mkfifo", "const char *pathname, mode_t mode",
          tpl="once")
 generate("int", "mkfifoat", "int dirfd, const char *pathname, mode_t mode",
+         platforms=['linux'],
          tpl="once")
 
 # Intercept the exit family.
@@ -1786,7 +1820,11 @@ generate("int", "mkfifoat", "int dirfd, const char *pathname, mode_t mode",
 generate("void", ["exit"], "int status",
          tpl="exit",
          no_saved_errno=True)
-generate("void", ["_exit", "_Exit", "quick_exit", "SYS_exit"], "int status",
+generate("void", ["_exit", "_Exit", "SYS_exit"], "int status",
+         tpl="_exit",
+         no_saved_errno=True)
+generate("void", "quick_exit", "int status",
+         platforms=['linux'],
          tpl="_exit",
          no_saved_errno=True)
 # No wrapper for exit_group() in glibc 2.30.
@@ -1798,6 +1836,7 @@ generate("void", "SYS_exit_group", "int status",
 generate("pid_t", ["fork", "SYS_fork", "__fork"], "",
          tpl="fork")
 generate("pid_t", ["_Fork"], "",
+         platforms=['linux'],
          tpl="_fork")
 generate("pid_t", ["vfork", "SYS_vfork", "__vfork"], "",
          ifdef_guard=glibc_ge(2, 34),
@@ -1849,6 +1888,7 @@ generate("int", "posix_spawn_file_actions_addclose", "posix_spawn_file_actions_t
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addclosefrom_np", "posix_spawn_file_actions_t *file_actions, int lowfd",
+         platforms=['linux'],
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t *file_actions, int oldfd, int newfd",
@@ -1961,12 +2001,17 @@ generate("int", "execle", "const char *file, const char *arg, ...",
          tpl="exec")
 generate("int", ["execv", "execvp"], "const char *file, char *const argv[]",
          tpl="exec")
-generate("int", ["execve", "execvpe", "SYS_execve"], "const char *file, char *const argv[], char *const envp[]",
+generate("int", ["execve", "SYS_execve"], "const char *file, char *const argv[], char *const envp[]",
+         tpl="exec")
+generate("int", "execvpe", "const char *file, char *const argv[], char *const envp[]",
+         platforms=['linux'],
          tpl="exec")
 # Note: execveat() appeared in glibc 2.34.
 generate("int", ["execveat", "SYS_execveat"], "int dirfd, const char *file, char *const argv[], char *const envp[], int flags",
+         platforms=['linux'],
          tpl="exec")
 generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
+         platforms=['linux'],
          tpl="exec")
 
 # Signal handling
@@ -1999,6 +2044,7 @@ skip("timer_settime", "SYS_timer_settime", "SYS_timer_settime_time64", "timer_ge
 
 # Getting high entropy randomness should disable shortcutting
 generate("ssize_t", "getrandom", "void* buf, size_t buflen, unsigned int flags",
+         platforms=['linux'],
          msg_skip_fields = ["buf", "buflen"])
 generate("int", "getentropy", "void* buffer, size_t length",
          msg="getrandom",
@@ -2060,11 +2106,13 @@ generate("int", ["clock_gettime", "SYS_clock_gettime64", "SYS_clock_gettime", "_
          tpl="once")
 # FIXME SYS_osf_ntp_gettime
 generate("int", ["ntp_gettime", "ntp_gettimex", "__ntp_gettime64", "__ntp_gettimex64"], "struct ntptimeval *ntv",
+         platforms=['linux'],
          msg="clock_gettime",
          tpl="once")
 
 # Disable setting the time
 generate("int", "stime", "const time_t *t",
+         platforms=['linux'],
          tpl="once")
 generate("int", ["settimeofday", "SYS_settimeofday", "__settimeofday64"], "const struct timeval *tv, const struct timezone *tz",
          tpl="once")
@@ -2096,6 +2144,7 @@ skip("getpid", "SYS_getpid", "getppid", "SYS_getppid", "gettid", "SYS_gettid")
 skip("getpgrp", "SYS_getpgrp", "getpgid", "__getpgid", "SYS_getpgid", "setpgrp", "SYS_setpgrp", "setpgid", "SYS_setpgid")
 skip("getsid", "SYS_getsid", "setsid", "SYS_setsid")
 generate("int", ["pidfd_open", "SYS_pidfd_open"], "pid_t pid, unsigned int flags",
+         platforms=['linux'],
          tpl="once")
 # can be skipped, since pidfd_open already disables shortcutting
 skip("pidfd_getfd", "SYS_pidfd_getfd", "pidfd_send_signal", "SYS_pidfd_send_signal")
@@ -2131,8 +2180,10 @@ generate("int", ["setreuid", "SYS_setreuid"], "uid_t uid, uid_t euid",
 generate("int", ["setregid", "SYS_setregid"], "gid_t gid, gid_t egid",
          tpl="once")
 generate("int", ["setresuid", "SYS_setresuid"], "uid_t uid, uid_t euid, uid_t suid",
+         platforms=['linux'],
          tpl="once")
 generate("int", ["setresgid", "SYS_setresgid"], "gid_t gid, gid_t egid, gid_t sgid",
+         platforms=['linux'],
          tpl="once")
 generate("int", ["setgroups", "SYS_setgroups"], ("size_t" if target == 'linux' else "int") + " size, const gid_t *list",
          tpl="once")
