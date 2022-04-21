@@ -126,7 +126,7 @@
   /* Instead of execl*(), call its execv*() counterpart. */
 {% set ic_orig_func = ic_orig_func.replace("l", "v") %}
 ###   endif
-###   if not e
+###   if not e and not (target == "darwin" and ic_orig_func == "ic_orig_execvp")
   /* Instead of exec*() without "e", call its exec*e() counterpart. */
 {% set ic_orig_func = ic_orig_func + "e" %}
 ###   endif
@@ -136,7 +136,14 @@
 {% set call_ic_orig_func = "get_" + ic_orig_func + "()" %}
 ###   endif
   errno = saved_errno;
-  ret = {{ call_ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv, env_fixed_up{% if at %}, flags{% endif %});
+###   if ic_orig_func == "ic_orig_execvp"
+  char **env_saved = environ;
+  environ = env_fixed_up;
+###   endif
+  ret = {{ call_ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv{% if not ic_orig_func == "ic_orig_execvp" %}, env_fixed_up{% endif %}{% if at %}, flags{% endif %});
+###   if ic_orig_func == "ic_orig_execvp"
+ environ = env_saved;
+###   endif
   saved_errno = errno;
 
   if (i_am_intercepting) {
