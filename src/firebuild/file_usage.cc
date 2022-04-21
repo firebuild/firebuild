@@ -89,7 +89,9 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
   bool changed = false;
 
   if (generation() != update.generation()) {
-    assert(generation() < update.generation());
+    /* Ensured by the caller. */
+    assert((generation() == 0 && initial_type() == DONTKNOW)
+           || generation() + 1 == update.generation());
     tmp.generation_ = update.generation();
     changed = true;
   }
