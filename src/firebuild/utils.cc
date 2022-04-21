@@ -91,10 +91,10 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int f
   if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
     std::vector<int> fds_vec(fds, fds + fd_count);
     fprintf(stderr, "Sending message with ancillary fds %s:\n", D(fds_vec));
-    fbbcomm_builder_debug(stderr, msg);
+    msg->debug(stderr);
   }
 
-  int len = fbbcomm_builder_measure(msg);
+  int len = msg->measure();
 
   char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
   memset(buf, 0, sizeof(msg_header));
@@ -102,7 +102,7 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int f
   reinterpret_cast<msg_header *>(buf)->msg_size = len;
   reinterpret_cast<msg_header *>(buf)->fd_count = fd_count;
 
-  fbbcomm_builder_serialize(msg, buf + sizeof(msg_header));
+  msg->serialize(buf + sizeof(msg_header));
 
   if (fd_count == 0) {
     /* No fds to attach. Send the header and the payload in a single step. */

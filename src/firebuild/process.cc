@@ -464,15 +464,14 @@ void Process::handle_pipe_request(const int flags, const int fd_conn) {
   int up[2], down[2];
 
   FBBCOMM_Builder_pipe_created response;
-  fbbcomm_builder_pipe_created_init(&response);
 
   if (pipe2(up, flags) < 0) {
-    fbbcomm_builder_pipe_created_set_error_no(&response, errno);
+    response.set_error_no(errno);
     send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response));
     return;
   }
   if (pipe2(down, flags) < 0) {
-    fbbcomm_builder_pipe_created_set_error_no(&response, errno);
+    response.set_error_no(errno);
     send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&response));
     close(up[0]);
     close(up[1]);

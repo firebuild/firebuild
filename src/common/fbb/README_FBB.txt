@@ -188,8 +188,8 @@ deserialization step, getter methods work directly on the serialized
 data.
 
 
-Building a message
-------------------
+Building a message (C-style API)
+--------------------------------
 
 The specific type "FBBNS_Builder_foo" refers to an entire builder object
 of tag "foo". Methods that work on a pre-determined tag take a pointer
@@ -222,8 +222,8 @@ set. The caller owns these values, and is responsible for keeping them
 unaltered in the memory until the builder object is no longer used.
 
 
-Serializing a message
----------------------
+Serializing a message (C-style API)
+-----------------------------------
 
 First you need to measure how big the serialized format will be.
 
@@ -258,8 +258,8 @@ serialize to the proper offset, and then fill out the header. This is
 outside of the scope of FBB.
 
 
-Receiving and decoding a message
---------------------------------
+Receiving and decoding a message (C-style API)
+----------------------------------------------
 
 You should use the symbolic type FBBNS_Serialized when pointing to a
 serialized FBBNS message of a generic tag, and FBBNS_Serialized_foo when
@@ -287,7 +287,7 @@ FBBNS_Serialized_foo) for the getters.
 
 Now you can use the getters to read the message.
 
-    uint16_t myuint = fbbns_serialized_foo_get_myuint(&mybuilder);
+    uint16_t myuint = fbbns_serialized_foo_get_myuint(msg);
 
 Refer to the section "Setters and getters" for details on these.
 
@@ -302,8 +302,8 @@ resides in memory unaltered as long as any of these pointers (returned
 by the getters) are in use.
 
 
-Setters and getters
--------------------
+Setters and getters (C-style API)
+---------------------------------
 
 Setters work on the builder only (obviously).
 
@@ -542,6 +542,42 @@ the given file, for easy debugging.
 
 The debug format is valid JSON, and almost valid Python (the only thing
 you need to do is set null=None before eval'ing it).
+
+Another method that might come handy gets a text representation of the
+tag:
+
+    const char *str = FBBNS_tag_to_string(tag);
+
+
+C++-style API
+-------------
+
+If you use FBB from C++, you are free to use the C-style API shown
+above, but you can also use the more concise C++-style API.
+
+Each method, except FBBNS_tag_to_string(), has a C++ counterpart which
+you call on the Builder or Serialized object. The method name is much
+shorter: it omits the namespace, the "builder" or "serialized" word, and
+the tag name.
+
+The Builder's constructor automatically runs init() as well, you don't
+need to call that method. You need to call init() if the memory is
+allocated independently and the area is cast to a Builder.
+
+Examples:
+
+    FBBNS_Builder_foo mybuilder;
+    mybuilder.set_myuint(42);
+
+    size_t len = ((FBBNS_Builder *) &mybuilder)->measure();
+    ((FBBNS_Builder *) &mybuilder)->serialize(buf);
+
+    FBBNS_Serialized *msg_generic = (FBBNS_Serialized *) buf;
+    int tag = msg_generic->get_tag();
+
+    FBBNS_Serialized_foo *msg = (FBBNS_Serialized_foo *) msg_generic;
+
+    uint16_t myuint = msg->get_myuint();
 
 
 Custom scalars

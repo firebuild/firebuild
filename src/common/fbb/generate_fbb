@@ -19,7 +19,8 @@ env = Environment(loader=FileSystemLoader(fbbdir),
                   line_statement_prefix='###',
                   trim_blocks=True,
                   lstrip_blocks=True,
-                  keep_trailing_newline=True)
+                  keep_trailing_newline=True,
+                  extensions=['jinja2.ext.do'])
 
 # Use a practically unique temporary filename, see #314
 tmpsuffix = ".tmp." + str(os.getpid())

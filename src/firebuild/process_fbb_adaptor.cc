@@ -10,208 +10,178 @@
 
 namespace firebuild {
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_pre_open *msg) {
-  return proc->handle_pre_open(fbbcomm_serialized_pre_open_get_dirfd_with_fallback(msg, AT_FDCWD),
-                               fbbcomm_serialized_pre_open_get_file(msg),
-                               fbbcomm_serialized_pre_open_get_file_len(msg));
+  return proc->handle_pre_open(msg->get_dirfd_with_fallback(AT_FDCWD),
+                               msg->get_file(), msg->get_file_len());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_open *msg, int fd_conn,
                              const int ack_num) {
-  const int dirfd = fbbcomm_serialized_open_get_dirfd_with_fallback(msg, AT_FDCWD);
-  int error = fbbcomm_serialized_open_get_error_no_with_fallback(msg, 0);
-  int ret = fbbcomm_serialized_open_get_ret_with_fallback(msg, -1);
-  return proc->handle_open(dirfd, fbbcomm_serialized_open_get_file(msg),
-                           fbbcomm_serialized_open_get_file_len(msg),
-                           fbbcomm_serialized_open_get_flags(msg),
-                           ret, error, fd_conn, ack_num,
-                           fbbcomm_serialized_open_get_pre_open_sent(msg));
+  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+  int error = msg->get_error_no_with_fallback(0);
+  int ret = msg->get_ret_with_fallback(-1);
+  return proc->handle_open(dirfd, msg->get_file(), msg->get_file_len(), msg->get_flags(),
+                           ret, error, fd_conn, ack_num, msg->get_pre_open_sent());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn,
                           const int ack_num) {
-  int error = fbbcomm_serialized_freopen_get_error_no_with_fallback(msg, 0);
-  int oldfd = fbbcomm_serialized_freopen_get_ret_with_fallback(msg, -1);
-  int ret = fbbcomm_serialized_freopen_get_ret_with_fallback(msg, -1);
-  return proc->handle_freopen(fbbcomm_serialized_freopen_get_file(msg),
-                              fbbcomm_serialized_freopen_get_file_len(msg),
-                              fbbcomm_serialized_freopen_get_flags(msg),
-                              oldfd, ret, error, fd_conn, ack_num,
-                              fbbcomm_serialized_freopen_get_pre_open_sent(msg));
+  int error = msg->get_error_no_with_fallback(0);
+  int oldfd = msg->get_ret_with_fallback(-1);
+  int ret = msg->get_ret_with_fallback(-1);
+  return proc->handle_freopen(msg->get_file(), msg->get_file_len(), msg->get_flags(),
+                              oldfd, ret, error, fd_conn, ack_num, msg->get_pre_open_sent());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn,
                              const int ack_num) {
-  if (!fbbcomm_serialized_dlopen_has_error_string(msg) &&
-      fbbcomm_serialized_dlopen_has_absolute_filename(msg)) {
-    return proc->handle_open(AT_FDCWD, fbbcomm_serialized_dlopen_get_absolute_filename(msg),
-                             fbbcomm_serialized_dlopen_get_absolute_filename_len(msg),
+  if (!msg->has_error_string() && msg->has_absolute_filename()) {
+    return proc->handle_open(AT_FDCWD,
+                             msg->get_absolute_filename(), msg->get_absolute_filename_len(),
                              O_RDONLY, -1, 0, fd_conn, ack_num);
   } else {
-    std::string filename = fbbcomm_serialized_dlopen_has_absolute_filename(msg) ?
-                           fbbcomm_serialized_dlopen_get_absolute_filename(msg) : "NULL";
+    std::string filename = msg->has_absolute_filename() ? msg->get_absolute_filename() : "NULL";
     proc->exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ", filename);
     return 0;
   }
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_close *msg) {
-  const int error = fbbcomm_serialized_close_get_error_no_with_fallback(msg, 0);
-  return proc->handle_close(fbbcomm_serialized_close_get_fd(msg), error);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_close(msg->get_fd(), error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_unlink *msg) {
-  const int dirfd = fbbcomm_serialized_unlink_get_dirfd_with_fallback(msg, AT_FDCWD);
-  const int flags = fbbcomm_serialized_unlink_get_flags_with_fallback(msg, 0);
-  const int error = fbbcomm_serialized_unlink_get_error_no_with_fallback(msg, 0);
-  return proc->handle_unlink(dirfd, fbbcomm_serialized_unlink_get_pathname(msg),
-                             fbbcomm_serialized_unlink_get_pathname_len(msg), flags, error);
+  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+  const int flags = msg->get_flags_with_fallback(0);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_unlink(dirfd, msg->get_pathname(), msg->get_pathname_len(), flags, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_rmdir *msg) {
-  const int error = fbbcomm_serialized_rmdir_get_error_no_with_fallback(msg, 0);
-  return proc->handle_rmdir(fbbcomm_serialized_rmdir_get_pathname(msg),
-                            fbbcomm_serialized_rmdir_get_pathname_len(msg), error);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_rmdir(msg->get_pathname(), msg->get_pathname_len(), error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_mkdir *msg) {
-  const int dirfd = fbbcomm_serialized_mkdir_get_dirfd_with_fallback(msg, AT_FDCWD);
-  const int error = fbbcomm_serialized_mkdir_get_error_no_with_fallback(msg, 0);
-  return proc->handle_mkdir(dirfd, fbbcomm_serialized_mkdir_get_pathname(msg),
-                            fbbcomm_serialized_mkdir_get_pathname_len(msg), error);
+  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_mkdir(dirfd, msg->get_pathname(), msg->get_pathname_len(), error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fstat *msg) {
-  const int st_mode = fbbcomm_serialized_fstat_get_st_mode_with_fallback(msg, 0);
-  const int error = fbbcomm_serialized_fstat_get_error_no_with_fallback(msg, 0);
-  const int fd = fbbcomm_serialized_fstat_get_fd_with_fallback(msg, -1);
+  const int st_mode = msg->get_st_mode_with_fallback(0);
+  const int error = msg->get_error_no_with_fallback(0);
+  const int fd = msg->get_fd_with_fallback(-1);
   return proc->handle_fstat(fd, st_mode, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_stat *msg) {
-  const int dirfd = fbbcomm_serialized_stat_get_dirfd_with_fallback(msg, AT_FDCWD);
-  const int st_mode = fbbcomm_serialized_stat_get_st_mode_with_fallback(msg, 0);
-  const int flags = fbbcomm_serialized_stat_get_flags_with_fallback(msg, 0);
-  const int error = fbbcomm_serialized_stat_get_error_no_with_fallback(msg, 0);
-  return proc->handle_stat(dirfd, fbbcomm_serialized_stat_get_filename(msg),
-                           fbbcomm_serialized_stat_get_filename_len(msg),
+  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+  const int st_mode = msg->get_st_mode_with_fallback(0);
+  const int flags = msg->get_flags_with_fallback(0);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_stat(dirfd, msg->get_filename(), msg->get_filename_len(),
                            flags, st_mode, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
-  return proc->handle_memfd_create(fbbcomm_serialized_memfd_create_get_flags(msg),
-                                   fbbcomm_serialized_memfd_create_get_ret(msg));
+  return proc->handle_memfd_create(msg->get_flags(), msg->get_ret());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_timerfd_create *msg) {
-  return proc->handle_timerfd_create(fbbcomm_serialized_timerfd_create_get_flags(msg),
-                                     fbbcomm_serialized_timerfd_create_get_ret(msg));
+  return proc->handle_timerfd_create(msg->get_flags(), msg->get_ret());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_eventfd *msg) {
-  return proc->handle_eventfd(fbbcomm_serialized_eventfd_get_flags(msg),
-                              fbbcomm_serialized_eventfd_get_ret(msg));
+  return proc->handle_eventfd(msg->get_flags(), msg->get_ret());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_signalfd *msg) {
-  return proc->handle_signalfd(fbbcomm_serialized_signalfd_get_fd(msg),
-                               fbbcomm_serialized_signalfd_get_flags(msg),
-                               fbbcomm_serialized_signalfd_get_ret(msg));
+  return proc->handle_signalfd(msg->get_fd(), msg->get_flags(), msg->get_ret());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dup3 *msg) {
-  const int error = fbbcomm_serialized_dup3_get_error_no_with_fallback(msg, 0);
-  const int flags = fbbcomm_serialized_dup3_get_flags_with_fallback(msg, 0);
-  return proc->handle_dup3(fbbcomm_serialized_dup3_get_oldfd(msg),
-                           fbbcomm_serialized_dup3_get_newfd(msg),
-                           flags, error);
+  const int error = msg->get_error_no_with_fallback(0);
+  const int flags = msg->get_flags_with_fallback(0);
+  return proc->handle_dup3(msg->get_oldfd(), msg->get_newfd(), flags, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dup *msg) {
-  const int error = fbbcomm_serialized_dup_get_error_no_with_fallback(msg, 0);
-  return proc->handle_dup3(fbbcomm_serialized_dup_get_oldfd(msg),
-                           fbbcomm_serialized_dup_get_ret(msg),
-                           0, error);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_dup3(msg->get_oldfd(), msg->get_ret(), 0, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_rename *msg) {
-  const int olddirfd = fbbcomm_serialized_rename_get_olddirfd_with_fallback(msg, AT_FDCWD);
-  const int newdirfd = fbbcomm_serialized_rename_get_newdirfd_with_fallback(msg, AT_FDCWD);
-  const int error = fbbcomm_serialized_rename_get_error_no_with_fallback(msg, 0);
-  return proc->handle_rename(olddirfd, fbbcomm_serialized_rename_get_oldpath(msg),
-                             fbbcomm_serialized_rename_get_oldpath_len(msg),
-                             newdirfd, fbbcomm_serialized_rename_get_newpath(msg),
-                             fbbcomm_serialized_rename_get_newpath_len(msg), error);
+  const int olddirfd = msg->get_olddirfd_with_fallback(AT_FDCWD);
+  const int newdirfd = msg->get_newdirfd_with_fallback(AT_FDCWD);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_rename(olddirfd, msg->get_oldpath(), msg->get_oldpath_len(),
+                             newdirfd, msg->get_newpath(), msg->get_newpath_len(), error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_symlink *msg) {
-  const int newdirfd = fbbcomm_serialized_symlink_get_newdirfd_with_fallback(msg, AT_FDCWD);
-  const int error = fbbcomm_serialized_symlink_get_error_no_with_fallback(msg, 0);
-  return proc->handle_symlink(fbbcomm_serialized_symlink_get_oldpath(msg), newdirfd,
-                              fbbcomm_serialized_symlink_get_newpath(msg), error);
+  const int newdirfd = msg->get_newdirfd_with_fallback(AT_FDCWD);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_symlink(msg->get_oldpath(), newdirfd, msg->get_newpath(), error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fcntl *msg) {
-  const int error = fbbcomm_serialized_fcntl_get_error_no_with_fallback(msg, 0);
-  int arg = fbbcomm_serialized_fcntl_get_arg_with_fallback(msg, 0);
-  int ret = fbbcomm_serialized_fcntl_get_ret_with_fallback(msg, -1);
-  return proc->handle_fcntl(fbbcomm_serialized_fcntl_get_fd(msg),
-                            fbbcomm_serialized_fcntl_get_cmd(msg),
-                            arg, ret, error);
+  const int error = msg->get_error_no_with_fallback(0);
+  int arg = msg->get_arg_with_fallback(0);
+  int ret = msg->get_ret_with_fallback(-1);
+  return proc->handle_fcntl(msg->get_fd(), msg->get_cmd(), arg, ret, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_ioctl *msg) {
-  const int error = fbbcomm_serialized_ioctl_get_error_no_with_fallback(msg, 0);
-  int ret = fbbcomm_serialized_ioctl_get_ret_with_fallback(msg, -1);
-  return proc->handle_ioctl(fbbcomm_serialized_ioctl_get_fd(msg),
-                            fbbcomm_serialized_ioctl_get_cmd(msg),
-                            ret, error);
+  const int error = msg->get_error_no_with_fallback(0);
+  int ret = msg->get_ret_with_fallback(-1);
+  return proc->handle_ioctl(msg->get_fd(), msg->get_cmd(), ret, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_read_from_inherited *msg) {
-  const int error = fbbcomm_serialized_read_from_inherited_get_error_no_with_fallback(msg, 0);
+  const int error = msg->get_error_no_with_fallback(0);
   if (error == 0) {
-    proc->handle_read_from_inherited(fbbcomm_serialized_read_from_inherited_get_fd(msg));
+    proc->handle_read_from_inherited(msg->get_fd());
   }
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_write_to_inherited *msg) {
-  const int error = fbbcomm_serialized_write_to_inherited_get_error_no_with_fallback(msg, 0);
+  const int error = msg->get_error_no_with_fallback(0);
   if (error == 0) {
-    proc->handle_write_to_inherited(fbbcomm_serialized_write_to_inherited_get_fd(msg));
+    proc->handle_write_to_inherited(msg->get_fd());
   }
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_chdir *msg) {
-  const int error = fbbcomm_serialized_chdir_get_error_no_with_fallback(msg, 0);
+  const int error = msg->get_error_no_with_fallback(0);
   if (error == 0) {
-    proc->handle_set_wd(fbbcomm_serialized_chdir_get_dir(msg),
-                     fbbcomm_serialized_chdir_get_dir_len(msg));
+    proc->handle_set_wd(msg->get_dir(), msg->get_dir_len());
   } else {
-    proc->handle_fail_wd(fbbcomm_serialized_chdir_get_dir(msg));
+    proc->handle_fail_wd(msg->get_dir());
   }
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fchdir *msg) {
-  const int error = fbbcomm_serialized_fchdir_get_error_no_with_fallback(msg, 0);
+  const int error = msg->get_error_no_with_fallback(0);
   if (error == 0) {
-    proc->handle_set_fwd(fbbcomm_serialized_fchdir_get_fd(msg));
+    proc->handle_set_fwd(msg->get_fd());
   }
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_pipe_request *msg,
                              int fd_conn) {
-  const int flags = fbbcomm_serialized_pipe_request_get_flags_with_fallback(msg, 0);
+  const int flags = msg->get_flags_with_fallback(0);
   proc->handle_pipe_request(flags, fd_conn);
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_pipe_fds *msg) {
-  const int fd0 = fbbcomm_serialized_pipe_fds_get_fd0(msg);
-  const int fd1 = fbbcomm_serialized_pipe_fds_get_fd1(msg);
+  const int fd0 = msg->get_fd0();
+  const int fd1 = msg->get_fd1();
   proc->handle_pipe_fds(fd0, fd1);
   return 0;
 }

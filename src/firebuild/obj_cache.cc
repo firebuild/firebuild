@@ -135,7 +135,7 @@ bool ObjCache::store(const Hash &key,
            debug_postfix, strlen(debug_postfix) + 1);
 
     FILE *f = fopen(path_debug, "w");
-    fbbfp_serialized_debug(f, debug_key);
+    debug_key->debug(f);
     fclose(f);
   }
 
@@ -158,9 +158,9 @@ bool ObjCache::store(const Hash &key,
   // FIXME Is it faster if we alloca() for small sizes instead of malloc()?
   // FIXME Is it faster to ftruncate() the file to the desired size, then mmap,
   // then serialize to the mapped memory, then ftruncate() again to the actual size?
-  size_t len = fbbstore_builder_measure(entry);
+  size_t len = entry->measure();
   char *entry_serial = reinterpret_cast<char *>(malloc(len));
-  fbbstore_builder_serialize(entry, entry_serial);
+  entry->serialize(entry_serial);
   fb_write(fd_dst, entry_serial, len);
   close(fd_dst);
 
@@ -201,7 +201,7 @@ bool ObjCache::store(const Hash &key,
            strlen(debug_postfix) + 1);
 
     FILE *f = fopen(path_debug, "w");
-    fbbstore_builder_debug(f, entry);
+    entry->debug(f);
     fclose(f);
   }
   return true;
