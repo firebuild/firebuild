@@ -35,23 +35,29 @@
 #pragma GCC diagnostic push
 #ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
+{#
+ # Looks like a clang bug: with -std=c11 the code compiles fine, but with -std=gnu11
+ # (the default, which is supposed to be c11 plus some extensions) it complains that:
+ # "redefinition of typedef [...] is a C11 feature"
+ #}
+#pragma GCC diagnostic ignored "-Wtypedef-redefinition"
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* These are just so that you can "FBB_Builder *" or "FBB_Serialized *" instead of the more generic "void *",
- * resulting in nicer code. */
-typedef struct {
-  int {{ ns }}_tag_;
-} {{ NS }}_Builder;
-
-typedef struct {
-  int {{ ns }}_tag_;
-} {{ NS }}_Serialized;
-
 typedef uint32_t fbb_size_t;
+
+enum {
+  /* Values are spelled out for easier debugging.
+   * Start at 1 so that it's easier to catch a forgotten initialization. */
+  {{ NS }}_TAG_UNUSED = 0,
+### for (msg, _) in msgs
+  {{ NS }}_TAG_{{ msg }} = {{ loop.index }},
+### endfor
+  {{ NS }}_TAG_NEXT
+};
 
 typedef enum {
   /* A standard plain C "char**" containing the strings pointers. */
@@ -73,15 +79,146 @@ typedef enum {
   {{ NS }}_FBB_INPUT_FORMAT_CALLBACK,
 } {{ NS }}_FBB_Input_Format;
 
-enum {
-  /* Values are spelled out for easier debugging.
-   * Start at 1 so that it's easier to catch a forgotten initialization. */
-  {{ NS }}_TAG_UNUSED = 0,
+/* Forward declaration of the structs (classes). */
+#ifdef __cplusplus
+struct {{ NS }}_Builder;
+struct {{ NS }}_Serialized;
 ### for (msg, _) in msgs
-  {{ NS }}_TAG_{{ msg }} = {{ loop.index }},
+struct {{ NS }}_Builder_{{ msg }};
+struct {{ NS }}_Serialized_{{ msg }};
 ### endfor
-  {{ NS }}_TAG_NEXT
+#else
+typedef struct _{{ NS }}_Builder {{ NS }}_Builder;
+typedef struct _{{ NS }}_Serialized {{ NS }}_Serialized;
+### for (msg, _) in msgs
+typedef struct _{{ NS }}_Builder_{{ msg }} {{ NS }}_Builder_{{ msg }};
+typedef struct _{{ NS }}_Serialized_{{ msg }} {{ NS }}_Serialized_{{ msg }};
+### endfor
+#endif
+
+/* Forward declaration of the main methods. */
+
+/*
+ * Get the tag from the builder
+ */
+static inline int {{ ns }}_builder_get_tag(const {{ NS }}_Builder *msg);
+
+/*
+ * Get the tag from the serialized version
+ */
+static inline int {{ ns }}_serialized_get_tag(const {{ NS }}_Serialized *msg);
+
+/*
+ * Get the tag as string
+ */
+const char *{{ ns }}_tag_to_string(int tag);
+
+/*
+ * Builder - Debug any message
+ *
+ * Generate valid JSON (and almost valid Python - just set null=None before parsing it)
+ * so that it's easier to postprocess with random tools.
+ */
+void {{ ns }}_builder_debug(FILE *f, const {{ NS }}_Builder *msg);
+
+/*
+ * Serialized - Debug any message
+ *
+ * Generate valid JSON (and almost valid Python - just set null=None before parsing it)
+ * so that it's easier to postprocess with random tools.
+ */
+void {{ ns }}_serialized_debug(FILE *f, const {{ NS }}_Serialized *msg);
+
+/*
+ * Builder - Measure any message
+ *
+ * Return the length of the serialized form.
+ */
+fbb_size_t {{ ns }}_builder_measure(const {{ NS }}_Builder *msg);
+
+/*
+ * Builder - Serialize any message to memory
+ *
+ * Takes a buffer that is large enough to hold the serialized form, as guaranteed by a preceding {{ ns }}_builder_measure() call.
+ *
+ * Return the length of the serialized form.
+ */
+fbb_size_t {{ ns }}_builder_serialize(const {{ NS }}_Builder *msg, char *dst);
+
+/* These are just so that you can "FBB_Builder *" or "FBB_Serialized *" instead of the more generic "void *",
+ * resulting in nicer code. */
+#ifdef __cplusplus
+struct {{ NS }}_Builder {
+#else
+typedef struct _{{ NS }}_Builder {
+#endif
+
+  int {{ ns }}_tag_;
+
+#ifdef __cplusplus
+  inline int get_tag() const {
+    return {{ ns }}_builder_get_tag(this);
+  }
+  inline fbb_size_t measure() const {
+    return {{ ns }}_builder_measure(this);
+  }
+  inline fbb_size_t serialize(char *dst) const {
+    return {{ ns }}_builder_serialize(this, dst);
+  }
+  inline void debug(FILE *f) const {
+    {{ ns }}_builder_debug(f, this);
+  }
+#endif
+
+#ifdef __cplusplus
 };
+#else
+} {{ NS }}_Builder;
+#endif
+
+#ifdef __cplusplus
+struct {{ NS }}_Serialized {
+#else
+typedef struct _{{ NS }}_Serialized {
+#endif
+
+  int {{ ns }}_tag_;
+
+#ifdef __cplusplus
+  inline int get_tag() const {
+    return {{ ns }}_serialized_get_tag(this);
+  }
+  inline void debug(FILE *f) const {
+    {{ ns }}_serialized_debug(f, this);
+  }
+#endif
+
+#ifdef __cplusplus
+};
+#else
+} {{ NS }}_Serialized;
+#endif
+
+#ifdef __cplusplus
+  /* Make sure the layout is the same in C and C++. */
+  static_assert(std::is_standard_layout_v<{{ NS }}_Serialized>);
+#endif
+
+/* Definition of some of the global functions - the rest are defined in tpl.c. */
+
+/*
+ * Get the tag from the builder
+ */
+static inline int {{ ns }}_builder_get_tag(const {{ NS }}_Builder *msg) {
+  return msg->{{ ns }}_tag_;
+}
+
+/*
+ * Get the tag from the serialized version
+ */
+static inline int {{ ns }}_serialized_get_tag(const {{ NS }}_Serialized *msg) {
+  return msg->{{ ns }}_tag_;
+}
 
 #ifdef __cplusplus
 }  /* close extern "C" for the inline methods so that we can use C++ function overloading */
@@ -91,6 +228,1283 @@ enum {
 /******************************************************************************
  *  {{ msg }}
  ******************************************************************************/
+
+{#
+ # For each field in the message, we might need to generate 3-4-5-6 or so different methods
+ # depending on its type (setter/getter on the builder, getter on the serialized format, array count
+ # getter, and convenience methods with slightly different signatures). Each such method has a
+ # C-style and a C++-style API, and we need to forward-declare the C-style method in order not to
+ # break a dependency loop. That is, for each field, we need to emit code at 3 different places in
+ # the output file.
+ #
+ # Jinja doesn't seem to have a nice solution for this, and I couldn't find a different template
+ # engine either which would solve this nicely.
+ #
+ # So here we iterate through all the fields of a message tag and decide what methods with what
+ # source code body we'll need, but we don't emit anything yet. We just collect these in the
+ # "builder_funcs" and "serialized_funcs" arrays. Once we've collected everything then we'll emit
+ # them in multiple rounds.
+ #
+ # Each block enclosed between "....." and "^^^^^" markers represents one logical getter or setter,
+ # which will have a C-style and a C++-style API. The temporary multiline variables "comment",
+ # "cfunc" and "cxxfunc" are defined to hold the comment, the C-style definition and the C++-style
+ # definition, the latter one simply calling the C-style implementation.
+ #
+ # I use the wording "C-style" because the API looks like plain old C, but the method might be C or
+ # C++. For consistency even C++ methods have a C-style interface, we might revise this decision at
+ # one point.
+ #
+ # The C-style declaration is automatically created from the C-style definition (it's a trivial
+ # string operation). Theoretically the C++-style definition could also be automatically created
+ # from the C-style definition, but it's not easy, especially with jinja's limited toolset, it's
+ # easier to write them manually for now.
+ #
+ # Finally, in each such block, we encapsulate these in a tuple and append that to builder_funcs or
+ # serialized_funcs. The last member of the tuple must be 'c' or 'c++' specifying the language used
+ # for the C-style API, i.e. if the code is actually C++ then it will be #ifdef'ed accordingly.
+ #}
+
+###   set builder_funcs = []
+###   set serialized_funcs = []
+
+{#
+ # Builder setters
+ #}
+
+###   for (quant, type, var, dbgfn) in fields
+{% set ctype = "const char *" if type == STRING else "const " + NS + "_Builder *" if type == FBB else type %}
+
+###     if type not in [STRING, FBB]
+###       if quant == REQUIRED
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - required scalar
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ type }} value) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->wire.{{ var }}_ = value;
+#ifdef FB_EXTRA_DEBUG
+  msg->has_{{ var }}_ = true;
+#endif
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}({{ type }} value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, value);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       elif quant == OPTIONAL
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - optional scalar
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ type }} value) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->wire.{{ var }}_ = value;
+  msg->wire.has_{{ var }}_ = true;
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}({{ type }} value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, value);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       else
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - array of scalars
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const {{ type }} *values, fbb_size_t count) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_ = values;
+  msg->wire.{{ var }}_count_ = count;
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}(const {{ type }} *values, fbb_size_t count) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, values, count);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - array of scalars (C++)
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ type }}>& values) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_ = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}(const std::vector<{{ type }}>& values) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, values);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       endif
+###     else
+###       if quant in [REQUIRED, OPTIONAL]
+###         if type == STRING
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - required or optional string with length
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length({{ NS }}_Builder_{{ msg }} *msg, const char *value, fbb_size_t len) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+#ifdef FB_EXTRA_DEBUG
+  assert(value == NULL || strlen(value) == len);  /* if len is specified, it must be the correct value */
+#endif
+
+  msg->{{ var }}_ = value;
+  msg->wire.{{ var }}_len_ = len;
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}_with_length(const char *value, fbb_size_t len) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length(this, value, len);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - required or optional string
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const char *value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length(msg, value, value ? strlen(value) : 0);
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}(const char *value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, value);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - required or optional string (C++)
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::string& value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length(msg, value.c_str(), value.length());
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}(const std::string& value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, value);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         else
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - required or optional FBB
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const {{ NS }}_Builder *value) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_ = value;
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}(const {{ NS }}_Builder *value) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, value);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###       else
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - array of strings or FBBs with item count
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count({{ NS }}_Builder_{{ msg }} *msg, {{ ctype }} const *values, fbb_size_t count) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
+  msg->{{ var }}_.c_array = values;
+  msg->wire.{{ var }}_count_ = count;
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}_with_count({{ ctype }} const *values, fbb_size_t count) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count(this, values, count);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - array of strings or FBBs
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ ctype }} const *values) {
+  fbb_size_t count = 0;
+  if (values != NULL) {
+    while (values[count] != NULL) count++;
+  }
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count(msg, values, count);
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}({{ ctype }} const *values) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, values);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         if type == STRING
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - array of strings as cstring_view
+ * {{ type }}[] {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_cstring_views({{ NS }}_Builder_{{ msg }} *msg, const cstring_view *values, fbb_size_t count) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
+  msg->{{ var }}_.cstring_view_array = values;
+  msg->wire.{{ var }}_count_ = count;
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}_cstring_views(const cstring_view *values, fbb_size_t count) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_cstring_views(this, values, count);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - array of strings as vector<cstring_view> (C++)
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<cstring_view>& values) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
+  msg->{{ var }}_.cstring_view_array = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}(const std::vector<cstring_view>& values) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, values);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - array of strings or FBBs (C++)
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ ctype }}>& values) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
+  msg->{{ var }}_.c_array = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}(const std::vector<{{ ctype }}>& values) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, values);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         if type == STRING
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder setter - array of strings as vector<string> (C++)
+ * {{ type }}[] {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<std::string>& values) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY;
+  msg->{{ var }}_.cxx_string_array = values.data();
+  msg->wire.{{ var }}_count_ = values.size();
+}
+###           endset
+###           set cxxfunc
+inline void set_{{ var }}(const std::vector<std::string>& values) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}(this, values);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder setter - array of strings or FBBs as an item getter function
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Builder_{{ msg }} *msg, fbb_size_t count, {{ ctype }} (* item_fn) (int idx, const void *user_data{% if type == STRING %}, fbb_size_t *len_out{% endif %}), const void *user_data) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_CALLBACK;
+  msg->{{ var }}_.callback.item_fn = item_fn;
+  msg->{{ var }}_.callback.user_data = user_data;
+  msg->wire.{{ var }}_count_ = count;
+}
+###         endset
+###         set cxxfunc
+inline void set_{{ var }}_item_fn(fbb_size_t count, {{ ctype }} (* item_fn) (int idx, const void *user_data{% if type == STRING %}, fbb_size_t *len_out{% endif %}), const void *user_data) {
+  {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn(this, count, item_fn, user_data);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       endif
+###     endif
+###   endfor
+
+{#
+ # Builder getters
+ #}
+
+###   for (quant, type, var, dbgfn) in fields
+{% set ctype = "const char *" if type == STRING else "const " + NS + "_Builder *" if type == FBB else type %}
+###     if quant == OPTIONAL
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Builder getter - check if optional field is set
+ * {{ type }} {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline bool {{ ns }}_builder_{{ msg }}_has_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+###         if type in [STRING, FBB]
+  return msg->{{ var }}_ != NULL;
+###         else
+  return msg->wire.has_{{ var }}_;
+###         endif
+}
+###       endset
+###       set cxxfunc
+inline bool has_{{ var }}() const {
+  return {{ ns }}_builder_{{ msg }}_has_{{ var }}(this);
+}
+###       endset
+###       do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###     endif
+###     if quant in [REQUIRED, OPTIONAL]
+###       if type not in [STRING, FBB]
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - required or optional scalar
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+###           if quant == OPTIONAL
+  assert(msg->wire.has_{{ var }}_);
+###           endif
+  return msg->wire.{{ var }}_;
+}
+###         endset
+###         set cxxfunc
+inline {{ type }} get_{{ var }}() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}(this);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - pointer to required or optional scalar
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+###           if quant == OPTIONAL
+  if (!msg->wire.has_{{ var }}_) {
+    return NULL;
+  }
+###           endif
+  return &msg->wire.{{ var }}_;
+}
+###         endset
+###         set cxxfunc
+inline const {{ type }} *get_{{ var }}_ptr() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_ptr(this);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         if quant == OPTIONAL
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder getter - optional scalar with fallback default
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_fallback(const {{ NS }}_Builder_{{ msg }} *msg, {{ type }} fallback) {
+  return msg->wire.has_{{ var }}_ ? msg->wire.{{ var }}_ : fallback;
+}
+###           endset
+###           set cxxfunc
+inline {{ type }} get_{{ var }}_with_fallback({{ type }} fallback) const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_fallback(this, fallback);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###       else
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - required or optional string or FBB
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  return msg->{{ var }}_;
+}
+###         endset
+###         set cxxfunc
+inline {{ ctype }} get_{{ var }}() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}(this);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         if type == STRING
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder getter - required or optional string's length
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  return msg->wire.{{ var }}_len_;
+}
+###           endset
+###           set cxxfunc
+inline fbb_size_t get_{{ var }}_len() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(this);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder getter - required or optional string along with its length
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t *len_out) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  *len_out = {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(msg);
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}(msg);
+}
+###           endset
+###           set cxxfunc
+inline {{ ctype }} get_{{ var }}_with_len(fbb_size_t *len_out) const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len(this, len_out);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder getter - required or optional string (C++, not async-signal-safe)
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline std::string {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(msg->{{ var }}_ != NULL);
+
+  return std::string(msg->{{ var }}_, msg->wire.{{ var }}_len_);
+}
+###           endset
+###           set cxxfunc
+inline std::string get_{{ var }}_as_string() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string(this);
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###       endif
+###     else
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Builder getter - array item count
+ * {{ type }}[] {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_count(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  return msg->wire.{{ var }}_count_;
+}
+###       endset
+###       set cxxfunc
+inline fbb_size_t get_{{ var }}_count() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_count(this);
+}
+###       endset
+###       do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       if type not in [STRING, FBB]
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - array of scalars
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  return msg->{{ var }}_;
+}
+###         endset
+###         set cxxfunc
+inline const {{ type }} *get_{{ var }}() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}(this);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       endif
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Builder getter - one item from an array
+ * {{ type }}[] {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count_);
+
+###         if type not in [STRING, FBB]
+  return msg->{{ var }}_[idx];
+###         elif type == STRING
+  switch (msg->{{ var }}_how_) {
+    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
+      return msg->{{ var }}_.c_array[idx];
+    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
+      return msg->{{ var }}_.cstring_view_array[idx].c_str;
+#ifdef __cplusplus
+    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
+      return msg->{{ var }}_.cxx_string_array[idx].c_str();
+#endif
+    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
+      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, NULL);
+  }
+  assert(0);
+  return NULL;
+###         else
+  switch (msg->{{ var }}_how_) {
+    case {{ NS }}_FBB_INPUT_FORMAT_ARRAY:
+      return msg->{{ var }}_.c_array[idx];
+    case {{ NS }}_FBB_INPUT_FORMAT_CALLBACK:
+      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data);
+  }
+  assert(0);
+  return NULL;
+###         endif
+}
+###       endset
+###       set cxxfunc
+inline {{ ctype }} get_{{ var }}_at(fbb_size_t idx) const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(this, idx);
+}
+###       endset
+###       do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       if type == STRING
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - one item's length from a string array
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count_);
+
+  switch (msg->{{ var }}_how_) {
+    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
+      /* This is costly, the requested length is not readily available so we have to compute it. */
+      return strlen(msg->{{ var }}_.c_array[idx]);
+    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
+      return msg->{{ var }}_.cstring_view_array[idx].length;
+#ifdef __cplusplus
+    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
+      return msg->{{ var }}_.cxx_string_array[idx].length();
+#endif
+    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK: {
+      fbb_size_t len;
+      (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, &len);
+      return len;
+    }
+  }
+  assert(0);
+  return 0;
+}
+###         endset
+###         set cxxfunc
+inline fbb_size_t get_{{ var }}_len_at(fbb_size_t idx) const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(this, idx);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - one item from a string array along with its length
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->wire.{{ var }}_count_);
+
+  switch (msg->{{ var }}_how_) {
+    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
+      /* This is costly, the requested length is not readily available so we have to compute it. */
+      *len_out = strlen(msg->{{ var }}_.c_array[idx]);
+      return msg->{{ var }}_.c_array[idx];
+    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
+      *len_out = msg->{{ var }}_.cstring_view_array[idx].length;
+      return msg->{{ var }}_.cstring_view_array[idx].c_str;
+#ifdef __cplusplus
+    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
+      *len_out = msg->{{ var }}_.cxx_string_array[idx].length();
+      return msg->{{ var }}_.cxx_string_array[idx].c_str();
+#endif
+    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
+      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, len_out);
+  }
+  assert(0);
+  return NULL;
+}
+###         endset
+###         set cxxfunc
+inline {{ ctype }} get_{{ var }}_with_len_at(fbb_size_t idx, fbb_size_t *len_out) const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(this, idx, len_out);
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       endif
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Builder getter - array (C++, not async-signal-safe)
+ * {{ type }}[] {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Builder_{{ msg }} *msg) {
+  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
+  ret.reserve(msg->wire.{{ var }}_count_);
+  for (fbb_size_t idx = 0; idx < msg->wire.{{ var }}_count_; idx++)
+    ret.emplace_back({{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msg, idx));
+  return ret;
+}
+###       endset
+###       set cxxfunc
+inline std::vector<{{ "std::string" if type == STRING else ctype }}> get_{{ var }}_as_vector() const {
+  return {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_vector(this);
+}
+###       endset
+###       do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###     endif
+###   endfor
+
+{#
+ # Serialized getters
+ #}
+
+###   for (quant, type, var, dbgfn) in fields
+{% set ctype = "const char *" if type == STRING else "const " + NS + "_Serialized *" if type == FBB else type %}
+###     if quant == OPTIONAL
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Serialized getter - check if optional field is set
+ * {{ type }} {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline bool {{ ns }}_serialized_{{ msg }}_has_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+###         if type in [STRING, FBB]
+  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
+  return relptrs->{{ var }}_relptr_ != 0;
+###         else
+  return msg->has_{{ var }}_;
+###         endif
+}
+###       endset
+###       set cxxfunc
+inline bool has_{{ var }}() const {
+  return {{ ns }}_serialized_{{ msg }}_has_{{ var }}(this);
+}
+###       endset
+###       do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###     endif
+###     if quant in [REQUIRED, OPTIONAL]
+###       if type not in [STRING, FBB]
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Serialized getter - required or optional scalar
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+###           if quant == OPTIONAL
+  assert(msg->has_{{ var }}_);
+###           endif
+  return msg->{{ var }}_;
+}
+###         endset
+###         set cxxfunc
+inline {{ type }} get_{{ var }}() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(this);
+}
+###         endset
+###         do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Serialized getter - pointer to required or optional scalar
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+###           if quant == OPTIONAL
+  if (!msg->has_{{ var }}_) {
+    return NULL;
+  }
+###           endif
+  return &msg->{{ var }}_;
+}
+###         endset
+###         set cxxfunc
+inline const {{ type }} *get_{{ var }}_ptr() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_ptr(this);
+}
+###         endset
+###         do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         if quant == OPTIONAL
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - optional scalar with fallback default
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_fallback(const {{ NS }}_Serialized_{{ msg }} *msg, {{ type }} fallback) {
+  return msg->has_{{ var }}_ ? msg->{{ var }}_ : fallback;
+}
+###           endset
+###           set cxxfunc
+inline {{ type }} get_{{ var }}_with_fallback({{ type }} fallback) const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_fallback(this, fallback);
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###       else
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Serialized getter - required or optional string or FBB
+ * {{ type }} {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
+  if (relptrs->{{ var }}_relptr_ == 0) {
+###           if quant == REQUIRED
+    assert(relptrs->{{ var }}_relptr_ != 0);
+###           else
+    return NULL;
+###           endif
+  }
+  const char *ret = (const char *)msg + relptrs->{{ var }}_relptr_;
+  return ({{ ctype }}) ret;
+}
+###         endset
+###         set cxxfunc
+inline {{ ctype }} get_{{ var }}() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(this);
+}
+###         endset
+###         do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       if type == STRING
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - required or optional string's length
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  return msg->{{ var }}_len_;
+}
+###           endset
+###           set cxxfunc
+inline fbb_size_t get_{{ var }}_len() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(this);
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - required or optional string along with its length
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t *len_out) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(msg);
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
+}
+###           endset
+###           set cxxfunc
+inline {{ ctype }} get_{{ var }}_with_len(fbb_size_t *len_out) const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len(this, len_out);
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - required or optional string (C++, not async-signal-safe)
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline std::string {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  const char *c_str = {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
+  assert(c_str != NULL);
+  return std::string(c_str, msg->{{ var }}_len_);
+}
+###           endset
+###           set cxxfunc
+inline std::string get_{{ var }}_as_string() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string(this);
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###       endif
+###     else
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Serialized getter - array item count
+ * {{ type }}[] {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_count(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  return msg->{{ var }}_count_;
+}
+###       endset
+###       set cxxfunc
+inline fbb_size_t get_{{ var }}_count() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_count(this);
+}
+###       endset
+###       do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       if type not in [STRING, FBB]
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Serialized getter - array of scalars
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
+  const char *array = (const char *)msg + relptrs->{{ var }}_relptr_;
+  return (const {{ type }} *) array;
+}
+###         endset
+###         set cxxfunc
+inline const {{ type }} *get_{{ var }}() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(this);
+}
+###         endset
+###         do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Serialized getter - one item from an array of scalars
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
+
+  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
+  const void *array_void = (const char *)msg + relptrs->{{ var }}_relptr_;
+  const {{ type }} *array = (const {{ type }} *)array_void;
+  return array[idx];
+}
+###         endset
+###         set cxxfunc
+inline {{ type }} get_{{ var }}_at(fbb_size_t idx) const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(this, idx);
+}
+###         endset
+###         do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       else
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Serialized getter - one item from an array of strings or FBBs
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
+
+  /* double jump */
+  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
+  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr_;
+  const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
+  const char *ret = (const char *)msg + second_relptrs[{{ "2 * " if type == STRING }}idx];
+  return ({{ ctype }}) ret;
+}
+###         endset
+###         set cxxfunc
+inline {{ ctype }} get_{{ var }}_at(fbb_size_t idx) const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(this, idx);
+}
+###         endset
+###         do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         if type == STRING
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - one item's length from an array of strings
+ * {{ type }}[] {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
+
+  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
+  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr_;
+  const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
+  return second_relptrs[2 * idx + 1];
+}
+###           endset
+###           set cxxfunc
+inline fbb_size_t get_{{ var }}_len_at(fbb_size_t idx) const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(this, idx);
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - one item along with its length from an array of strings
+ * {{ type }}[] {{ var }}
+ */
+###           endset
+###           set cfunc
+static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+  assert(idx < msg->{{ var }}_count_);
+
+  *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx);
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx);
+}
+###           endset
+###           set cxxfunc
+inline {{ ctype }} get_{{ var }}_with_len_at(fbb_size_t idx, fbb_size_t *len_out) const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_at(this, idx, len_out);
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###       endif
+
+{# .......................................................................... #}
+###       set comment
+/*
+ * Serialized getter - array (C++, not async-signal-safe)
+ * {{ type }}[] {{ var }}
+ */
+###       endset
+###       set cfunc
+static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Serialized_{{ msg }} *msg) {
+  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
+
+  std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
+  ret.reserve( msg->{{ var }}_count_);
+  for (fbb_size_t idx = 0; idx < msg->{{ var }}_count_; idx++) {
+    ret.emplace_back({{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx) {% if type == STRING %}, (size_t){{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx) {% endif %});
+  }
+  return ret;
+}
+###       endset
+###       set cxxfunc
+inline std::vector<{{ "std::string" if type == STRING else ctype }}> get_{{ var }}_as_vector() const {
+  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_vector(this);
+}
+###       endset
+###       do serialized_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###     endif
+###   endfor
+
+{#
+ # We've built up "builder_funcs" and "serialized_funcs" for all the fields of the current message
+ # tag. Time to generate some output.
+ #}
+
+/* Forward declaration of the functions of the C-style API for this message tag. */
+
+static inline void {{ ns }}_builder_{{ msg }}_init({{ NS }}_Builder_{{ msg }} *msg);
+
+###   for (comment, cfunc, cxxfunc, lang) in builder_funcs + serialized_funcs
+###     if lang == 'c++'
+#ifdef __cplusplus
+###     endif
+{{ comment }}
+{{ cfunc.split(" {")[0] }};
+###     if lang == 'c++'
+#endif
+###     endif
+###   endfor
 
 ###   set jinjans = namespace(has_relptr=False)
 ###   for (quant, type, var, dbgfn) in fields
@@ -104,7 +1518,12 @@ enum {
 /*
  * Wire buffer, common to the Builder as well
  */
+#ifdef __cplusplus
+struct {{ NS }}_Serialized_{{ msg }} {
+#else
 typedef struct _{{ NS }}_Serialized_{{ msg }} {
+#endif
+
   /* It's important that the tag is the very first field */
   int {{ ns }}_tag_;
   /* Required and optional scalar fields */
@@ -136,7 +1555,25 @@ typedef struct _{{ NS }}_Serialized_{{ msg }} {
   bool has_{{ var }}_ : 1;
 ###     endif
 ###   endfor
+
+#ifdef __cplusplus
+  /* C++-style convenience member methods. They all just call their equivalent C counterpart. */
+###   for (comment, cfunc, cxxfunc, lang) in serialized_funcs
+  {{ comment | indent(2) }}
+  {{ cxxfunc | indent(2) }}
+###   endfor
+#endif  /* __cplusplus */
+
+#ifdef __cplusplus
+};
+#else
 } {{ NS }}_Serialized_{{ msg }};
+#endif  /* __cplusplus */
+
+#ifdef __cplusplus
+  /* Make sure the layout is the same in C and C++. */
+  static_assert(std::is_standard_layout_v<{{ NS }}_Serialized_{{ msg }}>);
+#endif
 
 /*
  * Placed in the serialized format after {{ NS }}_Serialized_{{ msg }},
@@ -157,7 +1594,12 @@ typedef struct _{{ NS }}_Relptrs_{{ msg }} {
 /*
  * Builder
  */
+#ifdef __cplusplus
+struct {{ NS }}_Builder_{{ msg }} {
+#else
 typedef struct _{{ NS }}_Builder_{{ msg }} {
+#endif
+
   /* The part of the message that's common with the serialized format */
   {{ NS }}_Serialized_{{ msg }} wire;
 
@@ -228,707 +1670,61 @@ typedef struct _{{ NS }}_Builder_{{ msg }} {
 ###     endif
 ###   endfor
 #endif
+
+#ifdef __cplusplus
+  /* C++-style convenience member methods. Except for the constructor, they all just call their equivalent C counterpart. */
+
+  /* Constructor that also initializes the object. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"  /* suppress warning about not initializing the member fields, we'll memset() them */
+  {{ NS }}_Builder_{{ msg }}() {
+    init();
+  }
+#pragma GCC diagnostic pop
+
+  /* Standalone init, you need it in case you allocated the memory area independently and cast it to a Builder object. */
+  inline void init() {
+    {{ ns }}_builder_{{ msg }}_init(this);
+  }
+
+###   for (comment, cfunc, cxxfunc, lang) in builder_funcs
+  {{ comment | indent(2) }}
+  {{ cxxfunc | indent(2) }}
+###   endfor
+
+#endif  /* __cplusplus */
+
+#ifdef __cplusplus
+};
+#else
 } {{ NS }}_Builder_{{ msg }};
+#endif  /* __cplusplus */
 
 /*
  * Builder: Initialize, set tag
  */
 static inline void {{ ns }}_builder_{{ msg }}_init({{ NS }}_Builder_{{ msg }} *msg) {
-  memset(msg, 0, sizeof(*msg));
+  /* Zero out even the padding / unused bits to avoid random garbage over the wire or in stored values.
+   * FIXME This should be followed by value-initializing to 0 for types where the value 0 isn't represented
+   * by all-zero bits, e.g. float/double, but theoretically also integer 0 and nullptr on some architectures. */
+  /* Casting to suppress -Wclass-memaccess. */
+  memset((void *) msg, 0, sizeof(*msg));
   msg->wire.{{ ns }}_tag_ = {{ NS }}_TAG_{{ msg }};
 }
 
-/***** Setters *****/
-
-###   for (quant, type, var, dbgfn) in fields
-{% set ctype = "const char *" if type == STRING else "const " + NS + "_Builder *" if type == FBB else type %}
-###     if type not in [STRING, FBB]
-###       if quant == REQUIRED
-/*
- * Builder setter - required scalar
- * {{ type }} {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ type }} value) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->wire.{{ var }}_ = value;
-#ifdef FB_EXTRA_DEBUG
-  msg->has_{{ var }}_ = true;
-#endif
-}
-###       elif quant == OPTIONAL
-/*
- * Builder setter - optional scalar
- * {{ type }} {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ type }} value) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->wire.{{ var }}_ = value;
-  msg->wire.has_{{ var }}_ = true;
-}
-###       else
-/*
- * Builder setter - array of scalars
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const {{ type }} *values, fbb_size_t count) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_ = values;
-  msg->wire.{{ var }}_count_ = count;
-}
+###   for (comment, cfunc, cxxfunc, lang) in builder_funcs + serialized_funcs
+###     if lang == 'c++'
 #ifdef __cplusplus
-/*
- * Builder setter - array of scalars (C++)
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ type }}>& values) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_ = values.data();
-  msg->wire.{{ var }}_count_ = values.size();
-}
-#endif
-###       endif
-###     else
-###       if quant in [REQUIRED, OPTIONAL]
-###         if type == STRING
-/*
- * Builder setter - required or optional string with length
- * {{ type }} {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length({{ NS }}_Builder_{{ msg }} *msg, const char *value, fbb_size_t len) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-#ifdef FB_EXTRA_DEBUG
-  assert(value == NULL || strlen(value) == len);  /* if len is specified, it must be the correct value */
-#endif
-
-  msg->{{ var }}_ = value;
-  msg->wire.{{ var }}_len_ = len;
-}
-/*
- * Builder setter - required or optional string
- * {{ type }} {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const char *value) {
-  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length(msg, value, value ? strlen(value) : 0);
-}
-#ifdef __cplusplus
-/*
- * Builder setter - required or optional string (C++)
- * {{ type }} {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::string& value) {
-  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_length(msg, value.c_str(), value.length());
-}
-#endif
-###         else
-/*
- * Builder setter - required or optional FBB
- * {{ type }} {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const {{ NS }}_Builder *value) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_ = value;
-}
-###         endif
-###       else
-/*
- * Builder setter - array of strings or FBBs with item count
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count({{ NS }}_Builder_{{ msg }} *msg, {{ ctype }} const *values, fbb_size_t count) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
-  msg->{{ var }}_.c_array = values;
-  msg->wire.{{ var }}_count_ = count;
-}
-/*
- * Builder setter - array of strings or FBBs
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, {{ ctype }} const *values) {
-  fbb_size_t count = 0;
-  if (values != NULL) {
-    while (values[count] != NULL) count++;
-  }
-  {{ ns }}_builder_{{ msg }}_set_{{ var }}_with_count(msg, values, count);
-}
-###         if type == STRING
-/*
- * Builder setter - array of strings as cstring_view
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_cstring_views({{ NS }}_Builder_{{ msg }} *msg, const cstring_view *values, fbb_size_t count) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
-  msg->{{ var }}_.cstring_view_array = values;
-  msg->wire.{{ var }}_count_ = count;
-}
-#ifdef __cplusplus
-/*
- * Builder setter - array of strings as vector<cstring_view> (C++)
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<cstring_view>& values) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY;
-  msg->{{ var }}_.cstring_view_array = values.data();
-  msg->wire.{{ var }}_count_ = values.size();
-}
-#endif
-###         endif
-#ifdef __cplusplus
-/*
- * Builder setter - array of strings or FBBs (C++)
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<{{ ctype }}>& values) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_ARRAY;
-  msg->{{ var }}_.c_array = values.data();
-  msg->wire.{{ var }}_count_ = values.size();
-}
-###         if type == STRING
-/*
- * Builder setter - array of strings as vector<string> (C++)
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}({{ NS }}_Builder_{{ msg }} *msg, const std::vector<std::string>& values) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_how_ = {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY;
-  msg->{{ var }}_.cxx_string_array = values.data();
-  msg->wire.{{ var }}_count_ = values.size();
-}
-###         endif
-#endif
-/*
- * Builder setter - array of strings or FBBs as an item getter function
- * {{ type }}[] {{ var }}
- */
-static inline void {{ ns }}_builder_{{ msg }}_set_{{ var }}_item_fn({{ NS }}_Builder_{{ msg }} *msg, fbb_size_t count, {{ ctype }} (* item_fn) (int idx, const void *user_data{% if type == STRING %}, fbb_size_t *len_out{% endif %}), const void *user_data) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  msg->{{ var }}_how_ = {{ NS }}_{{ type|upper }}_INPUT_FORMAT_CALLBACK;
-  msg->{{ var }}_.callback.item_fn = item_fn;
-  msg->{{ var }}_.callback.user_data = user_data;
-  msg->wire.{{ var }}_count_ = count;
-}
-###       endif
 ###     endif
-###   endfor
-
-/***** Getters on the builder *****/
-
-###   for (quant, type, var, dbgfn) in fields
-{% set ctype = "const char *" if type == STRING else "const " + NS + "_Builder *" if type == FBB else type %}
-###     if quant == OPTIONAL
-/*
- * Builder getter - check if optional field is set
- * {{ type }} {{ var }}
- */
-static inline bool {{ ns }}_builder_{{ msg }}_has_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-###       if type in [STRING, FBB]
-  return msg->{{ var }}_ != NULL;
-###       else
-  return msg->wire.has_{{ var }}_;
-###       endif
-}
-###     endif
-
-###     if quant in [REQUIRED, OPTIONAL]
-###       if type not in [STRING, FBB]
-/*
- * Builder getter - required or optional scalar
- * {{ type }} {{ var }}
- */
-static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-###         if quant == OPTIONAL
-  assert(msg->wire.has_{{ var }}_);
-###         endif
-  return msg->wire.{{ var }}_;
-}
-/*
- * Builder getter - pointer to required or optional scalar
- * {{ type }} {{ var }}
- */
-static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-###         if quant == OPTIONAL
-  if (!msg->wire.has_{{ var }}_) {
-    return NULL;
-  }
-###         endif
-  return &msg->wire.{{ var }}_;
-}
-###         if quant == OPTIONAL
-/*
- * Builder getter - optional scalar with fallback default
- * {{ type }} {{ var }}
- */
-static inline {{ type }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_fallback(const {{ NS }}_Builder_{{ msg }} *msg, {{ type }} fallback) {
-  return msg->wire.has_{{ var }}_ ? msg->wire.{{ var }}_ : fallback;
-}
-###         endif
-###       else
-/*
- * Builder getter - required or optional string or FBB
- * {{ type }} {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  return msg->{{ var }}_;
-}
-###         if type == STRING
-/*
- * Builder getter - required or optional string's length
- * {{ type }} {{ var }}
- */
-static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  return msg->wire.{{ var }}_len_;
-}
-/*
- * Builder getter - required or optional string along with its length
- * {{ type }} {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t *len_out) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  *len_out = {{ ns }}_builder_{{ msg }}_get_{{ var }}_len(msg);
-  return {{ ns }}_builder_{{ msg }}_get_{{ var }}(msg);
-}
-#ifdef __cplusplus
-/*
- * Builder getter - required or optional string (C++, not async-signal-safe)
- * {{ type }} {{ var }}
- */
-static inline std::string {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(msg->{{ var }}_ != NULL);
-
-  return std::string(msg->{{ var }}_, msg->wire.{{ var }}_len_);
-}
-#endif
-###         endif
-###       endif
-###     else
-/*
- * Builder getter - array item count
- * {{ type }}[] {{ var }}
- */
-static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_count(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  return msg->wire.{{ var }}_count_;
-}
-###       if type not in [STRING, FBB]
-/*
- * Builder getter - array of scalars
- * {{ type }}[] {{ var }}
- */
-static inline const {{ type }} *{{ ns }}_builder_{{ msg }}_get_{{ var }}(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  return msg->{{ var }}_;
-}
-###       endif
-/*
- * Builder getter - one item from an array
- * {{ type }}[] {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->wire.{{ var }}_count_);
-
-###       if type not in [STRING, FBB]
-  return msg->{{ var }}_[idx];
-###       elif type == STRING
-  switch (msg->{{ var }}_how_) {
-    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
-      return msg->{{ var }}_.c_array[idx];
-    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
-      return msg->{{ var }}_.cstring_view_array[idx].c_str;
-#ifdef __cplusplus
-    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
-      return msg->{{ var }}_.cxx_string_array[idx].c_str();
-#endif
-    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
-      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, NULL);
-  }
-  assert(0);
-  return NULL;
-###       else
-  switch (msg->{{ var }}_how_) {
-    case {{ NS }}_FBB_INPUT_FORMAT_ARRAY:
-      return msg->{{ var }}_.c_array[idx];
-    case {{ NS }}_FBB_INPUT_FORMAT_CALLBACK:
-      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data);
-  }
-  assert(0);
-  return NULL;
-###       endif
-}
-###       if type == STRING
-/*
- * Builder getter - one item's length from a string array
- * {{ type }}[] {{ var }}
- */
-static inline fbb_size_t {{ ns }}_builder_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->wire.{{ var }}_count_);
-
-  switch (msg->{{ var }}_how_) {
-    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
-      /* This is costly, the requested length is not readily available so we have to compute it. */
-      return strlen(msg->{{ var }}_.c_array[idx]);
-    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
-      return msg->{{ var }}_.cstring_view_array[idx].length;
-#ifdef __cplusplus
-    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
-      return msg->{{ var }}_.cxx_string_array[idx].length();
-#endif
-    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK: {
-      fbb_size_t len;
-      (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, &len);
-      return len;
-    }
-  }
-  assert(0);
-  return 0;
-}
-/*
- * Builder getter - one item from a string array along with its length
- * {{ type }}[] {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_builder_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Builder_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->wire.{{ var }}_count_);
-
-  switch (msg->{{ var }}_how_) {
-    case {{ NS }}_STRING_INPUT_FORMAT_ARRAY:
-      /* This is costly, the requested length is not readily available so we have to compute it. */
-      *len_out = strlen(msg->{{ var }}_.c_array[idx]);
-      return msg->{{ var }}_.c_array[idx];
-    case {{ NS }}_STRING_INPUT_FORMAT_CSTRING_VIEW_ARRAY:
-      *len_out = msg->{{ var }}_.cstring_view_array[idx].length;
-      return msg->{{ var }}_.cstring_view_array[idx].c_str;
-#ifdef __cplusplus
-    case {{ NS }}_STRING_INPUT_FORMAT_CXX_STRING_ARRAY:
-      *len_out = msg->{{ var }}_.cxx_string_array[idx].length();
-      return msg->{{ var }}_.cxx_string_array[idx].c_str();
-#endif
-    case {{ NS }}_STRING_INPUT_FORMAT_CALLBACK:
-      return (msg->{{ var }}_.callback.item_fn)(idx, msg->{{ var }}_.callback.user_data, len_out);
-  }
-  assert(0);
-  return NULL;
-}
-###       endif
-#ifdef __cplusplus
-/*
- * Builder getter - array (C++, not async-signal-safe)
- * {{ type }}[] {{ var }}
- */
-static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_builder_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Builder_{{ msg }} *msg) {
-  assert(msg->wire.{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
-  ret.reserve(msg->wire.{{ var }}_count_);
-  for (fbb_size_t idx = 0; idx < msg->wire.{{ var }}_count_; idx++)
-    ret.emplace_back({{ ns }}_builder_{{ msg }}_get_{{ var }}_at(msg, idx));
-  return ret;
-}
+{{ comment }}
+{{ cfunc }}
+###     if lang == 'c++'
 #endif
 ###     endif
 ###   endfor
 
-/***** Getters on the serialized format *****/
-
-###   for (quant, type, var, dbgfn) in fields
-{% set ctype = "const char *" if type == STRING else "const " + NS + "_Serialized *" if type == FBB else type %}
-###     if quant == OPTIONAL
-/*
- * Serialized getter - check if optional field is set
- * {{ type }} {{ var }}
- */
-static inline bool {{ ns }}_serialized_{{ msg }}_has_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-###       if type in [STRING, FBB]
-  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  return relptrs->{{ var }}_relptr_ != 0;
-###       else
-  return msg->has_{{ var }}_;
-###       endif
-}
-###     endif
-
-###     if quant in [REQUIRED, OPTIONAL]
-###       if type not in [STRING, FBB]
-/*
- * Serialized getter - required or optional scalar
- * {{ type }} {{ var }}
- */
-static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-###         if quant == OPTIONAL
-  assert(msg->has_{{ var }}_);
-###         endif
-  return msg->{{ var }}_;
-}
-/*
- * Serialized getter - pointer to required or optional scalar
- * {{ type }} {{ var }}
- */
-static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}_ptr(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-###         if quant == OPTIONAL
-  if (!msg->has_{{ var }}_) {
-    return NULL;
-  }
-###         endif
-  return &msg->{{ var }}_;
-}
-###         if quant == OPTIONAL
-/*
- * Serialized getter - optional scalar with fallback default
- * {{ type }} {{ var }}
- */
-static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_fallback(const {{ NS }}_Serialized_{{ msg }} *msg, {{ type }} fallback) {
-  return msg->has_{{ var }}_ ? msg->{{ var }}_ : fallback;
-}
-###         endif
-###       else
-/*
- * Serialized getter - required or optional string or FBB
- * {{ type }} {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  if (relptrs->{{ var }}_relptr_ == 0) {
-###         if quant == REQUIRED
-    assert(relptrs->{{ var }}_relptr_ != 0);
-###         else
-    return NULL;
-###         endif
-  }
-  const char *ret = (const char *)msg + relptrs->{{ var }}_relptr_;
-  return ({{ ctype }}) ret;
-}
-###         if type == STRING
-/*
- * Serialized getter - required or optional string's length
- * {{ type }} {{ var }}
- */
-static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  return msg->{{ var }}_len_;
-}
-/*
- * Serialized getter - required or optional string along with its length
- * {{ type }} {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t *len_out) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len(msg);
-  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
-}
-#ifdef __cplusplus
-/*
- * Serialized getter - required or optional string (C++, not async-signal-safe)
- * {{ type }} {{ var }}
- */
-static inline std::string {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_string(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  const char *c_str = {{ ns }}_serialized_{{ msg }}_get_{{ var }}(msg);
-  assert(c_str != NULL);
-  return std::string(c_str, msg->{{ var }}_len_);
-}
-#endif
-###         endif
-###       endif
-###     else
-/*
- * Serialized getter - array item count
- * {{ type }}[] {{ var }}
- */
-static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_count(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  return msg->{{ var }}_count_;
-}
-###       if type not in [STRING, FBB]
-/*
- * Serialized getter - array of scalars
- * {{ type }}[] {{ var }}
- */
-static inline const {{ type }} *{{ ns }}_serialized_{{ msg }}_get_{{ var }}(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const char *array = (const char *)msg + relptrs->{{ var }}_relptr_;
-  return (const {{ type }} *) array;
-}
-/*
- * Serialized getter - one item from an array of scalars
- * {{ type }}[] {{ var }}
- */
-static inline {{ type }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count_);
-
-  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const void *array_void = (const char *)msg + relptrs->{{ var }}_relptr_;
-  const {{ type }} *array = (const {{ type }} *)array_void;
-  return array[idx];
-}
-###       else
-/*
- * Serialized getter - one item from an array of strings or FBBs
- * {{ type }}[] {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count_);
-
-  /* double jump */
-  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr_;
-  const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
-  const char *ret = (const char *)msg + second_relptrs[{{ "2 * " if type == STRING }}idx];
-  return ({{ ctype }}) ret;
-}
-###         if type == STRING
-/*
- * Serialized getter - one item's length from an array of strings
- * {{ type }}[] {{ var }}
- */
-static inline fbb_size_t {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count_);
-
-  const {{ NS }}_Relptrs_{{ msg }} *relptrs = (const {{ NS }}_Relptrs_{{ msg }} *) ((const {{ NS }}_Serialized_{{ msg }} *) &msg[1]);  /* the area immediately followed by the {{ NS }}_Serialized_{{ msg }} structure */
-  const void *second_relptrs_void = (const char *)msg + relptrs->{{ var }}_relptr_;
-  const fbb_size_t *second_relptrs = (const fbb_size_t *)second_relptrs_void;
-  return second_relptrs[2 * idx + 1];
-}
-/*
- * Serialized getter - one item along with its length from an array of strings
- * {{ type }}[] {{ var }}
- */
-static inline {{ ctype }} {{ ns }}_serialized_{{ msg }}_get_{{ var }}_with_len_at(const {{ NS }}_Serialized_{{ msg }} *msg, fbb_size_t idx, fbb_size_t *len_out) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-  assert(idx < msg->{{ var }}_count_);
-
-  *len_out = {{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx);
-  return {{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx);
-}
-###         endif
-###       endif
-#ifdef __cplusplus
-/*
- * Serialized getter - array (C++, not async-signal-safe)
- * {{ type }}[] {{ var }}
- */
-static inline std::vector<{{ "std::string" if type == STRING else ctype }}> {{ ns }}_serialized_{{ msg }}_get_{{ var }}_as_vector(const {{ NS }}_Serialized_{{ msg }} *msg) {
-  assert(msg->{{ ns }}_tag_ == {{ NS }}_TAG_{{ msg }});
-
-  std::vector<{{ "std::string" if type == STRING else ctype }}> ret;
-  ret.reserve( msg->{{ var }}_count_);
-  for (fbb_size_t idx = 0; idx < msg->{{ var }}_count_; idx++) {
-    ret.emplace_back({{ ns }}_serialized_{{ msg }}_get_{{ var }}_at(msg, idx) {% if type == STRING %}, (size_t){{ ns }}_serialized_{{ msg }}_get_{{ var }}_len_at(msg, idx) {% endif %});
-  }
-  return ret;
-}
-#endif
-###     endif
-###   endfor
 ### endfor
 
-/******************************************************************************
- *  Global
- ******************************************************************************/
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/*
- * Get the tag from the builder
- */
-static inline int {{ ns }}_builder_get_tag(const {{ NS }}_Builder *msg) {
-  return msg->{{ ns }}_tag_;
-}
-
-/*
- * Get the tag from the serialized version
- */
-static inline int {{ ns }}_serialized_get_tag(const {{ NS }}_Serialized *msg) {
-  return msg->{{ ns }}_tag_;
-}
-
-/*
- * Get the tag as string
- */
-const char *{{ ns }}_tag_to_string(int tag);
-
-/*
- * Builder - Debug any message
- *
- * Generate valid JSON (and almost valid Python - just set null=None before parsing it)
- * so that it's easier to postprocess with random tools.
- */
-void {{ ns }}_builder_debug(FILE *f, const {{ NS }}_Builder *msg);
-
-/*
- * Serialized - Debug any message
- *
- * Generate valid JSON (and almost valid Python - just set null=None before parsing it)
- * so that it's easier to postprocess with random tools.
- */
-void {{ ns }}_serialized_debug(FILE *f, const {{ NS }}_Serialized *msg);
-
-/*
- * Builder - Measure any message
- *
- * Return the length of the serialized form.
- */
-fbb_size_t {{ ns }}_builder_measure(const {{ NS }}_Builder *msg);
-
-/*
- * Builder - Serialize any message to memory
- *
- * Takes a buffer that is large enough to hold the serialized form, as guaranteed by a preceding {{ ns }}_builder_measure() call.
- *
- * Return the length of the serialized form.
- */
-fbb_size_t {{ ns }}_builder_serialize(const {{ NS }}_Builder *msg, char *dst);
-
-#ifdef __cplusplus
-}  /* extern "C" */
-#endif
-
-#pragma GCC diagnostic pop
+#pragma GCC diagnostic pop  /* -Wcast-align */
 
 #endif  /* {{ NS }}_H */

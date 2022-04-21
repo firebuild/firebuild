@@ -24,21 +24,20 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
                                  std::vector<std::shared_ptr<FileFD>>* fds) {
   TRACK(FB_DEBUG_PROC, "parent=%s", D(parent));
 
-  const FileName* executable = FileName::Get(fbbcomm_serialized_scproc_query_get_executable(msg));
-  const FileName* executed_path = fbbcomm_serialized_scproc_query_has_executed_path(msg)
-      ? FileName::Get(fbbcomm_serialized_scproc_query_get_executed_path(msg)) : nullptr;
-  const size_t libs_count = fbbcomm_serialized_scproc_query_get_libs_count(msg);
+  const FileName* executable = FileName::Get(msg->get_executable());
+  const FileName* executed_path = msg->has_executed_path()
+      ? FileName::Get(msg->get_executed_path()) : nullptr;
+  const size_t libs_count = msg->get_libs_count();
   std::vector<const FileName*> libs(libs_count);
   for (size_t i = 0; i < libs_count; i++) {
-    libs[i] = (FileName::Get(fbbcomm_serialized_scproc_query_get_libs_at(msg, i),
-                             fbbcomm_serialized_scproc_query_get_libs_len_at(msg, i)));
+    libs[i] = (FileName::Get(msg->get_libs_at(i), msg->get_libs_len_at(i)));
   }
-  auto e = new ExecedProcess(fbbcomm_serialized_scproc_query_get_pid(msg),
-                             fbbcomm_serialized_scproc_query_get_ppid(msg),
-                             FileName::Get(fbbcomm_serialized_scproc_query_get_cwd(msg)),
+  auto e = new ExecedProcess(msg->get_pid(),
+                             msg->get_ppid(),
+                             FileName::Get(msg->get_cwd()),
                              executable, executed_path,
-                             fbbcomm_serialized_scproc_query_get_arg_as_vector(msg),
-                             fbbcomm_serialized_scproc_query_get_env_var_as_vector(msg),
+                             msg->get_arg_as_vector(),
+                             msg->get_env_var_as_vector(),
                              std::move(libs), parent, fds);
 
   /* Debug the full command line, env vars etc. */
@@ -47,7 +46,7 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   FB_DEBUG(FB_DEBUG_PROC, "- arg = " + d(e->args()));
   FB_DEBUG(FB_DEBUG_PROC, "- cwd = " + d(e->initial_wd()));
   FB_DEBUG(FB_DEBUG_PROC, "- env = " + d(e->env_vars()));
-  FB_DEBUG(FB_DEBUG_PROC, "- lib = " + d(fbbcomm_serialized_scproc_query_get_libs_as_vector(msg)));
+  FB_DEBUG(FB_DEBUG_PROC, "- lib = " + d(msg->get_libs_as_vector()));
 
   return e;
 }

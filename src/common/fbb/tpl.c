@@ -65,8 +65,8 @@ static void {{ ns }}_debug_string(FILE *f, const char *str) {
   fputc('"', f);
 }
 
-void {{ ns }}_builder_debug_indent(FILE *f, const {{ NS }}_Builder *msg, int indent);
-void {{ ns }}_serialized_debug_indent(FILE *f, const {{ NS }}_Serialized *msg, int indent);
+static void {{ ns }}_builder_debug_indent(FILE *f, const {{ NS }}_Builder *msg, int indent);
+static void {{ ns }}_serialized_debug_indent(FILE *f, const {{ NS }}_Serialized *msg, int indent);
 
 ### for (msg, fields) in msgs
 /******************************************************************************
@@ -393,13 +393,16 @@ static void (*{{ ns }}_builder_debuggers_array[])(FILE *, const {{ NS }}_Builder
 };
 
 /*
- * Builder - Debug any message
+ * Builder - Debug any message with custom indentation and no final newline and no flushing
  */
-void {{ ns }}_builder_debug_indent(FILE *f, const {{ NS }}_Builder *msg, int indent) {
+static void {{ ns }}_builder_debug_indent(FILE *f, const {{ NS }}_Builder *msg, int indent) {
   int tag = * ((int *) msg);
   assert(tag >= 1 && tag < {{ NS }}_TAG_NEXT);
   (*{{ ns }}_builder_debuggers_array[tag])(f, msg, indent);
 }
+/*
+ * Builder - Debug any message
+ */
 void {{ ns }}_builder_debug(FILE *f, const {{ NS }}_Builder *msg) {
   {{ ns }}_builder_debug_indent(f, msg, 0);
   fprintf(f, "\n");
@@ -417,13 +420,16 @@ static void (*{{ ns }}_serialized_debuggers_array[])(FILE *, const {{ NS }}_Seri
 };
 
 /*
- * Serialized - Debug any message
+ * Serialized - Debug any message with custom indentation and no final newline and no flushing
  */
-void {{ ns }}_serialized_debug_indent(FILE *f, const {{ NS }}_Serialized *msg, int indent) {
+static void {{ ns }}_serialized_debug_indent(FILE *f, const {{ NS }}_Serialized *msg, int indent) {
   int tag = * ((int *) msg);
   assert(tag >= 1 && tag < {{ NS }}_TAG_NEXT);
   (*{{ ns }}_serialized_debuggers_array[tag])(f, msg, indent);
 }
+/*
+ * Serialized - Debug any message
+ */
 void {{ ns }}_serialized_debug(FILE *f, const {{ NS }}_Serialized *msg) {
   {{ ns }}_serialized_debug_indent(f, msg, 0);
   fprintf(f, "\n");
