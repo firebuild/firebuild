@@ -123,10 +123,20 @@
         /* Move to the desired slot. Set the O_CLOEXEC bit to the desired value.
          * The fcntl(..., F_SETFL, ...) bits were set by the supervisor. */
         assert(ancillary_fd != ret_fileno);  /* because ret_fileno is still open */
+###   if target == "linux"
         if (TEMP_FAILURE_RETRY(get_ic_orig_dup3()(ancillary_fd, ret_fileno, type_flags & O_CLOEXEC))
             != ret_fileno) {
           assert(0 && "dup3() on the popened fd failed");
         }
+###   else
+        if (TEMP_FAILURE_RETRY(get_ic_orig_dup2()(ancillary_fd, ret_fileno))
+            != ret_fileno) {
+          assert(0 && "dup2() on the popened fd failed");
+        }
+        if (TEMP_FAILURE_RETRY(get_ic_orig_fcntl()(ret_fileno, F_SETFD, type_flags & FD_CLOEXEC)) != 0) {
+          assert(0 && "fcntl() on the popened fd failed");
+        }
+###   endif
         /* POSIX says to retry close() on EINTR (e.g. wrap in TEMP_FAILURE_RETRY())
          * but Linux probably disagrees, see #723. */
         if (get_ic_orig_close()(ancillary_fd) < 0) {
