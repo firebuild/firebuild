@@ -640,6 +640,7 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   if (new_name) new_name->close_for_writing();
 
   if (error) {
+    // TODO(rbalint) add detailed error handling
     return 0;
   }
 
@@ -665,7 +666,8 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
 
   /* Register the opening for reading at the old location, although read the file's hash from the
    * new location. */
-  FileUsageUpdate update_old = FileUsageUpdate::get_from_open_params(new_name, O_RDONLY, error);
+  FileUsageUpdate update_old =
+      FileUsageUpdate::get_oldfile_usage_from_rename_params(old_name, new_name, error);
   if (!exec_point()->register_file_usage_update(old_name, update_old)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the renaming (from)", *old_name);
@@ -673,6 +675,7 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   }
 
   /* Register the opening for writing at the new location */
+  // TODO(rbalint) fix error handling, it is way more complicated for rename than for open.
   FileUsageUpdate update_new =
       FileUsageUpdate::get_from_open_params(new_name, O_CREAT|O_WRONLY|O_TRUNC, error);
   if (!exec_point()->register_file_usage_update(new_name, update_new)) {
