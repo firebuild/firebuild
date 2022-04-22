@@ -300,6 +300,25 @@ FileUsageUpdate FileUsageUpdate::get_from_stat_params(const FileName *filename, 
   return update;
 }
 
+/**
+ * Based on the parameters and return value of a rename() or similar call, returns a FileUsageUpdate
+ * object that reflects how our usage of old file changed.
+ */
+FileUsageUpdate FileUsageUpdate::get_oldfile_usage_from_rename_params(const FileName *old_name,
+                                                                      const FileName *new_name,
+                                                                      int error) {
+  TRACK(FB_DEBUG_PROC, "err=%d", error);
+
+  /* Read the file's hash from the new location, but update generation from the old one's name
+   * to keep the generation number increasing. Otherwise it would be reset to 1, which is valid
+   * for the newly created file (if the file did not exist before). */
+  // TODO(rbalint) Error handling is way more complicated for rename than for open, fix that here.
+  FileUsageUpdate update = get_from_open_params(new_name, O_RDONLY, error);
+  update.generation_ = old_name->generation();
+
+  return update;
+}
+
 /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
