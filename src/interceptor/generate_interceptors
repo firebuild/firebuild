@@ -224,8 +224,8 @@ def generate(rettype, funcs, sig, **dict):
 #
 # This does two things:
 #
-# Creates a "#define ic_orig_func func" redirect so that you can always
-# call ic_orig_foo() in the interceptor code, without worrying whether
+# Creates a "#define IC_ORIG(func) func" redirect so that you can always
+# call IC_ORIG(foo)() in the interceptor code, without worrying whether
 # that method is overridden or not.
 #
 # Also makes sure to exit with an error if there's a
@@ -356,7 +356,7 @@ generate("DIR *", "opendir", "const char *file",
          msg="open",
          msg_skip_fields=["file"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDONLY | O_CLOEXEC | O_DIRECTORY);",
-                         "if (success) fbbcomm_builder_open_set_ret(&ic_msg, ic_orig_dirfd(ret));",
+                         "if (success) fbbcomm_builder_open_set_ret(&ic_msg, IC_ORIG(dirfd)(ret));",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
          ack_condition="success && !is_path_at_locations(file, &system_locations)")
@@ -609,7 +609,7 @@ for i in ['', '__isoc99_']:
           msg_skip_fields += ["ap"]
         else:
           sig_str += "..."
-          call_orig_lines = ["ret = ic_orig_" + i + "v" + f + w + "scanf(" + names_str + "ap);"]
+          call_orig_lines = ["ret = IC_ORIG(" + i + "v" + f + w + "scanf)(" + names_str + "ap);"]
         generate("int", func, sig_str,
                  tpl="read",
                  success=success,
@@ -741,7 +741,7 @@ generate("void", "error", "int status, int errnum, const char *format, ...",
                           "char msgbuf[msglen + 1];",
                           "va_start(ap, format);",
                           "vsnprintf(msgbuf, msglen + 1, format, ap);",
-                          "ic_orig_error(status, errnum, \"%s\", msgbuf);"],
+                          "IC_ORIG(error)(status, errnum, \"%s\", msgbuf);"],
          msg_skip_fields=["status", "errnum", "format"],
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
@@ -753,7 +753,7 @@ generate("void", "error_at_line", "int status, int errnum, const char *filename,
                           "char msgbuf[msglen + 1];",
                           "va_start(ap, format);",
                           "vsnprintf(msgbuf, msglen + 1, format, ap);",
-                          "ic_orig_error_at_line(status, errnum, filename, linenum, \"%s\", msgbuf);"],
+                          "IC_ORIG(error_at_line)(status, errnum, filename, linenum, \"%s\", msgbuf);"],
          msg_skip_fields=["status", "errnum", "filename", "linenum", "format"],
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
          ack_condition="true")
@@ -787,7 +787,7 @@ for v in ['', 'v']:
         msg_skip_fields += ["ap"]
       else:
         sig_str += "..."
-        call_orig_lines = ["ic_orig_v" + e + x + "(" + names_str + "ap);"]
+        call_orig_lines = ["IC_ORIG(v" + e + x + ")(" + names_str + "ap);"]
       generate("void", func, sig_str,
          tpl=tpl,
          before_lines=["int fd = safe_fileno(stderr);"],
@@ -839,7 +839,7 @@ for v in ['', 'v']:
           msg_skip_fields += ["ap"]
         else:
           sig_str += "..."
-          call_orig_lines = ["ret = ic_orig_" + c1 + "v" + f + w + "printf" + c2 + "(" + names_str + "ap);"]
+          call_orig_lines = ["ret = IC_ORIG(" + c1 + "v" + f + w + "printf" + c2 + ")(" + names_str + "ap);"]
         generate("int", func, sig_str,
                  tpl="write",
                  before_lines=before_lines,
@@ -861,13 +861,13 @@ generate("int", "chdir", "const char *dir",
          # Don't make dir absolute, since the macro would calculate it after calling chdir
          msg_add_fields=["BUILDER_SET_CANONICAL(chdir, dir);",
                          "if (success) {",
-                         "  char* getcwd_ret = ic_orig_getcwd(ic_cwd, CWD_BUFSIZE);",
+                         "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, CWD_BUFSIZE);",
                          "  (void) getcwd_ret;",
                          "  ic_cwd_len = strlen(ic_cwd);",
                          "}"])
 generate("int", "fchdir", "int fd",
          after_lines=["if (success) {",
-                      "  char* getcwd_ret = ic_orig_getcwd(ic_cwd, CWD_BUFSIZE);",
+                      "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, CWD_BUFSIZE);",
                       "  (void) getcwd_ret;",
                       "  ic_cwd_len = strlen(ic_cwd);",
                       "}"])

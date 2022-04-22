@@ -22,7 +22,7 @@
   /* vfork interception would be a bit complicated to implement properly
    * and most of the programs will work properly with fork */
 ###   endif
-  ret = ic_orig_fork();
+  ret = IC_ORIG(fork)();
 ### endblock call_orig
 
 ### block after

@@ -44,7 +44,7 @@
   if (!pid) {
     pid = &tmp_pid;
   }
-  ret = ic_orig_{{ func }}({{ names_str | replace("envp", "env_fixed_up")}});
+  ret = IC_ORIG({{ func }})({{ names_str | replace("envp", "env_fixed_up")}});
 ### endblock call_orig
 
 ### block send_msg

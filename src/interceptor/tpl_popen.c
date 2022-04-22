@@ -59,7 +59,7 @@
       /* No signal between sending the "popen_parent" message and receiving its "popen_fd" response. */
       thread_signal_danger_zone_enter();
 
-      int ret_fileno = ic_orig_fileno(ret);
+      int ret_fileno = IC_ORIG(fileno)(ret);
       FBBCOMM_Builder_popen_parent ic_msg;
       fbbcomm_builder_popen_parent_init(&ic_msg);
       fbbcomm_builder_popen_parent_set_fd(&ic_msg, ret_fileno);
@@ -104,7 +104,7 @@
 #ifndef NDEBUG
       received =
 #endif
-          TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, 0));
+          TEMP_FAILURE_RETRY(IC_ORIG(recvmsg)(fb_sv_conn, &msgh, 0));
       assert(received == sv_msg_hdr.msg_size);
       assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_popen_fd);
       assert(sv_msg_hdr.fd_count == 1);
@@ -121,13 +121,13 @@
         /* Move to the desired slot. Set the O_CLOEXEC bit to the desired value.
          * The fcntl(..., F_SETFL, ...) bits were set by the supervisor. */
         assert(ancillary_fd != ret_fileno);  /* because ret_fileno is still open */
-        if (TEMP_FAILURE_RETRY(ic_orig_dup3(ancillary_fd, ret_fileno, type_flags & O_CLOEXEC))
+        if (TEMP_FAILURE_RETRY(IC_ORIG(dup3)(ancillary_fd, ret_fileno, type_flags & O_CLOEXEC))
             != ret_fileno) {
           assert(0 && "dup3() on the popened fd failed");
         }
         /* POSIX says to retry close() on EINTR (e.g. wrap in TEMP_FAILURE_RETRY())
          * but Linux probably disagrees, see #723. */
-        if (ic_orig_close(ancillary_fd) < 0) {
+        if (IC_ORIG(close)(ancillary_fd) < 0) {
           assert(0 && "close() on the dup3()d popened fd failed");
         }
       }

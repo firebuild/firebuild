@@ -45,6 +45,7 @@ struct ustat;
 #include <wchar.h>
 
 #include "./fbbcomm.h"
+#include "interceptor/intercept.h"
 
 #ifndef __GLIBC_PREREQ
 #define FB_SSIZE_T ssize_t
@@ -62,7 +63,7 @@ struct ustat;
 void init_interceptors();
 void reset_interceptors();
 
-/* Include the auto-generated declarations of the ic_orig function pointers,
+/* Include the auto-generated declarations of the IC_ORIG() function pointers,
  * and some convenience #define redirects */
 #include "interceptor/gen_decl.h"
 

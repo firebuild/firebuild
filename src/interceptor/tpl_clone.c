@@ -25,18 +25,18 @@
     vararg_count = 1;
   }
   if (vararg_count == 0) {
-    ret = ic_orig_{{ func }}(fn, stack, flags, arg);
+    ret = IC_ORIG({{ func }})(fn, stack, flags, arg);
   } else {
     pid_t *parent_tid = va_arg(ap, pid_t *);
     if (vararg_count == 1) {
-      ret = ic_orig_{{ func }}(fn, stack, flags, arg, parent_tid);
+      ret = IC_ORIG({{ func }})(fn, stack, flags, arg, parent_tid);
     } else {
       void *tls = va_arg(ap, void *);
       if (vararg_count == 2) {
-        ret = ic_orig_{{ func }}(fn, stack, flags, arg, parent_tid, tls);
+        ret = IC_ORIG({{ func }})(fn, stack, flags, arg, parent_tid, tls);
       } else {
         pid_t *child_tid = va_arg(ap, pid_t *);
-        ret = ic_orig_{{ func }}(fn, stack, flags, arg, parent_tid, tls, child_tid);
+        ret = IC_ORIG({{ func }})(fn, stack, flags, arg, parent_tid, tls, child_tid);
       }
     }
   }
