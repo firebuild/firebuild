@@ -195,7 +195,7 @@ bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs)
 std::string FileUsage::d_internal(const int level) const {
   (void)level;  /* unused */
   return std::string("{FileUsage initial_state=") + d(initial_state_, level) +
-      ", written=" + d(written_) + "}";
+      ", written=" + d(written_) + ", generation=" + d(generation_) + "}";
 }
 
 /* Global debugging methods.

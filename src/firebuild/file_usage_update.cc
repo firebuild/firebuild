@@ -309,6 +309,7 @@ std::string FileUsageUpdate::d_internal(const int level) const {
       (type_computer_ ? ", type_computer=<func>" : "") +
       (hash_computer_ ? ", hash_computer=<func>" : "") +
       ", written=" + d(written_) +
+      ", generation=" + d(generation_) +
       ", unknown_err=" + d(unknown_err_) + "}";
 }
 
