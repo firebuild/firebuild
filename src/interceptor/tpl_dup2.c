@@ -18,7 +18,7 @@
     /* In order to make this dup2() or dup3() actually happen to the desired newfd
      * and still be able to talk to the supervisor,
      * we need to move fb_sv_conn to some other file descriptor. */
-    fb_sv_conn_new = TEMP_FAILURE_RETRY(ic_orig_dup(fb_sv_conn));
+    fb_sv_conn_new = TEMP_FAILURE_RETRY(IC_ORIG(dup)(fb_sv_conn));
     if (fb_sv_conn_new < 0) {
       /* This dup() failed, which is very unlikely (out of available fds).
        * There's no hope to succeed with the actual dup2() and still be able to talk
@@ -30,7 +30,7 @@
       return -1;
     }
     /* The communication fd has the close-on-exec flag set, and dup() doesn't copy it. */
-    TEMP_FAILURE_RETRY(ic_orig_fcntl(fb_sv_conn_new, F_SETFD, FD_CLOEXEC));
+    TEMP_FAILURE_RETRY(IC_ORIG(fcntl)(fb_sv_conn_new, F_SETFD, FD_CLOEXEC));
   }
 ### endblock
 
@@ -44,7 +44,7 @@
       /* The actual dup2() failed for whatever reason. Close the dupped connection fd.
        * POSIX says to retry close() on EINTR (e.g. wrap in TEMP_FAILURE_RETRY())
        * but Linux probably disagrees, see #723. */
-      ic_orig_close(fb_sv_conn_new);
+      IC_ORIG(close)(fb_sv_conn_new);
     }
   }
 

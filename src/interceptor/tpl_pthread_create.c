@@ -21,5 +21,5 @@
   void **routine_and_arg = malloc(2 * sizeof(void *));
   routine_and_arg[0] = start_routine;
   routine_and_arg[1] = arg;
-  ret = ic_orig_pthread_create(thread, attr, pthread_start_routine_wrapper, routine_and_arg);
+  ret = IC_ORIG(pthread_create)(thread, attr, pthread_start_routine_wrapper, routine_and_arg);
 ### endblock call_orig

@@ -88,6 +88,6 @@
 ### block call_orig
   /* FIXME Find a different solution, see #178. */
   void *args = __builtin_apply_args();
-  void const * const result = __builtin_apply((void *) ic_orig_{{ func }}, args, 100);
+  void const * const result = __builtin_apply((void *) IC_ORIG({{ func }}), args, 100);
   ret = *({{ rettype }}*)result;
 ### endblock call_orig

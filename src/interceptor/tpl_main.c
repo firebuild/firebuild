@@ -19,9 +19,9 @@
   insert_end_marker("{{ func }}");
 
   /* Perform the call */
-  ic_orig_{{ func }}(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
+  IC_ORIG({{ func }})(main, argc, ubp_av, init, fini, rtld_fini, stack_end);
 
   /* Should not be reached */
-  assert(0 && "ic_orig_{{ func }} must not return");
+  assert(0 && "IC_ORIG({{ func }}) must not return");
   abort(); /* for NDEBUG */
 ### endblock body
