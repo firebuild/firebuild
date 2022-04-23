@@ -131,6 +131,15 @@ setup() {
     result=$(./run-firebuild bash -c "rm -rf foo-dir ; mkdir foo-dir")
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
+
+    # Two processes write a file in parallel
+    # 1. One  executed process writer is an ancestor of the other.
+    result=$(./run-firebuild -- bash -c '( (sleep 0.1; echo 1) >> foo)& sh -c "(sleep 0.11; echo 1) >> foo" ; wait')
+    # 2. The writers have a common ancestor.
+    result=$(./run-firebuild -- bash -c 'for i in 1 2; do sh -c "(sleep 0.1$i; echo 1) >> foo" & done; wait')
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+    rm -f foo
   done
 }
 

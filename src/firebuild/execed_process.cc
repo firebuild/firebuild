@@ -77,6 +77,35 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
     parent->set_exec_child(this);
   }
 }
+ExecedProcess* ExecedProcess::common_exec_ancestor(ExecedProcess* other) {
+  TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "other=%s", D(other));
+  tsl::hopscotch_set<ExecedProcess*> my_ancestors;
+  tsl::hopscotch_set<ExecedProcess*> others_ancestors;
+  ExecedProcess* curr_this = this;
+  ExecedProcess* curr_other = other;
+  /* Walk up on each branch in parallel collecting the visited nodes in two sets
+   * to find the common ancestor when a newly visited node is in the other branch's set. */
+  do {
+    if (curr_this) {
+      if (others_ancestors.find(curr_this) != others_ancestors.end()) {
+        return curr_this;
+      } else {
+        my_ancestors.insert(curr_this);
+        curr_this = curr_this->parent_exec_point();
+      }
+    }
+    if (curr_other) {
+      if (my_ancestors.find(curr_other) != my_ancestors.end()) {
+        return curr_other;
+      } else {
+        others_ancestors.insert(curr_other);
+        curr_other = curr_other->parent_exec_point();
+      }
+    }
+  } while (curr_this || curr_other);
+  assert(0 && "not reached");
+  return nullptr;
+}
 
 void ExecedProcess::set_parent(Process *parent) {
   /* set_parent() is called only on processes which are created by posix_spawn(). */

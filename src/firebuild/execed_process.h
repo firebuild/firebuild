@@ -62,6 +62,7 @@ class ExecedProcess : public Process {
   virtual bool exec_started() const {return true;}
   ExecedProcess* exec_point() {return this;}
   const ExecedProcess* exec_point() const {return this;}
+  ExecedProcess* common_exec_ancestor(ExecedProcess* other);
   ForkedProcess* fork_point() {return fork_point_;}
   const ForkedProcess* fork_point() const {return fork_point_;}
   void set_parent(Process *parent);
