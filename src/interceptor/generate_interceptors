@@ -1416,12 +1416,6 @@ skip("execveat")
 generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
          tpl="exec")
 
-# Intercept main
-generate("int", "__libc_start_main", "int (*main)(int, char **, char **), int argc, char **ubp_av, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end",
-         tpl="main",
-         global_lock='never',
-         no_saved_errno=True)
-
 # Signal handling
 generate("sighandler_t", ["signal", "sigset"], "int signum, sighandler_t handler",
          tpl="signal",
