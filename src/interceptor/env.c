@@ -53,6 +53,7 @@ static char *getenv_from(char **env, const char *name) {
 }
 
 static bool fb_insert_trace_markers_needs_fixup(char **env) {
+#ifdef FB_EXTRA_DEBUG
   char *current_value = getenv_from(env, FB_INSERT_TRACE_MARKERS);
   if (current_value == NULL && !insert_trace_markers) {
     return false;
@@ -61,6 +62,10 @@ static bool fb_insert_trace_markers_needs_fixup(char **env) {
     return true;
   }
   return strcmp(current_value, "1") != 0;
+#else
+  (void)env;
+  return false;
+#endif
 }
 
 static bool fb_socket_needs_fixup(char **env) {
@@ -119,7 +124,9 @@ int get_env_fixup_size(char **env) {
      - variable name + equals sign + restored value + trailing NUL, or
      - variable name + equals sign + current value + separator + restored value appended + trailing NUL.
      We might be counting a slightly upper estimate. */
+#ifdef FB_EXTRA_DEBUG
   ret += strlen(FB_INSERT_TRACE_MARKERS "=1") + 1;
+#endif
   ret += strlen(FB_SOCKET "=") + strlen(fb_conn_string) + 1;
 
   char *e = getenv_from(env, LD_PRELOAD);
@@ -133,6 +140,7 @@ int get_env_fixup_size(char **env) {
   return ret;
 }
 
+#ifdef FB_EXTRA_DEBUG
 /* Places the desired value of the FB_INSERT_TRACE_MARKERS env var
  * (including the "FB_INSERT_TRACE_MARKERS=" prefix) at @p.
  *
@@ -148,6 +156,7 @@ static int fixup_fb_insert_trace_markers(char *p) {
   sprintf(p, "%s=1%n", FB_INSERT_TRACE_MARKERS, &offset);  /* NOLINT */
   return offset + 1;
 }
+#endif
 
 /* Places the desired value of the FB_SOCKET env var
  * (including the "FB_SOCKET=" prefix) at @p.
@@ -222,6 +231,7 @@ void env_fixup(char **env, void *buf) {
   bool ld_library_path_fixed_up = false;
   bool ld_preload_fixed_up = false;
 
+#ifdef FB_EXTRA_DEBUG
   /* Fix up FB_INSERT_TRACE_MARKERS if needed */
   if (fb_insert_trace_markers_needs_fixup(env)) {
     int size = fixup_fb_insert_trace_markers(buf2);
@@ -231,6 +241,7 @@ void env_fixup(char **env, void *buf) {
     }
     fb_insert_trace_markers_fixed_up = true;
   }
+#endif
 
   /* Fix up FB_SOCKET if needed */
   if (fb_socket_needs_fixup(env)) {

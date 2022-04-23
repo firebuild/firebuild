@@ -12,6 +12,7 @@
 
 ### block no_intercept
   i_am_intercepting = false;
+  (void)i_am_intercepting;
 ### endblock no_intercept
 
 ### block call_orig

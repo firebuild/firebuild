@@ -159,6 +159,7 @@ IC_ORIG({{ func }} = )({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ fun
 
   if (!ic_init_done) fb_ic_load();
 
+#ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {
     char debug_buf[256];
     snprintf(debug_buf, sizeof(debug_buf), "%s%s{{ debug_before_fmt }}",
@@ -166,6 +167,7 @@ IC_ORIG({{ func }} = )({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ fun
         "{{ func }}"{{ debug_before_args }});
     insert_begin_marker(debug_buf);
   }
+#endif
 
 ###     if global_lock == 'before'
   {{ grab_lock_if_needed('i_am_intercepting') }}
@@ -286,6 +288,7 @@ IC_ORIG({{ func }} = )({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ fun
 ###     endblock body
 
   /* Cool down */
+#ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {
     char debug_buf[256];
     snprintf(debug_buf, sizeof(debug_buf), "%s%s{{ debug_after_fmt }}",
@@ -293,7 +296,7 @@ IC_ORIG({{ func }} = )({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ fun
         "{{ func }}"{{ debug_after_args }});
     insert_end_marker(debug_buf);
   }
-
+#endif
 ###     if global_lock == 'before' or global_lock == 'after'
   {{ release_lock_if_needed() }}
 ###     endif

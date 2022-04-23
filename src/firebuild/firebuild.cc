@@ -63,7 +63,10 @@ int listener;
 
 static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
+
+#ifdef FB_EXTRA_DEBUG
 static bool insert_trace_markers = false;
+#endif
 static const char *report_file = "firebuild-build-report.html";
 static firebuild::ExecedProcessCacher *cacher;
 
@@ -88,7 +91,7 @@ static void usage() {
          "   -o --option=key-=val      Remove from an array of scalars in the config\n"
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
          "                             to let users find unintercepted calls using\n"
-         "                             strace or ltrace\n"
+         "                             strace or ltrace. This works in debug builds only.\n"
          "   --version              output version information and exit\n"
          "Exit status:\n"
          " exit status of the BUILD COMMAND\n"
@@ -161,9 +164,11 @@ static char** get_sanitized_env() {
 
   FB_DEBUG(firebuild::FB_DEBUG_PROC, "");
 
+#ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {
     env["FB_INSERT_TRACE_MARKERS"] = "1";
   }
+#endif
 
   char ** ret_env =
       static_cast<char**>(malloc(sizeof(char*) * (env.size() + 1)));
@@ -1682,7 +1687,9 @@ int main(const int argc, char *argv[]) {
       break;
 
     case 'i':
+#ifdef FB_EXTRA_DEBUG
       insert_trace_markers = true;
+#endif
       break;
 
     case 'r':
