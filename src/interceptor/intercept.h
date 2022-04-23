@@ -97,6 +97,7 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
  * @return if message has been sent
  */
 bool maybe_send_pre_open(int dirfd, const char* file, int flags);
+bool maybe_send_pre_open_without_ack_request(int dirfd, const char* file, int flags);
 
 /** Connection string to supervisor */
 extern char * fb_conn_string;
