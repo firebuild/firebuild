@@ -334,19 +334,31 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
   thread_signal_danger_zone_leave();
 }
 
-bool maybe_send_pre_open(const int dirfd, const char* file, int flags) {
+static bool maybe_send_pre_open_internal(const int dirfd, const char* file, int flags,
+                                         bool need_ack) {
   if (file && is_write(flags) && (flags & O_TRUNC)
       && !(flags & (O_EXCL | O_DIRECTORY |O_TMPFILE))) {
     FBBCOMM_Builder_pre_open ic_msg;
     fbbcomm_builder_pre_open_init(&ic_msg);
     fbbcomm_builder_pre_open_set_dirfd(&ic_msg, dirfd);
     BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(pre_open, dirfd, file);
-    /* Sending ack is mandatory */
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    if (need_ack) {
+      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    } else {
+      fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+    }
     return true;
   } else {
     return false;
   }
+}
+
+bool maybe_send_pre_open(const int dirfd, const char* file, int flags) {
+  return maybe_send_pre_open_internal(dirfd, file, flags, true);
+}
+
+bool maybe_send_pre_open_without_ack_request(const int dirfd, const char* file, int flags) {
+  return maybe_send_pre_open_internal(dirfd, file, flags, false);
 }
 
 /**
