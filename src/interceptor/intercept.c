@@ -232,12 +232,16 @@ int psfas_alloc = 0;
 
 /** Insert debug message */
 void insert_debug_msg(const char* m) {
+#ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {
     int saved_errno = errno;
     char tpl[256] = "/FIREBUILD   ###   ";
     IC_ORIG(open)(strncat(tpl, m, sizeof(tpl) - strlen(tpl) - 1), 0);
     errno = saved_errno;
   }
+#else
+  (void)m;
+#endif
 }
 
 /** Insert interception begin marker */
