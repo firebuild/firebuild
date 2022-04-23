@@ -60,9 +60,9 @@ static bool copy_file(int fd_src, int fd_dst, const struct stat64 *stat_ptr = NU
     p = mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd_src, 0);
   }
   if (p != MAP_FAILED) {
-    // FIXME Do we need to handle short writes / EINTR?
+    // FIXME Do we need to handle short writes
     // FIXME Do we need to split large files into smaller writes?
-    if (write(fd_dst, p, st->st_size) == st->st_size) {
+    if (TEMP_FAILURE_RETRY(write(fd_dst, p, st->st_size) == st->st_size)) {
       /* mmap() + write() succeeded. */
       munmap(p, st->st_size);
       return true;
