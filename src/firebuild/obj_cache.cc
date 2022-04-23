@@ -152,7 +152,6 @@ bool ObjCache::store(const Hash &key,
     return false;
   }
 
-  // FIXME Do we need to handle short writes / EINTR?
   // FIXME Do we need to split large files into smaller writes?
   // FIXME add basic error handling
   // FIXME Is it faster if we alloca() for small sizes instead of malloc()?
