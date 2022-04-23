@@ -52,14 +52,20 @@ void FileName::open_for_writing(Process* proc) const {
     assert(pair.first > 0);
     pair.first++;
     if (proc != pair.second && proc->exec_point() != pair.second->exec_point()) {
-      /* A different process opened the file for writing. Disable shortcutting both. */
-      /* TODO(rbalint) if the process opening the file first is an ancestor of the second
-       * then shortcutting could be disabled only up to the ancestor. */
-      proc->exec_point()->disable_shortcutting_bubble_up(
-          "Opened a file for writing which is already opened for writing by a different process");
-      pair.second->exec_point()->disable_shortcutting_bubble_up(
-          "An other process opened a file for writing which is already opened for writing by this "
-          "process");
+      /* A different process opened the file for writing. */
+      ExecedProcess* common_ancestor =
+          proc->exec_point()->common_exec_ancestor(pair.second->exec_point());
+      if (common_ancestor != proc->exec_point()) {
+        proc->exec_point()->disable_shortcutting_bubble_up_to_excl(
+            common_ancestor,
+            "Opened a file for writing which is already opened for writing by a different process");
+      }
+      if (common_ancestor != pair.second->exec_point()) {
+        pair.second->exec_point()->disable_shortcutting_bubble_up_to_excl(
+            common_ancestor,
+            "An other process opened a file for writing which is already opened for writing by "
+            "this process");
+      }
     }
   } else {
     write_fds_db_->insert({this, {1, proc}});
