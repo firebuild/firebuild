@@ -26,7 +26,6 @@ add_custom_command (
   tpl_fcntl.c
   tpl_fork.c
   tpl_ioctl.c
-  tpl_main.c
   tpl_marker_only.c
   tpl_once.c
   tpl_open.c
