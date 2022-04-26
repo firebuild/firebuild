@@ -11,8 +11,8 @@
 ### block call_orig
 ###   if func in ['signal', 'sigset']
   if (signal_is_wrappable(signum)) {
-    sighandler_t old_orig_signal_handler = (sighandler_t)orig_signal_handlers[signum];
-    orig_signal_handlers[signum] = (void (*)(void))handler;
+    sighandler_t old_orig_signal_handler = (sighandler_t)orig_signal_handlers[signum - 1];
+    orig_signal_handlers[signum - 1] = (void (*)(void))handler;
     sighandler_t new_signal_handler =
         (handler == SIG_IGN || handler == SIG_DFL) ? handler : wrapper_signal_handler_1arg;
     ret = IC_ORIG({{ func }})(signum, new_signal_handler);
@@ -25,12 +25,12 @@
 ###   elif func == 'sigaction'
   if (signal_is_wrappable(signum)) {
     struct sigaction wrapped_act;
-    void (*old_orig_signal_handler)(void) = orig_signal_handlers[signum];
+    void (*old_orig_signal_handler)(void) = orig_signal_handlers[signum - 1];
     if (act != NULL) {
       wrapped_act = *act;
       if (act->sa_flags & SA_SIGINFO) {
         /* sa_sigaction, handler called with 3 args */
-        orig_signal_handlers[signum] = (void (*)(void))act->sa_sigaction;
+        orig_signal_handlers[signum - 1] = (void (*)(void))act->sa_sigaction;
         /* FIXME(egmont) It's unclear to me whether SIG_IGN and SIG_DFL are allowed values here in the SA_SIGINFO branch,
          * probably not (they're of incompatible pointer types, hence the double casting). Still, better safe than sorry. */
         void (*new_signal_handler)(int, siginfo_t *, void *) =
@@ -38,7 +38,7 @@
         wrapped_act.sa_sigaction = new_signal_handler;
       } else {
         /* sa_handler, handler called with 1 arg */
-        orig_signal_handlers[signum] = (void (*)(void))wrapped_act.sa_handler;
+        orig_signal_handlers[signum - 1] = (void (*)(void))wrapped_act.sa_handler;
         void (*new_signal_handler)(int) =
             (act->sa_handler == SIG_IGN || act->sa_handler == SIG_DFL) ? act->sa_handler : wrapper_signal_handler_1arg;
         wrapped_act.sa_handler = new_signal_handler;

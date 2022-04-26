@@ -112,7 +112,7 @@ void wrapper_signal_handler_1arg(int signum) {
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-begin %d\n", signum);
   insert_debug_msg(debug_msg);
 
-  ((void (*)(int))(*orig_signal_handlers[signum]))(signum);
+  ((void (*)(int))(*orig_signal_handlers[signum - 1]))(signum);
 
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-end %d\n", signum);
   insert_debug_msg(debug_msg);
@@ -144,7 +144,7 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   // FIXME(egmont) if this is a re-raised signal from thread_raise_delayed_signals()
   // [can this be detected fully reliably, without the slightest race condition?]
   // then replace "info" with the stashed version
-  ((void (*)(int, siginfo_t *, void *))(*orig_signal_handlers[signum]))(signum, info, ucontext);
+  ((void (*)(int, siginfo_t *, void *))(*orig_signal_handlers[signum - 1]))(signum, info, ucontext);
 
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-end %d\n", signum);
   insert_debug_msg(debug_msg);
