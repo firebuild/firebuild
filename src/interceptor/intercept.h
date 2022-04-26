@@ -59,6 +59,9 @@ typedef struct {
 #define IC_FD_STATES_SIZE 4096
 extern fd_state ic_fd_states[];
 
+/** An uint64_t bitmap is used for delayed signals. */
+#define IC_WRAP_SIGRTMAX 64
+
 /** Resource usage at the process' last exec() */
 extern struct rusage initial_rusage;
 
@@ -254,7 +257,7 @@ extern __thread uint64_t thread_delayed_signals_bitmap;
 /** Array of the original signal handlers.
  *  The items are actually either void (*)(int) a.k.a. sighandler_t,
  *  or void (*)(int, siginfo_t *, void *), depending on how the handler was installed. */
-extern void (**orig_signal_handlers)(void);
+extern void (*orig_signal_handlers[IC_WRAP_SIGRTMAX])(void);
 
 /** Whether we can intercept the given signal. */
 bool signal_is_wrappable(int);

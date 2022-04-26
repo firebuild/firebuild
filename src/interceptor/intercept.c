@@ -75,13 +75,13 @@ __thread sig_atomic_t thread_signal_handler_running_depth = 0;
 __thread sig_atomic_t thread_libc_nesting_depth = 0;
 __thread uint64_t thread_delayed_signals_bitmap = 0;
 
-void (**orig_signal_handlers)(void);
+void (*orig_signal_handlers[IC_WRAP_SIGRTMAX])(void) = {NULL};
 
 /** Whether to install our wrapper for the given signal. */
 bool signal_is_wrappable(int signum) {
   /* Safety check, so that we don't crash if the user passes an invalid value to signal(),
    * sigset() or sigaction(). Just let the original function handle it somehow. */
-  if (signum < 1 || signum > SIGRTMAX) {
+  if (signum < 1 || signum > IC_WRAP_SIGRTMAX) {
     return false;
   }
 
@@ -156,7 +156,7 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
 void thread_raise_delayed_signals() {
   /* Execute the delayed signals, by re-raising them. */
   char debug_msg[256];
-  for (int signum = 1; signum <= SIGRTMAX; signum++) {
+  for (int signum = 1; signum <= IC_WRAP_SIGRTMAX; signum++) {
     if (thread_delayed_signals_bitmap & (1LLU << (signum - 1))) {
       snprintf(debug_msg, sizeof(debug_msg), "raising delayed signal %d\n", signum);
       insert_debug_msg(debug_msg);
@@ -731,9 +731,7 @@ static void fb_ic_init() {
   store_system_locations();
 
   /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay. */
-  assert(SIGRTMAX <= 64);
-  /* Can't declare orig_signal_handlers as an array because SIGRTMAX isn't a constant */
-  orig_signal_handlers = (void (**)(void)) calloc(SIGRTMAX + 1, sizeof (void (*)(void)));
+  assert(SIGRTMAX <= IC_WRAP_SIGRTMAX);
 
   voidp_set_init(&popened_streams);
 
