@@ -110,7 +110,12 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
 void ProcessTree::export2js(FILE * stream) {
   fprintf(stream, "data = ");
   unsigned int nodeid = 0;
-  root_->exec_child()->export2js_recurse(0, stream, &nodeid);
+  if (root_->exec_child()) {
+    root_->exec_child()->export2js_recurse(0, stream, &nodeid);
+  } else {
+    // TODO(rbalint) provide nicer report on this error
+    fprintf(stream, "{name: \"<unknown>\", id: 0, aggr_time: 0, children: []};");
+  }
 }
 
 void ProcessTree::
@@ -207,7 +212,7 @@ void ProcessTree::export_profile2dot(FILE* stream) {
 
   /* build profile */
   build_profile(*root_, &cmd_chain);
-  build_time = root_->exec_child()->aggr_cpu_time_u();
+  build_time = (root_ && root_->exec_child()) ? root_->exec_child()->aggr_cpu_time_u() : 0;
 
   /* print it */
   fprintf(stream, "digraph {\n");
