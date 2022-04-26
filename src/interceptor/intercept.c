@@ -51,10 +51,11 @@ pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
 /** Fast check for whether interceptor init has been run */
 bool ic_init_done = false;
 
-/** System locations to not ask ACK for when opening them. */
-string_array system_locations;
 /** System locations to not ask ACK for when opening them, as set in the environment variable. */
-char * system_locations_env_str;
+char system_locations_env_buf[4096];
+
+/** System locations to not ask ACK for when opening them. */
+STATIC_STRING_ARRAY(system_locations, 32);
 
 bool intercepting_enabled = true;
 
@@ -496,11 +497,25 @@ static int cmpstringpp(const void *p1, const void *p2) {
 /** Store file locations for which files open() does not need an ACK. */
 static void store_system_locations() {
   char* env_system_locations = getenv("FB_SYSTEM_LOCATIONS");
-  string_array_init(&system_locations);
   if (env_system_locations) {
-    system_locations_env_str = strdup(env_system_locations);
-    char *prefix = system_locations_env_str;
-    while (prefix) {
+    strncpy(system_locations_env_buf, env_system_locations, sizeof(system_locations_env_buf));
+    const size_t env_system_locations_len = strlen(env_system_locations);
+    if (env_system_locations_len + 1 > sizeof(system_locations_env_buf)) {
+      /* Trim to the fitting parts. The locations are used only for improving
+       * performance and the space is allocated statically. */
+      system_locations_env_buf[sizeof(system_locations_env_buf) - 1] = '\0';
+      char * last_separator = strrchr(system_locations_env_buf, ':');
+      if (!last_separator) {
+        /* This is a quite long single path that may be incomplete, thus ignore it. */
+        system_locations_env_buf[0] = '\0';
+      } else {
+        /* Drop the possibly incomplete path after the last separator.*/
+        *last_separator = '\0';
+      }
+    }
+    char *prefix = system_locations_env_buf;
+    /* Process all locations that fit system_location without reallocation. */
+    while (prefix && !is_string_array_full(&system_locations)) {
       char *next_prefix = strchr(prefix, ':');
       if (next_prefix) {
         *next_prefix = '\0';
@@ -508,7 +523,7 @@ static void store_system_locations() {
       }
       /* Skip "". */
       if (*prefix != '\0') {
-        string_array_append(&system_locations, prefix);
+        string_array_append_noalloc(&system_locations, prefix);
         prefix = next_prefix;
       }
     }
