@@ -80,19 +80,19 @@ jobs:
       run: |
         # don't clean apt archive cache to make deb caching work
         rm -f /etc/apt/apt.conf.d/docker-clean
+    - name: apt update
+      run: |
+        sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list
+        apt-get -qq update
     - uses: actions/cache@v3
       with:
         path: /var/cache/apt/archives/*deb
         key: build-on-ubuntu-docker-debs-${{ needs.style-checks.outputs.week }}
-    # TODO(rbalint) use ccache action when it starts working in docker
-    # https://github.com/hendrikmuhs/ccache-action/issues/30#issuecomment-948013472
-    # - uses: hendrikmuhs/ccache-action@v1
-    #  with:
-    #    key: build-on-ubuntu-docker
+    - uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        key: build-on-ubuntu-docker
     - name: install-deps
       run: |
-        sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list
-        apt-get -qq update
         # configure tzdata in advance to prevent hanging at the prompt
         TZ=Europe/Budapest
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
