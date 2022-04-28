@@ -72,7 +72,7 @@ jobs:
   build-on-ubuntu-docker:
     needs: style-checks
     runs-on: ubuntu-latest
-    container: ubuntu:impish
+    container: ubuntu:jammy
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
