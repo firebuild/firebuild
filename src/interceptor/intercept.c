@@ -534,28 +534,33 @@ static void store_system_locations() {
   }
 }
 
+static bool skip_shared_lib(const char *name, const size_t len) {
+  if (name[0] == '\0') {
+    /* FIXME does this really happen? */
+    return true;
+  }
+  const char *libfirebuild = "/" LIBFIREBUILD_SO;
+  if (len >= strlen(libfirebuild) &&
+      strcmp(name + strlen(name)
+             - strlen(libfirebuild), libfirebuild) == 0) {
+    /* This is internal to Firebuild, filter it out. */
+    return true;
+  }
+  if (strcmp(name, "linux-vdso.so.1") == 0) {
+    /* This is an in-kernel library, filter it out. */
+    return true;
+  }
+  return false;
+}
+
 /** Add shared library's name to the file list */
 static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   string_array *array = (string_array *) data;
   (void) size;  /* unused */
-
-  if (info->dlpi_name[0] == '\0') {
-    /* FIXME does this really happen? */
-    return 0;
-  }
   const size_t len = strlen(info->dlpi_name);
-  const char *libfirebuild = "/" LIBFIREBUILD_SO;
-  if (len >= strlen(libfirebuild) &&
-    strcmp(info->dlpi_name + strlen(info->dlpi_name)
-           - strlen(libfirebuild), libfirebuild) == 0) {
-    /* This is internal to Firebuild, filter it out. */
+  if (skip_shared_lib(info->dlpi_name, len)) {
     return 0;
   }
-  if (strcmp(info->dlpi_name, "linux-vdso.so.1") == 0) {
-    /* This is an in-kernel library, filter it out. */
-    return 0;
-  }
-
   if (is_canonical(info->dlpi_name, len)) {
     string_array_append(array, (/* non-const */ char *) info->dlpi_name);
   } else {
