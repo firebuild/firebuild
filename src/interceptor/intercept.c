@@ -549,22 +549,54 @@ static bool skip_shared_lib(const char *name, const size_t len) {
   return false;
 }
 
+/**
+ * State struct for shared_libs_cb()
+ */
+typedef struct shared_libs_cb_data_ {
+  /** Array of collected shared library names. */
+  string_array *array;
+  /** Number of entries that could be collected to `array`. */
+  int collectable_entries;
+  /** Number of entries that are not in canonical form, thus need to be made canonical. */
+  int not_canonical_entries;
+  /** Buffert to store canonized library names. Size is canonized_libs_size * IC_PATH_BUFSIZE. */
+  char *canonized_libs;
+  /** Number of canonized names canonized_libs can store. */
+  int canonized_libs_size;
+  /** Number of canonized names stored in canonized_libs. */
+  int canonized_libs_count;
+} shared_libs_cb_data_t;
+
 /** Add shared library's name to the file list */
 static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
-  string_array *array = (string_array *) data;
   (void) size;  /* unused */
-  const size_t len = strlen(info->dlpi_name);
-  if (skip_shared_lib(info->dlpi_name, len)) {
+  shared_libs_cb_data_t *cb_data = (shared_libs_cb_data_t *)data;
+  string_array *array = cb_data->array;
+
+  const char* name = info->dlpi_name;
+  const size_t len = strlen(name);
+  if (skip_shared_lib(name, len)) {
     return 0;
   }
-  if (is_canonical(info->dlpi_name, len)) {
-    string_array_append(array, (/* non-const */ char *) info->dlpi_name);
+  cb_data->collectable_entries++;
+  if (is_canonical(name, len)) {
+    if (!is_string_array_full(array)) {
+      string_array_append_noalloc(array, (/* non-const */ char *) name);
+    }
   } else {
-    char * canonical_name = malloc(len + 1);
-    memcpy(canonical_name, info->dlpi_name, len + 1);
-    make_canonical(canonical_name, len);
-    string_array_append(array, canonical_name);
-    // TODO(rbalint) this leaks canonical_name
+    /* !is_canonical() */
+    cb_data->not_canonical_entries++;
+    assert(cb_data->canonized_libs_count <= cb_data->canonized_libs_size);
+    if (cb_data->canonized_libs_count < cb_data->canonized_libs_size) {
+      /* The there is enough space for the new canonized entry. */
+      char * canonical_name =
+          &cb_data->canonized_libs[cb_data->canonized_libs_count++ * IC_PATH_BUFSIZE];
+      memcpy(canonical_name, name, len + 1);
+      make_canonical(canonical_name, len);
+      if (!is_string_array_full(array)) {
+        string_array_append_noalloc(array, canonical_name);
+      }
+    }
   }
   return 0;
 }
@@ -844,9 +876,32 @@ static void fb_ic_init() {
   }
 
   /* list loaded shared libs */
-  string_array libs;
-  string_array_init(&libs);
-  dl_iterate_phdr(shared_libs_cb, &libs);
+  STATIC_STRING_ARRAY(libs, 64);
+  int canonized_libs_size = 8;
+  char *canonized_libs = alloca(canonized_libs_size * IC_PATH_BUFSIZE);
+  shared_libs_cb_data_t cb_data = {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
+  dl_iterate_phdr(shared_libs_cb, &cb_data);
+  if (cb_data.collectable_entries > cb_data.array->len) {
+    if (cb_data.not_canonical_entries > canonized_libs_size) {
+      /* canonized_libs was not big enough. */
+      canonized_libs_size = cb_data.not_canonical_entries;
+      canonized_libs = alloca(canonized_libs_size * IC_PATH_BUFSIZE);
+    }
+    /* The initially allocated space was not enough to collect all shared libs, trying again. */
+    if (cb_data.collectable_entries > cb_data.array->size_alloc - 1) {
+      /* libs array was not big enough. */
+      libs.p = alloca((cb_data.collectable_entries + 1) * sizeof(char*));
+      libs.size_alloc = cb_data.collectable_entries + 1;
+    } else {
+      /* The size was big enough, reset the contents*/
+      memset(libs.p, 0, libs.len * sizeof(char*));
+    }
+    libs.len = 0;
+
+    shared_libs_cb_data_t cb_data2 = {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
+    dl_iterate_phdr(shared_libs_cb, &cb_data2);
+    assert(cb_data.collectable_entries == cb_data2.array->len);
+  }
   fbbcomm_builder_scproc_query_set_libs(&ic_msg, (const char **) libs.p);
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
