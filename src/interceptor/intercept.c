@@ -34,7 +34,7 @@ pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /** Connection string to supervisor */
-char * fb_conn_string = NULL;
+char fb_conn_string[IC_PATH_BUFSIZE] = {'\0'};
 
 /** Connection string length */
 size_t fb_conn_string_len = 0;
@@ -763,8 +763,8 @@ int fb_connect_supervisor() {
 
 /**  Set up the main supervisor connection */
 void fb_init_supervisor_conn() {
-  if (fb_conn_string == NULL) {
-    fb_conn_string = strdup(getenv("FB_SOCKET"));
+  if (fb_conn_string[0] == '\0') {
+    strncpy(fb_conn_string, getenv("FB_SOCKET"), sizeof(fb_conn_string));
     fb_conn_string_len = strlen(fb_conn_string);
   }
   /* Reconnect to supervisor.

@@ -103,7 +103,7 @@ bool maybe_send_pre_open(int dirfd, const char* file, int flags);
 bool maybe_send_pre_open_without_ack_request(int dirfd, const char* file, int flags);
 
 /** Connection string to supervisor */
-extern char * fb_conn_string;
+extern char fb_conn_string[IC_PATH_BUFSIZE];
 
 /** Connection string length */
 extern size_t fb_conn_string_len;
