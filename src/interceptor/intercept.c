@@ -216,7 +216,7 @@ void release_global_lock() {
 int32_t debug_flags = 0;
 
 /** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
-char *env_ld_library_path = NULL;
+char env_ld_library_path[IC_PATH_BUFSIZE] = {0};
 
 /** Insert marker open()-s for strace, ltrace, etc. */
 bool insert_trace_markers = false;
@@ -810,7 +810,7 @@ static void fb_ic_init() {
   /* Save a copy of LD_LIBRARY_PATH before someone might modify it. */
   char *llp = getenv("LD_LIBRARY_PATH");
   if (llp != NULL) {
-    env_ld_library_path = strdup(llp);
+    strncpy(env_ld_library_path, llp, sizeof(env_ld_library_path) - 1);
   }
 
   fb_init_supervisor_conn();

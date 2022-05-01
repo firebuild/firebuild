@@ -130,7 +130,7 @@ extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 extern voidp_set popened_streams;
 
 /** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
-extern char *env_ld_library_path;
+extern char env_ld_library_path[IC_PATH_BUFSIZE];
 
 /** Insert marker open()-s for strace, ltrace, etc. */
 extern bool insert_trace_markers;

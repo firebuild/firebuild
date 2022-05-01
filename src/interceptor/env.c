@@ -69,7 +69,7 @@ static bool fb_socket_needs_fixup(char **env) {
 }
 
 static bool ld_library_path_needs_fixup(char **env) {
-  if (env_ld_library_path == NULL) {
+  if (env_ld_library_path[0] == '\0') {
     return false;
   }
   char *current_value = getenv_from(env, LD_LIBRARY_PATH);
@@ -128,7 +128,7 @@ int get_env_fixup_size(char **env) {
   e = getenv_from(env, LD_LIBRARY_PATH);
   ret += strlen(LD_LIBRARY_PATH "=") +
       (e ? strlen(e) : 0) + 1 +
-      (env_ld_library_path ? strlen(env_ld_library_path) : 0) + 1;
+      (env_ld_library_path[0] != '\0' ? strlen(env_ld_library_path) : 0) + 1;
 
   return ret;
 }
