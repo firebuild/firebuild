@@ -882,13 +882,13 @@ generate("int", "chdir", "const char *dir",
          # Don't make dir absolute, since the macro would calculate it after calling chdir
          msg_add_fields=["BUILDER_SET_CANONICAL(chdir, dir);",
                          "if (success) {",
-                         "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, CWD_BUFSIZE);",
+                         "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, IC_PATH_BUFSIZE);",
                          "  (void) getcwd_ret;",
                          "  ic_cwd_len = strlen(ic_cwd);",
                          "}"])
 generate("int", "fchdir", "int fd",
          after_lines=["if (success) {",
-                      "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, CWD_BUFSIZE);",
+                      "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, IC_PATH_BUFSIZE);",
                       "  (void) getcwd_ret;",
                       "  ic_cwd_len = strlen(ic_cwd);",
                       "}"])

@@ -69,10 +69,10 @@ extern struct rusage initial_rusage;
 extern pthread_mutex_t ic_system_popen_lock;
 
 /** buffer size for getcwd */
-#define CWD_BUFSIZE 4096
+#define IC_PATH_BUFSIZE 4096
 
 /** Current working directory as reported to the supervisor */
-extern char ic_cwd[CWD_BUFSIZE];
+extern char ic_cwd[IC_PATH_BUFSIZE];
 extern size_t ic_cwd_len;
 
 /** Reset globally maintained information about intercepted functions */
@@ -169,7 +169,7 @@ size_t make_canonical(char *path, size_t original_length);
 
 #ifdef FB_EXTRA_DEBUG
 static inline bool ic_cwd_ok() {
-  char buf[CWD_BUFSIZE];
+  char buf[IC_PATH_BUFSIZE];
   /* getcwd() is not intercepted */
   char * getcwd_ret = getcwd(buf, sizeof(buf));
   assert(getcwd_ret);
