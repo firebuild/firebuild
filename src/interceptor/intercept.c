@@ -59,7 +59,7 @@ char * system_locations_env_str;
 bool intercepting_enabled = true;
 
 /** Current working directory as reported to the supervisor */
-char ic_cwd[CWD_BUFSIZE] = {0};
+char ic_cwd[IC_PATH_BUFSIZE] = {0};
 size_t ic_cwd_len = 0;
 
 /**
@@ -819,10 +819,10 @@ static void fb_ic_init() {
   /* get full executable path
    * see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
    * and readlink(2) */
-  char linkname[CWD_BUFSIZE];
+  char linkname[IC_PATH_BUFSIZE];
   ssize_t r;
-  r = IC_ORIG(readlink)("/proc/self/exe", linkname, CWD_BUFSIZE - 1);
-  if (r > 0 && r < CWD_BUFSIZE) {
+  r = IC_ORIG(readlink)("/proc/self/exe", linkname, IC_PATH_BUFSIZE - 1);
+  if (r > 0 && r < IC_PATH_BUFSIZE) {
     linkname[r] = '\0';
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
   }
