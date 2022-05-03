@@ -39,6 +39,8 @@ typedef struct {
 void string_array_init(string_array *array);
 void string_array_append(string_array *array, char *s);
 void string_array_deep_free(string_array *array);
+bool is_string_array_full(string_array *array);
+void string_array_append_noalloc(string_array *array, char *s);
 
 /**
  * voidp_array allows to conveniently build up an array of pointers (i.e. NULL-terminated void**).

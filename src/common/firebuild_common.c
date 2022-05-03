@@ -38,6 +38,19 @@ void voidp_array_init(voidp_array *array) {
   memset(array, 0, sizeof(*array));
 }
 
+/* The string array needs to allocate more space to append a new entry. */
+bool is_string_array_full(string_array *array) {
+  return !array || array->len == array->size_alloc - 1;
+}
+
+/* Does NOT deep copy the string */
+void string_array_append_noalloc(string_array *array, char *s) {
+  assert(array->size_alloc > 0);
+  assert(array->len + 1 < array->size_alloc);
+  array->p[array->len++] = s;
+  array->p[array->len] = NULL;
+}
+
 /* Does NOT deep copy whatever is behind voidp - obviously */
 void voidp_array_append(voidp_array *array, void *p) {
   if (array->size_alloc == 0) {
