@@ -1107,8 +1107,12 @@ static void fb_ic_init() {
     }
 
     insert_debug_msg("exiting");
+#ifdef __APPLE__
+    _exit(fbbcomm_serialized_scproc_resp_get_exit_status(sv_msg));
+#else
     void(*orig_underscore_exit)(int) = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
     (*orig_underscore_exit)(fbbcomm_serialized_scproc_resp_get_exit_status(sv_msg));
+#endif
     assert(0 && "_exit() did not exit");
   }
 
@@ -1211,10 +1215,14 @@ static void fb_ic_init() {
 
   /* pthread_sigmask() is only available if we're linked against libpthread.
    * Otherwise use the single-threaded sigprocmask(). */
+#ifdef __APPLE__
+  ic_pthread_sigmask = pthread_sigmask;
+#else
   ic_pthread_sigmask = dlsym(RTLD_NEXT, "pthread_sigmask");
   if (!ic_pthread_sigmask) {
     ic_pthread_sigmask = &sigprocmask;
   }
+#endif
 
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
