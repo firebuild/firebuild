@@ -72,7 +72,11 @@
 ###   endif
 ###   block decl_h
 ###     if not syscall
+###       if target == "darwin"
+#define get_ic_orig_{{ func }}() {{ func }}
+###       else
 extern {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }});
+###       endif
 ###     else
 #define ic_orig_{{ func }}(...) get_ic_orig_syscall()({{ func }} __VA_OPT__(,) __VA_ARGS__)
 ###     endif
@@ -91,6 +95,7 @@ extern {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }});
 ###   endif
 ###   block def_c
 ###     if not syscall
+###       if target != "darwin"
 inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
   static {{ rettype }}(*resolved)({{ sig_str }}) = NULL;
   if (resolved == NULL) {
@@ -98,6 +103,7 @@ inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
   }
   return resolved;
 }
+###       endif
 ###     endif
 ###   endblock def_c
 ###   if ifdef_guard
@@ -182,7 +188,12 @@ inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
 #undef {{ func }}
 #endif
 
+###       if target == "darwin"
+{{ rettype }} {{ func }} ({{ sig_str }});
+{{ rettype }} interposing_{{ func }} ({{ sig_str }}) {
+###       else
 {{ rettype }} {{ func }} ({{ sig_str }}) {
+###       endif
 ###     else
 #ifdef {{ func }}  /* this is prone against typos in the syscall name, but handles older kernels */
 case {{ func }}: {

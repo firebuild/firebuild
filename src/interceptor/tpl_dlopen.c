@@ -41,7 +41,7 @@
     for (i = _dyld_image_count() - 1; i > 1 ; i--) {
       /* dlopen() each image, check handle */
       const char *image_name = _dyld_get_image_name(i);
-      void *probe_handle = ic_orig_dlopen(image_name, RTLD_LAZY | RTLD_NOLOAD);
+      void *probe_handle = get_ic_orig_dlopen()(image_name, RTLD_LAZY | RTLD_NOLOAD);
       /* If the handle is the same as what was passed in (modulo mode bits), return this image name */
       dlclose(probe_handle);
       if (((intptr_t)ret & (-4)) == ((intptr_t)probe_handle & (-4))) {
