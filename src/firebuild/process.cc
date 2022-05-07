@@ -1144,7 +1144,6 @@ void Process::maybe_finalize() {
         fork_parent()->fork_point()->set_has_orphan_descendant_bubble_up();
         /* Can proceed with finalizing this process, it won't be saved to the cache. */
       } else {
-        assert_cmp(fork_parent_ptr->state(), ==, FB_PROC_RUNNING);
         /* Wait for the fork parent to wait() for this child or to terminate. */
         return;
       }
