@@ -1212,14 +1212,18 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->exec_point()->disable_shortcutting_bubble_up("clone() is not supported");
       break;
     }
-    case FBBCOMM_TAG_access:
     case FBBCOMM_TAG_chmod:
+    case FBBCOMM_TAG_fchmod: {
+      // TODO(rbalint) implement proper tracking and shortcutting of those operations in #668.
+      proc->exec_point()->disable_shortcutting_bubble_up("(f)chmod() is not supported");
+      break;
+    }
+    case FBBCOMM_TAG_access:
     case FBBCOMM_TAG_chown:
     case FBBCOMM_TAG_euidaccess:
     case FBBCOMM_TAG_faccessat:
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
-    case FBBCOMM_TAG_fchmod:
     case FBBCOMM_TAG_fchown:
     case FBBCOMM_TAG_fpathconf:
     case FBBCOMM_TAG_ftruncate:
