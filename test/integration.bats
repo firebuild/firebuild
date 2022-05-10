@@ -13,7 +13,7 @@ setup() {
 
 @test "bash -c ls" {
   for i in 1 2; do
-    result=$(./run-firebuild -- bash -c "ls integration.bats")
+    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"'  -- bash -c "ls integration.bats")
     assert_streq "$result" "integration.bats"
     assert_streq "$(strip_stderr stderr)" ""
   done
@@ -29,14 +29,14 @@ setup() {
 
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
-    result=$(./run-firebuild -r -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
+    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -r -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
     assert_streq "$result" "integration.bats"
   done
 }
 
 @test "bash exec chain" {
   for i in 1 2; do
-    result=$(./run-firebuild -- bash -c "exec bash -c exec\\ bash\\ -c\\ ls\\\\\ integration.bats")
+    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -- bash -c "exec bash -c exec\\ bash\\ -c\\ ls\\\\\ integration.bats")
     assert_streq "$result" "integration.bats"
     assert_streq "$(strip_stderr stderr)" ""
   done
