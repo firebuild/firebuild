@@ -80,16 +80,8 @@
     # that matches the current world.
     ("process_inputs", [
       # Files that are opened for reading, with various results.
-      (ARRAY, FBB,    "path_isreg"),                   # tag "file"
-      (ARRAY, FBB,    "system_path_isreg"),            # tag "file"
-      (ARRAY, FBB,    "path_isdir"),                   # tag "file"
-      (ARRAY, FBB,    "system_path_isdir"),            # tag "file"
-      (ARRAY, STRING, "path_notexist_or_isreg"),
-      (ARRAY, STRING, "path_notexist_or_isreg_empty"),
+      (ARRAY, FBB,    "path"),                         # tag "file"
       (ARRAY, STRING, "path_notexist"),
-
-      # Files and directories that are stat'ed, even if stat failed.
-      #(ARRAY, FBB,    "path_stated"),                  # tag "file"
 
       # TODO: Directories that are opendir'ed, even if opendir failed.
       # FIXME: need to fingerprint the entire directory listing??
