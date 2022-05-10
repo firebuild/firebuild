@@ -362,12 +362,12 @@ static bool dir_created_or_could_exist(
 }
 
 static bool consistent_implicit_parent_dirs(
-    const std::vector<FBBSTORE_Builder_file>& out_path_isreg_with_hash,
+    const std::vector<FBBSTORE_Builder_file>& out_path_isreg,
     const tsl::hopscotch_set<const FileName*>& out_path_isdir_filename_ptrs,
     const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages) {
   /* If the parent dir must not exist when shortcutting and the shortcut does not create it
    * either, then creating the new regular file would fail. */
-  for (const FBBSTORE_Builder_file& file : out_path_isreg_with_hash) {
+  for (const FBBSTORE_Builder_file& file : out_path_isreg) {
     if (!dir_created_or_could_exist(file.get_path(), file.get_path_len(),
                                     out_path_isdir_filename_ptrs, file_usages)) {
       return false;
@@ -414,8 +414,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 
   /* File outputs */
   FBBSTORE_Builder_process_outputs po;
-  std::vector<FBBSTORE_Builder_file> out_path_isreg_with_hash,
-      out_path_isdir;
+  std::vector<FBBSTORE_Builder_file> out_path_isreg, out_path_isdir;
   std::vector<const char *> out_path_notexist;
   /* Outputs for verification. */
   tsl::hopscotch_set<const FileName*> out_path_isdir_filename_ptrs;
@@ -478,7 +477,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
             int mode = st.st_mode & 07777;
-            add_file(&out_path_isreg_with_hash, filename, ISREG, st.st_size, &new_hash, mode);
+            add_file(&out_path_isreg, filename, ISREG, st.st_size, &new_hash, mode);
           } else if (S_ISDIR(st.st_mode)) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
@@ -534,7 +533,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Validate cache entry to be stored. */
-  if (!consistent_implicit_parent_dirs(out_path_isreg_with_hash,
+  if (!consistent_implicit_parent_dirs(out_path_isreg,
                                        out_path_isdir_filename_ptrs,
                                        proc->file_usages())) {
     return;
@@ -551,7 +550,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       }
     } file_less;
     std::sort(in_path.begin(), in_path.end(), file_less);
-    std::sort(out_path_isreg_with_hash.begin(), out_path_isreg_with_hash.end(), file_less);
+    std::sort(out_path_isreg.begin(), out_path_isreg.end(), file_less);
     std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
 
     struct {
@@ -564,26 +563,13 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     std::sort(out_path_notexist.begin(), out_path_notexist.end());
   }
 
-  pi.set_path_item_fn(
-      in_path.size(),
-      file_item_fn,
-      &in_path);
-  pi.set_path_notexist(
-      in_path_notexist);
-  po.set_path_isreg_with_hash_item_fn(
-      out_path_isreg_with_hash.size(),
-      file_item_fn,
-      &out_path_isreg_with_hash);
-  po.set_path_isdir_item_fn(
-      out_path_isdir.size(),
-      file_item_fn,
-      &out_path_isdir);
-  po.set_path_notexist(
-      out_path_notexist);
-  po.set_pipe_data_item_fn(
-      out_pipe_data.size(),
-      fbbstore_builder_pipe_data_vector_item_fn,
-      &out_pipe_data);
+  pi.set_path_item_fn(in_path.size(), file_item_fn, &in_path);
+  pi.set_path_notexist(in_path_notexist);
+  po.set_path_isreg_item_fn(out_path_isreg.size(), file_item_fn, &out_path_isreg);
+  po.set_path_isdir_item_fn(out_path_isdir.size(), file_item_fn, &out_path_isdir);
+  po.set_path_notexist(out_path_notexist);
+  po.set_pipe_data_item_fn(out_pipe_data.size(), fbbstore_builder_pipe_data_vector_item_fn,
+                           &out_pipe_data);
   po.set_exit_status(proc->fork_point()->exit_status());
 
   // TODO(egmont) Add all sorts of other stuff
@@ -875,9 +861,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     return false;
   }
 
-  for (i = 0; i < outputs->get_path_isreg_with_hash_count(); i++) {
-    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
-        (outputs->get_path_isreg_with_hash_at(i));
+  for (i = 0; i < outputs->get_path_isreg_count(); i++) {
+    const FBBSTORE_Serialized_file *file =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     FB_DEBUG(FB_DEBUG_SHORTCUT,
              "│   Fetching file from blobs cache: "
