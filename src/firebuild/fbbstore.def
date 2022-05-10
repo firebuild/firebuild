@@ -95,7 +95,7 @@
     ("process_outputs", [
       # Files that are written to (or removed), only if opening them for
       # writing succeeded.
-      (ARRAY,    FBB,    "path_isreg_with_hash"),  # tag "file"
+      (ARRAY,    FBB,    "path_isreg"),            # tag "file"
       # Directories created
       (ARRAY,    FBB,    "path_isdir"),            # tag "file"
       (ARRAY,    STRING, "path_notexist"),
