@@ -409,13 +409,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   /* File inputs */
   FBBSTORE_Builder_process_inputs pi;
 
-  std::vector<FBBSTORE_Builder_file> in_path_isreg,
-      in_system_path_isreg,
-      in_path_isdir,
-      in_system_path_isdir;
-  std::vector<cstring_view> in_path_notexist_or_isreg,
-      in_path_notexist_or_isreg_empty,
-      in_path_notexist;
+  std::vector<FBBSTORE_Builder_file> in_path;
+  std::vector<cstring_view> in_path_notexist;
 
   /* File outputs */
   FBBSTORE_Builder_process_outputs po;
@@ -425,50 +420,44 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   /* Outputs for verification. */
   tsl::hopscotch_set<const FileName*> out_path_isdir_filename_ptrs;
 
+  /* Construct in_path_* in 2 passes. First collect the non-system paths and then the system paths,
+   * for better performance. */
+  for (int i = 0; i < 2; i++) {
+    for (const auto& pair : proc->file_usages()) {
+      const auto filename = pair.first;
+      const FileUsage* fu = pair.second;
+
+      if (filename->is_in_system_location() == (i == 0)) {
+        continue;
+      }
+
+      if (fu->generation() != filename->generation()) {
+        // TODO(rbalint) extend hash cache and blob cache to reuse previously saved generations
+        FB_DEBUG(FB_DEBUG_CACHING,
+                 "A file (" + d(filename)+ ") changed since the process used it.");
+        return;
+      }
+
+      /* If the file's initial contents matter, record it in pb's "inputs".
+       * This is purely data conversion from one format to another. */
+      switch (fu->initial_type()) {
+        case DONTKNOW:
+          /* Nothing to do. */
+          break;
+        case NOTEXIST:
+          /* NOTEXIST is handled specially to save space in the FBB. */
+          in_path_notexist.push_back({filename->c_str(), filename->length()});
+          break;
+        default:
+          add_file(&in_path, filename, fu->initial_state());
+          break;
+      }
+    }
+  }
+
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;
-
-    if (fu->generation() != filename->generation()) {
-      // TODO(rbalint) extend hash cache and blob cache to reuse previously saved generations
-      FB_DEBUG(FB_DEBUG_CACHING, "A file (" + d(filename)+ ") changed since the process used it.");
-      return;
-    }
-
-    /* If the file's initial contents matter, record it in pb's "inputs".
-     * This is purely data conversion from one format to another. */
-    switch (fu->initial_type()) {
-      case DONTKNOW:
-        /* Nothing to do. */
-        break;
-      case ISREG: {
-        if (filename->is_in_system_location()) {
-          add_file(&in_system_path_isreg, filename, fu->initial_state());
-        } else {
-          add_file(&in_path_isreg, filename, fu->initial_state());
-        }
-        break;
-      }
-      case ISDIR: {
-        if (filename->is_in_system_location()) {
-          add_file(&in_system_path_isdir, filename, fu->initial_state());
-        } else {
-          add_file(&in_path_isdir, filename, fu->initial_state());
-        }
-        break;
-      }
-      case NOTEXIST_OR_ISREG:
-        in_path_notexist_or_isreg.push_back({filename->c_str(), filename->length()});
-        break;
-      case NOTEXIST_OR_ISREG_EMPTY:
-        in_path_notexist_or_isreg_empty.push_back({filename->c_str(), filename->length()});
-        break;
-      case NOTEXIST:
-        in_path_notexist.push_back({filename->c_str(), filename->length()});
-        break;
-      default:
-        assert(false);
-    }
 
     /* If the file's final contents matter, place it in the file cache,
      * and also record it in pb's "outputs". This actually needs to
@@ -551,17 +540,17 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     return;
   }
 
-  /* Possibly sort the entries for easier debugging. */
+  /* Possibly sort the entries for easier debugging.
+   *
+   * Note that previously we carefully collected the non-system and system locations separately for
+   * performance reasons, and now we mix the two. But again, this sorting here is for debugging. */
   if (FB_DEBUGGING(FB_DEBUG_CACHESORT)) {
     struct {
       bool operator()(const FBBSTORE_Builder_file& a, const FBBSTORE_Builder_file& b) const {
         return strcmp(a.get_path(), b.get_path()) < 0;
       }
     } file_less;
-    std::sort(in_path_isreg.begin(), in_path_isreg.end(), file_less);
-    std::sort(in_system_path_isreg.begin(), in_system_path_isreg.end(), file_less);
-    std::sort(in_path_isdir.begin(), in_path_isdir.end(), file_less);
-    std::sort(in_system_path_isdir.begin(), in_system_path_isdir.end(), file_less);
+    std::sort(in_path.begin(), in_path.end(), file_less);
     std::sort(out_path_isreg_with_hash.begin(), out_path_isreg_with_hash.end(), file_less);
     std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
 
@@ -570,35 +559,15 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         return strcmp(a.c_str, b.c_str) < 0;
       }
     } cstring_view_less;
-    std::sort(in_path_notexist_or_isreg.begin(), in_path_notexist_or_isreg.end(),
-              cstring_view_less);
-    std::sort(in_path_notexist_or_isreg_empty.begin(), in_path_notexist_or_isreg_empty.end(),
-              cstring_view_less);
     std::sort(in_path_notexist.begin(), in_path_notexist.end(), cstring_view_less);
 
     std::sort(out_path_notexist.begin(), out_path_notexist.end());
   }
 
-  pi.set_path_isreg_item_fn(
-      in_path_isreg.size(),
+  pi.set_path_item_fn(
+      in_path.size(),
       file_item_fn,
-      &in_path_isreg);
-  pi.set_system_path_isreg_item_fn(
-      in_system_path_isreg.size(),
-      file_item_fn,
-      &in_system_path_isreg);
-  pi.set_path_isdir_item_fn(
-      in_path_isdir.size(),
-      file_item_fn,
-      &in_path_isdir);
-  pi.set_system_path_isdir_item_fn(
-      in_system_path_isdir.size(),
-      file_item_fn,
-      &in_system_path_isdir);
-  pi.set_path_notexist_or_isreg(
-      in_path_notexist_or_isreg);
-  pi.set_path_notexist_or_isreg_empty(
-      in_path_notexist_or_isreg_empty);
+      &in_path);
   pi.set_path_notexist(
       in_path_notexist);
   po.set_path_isreg_with_hash_item_fn(
@@ -633,26 +602,18 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 }
 
 /**
- * Check whether the given File matches the file system's current contents.
+ * Create a FileInfo object based an FBB's File entry.
  */
-static bool file_matches_fs(const FBBSTORE_Serialized_file *file, const Hash& fingerprint) {
-  const char *filename = file->get_path();
-  const auto path = FileName::Get(filename, file->get_path_len());
-
-  FileInfo query(file->get_type());
+static FileInfo file_to_file_info(const FBBSTORE_Serialized_file *file) {
+  FileInfo info(file->get_type());
   if (file->has_size()) {
-    query.set_size(file->get_size());
+    info.set_size(file->get_size());
   }
   if (file->has_hash()) {
     Hash hash(file->get_hash());
-    query.set_hash(hash);
+    info.set_hash(hash);
   }
-
-  if (!hash_cache->file_info_matches(path, query)) {
-    FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " + d(path));
-    return false;
-  }
-  return true;
+  return info;
 }
 
 /**
@@ -663,70 +624,30 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
   TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
 
   size_t i;
-  for (i = 0; i < pi->get_path_isreg_count(); i++) {
-    const FBBSTORE_Serialized *fbb = pi->get_path_isreg_at(i);
-    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, fingerprint)) {
-      return false;
-    }
-  }
-  for (i = 0; i < pi->get_path_isdir_count(); i++) {
-    const FBBSTORE_Serialized *fbb = pi->get_path_isdir_at(i);
-    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, fingerprint)) {
-      return false;
-    }
-  }
-  for (i = 0; i < pi->get_system_path_isreg_count(); i++) {
-    const FBBSTORE_Serialized *fbb = pi->get_system_path_isreg_at(i);
-    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, fingerprint)) {
-      return false;
-    }
-  }
-  for (i = 0; i < pi->get_system_path_isdir_count(); i++) {
-    const FBBSTORE_Serialized *fbb = pi->get_system_path_isdir_at(i);
-    const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>(fbb);
-    if (!file_matches_fs(file, fingerprint)) {
-      return false;
-    }
-  }
-  for (i = 0; i < pi->get_path_notexist_or_isreg_count(); i++) {
-    const char *filename = pi->get_path_notexist_or_isreg_at(i);
-    const auto path = FileName::Get(filename, pi->get_path_notexist_or_isreg_len_at(i));
-    FileInfo query(NOTEXIST_OR_ISREG);
+
+  for (i = 0; i < pi->get_path_count(); i++) {
+    const FBBSTORE_Serialized_file *file =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
+    const auto path = FileName::Get(file->get_path(), file->get_path_len());
+    const FileInfo query = file_to_file_info(file);
     if (!hash_cache->file_info_matches(path, query)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename)
-               + ": file expected to be missing or regular, something else found");
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " + d(path));
       return false;
     }
   }
-  for (i = 0; i < pi->get_path_notexist_or_isreg_empty_count(); i++) {
-    const char *filename = pi->get_path_notexist_or_isreg_empty_at(i);
-    const auto path = FileName::Get(filename, pi->get_path_notexist_or_isreg_empty_len_at(i));
-    FileInfo query(NOTEXIST_OR_ISREG_EMPTY);
-    if (!hash_cache->file_info_matches(path, query)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename)
-               + ": file expected to be missing or empty, non-empty file or something else found");
-      return false;
-    }
-  }
+
   for (i = 0; i < pi->get_path_notexist_count(); i++) {
-    const char *filename = pi->get_path_notexist_at(i);
-    const auto path = FileName::Get(filename, pi->get_path_notexist_len_at(i));
-    FileInfo query(NOTEXIST);
+    const auto path = FileName::Get(pi->get_path_notexist_at(i), pi->get_path_notexist_len_at(i));
+    const FileInfo query(NOTEXIST);
     if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(fingerprint)
-               + " mismatches e.g. at " + d(filename)
+               + " mismatches e.g. at " + d(path)
                + ": path expected to be missing, existing object is found");
       return false;
     }
   }
+
   return true;
 }
 
@@ -932,42 +853,12 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>
         (inouts->get_inputs());
 
-    for (i = 0; i < inputs->get_path_isreg_count(); i++) {
-      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
-          (inputs->get_path_isreg_at(i));
+    for (i = 0; i < inputs->get_path_count(); i++) {
+      const FBBSTORE_Serialized_file *file =
+          reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
       const auto path = FileName::Get(file->get_path(), file->get_path_len());
-      FileInfo info(ISREG);
-      if (file->has_size()) {
-        info.set_size(file->get_size());
-      }
-      if (file->has_hash()) {
-        Hash hash(file->get_hash());
-        info.set_hash(hash);
-      }
+      FileInfo info = file_to_file_info(file);
       proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, info));
-    }
-    for (i = 0; i < inputs->get_path_isdir_count(); i++) {
-      const FBBSTORE_Serialized_file *file = reinterpret_cast<const FBBSTORE_Serialized_file *>
-          (inputs->get_path_isdir_at(i));
-      const auto path = FileName::Get(file->get_path(), file->get_path_len());
-      FileInfo info(ISDIR);
-      if (file->has_hash()) {
-        Hash hash(file->get_hash());
-        info.set_hash(hash);
-      }
-      proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, info));
-    }
-    for (i = 0; i < inputs->get_path_notexist_or_isreg_count(); i++) {
-      const auto path = FileName::Get(inputs->get_path_notexist_or_isreg_at(i),
-                                      inputs->get_path_notexist_or_isreg_len_at(i));
-      proc->parent_exec_point()->register_file_usage_update(
-          path, FileUsageUpdate(path, NOTEXIST_OR_ISREG));
-    }
-    for (i = 0; i < inputs->get_path_notexist_or_isreg_empty_count(); i++) {
-      const auto path = FileName::Get(inputs->get_path_notexist_or_isreg_empty_at(i),
-                                      inputs->get_path_notexist_or_isreg_empty_len_at(i));
-      proc->parent_exec_point()->register_file_usage_update(
-          path, FileUsageUpdate(path, NOTEXIST_OR_ISREG_EMPTY));
     }
     for (i = 0; i < inputs->get_path_notexist_count(); i++) {
       const auto path = FileName::Get(inputs->get_path_notexist_at(i),
