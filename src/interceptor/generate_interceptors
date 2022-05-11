@@ -902,7 +902,6 @@ generate("int", "lchmod", "const char *path, mode_t mode",
          msg_skip_fields=["path"],
          msg_add_fields=["fbbcomm_builder_chmod_set_link(&ic_msg, true);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(chmod, path);"])
-# fchmodat() is badly named, should be chmodat()
 generate("int", "fchmodat", "int dirfd, const char *path, mode_t mode, int flags",
          msg="chmod",
          msg_skip_fields=["path"],
@@ -919,7 +918,6 @@ generate("int", "lchown", "const char *path, uid_t owner, gid_t group",
          msg_skip_fields=["path"],
          msg_add_fields=["fbbcomm_builder_chown_set_link(&ic_msg, true);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(chown, path);"])
-# fchownat() is badly named, should be chownat()
 generate("int", "fchownat", "int dirfd, const char *path, uid_t owner, gid_t group, int flags",
          msg="chown",
          msg_skip_fields=["path"],
@@ -970,44 +968,59 @@ generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *path, char *buf,
 generate("int", "__xstat", "int ver, const char *filename, struct stat *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["if (success) fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__xstat64", "int ver, const char *filename, struct stat64 *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["if (success) fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__lxstat", "int ver, const char *filename, struct stat *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
-                         "if (success) fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__lxstat64", "int ver, const char *filename, struct stat64 *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
-                         "if (success) fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
          msg="fstat",
          msg_skip_fields=["ver", "stat_buf"],
-         msg_add_fields=["if (success) fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);"])
+         msg_add_fields=["if (success) {",
+                         "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
          msg="fstat",
          msg_skip_fields=["ver", "stat_buf"],
-         msg_add_fields=["if (success) fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);"])
-# fstatat() is badly named, should be statat()
+         msg_add_fields=["if (success) {",
+                         "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__fxstatat", "int ver, int dirfd, const char *filename, struct stat *stat_buf, int flags",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["if (success) fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);"])
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["if (success) fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
 # since glibc 2.28
 generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned int mask, struct statx *statx_buf",
          # TODO(rbalint) have separate statx() message with mask also sent
@@ -1015,11 +1028,11 @@ generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned i
          # Always query type and mode to let the supervisor have valid stx_mode
          before_lines=["mask |= STATX_TYPE | STATX_MODE;"],
          msg_skip_fields=["filename", "mask", "statx_buf"],
-         msg_add_fields=["if (success) {",
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+                         "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
                          # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
-                         "}",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);"])
+                         "}"])
 # Treat isfdtype() as a fstat()
 generate("int", "isfdtype", "int fd, int fdtype",
          msg="fstat",
@@ -1104,7 +1117,6 @@ generate("int", "utimensat", "int dirfd, const char *file, const struct timespec
          msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbbcomm_builder_utime_set_link(&ic_msg, true);",
                          "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
-# futimesat is badly named and badly designed, and is obsoleted by utimensat
 generate("int", "futimesat", "int dirfd, const char *file, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["file", "times"],
