@@ -17,13 +17,7 @@ binary_dir="$1"
 status=0
 
 # Additional allowed public symbols that are not auto-generated into gen_list.txt.
-# These are the ones defined in ic_redirect_only.c.
-additional_allowed_symbols="
-vfork
-creat
-creat64
-eaccess
-"
+additional_allowed_symbols=""
 
 # Extract and sort the public symbols of our library,
 # filtering out the ones added by gcov (__gcov* and mangle_path)
@@ -53,9 +47,21 @@ fi
 # Get the list of libc, libdl and libpthread symbols.
 
 # Some symbols have been removed from or introduced recently to glibc
-known_extra="_Fork
+known_extra="
+_Fork
 stime
-ustat"
+ustat
+stat
+stat64
+lstat
+lstat64
+fstat
+fstat64
+fstatat
+fstatat64
+mknod
+mknodat
+"
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
 libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
 (nm -D $libs | \
