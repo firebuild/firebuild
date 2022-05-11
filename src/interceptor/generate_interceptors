@@ -900,13 +900,12 @@ generate("int", "chmod", "const char *path, mode_t mode",
 generate("int", "lchmod", "const char *path, mode_t mode",
          msg="chmod",
          msg_skip_fields=["path"],
-         msg_add_fields=["fbbcomm_builder_chmod_set_link(&ic_msg, true);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(chmod, path);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, path);",
+                         "fbbcomm_builder_chmod_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
 generate("int", "fchmodat", "int dirfd, const char *path, mode_t mode, int flags",
          msg="chmod",
          msg_skip_fields=["path"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbbcomm_builder_chmod_set_link(&ic_msg, true);",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chmod, dirfd, path);"])
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chmod, dirfd, path);"])
 generate("int", "fchmod", "int fd, mode_t mode")
 
 # Intercept the chown family
@@ -916,13 +915,12 @@ generate("int", "chown", "const char *path, uid_t owner, gid_t group",
 generate("int", "lchown", "const char *path, uid_t owner, gid_t group",
          msg="chown",
          msg_skip_fields=["path"],
-         msg_add_fields=["fbbcomm_builder_chown_set_link(&ic_msg, true);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(chown, path);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, path);",
+                         "fbbcomm_builder_chown_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
 generate("int", "fchownat", "int dirfd, const char *path, uid_t owner, gid_t group, int flags",
          msg="chown",
          msg_skip_fields=["path"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbbcomm_builder_chown_set_link(&ic_msg, true);",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chown, dirfd, path);"])
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chown, dirfd, path);"])
 generate("int", "fchown", "int fd, uid_t owner, gid_t group")
 
 # Intercept the link, symlink and readlink families
@@ -1183,14 +1181,13 @@ generate("int", "utimes", "const char *file, const struct timeval times[2]",
 generate("int", "lutimes", "const char *file, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["file", "times"],
-         msg_add_fields=["fbbcomm_builder_utime_set_link(&ic_msg, true);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
-                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
+                         "fbbcomm_builder_utime_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
 generate("int", "utimensat", "int dirfd, const char *file, const struct timespec times[2], int flags",
          msg="utime",
-         msg_skip_fields=["file", "times", "flags"],
-         msg_add_fields=["if (flags & AT_SYMLINK_NOFOLLOW) fbbcomm_builder_utime_set_link(&ic_msg, true);",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
+         msg_skip_fields=["file", "times"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
 generate("int", "futimesat", "int dirfd, const char *file, const struct timeval times[2]",
          msg="utime",
