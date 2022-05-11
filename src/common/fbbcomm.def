@@ -337,10 +337,8 @@
       (OPTIONAL, STRING, "path"),
       # mode
       (OPTIONAL, "mode_t", "mode"),
-      # flags for fchmodat()
+      # flags for fchmodat(), AT_SYMLINK_NOFOLLOW for lchmod()
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
-      # it was actually lchmod() or fchmodat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
-      (OPTIONAL, "bool", "link"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -363,10 +361,8 @@
       (OPTIONAL, "uid_t", "owner"),
       # gid
       (OPTIONAL, "gid_t", "group"),
-      # flags for fchownat()
+      # flags for fchownat(), AT_SYMLINK_NOFOLLOW for lchown()
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
-      # it was actually lchown() or fchownat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
-      (OPTIONAL, "bool", "link"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -439,8 +435,8 @@
       (OPTIONAL, STRING, "file"),
       # all timestamps should be set to current time
       (REQUIRED, "bool", "all_utime_now"),
-      # it was actually lutime() or utimensat(..., AT_SYMLINK_NOFOLLOW), so don't follow symlink
-      (OPTIONAL, "bool", "link"),
+      # flags for utimensat(), AT_SYMLINK_NOFOLLOW for lutimes()
+      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
