@@ -275,14 +275,15 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
  * object that reflects how our usage of this file changed.
  */
 FileUsageUpdate FileUsageUpdate::get_from_stat_params(const FileName *filename, mode_t mode,
-                                                      int err) {
-  TRACK(FB_DEBUG_PROC, "mode=%d, err=%d", mode, err);
+                                                      off_t size, int err) {
+  TRACK(FB_DEBUG_PROC, "mode=%d, size=%ld, err=%d", mode, size, err);
 
   FileUsageUpdate update(filename);
 
   if (!err) {
     if (S_ISREG(mode)) {
       update.set_initial_type(ISREG);
+      update.set_initial_size(size);
     } else if (S_ISDIR(mode)) {
       update.set_initial_type(ISDIR);
     } else if (S_ISLNK(mode)) {

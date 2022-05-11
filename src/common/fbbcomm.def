@@ -280,23 +280,27 @@
     ]),
 
     ("stat", [
-      # Returned file type and mode
-      (OPTIONAL, "mode_t", "st_mode"),
       # dir file descriptor for fstatat()
       (OPTIONAL, "int", "dirfd"),
       # path to file
       (OPTIONAL, STRING, "filename"),
       # it could be lstat() encoded as AT_SYMLINK_NOFOLLOW or fstatat(..., flags)
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
+      # Returned file type and mode
+      (OPTIONAL, "mode_t", "st_mode"),
+      # Returned file size
+      (OPTIONAL, "off_t", "st_size"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
 
     ("fstat", [
-      # Returned file type and mode
-      (OPTIONAL, "mode_t", "st_mode"),
       # file fd
       (OPTIONAL, "int", "fd"),
+      # Returned file type and mode
+      (OPTIONAL, "mode_t", "st_mode"),
+      # Returned file size
+      (OPTIONAL, "off_t", "st_size"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
