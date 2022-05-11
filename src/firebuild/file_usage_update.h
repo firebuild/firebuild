@@ -24,7 +24,8 @@ class FileUsageUpdate {
 
   static FileUsageUpdate get_from_open_params(const FileName *filename, int flags, int err);
   static FileUsageUpdate get_from_mkdir_params(const FileName *filename, int err);
-  static FileUsageUpdate get_from_stat_params(const FileName *filename, mode_t mode, int err);
+  static FileUsageUpdate get_from_stat_params(const FileName *filename, mode_t mode, off_t size,
+                                              int err);
   static FileUsageUpdate get_oldfile_usage_from_rename_params(const FileName* old_name,
                                                               const FileName* new_name, int err);
 

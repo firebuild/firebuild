@@ -972,6 +972,7 @@ generate("int", "__xstat", "int ver, const char *filename, struct stat *stat_buf
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__xstat64", "int ver, const char *filename, struct stat64 *stat_buf",
          msg="stat",
@@ -979,6 +980,7 @@ generate("int", "__xstat64", "int ver, const char *filename, struct stat64 *stat
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__lxstat", "int ver, const char *filename, struct stat *stat_buf",
          msg="stat",
@@ -987,6 +989,7 @@ generate("int", "__lxstat", "int ver, const char *filename, struct stat *stat_bu
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__lxstat64", "int ver, const char *filename, struct stat64 *stat_buf",
          msg="stat",
@@ -995,18 +998,21 @@ generate("int", "__lxstat64", "int ver, const char *filename, struct stat64 *sta
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
          msg="fstat",
          msg_skip_fields=["ver", "stat_buf"],
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_fstat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
          msg="fstat",
          msg_skip_fields=["ver", "stat_buf"],
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_fstat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__fxstatat", "int ver, int dirfd, const char *filename, struct stat *stat_buf, int flags",
          msg="stat",
@@ -1014,6 +1020,7 @@ generate("int", "__fxstatat", "int ver, int dirfd, const char *filename, struct 
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
          msg="stat",
@@ -1021,6 +1028,7 @@ generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struc
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # cleaned up beginning with glibc 2.33
 generate("int", "stat", "const char *filename, struct stat *stat_buf",
@@ -1029,6 +1037,7 @@ generate("int", "stat", "const char *filename, struct stat *stat_buf",
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "stat64", "const char *filename, struct stat64 *stat_buf",
          msg="stat",
@@ -1036,6 +1045,7 @@ generate("int", "stat64", "const char *filename, struct stat64 *stat_buf",
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "lstat", "const char *filename, struct stat *stat_buf",
          msg="stat",
@@ -1044,6 +1054,7 @@ generate("int", "lstat", "const char *filename, struct stat *stat_buf",
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "lstat64", "const char *filename, struct stat64 *stat_buf",
          msg="stat",
@@ -1052,18 +1063,21 @@ generate("int", "lstat64", "const char *filename, struct stat64 *stat_buf",
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "fstat", "int fd, struct stat *stat_buf",
          msg="fstat",
          msg_skip_fields=["stat_buf"],
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_fstat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "fstat64", "int fd, struct stat64 *stat_buf",
          msg="fstat",
          msg_skip_fields=["stat_buf"],
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_fstat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "fstatat", "int dirfd, const char *filename, struct stat *stat_buf, int flags",
          msg="stat",
@@ -1071,6 +1085,7 @@ generate("int", "fstatat", "int dirfd, const char *filename, struct stat *stat_b
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "fstatat64", "int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
          msg="stat",
@@ -1078,17 +1093,19 @@ generate("int", "fstatat64", "int dirfd, const char *filename, struct stat64 *st
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # since glibc 2.28
 generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned int mask, struct statx *statx_buf",
          # TODO(rbalint) have separate statx() message with mask also sent
          msg="stat",
          # Always query type and mode to let the supervisor have valid stx_mode
-         before_lines=["mask |= STATX_TYPE | STATX_MODE;"],
+         before_lines=["mask |= STATX_TYPE | STATX_MODE | STATX_SIZE;"],
          msg_skip_fields=["filename", "mask", "statx_buf"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
+                         "  fbbcomm_builder_stat_set_st_size(&ic_msg, statx_buf->stx_size);",
                          # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
                          "}"])
 # Treat isfdtype() as a fstat()

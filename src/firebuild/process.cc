@@ -352,23 +352,25 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
   return 0;
 }
 
-int Process::handle_fstat(const int fd, const int st_mode, const int error) {
+int Process::handle_fstat(const int fd, const mode_t st_mode, const off_t st_size,
+                          const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "fd=%d, st_mode=%d, error=%d", fd, st_mode, error);
+         "fd=%d, st_mode=%d, st_size=%ld, error=%d", fd, st_mode, st_size, error);
 
-  // TODO(rbalint) handle file size and some file types
   (void)fd;
   (void)st_mode;
+  (void)st_size;  /* We registered this when the file was opened. */
   (void)error;
 
   return 0;
 }
 
 int Process::handle_stat(const int dirfd, const char * const ar_name, const size_t ar_len,
-                         const int flags, const int st_mode, const int error) {
+                         const int flags, const mode_t st_mode, const off_t st_size,
+                         const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, st_mode=%d, error=%d",
-         dirfd, D(ar_name), flags, st_mode, error);
+         "dirfd=%d, ar_name=%s, flags=%d, st_mode=%d, st_size=%ld, error=%d",
+         dirfd, D(ar_name), flags, st_mode, st_size, error);
 
   const FileName* name =
       ((flags & AT_EMPTY_PATH) && (ar_name[0] == '\0')) ? get_fd_filename(dirfd)
@@ -381,7 +383,7 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
     return -1;
   }
 
-  FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, error);
+  FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, st_size, error);
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     return -1;
