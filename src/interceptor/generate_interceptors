@@ -965,6 +965,7 @@ generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *path, char *buf,
 # FIXME realpath
 
 # Intercept the stat family
+# mysterious hacks prior to glibc 2.33
 generate("int", "__xstat", "int ver, const char *filename, struct stat *stat_buf",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
@@ -1017,6 +1018,63 @@ generate("int", "__fxstatat", "int ver, int dirfd, const char *filename, struct 
 generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
          msg="stat",
          msg_skip_fields=["ver", "filename", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+# cleaned up beginning with glibc 2.33
+generate("int", "stat", "const char *filename, struct stat *stat_buf",
+         msg="stat",
+         msg_skip_fields=["filename", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "stat64", "const char *filename, struct stat64 *stat_buf",
+         msg="stat",
+         msg_skip_fields=["filename", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "lstat", "const char *filename, struct stat *stat_buf",
+         msg="stat",
+         msg_skip_fields=["filename", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "lstat64", "const char *filename, struct stat64 *stat_buf",
+         msg="stat",
+         msg_skip_fields=["filename", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+                         "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "fstat", "int fd, struct stat *stat_buf",
+         msg="fstat",
+         msg_skip_fields=["stat_buf"],
+         msg_add_fields=["if (success) {",
+                         "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "fstat64", "int fd, struct stat64 *stat_buf",
+         msg="fstat",
+         msg_skip_fields=["stat_buf"],
+         msg_add_fields=["if (success) {",
+                         "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "fstatat", "int dirfd, const char *filename, struct stat *stat_buf, int flags",
+         msg="stat",
+         msg_skip_fields=["filename", "stat_buf"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+                         "if (success) {",
+                         "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
+                         "}"])
+generate("int", "fstatat64", "int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
+         msg="stat",
+         msg_skip_fields=["filename", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
@@ -1255,10 +1313,15 @@ skip("getdents", "getdents64", "getdirentries", "getdirentries64")
 # FIXME implement scandir(at)(64)
 
 # Disable shortcutting on mknod
-# Note: there's no "mknod" symbol exported by glibc, only "__xmknod(at)"
+# mysterious hacks prior to glibc 2.33 (also note the pointer "dev_t *")
 generate("int", "__xmknod", "int ver, const char *path, mode_t mode, dev_t *dev",
          tpl="once")
 generate("int", "__xmknodat", "int ver, int dirfd, const char *path, mode_t mode, dev_t *dev",
+         tpl="once")
+# cleaned up beginning with glibc 2.33
+generate("int", "mknod", "const char *path, mode_t mode, dev_t dev",
+         tpl="once")
+generate("int", "mknodat", "int dirfd, const char *path, mode_t mode, dev_t dev",
          tpl="once")
 
 # Disable shortcutting on mkfifo
