@@ -1068,8 +1068,17 @@ void Process::terminate_top_orphans() const {
     /* If the supervisor is a subreaper and there is no subreaper among the supervised processes,
      * then it is safe to assume that all orphans are still running or are zombies waiting for being
      * reaped, thus they can be kill()-ed by pid. */
+    FB_DEBUG(FB_DEBUG_PROC, "Killing top orphan process " + d(this));
     kill(pid(), SIGTERM);
-    return;
+    /* Continue with all fork children of this exec chain. The processes of this exec chain are
+     * not kill()-ed again. */
+    const Process* curr = this;
+    do {
+      for (const ForkedProcess* child : curr->fork_children()) {
+        child->terminate_top_orphans();
+      }
+      curr = curr->exec_child();
+    } while (curr);
   }
   if (state() == FB_PROC_TERMINATED) {
     for (const ForkedProcess* child : fork_children()) {
