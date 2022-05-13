@@ -1300,7 +1300,7 @@ static void write_report(const std::string &html_filename,
 
   FILE* src_file = fopen((datadir + "/" + html_orig_filename).c_str(), "r");
   if (src_file == NULL) {
-    perror("fopen");
+    firebuild::fb_perror("fopen");
     firebuild::fb_error("Opening file " + (datadir + "/" + html_orig_filename) +
                         " failed.");
     firebuild::fb_error("Can not write build report.");
@@ -1317,7 +1317,7 @@ static void write_report(const std::string &html_filename,
   {
     FILE* dot = fopen((dir + "/" + dot_filename).c_str(), "w");
     if (dot == NULL) {
-      perror("fopen");
+      firebuild::fb_perror("fopen");
       firebuild::fb_error("Failed to open dot file for writing profile graph.");
     }
     proc_tree->export_profile2dot(dot);
@@ -1328,7 +1328,7 @@ static void write_report(const std::string &html_filename,
       dot_cmd + " -Tsvg " + dir + "/" + dot_filename
       + " | sed 's/viewBox=\\\"[^\\\"]*\\\" //' > " + dir + "/" + svg_filename;
   if (system(system_cmd.c_str()) != 0) {
-    perror("system");
+    firebuild::fb_perror("system");
     firebuild::fb_error("Failed to generate profile graph with the following command: "
                         + system_cmd);
   }
@@ -1341,7 +1341,7 @@ static void write_report(const std::string &html_filename,
     if (getline(&line, &zero, src_file) == -1) {
       /* finished reading file */
       if (!feof(src_file)) {
-        perror("getline");
+        firebuild::fb_perror("getline");
         firebuild::fb_error("Reading from report template failed.");
       }
       free(line);
@@ -1428,7 +1428,7 @@ static int create_listener() {
   int listener;
 
   if ((listener = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    perror("socket");
+    firebuild::fb_perror("socket");
     exit(EXIT_FAILURE);
   }
 
@@ -1437,12 +1437,12 @@ static int create_listener() {
   strncpy(local.sun_path, fb_conn_string, sizeof(local.sun_path) - 1);
 
   if (bind(listener, (struct sockaddr *)&local, sizeof(local)) == -1) {
-    perror("bind");
+    firebuild::fb_perror("bind");
     exit(EXIT_FAILURE);
   }
 
   if (listen(listener, 500) == -1) {
-    perror("listen");
+    firebuild::fb_perror("listen");
     exit(EXIT_FAILURE);
   }
   return listener;
@@ -1604,7 +1604,7 @@ static void accept_ic_conn(const struct epoll_event* event, void *arg) {
 
   int fd = accept(listener, (struct sockaddr*)&remote, &slen);
   if (fd < 0) {
-    perror("accept");
+    firebuild::fb_perror("accept");
   } else {
     firebuild::bump_fd_age(fd);
     auto conn_ctx = new firebuild::ConnectionContext(proc_tree, fd);
@@ -1739,7 +1739,7 @@ int main(const int argc, char *argv[]) {
     }
   } else {
     if (mkdir(cache_dir.c_str(), 0700) != 0) {
-      perror("mkdir");
+      firebuild::fb_perror("mkdir");
       exit(EXIT_FAILURE);
     }
   }
@@ -1765,11 +1765,11 @@ int main(const int argc, char *argv[]) {
   {
     char *pattern;
     if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {
-      perror("asprintf");
+      firebuild::fb_perror("asprintf");
     }
     fb_tmp_dir = mkdtemp(pattern);
     if (fb_tmp_dir == NULL) {
-      perror("mkdtemp");
+      firebuild::fb_perror("mkdtemp");
       exit(EXIT_FAILURE);
     }
     fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket").c_str());
@@ -1778,7 +1778,7 @@ int main(const int argc, char *argv[]) {
 
   /* Set up sigchild handler */
   if (pipe2(sigchild_selfpipe, O_CLOEXEC | O_NONBLOCK) != 0) {
-    perror("pipe");
+    firebuild::fb_perror("pipe");
     exit(EXIT_FAILURE);
   }
   struct sigaction sa;
@@ -1816,12 +1816,12 @@ int main(const int argc, char *argv[]) {
     argv_exec[i] = NULL;
 
     if (directory != NULL && chdir(directory) != 0) {
-      perror("chdir");
+      firebuild::fb_perror("chdir");
       exit(EXIT_FAILURE);
     }
 
     execvpe(argv[optind], argv_exec, env_exec);
-    perror("Executing build command failed");
+    firebuild::fb_perror("Executing build command failed");
     exit(EXIT_FAILURE);
   } else {
     /* supervisor process */

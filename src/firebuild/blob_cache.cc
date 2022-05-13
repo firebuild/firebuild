@@ -37,7 +37,7 @@ static bool copy_file(int fd_src, int fd_dst, const struct stat64 *stat_ptr = NU
   /* Try copy_file_range(). Gotta get the source file's size. */
   struct stat64 st_local;
   if (!stat_ptr && fstat64(fd_src, &st_local) == -1) {
-    perror("fstat");
+    fb_perror("fstat");
     assert(0);
     return false;
   }
@@ -134,7 +134,7 @@ bool BlobCache::store_file(const FileName *path,
   if (fd_src == -1) {
     fd_src = open(path->c_str(), O_RDONLY);
     if (fd_src == -1) {
-      perror("Failed opening file to be stored in cache");
+      fb_perror("Failed opening file to be stored in cache");
       assert(0);
       return false;
     }
@@ -150,13 +150,13 @@ bool BlobCache::store_file(const FileName *path,
   /* Copy the file to a temporary one under the cache */
   char *tmpfile;
   if (asprintf(&tmpfile, "%s/new.XXXXXX", base_dir_.c_str()) < 0) {
-    perror("asprintf");
+    fb_perror("asprintf");
     assert(0);
     return false;
   }
   int fd_dst = mkstemp(tmpfile);  /* opens with O_RDWR */
   if (fd_dst == -1) {
-    perror("Failed mkstemp() during storing file");
+    fb_perror("Failed mkstemp() during storing file");
     assert(0);
     if (close_fd_src) {
       close(fd_src);
@@ -196,7 +196,7 @@ bool BlobCache::store_file(const FileName *path,
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
   if (rename(tmpfile, path_dst) == -1) {
-    perror("Failed renaming file while storing it");
+    fb_perror("Failed renaming file while storing it");
     assert(0);
     unlink(tmpfile);
     free(tmpfile);
@@ -214,7 +214,7 @@ bool BlobCache::store_file(const FileName *path,
     std::string txt(pretty_timestamp() + "  Copied from " + d(path) + "\n");
     int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(debugfd, txt.c_str(), txt.size()) < 0) {
-      perror("BlobCache::store_file");
+      fb_perror("BlobCache::store_file");
       assert(0);
     }
     close(debugfd);
@@ -270,7 +270,7 @@ bool BlobCache::move_store_file(const std::string &path,
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
   if (rename(path.c_str(), path_dst) == -1) {
-    perror("Failed renaming file to cache");
+    fb_perror("Failed renaming file to cache");
     assert(0);
     unlink(path.c_str());
     return false;
@@ -286,7 +286,7 @@ bool BlobCache::move_store_file(const std::string &path,
     std::string txt(pretty_timestamp() + "  Moved from " + path + "\n");
     int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
     if (write(debugfd, txt.c_str(), txt.size()) < 0) {
-      perror("BlobCache::move_store_file");
+      fb_perror("BlobCache::move_store_file");
       assert(0);
       close(debugfd);
       return false;
@@ -325,14 +325,14 @@ bool BlobCache::retrieve_file(const Hash &key,
 
   int fd_src = open(path_src, O_RDONLY);
   if (fd_src == -1) {
-    perror("Failed retrieving file from cache");
+    fb_perror("Failed retrieving file from cache");
     assert(0);
     return false;
   }
 
   int fd_dst = open(path_dst->c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0666);
   if (fd_dst == -1) {
-    perror("Failed opening file to be recreated from cache");
+    fb_perror("Failed opening file to be recreated from cache");
     assert(0);
     close(fd_src);
     return false;
@@ -370,7 +370,7 @@ int BlobCache::get_fd_for_file(const Hash &key) {
 
   int fd = open(path_src, O_RDONLY);
   if (fd == -1) {
-    perror("Failed open() in get_fd_for_file()");
+    fb_perror("Failed open() in get_fd_for_file()");
     assert(0);
     return -1;
   }

@@ -18,6 +18,7 @@
 
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
+#include "firebuild/utils.h"
 
 namespace firebuild  {
 
@@ -56,7 +57,7 @@ bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, 
 
   struct stat64 st_local;
   if (!stat_ptr && fstat64(fd, &st_local) == -1) {
-    perror("fstat");
+    fb_perror("fstat");
     return false;
   }
   const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
@@ -162,7 +163,7 @@ bool Hash::set_from_file(const FileName *filename, const struct stat64 *stat_ptr
   if (fd == -1) {
     if (FB_DEBUGGING(FB_DEBUG_HASH)) {
       FB_DEBUG(FB_DEBUG_HASH, "File " + d(filename));
-      perror("open");
+      fb_perror("open");
     }
     return false;
   }

@@ -487,7 +487,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             // TODO(egmont) handle other types of entries
           }
         } else {
-          perror("fstat");
+          fb_perror("fstat");
           if (fu->initial_type() != NOTEXIST) {
             out_path_notexist.push_back(filename->c_str());
           }
@@ -767,22 +767,22 @@ static bool restore_dirs(
       if (errno == EEXIST) {
         struct stat64 st;
         if (stat64(path->c_str(), &st) != 0) {
-          perror("Failed to stat() existing pathname");
+          fb_perror("Failed to stat() existing pathname");
           assert_cmp(ret, !=, -1);
           return false;
         }
         if (!S_ISDIR(st.st_mode)) {
-          perror("Failed to restore directory, the target already exists and is not a dir");
+          fb_perror("Failed to restore directory, the target already exists and is not a dir");
           assert_cmp(ret, !=, -1);
           return false;
         }
         if (chmod(path->c_str(), mode) != 0) {
-          perror("Failed to restore directory's permissions");
+          fb_perror("Failed to restore directory's permissions");
           assert_cmp(ret, !=, -1);
           return false;
         }
       } else {
-        perror("Failed to restore directory");
+        fb_perror("Failed to restore directory");
         assert_cmp(ret, !=, -1);
         return false;
       }

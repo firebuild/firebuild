@@ -11,6 +11,7 @@
 
 #include "firebuild/debug.h"
 #include "firebuild/hash_cache.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -37,7 +38,7 @@ int File::update() {
   struct stat s;
   char *tmp_path = strdup(path_->c_str());
   if (lstat(tmp_path, &s) == -1) {
-    perror("lstat");
+    fb_perror("lstat");
     free(tmp_path);
     return -1;
   } else {
@@ -54,7 +55,7 @@ int File::update() {
     dir = dirname(tmp_path);
     /* XXX lstat is intercepted */
     if (lstat(dir, &s) == -1) {
-      perror("lstat");
+      fb_perror("lstat");
       free(tmp_path);
       return -1;
     } else {
@@ -93,7 +94,7 @@ int File::is_changed() {
   struct stat s;
 
   if (lstat(tmp_path, &s) == -1) {
-    perror("lstat");
+    fb_perror("lstat");
     free(tmp_path);
     return -1;
   } else {
@@ -109,7 +110,7 @@ int File::is_changed() {
     i++;
     dir = dirname(tmp_path);
     if (lstat(dir, &s) == -1) {
-      perror("lstat");
+      fb_perror("lstat");
       free(tmp_path);
       return -1;
     } else {

@@ -3,6 +3,7 @@
 
 #include "firebuild/utils.h"
 
+#include <errno.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -35,7 +36,7 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
     ret = copy_file_range(fd_in, off_in, fd_out, off_out, remaining, flags);
     if (ret == -1) {
       if (errno == EXDEV) {
-        perror("copy_file_range");
+        firebuild::fb_perror("copy_file_range");
         // TODO(rbalint) fall back to fb_read and fb_write
         assert(0 && "cache and system or build area on different mount points is supported only "
                "with Linux 5.3 and later");
@@ -143,4 +144,7 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int f
   }
 }
 
+void fb_perror(const char *s) {
+  perror((std::string("FIREBUILD: ") + s).c_str());
+}
 }  /* namespace firebuild */

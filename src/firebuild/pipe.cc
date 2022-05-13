@@ -351,7 +351,7 @@ pipe_op_result Pipe::send_buf() {
             return FB_PIPE_FD0_EPIPE;
           } else {
             // TODO(rbalint) handle some errors
-            perror("write");
+            fb_perror("write");
             return FB_PIPE_FD0_EPIPE;
           }
         }
