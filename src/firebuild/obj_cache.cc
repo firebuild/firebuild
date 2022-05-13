@@ -39,6 +39,7 @@
 #include "firebuild/hash.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -146,7 +147,7 @@ bool ObjCache::store(const Hash &key,
 
   int fd_dst = mkstemp(tmpfile);  /* opens with O_RDWR */
   if (fd_dst == -1) {
-    perror("Failed mkstemp() for storing cache object");
+    fb_perror("Failed mkstemp() for storing cache object");
     assert(0);
     free(tmpfile);
     return false;
@@ -179,7 +180,7 @@ bool ObjCache::store(const Hash &key,
   free(entry_serial);
 
   if (rename(tmpfile, path_dst) == -1) {
-    perror("Failed rename() while storing cache object");
+    fb_perror("Failed rename() while storing cache object");
     assert(0);
     unlink(tmpfile);
     free(tmpfile);
@@ -231,14 +232,14 @@ bool ObjCache::retrieve(const Hash &key,
 
   int fd = open(path, O_RDONLY);
   if (fd == -1) {
-    perror("open");
+    fb_perror("open");
     assert(0);
     return false;
   }
 
   struct stat64 st;
   if (fstat64(fd, &st) == -1) {
-    perror("Failed fstat retrieving cache object");
+    fb_perror("Failed fstat retrieving cache object");
     assert(0);
     close(fd);
     return false;
@@ -255,7 +256,7 @@ bool ObjCache::retrieve(const Hash &key,
      * Although a serialized entry probably can't be 0 bytes long. */
     p = reinterpret_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0));
     if (p == MAP_FAILED) {
-      perror("mmap");
+      fb_perror("mmap");
       assert(0);
       close(fd);
       return false;

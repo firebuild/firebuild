@@ -31,12 +31,12 @@ void PipeRecorder::open_backing_file() {
   TRACKX(FB_DEBUG_PIPE, 1, 0, PipeRecorder, this, "");
 
   if (asprintf(&filename_, "%s/pipe.XXXXXX", base_dir_) < 0) {
-    perror("asprintf");
+    fb_perror("asprintf");
     assert(0 && "asprintf");
   }
   fd_ = mkstemp(filename_);  /* opens with O_RDWR */
   if (fd_ < 0) {
-    perror("mkstemp");
+    fb_perror("mkstemp");
     free(filename_);
     filename_ = NULL;
     assert(0 && "mkstemp");
@@ -122,7 +122,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
 
   ssize_t saved = fb_copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
   if (saved == -1) {
-    perror("copy_file_range");
+    fb_perror("copy_file_range");
     abort();
   }
   assert_cmp(saved, ==, len);

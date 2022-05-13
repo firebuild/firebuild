@@ -43,5 +43,7 @@ namespace firebuild {
 void ack_msg(const int conn, const uint16_t ack_num);
 void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds = NULL, int fd_count = 0);
 
+void fb_perror(const char *s);
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_
