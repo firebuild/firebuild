@@ -1939,12 +1939,12 @@ namespace firebuild {
 
 /** Print error message */
 extern void fb_error(const std::string &msg) {
-  fprintf(stderr, "Firebuild error: %s\n", msg.c_str());
+  fprintf(stderr, "FIREBUILD ERROR: %s\n", msg.c_str());
 }
 
 /** Print debug message if debug level is at least lvl */
 extern void fb_debug(const std::string &msg) {
-  fprintf(stderr, "%s\n", msg.c_str());
+  fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
 }
 
 int32_t debug_flags = 0;
