@@ -857,9 +857,28 @@ static bool restore_dirs(
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Creating directory: " + d(path));
     int ret = mkdir(path->c_str(), mode);
     if (ret != 0) {
-      perror("Failed to restore directory");
-      assert_cmp(ret, !=, -1);
-      return false;
+      if (errno == EEXIST) {
+        struct stat64 st;
+        if (stat64(path->c_str(), &st) != 0) {
+          perror("Failed to stat() existing pathname");
+          assert_cmp(ret, !=, -1);
+          return false;
+        }
+        if (!S_ISDIR(st.st_mode)) {
+          perror("Failed to restore directory, the target already exists and is not a dir");
+          assert_cmp(ret, !=, -1);
+          return false;
+        }
+        if (chmod(path->c_str(), mode) != 0) {
+          perror("Failed to restore directory's permissions");
+          assert_cmp(ret, !=, -1);
+          return false;
+        }
+      } else {
+        perror("Failed to restore directory");
+        assert_cmp(ret, !=, -1);
+        return false;
+      }
     }
     if (proc->parent_exec_point()) {
       proc->parent_exec_point()->register_file_usage_update(

@@ -125,6 +125,12 @@ setup() {
     result=$(./run-firebuild bash -c "(bash -c 'sh -c \"echo -x > foo-dir/bar1\" 2> /dev/null; sleep 0.2; sh -c \"echo x > foo-dir/bar2\" 2> /dev/null') & (sleep 0.1; [ $i == 2 ] || mkdir foo-dir); wait")
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
+
+    # Existing directories are not created again
+    rm -rf foo-dir; mkdir foo-dir
+    result=$(./run-firebuild bash -c "rm -rf foo-dir ; mkdir foo-dir")
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
   done
 }
 
