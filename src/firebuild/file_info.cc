@@ -47,6 +47,8 @@ const char *file_type_to_string(FileType type) {
   switch (type) {
     case DONTKNOW:
       return "dontknow";
+    case EXIST:
+      return "exist";
     case NOTEXIST:
       return "notexist";
     case NOTEXIST_OR_ISREG_EMPTY:

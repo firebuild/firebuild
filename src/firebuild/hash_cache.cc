@@ -305,6 +305,11 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
     case DONTKNOW:
       assert(0 && "shouldn't query the HashCache to see if <no information> matches");
       return true;
+    case EXIST:
+      if (entry->info.type() == NOTEXIST) {
+        return false;
+      }
+      break;
     case NOTEXIST:
       if (entry->info.type() != NOTEXIST) {
         return false;

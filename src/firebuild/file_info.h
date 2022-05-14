@@ -11,28 +11,26 @@
 namespace firebuild {
 
 typedef enum {
-  /** We don't have any information about this file yet (used only temporarily
-   *  while building up our data structures). */
+  /** No information about the filesystem entry (its presence/absence, type, etc.). */
   DONTKNOW,
-  /** We know and care that the file or directory did not exist before (e.g. an
-   *  open(O_CREAT|O_WRONLY|O_EXCL) or a mkdir() succeeded). */
+  /** We know that the filesystem entry exists, but don't know if it's a regular file or a
+   *  directory. This happens at a successful access(F_OK). */
+  EXIST,
+  /** We know that the filesystem entry doesn't exist. We might know it by a failed access(F_OK)
+   *  or stat(). We also might know it about the initial state of the filesystem entry, if later an
+   *  open(O_CREAT|O_WRONLY|O_EXCL) or mkdir() succeeds. */
   NOTEXIST,
-  /** We know and care that the file either did not exist before, or was
-   *  a zero sized regular file (but we do not know which of these, because
-   *  an open(O_CREAT|O_WRONLY) succeeded and resulted in a zero length file). */
+  /** We know that the filesystem entry either does not exist, or is a zero sized regular file, but
+   *  we don't know which. We might know it about the initial state of a file, if later an
+   *  open(O_CREAT|O_WRONLY) succeeds and results in a zero length file. */
   NOTEXIST_OR_ISREG_EMPTY,
-  /** We know and care that the file either did not exist before, or was a
-   *  regular file (e.g. a creat() a.k.a. open(O_CREAT|O_WRONLY|O_TRUNC) succeeded). */
+  /** We know that the filesystem entry either does not exist, or is a regular file, but we don't
+   *  know which. We might know it about the initial state of a file, if later a creat() a.k.a.
+   *  open(O_CREAT|O_WRONLY|O_TRUNC) succeeds. */
   NOTEXIST_OR_ISREG,
-  /** We know and care that the regular file existed before.
-   *  (Maybe we don't know more, e.g. an open(O_WRONLY|O_TRUNC) succeeded.
-   *  Maybe we know the size, e.g. a stat() succeeded.
-   *  Maybe we know the size and the checksum, e.g. an open() succeeded for reading,
-   *  or for writing without truncating.) */
+  /** We know that the filesystem entry is a regular fie. */
   ISREG,
-  /** We know and care that the directory existed before.
-   *  (Maybe we don't know more, e.g. a stat() succeeded.
-   *  Maybe we know the listing's checksum, e.g. an opendir() was performed.) */
+  /** We know that the filesystem entry is a directory. */
   ISDIR,
   FILE_TYPE_MAX = ISDIR
 } FileType;
@@ -74,6 +72,7 @@ class FileInfo {
   static int file_type_to_int(const FileType t) {
     switch (t) {
       case DONTKNOW: return DONTKNOW;
+      case EXIST: return EXIST;
       case NOTEXIST: return NOTEXIST;
       case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
@@ -87,6 +86,7 @@ class FileInfo {
   static FileType int_to_file_type(const int t) {
     switch (t) {
       case DONTKNOW: return DONTKNOW;
+      case EXIST: return EXIST;
       case NOTEXIST: return NOTEXIST;
       case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
