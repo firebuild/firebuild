@@ -29,6 +29,11 @@ class FileUsageUpdate {
   static FileUsageUpdate get_oldfile_usage_from_rename_params(const FileName* old_name,
                                                               const FileName* new_name, int err);
 
+  FileType parent_type() const {return parent_type_;}
+  bool written() const {return written_;}
+  file_generation_t generation() const {return generation_;}
+  bool unknown_err() const {return unknown_err_;}
+
   bool get_initial_type(FileType *type_ptr) const;
   void set_initial_type(FileType type) {initial_state_.set_type(type);}
   bool initial_size_known() const {return initial_state_.size_known();}
@@ -38,11 +43,6 @@ class FileUsageUpdate {
   bool get_initial_hash(Hash *hash_ptr) const;
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
   const FileInfo& initial_state() const {return initial_state_;}
-
-  FileType parent_type() const {return parent_type_;}
-  bool written() const {return written_;}
-  file_generation_t generation() const {return generation_;}
-  bool unknown_err() const {return unknown_err_;}
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.

@@ -49,8 +49,7 @@ class FileUsage {
   std::string d_internal(const int level = 0) const;
 
  private:
-  explicit FileUsage(FileType type = DONTKNOW) :
-      initial_state_(type), written_(false), generation_(0), unknown_err_(0) {}
+  explicit FileUsage(FileType type = DONTKNOW) : initial_state_(type) {}
 
   FileUsage(const FileName* filename, const FileInfo *initial_state, bool written,
             int unknown_err):
@@ -65,15 +64,15 @@ class FileUsage {
   /** The file's contents were altered by the process, e.g. written to,
    *  or modified in any other way, including removal of the file, or
    *  another file getting renamed to this one. */
-  bool written_ : 1;
+  bool written_ {false};
 
   /** If the file's metadata (e.g. mode) was potentially altered, that is,
    *  the final state is to be remembered.
    *  FIXME Do we need this? We should just always stat() at the end. */
-  // bool stat_changed_ : 1;
+  // bool stat_changed_ {false};
 
   /** Generation of the file the process last seen (either by reading or writing to the file). */
-  file_generation_t generation_;
+  file_generation_t generation_ {0};
 
   /* Note: stuff like the final hash are not stored here. They are
    * computed right before being placed in the cache, don't need to be
@@ -97,7 +96,7 @@ class FileUsage {
 
   /** An unhandled error occurred during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
-  int unknown_err_;
+  int unknown_err_ {0};
 
   static const FileUsage* Get(const FileUsage& candidate);
 };
