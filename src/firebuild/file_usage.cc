@@ -1,3 +1,4 @@
+
 /* Copyright (c) 2020 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
@@ -117,6 +118,44 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
         }
         break;
       }
+      case EXIST: {
+        if (update_initial_type == NOTEXIST) {
+          return nullptr;
+        } else if (update_initial_type == NOTEXIST_OR_ISREG) {
+          /* We knew from an access() that it existed, now we got to know from an open() that it
+           * either didn't exist or was a regular file. That is: it was a regular file. */
+          tmp.set_initial_type(ISREG);
+          changed = true;
+        } else if (update_initial_type == NOTEXIST_OR_ISREG_EMPTY) {
+          /* We knew from an access() that it existed, now we got to know from an open() that it
+           * either didn't exist or was an empty regular file. That is: it was an empty regular
+           * file. */
+          tmp.set_initial_type(ISREG);
+          tmp.set_initial_size(0);
+          changed = true;
+        } else {
+          /* Copy over the new values */
+          // FIXME This is copied from the DONTKNOW case, maybe factor out to a helper method.
+          if (initial_type() != update_initial_type) {
+            tmp.set_initial_type(update_initial_type);
+            changed = true;
+          }
+          if (!initial_size_known() && update.initial_size_known()) {
+            tmp.set_initial_size(update.initial_size());
+            changed = true;
+          }
+          if (!initial_hash_known() && update.initial_hash_known()) {
+            Hash hash;
+            /* Note: this might lazily compute the hash now. */
+            if (!update.get_initial_hash(&hash)) {
+              return nullptr;
+            }
+            tmp.set_initial_hash(hash);
+            changed = true;
+          }
+        }
+        break;
+      }
       case NOTEXIST: {
         if (update_initial_type != DONTKNOW &&
             update_initial_type != NOTEXIST &&
@@ -134,6 +173,7 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
       }
       case ISREG: {
         if (update_initial_type != DONTKNOW &&
+            update_initial_type != EXIST &&
             update_initial_type != NOTEXIST_OR_ISREG &&
             update_initial_type != NOTEXIST_OR_ISREG_EMPTY &&
             update_initial_type != ISREG) {
@@ -157,6 +197,7 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
       }
       case ISDIR: {
         if (update_initial_type != DONTKNOW &&
+            update_initial_type != EXIST &&
             update_initial_type != ISDIR) {
           return nullptr;
         }
