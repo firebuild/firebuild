@@ -182,6 +182,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   } else {
     add_to_hash_state(state, proc->executed_path());
     if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+      FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executed path: " + d(proc->executed_path()));
       maybe_XXH3_freeState(state);
       return false;
     }
