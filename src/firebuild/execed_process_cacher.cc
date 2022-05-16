@@ -168,6 +168,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   add_to_hash_state(state, proc->executable());
   Hash hash;
   if (!hash_cache->get_hash(proc->executable(), &hash)) {
+    FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executable: " + d(proc->executable()));
     maybe_XXH3_freeState(state);
     return false;
   }
@@ -190,6 +191,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   add_to_hash_state(state, proc->libs().size());
   for (const auto lib : proc->libs()) {
     if (!hash_cache->get_hash(lib, &hash)) {
+      FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of library: " + d(lib));
       maybe_XXH3_freeState(state);
       return false;
     }
@@ -234,6 +236,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     /* The executable and its hash */
     FBBFP_Builder_file executable;
     if (!hash_cache->get_hash(proc->executable(), &hash)) {
+      FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executable: " + d(proc->executable()));
       maybe_XXH3_freeState(state);
       return false;
     }
@@ -247,6 +250,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       fp.set_executed_path(reinterpret_cast<FBBFP_Builder *>(&executable));
     } else {
       if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+        FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executed path: " + d(proc->executed_path()));
         maybe_XXH3_freeState(state);
         return false;
       }
@@ -261,6 +265,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
     for (const auto& lib : proc->libs()) {
       if (!hash_cache->get_hash(lib, &hash)) {
+        FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of library: " + d(lib));
         maybe_XXH3_freeState(state);
         return false;
       }
