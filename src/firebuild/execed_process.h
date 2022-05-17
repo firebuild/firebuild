@@ -54,6 +54,7 @@ class ExecedProcess : public Process {
                          const std::vector<std::string>& args,
                          const std::vector<std::string>& env_vars,
                          const std::vector<const FileName*>& libs,
+                         const mode_t umask,
                          Process * parent,
                          std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~ExecedProcess();

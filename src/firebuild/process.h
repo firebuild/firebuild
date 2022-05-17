@@ -75,7 +75,7 @@ typedef enum {
  */
 class Process {
  public:
-  Process(int pid, int ppid, int exec_count, const FileName *wd,
+  Process(int pid, int ppid, int exec_count, const FileName *wd, mode_t umask,
           Process* parent, std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~Process();
   bool operator == (Process const & p) const;
@@ -124,6 +124,7 @@ class Process {
   const FileName* wd() const {return wd_;}
   void handle_set_wd(const char * const d, const size_t d_len);
   void handle_set_fwd(const int fd);
+  mode_t umask() const {return umask_;}
   void set_exec_pending(bool val) {exec_pending_ = val;}
   bool exec_pending() const {return exec_pending_;}
   void set_posix_spawn_pending(bool val) {posix_spawn_pending_ = val;}
@@ -461,6 +462,11 @@ class Process {
    */
   virtual void add_wd(const FileName *d) = 0;
 
+  /**
+   * Handle umask() in the monitored process
+   */
+  void handle_umask(mode_t old_umask, mode_t new_umask);
+
   virtual void export2js_recurse(const unsigned int level, FILE* stream,
                                  unsigned int *nodeid);
 
@@ -496,6 +502,7 @@ class Process {
    *  that one, etc. -1 temporarily while constructing a Process object. */
   int exec_count_;
   const FileName* wd_;  ///< Current working directory
+  mode_t umask_;  ///< Current umask
   std::vector<std::shared_ptr<FileFD>>* fds_;  ///< Active file descriptors
   std::vector<ForkedProcess*> fork_children_;  ///< children of the process
   /** the latest system() child */

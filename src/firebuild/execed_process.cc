@@ -51,9 +51,10 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::vector<std::string>& args,
                              const std::vector<std::string>& env_vars,
                              const std::vector<const FileName*>& libs,
+                             const mode_t umask,
                              Process * parent,
                              std::vector<std::shared_ptr<FileFD>>* fds)
-    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, parent, fds),
+    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, umask, parent, fds),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(
           (parent && parent->exec_point()) ? parent->exec_point()->closest_shortcut_point()
@@ -62,8 +63,8 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       executable_(executable), executed_path_(executed_path), libs_(libs), file_usages_(),
       created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
-         "pid=%d, ppid=%d, initial_wd=%s, executable=%s, parent=%s",
-         pid, ppid, D(initial_wd), D(executable), D(parent));
+         "pid=%d, ppid=%d, initial_wd=%s, executable=%s, umask=%03o, parent=%s",
+         pid, ppid, D(initial_wd), D(executable), umask, D(parent));
 
   if (parent) {
     assert(parent->state() == FB_PROC_TERMINATED);

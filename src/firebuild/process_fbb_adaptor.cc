@@ -156,6 +156,13 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_write_to_i
   return 0;
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_umask *msg) {
+  const mode_t old_umask = msg->get_ret();
+  const mode_t new_umask = msg->get_mask();
+  proc->handle_umask(old_umask, new_umask);
+  return 0;
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_chdir *msg) {
   const int error = msg->get_error_no_with_fallback(0);
   if (error == 0) {

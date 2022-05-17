@@ -1126,6 +1126,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_ioctl *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_umask: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_umask *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_chdir: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
           reinterpret_cast<const FBBCOMM_Serialized_chdir *>(fbbcomm_buf));

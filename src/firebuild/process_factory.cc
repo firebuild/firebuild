@@ -38,7 +38,9 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
                              executable, executed_path,
                              msg->get_arg_as_vector(),
                              msg->get_env_var_as_vector(),
-                             std::move(libs), parent, fds);
+                             std::move(libs),
+                             msg->get_umask(),
+                             parent, fds);
 
   /* Debug the full command line, env vars etc. */
   FB_DEBUG(FB_DEBUG_PROC, "Created ExecedProcess " + d(e, 1) + " with:");
@@ -47,6 +49,7 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   FB_DEBUG(FB_DEBUG_PROC, "- cwd = " + d(e->initial_wd()));
   FB_DEBUG(FB_DEBUG_PROC, "- env = " + d(e->env_vars()));
   FB_DEBUG(FB_DEBUG_PROC, "- lib = " + d(msg->get_libs_as_vector()));
+  FB_DEBUG(FB_DEBUG_PROC, "- umask = " + d(e->umask()));
 
   return e;
 }
