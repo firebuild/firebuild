@@ -1563,10 +1563,10 @@ generate("int", "prctl", "int option, unsigned long arg2, unsigned long arg3, un
 
 # Process stuff
 skip("getpid", "getppid", "getpgrp", "getpgid", "__getpgid", "setpgid", "setpgrp", "setsid", "getsid")
-# FIXME Allow these, but store the old umask as the initial state in the supervisor
 generate("mode_t", "umask", "mode_t mask",
          success="true",
-         tpl="once")
+         send_ret_on_success=True,
+         send_msg_on_error=False)
 # Note: getumask is gone since glibc 2.24
 
 # FIXME {get,set,p}rlimit

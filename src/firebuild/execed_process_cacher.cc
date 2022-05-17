@@ -197,6 +197,9 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     add_to_hash_state(state, hash);
   }
 
+  /* umask */
+  add_to_hash_state(state, proc->umask());
+
   /* The inherited outgoing pipes */
   for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe :
       proc->inherited_outgoing_pipes()) {
@@ -266,6 +269,9 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       lib_builder.set_hash(hash.get());
     }
     fp.set_libs_item_fn(lib_builders.size(), fbbfp_builder_file_vector_item_fn, &lib_builders);
+
+    /* umask */
+    fp.set_umask(proc->umask());
 
     /* The inherited pipes */
     std::vector<FBBFP_Builder_pipe_fds> pipefds_builders;

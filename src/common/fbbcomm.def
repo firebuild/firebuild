@@ -90,6 +90,8 @@
       (ARRAY, STRING, "arg"),
       # environment variables in unprocessed NAME=value form
       (ARRAY, STRING, "env_var"),
+      # umask
+      (REQUIRED, "mode_t", "umask"),
       # full path of the binary
       (OPTIONAL, STRING, "executable"),
       # pathname used to execute the program
@@ -328,6 +330,13 @@
       (OPTIONAL, "int", "fd"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
+    ]),
+
+    ("umask", [
+      # The new mask
+      (REQUIRED, "mode_t", "mask"),
+      # The old mask
+      (REQUIRED, "mode_t", "ret"),
     ]),
 
     ("chmod", [

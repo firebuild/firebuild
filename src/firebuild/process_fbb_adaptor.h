@@ -40,6 +40,7 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_ioctl *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_read_from_inherited *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_write_to_inherited *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_umask *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_chdir *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_fchdir *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_pipe_request *msg, int fd_conn);

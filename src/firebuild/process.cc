@@ -34,10 +34,10 @@ namespace firebuild {
 static int fb_pid_counter;
 
 Process::Process(const int pid, const int ppid, const int exec_count, const FileName *wd,
-                 Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
+                 const mode_t umask, Process * parent, std::vector<std::shared_ptr<FileFD>>* fds)
     : parent_(parent), state_(FB_PROC_RUNNING),
-      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count),
-      wd_(wd), fds_(fds), fork_children_(), expected_child_(), exec_child_(NULL) {
+      fb_pid_(fb_pid_counter++), pid_(pid), ppid_(ppid), exec_count_(exec_count), wd_(wd),
+      umask_(umask), fds_(fds), fork_children_(), expected_child_(), exec_child_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "pid=%d, ppid=%d, parent=%s", pid, ppid, D(parent));
 }
 
@@ -838,6 +838,14 @@ void Process::handle_set_fwd(const int fd) {
   wd_ = ffd->filename();
   assert(wd_);
   add_wd(wd_);
+}
+
+void Process::handle_umask(mode_t old_umask, mode_t new_umask) {
+  if (umask() != old_umask) {
+    exec_point()->disable_shortcutting_bubble_up("Old umask mismatches, which means "
+                                                 "interception missed at least one umask()");
+  }
+  umask_ = new_umask & 0777;
 }
 
 const FileName* Process::get_fd_filename(int fd) const {

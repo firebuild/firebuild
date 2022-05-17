@@ -844,6 +844,10 @@ static void fb_ic_init() {
   fbbcomm_builder_scproc_query_set_cwd(&ic_msg, ic_cwd);
   fbbcomm_builder_scproc_query_set_arg(&ic_msg, (const char **) argv);
 
+  mode_t initial_umask = ic_orig_umask(0077);
+  ic_orig_umask(initial_umask);
+  fbbcomm_builder_scproc_query_set_umask(&ic_msg, initial_umask);
+
   const char *executed_path = (const char*)getauxval(AT_EXECFN);
   if (executed_path) {
     BUILDER_SET_CANONICAL(scproc_query, executed_path);
