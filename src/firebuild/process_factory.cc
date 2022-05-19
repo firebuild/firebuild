@@ -1,11 +1,13 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
+#include "firebuild/process_factory.h"
+
 #include <string>
 #include <utility>
 
+#include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
-#include "firebuild/process_factory.h"
 
 namespace firebuild {
 
@@ -43,7 +45,11 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
                              msg->get_env_var_as_vector(),
                              std::move(libs),
                              msg->get_umask(),
-                             parent, fds);
+                             parent,
+                              /* When processing this msg the suppression is already set globally,
+                               * or for this thread. */
+                             debug_suppressed,
+                             fds);
 
   /* Debug the full command line, env vars etc. */
   FB_DEBUG(FB_DEBUG_PROC, "Created ExecedProcess " + d(e, 1) + " with:");
@@ -55,6 +61,34 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   FB_DEBUG(FB_DEBUG_PROC, "- umask = " + d(e->umask()));
 
   return e;
+}
+
+bool ProcessFactory::peekProcessDebuggingSuppressed(const FBBCOMM_Serialized *fbbcomm_buf,
+                                                   ProcessTree* proc_tree) {
+  if (!debug_filter) {
+    return false;
+  }
+
+  const int tag = fbbcomm_buf->get_tag();
+  if (tag == FBBCOMM_TAG_scproc_query) {
+    const FBBCOMM_Serialized_scproc_query *msg =
+        reinterpret_cast<const FBBCOMM_Serialized_scproc_query *>(fbbcomm_buf);
+    const FileName* executable = FileName::Get(msg->get_executable());
+    const FileName* executed_path = msg->has_executed_path()
+        ? FileName::Get(msg->get_executed_path()) : executable;
+    const auto args = msg->get_arg_as_vector();
+    return !debug_filter->match(executable, executed_path, args.size() > 0 ? args[0] : "");
+  } else if (tag == FBBCOMM_TAG_fork_child) {
+    const FBBCOMM_Serialized_fork_child *msg =
+        reinterpret_cast<const FBBCOMM_Serialized_fork_child *>(fbbcomm_buf);
+    const auto ppid = msg->get_ppid();
+    auto pproc = proc_tree->pid2proc(ppid);
+    assert(pproc);
+    return !debug_filter->match(pproc->exec_point());
+  } else {
+    assert(0 && "unexpected tag");
+    return false;
+  }
 }
 
 }  /* namespace firebuild */

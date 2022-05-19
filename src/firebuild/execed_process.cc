@@ -15,6 +15,7 @@
 #include "firebuild/config.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/forked_process.h"
+#include "firebuild/process_debug_suppressor.h"
 #include "firebuild/utils.h"
 
 extern bool generate_report;
@@ -54,8 +55,10 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const std::vector<const FileName*>& libs,
                              const mode_t umask,
                              Process * parent,
+                             const bool debug_suppressed,
                              std::vector<std::shared_ptr<FileFD>>* fds)
-    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, umask, parent, fds),
+    : Process(pid, ppid, parent ? parent->exec_count() + 1 : 1, initial_wd, umask, parent,
+              fds, debug_suppressed),
       can_shortcut_(true), was_shortcut_(false),
       maybe_shortcutable_ancestor_(
           (parent && parent->exec_point()) ? parent->exec_point()->closest_shortcut_point()
@@ -236,6 +239,7 @@ void ExecedProcess::resource_usage(const int64_t utime_u, const int64_t stime_u)
 }
 
 void ExecedProcess::do_finalize() {
+  ProcessDebugSuppressor debug_suppressor(this);
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   close_fds();
@@ -319,6 +323,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
    * became the same as fu_old was) because then continuing to bubble up wouldn't do anything new
    * either. */
   while (proc && fu_new != fu_old) {
+    ProcessDebugSuppressor debug_suppressor(proc == this ? nullptr : proc);
     const FileUsage *fu = nullptr;
 
     auto it = proc->file_usages_.find(name);
@@ -503,6 +508,7 @@ void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
 
 void ExecedProcess::disable_shortcutting_only_this(const char* reason,
                                                    const ExecedProcess *p) {
+  ProcessDebugSuppressor debug_suppressor(this);
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "reason=%s, source=%s", D(reason), D(p));
 
   if (can_shortcut_) {

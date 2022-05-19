@@ -76,7 +76,8 @@ typedef enum {
 class Process {
  public:
   Process(int pid, int ppid, int exec_count, const FileName *wd, mode_t umask,
-          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds);
+          Process* parent, std::vector<std::shared_ptr<FileFD>>* fds,
+          const bool debug_suppressed);
   virtual ~Process();
   bool operator == (Process const & p) const;
   void set_parent(Process *p) {parent_ = p;}
@@ -149,6 +150,7 @@ class Process {
   bool has_expected_child () {return expected_child_ ? true : false;}
   void set_has_pending_popen(bool value) {has_pending_popen_ = value;}
   bool has_pending_popen() const {return has_pending_popen_;}
+  bool debug_suppressed() const {return debug_suppressed_;}
   virtual void do_finalize();
   virtual void set_on_finalized_ack(int id, int fd) = 0;
   virtual void maybe_finalize();
@@ -585,6 +587,8 @@ class Process {
    *  detect the non-typical case when the posix_spawn'ed process appears (does an "scproc_query")
    *  sooner than the parent gets to "posix_spawn_parent". */
   bool posix_spawn_pending_ {false};
+  /** Debugging is suppressed for this process. */
+  bool debug_suppressed_;
   ExecedProcess * exec_child_;
   const FileName* get_fd_filename(int fd) const;
   bool any_child_not_finalized();

@@ -37,6 +37,7 @@
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
 #include "firebuild/process_factory.h"
+#include "firebuild/process_debug_suppressor.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/process_fbb_adaptor.h"
 #include "firebuild/utils.h"
@@ -82,6 +83,9 @@ static void usage() {
          "   -C --directory=DIR        change directory before running the command\n"
          "   -d --debug-flags=list     comma separated list of debug flags,\n"
          "                             \"-d help\" to get a list.\n"
+         "   -D --debug-filter=list    comma separated list of commands to debug.\n"
+         "                             Debug messages related to processes which are not listed\n"
+         "                             are suppressed.\n"
          "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
          "                             the report's filename can be specified \n"
          "                             (firebuild-build-report.html by default). \n"
@@ -1563,13 +1567,11 @@ static int create_listener() {
 
 static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
   auto conn_ctx = reinterpret_cast<firebuild::ConnectionContext*>(ctx);
-  TRACK(firebuild::FB_DEBUG_COMM, "event's fd=%s, ctx=%s",
-        D_FD(firebuild::Epoll::event_fd(event)), D(conn_ctx));
-
   auto proc = conn_ctx->proc;
   auto &buf = conn_ctx->buffer();
   size_t full_length;
   const msg_header * header;
+  firebuild::ProcessDebugSuppressor debug_suppressor(proc);
 
   int read_ret = buf.read(firebuild::Epoll::event_fd(event), -1);
   if (read_ret < 0) {
@@ -1603,14 +1605,22 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
     const FBBCOMM_Serialized *fbbcomm_msg =
         reinterpret_cast<const FBBCOMM_Serialized *>(buf.data() + sizeof(*header));
 
+    if (!proc) {
+      /* Now the message is complete, the debug suppression can be correctly set. */
+      firebuild::debug_suppressed =
+          firebuild::ProcessFactory::peekProcessDebuggingSuppressed(fbbcomm_msg, proc_tree);
+    }
+
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
-      FB_DEBUG(firebuild::FB_DEBUG_COMM,
-               "fd " + firebuild::d_fd(firebuild::Epoll::event_fd(event)) + ": (" + d(proc) + ")");
-      if (header->ack_id) {
-        fprintf(stderr, "ack_num: %d\n", header->ack_id);
+      if (!firebuild::debug_suppressed) {
+        FB_DEBUG(firebuild::FB_DEBUG_COMM, "fd " + firebuild::d_fd(
+            firebuild::Epoll::event_fd(event)) + ": (" + d(proc) + ")");
+        if (header->ack_id) {
+          fprintf(stderr, "ack_num: %d\n", header->ack_id);
+        }
+        fbbcomm_msg->debug(stderr);
+        fflush(stderr);
       }
-      fbbcomm_msg->debug(stderr);
-      fflush(stderr);
     }
 
     /* Process the messaage. */
@@ -1620,6 +1630,8 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
       /* Fist interceptor message */
       proc_new_process_msg(fbbcomm_msg, header->ack_id, firebuild::Epoll::event_fd(event),
                            &conn_ctx->proc);
+      /* Reset suppression which was set peeking at the message. */
+      firebuild::debug_suppressed = false;
     }
     buf.discard(full_length);
   } while (buf.length() > 0);
@@ -1681,6 +1693,7 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
       /* This is the top process the supervisor started. */
       firebuild::Process* proc = proc_tree->pid2proc(child_pid);
       assert(proc);
+      firebuild::ProcessDebugSuppressor debug_suppressor(proc);
       save_child_status(waitpid_ret, status, &child_ret, false);
       proc->set_been_waited_for();
     } else if (waitpid_ret > 0) {
@@ -1758,6 +1771,7 @@ int main(const int argc, char *argv[]) {
       {"config-file",          required_argument, 0, 'c' },
       {"directory",            required_argument, 0, 'C' },
       {"debug-flags",          required_argument, 0, 'd' },
+      {"debug-filter",         required_argument, 0, 'D' },
       {"generate-report",      optional_argument, 0, 'r' },
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
@@ -1766,7 +1780,7 @@ int main(const int argc, char *argv[]) {
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:C:d:r::o:hi",
+    c = getopt_long(argc, argv, "c:C:d:D:r::o:hi",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -1783,6 +1797,10 @@ int main(const int argc, char *argv[]) {
     case 'd':
       /* Merge the values, so that multiple '-d' options are also allowed. */
       firebuild::debug_flags |= firebuild::parse_debug_flags(optarg);
+      break;
+
+    case 'D':
+      firebuild::init_debug_filter(optarg);
       break;
 
     case 'h':
@@ -1979,6 +1997,10 @@ int main(const int argc, char *argv[]) {
     close(sigchild_selfpipe[1]);
   }
 
+  if (firebuild::debug_filter) {
+    firebuild::debug_suppressed = false;
+  }
+
   if (!proc_tree->root()) {
     fprintf(stderr, "ERROR: Could not collect any information about the build "
             "process\n");
@@ -2062,7 +2084,9 @@ extern void fb_error(const std::string &msg) {
 
 /** Print debug message */
 extern void fb_debug(const std::string &msg) {
-  fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
+  if (!debug_suppressed) {
+    fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
+  }
 }
 
 int32_t debug_flags = 0;

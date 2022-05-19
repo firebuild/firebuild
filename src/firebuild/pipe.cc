@@ -22,6 +22,7 @@
 #include "firebuild/file_fd.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
+#include "firebuild/process_debug_suppressor.h"
 
 /** Timeout for closing a pipe after all fd1 ends are closed and a new hasn't been opened. */
 const int kFd1ReopenTimeoutMs = 100;
@@ -66,6 +67,7 @@ struct Fd1Deleter {
 
 void Pipe::fd1_timeout_cb(void *arg) {
   Pipe* pipe = reinterpret_cast<Pipe*>(arg);
+  ProcessDebugSuppressor debug_suppressor(pipe->creator());
   pipe->fd1_timeout_id_ = -1;
   if (++pipe->fd1_timeout_round_ >= 2) {
     /* At least kFd1ReopenTimeout time elapsed since the
@@ -133,6 +135,7 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
 
 void Pipe::pipe_fd0_write_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
+  ProcessDebugSuppressor debug_suppressor(pipe->creator());
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
   (void) event;  /* unused */
@@ -267,6 +270,7 @@ void Pipe::finish() {
 
 void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   auto pipe = reinterpret_cast<Pipe*>(arg);
+  ProcessDebugSuppressor debug_suppressor(pipe->creator());
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
   auto result = pipe->forward(Epoll::event_fd(event), false);
