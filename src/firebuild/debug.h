@@ -17,6 +17,11 @@
 
 namespace firebuild {
 
+class ExeMatcher;
+extern ExeMatcher* debug_filter;
+extern __thread bool debug_suppressed;
+class Process;
+
 /** Print error message */
 void fb_error(const std::string &msg);
 
@@ -54,7 +59,7 @@ enum {
 /**
  * Test if debugging this kind of events is enabled.
  */
-#define FB_DEBUGGING(flag) ((firebuild::debug_flags) & flag)
+#define FB_DEBUGGING(flag) (((firebuild::debug_flags) & flag) && !firebuild::debug_suppressed)
 
 /**
  * Print debug message if the given debug flag is enabled.
@@ -68,6 +73,7 @@ void fb_debug(const std::string &msg);
 extern int32_t debug_flags;
 
 int32_t parse_debug_flags(const std::string& str);
+void init_debug_filter(const std::string commands);
 
 inline std::string d(int value, const int level = 0) {
   (void)level;  /* unused */

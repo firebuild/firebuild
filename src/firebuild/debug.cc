@@ -9,8 +9,13 @@
 #include <sys/time.h>
 
 #include "common/debug_sysflags.h"
+#include "firebuild/exe_matcher.h"
+#include "firebuild/process.h"
 
 namespace firebuild {
+
+ExeMatcher* debug_filter {nullptr};
+__thread bool debug_suppressed {false};
 
 /**
  * Get a human friendly representation of a string, inside double
@@ -191,6 +196,28 @@ int32_t parse_debug_flags(const std::string& str) {
     flags ^= 0xFFFF;
   }
   return flags;
+}
+
+void init_debug_filter(const std::string commands) {
+  /* Allow passing debug filter to the firebuild binary multiple times. */
+  if (debug_filter) {
+    delete(debug_filter);
+  }
+  debug_filter = new firebuild::ExeMatcher();
+
+  size_t pos = 0;
+  while (pos < commands.length()) {
+    size_t start = commands.find_first_not_of(",", pos);
+    if (start == std::string::npos) {
+      break;
+    }
+    size_t end = commands.find_first_of(",", start);
+    if (end == std::string::npos) {
+      end = commands.length();
+    }
+    debug_filter->add(commands.substr(start, end - start));
+    pos = end;
+  }
 }
 
 #ifdef FB_EXTRA_DEBUG

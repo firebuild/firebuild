@@ -67,6 +67,7 @@ class ExecedProcess : public Process {
                          const std::vector<const FileName*>& libs,
                          const mode_t umask,
                          Process * parent,
+                         const bool debug_suppressed,
                          std::vector<std::shared_ptr<FileFD>>* fds);
   virtual ~ExecedProcess();
   virtual bool exec_started() const {return true;}
