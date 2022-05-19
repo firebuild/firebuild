@@ -850,7 +850,7 @@ static void fb_ic_init() {
 
   const char *executed_path = (const char*)getauxval(AT_EXECFN);
   if (executed_path) {
-    BUILDER_SET_CANONICAL(scproc_query, executed_path);
+    BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, executed_path);
   }
 
   /* make a sorted and filtered copy of env */
