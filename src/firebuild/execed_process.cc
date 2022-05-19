@@ -48,6 +48,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *initial_wd,
                              const FileName *executable,
                              const FileName *executed_path,
+                             char* original_executed_path,
                              const std::vector<std::string>& args,
                              const std::vector<std::string>& env_vars,
                              const std::vector<const FileName*>& libs,
@@ -60,8 +61,9 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
           (parent && parent->exec_point()) ? parent->exec_point()->closest_shortcut_point()
           : nullptr),
       initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
-      executable_(executable), executed_path_(executed_path), libs_(libs), file_usages_(),
-      created_pipes_(), cacher_(NULL) {
+      executable_(executable), executed_path_(executed_path),
+      original_executed_path_(original_executed_path),
+      libs_(libs), file_usages_(), created_pipes_(), cacher_(NULL) {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, umask=%03o, parent=%s",
          pid, ppid, D(initial_wd), D(executable), umask, D(parent));
@@ -601,6 +603,9 @@ std::string ExecedProcess::d_internal(const int level) const {
 ExecedProcess::~ExecedProcess() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 
+  if (original_executed_path_ != executed_path_->c_str()) {
+    free(original_executed_path_);
+  }
   if (cacher_) {
     cacher_->erase_fingerprint(this);
   }

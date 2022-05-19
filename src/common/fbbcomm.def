@@ -92,10 +92,14 @@
       (ARRAY, STRING, "env_var"),
       # umask
       (REQUIRED, "mode_t", "umask"),
-      # full path of the binary
+      # full path of the binary, it is expected to be in absolute and canonical form
       (OPTIONAL, STRING, "executable"),
-      # pathname used to execute the program
+      # original executed_path converted to canonical and absolute path
+      # set only when the original executed path is different from executable
       (OPTIONAL, STRING, "executed_path"),
+      # pathname used to execute the program
+      # set only if it is relative or not canonical path, i.e. it differs from executed_path
+      (OPTIONAL, STRING, "original_executed_path"),
       # loaded shared libraries in the beginning
       (ARRAY, STRING, "libs"),
       # interceptor's version

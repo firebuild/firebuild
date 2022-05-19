@@ -51,6 +51,7 @@ class ExecedProcess : public Process {
  public:
   explicit ExecedProcess(const int pid, const int ppid, const FileName *initial_wd,
                          const FileName *executable, const FileName *executed_path,
+                         char* original_executed_path,
                          const std::vector<std::string>& args,
                          const std::vector<std::string>& env_vars,
                          const std::vector<const FileName*>& libs,
@@ -84,6 +85,7 @@ class ExecedProcess : public Process {
   std::vector<std::string>& env_vars() {return env_vars_;}
   const FileName* executable() const {return executable_;}
   const FileName* executed_path() const {return executed_path_;}
+  const char* original_executed_path() const {return original_executed_path_;}
   std::vector<const FileName*>& libs() {return libs_;}
   const std::vector<const FileName*>& libs() const {return libs_;}
   tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() {return file_usages_;}
@@ -210,9 +212,16 @@ class ExecedProcess : public Process {
    * an executable via a symlink this is the executable the symlink points to. */
   const FileName* executable_;
   /**
-   * The path executed. In case of scripts this is the script's name or in case of invoking
-   * executable via a symlink this is the name of the symlink. */
+   * The path executed converted to absolute and canonical form.
+   * In case of scripts this is the script's name or in case of invoking executable via a symlink
+   * this is the name of the symlink. */
   const FileName* executed_path_;
+  /**
+    * The path executed. In case of scripts this is the script's name or in case of invoking
+    * executable via a symlink this is the name of the symlink.
+    * May be not absolute nor canonical, like ./foo.
+    * It may point to executed_path_.c_str() and in that case it should not be freed. */
+  char* original_executed_path_;
   /**
    * DSO-s loaded by the linker at process startup, in the same order.
    * (DSO-s later loaded via dlopen(), and DSO-s of descendant processes are registered as regular

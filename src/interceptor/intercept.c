@@ -848,11 +848,6 @@ static void fb_ic_init() {
   ic_orig_umask(initial_umask);
   fbbcomm_builder_scproc_query_set_umask(&ic_msg, initial_umask);
 
-  const char *executed_path = (const char*)getauxval(AT_EXECFN);
-  if (executed_path) {
-    BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, executed_path);
-  }
-
   /* make a sorted and filtered copy of env */
   int env_len = 0, env_copy_len = 0;
   for (char** cursor = env; *cursor != NULL; cursor++) {
@@ -881,6 +876,17 @@ static void fb_ic_init() {
   if (r > 0 && r < IC_PATH_BUFSIZE) {
     linkname[r] = '\0';
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
+  }
+
+  const char *original_executed_path = (const char*)getauxval(AT_EXECFN);
+  if (original_executed_path && strcmp(original_executed_path, linkname) != 0) {
+    /* The macro relies on the field name matching the variable name. */
+    const char *executed_path = original_executed_path;
+    BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, executed_path);
+    if (strcmp(fbbcomm_builder_scproc_query_get_executed_path(&ic_msg),
+               original_executed_path) != 0) {
+      fbbcomm_builder_scproc_query_set_original_executed_path(&ic_msg, original_executed_path);
+    }
   }
 
   /* list loaded shared libs */

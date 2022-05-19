@@ -71,8 +71,10 @@
       (REQUIRED, STRING, "wd"),
       # Program file
       (REQUIRED, FBB,    "executable"),      # tag "file"
-      # Pathname used to execute the program
+      # Pathname used to execute the program in absolute and canonical form
       (REQUIRED, FBB,    "executed_path"),   # tag "file"
+      # Original pathname used to execute the program
+      (REQUIRED, STRING, "original_executed_path"),   # tag "file"
       # Command parameters, starting with name of the command
       (ARRAY,    STRING, "args"),
       # Environment variables, filtered (to exclude e.g. $FB_SOCKET)

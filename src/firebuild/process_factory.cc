@@ -26,7 +26,10 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
 
   const FileName* executable = FileName::Get(msg->get_executable());
   const FileName* executed_path = msg->has_executed_path()
-      ? FileName::Get(msg->get_executed_path()) : nullptr;
+      ? FileName::Get(msg->get_executed_path()) : executable;
+  char* original_executed_path = msg->has_original_executed_path() ?
+      strndup(msg->get_original_executed_path(), msg->get_original_executed_path_len())
+      : const_cast<char*>(executed_path->c_str());
   const size_t libs_count = msg->get_libs_count();
   std::vector<const FileName*> libs(libs_count);
   for (size_t i = 0; i < libs_count; i++) {
@@ -35,7 +38,7 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   auto e = new ExecedProcess(msg->get_pid(),
                              msg->get_ppid(),
                              FileName::Get(msg->get_cwd()),
-                             executable, executed_path,
+                             executable, executed_path, original_executed_path,
                              msg->get_arg_as_vector(),
                              msg->get_env_var_as_vector(),
                              std::move(libs),
