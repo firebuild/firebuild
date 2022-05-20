@@ -330,6 +330,8 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
        * case, in the next iteration of the loop "update" will already contain this value. */
       fu_new = fu->merge(update);
       if (!fu_new) {
+        FB_DEBUG(FB_DEBUG_FS, "Could not merge " + d(name) + " file usage " + d(fu) + " with " +
+                 d(update));
         disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
         return false;
       }
