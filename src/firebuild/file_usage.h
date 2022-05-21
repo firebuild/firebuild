@@ -110,9 +110,9 @@ struct FileUsageHasher {
     ssize_t size = f.initial_size();
     hash = XXH3_64bits_withSeed(&size, sizeof(size), hash);
     struct {
-      uint64_t initial_type : 4;
+      uint64_t initial_type : 3;
       uint64_t written : 1;
-      uint64_t unused : 27;
+      uint64_t unused : 28;
       // TODO(rbalint) use those later
       // uint64_t stated: 1; ( = f.stated_)
       // uint64_t stat_changed : 1; (= f.stat_changed_)

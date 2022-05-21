@@ -77,13 +77,13 @@ void FileUsageUpdate::type_computer_open_wronly_creat_notrunc_noexcl() const {
     // FIXME handle if we see a directory. This cannot normally happen due to O_CREAT, but can if
     // the file has just been replaced by a directory.
     initial_state_.set_type(ISREG);
-    initial_state_.set_size(st.st_size);
     /* We got to know that this was a regular non-empty file. Delay hash computation until
      * necessary. */
     hash_computer_ = &FileUsageUpdate::hash_computer;
   } else {
-    initial_state_.set_type(NOTEXIST_OR_ISREG_EMPTY);
+    initial_state_.set_type(NOTEXIST_OR_ISREG);
   }
+  initial_state_.set_size(st.st_size);
   type_computer_ = nullptr;
 }
 

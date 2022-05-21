@@ -51,8 +51,6 @@ const char *file_type_to_string(FileType type) {
       return "exist";
     case NOTEXIST:
       return "notexist";
-    case NOTEXIST_OR_ISREG_EMPTY:
-      return "notexist_or_isreg_empty";
     case NOTEXIST_OR_ISREG:
       return "notexist_or_isreg";
     case ISREG:

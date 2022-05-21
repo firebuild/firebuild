@@ -300,8 +300,11 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
 
   const HashCacheEntry *entry = get_entry_with_statinfo(path, -1, nullptr);
 
+  /* Mutable, we might flip NOTEXIST_OR_ISREG to ISREG for convenience. */
+  FileType query_type = query.type();
+
   /* We do have an up-to-date stat information now. Check if the query matches it. */
-  switch (query.type()) {
+  switch (query_type) {
     case DONTKNOW:
       assert(0 && "shouldn't query the HashCache to see if <no information> matches");
       return true;
@@ -311,21 +314,15 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
       }
       break;
     case NOTEXIST:
-      if (entry->info.type() != NOTEXIST) {
-        return false;
-      }
-      break;
-    case NOTEXIST_OR_ISREG_EMPTY:
-      if (!(entry->info.type() == NOTEXIST ||
-            (entry->info.type() == ISREG && entry->info.size() == 0))) {
-        return false;
-      }
-      break;
+      return (entry->info.type() == NOTEXIST);
     case NOTEXIST_OR_ISREG:
-      if (!(entry->info.type() == NOTEXIST || entry->info.type() == ISREG)) {
-        return false;
+      if (entry->info.type() == NOTEXIST) {
+        return true;
       }
-      break;
+      /* The query says NOTEXIST_OR_ISREG, the reality isn't NOTEXIST.
+       * Pretend that the query said ISREG and verify the rest accordingly. */
+      query_type = ISREG;
+      [[fallthrough]];
     case ISREG:
       /* Compare the file size as well, if the query contains one. */
       if (!(entry->info.type() == ISREG &&
@@ -347,8 +344,8 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
     return true;
   }
 
-  assert(query.type() == ISREG || query.type() == ISDIR);
-  assert(entry->info.type() == query.type());
+  assert(query_type == ISREG || query_type == ISDIR);
+  assert(entry->info.type() == query_type);
 
   /* We need to compare the hash. The current cache entry does not necessarily contain this
    * information, because it's expensive to compute it so we defer it as long as possible. But if

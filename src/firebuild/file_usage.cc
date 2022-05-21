@@ -125,13 +125,10 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
           /* We knew from an access() that it existed, now we got to know from an open() that it
            * either didn't exist or was a regular file. That is: it was a regular file. */
           tmp.set_initial_type(ISREG);
-          changed = true;
-        } else if (update_initial_type == NOTEXIST_OR_ISREG_EMPTY) {
-          /* We knew from an access() that it existed, now we got to know from an open() that it
-           * either didn't exist or was an empty regular file. That is: it was an empty regular
-           * file. */
-          tmp.set_initial_type(ISREG);
-          tmp.set_initial_size(0);
+          if (update.initial_size_known()) {
+            assert(update.initial_size() == 0);
+            tmp.set_initial_size(update.initial_size());
+          }
           changed = true;
         } else {
           /* Copy over the new values */
@@ -159,15 +156,13 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
       case NOTEXIST: {
         if (update_initial_type != DONTKNOW &&
             update_initial_type != NOTEXIST &&
-            update_initial_type != NOTEXIST_OR_ISREG &&
-            update_initial_type != NOTEXIST_OR_ISREG_EMPTY) {
+            update_initial_type != NOTEXIST_OR_ISREG) {
           return nullptr;
         }
         break;
       }
-      case NOTEXIST_OR_ISREG:
-      case NOTEXIST_OR_ISREG_EMPTY: {
-        /* These two initial states, without the written_ bit, are possible intermittently while
+      case NOTEXIST_OR_ISREG: {
+        /* This initial state, without the written_ bit, is possible intermittently while
          * shortcutting a process. See #791. */
         break;
       }
@@ -175,7 +170,6 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
         if (update_initial_type != DONTKNOW &&
             update_initial_type != EXIST &&
             update_initial_type != NOTEXIST_OR_ISREG &&
-            update_initial_type != NOTEXIST_OR_ISREG_EMPTY &&
             update_initial_type != ISREG) {
           return nullptr;
         }
