@@ -20,13 +20,10 @@ typedef enum {
    *  or stat(). We also might know it about the initial state of the filesystem entry, if later an
    *  open(O_CREAT|O_WRONLY|O_EXCL) or mkdir() succeeds. */
   NOTEXIST,
-  /** We know that the filesystem entry either does not exist, or is a zero sized regular file, but
-   *  we don't know which. We might know it about the initial state of a file, if later an
-   *  open(O_CREAT|O_WRONLY) succeeds and results in a zero length file. */
-  NOTEXIST_OR_ISREG_EMPTY,
   /** We know that the filesystem entry either does not exist, or is a regular file, but we don't
    *  know which. We might know it about the initial state of a file, if later a creat() a.k.a.
-   *  open(O_CREAT|O_WRONLY|O_TRUNC) succeeds. */
+   *  open(O_CREAT|O_WRONLY|O_TRUNC) succeeds, or an open(O_CREAT|O_WRONLY) succeeds and results in
+   *  a zero length file. In the latter case, size is set to 0 in the corresponding FileInfo. */
   NOTEXIST_OR_ISREG,
   /** We know that the filesystem entry is a regular fie. */
   ISREG,
@@ -74,7 +71,6 @@ class FileInfo {
       case DONTKNOW: return DONTKNOW;
       case EXIST: return EXIST;
       case NOTEXIST: return NOTEXIST;
-      case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
       case ISDIR: return ISDIR;
@@ -88,7 +84,6 @@ class FileInfo {
       case DONTKNOW: return DONTKNOW;
       case EXIST: return EXIST;
       case NOTEXIST: return NOTEXIST;
-      case NOTEXIST_OR_ISREG_EMPTY: return NOTEXIST_OR_ISREG_EMPTY;
       case NOTEXIST_OR_ISREG: return NOTEXIST_OR_ISREG;
       case ISREG: return ISREG;
       case ISDIR: return ISDIR;
@@ -98,21 +93,43 @@ class FileInfo {
   }
 
  private:
-  /** File type. */
+  /** File type.
+   *
+   *  If DONTKNOW or NOTEXIST then the remaining fields are meaningless and unset.
+   *
+   *  If NOTEXIST_OR_ISREG then the remaining fields refer to the state of the file in case it is
+   *  actually a regular file (ISREG) rather than missing (NOTEXIST). */
   FileType type_;
 
-  /** The size, if known. Only if type_ is ISREG. For ISREG, if the checksum is known then the size
-   *  is also known. If the size is not known or is irrelevant (type_ isn't ISREG) then -1. */
+  /** The size, if known. Only if type_ is ISREG or NOTEXIST_OR_ISREG. In these cases, if the
+   *  checksum is known then the size is also known. If the size is not known or is irrelevant
+   *  (type_ isn't one of these) then -1.
+   *
+   *  (If the type is NOTEXIST_OR_ISREG and the size is known, the size is necessarily 0. This is
+   *  our knowledge about the initial / prior state of a file if open(O_CREAT|O_WRONLY) results in
+   *  an empty file.) */
   ssize_t size_;
 
-  /** Whether the checksum is known. Only if type_ is ISREG or ISDIR.
-   *  For regular files, knowing the checksum implies we know the size, too. */
+  /** Whether the checksum is known. Only if type_ is ISREG, NOTEXIST_OR_ISREG or ISDIR.
+   *  For regular files, knowing the checksum implies we know the size, too.
+   *
+   *  (Note: currently the type cannot actually be NOTEXIST_OR_ISREG if this field is set. That's
+   *  because if the type is NOTEXIST_OR_ISREG then the size, if known, is necessarily 0, and we
+   *  don't fill in the checksum. As per the FIXME below, this might change in the future.) */
+  //
   // FIXME(egmont) Do we want to have special treatment for zero-length files,
   // either always set the hash (copy from a global variable), or never set it?
   bool hash_known_ : 1;
 
-  /** The checksum, if known. Only if type_ is ISREG or ISDIR.
-   *  For directories, it's the checksum of its listing. */
+  /** The checksum, if known. Only if type_ is ISREG, NOTEXIST_OR_ISREG, or ISDIR.
+   *  For directories, it's the checksum of its listing.
+   *
+   *  (Note: currently the type cannot actually be NOTEXIST_OR_ISREG if this field is set. That's
+   *  because if the type is NOTEXIST_OR_ISREG then the size, if known, is necessarily 0, and we
+   *  don't fill in the checksum. As per the FIXME below, this might change in the future.) */
+  //
+  // FIXME(egmont) Do we want to have special treatment for zero-length files,
+  // either always set the hash (copy from a global variable), or never set it?
   Hash hash_;
 
   friend bool operator==(const FileInfo& lhs, const FileInfo& rhs);

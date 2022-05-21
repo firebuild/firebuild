@@ -43,7 +43,7 @@
       # file path, absolute or relative
       (REQUIRED, STRING,                "path"),
 
-      # file type, e.g. ISREG, NOTEXIST_OR_ISREG_EMPTY, ISDIR etc.
+      # file type, e.g. ISREG, NOTEXIST_OR_ISREG, ISDIR etc.
       (REQUIRED, "firebuild::FileType", "type"),
       # file size
       (OPTIONAL, "size_t",              "size"),

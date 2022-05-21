@@ -346,8 +346,7 @@ static bool dir_created_or_could_exist(
   while (parent_dir != nullptr) {
     const auto it = file_usages.find(parent_dir);
     const FileUsage* fu = it->second;
-    if (fu->initial_type() == NOTEXIST || fu->initial_type() == NOTEXIST_OR_ISREG
-        || fu->initial_type() == NOTEXIST_OR_ISREG_EMPTY) {
+    if (fu->initial_type() == NOTEXIST || fu->initial_type() == NOTEXIST_OR_ISREG) {
       if (!fu->written()) {
         /* The process expects the directory to be missing but it does not create it.
          * This can't work. */
