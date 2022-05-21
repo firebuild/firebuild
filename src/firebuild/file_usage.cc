@@ -78,9 +78,13 @@ const FileUsage* FileUsage::Get(const FileUsage& candidate) {
  * @return pointer to the merge result, or nullptr in case of an error
  */
 const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
-  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, this, "other=%s", D(update));
-
   FileUsage tmp = *this;
+
+  /* Make sure the merged FileUsage is debug-printed upon leaving this method. */
+#ifdef FB_EXTRA_DEBUG
+  const FileUsage *fu = &tmp;
+#endif
+  TRACKX(FB_DEBUG_PROC, 1, 1, FileUsage, fu, "other=%s", D(update));
 
   bool changed = false;
 
