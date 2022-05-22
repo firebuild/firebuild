@@ -70,7 +70,7 @@ setup() {
 
 @test "orphan processes" {
   for i in 1 2; do
-    result=$(./run-firebuild -- bash -c 'for i in $(seq 10); do (sleep 0.3; ls integration.bats; false)& done; /bin/echo foo' | sort)
+    result=$(./run-firebuild -o 'processes.dont_shortcut += "sleep"' -- bash -c 'for i in $(seq 10); do (sleep 0.3; ls integration.bats; false)& done; /bin/echo foo' | sort)
     assert_streq "$result" "foo"
     assert_streq "$(strip_stderr stderr | uniq -c)" "     10 Orphan process has been killed by signal 15"
 
