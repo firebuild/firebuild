@@ -94,6 +94,10 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_timerfd_cr
   return proc->handle_timerfd_create(msg->get_flags(), msg->get_ret());
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_epoll_create *msg) {
+  return proc->handle_epoll_create(msg->get_flags_with_fallback(0), msg->get_ret());
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_eventfd *msg) {
   return proc->handle_eventfd(msg->get_flags(), msg->get_ret());
 }

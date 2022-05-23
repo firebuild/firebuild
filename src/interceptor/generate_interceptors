@@ -323,6 +323,14 @@ generate("int", "timerfd_create", "int clockid, int flags",
          msg_skip_fields=["clockid"],
          send_ret_on_success=True,
          send_msg_on_error=False)
+generate("int", "epoll_create", "int size",
+         msg_skip_fields=["size"],
+         send_ret_on_success=True,
+         send_msg_on_error=False)
+generate("int", "epoll_create1", "int flags",
+         msg="epoll_create",
+         send_ret_on_success=True,
+         send_msg_on_error=False)
 generate("int", "eventfd", "unsigned int initval, int flags",
          msg_skip_fields=["initval"],
          send_ret_on_success=True,
