@@ -1175,6 +1175,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_timerfd_create *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_epoll_create: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_epoll_create *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_eventfd: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
           reinterpret_cast<const FBBCOMM_Serialized_eventfd *>(fbbcomm_buf));

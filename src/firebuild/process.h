@@ -326,6 +326,11 @@ class Process {
   int handle_timerfd_create(const int flags, int fd);
 
   /**
+   * Handle epoll_create in the monitored process
+   */
+  int handle_epoll_create(const int flags, const int fd);
+
+  /**
    * Handle eventfd in the monitored process
    */
   int handle_eventfd(const int flags, const int fd);

@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 #include <signal.h>
+#include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -403,6 +404,13 @@ int Process::handle_timerfd_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "flags=%d, fd=%d", flags, fd);
   add_filefd(fd, std::make_shared<FileFD>(fd, (flags & TFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  return 0;
+}
+
+int Process::handle_epoll_create(const int flags, const int fd) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EPOLL_CLOEXEC) ? O_CLOEXEC : 0, this));
   return 0;
 }
 

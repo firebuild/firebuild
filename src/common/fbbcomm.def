@@ -534,6 +534,12 @@
       (REQUIRED, "int", "flags"),
     ]),
 
+    ("epoll_create", [
+      # flags for epoll_create1(), decoding is left for Firebuild supervisor
+      (OPTIONAL, "int", "flags"),
+      (REQUIRED, "int", "ret"),
+    ]),
+
     ("eventfd", [
       # flags, decoding is left for Firebuild supervisor
       (REQUIRED, "int", "flags"),
