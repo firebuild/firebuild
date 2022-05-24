@@ -21,7 +21,7 @@ inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
 #else
-  if ((strlen(p) >= 1) && (p[0] == '/')) {
+  if (p[0] == '/') {
     return true;
   } else {
     return false;
