@@ -652,9 +652,15 @@
     ]),
 
     # This is not used as a toplevel message, but in the "file_actions" field of a
-    # posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addclose() call.
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addclose() call.
     ("posix_spawn_file_action_close", [
       (REQUIRED, "int", "fd"),
+    ]),
+
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addclosefrom_np() call.
+    ("posix_spawn_file_action_closefrom", [
+      (REQUIRED, "int", "lowfd"),
     ]),
 
     # This is not used as a toplevel message, but in the "file_actions" field of a
@@ -662,6 +668,18 @@
     ("posix_spawn_file_action_dup2", [
       (REQUIRED, "int", "oldfd"),
       (REQUIRED, "int", "newfd"),
+    ]),
+
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addchdir_np() call.
+    ("posix_spawn_file_action_chdir", [
+      (REQUIRED, STRING, "path"),
+    ]),
+
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addfchdir_np() call.
+    ("posix_spawn_file_action_fchdir", [
+      (REQUIRED, "int", "fd"),
     ]),
 
     # posix_spawn[p](3)
@@ -673,7 +691,7 @@
       # environment variables in unprocessed NAME=value form
       (ARRAY, STRING, "env"),
       # posix_spawn_file_actions_t, each action is an FBB message of one of
-      # posix_spawn_file_action_{open,close,dup2}
+      # posix_spawn_file_action_*
       (ARRAY, FBB, "file_actions"),
       # spawn or spawnp
       (REQUIRED, "bool", "is_spawnp"),
@@ -683,7 +701,7 @@
       # command args repeated, to let the supervisor remove it from expected_child
       (ARRAY, STRING, "arg"),
       # posix_spawn_file_actions_t, each action is an FBB message of one of
-      # posix_spawn_file_action_{open,close,dup2}
+      # posix_spawn_file_action_*
       (ARRAY, FBB, "file_actions"),
       # child's process id
       (REQUIRED, "pid_t", "pid"),
@@ -693,7 +711,7 @@
       # command args repeated, to let the supervisor remove it from expected_child
       (ARRAY, STRING, "arg"),
       # posix_spawn_file_actions_t, each action is an FBB message of one of
-      # posix_spawn_file_action_{open,close,dup2}
+      # posix_spawn_file_action_*
       (ARRAY, FBB, "file_actions"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),

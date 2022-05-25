@@ -909,6 +909,15 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             fork_child->handle_force_close(fd);
             break;
           }
+          case FBBCOMM_TAG_posix_spawn_file_action_closefrom: {
+            /* A successful closefrom. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_closefrom *action_closefrom =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_closefrom *>
+                (action);
+            int lowfd = action_closefrom->get_lowfd();
+            fork_child->handle_closefrom(lowfd);
+            break;
+          }
           case FBBCOMM_TAG_posix_spawn_file_action_dup2: {
             /* A successful dup2.
              * Note that as per https://austingroupbugs.net/view.php?id=411 and glibc's
@@ -923,6 +932,22 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             } else {
               fork_child->handle_dup3(oldfd, newfd, 0, 0);
             }
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_chdir: {
+            /* A successful chdir. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_chdir *action_chdir =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_chdir *>(action);
+            const char *path = action_chdir->get_path();
+            fork_child->handle_set_wd(path);
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_fchdir: {
+            /* A successful fchdir. */
+            const FBBCOMM_Serialized_posix_spawn_file_action_fchdir *action_fchdir =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_fchdir *>(action);
+            int fd = action_fchdir->get_fd();
+            fork_child->handle_set_fwd(fd);
             break;
           }
           default:

@@ -122,7 +122,7 @@ class Process {
   int ppid() const {return ppid_;}
   int exec_count() const {return exec_count_;}
   const FileName* wd() const {return wd_;}
-  void handle_set_wd(const char * const d, const size_t d_len);
+  void handle_set_wd(const char * const d, const size_t d_len = -1);
   void handle_set_fwd(const int fd);
   mode_t umask() const {return umask_;}
   void set_exec_pending(bool val) {exec_pending_ = val;}
