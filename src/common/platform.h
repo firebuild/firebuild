@@ -1,21 +1,18 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
-#ifndef FIREBUILD_PLATFORM_H_
-#define FIREBUILD_PLATFORM_H_
+#ifndef COMMON_PLATFORM_H_
+#define COMMON_PLATFORM_H_
 
+#include <assert.h>
 #include <fcntl.h>
 #ifdef __linux__
 #include <linux/kcmp.h>
 #include <sys/syscall.h>
 #endif
+#include <stdlib.h>
 #include <unistd.h>
 
-#include <cstring>
-
-namespace firebuild {
-
-namespace platform {
 
 inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
@@ -63,7 +60,4 @@ inline int fdcmp(int fd1, int fd2) {
 #endif
 }
 
-}  /* namespace platform */
-}  /* namespace firebuild */
-
-#endif  // FIREBUILD_PLATFORM_H_
+#endif  // COMMON_PLATFORM_H_

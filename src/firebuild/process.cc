@@ -18,9 +18,9 @@
 #include <utility>
 
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "firebuild/file.h"
 #include "firebuild/pipe_recorder.h"
-#include "firebuild/platform.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/execed_process_env.h"
@@ -873,7 +873,7 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name, 
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, name=%s, length=%ld",
          dirfd, D(name), length);
 
-  if (platform::path_is_absolute(name)) {
+  if (path_is_absolute(name)) {
     return FileName::Get(name, length);
   } else {
     char on_stack_buf[2048], *buf;
