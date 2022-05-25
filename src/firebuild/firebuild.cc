@@ -1765,7 +1765,7 @@ int main(const int argc, char *argv[]) {
     static struct option long_options[] = {
       {"config-file",          required_argument, 0, 'c' },
       {"directory",            required_argument, 0, 'C' },
-      {"debug-level",          required_argument, 0, 'd' },
+      {"debug-flags",          required_argument, 0, 'd' },
       {"generate-report",      optional_argument, 0, 'r' },
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
@@ -2068,7 +2068,7 @@ extern void fb_error(const std::string &msg) {
   fprintf(stderr, "FIREBUILD ERROR: %s\n", msg.c_str());
 }
 
-/** Print debug message if debug level is at least lvl */
+/** Print debug message */
 extern void fb_debug(const std::string &msg) {
   fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
 }
