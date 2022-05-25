@@ -17,6 +17,8 @@ add_custom_command (
   DEPENDS generate_interceptors
   tpl.c
   tpl_clone.c
+  tpl_closefrom.c
+  tpl_close_range.c
   tpl_dlopen.c
   tpl_dup2.c
   tpl_error.c

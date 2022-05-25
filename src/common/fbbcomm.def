@@ -336,6 +336,17 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("closefrom", [
+      (REQUIRED, "int", "lowfd"),
+    ]),
+
+    ("close_range", [
+      (REQUIRED, "unsigned int", "first"),
+      (REQUIRED, "unsigned int", "last"),
+      (REQUIRED, "int", "flags"),
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("umask", [
       # The new mask
       (REQUIRED, "mode_t", "mask"),

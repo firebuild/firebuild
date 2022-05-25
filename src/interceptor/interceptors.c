@@ -9,6 +9,7 @@
 #include <errno.h>
 
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"

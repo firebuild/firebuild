@@ -23,6 +23,8 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn, int ack_num);
   static int handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn, int ack_num);
   static int handle(Process *proc, const FBBCOMM_Serialized_close *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_closefrom *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_close_range *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_unlink *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_rmdir *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_mkdir *msg);

@@ -50,6 +50,15 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_close *msg
   return proc->handle_close(msg->get_fd(), error);
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_closefrom *msg) {
+  return proc->handle_closefrom(msg->get_lowfd());
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_close_range *msg) {
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_close_range(msg->get_first(), msg->get_last(), msg->get_flags(), error);
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_unlink *msg) {
   const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
   const int flags = msg->get_flags_with_fallback(0);

@@ -283,6 +283,17 @@ class Process {
   int handle_force_close(const int fd);
 
   /**
+   * Handle closefrom() in the monitored process.
+   */
+  int handle_closefrom(const int lowfd);
+
+  /**
+   * Handle close_range() in the monitored process..
+   */
+  int handle_close_range(const unsigned int first, const unsigned int last,
+                         const int flags, const int error = 0);
+
+  /**
    * Handle unlink in the monitored process
    * @param dirfd the dirfd of unlinkat(), or AT_FDCWD
    * @param name relative or absolute file name
