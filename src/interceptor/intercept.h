@@ -124,7 +124,10 @@ extern void psfa_destroy(const posix_spawn_file_actions_t *p);
 extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
                          const char *path, int flags, mode_t mode);
 extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
+extern void psfa_addclosefrom_np(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
+extern void psfa_addchdir_np(const posix_spawn_file_actions_t *p, const char *path);
+extern void psfa_addfchdir_np(const posix_spawn_file_actions_t *p, int fd);
 extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 
 extern voidp_set popened_streams;

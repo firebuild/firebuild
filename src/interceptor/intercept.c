@@ -1143,11 +1143,16 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
 }
 
 static void psfa_item_free(void *p) {
+  /* For addopen() and addchdir_np() actions the filename needs to be freed. */
   if (fbbcomm_builder_get_tag(p) == FBBCOMM_TAG_posix_spawn_file_action_open) {
-    /* For addopen() actions the filename needs to be freed. */
     FBBCOMM_Builder_posix_spawn_file_action_open *builder = p;
     char *path =
         (/* non-const */ char *) fbbcomm_builder_posix_spawn_file_action_open_get_path(builder);
+    free(path);
+  } else if (fbbcomm_builder_get_tag(p) == FBBCOMM_TAG_posix_spawn_file_action_chdir) {
+    FBBCOMM_Builder_posix_spawn_file_action_chdir *builder = p;
+    char *path =
+        (/* non-const */ char *) fbbcomm_builder_posix_spawn_file_action_chdir_get_path(builder);
     free(path);
   }
   free(p);
@@ -1218,6 +1223,24 @@ void psfa_addclose(const posix_spawn_file_actions_t *p,
 }
 
 /**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclosefrom_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_closefrom builder to our structures.
+ */
+void psfa_addclosefrom_np(const posix_spawn_file_actions_t *p,
+                          int lowfd) {
+  voidp_array *obj = psfa_find(p);
+  assert(obj);
+
+  FBBCOMM_Builder_posix_spawn_file_action_closefrom *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_closefrom));
+  fbbcomm_builder_posix_spawn_file_action_closefrom_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_closefrom_set_lowfd(fbbcomm_builder, lowfd);
+
+  voidp_array_append(obj, fbbcomm_builder);
+}
+
+/**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_adddup2():
  * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_dup2 builder to our structures.
  */
@@ -1233,6 +1256,42 @@ void psfa_adddup2(const posix_spawn_file_actions_t *p,
 
   fbbcomm_builder_posix_spawn_file_action_dup2_set_oldfd(fbbcomm_builder, oldfd);
   fbbcomm_builder_posix_spawn_file_action_dup2_set_newfd(fbbcomm_builder, newfd);
+
+  voidp_array_append(obj, fbbcomm_builder);
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_chdir_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_chdir builder to our structures.
+ */
+void psfa_addchdir_np(const posix_spawn_file_actions_t *p,
+                      const char *path) {
+  voidp_array *obj = psfa_find(p);
+  assert(obj);
+
+  FBBCOMM_Builder_posix_spawn_file_action_chdir *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_chdir));
+  fbbcomm_builder_posix_spawn_file_action_chdir_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_chdir_set_path(fbbcomm_builder, strdup(path));
+
+  voidp_array_append(obj, fbbcomm_builder);
+}
+
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_fchdir_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_fchdir builder to our structures.
+ */
+void psfa_addfchdir_np(const posix_spawn_file_actions_t *p,
+                       int fd) {
+  voidp_array *obj = psfa_find(p);
+  assert(obj);
+
+  FBBCOMM_Builder_posix_spawn_file_action_fchdir *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_fchdir));
+  fbbcomm_builder_posix_spawn_file_action_fchdir_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_fchdir_set_fd(fbbcomm_builder, fd);
 
   voidp_array_append(obj, fbbcomm_builder);
 }

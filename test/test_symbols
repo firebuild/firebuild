@@ -63,6 +63,7 @@ mknod
 mknodat
 closefrom
 close_range
+posix_spawn_file_actions_addclosefrom_np
 "
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
 libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
