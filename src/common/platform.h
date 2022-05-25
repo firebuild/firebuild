@@ -14,6 +14,16 @@
 #include <unistd.h>
 
 
+#ifdef __has_include
+#if __has_include(<linux/close_range.h>)
+#include <linux/close_range.h>
+#endif
+#endif
+#ifndef CLOSE_RANGE_CLOEXEC
+#define CLOSE_RANGE_CLOEXEC (1U << 2)
+#endif
+
+
 inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
   return !PathIsRelative(p);

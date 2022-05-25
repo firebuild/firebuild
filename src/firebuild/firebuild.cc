@@ -1081,6 +1081,16 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_close *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_closefrom: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_closefrom *>(fbbcomm_buf));
+      break;
+    }
+    case FBBCOMM_TAG_close_range: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_close_range *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_unlink: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
           reinterpret_cast<const FBBCOMM_Serialized_unlink *>(fbbcomm_buf));

@@ -353,6 +353,14 @@ generate("int", "fclose", "FILE *stream",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_close_set_fd(&ic_msg, fd);"])
 
+# Intercept closefrom and close_range
+generate("void", "closefrom", "int lowfd",
+         tpl="closefrom",
+         send_msg_on_error=False)
+# The manpage says "unsigned int flags" but in unistd.h it's "int flags".
+generate("int", "close_range", "unsigned int first, unsigned int last, int flags",
+         tpl="close_range")
+
 # Unlike fclose(), fcloseall() only closes the high level streams and not the underlying fds.
 # So we don't need to notify the supervisor. We need to clear the popened_streams set, though.
 generate("int", "fcloseall", "",

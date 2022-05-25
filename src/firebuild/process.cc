@@ -320,6 +320,38 @@ int Process::handle_close(const int fd, const int error) {
   }
 }
 
+int Process::handle_closefrom(const int lowfd) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "lowfd=%d", lowfd);
+
+  return handle_close_range(lowfd, UINT_MAX, 0, 0);
+}
+
+int Process::handle_close_range(const unsigned int first, const unsigned int last,
+                                const int flags, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "first=%u, last=%u, flags=%d, error=%d",
+         first, last, flags, error);
+
+  (void)flags;  /* might be unused */
+
+  if (!error) {
+    for (auto& file_fd : *fds_) {
+      if (!file_fd) {
+        continue;
+      }
+      unsigned int fd = static_cast<unsigned int>(file_fd->fd());
+      if (fd >= first && fd <= last) {
+        if (flags & CLOSE_RANGE_CLOEXEC) {
+          /* Don't close, just set the cloexec bit. */
+          file_fd->set_cloexec(true);
+        } else {
+          handle_close(file_fd.get());
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 int Process::handle_unlink(const int dirfd, const char * const ar_name, const size_t ar_len,
                            const int flags, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, flags=%d, error=%d",

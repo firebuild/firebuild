@@ -61,6 +61,8 @@ fstatat
 fstatat64
 mknod
 mknodat
+closefrom
+close_range
 "
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
 libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
