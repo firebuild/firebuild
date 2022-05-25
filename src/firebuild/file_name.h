@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "firebuild/debug.h"
-#include "firebuild/platform.h"
 
 namespace firebuild {
 

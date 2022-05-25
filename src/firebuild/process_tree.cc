@@ -9,8 +9,8 @@
 #include <stdexcept>
 #include <limits>
 
+#include "common/platform.h"
 #include "firebuild/debug.h"
-#include "firebuild/platform.h"
 
 namespace firebuild {
 
@@ -72,7 +72,7 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
 
   /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
   // FIXME Make this more generic, for all the received pipes / terminal outputs.
-  bool stdout_stderr_match = platform::fdcmp(stdout_fd, stderr_fd) == 0;
+  bool stdout_stderr_match = fdcmp(stdout_fd, stderr_fd) == 0;
   FB_DEBUG(FB_DEBUG_PROCTREE, stdout_stderr_match ? "Top level stdout and stderr are the same" :
            "Top level stdout and stderr are distinct");
 

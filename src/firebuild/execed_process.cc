@@ -11,10 +11,10 @@
 
 #include <libconfig.h++>
 
+#include "common/platform.h"
 #include "firebuild/config.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/forked_process.h"
-#include "firebuild/platform.h"
 #include "firebuild/utils.h"
 
 extern bool generate_report;
