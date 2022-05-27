@@ -37,7 +37,7 @@
     env_fixed_up = alloca(env_fixup_size);
     env_fixup((char **) envp, env_fixed_up);
   } else {
-    env_fixed_up = environ;
+    env_fixed_up = (char **)envp;
   }
   /* Fix up missing out parameter for internal use */
   pid_t tmp_pid;
