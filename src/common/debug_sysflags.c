@@ -5,6 +5,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <sched.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -426,6 +427,40 @@ void debug_wstatus(FILE *f, int wstatus) {
     sep = ", ";
   }
   fprintf(f, ")");
+}
+
+/**
+ * Debug-print CLONE_* flags, as usually seen in the 'flags' parameter of clone().
+ */
+void debug_clone_flags(FILE *f, int flags) {
+  DEBUG_BITMAP_START(f, flags);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_VM);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_FS);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_FILES);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_SIGHAND);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_PIDFD);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_PTRACE);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_VFORK);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_PARENT);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_THREAD);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWNS);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_SYSVSEM);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_SETTLS);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_PARENT_SETTID);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_CHILD_CLEARTID);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_DETACHED);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_UNTRACED);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_CHILD_SETTID);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWCGROUP);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWUTS);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWIPC);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWUSER);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWPID);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWNET);
+  DEBUG_BITMAP_FLAG(f, flags, CLONE_IO);
+  DEBUG_BITMAP_END_HEX(f, flags & ~0xff);
+  fprintf(f, "|");
+  debug_signum(f, flags & 0xff);
 }
 
 #ifdef __cplusplus

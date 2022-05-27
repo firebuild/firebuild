@@ -240,6 +240,16 @@ setup() {
   done
 }
 
+@test "clone() a statically linked binary" {
+  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_clone ./test_static)
+    assert_streq "$result" "I am statically linked."
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
 @test "system() a statically linked binary" {
   ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
 

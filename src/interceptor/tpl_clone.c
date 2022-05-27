@@ -6,14 +6,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_skip_fields = ["fn", "stack", "flags", "arg"] %}
-
-### block before
-  /* clone() can be really tricky to intercept, for example when the cloned process shares
-   * the file descriptor table with the parent (CLONE_FILES). In this case the interceptor
-   * would have to protect two communication fds or implement locking across separate processes. */
-  intercepting_enabled = false;
-### endblock before
+{% set msg_skip_fields = ["fn", "stack", "arg"] %}
 
 ### block call_orig
   int vararg_count = 0;
@@ -24,6 +17,31 @@
   } else if (flags & (CLONE_PARENT_SETTID | CLONE_PIDFD)) {
     vararg_count = 1;
   }
+
+  if (i_am_intercepting) {
+    FBBCOMM_Builder_clone ic_msg;
+    fbbcomm_builder_clone_init(&ic_msg);
+
+    /* Skipping 'fn' */
+    /* Skipping 'stack' */
+    fbbcomm_builder_clone_set_flags(&ic_msg, flags);
+    /* Skipping 'arg' */
+    /* Not sending return value */
+    /* Send and go on, no ack */
+    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+
+    /* clone() can be really tricky to intercept, for example when the cloned process shares
+     * the file descriptor table with the parent (CLONE_FILES). In this case the interceptor
+     * would have to protect two communication fds or implement locking across separate processes. */
+    intercepting_enabled = false;
+    env_purge(environ);
+    /* Releasing the global lock (if we grabbed it in this pass) to not keep it locked in the forked process. */
+    if (i_locked) {
+      release_global_lock();
+      i_locked = false;
+    }
+  }
+
   if (vararg_count == 0) {
     ret = IC_ORIG({{ func }})(fn, stack, flags, arg);
   } else {
@@ -41,3 +59,6 @@
     }
   }
 ### endblock call_orig
+
+### block send_msg
+### endblock send_msg
