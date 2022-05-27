@@ -71,6 +71,16 @@
       debug_fcntl_arg_or_ret(f, cmd, arg_or_ret);
       fprintf(f, "\\"");
     }
+
+    /* Debugger method for int fields that represent CLONE_* flags. */
+    static void fbbcomm_debug_clone_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_clone_flags(f, flags);
+      fprintf(f, "\\"");
+    }
+
   """,
 
   "extra_h": """
@@ -823,7 +833,9 @@
     ]),
 
     # disables interception and shortcutting
-    ("clone", []),
+    ("clone", [
+      (REQUIRED, "int", "flags", "fbbcomm_debug_clone_flags"),
+    ]),
 
 
     # reading from /dev/urandom is allowed (GRND_RANDOM flag not set)
