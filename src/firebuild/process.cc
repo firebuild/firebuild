@@ -207,16 +207,20 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
     name->close_for_writing();
   }
 
-  if (ack_num != 0) {
-    ack_msg(fd_conn, ack_num);
-  }
-
   FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, flags, error);
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
+    if (ack_num != 0) {
+      ack_msg(fd_conn, ack_num);
+    }
     return -1;
   }
 
+  /* handle_open() is designed to possibly send an early ACK. However it doesn't do so currently,
+   * until we figure out #878 / #879. It always sends the ACK just before returning. */
+  if (ack_num != 0) {
+    ack_msg(fd_conn, ack_num);
+  }
   return 0;
 }
 
