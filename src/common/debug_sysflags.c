@@ -324,6 +324,45 @@ void debug_error_no(FILE *f, int error_no) {
 }
 
 /**
+ * Debug-print a signal number.
+ */
+void debug_signum(FILE *f, int signum) {
+  DEBUG_VALUE_START(f, signum);
+  DEBUG_VALUE_VALUE(f, signum, SIGHUP);
+  DEBUG_VALUE_VALUE(f, signum, SIGINT);
+  DEBUG_VALUE_VALUE(f, signum, SIGQUIT);
+  DEBUG_VALUE_VALUE(f, signum, SIGILL);
+  DEBUG_VALUE_VALUE(f, signum, SIGTRAP);
+  DEBUG_VALUE_VALUE(f, signum, SIGABRT);
+  DEBUG_VALUE_VALUE(f, signum, SIGBUS);
+  DEBUG_VALUE_VALUE(f, signum, SIGFPE);
+  DEBUG_VALUE_VALUE(f, signum, SIGKILL);
+  DEBUG_VALUE_VALUE(f, signum, SIGUSR1);
+  DEBUG_VALUE_VALUE(f, signum, SIGSEGV);
+  DEBUG_VALUE_VALUE(f, signum, SIGUSR2);
+  DEBUG_VALUE_VALUE(f, signum, SIGPIPE);
+  DEBUG_VALUE_VALUE(f, signum, SIGALRM);
+  DEBUG_VALUE_VALUE(f, signum, SIGTERM);
+  DEBUG_VALUE_VALUE(f, signum, SIGSTKFLT);
+  DEBUG_VALUE_VALUE(f, signum, SIGCHLD);
+  DEBUG_VALUE_VALUE(f, signum, SIGCONT);
+  DEBUG_VALUE_VALUE(f, signum, SIGSTOP);
+  DEBUG_VALUE_VALUE(f, signum, SIGTSTP);
+  DEBUG_VALUE_VALUE(f, signum, SIGTTIN);
+  DEBUG_VALUE_VALUE(f, signum, SIGTTOU);
+  DEBUG_VALUE_VALUE(f, signum, SIGURG);
+  DEBUG_VALUE_VALUE(f, signum, SIGXCPU);
+  DEBUG_VALUE_VALUE(f, signum, SIGXFSZ);
+  DEBUG_VALUE_VALUE(f, signum, SIGVTALRM);
+  DEBUG_VALUE_VALUE(f, signum, SIGPROF);
+  DEBUG_VALUE_VALUE(f, signum, SIGWINCH);
+  DEBUG_VALUE_VALUE(f, signum, SIGIO);
+  DEBUG_VALUE_VALUE(f, signum, SIGPWR);
+  DEBUG_VALUE_VALUE(f, signum, SIGSYS);
+  DEBUG_VALUE_END_DEC(f, signum);
+}
+
+/**
  * Debug-print a mode_t variable.
  *
  * mode_t sometimes contains the file type (e.g. when returned by a stat() call) and sometimes
@@ -367,14 +406,16 @@ void debug_wstatus(FILE *f, int wstatus) {
     sep = ", ";
   }
   if (WIFSIGNALED(wstatus)) {
-    fprintf(f, "%stermsig=%d", sep, WTERMSIG(wstatus));
+    fprintf(f, "%stermsig=", sep);
+    debug_signum(f, WTERMSIG(wstatus));
     if (WCOREDUMP(wstatus)) {
       fprintf(f, ", coredump");
     }
     sep = ", ";
   }
   if (WIFSTOPPED(wstatus)) {
-    fprintf(f, "%sstopsig=%d", sep, WSTOPSIG(wstatus));
+    fprintf(f, "%sstopsig=", sep);
+    debug_signum(f, WTERMSIG(wstatus));
     sep = ", ";
   }
   if (WIFCONTINUED(wstatus)) {
