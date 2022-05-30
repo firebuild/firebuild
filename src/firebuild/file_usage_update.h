@@ -14,12 +14,14 @@ namespace firebuild {
 
 class FileUsageUpdate {
  public:
-  FileUsageUpdate(const FileName *filename, FileInfo info, bool written = false)
-      : initial_state_(info), filename_(filename), written_(written),
+  FileUsageUpdate(const FileName *filename, FileInfo info, bool written = false,
+                  bool mode_changed = false)
+      : initial_state_(info), filename_(filename), written_(written), mode_changed_(mode_changed),
         generation_(filename->generation()) {}
 
-  explicit FileUsageUpdate(const FileName *filename, FileType type = DONTKNOW, bool written = false)
-      : initial_state_(type), filename_(filename), written_(written),
+  explicit FileUsageUpdate(const FileName *filename, FileType type = DONTKNOW, bool written = false,
+                           bool mode_changed = false)
+      : initial_state_(type), filename_(filename), written_(written), mode_changed_(mode_changed),
         generation_(filename->generation()) {}
 
   static FileUsageUpdate get_from_open_params(const FileName *filename, int flags, int err);
@@ -31,6 +33,7 @@ class FileUsageUpdate {
 
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}
+  bool mode_changed() const {return mode_changed_;}
   file_generation_t generation() const {return generation_;}
   bool unknown_err() const {return unknown_err_;}
 
@@ -42,6 +45,10 @@ class FileUsageUpdate {
   bool initial_hash_known() const {return initial_state_.hash_known() || hash_computer_ != nullptr;}
   bool get_initial_hash(Hash *hash_ptr) const;
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
+  void set_initial_mode_bits(mode_t mode, mode_t mode_mask)
+      {initial_state_.set_mode_bits(mode, mode_mask);}
+  mode_t initial_mode() const {return initial_state_.mode();}
+  mode_t initial_mode_mask() const {return initial_state_.mode_mask();}
   const FileInfo& initial_state() const {return initial_state_;}
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
@@ -77,6 +84,11 @@ class FileUsageUpdate {
   /* The file's contents were altered by the process, e.g. written to, or modified in any other way,
    * including removal of the file, or another file getting renamed to this one. */
   bool written_ {false};
+
+  /** The file's mode was altered by the process.
+   *  (Luckily for us there's no way to set individual bits, chmod() always sets all of them.
+   *  So a single boolean can refer to all the 12 mode bits.) */
+  bool mode_changed_ {false};
 
   /* File's current generation. */
   file_generation_t generation_;

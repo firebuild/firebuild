@@ -319,17 +319,28 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   if (fi.hash_known()) {
     new_file.set_hash(fi.hash().get());
   }
+  if (fi.mode_mask() != 0) {
+    new_file.set_mode(fi.mode());
+    new_file.set_mode_mask(fi.mode_mask());
+  }
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     FileType type, const ssize_t content_size = -1,
-                     const Hash *content_hash = nullptr, const int mode = -1) {
+                     FileType type, const ssize_t content_size, const Hash *content_hash,
+                     const mode_t mode, const mode_t mode_mask) {
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   new_file.set_path_with_length(file_name->c_str(), file_name->length());
   new_file.set_type(type);
-  if (content_size >= 0) new_file.set_size(content_size);
-  if (content_hash) new_file.set_hash(content_hash->get());
-  if (mode != -1) new_file.set_mode(mode);
+  if (content_size >= 0) {
+    new_file.set_size(content_size);
+  }
+  if (content_hash) {
+    new_file.set_hash(content_hash->get());
+  }
+  if (mode_mask != 0) {
+    new_file.set_mode(mode);
+    new_file.set_mode_mask(mode_mask);
+  }
 }
 
 static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
@@ -490,11 +501,11 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             }
             // TODO(egmont) fail if setuid/setgid/sticky is set
             int mode = st.st_mode & 07777;
-            add_file(&out_path_isreg, filename, ISREG, st.st_size, &new_hash, mode);
+            add_file(&out_path_isreg, filename, ISREG, st.st_size, &new_hash, mode, 07777);
           } else if (S_ISDIR(st.st_mode)) {
             // TODO(egmont) fail if setuid/setgid/sticky is set
             const int mode = st.st_mode & 07777;
-            add_file(&out_path_isdir, filename, ISDIR, -1, nullptr, mode);
+            add_file(&out_path_isdir, filename, ISDIR, -1, nullptr, mode, 07777);
             out_path_isdir_filename_ptrs.insert(filename);
           } else {
             // TODO(egmont) handle other types of entries
@@ -601,7 +612,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
 }
 
 /**
- * Create a FileInfo object based an FBB's File entry.
+ * Create a FileInfo object based on an FBB's File entry.
  */
 static FileInfo file_to_file_info(const FBBSTORE_Serialized_file *file) {
   FileInfo info(file->get_type());
@@ -612,6 +623,7 @@ static FileInfo file_to_file_info(const FBBSTORE_Serialized_file *file) {
     Hash hash(file->get_hash());
     info.set_hash(hash);
   }
+  info.set_mode_bits(file->get_mode_with_fallback(0), file->get_mode_mask_with_fallback(0));
   return info;
 }
 

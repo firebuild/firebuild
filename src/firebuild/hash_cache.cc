@@ -86,9 +86,11 @@ static bool update_statinfo(const FileName* path, int fd, const struct stat64 *s
   entry->is_stored = false;
   if (S_ISREG(st->st_mode)) {
     entry->info.set_type(ISREG);
+    entry->info.set_mode_bits(st->st_mode & 07777, 07777 /* we know all the mode bits */);
     entry->info.set_size(st->st_size);
   } else {
     entry->info.set_type(ISDIR);
+    entry->info.set_mode_bits(st->st_mode & 07777, 07777 /* we know all the mode bits */);
     entry->info.set_size(-1);
   }
   entry->info.set_hash(nullptr);
@@ -337,7 +339,9 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
       break;
   }
 
-  // FIXME permission checking comes here
+  if ((query.mode() & query.mode_mask()) != (entry->info.mode() & query.mode_mask())) {
+    return false;
+  }
 
   /* Everything matches so far. If the query doesn't contain a hash then it's a match. */
   if (!query.hash_known()) {

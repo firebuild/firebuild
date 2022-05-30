@@ -394,10 +394,30 @@ int Process::handle_fstat(const int fd, const mode_t st_mode, const off_t st_siz
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "fd=%d, st_mode=%d, st_size=%ld, error=%d", fd, st_mode, st_size, error);
 
-  (void)fd;
-  (void)st_mode;
-  (void)st_size;  /* We registered this when the file was opened. */
-  (void)error;
+  FileFD *file_fd = get_fd(fd);
+  if (!file_fd) {
+    if (error == 0) {
+      exec_point()->disable_shortcutting_bubble_up(
+          "Process fstat()ed an unknown fd successfully, "
+          "which means interception missed at least one open()", fd);
+      return -1;
+    } else {
+      /* Invalid fd passed to fstat(), or something like that. */
+      return 0;
+    }
+  }
+
+  const FileName *name = file_fd->filename();
+  if (!name) {
+    /* Cannot find file name, maybe it's a pipe or similar. Take no action. */
+    return 0;
+  }
+
+  FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, st_size, error);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register fstat() on", *name);
+    return -1;
+  }
 
   return 0;
 }
@@ -422,7 +442,7 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
 
   FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, st_size, error);
   if (!exec_point()->register_file_usage_update(name, update)) {
-    exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
+    exec_point()->disable_shortcutting_bubble_up("Could not register stat() on", *name);
     return -1;
   }
 
