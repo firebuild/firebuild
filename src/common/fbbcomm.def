@@ -254,31 +254,13 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("access", [
-      # path to file
-      (OPTIONAL, STRING, "pathname"),
-      # acess mode
-      (OPTIONAL, "int", "mode"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
-    ("euidaccess", [
-      # path to file
-      (OPTIONAL, STRING, "pathname"),
-      # access mode
-      (OPTIONAL, "int", "mode"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
     ("faccessat", [
       # dir file descriptor
       (OPTIONAL, "int", "dirfd"),
       # path to file
       (OPTIONAL, STRING, "pathname"),
-      # access mode
-      (OPTIONAL, "int", "mode"),
+      # access mode (NOT related to "mode_t")
+      (REQUIRED, "int", "mode"),
       # flags
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
