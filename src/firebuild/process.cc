@@ -492,12 +492,39 @@ int Process::handle_faccessat(const int dirfd, const char * const ar_name, const
       /* The requested permissions aren't set. Unfortunately we don't know if the problem is with
        * this particular or some preceding path component, perhaps the access()ed file doesn't even
        * exist. Also, if multiple bits were requested then we don't know which of them are unset or
-       * otherwise problematic, and which ones are set. */
-      // FIXME instead of disabling shortcutting, maybe we could stat the file and register what we
-      // see there.
-      exec_point()->disable_shortcutting_bubble_up("Could not register a failed faccessat "
-                                                   "returning EACCES for", *name);
-      return -1;
+       * otherwise problematic, and which ones are set.
+       * stat() the file, and remember the relevant bits from that information. */
+      struct stat64 st;
+      if (stat64(name->c_str(), &st) < 0) {
+        /* There's a permission error somewhere earlier along the PATH. Firebuild does not support
+         * this error anywhere else, we always pretend the file doesn't exist. Do that here, too.
+         * FIXME This will be fixed across Firebuild by #862. */
+        update.set_initial_type(NOTEXIST);
+      } else {
+        /* We know all the permission bits of the file. Record the ones that were requested by the
+         * access() call. */
+        update.set_initial_type(EXIST);
+        bool unset_bit_seen = false;
+        if (mode & R_OK) {
+          update.set_initial_mode_bits(st.st_mode & S_IRUSR, S_IRUSR);  /* 0400 */
+          unset_bit_seen = unset_bit_seen || ((st.st_mode & S_IRUSR) == 0);
+        }
+        if (mode & W_OK) {
+          update.set_initial_mode_bits(st.st_mode & S_IWUSR, S_IWUSR);  /* 0200 */
+          unset_bit_seen = unset_bit_seen || ((st.st_mode & S_IWUSR) == 0);
+        }
+        if (mode & X_OK) {
+          update.set_initial_mode_bits(st.st_mode & S_IXUSR, S_IXUSR);  /* 0100 */
+          unset_bit_seen = unset_bit_seen || ((st.st_mode & S_IXUSR) == 0);
+        }
+        if (!unset_bit_seen) {
+          /* We've stat()ed the file, and all the permission bits requested by access() are set.
+           * Why did access() return EACCES then?? It's a mystery. */
+          exec_point()->disable_shortcutting_bubble_up("stat() returned unexpected permission bits "
+                                                       "for", *name);
+          return -1;
+        }
+      }
     } else {
       /* The entry doesn't exist, or at least we cannot handle it. */
       update.set_initial_type(NOTEXIST);
