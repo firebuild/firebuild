@@ -45,8 +45,8 @@ FileUsage::DbInitializer FileUsage::db_initializer_;
 bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
   return lhs.initial_state_ == rhs.initial_state_ &&
       lhs.written_ == rhs.written_ &&
+      lhs.mode_changed_ == rhs.mode_changed_ &&
       lhs.generation_ == rhs.generation_ &&
-      // lhs.stat_changed_ == rhs.stat_changed_ &&
       lhs.unknown_err_ == rhs.unknown_err_;
 }
 
@@ -218,6 +218,20 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
     }
   }
 
+  if (!mode_changed_) {
+    // FIXME this condition could be even more fine-grained to detect if things won't change
+    if (initial_mode() != update.initial_mode() ||
+        initial_mode_mask() != update.initial_mode_mask()) {
+      tmp.set_initial_mode_bits(update.initial_mode(), update.initial_mode_mask());
+      changed = true;
+    }
+
+    if (update.mode_changed()) {
+      tmp.mode_changed_ = true;
+      changed = true;
+    }
+  }
+
   if (!changed) {
     return this;
   } else {
@@ -235,7 +249,9 @@ bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs)
 std::string FileUsage::d_internal(const int level) const {
   (void)level;  /* unused */
   return std::string("{FileUsage initial_state=") + d(initial_state_, level) +
-      ", written=" + d(written_) + ", generation=" + d(generation_) + "}";
+      ", written=" + d(written_) +
+      ", mode_changed=" + d(mode_changed_) +
+      ", generation=" + d(generation_) + "}";
 }
 
 /* Global debugging methods.

@@ -23,6 +23,7 @@ struct FileUsageHasher;
 class FileUsage {
  public:
   bool written() const {return written_;}
+  bool mode_changed() const {return mode_changed_;}
   file_generation_t generation() const {return generation_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
@@ -35,6 +36,10 @@ class FileUsage {
   bool initial_hash_known() const {return initial_state_.hash_known();}
   const Hash& initial_hash() const {return initial_state_.hash();}
   void set_initial_hash(const Hash& hash) {initial_state_.set_hash(hash);}
+  void set_initial_mode_bits(mode_t mode, mode_t mode_mask)
+      {initial_state_.set_mode_bits(mode, mode_mask);}
+  mode_t initial_mode() const {return initial_state_.mode();}
+  mode_t initial_mode_mask() const {return initial_state_.mode_mask();}
   const FileInfo& initial_state() const {return initial_state_;}
 
   static const FileUsage* Get(FileType type = DONTKNOW) {
@@ -52,9 +57,9 @@ class FileUsage {
   explicit FileUsage(FileType type = DONTKNOW) : initial_state_(type) {}
 
   FileUsage(const FileName* filename, const FileInfo *initial_state, bool written,
-            int unknown_err):
-      initial_state_(*initial_state), written_(written), generation_(filename->generation()),
-      unknown_err_(unknown_err) {}
+            bool mode_changed, int unknown_err):
+      initial_state_(*initial_state), written_(written), mode_changed_(mode_changed),
+      generation_(filename->generation()), unknown_err_(unknown_err) {}
 
   /* Things that describe the filesystem when the process started up */
   FileInfo initial_state_;
@@ -66,10 +71,10 @@ class FileUsage {
    *  another file getting renamed to this one. */
   bool written_ {false};
 
-  /** If the file's metadata (e.g. mode) was potentially altered, that is,
-   *  the final state is to be remembered.
-   *  FIXME Do we need this? We should just always stat() at the end. */
-  // bool stat_changed_ {false};
+  /** The file's mode was altered by the process.
+   *  (Luckily for us there's no way to set individual bits, chmod() always sets all of them.
+   *  So a single boolean can refer to all the 12 mode bits.) */
+  bool mode_changed_ {false};
 
   /** Generation of the file the process last seen (either by reading or writing to the file). */
   file_generation_t generation_ {0};
@@ -111,13 +116,14 @@ struct FileUsageHasher {
     hash = XXH3_64bits_withSeed(&size, sizeof(size), hash);
     struct {
       uint64_t initial_type : 3;
+      uint64_t initial_mode : 12;
+      uint64_t initial_mode_mask : 12;
       uint64_t written : 1;
-      uint64_t unused : 28;
-      // TODO(rbalint) use those later
-      // uint64_t stated: 1; ( = f.stated_)
-      // uint64_t stat_changed : 1; (= f.stat_changed_)
+      uint64_t mode_changed : 1;
+      uint64_t unused : 3;  /* 32 bits so far */
       uint64_t generation : 32;
-    } merged_state = {f.initial_type(), f.written_, 0, f.generation_};
+    } merged_state = {f.initial_type(), f.initial_mode(), f.initial_mode_mask(),
+                      f.written_, f.mode_changed_, 0, f.generation_};
     hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
     return hash;
   }

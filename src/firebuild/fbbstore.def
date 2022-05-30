@@ -55,8 +55,10 @@
 
       # last modification time - FIXME in what unit?
       #(OPTIONAL, "long",                "mtime"),
-      # TODO refine mode
+      # the known bits of the mode, if any
       (OPTIONAL, "mode_t",              "mode"),
+      # which bits of the mode are known, if any
+      (OPTIONAL, "mode_t",              "mode_mask"),
       # The reason why the file could not be opened.
       #(OPTIONAL, "int",                 "error_no"),
     ]),

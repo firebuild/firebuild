@@ -64,6 +64,14 @@ class FileInfo {
       hash_known_ = false;
     }
   }
+  mode_t mode() const {return mode_;}
+  mode_t mode_mask() const {return mode_mask_;}
+  /* Set or clear the file mode bits where enabled by the mask, leave the other bits unchanged. */
+  void set_mode_bits(mode_t mode, mode_t mask) {
+    mode_ &= ~mask;
+    mode_ |= (mode & mask);
+    mode_mask_ |= mask;
+  }
 
   /* Misc */
   static int file_type_to_int(const FileType t) {
@@ -131,6 +139,15 @@ class FileInfo {
   // FIXME(egmont) Do we want to have special treatment for zero-length files,
   // either always set the hash (copy from a global variable), or never set it?
   Hash hash_;
+
+  /** The mode of the file, i.e. the 12 bits: setuid, setgid, sticky, owner-readable, etc.
+   *  If the corresponding bit in mode_mask_ is set then the mode is known to
+   *  have the given property (set or unset) as contained in this mode_ here.
+   *  If the corresponding bit in mode_mask_ is unset then that bit here is zero (unused). */
+  mode_t mode_ {0};
+
+  /** Which of the bits in mode_ are known. */
+  mode_t mode_mask_ {0};
 
   friend bool operator==(const FileInfo& lhs, const FileInfo& rhs);
 };

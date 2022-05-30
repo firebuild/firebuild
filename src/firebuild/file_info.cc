@@ -20,7 +20,9 @@ bool operator==(const FileInfo& lhs, const FileInfo& rhs) {
   return lhs.type_ == rhs.type_ &&
          lhs.size_ == rhs.size_ &&
          lhs.hash_known_ == rhs.hash_known_ &&
-         lhs.hash_ == rhs.hash_;
+         lhs.hash_ == rhs.hash_ &&
+         lhs.mode_ == rhs.mode_ &&
+         lhs.mode_mask_ == rhs.mode_mask_;
 }
 
 /* Global debugging methods.
@@ -28,12 +30,18 @@ bool operator==(const FileInfo& lhs, const FileInfo& rhs) {
  * See #431 for design and rationale. */
 std::string d(const FileInfo& fi, const int level) {
   (void)level;  /* unused */
+  char mode_str[8], mode_mask_str[8];
+  snprintf(mode_str, sizeof(mode_str), "0%03o", fi.mode());
+  snprintf(mode_mask_str, sizeof(mode_mask_str), "0%03o", fi.mode_mask());
   return std::string("{FileInfo type=") +
       file_type_to_string(fi.type()) +
       (fi.size_known() ?
           ", size=" + d(fi.size()) : "") +
       (fi.hash_known() ?
-          ", hash=" + d(fi.hash()) : "") + "}";
+          ", hash=" + d(fi.hash()) : "") +
+      (fi.mode_mask() != 0 ?
+          ", mode=" + std::string(mode_str) + ", mode_mask=" + std::string(mode_mask_str) : "") +
+      "}";
 }
 std::string d(const FileInfo *fi, const int level) {
   if (fi) {

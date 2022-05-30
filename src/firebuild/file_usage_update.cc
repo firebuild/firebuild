@@ -283,9 +283,11 @@ FileUsageUpdate FileUsageUpdate::get_from_stat_params(const FileName *filename, 
   if (!err) {
     if (S_ISREG(mode)) {
       update.set_initial_type(ISREG);
+      update.set_initial_mode_bits(mode, 07777 /* we know all the mode bits */);
       update.set_initial_size(size);
     } else if (S_ISDIR(mode)) {
       update.set_initial_type(ISDIR);
+      update.set_initial_mode_bits(mode, 07777 /* we know all the mode bits */);
     } else if (S_ISLNK(mode)) {
       /* It's a symlink. We got to know absolutely nothing about the underlying file, directory, or
        * lack thereof. FIXME: Refine this logic as per #784. */
@@ -329,6 +331,7 @@ std::string FileUsageUpdate::d_internal(const int level) const {
       (type_computer_ ? ", type_computer=<func>" : "") +
       (hash_computer_ ? ", hash_computer=<func>" : "") +
       ", written=" + d(written_) +
+      ", mode_changed=" + d(mode_changed_) +
       ", generation=" + d(generation_) +
       ", unknown_err=" + d(unknown_err_) + "}";
 }
