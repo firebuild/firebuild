@@ -109,6 +109,9 @@ void debug_open_flags(FILE *f, int flags) {
  */
 void debug_at_flags(FILE *f, int flags) {
   DEBUG_BITMAP_START(f, flags)
+  /* AT_EACCESS has different semantics but the same value as AT_REMOVEDIR.
+   * FIXME Print whichever semantically matches the current context. */
+  /* DEBUG_BITMAP_FLAG(f, flags, AT_EACCESS) */
   DEBUG_BITMAP_FLAG(f, flags, AT_EMPTY_PATH)
   DEBUG_BITMAP_FLAG(f, flags, AT_NO_AUTOMOUNT)
   DEBUG_BITMAP_FLAG(f, flags, AT_RECURSIVE)

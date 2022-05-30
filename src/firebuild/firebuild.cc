@@ -1200,6 +1200,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_stat *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_faccessat: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_faccessat *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_memfd_create: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
           reinterpret_cast<const FBBCOMM_Serialized_memfd_create *>(fbbcomm_buf));
@@ -1257,11 +1262,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->exec_point()->disable_shortcutting_bubble_up("clone() is not supported");
       break;
     }
-    case FBBCOMM_TAG_access:
     case FBBCOMM_TAG_chmod:
     case FBBCOMM_TAG_chown:
-    case FBBCOMM_TAG_euidaccess:
-    case FBBCOMM_TAG_faccessat:
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchmod:

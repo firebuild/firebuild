@@ -1175,11 +1175,14 @@ generate("int", "dup3", "int oldfd, int newfd, int flags",
 
 # Intercept access variants
 generate("int", "access", "const char *pathname, int mode",
+         msg="faccessat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(access, pathname);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(faccessat, pathname);"])
 generate("int", ["euidaccess", "eaccess"], "const char *pathname, int mode",
+         msg="faccessat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(euidaccess, pathname);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(faccessat, pathname);",
+                         "fbbcomm_builder_faccessat_set_flags(&ic_msg, AT_EACCESS);"])
 generate("int", "faccessat", "int dirfd, const char *pathname, int mode, int flags",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(faccessat, dirfd, pathname);"])

@@ -327,6 +327,12 @@ class Process {
                   const int flags, const mode_t st_mode, const off_t st_size, const int error = 0);
 
   /**
+   * Handle access, e[uid]access, faccessat in the monitored process
+   */
+  int handle_faccessat(const int dirfd, const char * const name, const size_t name_len,
+                       const int mode, const int flags, const int error = 0);
+
+  /**
    * Handle memfd_create in the monitored process
    */
   int handle_memfd_create(const int flags, const int fd);

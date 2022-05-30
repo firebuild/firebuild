@@ -95,6 +95,15 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_stat *msg)
                            flags, st_mode, st_size, error);
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_faccessat *msg) {
+  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+  const int mode = msg->get_mode();
+  const int flags = msg->get_flags_with_fallback(0);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_faccessat(dirfd, msg->get_pathname(), msg->get_pathname_len(),
+                                mode, flags, error);
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
   return proc->handle_memfd_create(msg->get_flags(), msg->get_ret());
 }

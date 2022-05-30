@@ -449,6 +449,70 @@ int Process::handle_stat(const int dirfd, const char * const ar_name, const size
   return 0;
 }
 
+int Process::handle_faccessat(const int dirfd, const char * const ar_name, const size_t ar_name_len,
+                              const int mode, const int flags, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, mode=%d, flags=%d, error=%d",
+         dirfd, D(ar_name), mode, flags, error);
+
+  (void)flags;  /* AT_EACCESS is currently ignored, we assume no setuid/setgid in the game. */
+
+  /* Note: faccessat() obviously cannot operate on an already opened file, doesn't support
+   * AT_EMPTY_PATH. */
+  const FileName* name = get_absolute(dirfd, ar_name, ar_name_len);
+
+  FileUsageUpdate update(name);
+
+  if (mode == F_OK) {
+    /* Checked if there's something at this name. It's effectively a stat(), without getting to know
+     * the fields in "struct stat". */
+    if (!error) {
+      update.set_initial_type(EXIST);
+    } else {
+      update.set_initial_type(NOTEXIST);
+    }
+  } else {
+    /* We got to know something about some of the read, write, execute permission bits. We assume it
+     * corresponds to the owner's permission bit. By this we assume that the current user isn't
+     * root, that there isn't a setuid/setgid bit in the game, and that there isn't any read-only
+     * filesystem involved. */
+    if (!error) {
+      /* Something exists at the given location, and all of the requested bits are set. */
+      update.set_initial_type(EXIST);
+      if (mode & R_OK) {
+        update.set_initial_mode_bits(S_IRUSR, S_IRUSR);  /* 0400 */
+      }
+      if (mode & W_OK) {
+        update.set_initial_mode_bits(S_IWUSR, S_IWUSR);  /* 0200 */
+      }
+      if (mode & X_OK) {
+        update.set_initial_mode_bits(S_IXUSR, S_IXUSR);  /* 0100 */
+      }
+    } else if (error == EACCES) {
+      /* The requested permissions aren't set. Unfortunately we don't know if the problem is with
+       * this particular or some preceding path component, perhaps the access()ed file doesn't even
+       * exist. Also, if multiple bits were requested then we don't know which of them are unset or
+       * otherwise problematic, and which ones are set. */
+      // FIXME instead of disabling shortcutting, maybe we could stat the file and register what we
+      // see there.
+      exec_point()->disable_shortcutting_bubble_up("Could not register a failed faccessat "
+                                                   "returning EACCES for", *name);
+      return -1;
+    } else {
+      /* The entry doesn't exist, or at least we cannot handle it. */
+      update.set_initial_type(NOTEXIST);
+    }
+  }
+
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Could not register the faccessat of a file", *name);
+    return -1;
+  }
+
+  return 0;
+}
+
 int Process::handle_memfd_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "flags=%d, fd=%d", flags, fd);
