@@ -2,8 +2,7 @@
 {# Copyright (c) 2020 Interri Kft.                                    #}
 {# This file is an unpublished work. All rights reserved.             #}
 {# ------------------------------------------------------------------ #}
-{# Template for the vararg open() family.                             #}
-{# (The non-vararg __open_2() variants are handled elsewhere.)        #}
+{# Template for the open() family.                                    #}
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
