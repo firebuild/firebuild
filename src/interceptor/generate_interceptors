@@ -420,7 +420,8 @@ generate("int", "rename", "const char *oldpath, const char *newpath",
                        "}"],
          msg_skip_fields=["oldpath", "newpath"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(rename, oldpath);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(rename, newpath);"])
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(rename, newpath);"],
+         ack_condition="true")
 generate("int", "renameat", "int olddirfd, const char *oldpath, int newdirfd, const char *newpath",
          before_lines=["if (i_am_intercepting) {",
                        "  maybe_send_pre_open_without_ack_request(olddirfd, oldpath, O_WRONLY | O_TRUNC);",
