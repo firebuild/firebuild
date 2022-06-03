@@ -18,6 +18,8 @@ tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
 tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* FileName::write_fds_db_;
 tsl::hopscotch_map<const FileName*, file_generation_t>* FileName::generation_db_;
 
+const FileName* FileName::default_tmpdir;
+
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
   hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();

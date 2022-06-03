@@ -12,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "firebuild/config.h"
 #include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
@@ -442,6 +443,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   std::vector<const char *> out_path_notexist;
   /* Outputs for verification. */
   tsl::hopscotch_set<const FileName*> out_path_isdir_filename_ptrs;
+  const FileName* const tmpdir = FileName::default_tmpdir;
 
   /* Construct in_path_* in 2 passes. First collect the non-system paths and then the system paths,
    * for better performance. */
@@ -471,6 +473,15 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
           /* NOTEXIST is handled specially to save space in the FBB. */
           in_path_notexist.push_back({filename->c_str(), filename->length()});
           break;
+        case ISDIR:
+          if (fu->initial_state().hash_known() && quirks & FB_QUIRK_IGNORE_TMP_LISTING
+              && filename == tmpdir) {
+            FileInfo no_hash_initial_state(fu->initial_state());
+            no_hash_initial_state.set_hash(nullptr);
+            add_file(&in_path, filename, no_hash_initial_state);
+            break;
+          }
+          [[fallthrough]];
         default:
           add_file(&in_path, filename, fu->initial_state());
           break;

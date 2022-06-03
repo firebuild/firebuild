@@ -35,6 +35,8 @@ ExeMatcher* skip_cache_matcher = nullptr;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 int64_t min_cpu_time_u = 0;
 
+int quirks = 0;
+
 /** Parse configuration file
  *
  *  If custom_cfg_file is non-NULL, use that.
@@ -230,6 +232,20 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   init_matcher(&dont_shortcut_matcher, cfg->getRoot()["processes"]["dont_shortcut"]);
   init_matcher(&dont_intercept_matcher, cfg->getRoot()["processes"]["dont_intercept"]);
   init_matcher(&skip_cache_matcher, cfg->getRoot()["processes"]["skip_cache"]);
+
+  if (cfg->exists("quirks")) {
+    const libconfig::Setting& items = cfg->getRoot()["quirks"];
+    for (int i = 0; i < items.getLength(); i++) {
+      std::string quirk(items[i]);
+      if (quirk == "ignore-tmp-listing") {
+        quirks |= FB_QUIRK_IGNORE_TMP_LISTING;
+      } else {
+        if (FB_DEBUGGING(FB_DEBUG_CONFIG)) {
+          std::cerr <<"Ignoring unknown quirk: " + quirk << std::endl;
+        }
+      }
+    }
+  }
 }
 
 }  /* namespace firebuild */
