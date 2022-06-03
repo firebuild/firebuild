@@ -27,6 +27,7 @@ extern int64_t min_cpu_time_u;
 /** Enabled quirks represented as flags. See "quirks" in etc/firebuild.conf. */
 extern int quirks;
 #define FB_QUIRK_IGNORE_TMP_LISTING 0x01
+#define FB_QUIRK_LTO_WRAPPER        0x02
 
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);

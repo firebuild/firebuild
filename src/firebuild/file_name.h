@@ -91,6 +91,15 @@ class FileName {
   bool is_in_ignore_location() const {return in_ignore_location_;}
   bool is_in_system_location() const {return in_system_location_;}
 
+  std::string without_dirs() const {
+    // TODO(rbalint) use std::string::ends_with when we switch to c++20
+    const char* last_slash = strrchr(name_, '/');
+    if (last_slash) {
+      return std::string(last_slash + 1);
+    } else {
+      return to_string();
+    }
+  }
   static const FileName* default_tmpdir;
 
  private:

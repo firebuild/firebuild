@@ -223,8 +223,14 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       sv_msg.set_dont_intercept(true);
     } else if (dont_shortcut_matcher->match(proc->executable(), proc->executed_path(),
                                             proc->args().size() > 0 ? proc->args()[0] : "")) {
-      /* Executables that are known not to be shortcuttable. */
-      proc->disable_shortcutting_bubble_up("Executable set to be not shortcut");
+      if (quirks & FB_QUIRK_LTO_WRAPPER && proc->args().size() > 0 && proc->args()[0] == "make"
+          && proc->parent_exec_point()
+          && proc->parent_exec_point()->executable()->without_dirs() == "lto-wrapper" ) {
+        FB_DEBUG(FB_DEBUG_PROC, "Allow shortcutting lto-wrapper's make (lto-wrapper quirk)");
+      } else {
+        /* Executables that are known not to be shortcuttable. */
+        proc->disable_shortcutting_bubble_up("Executable set to be not shortcut");
+      }
     }
 
     /* Check for executables that we prefer not to shortcut. */

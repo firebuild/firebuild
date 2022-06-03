@@ -239,6 +239,8 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
       std::string quirk(items[i]);
       if (quirk == "ignore-tmp-listing") {
         quirks |= FB_QUIRK_IGNORE_TMP_LISTING;
+      } else if (quirk == "lto-wrapper") {
+        quirks |= FB_QUIRK_LTO_WRAPPER;
       } else {
         if (FB_DEBUGGING(FB_DEBUG_CONFIG)) {
           std::cerr <<"Ignoring unknown quirk: " + quirk << std::endl;
