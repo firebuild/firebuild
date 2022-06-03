@@ -1254,8 +1254,19 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         /* The fd has been opened for writing and the access and modification times should be set to
          * current time which happens automatically when the process is shortcut. This is safe. */
       } else {
-        proc->exec_point()->disable_shortcutting_bubble_up(
-            "Changing file timestamps is not supported");
+        firebuild::ExecedProcess* next_exec_level;
+        if (firebuild::quirks & FB_QUIRK_LTO_WRAPPER && proc->exec_point()->args().size() > 0
+            && proc->exec_point()->args()[0] == "touch"
+            && (next_exec_level = proc->parent_exec_point())  // sh
+            && (next_exec_level = next_exec_level->parent_exec_point())  // make
+            && (next_exec_level = next_exec_level->parent_exec_point())  // lto-wrapper
+            && next_exec_level->executable()->without_dirs() == "lto-wrapper" ) {
+          FB_DEBUG(firebuild::FB_DEBUG_PROC, "Allow shortcutting lto-wrapper's touch descendant "
+                   "(lto-wrapper quirk)");
+        } else {
+          proc->exec_point()->disable_shortcutting_bubble_up(
+              "Changing file timestamps is not supported");
+        }
       }
       break;
     }
