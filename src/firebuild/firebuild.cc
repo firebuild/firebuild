@@ -1821,6 +1821,8 @@ int main(const int argc, char *argv[]) {
     }
     fb_conn_string = strdup((std::string(fb_tmp_dir) + "/socket").c_str());
   }
+
+  firebuild::FileName::default_tmpdir = firebuild::FileName::Get("/tmp", strlen("/tmp"));
   auto env_exec = get_sanitized_env();
 
   /* Set up sigchild handler */

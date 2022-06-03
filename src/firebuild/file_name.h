@@ -91,6 +91,8 @@ class FileName {
   bool is_in_ignore_location() const {return in_ignore_location_;}
   bool is_in_system_location() const {return in_system_location_;}
 
+  static const FileName* default_tmpdir;
+
  private:
   FileName(const char * const name, size_t length, bool copy_name)
       : name_(copy_name ? reinterpret_cast<const char *>(malloc(length + 1)) : name),
@@ -124,6 +126,7 @@ class FileName {
    * A file's generation number is 0 until it is opened for writing for the first time.
    */
   static tsl::hopscotch_map<const FileName*, file_generation_t>* generation_db_;
+
   /* Disable assignment. */
   void operator=(const FileName&);
 
