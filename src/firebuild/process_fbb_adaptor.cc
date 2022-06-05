@@ -20,7 +20,8 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_open *msg,
   int error = msg->get_error_no_with_fallback(0);
   int ret = msg->get_ret_with_fallback(-1);
   return proc->handle_open(dirfd, msg->get_file(), msg->get_file_len(), msg->get_flags(),
-                           ret, error, fd_conn, ack_num, msg->get_pre_open_sent());
+                           msg->get_mode_with_fallback(0), ret, error, fd_conn, ack_num,
+                           msg->get_pre_open_sent());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_freopen *msg, int fd_conn,
@@ -37,7 +38,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dlopen *ms
   if (!msg->has_error_string() && msg->has_absolute_filename()) {
     return proc->handle_open(AT_FDCWD,
                              msg->get_absolute_filename(), msg->get_absolute_filename_len(),
-                             O_RDONLY, -1, 0, fd_conn, ack_num);
+                             O_RDONLY, 0, -1, 0, fd_conn, ack_num);
   } else {
     std::string filename = msg->has_absolute_filename() ? msg->get_absolute_filename() : "NULL";
     proc->exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ", filename);
@@ -102,6 +103,22 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_faccessat 
   const int error = msg->get_error_no_with_fallback(0);
   return proc->handle_faccessat(dirfd, msg->get_pathname(), msg->get_pathname_len(),
                                 mode, flags, error);
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_chmod *msg) {
+  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+  const mode_t mode = msg->get_mode();
+  const int flags = msg->get_flags_with_fallback(0);
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_chmod(dirfd, msg->get_path(), msg->get_path_len(),
+                            mode, flags, error);
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fchmod *msg) {
+  const int fd = msg->get_fd();
+  const int mode = msg->get_mode();
+  const int error = msg->get_error_no_with_fallback(0);
+  return proc->handle_fchmod(fd, mode, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {

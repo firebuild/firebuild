@@ -176,12 +176,12 @@ int Process::handle_pre_open(const int dirfd, const char * const ar_name, const 
 }
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const size_t ar_len,
-                         const int flags, const int fd, const int error,
+                         const int flags, const mode_t mode, const int fd, const int error,
                          int fd_conn, const int ack_num, const bool pre_open_sent) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, pre_open_sent=%d, fd=%d, error=%d, fd_conn=%s, "
-         "ack_num=%d",
-         dirfd, D(ar_name), flags, fd, pre_open_sent, error, D_FD(fd_conn), ack_num);
+         "dirfd=%d, ar_name=%s, flags=%d, mode=0%03o, pre_open_sent=%d, fd=%d, error=%d, "
+         "fd_conn=%s, ack_num=%d",
+         dirfd, D(ar_name), flags, mode, fd, pre_open_sent, error, D_FD(fd_conn), ack_num);
 
   const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
@@ -207,7 +207,8 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
     name->close_for_writing();
   }
 
-  FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, flags, error);
+  FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, flags,
+                                                                 mode & 07777 & ~umask(), error);
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     if (ack_num != 0) {
@@ -239,7 +240,7 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
     handle_close(oldfd, 0);
 
     /* Register the opening of the new file, no matter if succeeded or failed. */
-    return handle_open(AT_FDCWD, ar_name, ar_len, flags, fd, error, fd_conn,
+    return handle_open(AT_FDCWD, ar_name, ar_len, flags, 0666, fd, error, fd_conn,
                        ack_num, pre_open_sent);
   } else {
     /* Without a name pre_open should not have been sent. */
@@ -264,7 +265,7 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
 
       /* Register the reopening, no matter if succeeded or failed. */
       return handle_open(AT_FDCWD, filename->c_str(), filename->length(),
-                         flags, fd, error, fd_conn, ack_num, pre_open_sent);
+                         flags, 0666, fd, error, fd_conn, ack_num, pre_open_sent);
     }
   }
 }
@@ -534,6 +535,80 @@ int Process::handle_faccessat(const int dirfd, const char * const ar_name, const
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the faccessat of a file", *name);
+    return -1;
+  }
+
+  return 0;
+}
+
+int Process::handle_chmod(const int dirfd, const char * const ar_name, const size_t ar_len,
+                          const mode_t mode, const int flags, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, mode=%d, flags=%d, error=%d",
+         dirfd, D(ar_name), mode, flags, error);
+
+  (void)mode;  /* No need to remember what we chmod to, we'll stat at the end. */
+
+  /* Chmod doesn't actually support AT_EMPTY_PATH, I guess it's a bug in the Linux kernel. */
+  const FileName* name =
+      ((flags & AT_EMPTY_PATH) && (ar_name[0] == '\0')) ? get_fd_filename(dirfd)
+      : get_absolute(dirfd, ar_name, ar_len);
+
+  if (!name) {
+    // FIXME don't disable shortcutting if chmod() failed due to the invalid dirfd
+    exec_point()->disable_shortcutting_bubble_up(
+        "Invalid dirfd or filename passed to chmod() variant");
+    return -1;
+  }
+
+  if (error) {
+    exec_point()->disable_shortcutting_bubble_up("Cannot register a failed chmod", *name);
+    return -1;
+  }
+
+  FileUsageUpdate update(name, EXIST, false, true);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register a chmod", *name);
+    return -1;
+  }
+
+  return 0;
+}
+
+int Process::handle_fchmod(const int fd, const mode_t mode, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "fd=%d, mode=%d, error=%d", fd, mode, error);
+
+  (void)mode;  /* No need to remember what we chmod to, we'll stat at the end. */
+
+  const FileFD *file_fd = get_fd(fd);
+  if (!file_fd) {
+    if (error == 0) {
+      exec_point()->disable_shortcutting_bubble_up(
+          "Process fchmod()ed an unknown fd successfully, "
+          "which means interception missed at least one open()", fd);
+      return -1;
+    } else {
+      /* Invalid fd passed to fchmod(), or something like that. */
+      return 0;
+    }
+  }
+
+  const FileName* name = file_fd->filename();
+  if (!name) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Invalid fd or filename passed to fchmod()");
+    return -1;
+  }
+
+  if (error) {
+    exec_point()->disable_shortcutting_bubble_up("Cannot register a failed fchmod", *name);
+    return -1;
+  }
+
+  FileUsageUpdate update(name, EXIST, false, true);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register a fchmod", *name);
     return -1;
   }
 
@@ -834,7 +909,7 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   /* Register the opening for writing at the new location */
   // TODO(rbalint) fix error handling, it is way more complicated for rename than for open.
   FileUsageUpdate update_new =
-      FileUsageUpdate::get_from_open_params(new_name, O_CREAT|O_WRONLY|O_TRUNC, error);
+      FileUsageUpdate::get_newfile_usage_from_rename_params(new_name, error);
   if (!exec_point()->register_file_usage_update(new_name, update_new)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the renaming (to)", *new_name);
