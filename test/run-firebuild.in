@@ -4,7 +4,6 @@
 
 env FIREBUILD_DATA_DIR="@CMAKE_SOURCE_DIR@/data" $FIREBUILD_PREFIX_CMD firebuild \
   -c @CMAKE_BINARY_DIR@/etc/firebuild.conf \
-  -o 'processes.dont_shortcut -= "sleep"' \
   -o 'env_vars.pass_through += "GCOV_PREFIX"' \
   -o 'env_vars.pass_through += "GCOV_PREFIX_STRIP"' \
   -o "ignore_locations += \"$GCOV_PREFIX\"" \
