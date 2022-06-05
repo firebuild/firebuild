@@ -98,10 +98,11 @@ void ExecedProcess::initialize() {
   /* Propagate the opening of the executable and libraries upwards as
    * regular file open events. */
   if (parent_exec_point()) {
-    FileUsageUpdate exe_update = FileUsageUpdate::get_from_open_params(executable(), O_RDONLY, 0);
+    FileUsageUpdate exe_update =
+        FileUsageUpdate::get_from_open_params(executable(), O_RDONLY, 0, 0);
     parent_exec_point()->register_file_usage_update(executable(), exe_update);
     for (const auto& lib : libs_) {
-      FileUsageUpdate lib_update = FileUsageUpdate::get_from_open_params(lib, O_RDONLY, 0);
+      FileUsageUpdate lib_update = FileUsageUpdate::get_from_open_params(lib, O_RDONLY, 0, 0);
       parent_exec_point()->register_file_usage_update(lib, lib_update);
     }
   }

@@ -24,12 +24,14 @@ class FileUsageUpdate {
       : initial_state_(type), filename_(filename), written_(written), mode_changed_(mode_changed),
         generation_(filename->generation()) {}
 
-  static FileUsageUpdate get_from_open_params(const FileName *filename, int flags, int err);
+  static FileUsageUpdate get_from_open_params(const FileName *filename, int flags,
+                                              mode_t mode_with_umask, int err);
   static FileUsageUpdate get_from_mkdir_params(const FileName *filename, int err);
   static FileUsageUpdate get_from_stat_params(const FileName *filename, mode_t mode, off_t size,
                                               int err);
   static FileUsageUpdate get_oldfile_usage_from_rename_params(const FileName* old_name,
                                                               const FileName* new_name, int err);
+  static FileUsageUpdate get_newfile_usage_from_rename_params(const FileName* new_name, int err);
 
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}

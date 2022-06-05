@@ -352,7 +352,7 @@
       # file path
       (OPTIONAL, STRING, "path"),
       # mode
-      (OPTIONAL, "mode_t", "mode"),
+      (REQUIRED, "mode_t", "mode"),
       # flags for fchmodat(), AT_SYMLINK_NOFOLLOW for lchmod()
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
@@ -361,9 +361,9 @@
 
     ("fchmod", [
       # file fd
-      (OPTIONAL, "int", "fd"),
+      (REQUIRED, "int", "fd"),
       # mode
-      (OPTIONAL, "mode_t", "mode"),
+      (REQUIRED, "mode_t", "mode"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),

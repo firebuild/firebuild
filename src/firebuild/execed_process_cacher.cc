@@ -326,24 +326,6 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   }
 }
 
-static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     FileType type, const ssize_t content_size, const Hash *content_hash,
-                     const mode_t mode, const mode_t mode_mask) {
-  FBBSTORE_Builder_file& new_file = files->emplace_back();
-  new_file.set_path_with_length(file_name->c_str(), file_name->length());
-  new_file.set_type(type);
-  if (content_size >= 0) {
-    new_file.set_size(content_size);
-  }
-  if (content_hash) {
-    new_file.set_hash(content_hash->get());
-  }
-  if (mode_mask != 0) {
-    new_file.set_mode(mode);
-    new_file.set_mode_mask(mode_mask);
-  }
-}
-
 static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
   const std::vector<FBBSTORE_Builder_file>* fbb_file_vector =
       reinterpret_cast<const std::vector<FBBSTORE_Builder_file> *>(user_data);
@@ -492,47 +474,83 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;
+    /* fu contains information about the file's original contents or metadata, plus whether it's
+     * been modified. We need to query the current state of the file if anything has been modified. */
 
-    /* If the file's final contents matter, place it in the file cache,
-     * and also record it in pb's "outputs". This actually needs to
-     * compute the checksums now. */
-    if (fu->written()) {
-      int fd = open(filename->c_str(), O_RDONLY);
-      if (fd >= 0) {
-        struct stat64 st;
-        if (fstat64(fd, &st) == 0) {
-          if (S_ISREG(st.st_mode)) {
-            Hash new_hash;
-            /* TODO don't store and don't record if it was read with the same hash. */
+    if (!fu->written() && !fu->mode_changed()) {
+      /* Completely unchanged, nothing to do. */
+      continue;
+    }
+
+    FileInfo new_file_info(DONTKNOW);
+
+    struct stat64 st;
+    if (stat64(filename->c_str(), &st) == 0) {
+      /* We have something, let's see what it is. */
+      new_file_info.set_type(EXIST);
+
+      /* If the file's final contents matter, place it in the file cache,
+       * and also record it in pb's "outputs". This actually needs to
+       * compute the checksums now. */
+      if (fu->written()) {
+        if (S_ISREG(st.st_mode)) {
+          new_file_info.set_type(ISREG);
+          Hash new_hash;
+          /* TODO don't store and don't record if it was read with the same hash. */
+          int fd = open(filename->c_str(), O_RDONLY);
+          if (fd >= 0) {
             if (!hash_cache->store_and_get_hash(filename, &new_hash, fd, &st)) {
               /* unexpected error, now what? */
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
+              close(fd);
               return;
             }
-            // TODO(egmont) fail if setuid/setgid/sticky is set
-            int mode = st.st_mode & 07777;
-            add_file(&out_path_isreg, filename, ISREG, st.st_size, &new_hash, mode, 07777);
-          } else if (S_ISDIR(st.st_mode)) {
-            // TODO(egmont) fail if setuid/setgid/sticky is set
-            const int mode = st.st_mode & 07777;
-            add_file(&out_path_isdir, filename, ISDIR, -1, nullptr, mode, 07777);
-            out_path_isdir_filename_ptrs.insert(filename);
+            close(fd);
+            new_file_info.set_size(st.st_size);
+            new_file_info.set_hash(new_hash);
           } else {
-            // TODO(egmont) handle other types of entries
+            fb_perror("open");
+            new_file_info.set_type(NOTEXIST);
           }
+        } else if (S_ISDIR(st.st_mode)) {
+          new_file_info.set_type(ISDIR);
         } else {
-          fb_perror("fstat");
-          if (fu->initial_type() != NOTEXIST) {
-            out_path_notexist.push_back(filename->c_str());
-          }
+          // TODO(egmont) handle other types of entries
+          new_file_info.set_type(NOTEXIST);
         }
-        close(fd);
-      } else {
+      }
+
+      if (fu->mode_changed()) {
+        // TODO(egmont) fail if setuid/setgid/sticky is set
+        new_file_info.set_mode_bits(st.st_mode & 07777, 07777);
+      }
+    } else {
+      /* Stat failed, nothing at the new location. */
+      new_file_info.set_type(NOTEXIST);
+    }
+
+    switch (new_file_info.type()) {
+      case DONTKNOW:
+        /* This can happen if we figured out that the file didn't actually change. */
+        break;
+      case EXIST:
+      case ISREG:
+        // FIXME skip adding if the new state is the same as the old one
+        add_file(&out_path_isreg, filename, new_file_info);
+        break;
+      case ISDIR:
+        // FIXME skip adding if the new state is the same as the old one
+        add_file(&out_path_isdir, filename, new_file_info);
+        out_path_isdir_filename_ptrs.insert(filename);
+        break;
+      case NOTEXIST:
         if (fu->initial_type() != NOTEXIST) {
           out_path_notexist.push_back(filename->c_str());
         }
-      }
+        break;
+      default:
+        assert(0);
     }
   }
 
@@ -636,6 +654,20 @@ static FileInfo file_to_file_info(const FBBSTORE_Serialized_file *file) {
   }
   info.set_mode_bits(file->get_mode_with_fallback(0), file->get_mode_mask_with_fallback(0));
   return info;
+}
+
+/**
+ * Create a FileUsageUpdate object based on an FBB's File entry.
+ */
+static FileUsageUpdate file_to_file_usage_update(const FileName *filename,
+                                                 const FBBSTORE_Serialized_file *file) {
+  bool written = (file->get_type() == ISREG && file->has_size()) ||
+                 (file->get_type() == ISDIR);
+  bool mode_changed = file->has_mode();
+  /* "file" represents the file's _new_ state, so it's not suitable for the _initial_ state of the
+   * update. The initial state can be anything, i.e. DONTKNOW. */
+  FileUsageUpdate update(filename, DONTKNOW, written, mode_changed);
+  return update;
 }
 
 /**
@@ -824,8 +856,8 @@ static bool restore_dirs(
       }
     }
     if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->register_file_usage_update(
-          path, FileUsageUpdate(path, DONTKNOW, true));
+      FileUsageUpdate update = file_to_file_usage_update(path, dir);
+      proc->parent_exec_point()->register_file_usage_update(path, update);
     }
   }
   return true;
@@ -870,8 +902,9 @@ static void remove_files_and_dirs(
       rmdir(path->c_str());
     }
     if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->register_file_usage_update(
-          path, FileUsageUpdate(path, DONTKNOW, true));
+      // FIXME Register that it was an _empty_ directory
+      FileUsageUpdate update = FileUsageUpdate(path, ISDIR, true);
+      proc->parent_exec_point()->register_file_usage_update(path, update);
     }
   }
 }
@@ -920,19 +953,22 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     const FBBSTORE_Serialized_file *file =
         reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
-    FB_DEBUG(FB_DEBUG_SHORTCUT,
-             "│   Fetching file from blobs cache: "
-             + d(path));
-    Hash hash(file->get_hash());
-    blob_cache->retrieve_file(hash, path);
+    if (file->get_type() == ISREG) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   Fetching file from blobs cache: "
+               + d(path));
+      assert(file->has_hash());
+      Hash hash(file->get_hash());
+      blob_cache->retrieve_file(hash, path);
+    }
     if (file->has_mode()) {
       /* Refuse to apply setuid, setgid, sticky bit. */
       // FIXME warn on them, even when we store them.
       chmod(path->c_str(), file->get_mode() & 0777);
     }
     if (proc->parent_exec_point()) {
-      proc->parent_exec_point()->register_file_usage_update(
-          path, FileUsageUpdate(path, DONTKNOW, true));
+      FileUsageUpdate update = file_to_file_usage_update(path, file);
+      proc->parent_exec_point()->register_file_usage_update(path, update);
     }
   }
 

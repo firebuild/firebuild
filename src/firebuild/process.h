@@ -232,6 +232,7 @@ class Process {
    * @param ar_name relative or absolute file name
    * @param ar_len length of ar_name
    * @param flags flags of open()
+   * @param mode mode (create permissions) of open()
    * @param fd the return value, or -1 if file was dlopen()ed successfully
    * @param error error code of open()
    * @param fd_conn fd to send ACK on when needed
@@ -239,7 +240,7 @@ class Process {
    * @param pre_open_sent interceptor already sent pre_open for this open
    */
   int handle_open(const int dirfd, const char * const ar_name, const size_t ar_len, const int flags,
-                  const int fd, const int error = 0, int fd_conn = -1,
+                  const mode_t mode, const int fd, const int error = 0, int fd_conn = -1,
                   int ack_num = 0, const bool pre_open_sent = false);
 
   /**
@@ -331,6 +332,11 @@ class Process {
    */
   int handle_faccessat(const int dirfd, const char * const name, const size_t name_len,
                        const int mode, const int flags, const int error = 0);
+
+  int handle_chmod(const int dirfd, const char * const name, const size_t name_len,
+                   const mode_t mode, const int flags, const int error = 0);
+
+  int handle_fchmod(const int fd, const mode_t mode, const int error = 0);
 
   /**
    * Handle memfd_create in the monitored process

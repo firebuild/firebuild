@@ -61,33 +61,6 @@ void FileUsageUpdate::type_computer_open_rdonly() const {
 }
 
 /**
- * If we saw a successful open(..., O_WRONLY|O_CREAT) (without O_TRUNC and O_EXCL; perhaps with
- * O_RDWR instead of O_RDONLY) then the following two cases can happen:
- * - Now the file is empty. We cannot tell if the file existed and was empty before, or did not exist.
- * - Now the file is non-empty. We know that the file existed before with the current contents.
- * This method performs the lazy on-demand check to see which of these two happened.
- */
-void FileUsageUpdate::type_computer_open_wronly_creat_notrunc_noexcl() const {
-  struct stat st;
-  if (stat(filename_->c_str(), &st) == -1) {
-    unknown_err_ = errno;
-    return;
-  }
-  if (st.st_size > 0) {
-    // FIXME handle if we see a directory. This cannot normally happen due to O_CREAT, but can if
-    // the file has just been replaced by a directory.
-    initial_state_.set_type(ISREG);
-    /* We got to know that this was a regular non-empty file. Delay hash computation until
-     * necessary. */
-    hash_computer_ = &FileUsageUpdate::hash_computer;
-  } else {
-    initial_state_.set_type(NOTEXIST_OR_ISREG);
-  }
-  initial_state_.set_size(st.st_size);
-  type_computer_ = nullptr;
-}
-
-/**
  * Get the file type, looking it up on demand if necessary.
  *
  * Due to the nature of lazy lookup, an unexpected error can occur, in which case false is returned.
@@ -149,8 +122,8 @@ bool FileUsageUpdate::get_initial_hash(Hash *hash_ptr) const {
  * can compute it on demand.
  */
 FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, int flags,
-                                                      int err) {
-  TRACK(FB_DEBUG_PROC, "flags=%d, err=%d", flags, err);
+                                                      mode_t mode_with_umask, int err) {
+  TRACK(FB_DEBUG_PROC, "flags=%d, mode_with_umask=0%03o, err=%d", flags, mode_with_umask, err);
 
   FileUsageUpdate update(filename);
 
@@ -168,8 +141,10 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
        */
       if ((flags & O_CREAT) && (flags & O_EXCL)) {
         /* C+F: If an exclusive new file was created, take a note that the file didn't exist
-         * previously, but its parent dir has to exist. */
+         * previously, that the permissions will have to be set on it, and that its parent dir has
+         * to exist. */
         update.set_initial_type(NOTEXIST);
+        update.mode_changed_ = true;
         update.parent_type_ = ISDIR;
       } else if (flags & O_TRUNC) {
         if (!(flags & O_CREAT)) {
@@ -180,7 +155,27 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
         } else {
           /* B: The old contents could have been any regular file, or even no such file (but not
            * e.g. a directory). Also, the parent directory has to exist. */
+          struct stat64 st;
+          if (stat64(filename->c_str(), &st) < 0) {
+            update.unknown_err_ = errno;
+            return update;
+          }
+          if (st.st_size > 0) {
+            /* We had O_TRUNC, so this is unexpected. */
+            update.unknown_err_ = EEXIST;
+            return update;
+          }
+          // FIXME handle if we see a directory. This cannot normally happen due to O_CREAT, but
+          // can if the file has just been replaced by a directory.
           update.set_initial_type(NOTEXIST_OR_ISREG);
+          if ((st.st_mode & 07777) != mode_with_umask) {
+            /* A mode mismatch implies that the file necessarily existed before. See #861. */
+            update.set_initial_type(ISREG);
+          } else {
+            /* The mode matches. The file may or may not have existed before, but in either case,
+             * it'll have the given permissions now. Pretend that they were set explicitly. #861. */
+            update.mode_changed_ = true;
+          }
           update.parent_type_ = ISDIR;
         }
       } else {
@@ -193,7 +188,30 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
           /* E: Another nasty combo. We can't distinguish a newly created empty file from a
            * previously empty one. If the file is non-empty, we need to store its hash. Also, the
            * parent directory has to exist. */
-          update.type_computer_ = &FileUsageUpdate::type_computer_open_wronly_creat_notrunc_noexcl;
+          struct stat64 st;
+          if (stat64(filename->c_str(), &st) < 0) {
+            update.unknown_err_ = errno;
+            return update;
+          }
+          if (st.st_size > 0) {
+            // FIXME handle if we see a directory. This cannot normally happen due to O_CREAT, but
+            // can if the file has just been replaced by a directory.
+            update.set_initial_type(ISREG);
+            /* We got to know that this was a regular non-empty file. Delay hash computation until
+             * necessary. */
+            update.hash_computer_ = &FileUsageUpdate::hash_computer;
+          } else {
+            update.set_initial_type(NOTEXIST_OR_ISREG);
+          }
+          update.set_initial_size(st.st_size);
+          if ((st.st_mode & 07777) != mode_with_umask) {
+            /* A mode mismatch implies that the file necessarily existed before. See #861. */
+            update.set_initial_type(ISREG);
+          } else {
+            /* The mode matches. The file may or may not have existed before, but in either case,
+             * it'll have the given permissions now. Pretend that they were set explicitly. #861. */
+            update.mode_changed_ = true;
+          }
           update.parent_type_ = ISDIR;
         }
       }
@@ -256,6 +274,7 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
     update.set_initial_type(NOTEXIST);
     update.parent_type_ = ISDIR;
     update.written_ = true;
+    update.mode_changed_ = true;
   } else {
     if (err == EEXIST) {
       /* The directory already exists. It may not be a directory, but in that case process inputs
@@ -311,13 +330,32 @@ FileUsageUpdate FileUsageUpdate::get_oldfile_usage_from_rename_params(const File
                                                                       const FileName *new_name,
                                                                       int error) {
   TRACK(FB_DEBUG_PROC, "err=%d", error);
-
   /* Read the file's hash from the new location, but update generation from the old one's name
    * to keep the generation number increasing. Otherwise it would be reset to 1, which is valid
    * for the newly created file (if the file did not exist before). */
   // TODO(rbalint) Error handling is way more complicated for rename than for open, fix that here.
-  FileUsageUpdate update = get_from_open_params(new_name, O_RDONLY, error);
+  FileUsageUpdate update = get_from_open_params(new_name, O_RDONLY, 0, error);
+  update.written_ = true;
+  update.mode_changed_ = true;
   update.generation_ = old_name->generation();
+
+  return update;
+}
+
+/**
+ * Based on the parameters and return value of a rename() or similar call, returns a FileUsageUpdate
+ * object that reflects how our usage of new file changed.
+ */
+FileUsageUpdate FileUsageUpdate::get_newfile_usage_from_rename_params(const FileName *new_name,
+                                                                      int error) {
+  TRACK(FB_DEBUG_PROC, "err=%d", error);
+
+  (void)error;  /* maybe unused */
+
+  /* The file at the new name now necessarily exists. It may or may not empty, it doesn't matter. We
+   * have to set mode_changed so that the mode will be restored when replaying from the cache.
+   * This does not match any of the A..F cases of get_from_open_params(). */
+  FileUsageUpdate update(new_name, DONTKNOW, true, true);
 
   return update;
 }
