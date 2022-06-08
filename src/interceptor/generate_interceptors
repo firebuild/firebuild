@@ -246,66 +246,66 @@ for gen in outputs:
 
 
 # Intercept vararg open() and friends
-generate("int", ["open", "open64"], "const char *file, int flags, ...",
+generate("int", ["open", "open64"], "const char *pathname, int flags, ...",
          tpl="open",
-         msg_skip_fields=["file"])
-generate("int", ["openat", "openat64"], "int dirfd, const char *file, int flags, ...",
+         msg_skip_fields=["pathname"])
+generate("int", ["openat", "openat64"], "int dirfd, const char *pathname, int flags, ...",
          tpl="open",
-         msg_skip_fields=["file"],
+         msg_skip_fields=["pathname"],
          msg="open")
 
 # Intercept open_2 variants
-generate("int", ["__open_2", "__open64_2"], "const char *file, int flags",
+generate("int", ["__open_2", "__open64_2"], "const char *pathname, int flags",
          tpl="open",
-         msg_skip_fields=["file"],
+         msg_skip_fields=["pathname"],
          msg="open")
-generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *file, int flags",
+generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *pathname, int flags",
          tpl="open",
-         msg_skip_fields=["file"],
+         msg_skip_fields=["pathname"],
          msg="open")
 
 # Intercept creat()
-generate("int", ["creat", "creat64"], "const char *file, mode_t mode",
+generate("int", ["creat", "creat64"], "const char *pathname, mode_t mode",
          tpl="open",
          before_lines=["const int flags = O_CREAT | O_WRONLY | O_TRUNC;"],
-         msg_skip_fields=["file"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_flags(&ic_msg, flags);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, pre_open_sent);"],
          msg="open")
 
 # Intercept fopen
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
-generate("FILE *", ["fopen", "fopen64"], "const char *file, const char *mode",
+generate("FILE *", ["fopen", "fopen64"], "const char *pathname, const char *mode",
          before_lines=["int open_flags = intercept_fopen_mode_to_open_flags_helper(mode);",
-                       "int pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, file, open_flags);"],
+                       "int pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, pathname, open_flags);"],
          after_lines=["int fd = safe_fileno(ret);",
                       "if (i_am_intercepting) clear_notify_on_read_write_state(fd);",
                       "assert(!voidp_set_contains(&popened_streams, ret));"],
          msg="open",
-         msg_skip_fields=["file", "mode"],
+         msg_skip_fields=["pathname", "mode"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, open_flags);",
                          "if (open_flags & O_CREAT) fbbcomm_builder_open_set_mode(&ic_msg, 0666);",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, fd);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, pre_open_sent);"],
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(pathname, &system_locations)")
 
 # Intercept freopen
-generate("FILE *", ["freopen", "freopen64"], "const char *file, const char *mode, FILE *stream",
+generate("FILE *", ["freopen", "freopen64"], "const char *pathname, const char *mode, FILE *stream",
          before_lines=["int open_flags = intercept_fopen_mode_to_open_flags_helper(mode);",
-                       "int pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, file, open_flags);",
+                       "int pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, pathname, open_flags);",
                        "int oldfd = safe_fileno(stream);",
                        "if (i_am_intercepting) clear_notify_on_read_write_state(oldfd);"],
          after_lines=["int newfd = safe_fileno(ret);",
                       "if (i_am_intercepting) clear_notify_on_read_write_state(newfd);"],
-         msg_skip_fields=["file", "mode", "stream"],
+         msg_skip_fields=["pathname", "mode", "stream"],
          msg_add_fields=["fbbcomm_builder_freopen_set_flags(&ic_msg, intercept_fopen_mode_to_open_flags_helper(mode));",
                          "if (oldfd >= 0) fbbcomm_builder_freopen_set_oldfd(&ic_msg, oldfd);",
                          "if (success) fbbcomm_builder_freopen_set_ret(&ic_msg, newfd);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(freopen, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(freopen, pathname);",
                          "fbbcomm_builder_freopen_set_pre_open_sent(&ic_msg, pre_open_sent);"],
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(pathname, &system_locations)")
 
 # High level stream operation only
 generate("FILE *", "fdopen", "int fd, const char *mode",
@@ -368,14 +368,14 @@ generate("int", "fcloseall", "",
          after_lines=["voidp_set_clear(&popened_streams);"])
 
 # Intercept opendir, closedir (no need to intercept fdopendir)
-generate("DIR *", "opendir", "const char *file",
+generate("DIR *", "opendir", "const char *pathname",
          msg="open",
-         msg_skip_fields=["file"],
+         msg_skip_fields=["pathname"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDONLY | O_CLOEXEC | O_DIRECTORY);",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, IC_ORIG(dirfd)(ret));",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
-         ack_condition="success && !is_path_at_locations(file, &system_locations)")
+         ack_condition="success && !is_path_at_locations(pathname, &system_locations)")
 generate("int", "closedir", "DIR *dirp",
          before_lines=["int fd = safe_dirfd(dirp); /* save it here, we can't do dirfd() after the closedir() */"],
          msg="close",
@@ -894,10 +894,10 @@ for v in ['', 'v']:
     skip(c1 + v + "asprintf" + c2)
 
 # Intercept chdir and fchdir
-generate("int", "chdir", "const char *dir",
-         msg_skip_fields=["dir"],
-         # Don't make dir absolute, since the macro would calculate it after calling chdir
-         msg_add_fields=["BUILDER_SET_CANONICAL(chdir, dir);",
+generate("int", "chdir", "const char *pathname",
+         msg_skip_fields=["pathname"],
+         # Don't make pathname absolute, since the macro would calculate it after calling chdir
+         msg_add_fields=["BUILDER_SET_CANONICAL(chdir, pathname);",
                          "if (success) {",
                          "  char* getcwd_ret = IC_ORIG(getcwd)(ic_cwd, IC_PATH_BUFSIZE);",
                          "  (void) getcwd_ret;",
@@ -911,33 +911,33 @@ generate("int", "fchdir", "int fd",
                       "}"])
 
 # Intercept the chmod family
-generate("int", "chmod", "const char *path, mode_t mode",
-         msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, path);"])
-generate("int", "lchmod", "const char *path, mode_t mode",
+generate("int", "chmod", "const char *pathname, mode_t mode",
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, pathname);"])
+generate("int", "lchmod", "const char *pathname, mode_t mode",
          msg="chmod",
-         msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, path);",
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, pathname);",
                          "fbbcomm_builder_chmod_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", "fchmodat", "int dirfd, const char *path, mode_t mode, int flags",
+generate("int", "fchmodat", "int dirfd, const char *pathname, mode_t mode, int flags",
          msg="chmod",
-         msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chmod, dirfd, path);"])
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chmod, dirfd, pathname);"])
 generate("int", "fchmod", "int fd, mode_t mode")
 
 # Intercept the chown family
-generate("int", "chown", "const char *path, uid_t owner, gid_t group",
-         msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, path);"])
-generate("int", "lchown", "const char *path, uid_t owner, gid_t group",
+generate("int", "chown", "const char *pathname, uid_t owner, gid_t group",
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, pathname);"])
+generate("int", "lchown", "const char *pathname, uid_t owner, gid_t group",
          msg="chown",
-         msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, path);",
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, pathname);",
                          "fbbcomm_builder_chown_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", "fchownat", "int dirfd, const char *path, uid_t owner, gid_t group, int flags",
+generate("int", "fchownat", "int dirfd, const char *pathname, uid_t owner, gid_t group, int flags",
          msg="chown",
-         msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chown, dirfd, path);"])
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chown, dirfd, pathname);"])
 generate("int", "fchown", "int fd, uid_t owner, gid_t group")
 
 # Intercept the link, symlink and readlink families
@@ -950,66 +950,66 @@ generate("int", "linkat", "int olddirfd, const char *oldpath, int newdirfd, cons
          msg_add_fields = ["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(link, olddirfd, oldpath);",
                            "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(link, newdirfd, newpath);"],
          msg="link")
-generate("int", "symlink", "const char *oldpath, const char *newpath",
+generate("int", "symlink", "const char *target, const char *newpath",
          msg_skip_fields = ["newpath"],
          msg_add_fields = ["BUILDER_SET_ABSOLUTE_CANONICAL(symlink, newpath);"])
-generate("int", "symlinkat", "const char *oldpath, int newdirfd, const char *newpath",
+generate("int", "symlinkat", "const char *target, int newdirfd, const char *newpath",
          msg_skip_fields = ["newpath"],
          msg_add_fields = ["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(symlink, newdirfd, newpath);"],
          msg="symlink")
 
-generate("ssize_t", "readlink", "const char *path, char *buf, size_t bufsiz",
+generate("ssize_t", "readlink", "const char *pathname, char *buf, size_t bufsiz",
          tpl="readlink",
-         msg_skip_fields=["path", "buf"],
-         msg_add_fields = ["BUILDER_SET_ABSOLUTE_CANONICAL(readlink, path);"])
-generate("ssize_t", "__readlink_chk", "const char *path, char *buf, size_t bufsiz, size_t fortify_size",
-         tpl="readlink",
-         msg="readlink",
-         msg_skip_fields=["path", "buf", "fortify_size"],
-         msg_add_fields = ["BUILDER_SET_ABSOLUTE_CANONICAL(readlink, path);"])
-generate("ssize_t", "readlinkat", "int dirfd, const char *path, char *buf, size_t bufsiz",
+         msg_skip_fields=["pathname", "buf"],
+         msg_add_fields = ["BUILDER_SET_ABSOLUTE_CANONICAL(readlink, pathname);"])
+generate("ssize_t", "__readlink_chk", "const char *pathname, char *buf, size_t bufsiz, size_t fortify_size",
          tpl="readlink",
          msg="readlink",
-         msg_skip_fields=["path", "buf"],
-         msg_add_fields = ["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(readlink, dirfd, path);"])
-generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *path, char *buf, size_t bufsiz, size_t fortify_size",
+         msg_skip_fields=["pathname", "buf", "fortify_size"],
+         msg_add_fields = ["BUILDER_SET_ABSOLUTE_CANONICAL(readlink, pathname);"])
+generate("ssize_t", "readlinkat", "int dirfd, const char *pathname, char *buf, size_t bufsiz",
          tpl="readlink",
          msg="readlink",
-         msg_skip_fields=["path", "buf", "fortify_size"],
-         msg_add_fields = ["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(readlink, dirfd, path);"])
+         msg_skip_fields=["pathname", "buf"],
+         msg_add_fields = ["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(readlink, dirfd, pathname);"])
+generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *pathname, char *buf, size_t bufsiz, size_t fortify_size",
+         tpl="readlink",
+         msg="readlink",
+         msg_skip_fields=["pathname", "buf", "fortify_size"],
+         msg_add_fields = ["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(readlink, dirfd, pathname);"])
 # FIXME realpath
 
 # Intercept the stat family
 # mysterious hacks prior to glibc 2.33
-generate("int", "__xstat", "int ver, const char *filename, struct stat *stat_buf",
+generate("int", "__xstat", "int ver, const char *pathname, struct stat *stat_buf",
          msg="stat",
-         msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["ver", "pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "__xstat64", "int ver, const char *filename, struct stat64 *stat_buf",
+generate("int", "__xstat64", "int ver, const char *pathname, struct stat64 *stat_buf",
          msg="stat",
-         msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["ver", "pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "__lxstat", "int ver, const char *filename, struct stat *stat_buf",
+generate("int", "__lxstat", "int ver, const char *pathname, struct stat *stat_buf",
          msg="stat",
-         msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["ver", "pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "__lxstat64", "int ver, const char *filename, struct stat64 *stat_buf",
+generate("int", "__lxstat64", "int ver, const char *pathname, struct stat64 *stat_buf",
          msg="stat",
-         msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["ver", "pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
@@ -1029,52 +1029,52 @@ generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
                          "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "__fxstatat", "int ver, int dirfd, const char *filename, struct stat *stat_buf, int flags",
+generate("int", "__fxstatat", "int ver, int dirfd, const char *pathname, struct stat *stat_buf, int flags",
          msg="stat",
-         msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+         msg_skip_fields=["ver", "pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "__fxstatat64", "int ver, int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
+generate("int", "__fxstatat64", "int ver, int dirfd, const char *pathname, struct stat64 *stat_buf, int flags",
          msg="stat",
-         msg_skip_fields=["ver", "filename", "stat_buf"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+         msg_skip_fields=["ver", "pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # cleaned up beginning with glibc 2.33
-generate("int", "stat", "const char *filename, struct stat *stat_buf",
+generate("int", "stat", "const char *pathname, struct stat *stat_buf",
          msg="stat",
-         msg_skip_fields=["filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "stat64", "const char *filename, struct stat64 *stat_buf",
+generate("int", "stat64", "const char *pathname, struct stat64 *stat_buf",
          msg="stat",
-         msg_skip_fields=["filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "lstat", "const char *filename, struct stat *stat_buf",
+generate("int", "lstat", "const char *pathname, struct stat *stat_buf",
          msg="stat",
-         msg_skip_fields=["filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "lstat64", "const char *filename, struct stat64 *stat_buf",
+generate("int", "lstat64", "const char *pathname, struct stat64 *stat_buf",
          msg="stat",
-         msg_skip_fields=["filename", "stat_buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, filename);",
+         msg_skip_fields=["pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(stat, pathname);",
                          "fbbcomm_builder_stat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
@@ -1094,30 +1094,30 @@ generate("int", "fstat64", "int fd, struct stat64 *stat_buf",
                          "  fbbcomm_builder_fstat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "fstatat", "int dirfd, const char *filename, struct stat *stat_buf, int flags",
+generate("int", "fstatat", "int dirfd, const char *pathname, struct stat *stat_buf, int flags",
          msg="stat",
-         msg_skip_fields=["filename", "stat_buf"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+         msg_skip_fields=["pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "fstatat64", "int dirfd, const char *filename, struct stat64 *stat_buf, int flags",
+generate("int", "fstatat64", "int dirfd, const char *pathname, struct stat64 *stat_buf, int flags",
          msg="stat",
-         msg_skip_fields=["filename", "stat_buf"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+         msg_skip_fields=["pathname", "stat_buf"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # since glibc 2.28
-generate("int", "statx", "int dirfd, const char *filename, int flags, unsigned int mask, struct statx *statx_buf",
+generate("int", "statx", "int dirfd, const char *pathname, int flags, unsigned int mask, struct statx *statx_buf",
          # TODO(rbalint) have separate statx() message with mask also sent
          msg="stat",
          # Always query type and mode to let the supervisor have valid stx_mode
          before_lines=["mask |= STATX_TYPE | STATX_MODE | STATX_SIZE;"],
-         msg_skip_fields=["filename", "mask", "statx_buf"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, filename);",
+         msg_skip_fields=["pathname", "mask", "statx_buf"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(stat, dirfd, pathname);",
                          "if (success) {",
                          "  fbbcomm_builder_stat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
                          "  fbbcomm_builder_stat_set_st_size(&ic_msg, statx_buf->stx_size);",
@@ -1189,30 +1189,30 @@ generate("int", "faccessat", "int dirfd, const char *pathname, int mode, int fla
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(faccessat, dirfd, pathname);"])
 
 # Intercept the (l)utime family
-generate("int", "utime", "const char *file, const struct utimbuf *times",
-         msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+generate("int", "utime", "const char *pathname, const struct utimbuf *times",
+         msg_skip_fields=["pathname", "times"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", "utimes", "const char *file, const struct timeval times[2]",
+generate("int", "utimes", "const char *pathname, const struct timeval times[2]",
          msg="utime",
-         msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+         msg_skip_fields=["pathname", "times"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", "lutimes", "const char *file, const struct timeval times[2]",
+generate("int", "lutimes", "const char *pathname, const struct timeval times[2]",
          msg="utime",
-         msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, file);",
+         msg_skip_fields=["pathname", "times"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
                          "fbbcomm_builder_utime_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", "utimensat", "int dirfd, const char *file, const struct timespec times[2], int flags",
+generate("int", "utimensat", "int dirfd, const char *pathname, const struct timespec times[2], int flags",
          msg="utime",
-         msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
+         msg_skip_fields=["pathname", "times"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
-generate("int", "futimesat", "int dirfd, const char *file, const struct timeval times[2]",
+generate("int", "futimesat", "int dirfd, const char *pathname, const struct timeval times[2]",
          msg="utime",
-         msg_skip_fields=["file", "times"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, file);",
+         msg_skip_fields=["pathname", "times"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 
 # Intercept the futime family
@@ -1263,56 +1263,56 @@ generate("int", "pipe2", "int pipefd[2], int flags",
                          "}"])
 
 # Intercept the truncate family
-generate("int", "truncate", "const char *path, off_t len",
+generate("int", "truncate", "const char *pathname, off_t len",
          msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, path);"])
-generate("int", "truncate64", "const char *path, off64_t len",
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
+generate("int", "truncate64", "const char *pathname, off64_t len",
          msg="truncate",
          msg_skip_fields=["path"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, path);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 generate("int", "ftruncate", "int fd, off_t len")
 generate("int", "ftruncate64", "int fd, off64_t len",
          msg="ftruncate")
 
 # Intercept the mkstemp family
-# Note: these update the file template in place.
-generate("int", "mkstemp", "char *file",
+# Note: these update the pathname template in place.
+generate("int", "mkstemp", "char *pathname",
          send_msg_on_error=False,
          msg="open",
          msg_skip_fields=["path"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
          send_ret_on_success=True,
          ack_condition="true")
-generate("int", "mkostemp", "char *file, int flags",
+generate("int", "mkostemp", "char *pathname, int flags",
          send_msg_on_error=False,
          msg="open",
-         msg_skip_fields=["file", "flags"],
+         msg_skip_fields=["pathname", "flags"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
          send_ret_on_success=True,
          ack_condition="true")
-generate("int", "mkstemps", "char *file, int suffixlen",
+generate("int", "mkstemps", "char *pathname, int suffixlen",
          send_msg_on_error=False,
          msg="open",
-         msg_skip_fields=["file", "suffixlen"],
+         msg_skip_fields=["pathname", "suffixlen"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
          send_ret_on_success=True,
          ack_condition="true")
-generate("int", "mkostemps", "char *file, int suffixlen, int flags",
+generate("int", "mkostemps", "char *pathname, int suffixlen, int flags",
          send_msg_on_error=False,
          msg="open",
-         msg_skip_fields=["file", "suffixlen", "flags"],
+         msg_skip_fields=["pathname", "suffixlen", "flags"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, file);",
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
          send_ret_on_success=True,
          ack_condition="true")
@@ -1427,7 +1427,7 @@ generate("int", "posix_spawnp", "pid_t *pid, const char *file, " +
 generate("int", ["posix_spawn_file_actions_init", "posix_spawn_file_actions_destroy"], "posix_spawn_file_actions_t *file_actions",
          tpl="posix_spawn_file_actions",
          success="ret == 0")
-generate("int", "posix_spawn_file_actions_addopen", "posix_spawn_file_actions_t *file_actions, int fd, const char *path, int flags, mode_t mode",
+generate("int", "posix_spawn_file_actions_addopen", "posix_spawn_file_actions_t *file_actions, int fd, const char *pathname, int flags, mode_t mode",
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addclose", "posix_spawn_file_actions_t *file_actions, int fd",
@@ -1439,7 +1439,7 @@ generate("int", "posix_spawn_file_actions_addclosefrom_np", "posix_spawn_file_ac
 generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t *file_actions, int oldfd, int newfd",
          tpl="posix_spawn_file_actions",
          success="ret == 0")
-generate("int", "posix_spawn_file_actions_addchdir_np", "posix_spawn_file_actions_t *file_actions, const char *path",
+generate("int", "posix_spawn_file_actions_addchdir_np", "posix_spawn_file_actions_t *file_actions, const char *pathname",
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addfchdir_np", "posix_spawn_file_actions_t *file_actions, int fd",

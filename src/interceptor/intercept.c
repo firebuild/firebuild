@@ -339,14 +339,14 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
   thread_signal_danger_zone_leave();
 }
 
-static bool maybe_send_pre_open_internal(const int dirfd, const char* file, int flags,
+static bool maybe_send_pre_open_internal(const int dirfd, const char* pathname, int flags,
                                          bool need_ack) {
-  if (file && is_write(flags) && (flags & O_TRUNC)
+  if (pathname && is_write(flags) && (flags & O_TRUNC)
       && !(flags & (O_EXCL | O_DIRECTORY |O_TMPFILE))) {
     FBBCOMM_Builder_pre_open ic_msg;
     fbbcomm_builder_pre_open_init(&ic_msg);
     fbbcomm_builder_pre_open_set_dirfd(&ic_msg, dirfd);
-    BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(pre_open, dirfd, file);
+    BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(pre_open, dirfd, pathname);
     if (need_ack) {
       fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     } else {
@@ -358,12 +358,12 @@ static bool maybe_send_pre_open_internal(const int dirfd, const char* file, int 
   }
 }
 
-bool maybe_send_pre_open(const int dirfd, const char* file, int flags) {
-  return maybe_send_pre_open_internal(dirfd, file, flags, true);
+bool maybe_send_pre_open(const int dirfd, const char* pathname, int flags) {
+  return maybe_send_pre_open_internal(dirfd, pathname, flags, true);
 }
 
-bool maybe_send_pre_open_without_ack_request(const int dirfd, const char* file, int flags) {
-  return maybe_send_pre_open_internal(dirfd, file, flags, false);
+bool maybe_send_pre_open_without_ack_request(const int dirfd, const char* pathname, int flags) {
+  return maybe_send_pre_open_internal(dirfd, pathname, flags, false);
 }
 
 /**
@@ -1146,14 +1146,14 @@ static void psfa_item_free(void *p) {
   /* For addopen() and addchdir_np() actions the filename needs to be freed. */
   if (fbbcomm_builder_get_tag(p) == FBBCOMM_TAG_posix_spawn_file_action_open) {
     FBBCOMM_Builder_posix_spawn_file_action_open *builder = p;
-    char *path =
-        (/* non-const */ char *) fbbcomm_builder_posix_spawn_file_action_open_get_path(builder);
-    free(path);
+    char *pathname =
+        (/* non-const */ char *)fbbcomm_builder_posix_spawn_file_action_open_get_pathname(builder);
+    free(pathname);
   } else if (fbbcomm_builder_get_tag(p) == FBBCOMM_TAG_posix_spawn_file_action_chdir) {
     FBBCOMM_Builder_posix_spawn_file_action_chdir *builder = p;
-    char *path =
-        (/* non-const */ char *) fbbcomm_builder_posix_spawn_file_action_chdir_get_path(builder);
-    free(path);
+    char *pathname =
+        (/* non-const */ char *)fbbcomm_builder_posix_spawn_file_action_chdir_get_pathname(builder);
+    free(pathname);
   }
   free(p);
 }
@@ -1186,7 +1186,7 @@ void psfa_destroy(const posix_spawn_file_actions_t *p) {
  */
 void psfa_addopen(const posix_spawn_file_actions_t *p,
                   int fd,
-                  const char *path,
+                  const char *pathname,
                   int flags,
                   mode_t mode) {
   voidp_array *obj = psfa_find(p);
@@ -1197,7 +1197,7 @@ void psfa_addopen(const posix_spawn_file_actions_t *p,
   fbbcomm_builder_posix_spawn_file_action_open_init(fbbcomm_builder);
 
   fbbcomm_builder_posix_spawn_file_action_open_set_fd(fbbcomm_builder, fd);
-  fbbcomm_builder_posix_spawn_file_action_open_set_path(fbbcomm_builder, strdup(path));
+  fbbcomm_builder_posix_spawn_file_action_open_set_pathname(fbbcomm_builder, strdup(pathname));
   fbbcomm_builder_posix_spawn_file_action_open_set_flags(fbbcomm_builder, flags);
   fbbcomm_builder_posix_spawn_file_action_open_set_mode(fbbcomm_builder, mode);
 
@@ -1265,7 +1265,7 @@ void psfa_adddup2(const posix_spawn_file_actions_t *p,
  * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_chdir builder to our structures.
  */
 void psfa_addchdir_np(const posix_spawn_file_actions_t *p,
-                      const char *path) {
+                      const char *pathname) {
   voidp_array *obj = psfa_find(p);
   assert(obj);
 
@@ -1273,7 +1273,7 @@ void psfa_addchdir_np(const posix_spawn_file_actions_t *p,
       malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_chdir));
   fbbcomm_builder_posix_spawn_file_action_chdir_init(fbbcomm_builder);
 
-  fbbcomm_builder_posix_spawn_file_action_chdir_set_path(fbbcomm_builder, strdup(path));
+  fbbcomm_builder_posix_spawn_file_action_chdir_set_pathname(fbbcomm_builder, strdup(pathname));
 
   voidp_array_append(obj, fbbcomm_builder);
 }
