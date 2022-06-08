@@ -187,14 +187,14 @@
       # dir file descriptor for openat()
       (OPTIONAL, "int", "dirfd"),
       # file path
-      (OPTIONAL, STRING, "file"),
+      (OPTIONAL, STRING, "pathname"),
     ]),
 
     ("open", [
       # dir file descriptor for openat()
       (OPTIONAL, "int", "dirfd"),
       # file path
-      (OPTIONAL, STRING, "file"),
+      (OPTIONAL, STRING, "pathname"),
       # flags, decoding is left for Firebuild supervisor
       (REQUIRED, "int", "flags", "fbbcomm_debug_open_flags"),
       # mode if (flags & O_CREAT), decoding is left for Firebuild supervisor
@@ -209,7 +209,7 @@
 
     ("freopen", [
       # file path, can be NULL
-      (OPTIONAL, STRING, "file"),
+      (OPTIONAL, STRING, "pathname"),
       # flags, decoding is left for Firebuild supervisor
       (OPTIONAL, "int", "flags", "fbbcomm_debug_open_flags"),
       # file descriptor associated to the stream to be reopened
@@ -224,7 +224,7 @@
 
     ("chdir", [
       # directory path
-      (OPTIONAL, STRING, "dir"),
+      (OPTIONAL, STRING, "pathname"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -240,11 +240,11 @@
       # dir file descriptor for readlinkat()
       (OPTIONAL, "int", "dirfd"),
       # path name
-      (OPTIONAL, STRING, "path"),
+      (OPTIONAL, STRING, "pathname"),
       # buffer size
       (OPTIONAL, "size_t", "bufsiz"),
       # returned path
-      (OPTIONAL, STRING, "ret_path"),
+      (OPTIONAL, STRING, "ret_target"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -281,7 +281,7 @@
       # dir file descriptor for fstatat()
       (OPTIONAL, "int", "dirfd"),
       # path to file
-      (OPTIONAL, STRING, "filename"),
+      (OPTIONAL, STRING, "pathname"),
       # it could be lstat() encoded as AT_SYMLINK_NOFOLLOW or fstatat(..., flags)
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # Returned file type and mode
@@ -350,7 +350,7 @@
       # dir file descriptor for fchmodat()
       (OPTIONAL, "int", "dirfd"),
       # file path
-      (OPTIONAL, STRING, "path"),
+      (OPTIONAL, STRING, "pathname"),
       # mode
       (REQUIRED, "mode_t", "mode"),
       # flags for fchmodat(), AT_SYMLINK_NOFOLLOW for lchmod()
@@ -372,7 +372,7 @@
       # dir file descriptor for fchownat()
       (OPTIONAL, "int", "dirfd"),
       # file path
-      (OPTIONAL, STRING, "path"),
+      (OPTIONAL, STRING, "pathname"),
       # uid
       (OPTIONAL, "uid_t", "owner"),
       # gid
@@ -424,7 +424,7 @@
 
     ("symlink", [
       # old file path
-      (OPTIONAL, STRING, "oldpath"),
+      (OPTIONAL, STRING, "target"),
       # new dir file descriptor for symlinkat()
       (OPTIONAL, "int", "newdirfd"),
       # new file path
@@ -448,7 +448,7 @@
       # ..at(), like utimensat
       (OPTIONAL, "int", "dirfd"),
       # file name
-      (OPTIONAL, STRING, "file"),
+      (OPTIONAL, STRING, "pathname"),
       # all timestamps should be set to current time
       (REQUIRED, "bool", "all_utime_now"),
       # flags for utimensat(), AT_SYMLINK_NOFOLLOW for lutimes()
@@ -638,7 +638,7 @@
     ("posix_spawn_file_action_open", [
       (REQUIRED, "int", "fd"),
       # Note: path is not absolute!
-      (REQUIRED, STRING,    "path"),
+      (REQUIRED, STRING, "pathname"),
       (REQUIRED, "int", "flags", "fbbcomm_debug_open_flags"),
       (REQUIRED, "mode_t", "mode"),
     ]),
@@ -665,7 +665,7 @@
     # This is not used as a toplevel message, but in the "file_actions" field of a
     # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addchdir_np() call.
     ("posix_spawn_file_action_chdir", [
-      (REQUIRED, STRING, "path"),
+      (REQUIRED, STRING, "pathname"),
     ]),
 
     # This is not used as a toplevel message, but in the "file_actions" field of a
@@ -758,7 +758,7 @@
 
     ("truncate", [
       # name
-      (OPTIONAL, STRING, "path"),
+      (OPTIONAL, STRING, "pathname"),
       # length
       (OPTIONAL, "off_t", "len"),
       # error no., when ret = -1

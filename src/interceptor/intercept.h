@@ -99,8 +99,8 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
  * Send pre_open message to supervisor if it is needed.
  * @return if message has been sent
  */
-bool maybe_send_pre_open(int dirfd, const char* file, int flags);
-bool maybe_send_pre_open_without_ack_request(int dirfd, const char* file, int flags);
+bool maybe_send_pre_open(int dirfd, const char* pathname, int flags);
+bool maybe_send_pre_open_without_ack_request(int dirfd, const char* pathname, int flags);
 
 /** Connection string to supervisor */
 extern char fb_conn_string[IC_PATH_BUFSIZE];
@@ -122,11 +122,11 @@ extern bool intercepting_enabled;
 extern void psfa_init(const posix_spawn_file_actions_t *p);
 extern void psfa_destroy(const posix_spawn_file_actions_t *p);
 extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
-                         const char *path, int flags, mode_t mode);
+                         const char *pathname, int flags, mode_t mode);
 extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_addclosefrom_np(const posix_spawn_file_actions_t *p, int fd);
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
-extern void psfa_addchdir_np(const posix_spawn_file_actions_t *p, const char *path);
+extern void psfa_addchdir_np(const posix_spawn_file_actions_t *p, const char *pathname);
 extern void psfa_addfchdir_np(const posix_spawn_file_actions_t *p, int fd);
 extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 

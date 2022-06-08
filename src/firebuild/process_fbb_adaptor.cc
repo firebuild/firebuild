@@ -11,7 +11,7 @@
 namespace firebuild {
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_pre_open *msg) {
   return proc->handle_pre_open(msg->get_dirfd_with_fallback(AT_FDCWD),
-                               msg->get_file(), msg->get_file_len());
+                               msg->get_pathname(), msg->get_pathname_len());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_open *msg, int fd_conn,
@@ -19,7 +19,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_open *msg,
   const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
   int error = msg->get_error_no_with_fallback(0);
   int ret = msg->get_ret_with_fallback(-1);
-  return proc->handle_open(dirfd, msg->get_file(), msg->get_file_len(), msg->get_flags(),
+  return proc->handle_open(dirfd, msg->get_pathname(), msg->get_pathname_len(), msg->get_flags(),
                            msg->get_mode_with_fallback(0), ret, error, fd_conn, ack_num,
                            msg->get_pre_open_sent());
 }
@@ -29,7 +29,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_freopen *m
   int error = msg->get_error_no_with_fallback(0);
   int oldfd = msg->get_ret_with_fallback(-1);
   int ret = msg->get_ret_with_fallback(-1);
-  return proc->handle_freopen(msg->get_file(), msg->get_file_len(), msg->get_flags(),
+  return proc->handle_freopen(msg->get_pathname(), msg->get_pathname_len(), msg->get_flags(),
                               oldfd, ret, error, fd_conn, ack_num, msg->get_pre_open_sent());
 }
 
@@ -92,7 +92,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_stat *msg)
   const off_t st_size = msg->get_st_size_with_fallback(0);
   const int flags = msg->get_flags_with_fallback(0);
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_stat(dirfd, msg->get_filename(), msg->get_filename_len(),
+  return proc->handle_stat(dirfd, msg->get_pathname(), msg->get_pathname_len(),
                            flags, st_mode, st_size, error);
 }
 
@@ -110,7 +110,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_chmod *msg
   const mode_t mode = msg->get_mode();
   const int flags = msg->get_flags_with_fallback(0);
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_chmod(dirfd, msg->get_path(), msg->get_path_len(),
+  return proc->handle_chmod(dirfd, msg->get_pathname(), msg->get_pathname_len(),
                             mode, flags, error);
 }
 
@@ -163,7 +163,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_rename *ms
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_symlink *msg) {
   const int newdirfd = msg->get_newdirfd_with_fallback(AT_FDCWD);
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_symlink(msg->get_oldpath(), newdirfd, msg->get_newpath(), error);
+  return proc->handle_symlink(msg->get_target(), newdirfd, msg->get_newpath(), error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fcntl *msg) {
@@ -205,9 +205,9 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_umask *msg
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_chdir *msg) {
   const int error = msg->get_error_no_with_fallback(0);
   if (error == 0) {
-    proc->handle_set_wd(msg->get_dir(), msg->get_dir_len());
+    proc->handle_set_wd(msg->get_pathname(), msg->get_pathname_len());
   } else {
-    proc->handle_fail_wd(msg->get_dir());
+    proc->handle_fail_wd(msg->get_pathname());
   }
   return 0;
 }

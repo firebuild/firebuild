@@ -919,17 +919,17 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   return 0;
 }
 
-int Process::handle_symlink(const char * const old_ar_name,
+int Process::handle_symlink(const char * const target,
                             const int newdirfd, const char * const new_ar_name,
                             const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "old_ar_name=%s, newdirfd=%d, new_ar_name=%s, error=%d",
-         D(old_ar_name), newdirfd, D(new_ar_name), error);
+         "target=%s, newdirfd=%d, new_ar_name=%s, error=%d",
+         D(target), newdirfd, D(new_ar_name), error);
 
   if (!error) {
     exec_point()->disable_shortcutting_bubble_up(
         "Process created a symlink",
-        " ([" + d(newdirfd) + "]" + d(new_ar_name) + " -> " + d(old_ar_name) + ")");
+        " ([" + d(newdirfd) + "]" + d(new_ar_name) + " -> " + d(target) + ")");
     return -1;
   }
   return 0;

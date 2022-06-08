@@ -850,7 +850,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             int flags = action_open->get_flags();
             if (is_write(flags)) {
               const firebuild::FileName* file_name = proc->get_absolute(
-                  AT_FDCWD, action_open->get_path(), action_open->get_path_len());
+                  AT_FDCWD, action_open->get_pathname(), action_open->get_pathname_len());
               if (file_name) {
                 /* Pretend that the parent opened the file for writing and not the fork child.
                  * This is not accurate, but the fork child does not exist yet. A parallel
@@ -885,17 +885,17 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             /* A successful open to a particular fd, silently closing the previous file if any. */
             const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
-            const char *path = action_open->get_path();
-            const size_t path_len = action_open->get_path_len();
+            const char *pathname = action_open->get_pathname();
+            const size_t pathname_len = action_open->get_pathname_len();
             int fd = action_open->get_fd();
             int flags = action_open->get_flags();
             mode_t mode = action_open->get_mode();
             fork_child->handle_force_close(fd);
-            fork_child->handle_open(AT_FDCWD, path, path_len, flags, mode, fd, 0);
+            fork_child->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0);
             /* Revert the effect of "pre-opening" paths to be written in the posix_spawn message.*/
             if (is_write(flags)) {
-              const firebuild::FileName* file_name = fork_child->get_absolute(AT_FDCWD, path,
-                                                                              path_len);
+              const firebuild::FileName* file_name = fork_child->get_absolute(AT_FDCWD, pathname,
+                                                                              pathname_len);
               if (file_name) {
                 file_name->close_for_writing();
               }
@@ -945,8 +945,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             /* A successful chdir. */
             const FBBCOMM_Serialized_posix_spawn_file_action_chdir *action_chdir =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_chdir *>(action);
-            const char *path = action_chdir->get_path();
-            fork_child->handle_set_wd(path);
+            const char *pathname = action_chdir->get_pathname();
+            fork_child->handle_set_wd(pathname);
             break;
           }
           case FBBCOMM_TAG_posix_spawn_file_action_fchdir: {
@@ -1006,7 +1006,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             int flags = action_open->get_flags();
             if (is_write(flags)) {
               const firebuild::FileName* file_name = proc->get_absolute(
-                  AT_FDCWD, action_open->get_path(), action_open->get_path_len());
+                  AT_FDCWD, action_open->get_pathname(), action_open->get_pathname_len());
               if (file_name) {
                 file_name->close_for_writing();
               }

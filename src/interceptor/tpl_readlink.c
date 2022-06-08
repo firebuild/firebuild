@@ -14,11 +14,11 @@
     if (ret >= 0 && (size_t)labs(ret) <= bufsiz) {
       len = ret;
     }
-    char ret_path[len + 1];
+    char ret_target[len + 1];
     if (len > 0) {
-      memcpy(ret_path, buf, len);
-      ret_path[len] = '\0';
-      /* Returned path is assumed to be canonical.*/
-      fbbcomm_builder_{{ msg }}_set_ret_path(&ic_msg, ret_path);
+      memcpy(ret_target, buf, len);
+      ret_target[len] = '\0';
+      /* Returned path is a raw string, not to be resolved. */
+      fbbcomm_builder_{{ msg }}_set_ret_target(&ic_msg, ret_target);
     }
 ### endblock set_fields
