@@ -324,10 +324,17 @@ class Process {
   int handle_faccessat(const int dirfd, const char * const name, const size_t name_len,
                        const int mode, const int flags, const int error = 0);
 
-  int handle_chmod(const int dirfd, const char * const name, const size_t name_len,
-                   const mode_t mode, const int flags, const int error = 0);
-
-  int handle_fchmod(const int fd, const mode_t mode, const int error = 0);
+  /**
+   * Handle the chmod family in the monitored process
+   * @param fd fchmod()'s fd, or fchmodat()'s dirfd, or AT_FDCWD
+   * @param name relative or absolute file name
+   * @param name_len length of name
+   * @param mode the newly applied mode
+   * @param flags flags passed to fchmodat() or AT_SYMLINK_NOFOLLOW in case of lchmod()
+   * @param error error code of stat() variant
+   */
+  int handle_fchmodat(const int fd, const char * const name, const size_t name_len,
+                      const mode_t mode, const int flags, const int error = 0);
 
   /**
    * Handle memfd_create in the monitored process

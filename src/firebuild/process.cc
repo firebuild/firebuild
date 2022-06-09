@@ -531,74 +531,65 @@ int Process::handle_faccessat(const int dirfd, const char * const ar_name, const
   return 0;
 }
 
-int Process::handle_chmod(const int dirfd, const char * const ar_name, const size_t ar_len,
-                          const mode_t mode, const int flags, const int error) {
+int Process::handle_fchmodat(const int fd, const char * const ar_name, const size_t ar_len,
+                             const mode_t mode, const int flags, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, mode=%d, flags=%d, error=%d",
-         dirfd, D(ar_name), mode, flags, error);
+         "fd=%d, ar_name=%s, mode=%d, flags=%d, error=%d",
+         fd, D(ar_name), mode, flags, error);
 
   (void)mode;  /* No need to remember what we chmod to, we'll stat at the end. */
 
-  /* Chmod doesn't actually support AT_EMPTY_PATH, I guess it's a bug in the Linux kernel. */
-  const FileName* name =
-      ((flags & AT_EMPTY_PATH) && (ar_name[0] == '\0')) ? get_fd_filename(dirfd)
-      : get_absolute(dirfd, ar_name, ar_len);
+  const FileName *name;
 
-  if (!name) {
-    // FIXME don't disable shortcutting if chmod() failed due to the invalid dirfd
-    exec_point()->disable_shortcutting_bubble_up(
-        "Invalid dirfd or filename passed to chmod() variant");
-    return -1;
-  }
+  /* Linux's fchmodat() doesn't support AT_EMPTY_PATH. The attempt to fix it at
+   * https://patchwork.kernel.org/project/linux-fsdevel/patch/148830142269.7103.7429913851447595016.stgit@bahia/
+   * has apparently stalled.
+   *
+   * FreeBSD supports it.
+   *
+   * Let's just go on assuming it's supported to make our code consistent with fstatat(), future
+   * fchownat() and possibly some other methods too. */
 
-  if (error) {
-    exec_point()->disable_shortcutting_bubble_up("Cannot register a failed chmod", *name);
-    return -1;
-  }
+  if (ar_name == nullptr || (ar_name[0] == '\0' && (flags & AT_EMPTY_PATH))) {
+    /* Operating on an opened fd, i.e. fchmod() or fchmodat("", AT_EMPTY_PATH). */
+    FileFD *file_fd = get_fd(fd);
+    if (!file_fd) {
+      if (error == 0) {
+        exec_point()->disable_shortcutting_bubble_up(
+            "Process fchmodat()ed an unknown fd successfully, "
+            "which means interception missed at least one open()", fd);
+        return -1;
+      } else {
+        /* Invalid fd passed to fchmod(), or something like that. */
+        return 0;
+      }
+    }
 
-  FileUsageUpdate update(name, EXIST, false, true);
-  if (!exec_point()->register_file_usage_update(name, update)) {
-    exec_point()->disable_shortcutting_bubble_up("Could not register a chmod", *name);
-    return -1;
-  }
-
-  return 0;
-}
-
-int Process::handle_fchmod(const int fd, const mode_t mode, const int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "fd=%d, mode=%d, error=%d", fd, mode, error);
-
-  (void)mode;  /* No need to remember what we chmod to, we'll stat at the end. */
-
-  const FileFD *file_fd = get_fd(fd);
-  if (!file_fd) {
-    if (error == 0) {
-      exec_point()->disable_shortcutting_bubble_up(
-          "Process fchmod()ed an unknown fd successfully, "
-          "which means interception missed at least one open()", fd);
-      return -1;
-    } else {
-      /* Invalid fd passed to fchmod(), or something like that. */
+    name = file_fd->filename();
+    if (!name) {
+      /* Cannot find file name, maybe it's a pipe or similar. Take no action. */
       return 0;
+    }
+  } else {
+    /* Operating on a file reached by its name, like [l]chmod(), or fchmodat() with a non-empty
+     * path relative to some dirfd (called 'fd' here). */
+    name = get_absolute(fd, ar_name, ar_len);
+    if (!name) {
+      // FIXME don't disable shortcutting if chmod() failed due to the invalid dirfd
+      exec_point()->disable_shortcutting_bubble_up(
+          "Invalid dirfd or filename passed fchmodat()");
+      return -1;
     }
   }
 
-  const FileName* name = file_fd->filename();
-  if (!name) {
-    exec_point()->disable_shortcutting_bubble_up(
-        "Invalid fd or filename passed to fchmod()");
-    return -1;
-  }
-
   if (error) {
-    exec_point()->disable_shortcutting_bubble_up("Cannot register a failed fchmod", *name);
+    exec_point()->disable_shortcutting_bubble_up("Cannot register a failed fchmodat() on", *name);
     return -1;
   }
 
   FileUsageUpdate update(name, EXIST, false, true);
   if (!exec_point()->register_file_usage_update(name, update)) {
-    exec_point()->disable_shortcutting_bubble_up("Could not register a fchmod", *name);
+    exec_point()->disable_shortcutting_bubble_up("Could not register fchmodat() on", *name);
     return -1;
   }
 

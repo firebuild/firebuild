@@ -912,33 +912,37 @@ generate("int", "fchdir", "int fd",
 
 # Intercept the chmod family
 generate("int", "chmod", "const char *pathname, mode_t mode",
+         msg="fchmodat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, pathname);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchmodat, pathname);"])
 generate("int", "lchmod", "const char *pathname, mode_t mode",
-         msg="chmod",
+         msg="fchmodat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chmod, pathname);",
-                         "fbbcomm_builder_chmod_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", "fchmodat", "int dirfd, const char *pathname, mode_t mode, int flags",
-         msg="chmod",
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchmodat, pathname);",
+                         "fbbcomm_builder_fchmodat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
+generate("int", "fchmodat", "int fd, const char *pathname, mode_t mode, int flags",
+         msg="fchmodat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chmod, dirfd, pathname);"])
-generate("int", "fchmod", "int fd, mode_t mode")
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fchmodat, fd, pathname);"])
+generate("int", "fchmod", "int fd, mode_t mode",
+         msg="fchmodat")
 
 # Intercept the chown family
 generate("int", "chown", "const char *pathname, uid_t owner, gid_t group",
+         msg="fchownat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, pathname);"])
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchownat, pathname);"])
 generate("int", "lchown", "const char *pathname, uid_t owner, gid_t group",
-         msg="chown",
+         msg="fchownat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(chown, pathname);",
-                         "fbbcomm_builder_chown_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", "fchownat", "int dirfd, const char *pathname, uid_t owner, gid_t group, int flags",
-         msg="chown",
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchownat, pathname);",
+                         "fbbcomm_builder_fchownat_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
+generate("int", "fchownat", "int fd, const char *pathname, uid_t owner, gid_t group, int flags",
+         msg="fchownat",
          msg_skip_fields=["pathname"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(chown, dirfd, pathname);"])
-generate("int", "fchown", "int fd, uid_t owner, gid_t group")
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fchownat, fd, pathname);"])
+generate("int", "fchown", "int fd, uid_t owner, gid_t group",
+         msg="fchownat")
 
 # Intercept the link, symlink and readlink families
 generate("int", "link", "const char *oldpath, const char *newpath",

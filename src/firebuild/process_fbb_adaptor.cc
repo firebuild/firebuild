@@ -97,20 +97,13 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_faccessat 
                                 mode, flags, error);
 }
 
-int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_chmod *msg) {
-  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fchmodat *msg) {
+  const int fd = msg->get_fd_with_fallback(AT_FDCWD);
   const mode_t mode = msg->get_mode();
   const int flags = msg->get_flags_with_fallback(0);
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_chmod(dirfd, msg->get_pathname(), msg->get_pathname_len(),
-                            mode, flags, error);
-}
-
-int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fchmod *msg) {
-  const int fd = msg->get_fd();
-  const int mode = msg->get_mode();
-  const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_fchmod(fd, mode, error);
+  return proc->handle_fchmodat(fd, msg->get_pathname(), msg->get_pathname_len(),
+                               mode, flags, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
