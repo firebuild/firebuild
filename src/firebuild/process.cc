@@ -390,60 +390,50 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
   return 0;
 }
 
-int Process::handle_fstat(const int fd, const mode_t st_mode, const off_t st_size,
-                          const int error) {
+int Process::handle_fstatat(const int fd, const char * const ar_name, const size_t ar_len,
+                            const int flags, const mode_t st_mode, const off_t st_size,
+                            const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "fd=%d, st_mode=%d, st_size=%ld, error=%d", fd, st_mode, st_size, error);
+         "fd=%d, ar_name=%s, flags=%d, st_mode=%d, st_size=%ld, error=%d",
+         fd, D(ar_name), flags, st_mode, st_size, error);
 
-  FileFD *file_fd = get_fd(fd);
-  if (!file_fd) {
-    if (error == 0) {
-      exec_point()->disable_shortcutting_bubble_up(
-          "Process fstat()ed an unknown fd successfully, "
-          "which means interception missed at least one open()", fd);
-      return -1;
-    } else {
-      /* Invalid fd passed to fstat(), or something like that. */
+  const FileName *name;
+
+  if (ar_name == nullptr || (ar_name[0] == '\0' && (flags & AT_EMPTY_PATH))) {
+    /* Operating on an opened fd, i.e. fstat() or fstatat("", AT_EMPTY_PATH). */
+    FileFD *file_fd = get_fd(fd);
+    if (!file_fd) {
+      if (error == 0) {
+        exec_point()->disable_shortcutting_bubble_up(
+            "Process fstatat()ed an unknown fd successfully, "
+            "which means interception missed at least one open()", fd);
+        return -1;
+      } else {
+        /* Invalid fd passed to fstat(), or something like that. */
+        return 0;
+      }
+    }
+
+    name = file_fd->filename();
+    if (!name) {
+      /* Cannot find file name, maybe it's a pipe or similar. Take no action. */
       return 0;
+    }
+  } else {
+    /* Operating on a file reached by its name, like [l]stat(), or fstatat() with a non-empty
+     * path relative to some dirfd (called 'fd' here). */
+    name = get_absolute(fd, ar_name, ar_len);
+    if (!name) {
+      // FIXME don't disable shortcutting if stat() failed due to the invalid dirfd
+      exec_point()->disable_shortcutting_bubble_up(
+          "Invalid dirfd or filename passed to stat() variant");
+      return -1;
     }
   }
 
-  const FileName *name = file_fd->filename();
-  if (!name) {
-    /* Cannot find file name, maybe it's a pipe or similar. Take no action. */
-    return 0;
-  }
-
   FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, st_size, error);
   if (!exec_point()->register_file_usage_update(name, update)) {
-    exec_point()->disable_shortcutting_bubble_up("Could not register fstat() on", *name);
-    return -1;
-  }
-
-  return 0;
-}
-
-int Process::handle_stat(const int dirfd, const char * const ar_name, const size_t ar_len,
-                         const int flags, const mode_t st_mode, const off_t st_size,
-                         const int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, st_mode=%d, st_size=%ld, error=%d",
-         dirfd, D(ar_name), flags, st_mode, st_size, error);
-
-  const FileName* name =
-      ((flags & AT_EMPTY_PATH) && (ar_name[0] == '\0')) ? get_fd_filename(dirfd)
-      : get_absolute(dirfd, ar_name, ar_len);
-
-  if (!name) {
-    // FIXME don't disable shortcutting if stat() failed due to the invalid dirfd
-    exec_point()->disable_shortcutting_bubble_up(
-        "Invalid dirfd or filename passed to stat() variant");
-    return -1;
-  }
-
-  FileUsageUpdate update = FileUsageUpdate::get_from_stat_params(name, st_mode, st_size, error);
-  if (!exec_point()->register_file_usage_update(name, update)) {
-    exec_point()->disable_shortcutting_bubble_up("Could not register stat() on", *name);
+    exec_point()->disable_shortcutting_bubble_up("Could not register fstatat() on", *name);
     return -1;
   }
 

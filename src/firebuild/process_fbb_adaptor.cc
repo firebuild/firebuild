@@ -78,22 +78,14 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_mkdir *msg
   return proc->handle_mkdir(dirfd, msg->get_pathname(), msg->get_pathname_len(), error);
 }
 
-int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fstat *msg) {
-  const mode_t st_mode = msg->get_st_mode_with_fallback(0);
-  const off_t st_size = msg->get_st_size_with_fallback(0);
-  const int error = msg->get_error_no_with_fallback(0);
-  const int fd = msg->get_fd_with_fallback(-1);
-  return proc->handle_fstat(fd, st_mode, st_size, error);
-}
-
-int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_stat *msg) {
-  const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_fstatat *msg) {
+  const int fd = msg->get_fd_with_fallback(AT_FDCWD);
   const mode_t st_mode = msg->get_st_mode_with_fallback(0);
   const off_t st_size = msg->get_st_size_with_fallback(0);
   const int flags = msg->get_flags_with_fallback(0);
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_stat(dirfd, msg->get_pathname(), msg->get_pathname_len(),
-                           flags, st_mode, st_size, error);
+  return proc->handle_fstatat(fd, msg->get_pathname(), msg->get_pathname_len(),
+                              flags, st_mode, st_size, error);
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_faccessat *msg) {
