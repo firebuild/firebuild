@@ -335,10 +335,10 @@
       (REQUIRED, "mode_t", "ret"),
     ]),
 
-    ("chmod", [
-      # dir file descriptor for fchmodat()
-      (OPTIONAL, "int", "dirfd"),
-      # file path
+    ("fchmodat", [
+      # fchmod()'s fd, or fchmodat()'s dirfd
+      (OPTIONAL, "int", "fd"),
+      # file path, except for fchmod()
       (OPTIONAL, STRING, "pathname"),
       # mode
       (REQUIRED, "mode_t", "mode"),
@@ -348,18 +348,9 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("fchmod", [
-      # file fd
-      (REQUIRED, "int", "fd"),
-      # mode
-      (REQUIRED, "mode_t", "mode"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
-    ("chown", [
-      # dir file descriptor for fchownat()
-      (OPTIONAL, "int", "dirfd"),
+    ("fchownat", [
+      # fchown()'s fd, or fchownat()'s dirfd
+      (OPTIONAL, "int", "fd"),
       # file path
       (OPTIONAL, STRING, "pathname"),
       # uid
@@ -367,19 +358,6 @@
       # gid
       (OPTIONAL, "gid_t", "group"),
       # flags for fchownat(), AT_SYMLINK_NOFOLLOW for lchown()
-      (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
-    ("fchown", [
-      # file fd
-      (OPTIONAL, "int", "fd"),
-      # uid
-      (OPTIONAL, "uid_t", "owner"),
-      # gid
-      (OPTIONAL, "gid_t", "group"),
-      # flags for fchownat()
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),

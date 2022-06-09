@@ -30,8 +30,7 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_mkdir *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_fstatat *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_faccessat *msg);
-  static int handle(Process *proc, const FBBCOMM_Serialized_chmod *msg);
-  static int handle(Process *proc, const FBBCOMM_Serialized_fchmod *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_fchmodat *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_timerfd_create *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_epoll_create *msg);
