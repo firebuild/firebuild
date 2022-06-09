@@ -1197,14 +1197,9 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
       break;
     }
-    case FBBCOMM_TAG_fstat: {
+    case FBBCOMM_TAG_fstatat: {
       ::firebuild::ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_fstat *>(fbbcomm_buf));
-      break;
-    }
-    case FBBCOMM_TAG_stat: {
-      ::firebuild::ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_stat *>(fbbcomm_buf));
+          reinterpret_cast<const FBBCOMM_Serialized_fstatat *>(fbbcomm_buf));
       break;
     }
     case FBBCOMM_TAG_faccessat: {

@@ -277,24 +277,13 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("stat", [
-      # dir file descriptor for fstatat()
-      (OPTIONAL, "int", "dirfd"),
-      # path to file
+    ("fstatat", [
+      # fstat()'s fd, or fstatat()'s dirfd
+      (OPTIONAL, "int", "fd"),
+      # path to file, except for fstat()
       (OPTIONAL, STRING, "pathname"),
       # it could be lstat() encoded as AT_SYMLINK_NOFOLLOW or fstatat(..., flags)
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
-      # Returned file type and mode
-      (OPTIONAL, "mode_t", "st_mode"),
-      # Returned file size
-      (OPTIONAL, "off_t", "st_size"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
-    ("fstat", [
-      # file fd
-      (OPTIONAL, "int", "fd"),
       # Returned file type and mode
       (OPTIONAL, "mode_t", "st_mode"),
       # Returned file size

@@ -307,16 +307,7 @@ class Process {
 
   /**
    * Handle stat in the monitored process
-   * @param fd the fd of fstat()
-   * @param st_mode mode as returned by a successful fstat() call
-   * @param st_size size as returned by a successful fstat() call
-   * @param error error code of fstat()
-   */
-  int handle_fstat(const int fd, const mode_t st_mode, const off_t st_size, const int error = 0);
-
-  /**
-   * Handle stat in the monitored process
-   * @param dirfd the dirfd of fstat(), fstatat() or AT_FDCWD
+   * @param fd fstat()'s fd, or fstatat()'s dirfd, or AT_FDCWD
    * @param name relative or absolute file name
    * @param name_len length of name
    * @param flags flags passed to fstatat() or AT_SYMLINK_NOFOLLOW in case of lstat()
@@ -324,8 +315,8 @@ class Process {
    * @param st_size size as returned by a successful stat() call
    * @param error error code of stat() variant
    */
-  int handle_stat(const int dirfd, const char * const name, const size_t name_len,
-                  const int flags, const mode_t st_mode, const off_t st_size, const int error = 0);
+  int handle_fstatat(const int fd, const char * const name, const size_t name_len, const int flags,
+                     const mode_t st_mode, const off_t st_size, const int error = 0);
 
   /**
    * Handle access, e[uid]access, faccessat in the monitored process
