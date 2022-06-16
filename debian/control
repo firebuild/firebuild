@@ -5,8 +5,6 @@ Maintainer: Balint Reczey <balint@balintreczey.hu>
 Build-Depends: bats,
                cmake,
                debhelper-compat (= 12),
-               gcc (>= 4:10) | gcc-10,
-               g++ (>= 4:10) | g++-10,
                graphviz,
                help2man,
                libconfig++-dev,
