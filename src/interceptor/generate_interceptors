@@ -207,6 +207,12 @@ def generate(rettype, funcs, sig, **dict):
 
   add_signature_to_dict(rettype, sig, dict)
 
+  if 'msg_skip_fields' in dict:
+    for msg_skip in dict['msg_skip_fields']:
+      if msg_skip != "error_no" and msg_skip not in dict['names']:
+        print("generate_interceptors: invalid msg_skip_fields value '" + msg_skip + "' for func '" + funcs[0] + "'")
+        exit(1)
+
   for func in funcs:
     if func in generated:
       print("generate_interceptors: Error: Already generated '" + func + "'", file=sys.stderr)
@@ -1268,11 +1274,11 @@ generate("int", "pipe2", "int pipefd[2], int flags",
 
 # Intercept the truncate family
 generate("int", "truncate", "const char *pathname, off_t len",
-         msg_skip_fields=["path"],
+         msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 generate("int", "truncate64", "const char *pathname, off64_t len",
          msg="truncate",
-         msg_skip_fields=["path"],
+         msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 generate("int", "ftruncate", "int fd, off_t len")
 generate("int", "ftruncate64", "int fd, off64_t len",
@@ -1283,7 +1289,7 @@ generate("int", "ftruncate64", "int fd, off64_t len",
 generate("int", "mkstemp", "char *pathname",
          send_msg_on_error=False,
          msg="open",
-         msg_skip_fields=["path"],
+         msg_skip_fields=["pathname"],
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
