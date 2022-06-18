@@ -453,154 +453,129 @@ generate("int", "renameat2", "int olddirfd, const char *oldpath, int newdirfd, c
 # FIXME also intercept mmap with PROT_READ
 generate("ssize_t", "read", "int fd, void *buf, size_t count",
          tpl="read",
-         msg_skip_fields=["buf", "count"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count"])
 generate("ssize_t", "__read_chk", "int fd, void *buf, size_t count, size_t fortify_size",
          tpl="read",
-         msg_skip_fields=["buf", "count", "fortify_size"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "fortify_size"])
 generate("ssize_t", "readv", "int fd, const struct iovec *iov, int iovcnt",
          tpl="read",
-         msg_skip_fields=["iov", "iovcnt"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt"])
 generate("ssize_t", "pread", "int fd, void *buf, size_t count, off_t offset",
          tpl="read",
-         msg_skip_fields=["buf", "count", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, off_t offset, size_t fortify_size",
          tpl="read",
-         msg_skip_fields=["buf", "count", "offset", "fortify_size"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "offset", "fortify_size"])
 generate("ssize_t", "pread64", "int fd, void *buf, size_t count, off64_t offset",
          tpl="read",
-         msg_skip_fields=["buf", "count", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "__pread64_chk", "int fd, void *buf, size_t count, off64_t offset, size_t fortify_size",
          tpl="read",
-         msg_skip_fields=["buf", "count", "offset", "fortify_size"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "offset", "fortify_size"])
 generate("ssize_t", "preadv", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
          tpl="read",
-         msg_skip_fields=["iov", "iovcnt", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "preadv64", "int fd, const struct iovec *iov, int iovcnt, off64_t offset",
          tpl="read",
-         msg_skip_fields=["iov", "iovcnt", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "preadv2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
          tpl="read",
-         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("ssize_t", "preadv64v2", "int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags",
          tpl="read",
-         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          success="ret > 0 || !ferror(stream)",
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("size_t", ["__fread_chk", "__fread_unlocked_chk"], "void *ptr, size_t fortify_size, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          success="ret > 0 || !ferror(stream)",
          msg_skip_fields=["ptr", "fortify_size", "size", "nmemb", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("int", ["fgetc", "fgetc_unlocked", "getc", "getc_unlocked", "getw"], "FILE *stream",
          tpl="read",
          success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", ["fgetwc", "fgetwc_unlocked", "getwc", "getwc_unlocked"], "FILE *stream",
          tpl="read",
          success="ret != WEOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("char *", ["fgets", "fgets_unlocked"], "char *s, int size, FILE *stream",
          tpl="read",
          success="ret != NULL || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["s", "size", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("char *", ["__fgets_chk", "__fgets_unlocked_chk"], "char *s, size_t fortify_size, int size, FILE *stream",
          success="ret != NULL || !ferror(stream)",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["s", "fortify_size", "size", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("wchar_t *", ["fgetws", "fgetws_unlocked"], "wchar_t *s, int size, FILE *stream",
          tpl="read",
          success="ret != NULL || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["s", "size", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("wchar_t *", ["__fgetws_chk", "__fgetws_unlocked_chk"], "wchar_t *s, size_t fortify_size, int size, FILE *stream",
          success="ret != NULL || !ferror(stream)",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["s", "fortify_size", "size", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("int", ["getchar", "getchar_unlocked"], "",
          tpl="read",
          success="ret != EOF || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", ["getwchar", "getwchar_unlocked"], "",
          tpl="read",
          success="ret != WEOF || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("char *", "gets", "char *s",  # should be never used, see man gets
          tpl="read",
          success="ret != NULL || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["s"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("char *", "__gets_chk", "char *s, size_t fortify_size",  # should be never used, see man gets
          tpl="read",
          success="ret != NULL || !ferror(stdin)",
          before_lines=["int fd = safe_fileno(stdin);"],
          msg_skip_fields=["s", "fortify_size"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
          tpl="read",
          success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["lineptr", "n", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
          tpl="read",
          success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["lineptr", "n", "delim", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 # glibc magic, see #343
 generate("int", ["__uflow", "__underflow"], "FILE *stream",
          tpl="read",
@@ -608,16 +583,14 @@ generate("int", ["__uflow", "__underflow"], "FILE *stream",
          send_msg_condition="fd != -1",
          success="true",
          msg_skip_fields=["stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", ["__wuflow", "__wunderflow"], "FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          success="true",
          msg_skip_fields=["stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 # Handle (__isoc99_)?v?f?w?scanf
 for i in ['', '__isoc99_']:
   for v in ['', 'v']:
@@ -660,8 +633,7 @@ for i in ['', '__isoc99_']:
                  before_lines=before_lines,
                  call_orig_lines=call_orig_lines,
                  msg_skip_fields=msg_skip_fields,
-                 msg_add_fields=msg_add_fields,
-                 ack_condition="true")
+                 msg_add_fields=msg_add_fields)
 for i in ['', '__isoc99_']:
   for v in ['', 'v']:
     for w in ['', 'w']:
@@ -671,92 +643,76 @@ for i in ['', '__isoc99_']:
 # FIXME also intercept mmap with PROT_WRITE
 generate("ssize_t", "write", "int fd, const void *buf, size_t count",
          tpl="write",
-         msg_skip_fields=["buf", "count"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count"])
 generate("ssize_t", "writev", "int fd, const struct iovec *iov, int iovcnt",
          tpl="write",
-         msg_skip_fields=["iov", "iovcnt"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt"])
 generate("ssize_t", "pwrite", "int fd, const void *buf, size_t count, off_t offset",
          tpl="write",
-         msg_skip_fields=["buf", "count", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "pwrite64", "int fd, const void *buf, size_t count, off64_t offset",
          tpl="write",
-         msg_skip_fields=["buf", "count", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "pwritev", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
          tpl="write",
-         msg_skip_fields=["iov", "iovcnt", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "pwritev64", "int fd, const struct iovec *iov, int iovcnt, off64_t offset",
          tpl="write",
-         msg_skip_fields=["iov", "iovcnt", "offset"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "pwritev2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
          tpl="write",
-         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("ssize_t", "pwritev64v2", "int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags",
          tpl="write",
-         msg_skip_fields=["iov", "iovcnt", "offset", "flags"],
-         ack_condition="true")
+         msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("size_t", ["fwrite", "fwrite_unlocked"], "const void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          success="ret > 0 || !ferror(stream)",
          msg_skip_fields=["ptr", "size", "nmemb", "stream"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("int", ["fputc", "fputc_unlocked", "putc", "putc_unlocked", "putw"], "int c, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["c", "stream"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", ["fputwc", "fputwc_unlocked", "putwc", "putwc_unlocked"], "wchar_t wc, FILE *stream",
          tpl="write",
          success="ret != WEOF",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["wc", "stream"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("int", ["fputs", "fputs_unlocked"], "const char *s, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["s", "stream"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("int", ["fputws", "fputws_unlocked"], "const wchar_t *s, FILE *stream",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          msg_skip_fields=["s", "stream"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("int", ["putchar", "putchar_unlocked"], "int c",
          tpl="write",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["c"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", ["putwchar", "putwchar_unlocked"], "wchar_t wc",
          tpl="write",
          success="ret != WEOF",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["wc"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("int", "puts", "const char *s",
          tpl="write",
          before_lines=["int fd = safe_fileno(stdout);"],
          msg_skip_fields=["s"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 # glibc magic, see #343
 generate("int", "__overflow", "FILE *stream, int ch",
          tpl="write",
@@ -764,16 +720,14 @@ generate("int", "__overflow", "FILE *stream, int ch",
          send_msg_condition="fd != -1",
          success="true",
          msg_skip_fields=["stream", "ch"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", "__woverflow", "FILE *stream, wint_t ch",
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
          success="true",
          msg_skip_fields=["stream", "ch"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 # There's no public verror() and verror_at_line().
 # Construct the message ourselves so that we don't have to rely on
 # gcc's __builtin_apply() with its arbitrarily guessed size parameter.
@@ -787,8 +741,7 @@ generate("void", "error", "int status, int errnum, const char *format, ...",
                           "vsnprintf(msgbuf, msglen + 1, format, ap);",
                           "IC_ORIG(error)(status, errnum, \"%s\", msgbuf);"],
          msg_skip_fields=["status", "errnum", "format"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("void", "error_at_line", "int status, int errnum, const char *filename, unsigned int linenum, const char *format, ...",
          tpl="error",
          before_lines=["int fd = safe_fileno(stderr);"],
@@ -799,14 +752,12 @@ generate("void", "error_at_line", "int status, int errnum, const char *filename,
                           "vsnprintf(msgbuf, msglen + 1, format, ap);",
                           "IC_ORIG(error_at_line)(status, errnum, filename, linenum, \"%s\", msgbuf);"],
          msg_skip_fields=["status", "errnum", "filename", "linenum", "format"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("void", ["herror", "perror"], "const char *s",
          tpl="write",
          before_lines=["int fd = safe_fileno(stderr);"],
          msg_skip_fields=["s"],
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 # Handle v?(err|warn)x?
 for v in ['', 'v']:
   for e in ['err', 'warn']:
@@ -837,8 +788,7 @@ for v in ['', 'v']:
          before_lines=["int fd = safe_fileno(stderr);"],
          call_orig_lines=call_orig_lines,
          msg_skip_fields=msg_skip_fields,
-         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"],
-         ack_condition="true")
+         msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 # Handle (__)?v?[fd]?w?printf(_chk)?
 for v in ['', 'v']:
   for f in ['', 'f', 'd']:
@@ -889,8 +839,7 @@ for v in ['', 'v']:
                  before_lines=before_lines,
                  call_orig_lines=call_orig_lines,
                  msg_skip_fields=msg_skip_fields,
-                 msg_add_fields=msg_add_fields,
-                 ack_condition="true")
+                 msg_add_fields=msg_add_fields)
 for v in ['', 'v']:
   for w in ['', 'w', 'n']:
     for (c1, c2) in [('', ''), ('__', '_chk')]:
