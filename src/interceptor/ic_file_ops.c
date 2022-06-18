@@ -139,21 +139,27 @@ int popen_type_to_flags(const char * type) {
 void clear_notify_on_read_write_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].notify_on_read = false;
+    ic_fd_states[fd].notify_on_pread = false;
     ic_fd_states[fd].notify_on_write = false;
+    ic_fd_states[fd].notify_on_pwrite = false;
   }
 }
 
 void set_notify_on_read_write_state(const int fd) {
   if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
     ic_fd_states[fd].notify_on_read = true;
+    ic_fd_states[fd].notify_on_pread = true;
     ic_fd_states[fd].notify_on_write = true;
+    ic_fd_states[fd].notify_on_pwrite = true;
   }
 }
 
 void set_all_notify_on_read_write_states() {
   for (int fd = 0; fd < IC_FD_STATES_SIZE; fd++) {
     ic_fd_states[fd].notify_on_read = true;
+    ic_fd_states[fd].notify_on_pread = true;
     ic_fd_states[fd].notify_on_write = true;
+    ic_fd_states[fd].notify_on_pwrite = true;
   }
 }
 
