@@ -726,8 +726,6 @@
     ("truncate", [
       # name
       (OPTIONAL, STRING, "pathname"),
-      # length
-      (OPTIONAL, "off_t", "len"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),

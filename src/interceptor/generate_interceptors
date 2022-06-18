@@ -1237,11 +1237,11 @@ generate("int", "pipe2", "int pipefd[2], int flags",
 
 # Intercept the truncate family
 generate("int", "truncate", "const char *pathname, off_t len",
-         msg_skip_fields=["pathname"],
+         msg_skip_fields=["pathname", "len"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 generate("int", "truncate64", "const char *pathname, off64_t len",
          msg="truncate",
-         msg_skip_fields=["pathname"],
+         msg_skip_fields=["pathname", "len"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 # For our purposes, ftruncate() is just like pwrite(): modifies the file's contents
 # in a way other than simply writing sequential data at the current offset.
