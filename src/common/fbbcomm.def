@@ -763,18 +763,28 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process reads from the given inherited fd
+    # The first time the process reads from the given inherited fd.
+    # Also re-sent once with is_pread=true if that value was false the first time.
     ("read_from_inherited", [
       # file fd
       (REQUIRED, "int", "fd"),
+      # Whether the read happened at an explicit offset with pread() and friends,
+      # rather than at the file's current offset in a way that advances this offset.
+      # Also false if preadv2() with offset == -1 mimics plain old sequential read().
+      (REQUIRED, "bool", "is_pread"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process writes to the given inherited fd
+    # The first time the process writes to the given inherited fd.
+    # Also re-sent once with is_pwrite=true if that value was false the first time.
     ("write_to_inherited", [
       # file fd
       (REQUIRED, "int", "fd"),
+      # Whether the write happened at an explicit offset with pwrite() and friends,
+      # rather than at the file's current offset in a way that advances this offset.
+      # Also false if pwritev2() with offset == -1 mimics plain old sequential write().
+      (REQUIRED, "bool", "is_pwrite"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),

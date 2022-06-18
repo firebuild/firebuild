@@ -49,10 +49,22 @@ extern int psfas_alloc;
 
 /** This tells whether the supervisor needs to be notified on a read or write
  *  event. The supervisor needs to be notified only on the first of each kind,
- *  and only for file descriptors that were inherited by the process. */
+ *  and only for file descriptors that were inherited by the process.
+ *  The "p" ones are stronger than their "non-p" counterparts, e.g. after notifying
+ *  the supervisor about a "pwrite" we don't need to notify it on a "write". */
 typedef struct {
+  /* Whether to notify on a read()-like operation at the current file offset,
+   * including preadv2() with offset == -1. */
   bool notify_on_read:1;
+  /* Whether to notify on a pread()-like operation that reads at an arbitrary offset,
+   * but not preadv2() with offset == -1. */
+  bool notify_on_pread:1;
+  /* Whether to notify on a write()-like operation at the current file offset,
+   * including pwrite2() with offset == -1. */
   bool notify_on_write:1;
+  /* Whether to notify on a pwrite()-like operation that writes at an arbitrary offset,
+   * but not pwrite2() with offset == -1. */
+  bool notify_on_pwrite:1;
 } fd_state;
 
 /** file fd states */

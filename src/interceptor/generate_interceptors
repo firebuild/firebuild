@@ -462,27 +462,35 @@ generate("ssize_t", "readv", "int fd, const struct iovec *iov, int iovcnt",
          msg_skip_fields=["iov", "iovcnt"])
 generate("ssize_t", "pread", "int fd, void *buf, size_t count, off_t offset",
          tpl="read",
+         is_pread="true",
          msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, off_t offset, size_t fortify_size",
          tpl="read",
+         is_pread="true",
          msg_skip_fields=["buf", "count", "offset", "fortify_size"])
 generate("ssize_t", "pread64", "int fd, void *buf, size_t count, off64_t offset",
          tpl="read",
+         is_pread="true",
          msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "__pread64_chk", "int fd, void *buf, size_t count, off64_t offset, size_t fortify_size",
          tpl="read",
+         is_pread="true",
          msg_skip_fields=["buf", "count", "offset", "fortify_size"])
 generate("ssize_t", "preadv", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
          tpl="read",
+         is_pread="true",
          msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "preadv64", "int fd, const struct iovec *iov, int iovcnt, off64_t offset",
          tpl="read",
+         is_pread="true",
          msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "preadv2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
          tpl="read",
+         is_pread="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("ssize_t", "preadv64v2", "int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags",
          tpl="read",
+         is_pread="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
@@ -649,21 +657,27 @@ generate("ssize_t", "writev", "int fd, const struct iovec *iov, int iovcnt",
          msg_skip_fields=["iov", "iovcnt"])
 generate("ssize_t", "pwrite", "int fd, const void *buf, size_t count, off_t offset",
          tpl="write",
+         is_pwrite="true",
          msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "pwrite64", "int fd, const void *buf, size_t count, off64_t offset",
          tpl="write",
+         is_pwrite="true",
          msg_skip_fields=["buf", "count", "offset"])
 generate("ssize_t", "pwritev", "int fd, const struct iovec *iov, int iovcnt, off_t offset",
          tpl="write",
+         is_pwrite="true",
          msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "pwritev64", "int fd, const struct iovec *iov, int iovcnt, off64_t offset",
          tpl="write",
+         is_pwrite="true",
          msg_skip_fields=["iov", "iovcnt", "offset"])
 generate("ssize_t", "pwritev2", "int fd, const struct iovec *iov, int iovcnt, off_t offset, int flags",
          tpl="write",
+         is_pwrite="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("ssize_t", "pwritev64v2", "int fd, const struct iovec *iov, int iovcnt, off64_t offset, int flags",
          tpl="write",
+         is_pwrite="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
 generate("size_t", ["fwrite", "fwrite_unlocked"], "const void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="write",
