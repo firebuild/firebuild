@@ -1284,7 +1284,6 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:
     case FBBCOMM_TAG_fpathconf:
-    case FBBCOMM_TAG_ftruncate:
     case FBBCOMM_TAG_getdomainname:
     case FBBCOMM_TAG_gethostname:
     case FBBCOMM_TAG_lockf:

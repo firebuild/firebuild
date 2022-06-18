@@ -1243,9 +1243,16 @@ generate("int", "truncate64", "const char *pathname, off64_t len",
          msg="truncate",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
-generate("int", "ftruncate", "int fd, off_t len")
+# For our purposes, ftruncate() is just like pwrite(): modifies the file's contents
+# in a way other than simply writing sequential data at the current offset.
+generate("int", "ftruncate", "int fd, off_t len",
+         tpl="write",
+         is_pwrite="true",
+         msg_skip_fields=["len"])
 generate("int", "ftruncate64", "int fd, off64_t len",
-         msg="ftruncate")
+         tpl="write",
+         is_pwrite="true",
+         msg_skip_fields=["len"])
 
 # Intercept the mkstemp family
 # Note: these update the pathname template in place.

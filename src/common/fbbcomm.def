@@ -732,15 +732,6 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("ftruncate", [
-      # file fd
-      (OPTIONAL, "int", "fd"),
-      # length
-      (OPTIONAL, "off_t", "len"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
     ("pathconf", [
       # path name
       (OPTIONAL, STRING, "path"),
