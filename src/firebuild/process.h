@@ -490,6 +490,14 @@ class Process {
   void handle_write_to_inherited(const int fd, const bool is_pwrite);
 
   /**
+   * Handle first seek()-like operation querying the offset, or the first such operation modifying
+   * the offset of an inherited fd in the monitored process
+   * @param fd file descriptor
+   * @param modify_offset whether the operation requested to change the offset
+   */
+  void handle_seek_in_inherited(const int fd, const bool modify_offset);
+
+  /**
    * Fail to change to a working directory
    */
   virtual void handle_fail_wd(const char * const d) = 0;

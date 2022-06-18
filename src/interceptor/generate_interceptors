@@ -862,6 +862,83 @@ for v in ['', 'v']:
   for (c1, c2) in [('', ''), ('__', '_chk')]:
     skip(c1 + v + "asprintf" + c2)
 
+# Intercept querying or modifying the file offset
+# FIXME What's up with llseek, _llseek, __lseek, _IO_*seek* etc.?
+generate("off_t", "lseek", "int fd, off_t offset, int whence",
+         tpl="seek",
+         modify_offset="offset != 0 || whence != SEEK_CUR",
+         msg_skip_fields=["offset", "whence"])
+generate("off64_t", "lseek64", "int fd, off64_t offset, int whence",
+         tpl="seek",
+         modify_offset="offset != 0 || whence != SEEK_CUR",
+         msg_skip_fields=["offset", "whence"])
+generate("int", "fseek", "FILE *stream, long offset, int whence",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="offset != 0 || whence != SEEK_CUR",
+         msg_skip_fields=["stream", "offset", "whence"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("int", "fseeko", "FILE *stream, off_t offset, int whence",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="offset != 0 || whence != SEEK_CUR",
+         msg_skip_fields=["stream", "offset", "whence"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("int", "fseeko64", "FILE *stream, off64_t offset, int whence",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="offset != 0 || whence != SEEK_CUR",
+         msg_skip_fields=["stream", "offset", "whence"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("long", "ftell", "FILE *stream",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="false",
+         msg_skip_fields=["stream"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("off_t", "ftello", "FILE *stream",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="false",
+         msg_skip_fields=["stream"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("off64_t", "ftello64", "FILE *stream",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="false",
+         msg_skip_fields=["stream"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("int", "fgetpos", "FILE *stream, fpos_t *pos",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="false",
+         msg_skip_fields=["stream", "pos"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("int", "fgetpos64", "FILE *stream, fpos64_t *pos",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="false",
+         msg_skip_fields=["stream", "pos"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("int", "fsetpos", "FILE *stream, const fpos_t *pos",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="true",
+         msg_skip_fields=["stream", "pos"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("int", "fsetpos64", "FILE *stream, const fpos64_t *pos",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="true",
+         msg_skip_fields=["stream", "pos"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+generate("void", "rewind", "FILE *stream",
+         tpl="seek",
+         before_lines=["int fd = safe_fileno(stream);"],
+         modify_offset="true",
+         msg_skip_fields=["stream"],
+         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+
 # Intercept chdir and fchdir
 generate("int", "chdir", "const char *pathname",
          msg_skip_fields=["pathname"],

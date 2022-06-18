@@ -51,7 +51,8 @@ extern int psfas_alloc;
  *  event. The supervisor needs to be notified only on the first of each kind,
  *  and only for file descriptors that were inherited by the process.
  *  The "p" ones are stronger than their "non-p" counterparts, e.g. after notifying
- *  the supervisor about a "pwrite" we don't need to notify it on a "write". */
+ *  the supervisor about a "pwrite" we don't need to notify it on a "write".
+ *  Similarly, "seek" is stronger than "tell", i.e. after a "seek" we don't send a "tell". */
 typedef struct {
   /* Whether to notify on a read()-like operation at the current file offset,
    * including preadv2() with offset == -1. */
@@ -65,6 +66,12 @@ typedef struct {
   /* Whether to notify on a pwrite()-like operation that writes at an arbitrary offset,
    * but not pwrite2() with offset == -1. */
   bool notify_on_pwrite:1;
+  /* Whether to notify on an lseek()-like operation that queries (but does not modify) the
+   * offset. */
+  bool notify_on_tell:1;
+  /* Whether to notify on an lseek()-like operation that modifies (and possibly also queries)
+   * the offset. */
+  bool notify_on_seek:1;
 } fd_state;
 
 /** file fd states */
