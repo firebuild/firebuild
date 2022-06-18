@@ -39,6 +39,7 @@ add_custom_command (
   tpl_pthread_create.c
   tpl_read.c
   tpl_readlink.c
+  tpl_seek.c
   tpl_signal.c
   tpl_skip.c
   tpl_syscall.c

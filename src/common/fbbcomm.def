@@ -778,6 +778,17 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    # The first time the process queries or changes the seek offset.
+    # Also re-sent once with modify_offset=true if that value was false the first time.
+    ("seek_in_inherited", [
+      # file fd
+      (REQUIRED, "int", "fd"),
+      # Whether the operation requested to change the offset
+      (REQUIRED, "bool", "modify_offset"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     # Resource usage collected at exit. The exit status will be collected by the wait() in the parent
     ("rusage", [
       # user CPU time in microseconds

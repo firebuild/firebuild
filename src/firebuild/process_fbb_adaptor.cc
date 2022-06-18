@@ -180,6 +180,14 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_write_to_i
   return 0;
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_seek_in_inherited *msg) {
+  const int error = msg->get_error_no_with_fallback(0);
+  if (error == 0) {
+    proc->handle_seek_in_inherited(msg->get_fd(), msg->get_modify_offset());
+  }
+  return 0;
+}
+
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_umask *msg) {
   const mode_t old_umask = msg->get_ret();
   const mode_t new_umask = msg->get_mask();

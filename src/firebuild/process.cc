@@ -1032,6 +1032,26 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
   }
 }
 
+void Process::handle_seek_in_inherited(const int fd, const bool modify_offset) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, modify_offset=%s", fd, D(modify_offset));
+
+  if (!get_fd(fd)) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process successfully seeked in an fd which is known to be closed, which means interception"
+        " missed at least one open()", fd);
+    return;
+  }
+  // FIXME Handle the !modify_offset case
+  if (modify_offset && !(*fds_)[fd]->pipe()) {
+    /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
+     * i.e. the file was opened by the current process. */
+    Process* opened_by = (*fds_)[fd]->opened_by();
+    exec_point()->disable_shortcutting_bubble_up_to_excl(
+        opened_by ? opened_by->exec_point() : nullptr,
+        "Process seeked in inherited non-pipe fd ", fd);
+  }
+}
+
 void Process::handle_set_wd(const char * const ar_d, const size_t ar_d_len) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_d=%s", ar_d);
 

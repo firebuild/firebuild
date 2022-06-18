@@ -142,6 +142,8 @@ void clear_notify_on_read_write_state(const int fd) {
     ic_fd_states[fd].notify_on_pread = false;
     ic_fd_states[fd].notify_on_write = false;
     ic_fd_states[fd].notify_on_pwrite = false;
+    ic_fd_states[fd].notify_on_tell = false;
+    ic_fd_states[fd].notify_on_seek = false;
   }
 }
 
@@ -151,6 +153,8 @@ void set_notify_on_read_write_state(const int fd) {
     ic_fd_states[fd].notify_on_pread = true;
     ic_fd_states[fd].notify_on_write = true;
     ic_fd_states[fd].notify_on_pwrite = true;
+    ic_fd_states[fd].notify_on_tell = true;
+    ic_fd_states[fd].notify_on_seek = true;
   }
 }
 
@@ -160,6 +164,8 @@ void set_all_notify_on_read_write_states() {
     ic_fd_states[fd].notify_on_pread = true;
     ic_fd_states[fd].notify_on_write = true;
     ic_fd_states[fd].notify_on_pwrite = true;
+    ic_fd_states[fd].notify_on_tell = true;
+    ic_fd_states[fd].notify_on_seek = true;
   }
 }
 

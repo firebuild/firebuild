@@ -1198,6 +1198,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
           reinterpret_cast<const FBBCOMM_Serialized_write_to_inherited *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_seek_in_inherited: {
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_seek_in_inherited *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_link: {
       proc->exec_point()->disable_shortcutting_bubble_up("Creating a hard link is not supported");
       break;
