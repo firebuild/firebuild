@@ -466,7 +466,7 @@ Setter - from an array of pointers, and their length. No need for a
 trailing NULL, but all intermediate items must be non-NULL:
 
     const char *dolorsitamet[] = { "dolor", "sit", "amet" };
-    fbbns_builder_foo_set_mystringarray(&bldr, dolorsitamet, 3);
+    fbbns_builder_foo_set_mystringarray_with_count(&bldr, dolorsitamet, 3);
 
 Setter - convenience C++ wrapper. Note that it's just a thin wrapper
 around the C setters. Note that there's no version taking the more
