@@ -147,11 +147,19 @@ void Pipe::pipe_fd0_write_cb(const struct epoll_event* event, void *arg) {
       break;
     }
     case FB_PIPE_SUCCESS: {
-      if (pipe->buffer_empty() && pipe->conn2fd1_ends.size() == 0
-          && !pipe->fd1_ptrs_held_self_ptr_) {
-        /* There are no active fd1 ends nor fd1 references to this pipe. There can't be any more
-         * incoming data. */
-        pipe->finish();
+      if (pipe->buffer_empty() && pipe->conn2fd1_ends.size() == 0) {
+        if (!pipe->fd1_ptrs_held_self_ptr_) {
+          /* There are no active fd1 ends nor fd1 references to this pipe. There can't be any more
+           * incoming data. */
+          pipe->finish();
+        } else {
+          /* There are references held to fd1 which means that a process may show up inheriting
+           * the open pipe end. Set up a timer to finish() the pipe if the new process does
+           * not register with the supervisor possibly because it is a static binary. */
+          pipe->fd1_timeout_round_ = 0;
+          assert(pipe->fd1_timeout_id_ < 0);
+          pipe->fd1_timeout_id_ = epoll->add_timer(kFd1ReopenTimeoutMs, fd1_timeout_cb, pipe);
+        }
       }
       break;
     }
@@ -181,7 +189,7 @@ void Pipe::close_one_fd1(int fd) {
         finish();
       } else {
         /* There are references held to fd1 which means that a process may show up inheriting
-         * the open pipe end. Set up a timer to close finish() the pipe if the new process does not
+         * the open pipe end. Set up a timer to finish() the pipe if the new process does
          * not register with the supervisor possibly because it is a static binary. */
         fd1_timeout_round_ = 0;
         assert(fd1_timeout_id_ < 0);
