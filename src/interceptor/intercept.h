@@ -332,7 +332,7 @@ inline void thread_signal_danger_zone_leave() {
 void grab_global_lock(bool *i_locked, const char * const function_name);
 void release_global_lock();
 
-extern void fb_ic_load() __attribute__((constructor));
+extern void fb_ic_load();
 extern void handle_exit();
 void *pthread_start_routine_wrapper(void *routine_and_arg);
 extern int __libc_start_main(int (*main)(int, char **, char **),

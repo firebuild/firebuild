@@ -7,13 +7,6 @@
 
 #include <stdbool.h>
 
-
-/**
- * Get process's arguments and environment
- */
-void get_argv_env(char *** argv, char ***env);
-
-
 /**
  * Whether the environment needs any fixup at all.
  */
