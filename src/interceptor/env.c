@@ -21,26 +21,6 @@
 #define LD_PRELOAD              "LD_PRELOAD"
 #define LIBFIREBUILD_SO_LEN     ((int) strlen(LIBFIREBUILD_SO))
 
-void get_argv_env(char *** argv, char ***env) {
-  char* arg = *(__environ - 2);
-  unsigned long int argc_guess = 0;
-
-  /* argv is NULL terminated */
-  assert(*(__environ - 1) == NULL);
-  /* walk back on argv[] to find the first value matching the counted argument number */
-  while (argc_guess != (unsigned long int)arg) {
-    argc_guess++;
-    arg = *(__environ - 2 - argc_guess);
-  }
-
-  *argv = __environ - 1 - argc_guess;
-  *env = __environ;
-}
-
-// TODO(rbalint) for valgrind
-// void free_arc_argv_env()
-
-
 /* Like getenv(), but from a custom environment array */
 static char *getenv_from(char **env, const char *name) {
   int name_len = strlen(name);

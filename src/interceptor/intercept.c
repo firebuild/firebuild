@@ -19,6 +19,7 @@
 #include "interceptor/interceptors.h"
 #include "common/firebuild_common.h"
 
+static void fb_ic_load_constructor(int argc, char **argv) __attribute__((constructor));
 static void fb_ic_cleanup() __attribute__((destructor));
 
 /** file fd states */
@@ -62,6 +63,10 @@ bool intercepting_enabled = true;
 /** Current working directory as reported to the supervisor */
 char ic_cwd[IC_PATH_BUFSIZE] = {0};
 size_t ic_cwd_len = 0;
+
+/** Program's argc and argv. */
+static int ic_argc;
+static char **ic_argv;
 
 /**
  * Stored PID
@@ -775,6 +780,32 @@ void fb_init_supervisor_conn() {
 }
 
 /**
+ * Detect main()'s argc and argv with heuristics.
+ *
+ * The reliable and portable initialization happens in fb_ic_load_constructor(), but in case
+ * an intercepted function is called before the constructor of this shared library, argc
+ * and argv still needs to be reported to the supervisor in the first message.
+ * The heuristics below works for most programs, but not for mpicc. Luckily when intercepting
+ * mpicc the constructor is called first, thus this heuristics is not used.
+ */
+static void init_argc_argv() {
+  if (ic_argv == NULL) {
+    char* arg = *(__environ - 2);
+    unsigned long int argc_guess = 0;
+
+    /* argv is NULL terminated */
+    assert(*(__environ - 1) == NULL);
+    /* walk back on argv[] to find the first value matching the counted argument number */
+    while (argc_guess != (unsigned long int)arg) {
+      argc_guess++;
+      arg = *(__environ - 2 - argc_guess);
+    }
+    ic_argc = argc_guess;
+    ic_argv = __environ - 1 - argc_guess;
+  }
+}
+
+/**
  * Initialize interceptor's data structures and sync with supervisor
  */
 static void fb_ic_init() {
@@ -822,8 +853,7 @@ static void fb_ic_init() {
   pthread_atfork(NULL, atfork_parent_handler, atfork_child_handler);
   atexit(atexit_handler);
 
-  char **argv, **env;
-  get_argv_env(&argv, &env);
+  init_argc_argv();
 
   pid_t pid, ppid;
   ic_pid = pid = IC_ORIG(getpid)();
@@ -842,13 +872,14 @@ static void fb_ic_init() {
   fbbcomm_builder_scproc_query_set_pid(&ic_msg, pid);
   fbbcomm_builder_scproc_query_set_ppid(&ic_msg, ppid);
   fbbcomm_builder_scproc_query_set_cwd(&ic_msg, ic_cwd);
-  fbbcomm_builder_scproc_query_set_arg(&ic_msg, (const char **) argv);
+  fbbcomm_builder_scproc_query_set_arg_with_count(&ic_msg, (const char **) ic_argv, ic_argc);
 
   mode_t initial_umask = ic_orig_umask(0077);
   ic_orig_umask(initial_umask);
   fbbcomm_builder_scproc_query_set_umask(&ic_msg, initial_umask);
 
   /* make a sorted and filtered copy of env */
+  char **env = __environ;
   int env_len = 0, env_copy_len = 0;
   for (char** cursor = env; *cursor != NULL; cursor++) {
     env_len++;
@@ -1079,6 +1110,14 @@ void fb_ic_load() {
       /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded. */
       fb_ic_init();
     }
+  }
+}
+
+static void fb_ic_load_constructor(int argc, char **argv) {
+  if (!ic_init_done) {
+    ic_argc = argc;
+    ic_argv = argv;
+    fb_ic_load();
   }
 }
 
