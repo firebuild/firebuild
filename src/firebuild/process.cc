@@ -385,6 +385,12 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
           "Could not register the unlink or rmdir", *name);
       return -1;
     }
+  } else if (error == ENOENT) {
+    FileUsageUpdate update(name, NOTEXIST);
+    if (!exec_point()->register_file_usage_update(name, update)) {
+      exec_point()->disable_shortcutting_bubble_up("Could not register the unlink or rmdir", *name);
+      return -1;
+    }
   }
 
   return 0;
