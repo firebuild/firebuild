@@ -918,6 +918,48 @@ static void fb_ic_init() {
   }
   fbbcomm_builder_scproc_query_set_libs(&ic_msg, (const char **) libs.p);
 
+  /* List the inherited file descriptors */
+  DIR *dirp = ic_orig_opendir("/proc/self/fd");
+  if (dirp) {
+    int dirp_fd = dirfd(dirp);
+    int count = 0;
+    int fdinfo_ptrs_allocated = 16  /* arbitrary */;
+    FBBCOMM_Builder_scproc_query_fdinfo **fdinfo_ptrs =
+        alloca(fdinfo_ptrs_allocated * sizeof(void *));
+
+    struct dirent *entry;
+    while ((entry = ic_orig_readdir(dirp)) != NULL) {
+      int fd;
+      if (sscanf(entry->d_name, "%d", &fd) == 1 && fd != fb_sv_conn && fd != dirp_fd) {
+        if (count == fdinfo_ptrs_allocated) {
+          /* Grow fdinfo_ptrs. Leave the old one on the stack as garbage until the method returns */
+          FBBCOMM_Builder_scproc_query_fdinfo **fdinfo_ptrs_new =
+              alloca(2 * fdinfo_ptrs_allocated * sizeof(void *));
+          memcpy(fdinfo_ptrs_new, fdinfo_ptrs, fdinfo_ptrs_allocated * sizeof(void *));
+          fdinfo_ptrs = fdinfo_ptrs_new;
+          fdinfo_ptrs_allocated *= 2;
+        }
+
+        /* Note: the scope of alloca()'s return value is the entire function, not just the brace
+         * block. So it's okay to alloca() one FBBCOMM_Builder in each itereation of the loop. */
+        FBBCOMM_Builder_scproc_query_fdinfo *fdinfo =
+            alloca(sizeof(FBBCOMM_Builder_scproc_query_fdinfo));
+        fdinfo_ptrs[count++] = fdinfo;
+
+        fbbcomm_builder_scproc_query_fdinfo_init(fdinfo);
+        fbbcomm_builder_scproc_query_fdinfo_set_fd(fdinfo, fd);
+        int offset = ic_orig_lseek(fd, 0, SEEK_CUR);
+        if (offset != -1) {
+          fbbcomm_builder_scproc_query_fdinfo_set_offset(fdinfo, offset);
+        }
+      }
+    }
+    ic_orig_closedir(dirp);
+    fbbcomm_builder_scproc_query_set_fdinfos_with_count(&ic_msg,
+                                                        (const FBBCOMM_Builder **) fdinfo_ptrs,
+                                                        count);
+  }
+
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
 
   /* Read the scproc_resp message header. */

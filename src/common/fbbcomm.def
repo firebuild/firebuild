@@ -88,6 +88,14 @@
   """,
 
   "tags": [
+    # Submessage within "scproc_query" representing an inherited fd.
+    ("scproc_query_fdinfo", [
+      # The fd.
+      (REQUIRED, "int", "fd"),
+      # The seek offset, if successfully queried. Missing for non-seekable special devices and such.
+      (OPTIONAL, "size_t", "offset"),
+    ]),
+
     # interceptor library queries Firebuild supervisor if it can shortcut execution of the process
     ("scproc_query", [
       # process id
@@ -112,6 +120,8 @@
       (OPTIONAL, STRING, "original_executed_path"),
       # loaded shared libraries in the beginning
       (ARRAY, STRING, "libs"),
+      # open file descriptors at startup, "scproc_query_fdinfo" messages, unsorted
+      (ARRAY, FBB, "fdinfos"),
       # interceptor's version
       (OPTIONAL, STRING, "version"),
     ]),
