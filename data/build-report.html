@@ -307,7 +307,7 @@
 
           /* every element needs to be updated, otherwise they would show the previous node's values */
           document.getElementById('detailed_name').innerHTML = d.name;
-          document.getElementById('detailed_cwd').innerHTML = d.cwd;
+          document.getElementById('detailed_wd').innerHTML = d.initial_wd;
           document.getElementById('detailed_args').innerHTML = print_string_array(d.args);
           document.getElementById('detailed_env').innerHTML = print_string_array(d.env).replace(/ /g, "<br/>");
           document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs).replace(/ /g, "<br/>");
@@ -530,7 +530,7 @@
             <td colspan="2"><span class="detail_name">Arguments:</span> <span id="detailed_args"/></td>
           </tr>
           <tr>
-            <td colspan="2"><span class="detail_name">Working dir.:</span> <span id="detailed_cwd"/></td>
+            <td colspan="2"><span class="detail_name">Working dir.:</span> <span id="detailed_wd"/></td>
           </tr>
           <tr>
             <td colspan="2"><span class="detail_name">Executable binary:</span> <span id="detailed_executable"> </span></td>
