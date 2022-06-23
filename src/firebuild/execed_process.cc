@@ -594,8 +594,7 @@ void ExecedProcess::export2js(const unsigned int level,
 
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
-    if (!isreg_with_hash && !ffu.usage->written()) {
+    if (ffu.usage->initial_type() == NOTEXIST) {
       fprintf(stream, "\"%s\",", ffu.file->c_str());
     }
   }
