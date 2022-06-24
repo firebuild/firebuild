@@ -357,9 +357,10 @@ int Process::handle_close_range(const unsigned int first, const unsigned int las
 }
 
 int Process::handle_unlink(const int dirfd, const char * const ar_name, const size_t ar_len,
-                           const int flags, const int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, flags=%d, error=%d",
-         dirfd, D(ar_name), flags, error);
+                           const int flags, const int error, const bool pre_open_sent) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, flags=%d, error=%d, pre_open_sent=%d",
+         dirfd, D(ar_name), flags, error, pre_open_sent);
 
   const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
@@ -367,8 +368,9 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
     exec_point()->disable_shortcutting_bubble_up("Invalid dirfd passed to unlinkat()");
     return -1;
   }
-  /* Unlink always sends pre_open, which pretends that the file was opened for writing. */
-  name->close_for_writing();
+  if (pre_open_sent) {
+    name->close_for_writing();
+  }
 
   if (!error) {
     /* There is no need to call register_parent_directory().
@@ -642,10 +644,12 @@ int Process::handle_signalfd(const int oldfd, const int flags, const int newfd) 
   return 0;
 }
 
-int Process::handle_rmdir(const char * const ar_name, const size_t ar_name_len, const int error) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_name=%s, error=%d", D(ar_name), error);
+int Process::handle_rmdir(const char * const ar_name, const size_t ar_name_len, const int error,
+                          const bool pre_open_sent) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_name=%s, error=%d, pre_open_sent=%d",
+         D(ar_name), error, pre_open_sent);
 
-  return handle_unlink(AT_FDCWD, ar_name, ar_name_len, AT_REMOVEDIR, error);
+  return handle_unlink(AT_FDCWD, ar_name, ar_name_len, AT_REMOVEDIR, error, pre_open_sent);
 }
 
 int Process::handle_mkdir(const int dirfd, const char * const ar_name, const size_t ar_len,

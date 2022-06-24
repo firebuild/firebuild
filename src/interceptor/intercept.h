@@ -118,8 +118,9 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
  * Send pre_open message to supervisor if it is needed.
  * @return if message has been sent
  */
+void send_pre_open(int dirfd, const char* pathname);
+void send_pre_open_without_ack_request(int dirfd, const char* pathname);
 bool maybe_send_pre_open(int dirfd, const char* pathname, int flags);
-bool maybe_send_pre_open_without_ack_request(int dirfd, const char* pathname, int flags);
 
 /** Connection string to supervisor */
 extern char fb_conn_string[IC_PATH_BUFSIZE];
