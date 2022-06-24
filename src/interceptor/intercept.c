@@ -55,8 +55,14 @@ bool ic_init_done = false;
 /** System locations to not ask ACK for when opening them, as set in the environment variable. */
 char system_locations_env_buf[4096];
 
+/** Ignore locations to not ask ACK for when opening them, as set in the environment variable. */
+char ignore_locations_env_buf[4096];
+
 /** System locations to not ask ACK for when opening them. */
 STATIC_CSTRING_VIEW_ARRAY(system_locations, 32);
+
+/** Ignore locations to not ask ACK for when opening them. */
+STATIC_CSTRING_VIEW_ARRAY(ignore_locations, 32);
 
 bool intercepting_enabled = true;
 
@@ -818,6 +824,8 @@ static void fb_ic_init() {
 
   store_locations("FB_SYSTEM_LOCATIONS", &system_locations, system_locations_env_buf,
                   sizeof(system_locations_env_buf));
+  store_locations("FB_IGNORE_LOCATIONS", &ignore_locations, ignore_locations_env_buf,
+                  sizeof(ignore_locations_env_buf));
 
   /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay. */
   assert(SIGRTMAX <= IC_WRAP_SIGRTMAX);
@@ -891,8 +899,10 @@ static void fb_ic_init() {
   for (char** cursor = env; *cursor != NULL; cursor++) {
     const char *fb_socket = "FB_SOCKET=";
     const char *fb_system_locations = "FB_SYSTEM_LOCATIONS=";
+    const char *fb_ignore_locations = "FB_IGNORE_LOCATIONS=";
     if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0 &&
-        strncmp(*cursor, fb_system_locations, strlen(fb_system_locations)) != 0) {
+        strncmp(*cursor, fb_system_locations, strlen(fb_system_locations)) != 0 &&
+        strncmp(*cursor, fb_ignore_locations, strlen(fb_ignore_locations)) != 0) {
       env_copy[env_copy_len++] = *cursor;
     }
   }

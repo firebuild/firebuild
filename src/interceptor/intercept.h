@@ -157,8 +157,9 @@ extern char env_ld_library_path[IC_PATH_BUFSIZE];
 /** Insert marker open()-s for strace, ltrace, etc. */
 extern bool insert_trace_markers;
 
-/** System locations to not ask ACK for when opening them. */
+/** System and ignore locations to not ask ACK for when opening them. */
 extern cstring_view_array system_locations;
+extern cstring_view_array ignore_locations;
 
 /** Insert debug message */
 extern void insert_debug_msg(const char*);
