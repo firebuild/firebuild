@@ -21,7 +21,7 @@
 ### endif
 ### set after_lines = ["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"]
 ### set send_ret_on_success=True
-### set ack_condition = "success && !is_path_at_locations(pathname, &system_locations)"
+### set ack_condition = "success && !is_path_at_locations(pathname, &system_locations) && !is_path_at_locations(pathname, &ignore_locations)"
 
 ### block before
 {{ super() }}

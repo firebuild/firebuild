@@ -163,6 +163,7 @@ static char** get_sanitized_env() {
   }
 
   export_sorted_locations("system_locations", "FB_SYSTEM_LOCATIONS", &env);
+  export_sorted_locations("ignore_locations", "FB_IGNORE_LOCATIONS", &env);
 
   const char *ld_preload_value = getenv("LD_PRELOAD");
   if (ld_preload_value) {
