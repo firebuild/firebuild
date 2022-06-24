@@ -98,6 +98,26 @@ static void usage() {
          " 1  in case of failure\n");
 }
 
+static void export_locations(const char* configuration_name,
+                             const std::string env_var_name,
+                             std::map<std::string, std::string>* env) {
+  std::string locations;
+  const libconfig::Setting& root = cfg->getRoot();
+  const libconfig::Setting& locations_setting = root[configuration_name];
+  for (int i = 0; i < locations_setting.getLength(); i++) {
+    const std::string loc(locations_setting[i].c_str());
+    if (locations.length() == 0) {
+      locations.append(loc);
+    } else {
+      locations.append(":" + loc);
+    }
+  }
+  if (locations.length() > 0) {
+    (*env)[env_var_name] = std::string(locations);
+    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_var_name + "=" + (*env)[env_var_name]);
+  }
+}
+
 /**
  * Construct a NULL-terminated array of "NAME=VALUE" environment variables
  * for the build command. The returned stings and array must be free()-d.
@@ -137,21 +157,7 @@ static char** get_sanitized_env() {
     }
   }
 
-  std::string system_locations;
-  const libconfig::Setting& system_locations_setting = root["system_locations"];
-  for (int i = 0; i < system_locations_setting.getLength(); i++) {
-    const std::string loc(system_locations_setting[i].c_str());
-    if (system_locations.length() == 0) {
-      system_locations.append(loc);
-    } else {
-      system_locations.append(":" + loc);
-    }
-  }
-  if (system_locations.length() > 0) {
-    const std::string var_name = "FB_SYSTEM_LOCATIONS";
-    env[var_name] = std::string(system_locations);
-    FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
-  }
+  export_locations("system_locations", "FB_SYSTEM_LOCATIONS", &env);
 
   const char *ld_preload_value = getenv("LD_PRELOAD");
   if (ld_preload_value) {

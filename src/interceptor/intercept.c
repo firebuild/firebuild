@@ -504,27 +504,28 @@ static int cmpstringpp(const void *p1, const void *p2) {
 }
 
 /** Store file locations for which files open() does not need an ACK. */
-static void store_system_locations() {
-  char* env_system_locations = getenv("FB_SYSTEM_LOCATIONS");
-  if (env_system_locations) {
-    strncpy(system_locations_env_buf, env_system_locations, sizeof(system_locations_env_buf));
-    const size_t env_system_locations_len = strlen(env_system_locations);
-    if (env_system_locations_len + 1 > sizeof(system_locations_env_buf)) {
+static void store_locations(const char* env_var, cstring_view_array *locations,
+                            char * locations_env_buf, size_t buffer_size) {
+  char* env_locations = getenv(env_var);
+  if (env_locations) {
+    strncpy(locations_env_buf, env_locations, buffer_size);
+    const size_t env_locations_len = strlen(env_locations);
+    if (env_locations_len + 1 > buffer_size) {
       /* Trim to the fitting parts. The locations are used only for improving
        * performance and the space is allocated statically. */
-      system_locations_env_buf[sizeof(system_locations_env_buf) - 1] = '\0';
-      char * last_separator = strrchr(system_locations_env_buf, ':');
+      locations_env_buf[buffer_size - 1] = '\0';
+      char * last_separator = strrchr(locations_env_buf, ':');
       if (!last_separator) {
         /* This is a quite long single path that may be incomplete, thus ignore it. */
-        system_locations_env_buf[0] = '\0';
+        locations_env_buf[0] = '\0';
       } else {
         /* Drop the possibly incomplete path after the last separator.*/
         *last_separator = '\0';
       }
     }
-    char *prefix = system_locations_env_buf;
-    /* Process all locations that fit system_location without reallocation. */
-    while (prefix && !is_cstring_view_array_full(&system_locations)) {
+    char *prefix = locations_env_buf;
+    /* Process all locations that fit location without reallocation. */
+    while (prefix && !is_cstring_view_array_full(locations)) {
       char *next_prefix = strchr(prefix, ':');
       if (next_prefix) {
         *next_prefix = '\0';
@@ -532,7 +533,7 @@ static void store_system_locations() {
       }
       /* Skip "". */
       if (*prefix != '\0') {
-        cstring_view_array_append_noalloc(&system_locations, prefix);
+        cstring_view_array_append_noalloc(locations, prefix);
         prefix = next_prefix;
       }
     }
@@ -815,7 +816,8 @@ static void fb_ic_init() {
     insert_trace_markers = true;
   }
 
-  store_system_locations();
+  store_locations("FB_SYSTEM_LOCATIONS", &system_locations, system_locations_env_buf,
+                  sizeof(system_locations_env_buf));
 
   /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay. */
   assert(SIGRTMAX <= IC_WRAP_SIGRTMAX);
