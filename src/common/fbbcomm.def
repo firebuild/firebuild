@@ -308,6 +308,8 @@
       (OPTIONAL, STRING, "pathname"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
+      # pre_open message has been sent before this message
+      (REQUIRED, "bool", "pre_open_sent"),
     ]),
 
     ("close", [
@@ -372,6 +374,8 @@
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
+      # pre_open message has been sent before this message
+      (REQUIRED, "bool", "pre_open_sent"),
     ]),
 
     ("link", [

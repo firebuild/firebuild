@@ -350,31 +350,35 @@ void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, i
   thread_signal_danger_zone_leave();
 }
 
-static bool maybe_send_pre_open_internal(const int dirfd, const char* pathname, int flags,
-                                         bool need_ack) {
+static void send_pre_open_internal(const int dirfd, const char* pathname, bool need_ack) {
+  FBBCOMM_Builder_pre_open ic_msg;
+  fbbcomm_builder_pre_open_init(&ic_msg);
+  fbbcomm_builder_pre_open_set_dirfd(&ic_msg, dirfd);
+  BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(pre_open, dirfd, pathname);
+  if (need_ack) {
+    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+  } else {
+    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+  }
+}
+
+void send_pre_open(const int dirfd, const char* pathname) {
+  send_pre_open_internal(dirfd, pathname, true);
+}
+
+void send_pre_open_without_ack_request(const int dirfd, const char* pathname) {
+  send_pre_open_internal(dirfd, pathname, false);
+}
+
+bool maybe_send_pre_open(const int dirfd, const char* pathname, int flags) {
   if (pathname && is_write(flags) && (flags & O_TRUNC)
-      && !(flags & (O_EXCL | O_DIRECTORY |O_TMPFILE))) {
-    FBBCOMM_Builder_pre_open ic_msg;
-    fbbcomm_builder_pre_open_init(&ic_msg);
-    fbbcomm_builder_pre_open_set_dirfd(&ic_msg, dirfd);
-    BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(pre_open, dirfd, pathname);
-    if (need_ack) {
-      fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
-    } else {
-      fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
-    }
+      && !(flags & (O_EXCL | O_DIRECTORY |O_TMPFILE))
+      && !is_path_at_locations(pathname, &ignore_locations)) {
+    send_pre_open(dirfd, pathname);
     return true;
   } else {
     return false;
   }
-}
-
-bool maybe_send_pre_open(const int dirfd, const char* pathname, int flags) {
-  return maybe_send_pre_open_internal(dirfd, pathname, flags, true);
-}
-
-bool maybe_send_pre_open_without_ack_request(const int dirfd, const char* pathname, int flags) {
-  return maybe_send_pre_open_internal(dirfd, pathname, flags, false);
 }
 
 /**

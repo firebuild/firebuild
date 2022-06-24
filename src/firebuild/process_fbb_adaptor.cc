@@ -64,12 +64,14 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_unlink *ms
   const int dirfd = msg->get_dirfd_with_fallback(AT_FDCWD);
   const int flags = msg->get_flags_with_fallback(0);
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_unlink(dirfd, msg->get_pathname(), msg->get_pathname_len(), flags, error);
+  return proc->handle_unlink(dirfd, msg->get_pathname(), msg->get_pathname_len(), flags, error,
+                             msg->get_pre_open_sent());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_rmdir *msg) {
   const int error = msg->get_error_no_with_fallback(0);
-  return proc->handle_rmdir(msg->get_pathname(), msg->get_pathname_len(), error);
+  return proc->handle_rmdir(msg->get_pathname(), msg->get_pathname_len(), error,
+                            msg->get_pre_open_sent());
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_mkdir *msg) {

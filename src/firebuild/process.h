@@ -301,9 +301,10 @@ class Process {
    * @param name_len length of name
    * @param flags flags passed to unlinkat()
    * @param error error code of unlink()
+   * @param pre_open_sent interceptor already sent pre_open for this operation
    */
   int handle_unlink(const int dirfd, const char * const name, const size_t name_len,
-                    const int flags, const int error = 0);
+                    const int flags, const int error, const bool pre_open_sent);
 
   /**
    * Handle stat in the monitored process
@@ -369,8 +370,10 @@ class Process {
    * @param name relative or absolute file name
    * @param name_len length of name
    * @param error error code of rmdir()
+   * @param pre_open_sent interceptor already sent pre_open for this operation
    */
-  int handle_rmdir(const char * const name, const size_t name_len, const int error = 0);
+  int handle_rmdir(const char * const name, const size_t name_len, const int error,
+                   const bool pre_open_sent);
 
   /**
    * Handle mkdir in the monitored process
