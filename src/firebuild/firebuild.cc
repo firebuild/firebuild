@@ -148,7 +148,7 @@ static char** get_sanitized_env() {
     }
   }
   if (system_locations.length() > 0) {
-    const std::string var_name = "FB_SYSTEM_LOCATIONS=";
+    const std::string var_name = "FB_SYSTEM_LOCATIONS";
     env[var_name] = std::string(system_locations);
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
   }
