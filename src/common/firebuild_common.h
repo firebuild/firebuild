@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <sys/uio.h>
 
+#include "common/cstring_view.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,23 +29,23 @@ typedef struct msg_header_ {
 } msg_header;
 
 /**
- * string_array allows to conveniently build up an array of strings (i.e. NULL-terminated char**).
+ * cstring_view_array allows to conveniently build up an array of strings (i.e. NULL-terminated char**).
  */
 typedef struct {
-  char **p;
+  cstring_view *p;
   int len;         /* excluding the trailing NULL */
   int size_alloc;  /* including the room for the trailing NULL */
-} string_array;
+} cstring_view_array;
 
-void string_array_init(string_array *array);
-void string_array_append(string_array *array, char *s);
-void string_array_deep_free(string_array *array);
-bool is_string_array_full(string_array *array);
-void string_array_append_noalloc(string_array *array, char *s);
+void cstring_view_array_init(cstring_view_array *array);
+void cstring_view_array_append(cstring_view_array *array, char *s);
+void cstring_view_array_deep_free(cstring_view_array *array);
+bool is_cstring_view_array_full(cstring_view_array *array);
+void cstring_view_array_append_noalloc(cstring_view_array *array, char *s);
 
-#define STATIC_STRING_ARRAY(name, size)         \
-  char* name##_ptrs[size] = {0};                \
-  string_array name = {name##_ptrs, 0, size}
+#define STATIC_CSTRING_VIEW_ARRAY(name, size)       \
+  cstring_view name##_ptrs[size] = {0};             \
+  cstring_view_array name = {name##_ptrs, 0, size}
 
 /**
  * voidp_array allows to conveniently build up an array of pointers (i.e. NULL-terminated void**).
@@ -74,7 +75,7 @@ bool voidp_set_contains(const voidp_set *set, const void *p);
 void voidp_set_insert(voidp_set *set, const void *p);
 void voidp_set_erase(voidp_set *set, const void *p);
 
-bool is_path_at_locations(const char *path, string_array *prefix_array);
+bool is_path_at_locations(const char *path, cstring_view_array *prefix_array);
 
 /**
  * Checks if the file name is canonical, i.e.:
