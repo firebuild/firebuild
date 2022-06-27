@@ -11,44 +11,48 @@
 extern "C" {
 #endif
 
-void string_array_init(string_array *array) {
+void cstring_view_array_init(cstring_view_array *array) {
   memset(array, 0, sizeof(*array));
 }
 
 /* Does NOT deep copy the string */
-void string_array_append(string_array *array, char *s) {
+void cstring_view_array_append(cstring_view_array *array, char *s) {
   if (array->size_alloc == 0) {
     array->size_alloc = 16  /* whatever */;
-    array->p = malloc(sizeof(char *) * array->size_alloc);
+    array->p = malloc(sizeof(cstring_view) * array->size_alloc);
   } else if (array->len + 1 == array->size_alloc) {
     array->size_alloc *= 2;
-    array->p = realloc(array->p, sizeof(char *) * array->size_alloc);
+    array->p = realloc(array->p, sizeof(cstring_view) * array->size_alloc);
   }
-  array->p[array->len++] = s;
-  array->p[array->len] = NULL;
+  array->p[array->len].c_str = s;
+  array->p[array->len].length = strlen(s);
+  array->len++;
+  array->p[array->len].c_str = NULL;
 }
 
-void string_array_deep_free(string_array *array) {
+/* The string array needs to allocate more space to append a new entry. */
+bool is_cstring_view_array_full(cstring_view_array *array) {
+  return !array || array->len == array->size_alloc - 1;
+}
+
+/* Does NOT deep copy the string */
+void cstring_view_array_append_noalloc(cstring_view_array *array, char *s) {
+  assert(array->size_alloc > 0);
+  assert(array->len + 1 < array->size_alloc);
+  array->p[array->len].c_str = s;
+  array->p[array->len].length = strlen(s);
+  array->len++;
+  array->p[array->len].c_str = NULL;
+}
+
+void cstring_view_array_deep_free(cstring_view_array *array) {
   for (int i = 0; i < array->len; i++)
-    free(array->p[i]);
+    free((/* non-const */ char *)array->p[i].c_str);
   free(array->p);
 }
 
 void voidp_array_init(voidp_array *array) {
   memset(array, 0, sizeof(*array));
-}
-
-/* The string array needs to allocate more space to append a new entry. */
-bool is_string_array_full(string_array *array) {
-  return !array || array->len == array->size_alloc - 1;
-}
-
-/* Does NOT deep copy the string */
-void string_array_append_noalloc(string_array *array, char *s) {
-  assert(array->size_alloc > 0);
-  assert(array->len + 1 < array->size_alloc);
-  array->p[array->len++] = s;
-  array->p[array->len] = NULL;
 }
 
 /* Does NOT deep copy whatever is behind voidp - obviously */
@@ -120,11 +124,11 @@ void voidp_set_erase(voidp_set *set, const void *p) {
  *
  * Does string operations only, does not look at the file system.
  */
-bool is_path_at_locations(const char * const path, string_array *location_array) {
+bool is_path_at_locations(const char * const path, cstring_view_array *location_array) {
   const size_t path_len = strlen(path);
   for (int i = 0; i < location_array->len; i++) {
-    const char * const location = location_array->p[i];
-    size_t location_len = strlen(location);
+    const char * const location = location_array->p[i].c_str;
+    size_t location_len = location_array->p[i].length;
     while (location_len > 0 && location[location_len - 1] == '/') {
       location_len--;
     }

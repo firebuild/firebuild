@@ -56,7 +56,7 @@ bool ic_init_done = false;
 char system_locations_env_buf[4096];
 
 /** System locations to not ask ACK for when opening them. */
-STATIC_STRING_ARRAY(system_locations, 32);
+STATIC_CSTRING_VIEW_ARRAY(system_locations, 32);
 
 bool intercepting_enabled = true;
 
@@ -524,7 +524,7 @@ static void store_system_locations() {
     }
     char *prefix = system_locations_env_buf;
     /* Process all locations that fit system_location without reallocation. */
-    while (prefix && !is_string_array_full(&system_locations)) {
+    while (prefix && !is_cstring_view_array_full(&system_locations)) {
       char *next_prefix = strchr(prefix, ':');
       if (next_prefix) {
         *next_prefix = '\0';
@@ -532,7 +532,7 @@ static void store_system_locations() {
       }
       /* Skip "". */
       if (*prefix != '\0') {
-        string_array_append_noalloc(&system_locations, prefix);
+        cstring_view_array_append_noalloc(&system_locations, prefix);
         prefix = next_prefix;
       }
     }
@@ -563,7 +563,7 @@ static bool skip_shared_lib(const char *name, const size_t len) {
  */
 typedef struct shared_libs_cb_data_ {
   /** Array of collected shared library names. */
-  string_array *array;
+  cstring_view_array *array;
   /** Number of entries that could be collected to `array`. */
   int collectable_entries;
   /** Number of entries that are not in canonical form, thus need to be made canonical. */
@@ -580,7 +580,7 @@ typedef struct shared_libs_cb_data_ {
 static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   (void) size;  /* unused */
   shared_libs_cb_data_t *cb_data = (shared_libs_cb_data_t *)data;
-  string_array *array = cb_data->array;
+  cstring_view_array *array = cb_data->array;
 
   const char* name = info->dlpi_name;
   const size_t len = strlen(name);
@@ -589,8 +589,8 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
   }
   cb_data->collectable_entries++;
   if (is_canonical(name, len)) {
-    if (!is_string_array_full(array)) {
-      string_array_append_noalloc(array, (/* non-const */ char *) name);
+    if (!is_cstring_view_array_full(array)) {
+      cstring_view_array_append_noalloc(array, (/* non-const */ char *) name);
     }
   } else {
     /* !is_canonical() */
@@ -602,8 +602,8 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
           &cb_data->canonized_libs[cb_data->canonized_libs_count++ * IC_PATH_BUFSIZE];
       memcpy(canonical_name, name, len + 1);
       make_canonical(canonical_name, len);
-      if (!is_string_array_full(array)) {
-        string_array_append_noalloc(array, canonical_name);
+      if (!is_cstring_view_array_full(array)) {
+        cstring_view_array_append_noalloc(array, canonical_name);
       }
     }
   }
@@ -921,7 +921,7 @@ static void fb_ic_init() {
   }
 
   /* list loaded shared libs */
-  STATIC_STRING_ARRAY(libs, 64);
+  STATIC_CSTRING_VIEW_ARRAY(libs, 64);
   int canonized_libs_size = 8;
   char *canonized_libs = alloca(canonized_libs_size * IC_PATH_BUFSIZE);
   shared_libs_cb_data_t cb_data = {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
@@ -947,7 +947,7 @@ static void fb_ic_init() {
     dl_iterate_phdr(shared_libs_cb, &cb_data2);
     assert(cb_data.collectable_entries == cb_data2.array->len);
   }
-  fbbcomm_builder_scproc_query_set_libs(&ic_msg, (const char **) libs.p);
+  fbbcomm_builder_scproc_query_set_libs_cstring_views(&ic_msg, libs.p, libs.len);
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
 
