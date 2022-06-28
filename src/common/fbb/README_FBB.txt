@@ -540,8 +540,8 @@ Debug from command line:
 The fbbns_decode application pretty-prints the serialized FBB stored in
 the given file, for easy debugging.
 
-The debug format is valid JSON, and almost valid Python (the only thing
-you need to do is set null=None before eval'ing it).
+The debug format is valid JSON, and almost valid Python (you need to set
+null=None, true=True and false=False before eval'ing it).
 
 Another method that might come handy gets a text representation of the
 tag:
