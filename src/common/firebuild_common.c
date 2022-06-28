@@ -20,29 +20,27 @@ void cstring_view_array_append(cstring_view_array *array, char *s) {
   if (array->size_alloc == 0) {
     array->size_alloc = 16  /* whatever */;
     array->p = malloc(sizeof(cstring_view) * array->size_alloc);
-  } else if (array->len + 1 == array->size_alloc) {
+  } else if (array->len == array->size_alloc) {
     array->size_alloc *= 2;
     array->p = realloc(array->p, sizeof(cstring_view) * array->size_alloc);
   }
   array->p[array->len].c_str = s;
   array->p[array->len].length = strlen(s);
   array->len++;
-  array->p[array->len].c_str = NULL;
 }
 
 /* The string array needs to allocate more space to append a new entry. */
 bool is_cstring_view_array_full(cstring_view_array *array) {
-  return !array || array->len == array->size_alloc - 1;
+  return !array || array->len == array->size_alloc;
 }
 
 /* Does NOT deep copy the string */
 void cstring_view_array_append_noalloc(cstring_view_array *array, char *s) {
   assert(array->size_alloc > 0);
-  assert(array->len + 1 < array->size_alloc);
+  assert(array->len < array->size_alloc);
   array->p[array->len].c_str = s;
   array->p[array->len].length = strlen(s);
   array->len++;
-  array->p[array->len].c_str = NULL;
 }
 
 void cstring_view_array_deep_free(cstring_view_array *array) {
