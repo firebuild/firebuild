@@ -874,8 +874,8 @@ static void fb_ic_init() {
   fbbcomm_builder_scproc_query_set_cwd(&ic_msg, ic_cwd);
   fbbcomm_builder_scproc_query_set_arg_with_count(&ic_msg, (const char **) ic_argv, ic_argc);
 
-  mode_t initial_umask = ic_orig_umask(0077);
-  ic_orig_umask(initial_umask);
+  mode_t initial_umask = IC_ORIG(umask)(0077);
+  IC_ORIG(umask)(initial_umask);
   fbbcomm_builder_scproc_query_set_umask(&ic_msg, initial_umask);
 
   /* make a sorted and filtered copy of env */
