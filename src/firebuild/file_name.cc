@@ -41,6 +41,7 @@ bool FileName::isDbEmpty() {
 FileName::DbInitializer FileName::db_initializer_;
 
 void FileName::open_for_writing(Process* proc) const {
+  TRACKX(FB_DEBUG_FS, 1, 0, FileName, this, "proc=%s", D(proc));
   if (is_in_ignore_location()) {
     /* Ignored locations can be ignored here, too. */
     return;
@@ -81,6 +82,21 @@ void FileName::open_for_writing(Process* proc) const {
   }
 }
 
+void FileName::close_for_writing() const {
+  TRACKX(FB_DEBUG_FS, 1, 0, FileName, this, "");
+  if (is_in_ignore_location()) {
+    /* Ignored locations can be ignored here, too. */
+    return;
+  }
+  auto it = write_fds_db_->find(this);
+  assert(it != write_fds_db_->end());
+  assert(it->second.first > 0);
+  if (it->second.first > 1) {
+    it.value().first--;
+  } else {
+    write_fds_db_->erase(it);
+  }
+}
 
 /**
  * Return parent dir or nullptr for "/"

@@ -64,21 +64,7 @@ class FileName {
     }
   }
   void open_for_writing(Process* proc) const;
-  void close_for_writing() const {
-    if (is_in_ignore_location()) {
-      /* Ignored locations can be ignored here, too. */
-      return;
-    }
-    auto it = write_fds_db_->find(this);
-    assert(it != write_fds_db_->end());
-    assert(it->second.first > 0);
-    if (it->second.first > 1) {
-      it.value().first--;
-    } else {
-      write_fds_db_->erase(it);
-    }
-  }
-
+  void close_for_writing() const;
   file_generation_t generation() const {
     auto it = generation_db_->find(this);
     if (it != generation_db_->end()) {
