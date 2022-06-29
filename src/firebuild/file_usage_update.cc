@@ -227,11 +227,19 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
     /* The attempt to open failed. */
     if (is_write(flags)) {
       if (err == ENOENT) {
-        /* When opening a file for writing the absence of the parent dir
-         * results NOTEXIST error. The grandparent dir could be missing as well,
-         * but the missing parent dir would cause the same error thus it will not be a mistake
-         * to shortcut the process if the parent dir is indeed missing. */
-        update.parent_type_ = NOTEXIST;
+        if (!(flags & O_CREAT)) {
+          /* If opening without O_CREAT failed then the file didn't exist. */
+          update.set_initial_type(NOTEXIST);
+        } else {
+          /* When opening a file for writing the absence of the parent dir
+           * results in NOTEXIST error. The grandparent dir could be missing as well,
+           * but the missing parent dir would cause the same error thus it will not be a mistake
+           * to shortcut the process if the parent dir is indeed missing. */
+          update.parent_type_ = NOTEXIST;
+        }
+      } else if (err == EEXIST) {
+        assert(flags & O_CREAT && flags & O_EXCL);
+        update.set_initial_type(EXIST);
       } else if (err == ENOTDIR) {
         /* Occurs when opening the "foo/baz/bar" path when "foo/baz" is not a directory,
          * but for example a regular file. Or when "foo" is a regular file. We can't distinguish
