@@ -132,6 +132,11 @@ class HashCache {
    * directory. get_entry_...() might return its address.
    */
   static const HashCacheEntry notexist_;
+  /**
+   * A singleton structure representing a file system path with an unknown state for the supervisor.
+   * get_entry_...() might return its address.
+   */
+  static const HashCacheEntry dontknow_;
 
   DISALLOW_COPY_AND_ASSIGN(HashCache);
 };

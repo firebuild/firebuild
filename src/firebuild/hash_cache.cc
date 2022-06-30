@@ -152,11 +152,6 @@ static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_
     st.st_mode = entry->info.type() == ISREG ? S_IFREG : S_IFDIR;
     st.st_size = entry->info.size();
 
-    if (path->is_open_for_writing()) {
-      /* The file could be written while calculating the hash, don't take that risk. */
-      return false;
-    }
-
     if (fd == -1) {
       ret = hash.set_from_file(path, &st, &is_dir);
     } else {
@@ -205,6 +200,11 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
                                                                   bool store,
                                                                   bool skip_statinfo_update) {
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s, store=%s", D(path), fd, D(stat_ptr), D(store));
+
+  if (path->is_open_for_writing()) {
+    /* The file could be written while calculating the hash, don't take that risk. */
+    return &dontknow_;
+  }
 
   if (db_.count(path) > 0) {
     HashCacheEntry& entry = db_[path];
@@ -272,7 +272,7 @@ bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, ssize_t
   TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s", D(path), fd, D(stat_ptr));
 
   const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, fd, stat_ptr, false);
-  if (entry->info.type() == NOTEXIST) {
+  if (entry->info.type() == NOTEXIST || entry->info.type() == DONTKNOW) {
     return false;
   }
   if (is_dir) {
@@ -359,14 +359,18 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
   if (!entry->info.hash_known()) {
     entry = get_entry_with_statinfo_and_hash(path, -1, nullptr, false, true /* don't stat again */);
 
-    assert(entry->info.type() == ISREG || entry->info.type() == ISDIR);
-    assert(entry->info.hash_known());
+    if ((entry->info.type() != ISREG && entry->info.type() != ISDIR)
+        || !entry->info.hash_known()) {
+      /* Could not get the hash possibly because the file/directory is open for writing. */
+      return false;
+    }
   }
 
   return entry->info.hash() == query.hash();
 }
 
 const HashCacheEntry HashCache::notexist_ {FileInfo(NOTEXIST)};
+const HashCacheEntry HashCache::dontknow_ {FileInfo(DONTKNOW)};
 
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
