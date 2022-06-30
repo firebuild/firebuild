@@ -1018,7 +1018,7 @@ void Process::handle_read_from_inherited(const int fd, const bool is_pread) {
 }
 
 void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, is_pread=%s", fd, D(is_pwrite));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, is_pwrite=%s", fd, D(is_pwrite));
 
   (void)is_pwrite;  /* unused */
 
