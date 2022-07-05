@@ -36,23 +36,24 @@ namespace firebuild {
 class ExecedProcessCacher;
 
 /**
- * Represents one outgoing pipe that this process inherited.
+ * Represents one open file description that this process inherited, along with the list of
+ * corresponding file descriptors. (An open file description might have multiple file descriptors,
+ * as per dup() and friends. They are stored in ascending order. There's at least one fd.)
  *
  * The structure always refers to how things were when the process started,
  * it isn't modified later as the process does various things with its file descriptors.
  *
- * Accordingly, it does not hold a pointer to the Pipe object, since that one might go away
- * while we still need to keep this structure.
- *
- * A pipe might have multiple file descriptors, as per dup() and friends.
- * They are stored in ascending order. There's at least one fd.
+ * Accordingly, for pipes, it does not hold a pointer to the Pipe object, since that one might go
+ * away while we still need to keep this structure.
  */
-typedef struct inherited_outgoing_pipe_ {
+typedef struct inherited_file_ {
+  /* Type. */
+  fd_type type {FD_UNINITIALIZED};
   /* The client-side file descriptor numbers, sorted */
   std::vector<int> fds {};
-  /* The recorder of the traffic, as seen from this exec point */
+  /* For FD_PIPE_OUT only: The recorder of the traffic, as seen from this exec point */
   std::shared_ptr<PipeRecorder> recorder {};
-} inherited_outgoing_pipe_t;
+} inherited_file_t;
 
 class ExecedProcess : public Process {
  public:
@@ -110,12 +111,10 @@ class ExecedProcess : public Process {
   bool register_file_usage_update(const FileName *name, const FileUsageUpdate& update);
   bool register_parent_directory(const FileName *name, FileType type = ISDIR);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
-  std::vector<inherited_outgoing_pipe_t>& inherited_outgoing_pipes()
-      {return inherited_outgoing_pipes_;}
-  const std::vector<inherited_outgoing_pipe_t>& inherited_outgoing_pipes() const
-      {return inherited_outgoing_pipes_;}
-  void set_inherited_outgoing_pipes(std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes)
-      {inherited_outgoing_pipes_ = inherited_outgoing_pipes;}
+  std::vector<inherited_file_t>& inherited_files() {return inherited_files_;}
+  const std::vector<inherited_file_t>& inherited_files() const {return inherited_files_;}
+  void set_inherited_files(std::vector<inherited_file_t> inherited_files)
+      {inherited_files_ = inherited_files;}
 
   /**
    * Fail to change to a working directory
@@ -242,12 +241,12 @@ class ExecedProcess : public Process {
    */
   tsl::hopscotch_set<std::shared_ptr<Pipe>> created_pipes_ = {};
   /**
-   * The outbound pipes this process had at startup.
-   * Each such pipe might have multiple client-side file descriptors (see dup() and friends),
-   * they are in sorted order. Also, this inherited_outgoing_pipes_ array is sorted according to the
-   * first (lowest) fd for each inherited outgoing pipe.
+   * The files this process had at startup, grouped by "open file description".
+   * Each such "open file description" might have multiple client-side file descriptors (see dup()
+   * and friends), they are in sorted order. Also, this inherited_files_ array is sorted according
+   * to the first (lowest) fd for each inherited file.
    */
-  std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes_ = {};
+  std::vector<inherited_file_t> inherited_files_ = {};
   void store_in_cache();
   ExecedProcess* next_shortcutable_ancestor() {
     if (maybe_shortcutable_ancestor_ == nullptr || maybe_shortcutable_ancestor_->can_shortcut_) {

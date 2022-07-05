@@ -136,39 +136,41 @@ void ExecedProcess::initialize() {
     }
   }
 
-  /* Find the inherited outgoing pipes.
-   * Group them according to which fds belongs to the same pipe and which to different.
-   * E.g. if fd 1 & 2 point to the same pipe and fd 3 to another one then build up [[1, 2], [3]].
+  /* Find the inherited files.
+   * Group them according to the open file description they point to.
+   * E.g. if fd 1 & 2 are dups of each other, but fd 3 is the same file opened by name separately
+   * then build up [[1, 2], [3]].
    * The outer list (according to the lowest fd) and the inner lists are all sorted. */
-  std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes;
+  std::vector<inherited_file_t> inherited_files;
   /* This iterates over the fds in increasing order. */
   for (auto file_fd : *fds()) {
-    std::shared_ptr<Pipe> pipe;
-    if (!file_fd || (file_fd->flags() & O_ACCMODE) != O_WRONLY || !(pipe = file_fd->pipe())) {
+    if (!file_fd) {
       continue;
     }
     bool found = false;
-    for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
-      if (pipe.get() == get_fd(inherited_outgoing_pipe.fds[0])->pipe().get()) {
-        inherited_outgoing_pipe.fds.push_back(file_fd->fd());
+    for (inherited_file_t& inherited_file : inherited_files) {
+      if (get_fd(inherited_file.fds[0])->fdcmp(*file_fd) == 0) {
+        inherited_file.fds.push_back(file_fd->fd());
         found = true;
         break;
       }
     }
     if (!found) {
-      inherited_outgoing_pipe_t inherited_outgoing_pipe;
-      inherited_outgoing_pipe.fds.push_back(file_fd->fd());
-      inherited_outgoing_pipes.push_back(inherited_outgoing_pipe);
+      inherited_file_t inherited_file;
+      inherited_file.type = file_fd->type();
+      assert(inherited_file.type != FD_UNINITIALIZED);
+      inherited_file.fds.push_back(file_fd->fd());
+      inherited_files.push_back(inherited_file);
     }
   }
-  set_inherited_outgoing_pipes(inherited_outgoing_pipes);
+  set_inherited_files(inherited_files);
 
   if (FB_DEBUGGING(FB_DEBUG_PROC)) {
-    FB_DEBUG(FB_DEBUG_PROC, "Client-side fds of pipes are:");
-    for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
-      std::string arr = "  [";
+    FB_DEBUG(FB_DEBUG_PROC, "Client-side fds are:");
+    for (const inherited_file_t& inherited_file : inherited_files) {
+      std::string arr = "  type=" + std::string(fd_type_to_string(inherited_file.type)) + " [";
       bool add_sep = false;
-      for (int fd : inherited_outgoing_pipe.fds) {
+      for (int fd : inherited_file.fds) {
         if (add_sep) {
           arr += ", ";
         }
@@ -211,7 +213,7 @@ void ExecedProcess::do_finalize() {
     cacher_->store(this);
   }
 
-  inherited_outgoing_pipes_.clear();
+  inherited_files_.clear();
   if (!generate_report) {
     file_usages_.clear();
     args().clear();
@@ -477,9 +479,10 @@ void ExecedProcess::disable_shortcutting_only_this(const char* reason,
     FB_DEBUG(FB_DEBUG_PROC, "Command " + d(executable_->c_str())
              + " can't be short-cut due to: " + reason + ", " + d(this));
 
-    for (const inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes_) {
-      if (inherited_outgoing_pipe.recorder) {
-        inherited_outgoing_pipe.recorder->deactivate();
+    for (const inherited_file_t& inherited_file : inherited_files_) {
+      if (inherited_file.recorder) {
+        assert(inherited_file.type == FD_PIPE_OUT);
+        inherited_file.recorder->deactivate();
       }
     }
   }

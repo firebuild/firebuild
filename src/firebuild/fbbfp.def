@@ -7,7 +7,7 @@
 # This is a Python dictionary, to be read and processed by "generate_fbb".
 
 {
-  "types_with_custom_debugger": ["mode_t", "XXH128_hash_t"],
+  "types_with_custom_debugger": ["mode_t", "firebuild::fd_type", "XXH128_hash_t"],
 
   "extra_c": """
     /* Debugger method for mode_t fields. */
@@ -15,6 +15,11 @@
       fprintf(f, "\\"");
       debug_mode_t(f, mode);
       fprintf(f, "\\"");
+    }
+
+    /* Debugger method for firebuild::fd_type fields. */
+    static void fbbfp_debug_firebuild__fd_type(FILE *f, firebuild::fd_type type) {
+      fprintf(f, "\\"%s\\"", fd_type_to_string(type));
     }
 
     /* Debugger method for XXH128_hash_t fields. */
@@ -28,6 +33,7 @@
 
   "extra_h": """
     #include <xxhash.h>
+    #include "firebuild/file_fd.h"
     #include "firebuild/hash.h"
     #include "common/debug_sysflags.h"
   """,
@@ -52,9 +58,16 @@
       #(OPTIONAL, "int",           "error_no"),
     ]),
 
-    ("pipe_fds", [
-      # Client-side fds pointing to the same pipe
+    # Represents an inherited open file description, along with the fds
+    ("ofd", [
+      # Type
+      (REQUIRED, "firebuild::fd_type", "type"),
+      # Client-side fds pointing to the same open file description, in
+      # ascending order
       (ARRAY, "int", "fds"),
+
+      # FIXME fcntl flags?
+      # FIXME seek positions?
     ]),
 
     # Properties of a process that are known when it starts up, and are
@@ -82,15 +95,9 @@
       (ARRAY,    STRING, "env"),
       # Libraries loaded upon startup
       (ARRAY,    FBB,    "libs"),            # tag "file"
-      # For each outgoing pipe, this contains the client-side fds
-      (ARRAY,    FBB,    "outgoing_pipes"),  # tag "pipe_fds"
-      # special purpose file descriptors, not having file name
-      #(OPTIONAL, FBB,    "stdin"),           # tag "file"
-      #(OPTIONAL, FBB,    "stdout"),          # tag "file"
-      #(OPTIONAL, FBB,    "stderr"),          # tag "file"
-
-      # Other initially opened file descriptors?
-      # seek positions from fdinfo?
+      # An entry for each inherited open file description, in ascending
+      # order of their lowest fd
+      (ARRAY,    FBB,    "ofds"),            # tag "ofd"
     ]),
   ]
 }
