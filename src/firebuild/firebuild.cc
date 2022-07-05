@@ -248,14 +248,15 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       }
     }
 
-    std::vector<inherited_outgoing_pipe_t> inherited_outgoing_pipes =
-        proc->inherited_outgoing_pipes();
-    for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
-      /* There may be incoming data from the (transitive) parent(s), drain it.
-       * Do it before trying to shortcut. */
-      auto pipe = proc->get_fd(inherited_outgoing_pipe.fds[0])->pipe();
-      assert(pipe);
-      pipe->drain();
+    std::vector<inherited_file_t> inherited_files = proc->inherited_files();
+    for (inherited_file_t& inherited_file : inherited_files) {
+      if (inherited_file.type == FD_PIPE_OUT) {
+        /* There may be incoming data from the (transitive) parent(s), drain it.
+         * Do it before trying to shortcut. */
+        auto pipe = proc->get_fd(inherited_file.fds[0])->pipe();
+        assert(pipe);
+        pipe->drain();
+      }
     }
 
     /* Try to shortcut the process. */
@@ -287,64 +288,66 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
 
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
-      for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
-        auto file_fd_old = proc->get_shared_fd(inherited_outgoing_pipe.fds[0]);
-        auto pipe = file_fd_old->pipe();
-        assert(pipe);
+      for (inherited_file_t& inherited_file : inherited_files) {
+        if (inherited_file.type == FD_PIPE_OUT) {
+          auto file_fd_old = proc->get_shared_fd(inherited_file.fds[0]);
+          auto pipe = file_fd_old->pipe();
+          assert(pipe);
 
-        /* As per #689, reopening the pipes causes different behavior than without firebuild. With
-         * firebuild, across an exec they no longer share the same "open file description" and thus
-         * the fcntl flags. Perform this unduping from the exec parent, i.e. modify the FileFDs to
-         * point to a new FileOFD. */
-        auto fds = proc->fds();
-        int fd = inherited_outgoing_pipe.fds[0];
-        auto file_fd = std::make_shared<FileFD>(fd, file_fd_old->flags(), pipe,
-                                                file_fd_old->opened_by());
-        (*fds)[fd] = file_fd;
-        for (size_t i = 1; i < inherited_outgoing_pipe.fds.size(); i++) {
-          fd = inherited_outgoing_pipe.fds[i];
-          auto file_fd_dup = std::make_shared<FileFD>(fd, file_fd, false);
-          (*fds)[fd] = file_fd_dup;
+          /* As per #689, reopening the pipes causes different behavior than without firebuild. With
+           * firebuild, across an exec they no longer share the same "open file description" and thus
+           * the fcntl flags. Perform this unduping from the exec parent, i.e. modify the FileFDs to
+           * point to a new FileOFD. */
+          auto fds = proc->fds();
+          int fd = inherited_file.fds[0];
+          auto file_fd = std::make_shared<FileFD>(fd, file_fd_old->flags(), pipe,
+                                                  file_fd_old->opened_by());
+          (*fds)[fd] = file_fd;
+          for (size_t i = 1; i < inherited_file.fds.size(); i++) {
+            fd = inherited_file.fds[i];
+            auto file_fd_dup = std::make_shared<FileFD>(fd, file_fd, false);
+            (*fds)[fd] = file_fd_dup;
+          }
+
+          /* Create a new unnamed pipe. */
+          int fifo_fd[2];
+          int ret = pipe2(fifo_fd, file_fd->flags() & ~O_ACCMODE);
+          (void)ret;
+          assert(ret == 0);
+          bump_fd_age(fifo_fd[0]);
+          /* The supervisor needs nonblocking fds for the pipes. */
+          fcntl(fifo_fd[0], F_SETFL, O_NONBLOCK);
+
+          /* Find the recorders belonging to the parent process. We need to record to all those,
+           * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
+          auto  recorders =  proc->parent() ? pipe->proc2recorders[proc->parent_exec_point()]
+              : std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
+          if (proc->can_shortcut()) {
+            inherited_file.recorder = std::make_shared<PipeRecorder>(proc);
+            recorders.push_back(inherited_file.recorder);
+          }
+          pipe->add_fd1_and_proc(fifo_fd[0], file_fd.get(), proc, std::move(recorders));
+          FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_file.fds[0])
+                   + " as new fd1: " + d(fifo_fd[0]) + " of " + d(pipe));
+
+          fifo_fds.push_back(fifo_fd[1]);
+          /* alloca()'s lifetime is the entire function, not just the brace-block. This is what we
+           * need because the data has to live until the send_fbb() below.
+           * Calling alloca() from a loop is often frowned upon because it can quickly eat up the
+           * stack. Here we only need a tiny amount of data, typically less than 10 integers in all
+           * the alloca()d areas combined. */
+          auto dups = reinterpret_cast<FBBCOMM_Builder_scproc_resp_reopen_fd *>(
+              alloca(sizeof(FBBCOMM_Builder_scproc_resp_reopen_fd)));
+          dups->init();
+          dups->set_fds(inherited_file.fds);
+          reopened_dups.push_back(reinterpret_cast<FBBCOMM_Builder *>(dups));
         }
-
-        /* Create a new unnamed pipe. */
-        int fifo_fd[2];
-        int ret = pipe2(fifo_fd, file_fd->flags() & ~O_ACCMODE);
-        (void)ret;
-        assert(ret == 0);
-        bump_fd_age(fifo_fd[0]);
-        /* The supervisor needs nonblocking fds for the pipes. */
-        fcntl(fifo_fd[0], F_SETFL, O_NONBLOCK);
-
-        /* Find the recorders belonging to the parent process. We need to record to all those,
-         * plus create a new recorder for ourselves (unless shortcutting is already disabled). */
-        auto  recorders =  proc->parent() ? pipe->proc2recorders[proc->parent_exec_point()]
-            : std::vector<std::shared_ptr<firebuild::PipeRecorder>>();
-        if (proc->can_shortcut()) {
-          inherited_outgoing_pipe.recorder = std::make_shared<PipeRecorder>(proc);
-          recorders.push_back(inherited_outgoing_pipe.recorder);
-        }
-        pipe->add_fd1_and_proc(fifo_fd[0], file_fd.get(), proc, std::move(recorders));
-        FB_DEBUG(FB_DEBUG_PIPE, "reopening process' fd: "+ d(inherited_outgoing_pipe.fds[0])
-                 + " as new fd1: " + d(fifo_fd[0]) + " of " + d(pipe));
-
-        fifo_fds.push_back(fifo_fd[1]);
-        /* alloca()'s lifetime is the entire function, not just the brace-block. This is what we
-         * need because the data has to live until the send_fbb() below.
-         * Calling alloca() from a loop is often frowned upon because it can quickly eat up the
-         * stack. Here we only need a tiny amount of data, typically less than 10 integers in all
-         * the alloca()d areas combined. */
-        auto dups = reinterpret_cast<FBBCOMM_Builder_scproc_resp_reopen_fd *>(
-            alloca(sizeof(FBBCOMM_Builder_scproc_resp_reopen_fd)));
-        dups->init();
-        dups->set_fds(inherited_outgoing_pipe.fds);
-        reopened_dups.push_back(reinterpret_cast<FBBCOMM_Builder *>(dups));
       }
 
       sv_msg.set_reopen_fds(reopened_dups);
 
-      /* inherited_outgoing_pipes was updated with the recorders, save the new version */
-      proc->set_inherited_outgoing_pipes(inherited_outgoing_pipes);
+      /* inherited_files was updated with the recorders, save the new version */
+      proc->set_inherited_files(inherited_files);
 
       if (debug_flags != 0) {
         sv_msg.set_debug_flags(debug_flags);
@@ -384,7 +387,7 @@ void accept_popen_child(Process* unix_parent, const pending_popen_t *pending_pop
   if (is_rdonly(flags)) {
     /* For popen(..., "r") (parent reads <- child writes) create only the parent-side backing Unix
      * pipe, and the Pipe object. The child-side backing Unix pipe will be created in
-     * accept_exec_child() when reopening inherited_outgoing_pipes. */
+     * accept_exec_child() when reopening the inherited outgoing pipes. */
     FB_DEBUG(FB_DEBUG_PROC, "This is a popen(..., \"r...\") child");
 
     if (pipe2(down, flags & ~O_ACCMODE) < 0) {
