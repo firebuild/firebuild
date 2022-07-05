@@ -68,7 +68,7 @@
       (ARRAY,    STRING, "entry"),
     ]),
 
-    ("pipe_data", [
+    ("append_to_fd", [
       # fd at the time the process started, the lowest one if dup()'ed to
       # multiple fds
       (REQUIRED, "int",           "fd"),
@@ -109,8 +109,8 @@
       # chown, chmod
       # etc.
 
-      # Data written to inherited outgoing pipes
-      (ARRAY,    FBB,    "pipe_data"),             # tag "pipe_data"
+      # Data appended to inherited files (currently pipes only)
+      (ARRAY,    FBB,    "append_to_fd"),          # tag "append_to_fd"
 
       (REQUIRED, "int",  "exit_status"),
     ]),
