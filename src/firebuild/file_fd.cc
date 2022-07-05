@@ -16,7 +16,8 @@ int FileOFD::id_counter_ = 0;
  * See #431 for design and rationale. */
 std::string d(const FileOFD& fofd, const int level) {
   (void)level;  /* unused */
-  std::string ret = "{FileOFD #" + d(fofd.id()) + " ";
+  std::string ret = "{FileOFD #" + d(fofd.id());
+  ret += " type=" + std::string(fd_type_to_string(fofd.type())) + " ";
   // FIXME replace this with printing all the flags
   switch (fofd.flags() & O_ACCMODE) {
     case O_RDONLY:
@@ -59,6 +60,26 @@ std::string d(const FileFD *ffd, const int level) {
     return d(*ffd, level);
   } else {
     return "{FileFD NULL}";
+  }
+}
+
+const char *fd_type_to_string(fd_type type) {
+  switch (type) {
+    case FD_UNINITIALIZED:
+      return "FD_UNINITIALIZED";
+    case FD_IGNORED:
+      return "FD_IGNORED";
+    case FD_FILE:
+      return "FD_FILE";
+    case FD_PIPE_IN:
+      return "FD_PIPE_IN";
+    case FD_PIPE_OUT:
+      return "FD_PIPE_OUT";
+    case FD_SPECIAL:
+      return "FD_SPECIAL";
+    default:
+      assert(0 && "unknown type");
+      return "UNKNOWN";
   }
 }
 
