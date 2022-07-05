@@ -1010,12 +1010,18 @@ void Process::handle_read_from_inherited(const int fd, const bool is_pread) {
     return;
   }
 
+  const ExecedProcess *file_fd_opened_by_exec_point =
+      file_fd->opened_by() ? file_fd->opened_by()->exec_point() : nullptr;
+  if (file_fd_opened_by_exec_point == exec_point()) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process sent handle_read_from_inherited for a non-inherited fd", fd);
+    return;
+  }
+
   if (file_fd->type() == FD_IGNORED) {
     return;
   }
 
-  /* Note: this doesn't disable any shortcutting if file_fd->opened_by() == this,
-   * i.e. the file was opened by the current process. */
   Process* opened_by = file_fd->opened_by();
   exec_point()->disable_shortcutting_bubble_up_to_excl(
       opened_by ? opened_by->exec_point() : nullptr, "Process read from inherited fd ", fd);
@@ -1034,13 +1040,19 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
     return;
   }
 
+  const ExecedProcess *file_fd_opened_by_exec_point =
+      file_fd->opened_by() ? file_fd->opened_by()->exec_point() : nullptr;
+  if (file_fd_opened_by_exec_point == exec_point()) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process sent handle_write_to_inherited for a non-inherited fd", fd);
+    return;
+  }
+
   if (file_fd->type() == FD_IGNORED) {
     return;
   }
 
   if (!file_fd->pipe()) {
-    /* Note: this doesn't disable any shortcutting if file_fd->opened_by() == this,
-     * i.e. the file was opened by the current process. */
     Process* opened_by = file_fd->opened_by();
     exec_point()->disable_shortcutting_bubble_up_to_excl(
         opened_by ? opened_by->exec_point() : nullptr,
@@ -1059,14 +1071,20 @@ void Process::handle_seek_in_inherited(const int fd, const bool modify_offset) {
     return;
   }
 
+  const ExecedProcess *file_fd_opened_by_exec_point =
+      file_fd->opened_by() ? file_fd->opened_by()->exec_point() : nullptr;
+  if (file_fd_opened_by_exec_point == exec_point()) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Process sent handle_seek_in_inherited for a non-inherited fd", fd);
+    return;
+  }
+
   if (file_fd->type() == FD_IGNORED) {
     return;
   }
 
   // FIXME Handle the !modify_offset case
   if (modify_offset && !file_fd->pipe()) {
-    /* Note: this doesn't disable any shortcutting if file_fd->opened_by() == this,
-     * i.e. the file was opened by the current process. */
     Process* opened_by = file_fd->opened_by();
     exec_point()->disable_shortcutting_bubble_up_to_excl(
         opened_by ? opened_by->exec_point() : nullptr,
