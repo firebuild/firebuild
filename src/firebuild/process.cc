@@ -819,8 +819,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 
   handle_force_close(newfd);
 
-  add_filefd(newfd, std::make_shared<FileFD>(
-      newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), (*fds_)[oldfd]));
+  add_filefd(newfd, std::make_shared<FileFD>(newfd, (*fds_)[oldfd], flags & O_CLOEXEC));
   return 0;
 }
 

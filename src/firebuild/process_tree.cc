@@ -67,8 +67,8 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
                                        new std::vector<std::shared_ptr<FileFD>>());
   root_->set_state(firebuild::FB_PROC_TERMINATED);
   // TODO(rbalint) support other inherited fds
-  /* Create the FileFD representing stdin of the top process. */
-  root_->add_filefd(stdin_fd, std::make_shared<FileFD>(stdin_fd, O_RDONLY));
+  /* Create the FileFD representing stdin of the top process. Pipe will be NULL, that's fine. */
+  root_->add_filefd(stdin_fd, std::make_shared<FileFD>(stdin_fd, O_RDONLY, nullptr, nullptr));
 
   /* Create the Pipes and FileFDs representing stdout and stderr of the top process. */
   // FIXME Make this more generic, for all the received pipes / terminal outputs.
@@ -81,7 +81,7 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
     if (fd == stderr_fd && stdout_stderr_match) {
       /* stdout and stderr point to the same location (changing one's flags did change the
        * other's). Reuse the Pipe object that we created in the loop's first iteration. */
-      pipe = (*root_->fds())[stdout_fd]->pipe();
+      root_->add_filefd(fd, std::make_shared<FileFD>(fd, (*root_->fds())[stdout_fd], false));
     } else {
       /* Create a new Pipe for this file descriptor.
        * The fd keeps blocking/non-blocking behaviour, it seems to be ok with epoll.
@@ -99,10 +99,8 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
       FB_DEBUG(FB_DEBUG_PIPE, "created pipe with fd0: " + d(fd) + ", dup()-ed as: " + d(fd_dup));
       /* Top level inherited fds are special, they should not be closed. */
       inherited_fd_pipes_.insert(pipe);
+      root_->add_filefd(fd, std::make_shared<FileFD>(fd, O_WRONLY, pipe, nullptr));
     }
-
-    std::shared_ptr<FileFD> file_fd = root_->add_filefd(fd, std::make_shared<FileFD>(fd, O_WRONLY));
-    file_fd->set_pipe(pipe);
   }
   insert_process(root_);
 }
