@@ -9,13 +9,16 @@
 
 namespace firebuild {
 
+int FileOFD::id_counter_ = 0;
+
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
-std::string d(const FileFD& ffd, const int level) {
+std::string d(const FileOFD& fofd, const int level) {
   (void)level;  /* unused */
-  std::string ret = "{FileFD fd=" + d(ffd.fd()) + " ";
-  switch (ffd.flags() & O_ACCMODE) {
+  std::string ret = "{FileOFD #" + d(fofd.id()) + " ";
+  // FIXME replace this with printing all the flags
+  switch (fofd.flags() & O_ACCMODE) {
     case O_RDONLY:
       ret += "r";
       break;
@@ -28,12 +31,26 @@ std::string d(const FileFD& ffd, const int level) {
     default:
       ret += "unknown_mode";
   }
+  if (fofd.filename()) {
+    ret += " " + d(fofd.filename(), level + 1);
+  }
+  ret += "}";
+  return ret;
+}
+std::string d(const FileOFD *fofd, const int level) {
+  if (fofd) {
+    return d(*fofd, level);
+  } else {
+    return "{FileOFD NULL}";
+  }
+}
+std::string d(const FileFD& ffd, const int level) {
+  std::string ret = "{FileFD fd=" + d(ffd.fd()) + " " + d(ffd.ofd(), level);
   if (ffd.pipe()) {
     ret += " " + d(ffd.pipe().get(), level + 1);
+    ret += " close_on_popen=" + d(ffd.close_on_popen());
   }
-  if (ffd.filename()) {
-    ret += " " + d(ffd.filename(), level + 1);
-  }
+  ret += " cloexec=" + d(ffd.cloexec());
   ret += "}";
   return ret;
 }

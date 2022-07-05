@@ -288,9 +288,25 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
       // TODO(rbalint) skip reopening fd if parent's other forked processes closed the fd
       // without writing to it
       for (inherited_outgoing_pipe_t& inherited_outgoing_pipe : inherited_outgoing_pipes) {
-        auto file_fd = proc->get_shared_fd(inherited_outgoing_pipe.fds[0]);
-        auto pipe = file_fd->pipe();
+        auto file_fd_old = proc->get_shared_fd(inherited_outgoing_pipe.fds[0]);
+        auto pipe = file_fd_old->pipe();
         assert(pipe);
+
+        /* As per #689, reopening the pipes causes different behavior than without firebuild. With
+         * firebuild, across an exec they no longer share the same "open file description" and thus
+         * the fcntl flags. Perform this unduping from the exec parent, i.e. modify the FileFDs to
+         * point to a new FileOFD. */
+        auto fds = proc->fds();
+        int fd = inherited_outgoing_pipe.fds[0];
+        auto file_fd = std::make_shared<FileFD>(fd, file_fd_old->flags(), pipe,
+                                                file_fd_old->opened_by());
+        (*fds)[fd] = file_fd;
+        for (size_t i = 1; i < inherited_outgoing_pipe.fds.size(); i++) {
+          fd = inherited_outgoing_pipe.fds[i];
+          auto file_fd_dup = std::make_shared<FileFD>(fd, file_fd, false);
+          (*fds)[fd] = file_fd_dup;
+        }
+
         /* Create a new unnamed pipe. */
         int fifo_fd[2];
         int ret = pipe2(fifo_fd, file_fd->flags() & ~O_ACCMODE);
