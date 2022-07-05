@@ -15,7 +15,7 @@
   bool to_send = false;
   bool send_ret = false;
   bool has_int_arg = false;
-  int int_arg;
+  int int_arg = -1;
 
   switch (cmd) {
     /* Commands the supervisor doesn't need to know about. */
@@ -80,6 +80,17 @@
     }
   }
 ### endblock before
+
+### block after
+  switch (cmd) {
+    case F_DUPFD:
+    case F_DUPFD_CLOEXEC:
+      if (i_am_intercepting && success) copy_notify_on_read_write_state(ret, fd);
+      break;
+    default:
+      break;
+  }
+### endblock after
 
 ### block call_orig
   /* Treating the optional parameter as 'void *' should work, see #178. */
