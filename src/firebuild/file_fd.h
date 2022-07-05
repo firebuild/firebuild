@@ -60,8 +60,7 @@ class FileFD {
     }
   }
   FileFD(const FileFD& other)
-      : fd_(other.fd_), curr_flags_(other.curr_flags_),
-        close_on_popen_(other.close_on_popen_), read_(other.read_), written_(other.written_),
+      : fd_(other.fd_), curr_flags_(other.curr_flags_), close_on_popen_(other.close_on_popen_),
         filename_(other.filename_), pipe_(other.pipe_), opened_by_(other.opened_by_) {
     if (filename_ && is_write(curr_flags_)) {
       filename_->open_for_writing(opened_by_);
@@ -70,8 +69,6 @@ class FileFD {
   FileFD& operator= (const FileFD& other) {
     fd_ = other.fd_;
     close_on_popen_ = other.close_on_popen_;
-    read_ = other.read_;
-    written_ = other.written_;
     if (filename_ != other.filename_) {
       if (filename_ && is_write(curr_flags_)) {
         filename_->close_for_writing();
@@ -104,8 +101,6 @@ class FileFD {
   }
   bool close_on_popen() const {return close_on_popen_;}
   void set_close_on_popen(bool c) {close_on_popen_ = c;}
-  bool read() {return read_;}
-  bool written() {return written_;}
   const FileName* filename() const {return filename_;}
   void set_pipe(std::shared_ptr<Pipe> pipe) {
     if (pipe_) {
@@ -120,8 +115,6 @@ class FileFD {
   int fd_;
   int curr_flags_;
   bool close_on_popen_ = false;
-  bool read_ = false;
-  bool written_ = false;
   const FileName* filename_;
   std::shared_ptr<Pipe> pipe_;
   /** Process that opened this file by name.
