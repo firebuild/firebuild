@@ -19,7 +19,7 @@
 ###   endif
 ###   do msg_add_fields.append("fbbcomm_builder_" + msg + "_set_pre_open_sent(&ic_msg, pre_open_sent);")
 ### endif
-### set after_lines = ["if (i_am_intercepting) clear_notify_on_read_write_state(ret);"]
+### set after_lines = ["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"]
 ### set send_ret_on_success=True
 ### set ack_condition = "success && !is_path_at_locations(pathname, &system_locations)"
 

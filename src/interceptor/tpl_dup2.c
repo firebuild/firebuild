@@ -48,5 +48,5 @@
     }
   }
 
-  copy_notify_on_read_write_state(newfd, oldfd);
+  if (i_am_intercepting && success) copy_notify_on_read_write_state(newfd, oldfd);
 ### endblock
