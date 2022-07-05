@@ -115,12 +115,12 @@ static const FBBFP_Builder *fbbfp_builder_ofd_vector_item_fn(int i, const void *
   return reinterpret_cast<const FBBFP_Builder *>(builder);
 }
 
-/* Adaptor from C++ std::vector<FBBSTORE_Builder_pipe_data> to FBB's FBB array */
-static const FBBSTORE_Builder *fbbstore_builder_pipe_data_vector_item_fn(int i,
-                                                                         const void *user_data) {
-  const std::vector<FBBSTORE_Builder_pipe_data> *fbbs =
-      reinterpret_cast<const std::vector<FBBSTORE_Builder_pipe_data> *>(user_data);
-  const FBBSTORE_Builder_pipe_data *builder = &(*fbbs)[i];
+/* Adaptor from C++ std::vector<FBBSTORE_Builder_append_to_fd> to FBB's FBB array */
+static const FBBSTORE_Builder *fbbstore_builder_append_to_fd_vector_item_fn(int i,
+                                                                            const void *user_data) {
+  const std::vector<FBBSTORE_Builder_append_to_fd> *fbbs =
+      reinterpret_cast<const std::vector<FBBSTORE_Builder_append_to_fd> *>(user_data);
+  const FBBSTORE_Builder_append_to_fd *builder = &(*fbbs)[i];
   return reinterpret_cast<const FBBSTORE_Builder *>(builder);
 }
 
@@ -559,7 +559,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   }
 
   /* Pipe outputs */
-  std::vector<FBBSTORE_Builder_pipe_data> out_pipe_data;
+  std::vector<FBBSTORE_Builder_append_to_fd> out_append_to_fd;
 
   /* Store what was written to the inherited pipes. Use the fd as of when the process started up,
    * because this is what matters if we want to replay; how the process later dup()ed it to other
@@ -582,9 +582,9 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       if (!is_empty) {
         /* Note: pipes with no traffic are just simply not mentioned here in the "outputs" section.
          * They were taken into account when computing the process's fingerprint. */
-        FBBSTORE_Builder_pipe_data& new_pipe_data = out_pipe_data.emplace_back();
-        new_pipe_data.set_fd(fd);
-        new_pipe_data.set_hash(hash.get());
+        FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
+        new_append.set_fd(fd);
+        new_append.set_hash(hash.get());
       }
     }
   }
@@ -625,8 +625,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   po.set_path_isreg_item_fn(out_path_isreg.size(), file_item_fn, &out_path_isreg);
   po.set_path_isdir_item_fn(out_path_isdir.size(), file_item_fn, &out_path_isdir);
   po.set_path_notexist(out_path_notexist);
-  po.set_pipe_data_item_fn(out_pipe_data.size(), fbbstore_builder_pipe_data_vector_item_fn,
-                           &out_pipe_data);
+  po.set_append_to_fd_item_fn(out_append_to_fd.size(), fbbstore_builder_append_to_fd_vector_item_fn,
+                              &out_append_to_fd);
   po.set_exit_status(proc->fork_point()->exit_status());
 
   // TODO(egmont) Add all sorts of other stuff
@@ -979,16 +979,16 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   remove_files_and_dirs(proc, outputs);
 
   /* See what the process originally wrote to its pipes. Add these to the Pipes' buffers. */
-  for (i = 0; i < outputs->get_pipe_data_count(); i++) {
-    const FBBSTORE_Serialized_pipe_data *data =
-        reinterpret_cast<const FBBSTORE_Serialized_pipe_data *>
-        (outputs->get_pipe_data_at(i));
-    FileFD *ffd = proc->get_fd(data->get_fd());
+  for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
+    const FBBSTORE_Serialized_append_to_fd *append_to_fd =
+        reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
+        (outputs->get_append_to_fd_at(i));
+    FileFD *ffd = proc->get_fd(append_to_fd->get_fd());
     assert(ffd);
     Pipe *pipe = ffd->pipe().get();
     assert(pipe);
 
-    Hash hash(data->get_hash());
+    Hash hash(append_to_fd->get_hash());
     int fd = blob_cache->get_fd_for_file(hash);
     struct stat64 st;
     if (fstat64(fd, &st) < 0) {
