@@ -16,13 +16,6 @@
 #include "firebuild/pipe.h"
 
 namespace firebuild {
-enum fd_origin : char {
-  FD_ORIGIN_FILE_OPEN, /* backed by open()-ed file */
-  FD_ORIGIN_INTERNAL,  /* backed by memory (e.g. using fmemopen()) */
-  FD_ORIGIN_PIPE,      /* pipe endpoint (e.g. using pipe()) */
-  FD_ORIGIN_DUP,       /* created using dup() */
-  FD_ORIGIN_ROOT,       /* inherited in the root process (stdin...) */
-};
 
 class Process;
 class Pipe;
@@ -31,28 +24,24 @@ class FileFD {
  public:
   /** Constructor for fds inherited from the supervisor (stdin, stdout, stderr). */
   FileFD(int fd, int flags)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_ROOT), origin_fd_(NULL),
-        filename_(), pipe_(), opened_by_(NULL) {
+      : fd_(fd), curr_flags_(flags), filename_(), pipe_(), opened_by_(NULL) {
     assert(fd >= 0);
   }
   /** Constructor for fds backed by internal memory. */
   FileFD(int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_INTERNAL), origin_fd_(NULL),
-        filename_(), pipe_(), opened_by_(p) {
+      : fd_(fd), curr_flags_(flags), filename_(), pipe_(), opened_by_(p) {
     assert(fd >= 0);
   }
   /** Constructor for fds backed by a pipe including ones created by popen(). */
   FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process * const p,
          bool close_on_popen = false)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_PIPE), close_on_popen_(close_on_popen),
-        origin_fd_(NULL),
+      : fd_(fd), curr_flags_(flags), close_on_popen_(close_on_popen),
         filename_(), pipe_(pipe), opened_by_(p) {
     assert(fd >= 0);
   }
   /** Constructor for fds created from other fds through dup() or exec() */
-  FileFD(int fd, int flags, fd_origin o, std::shared_ptr<FileFD> o_fd)
-      : fd_(fd), curr_flags_(flags), origin_type_(o), origin_fd_(o_fd),
-        filename_(o_fd->filename()), pipe_(o_fd->pipe_),
+  FileFD(int fd, int flags, std::shared_ptr<FileFD> o_fd)
+      : fd_(fd), curr_flags_(flags), filename_(o_fd->filename()), pipe_(o_fd->pipe_),
         opened_by_(o_fd->opened_by()) {
     assert(fd >= 0);
     if (filename_ && is_write(curr_flags_)) {
@@ -64,29 +53,25 @@ class FileFD {
   }
   /** Constructor for fds obtained through opening files. */
   FileFD(const FileName* f, int fd, int flags, Process * const p)
-      : fd_(fd), curr_flags_(flags), origin_type_(FD_ORIGIN_FILE_OPEN), origin_fd_(NULL),
-        filename_(f), pipe_(), opened_by_(p) {
+      : fd_(fd), curr_flags_(flags), filename_(f), pipe_(), opened_by_(p) {
     assert(fd >= 0);
     if (is_write(curr_flags_)) {
       f->open_for_writing(opened_by_);
     }
   }
   FileFD(const FileFD& other)
-      : fd_(other.fd_), curr_flags_(other.curr_flags_), origin_type_(other.origin_type_),
+      : fd_(other.fd_), curr_flags_(other.curr_flags_),
         close_on_popen_(other.close_on_popen_), read_(other.read_), written_(other.written_),
-        origin_fd_(other.origin_fd_), filename_(other.filename_), pipe_(other.pipe_),
-        opened_by_(other.opened_by_) {
+        filename_(other.filename_), pipe_(other.pipe_), opened_by_(other.opened_by_) {
     if (filename_ && is_write(curr_flags_)) {
       filename_->open_for_writing(opened_by_);
     }
   }
   FileFD& operator= (const FileFD& other) {
     fd_ = other.fd_;
-    origin_type_ = other.origin_type_;
     close_on_popen_ = other.close_on_popen_;
     read_ = other.read_;
     written_ = other.written_;
-    origin_fd_ = other.origin_fd_;
     if (filename_ != other.filename_) {
       if (filename_ && is_write(curr_flags_)) {
         filename_->close_for_writing();
@@ -117,14 +102,12 @@ class FileFD {
       curr_flags_ &= ~O_CLOEXEC;
     }
   }
-  fd_origin origin_type() {return origin_type_;}
   bool close_on_popen() const {return close_on_popen_;}
   void set_close_on_popen(bool c) {close_on_popen_ = c;}
   bool read() {return read_;}
   bool written() {return written_;}
   const FileName* filename() const {return filename_;}
   void set_pipe(std::shared_ptr<Pipe> pipe) {
-    assert((origin_type_ == FD_ORIGIN_ROOT && !pipe_) || pipe_);
     if (pipe_) {
       pipe_->handle_close(this);
     }
@@ -136,11 +119,9 @@ class FileFD {
  private:
   int fd_;
   int curr_flags_;
-  fd_origin origin_type_;
   bool close_on_popen_ = false;
   bool read_ = false;
   bool written_ = false;
-  std::shared_ptr<FileFD> origin_fd_;
   const FileName* filename_;
   std::shared_ptr<Pipe> pipe_;
   /** Process that opened this file by name.
