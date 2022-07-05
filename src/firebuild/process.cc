@@ -247,7 +247,7 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
     assert(!pre_open_sent);
     /* Find oldfd. */
     FileFD *file_fd = get_fd(oldfd);
-    if (!file_fd || file_fd->origin_type() != FD_ORIGIN_FILE_OPEN) {
+    if (!file_fd || file_fd->filename() == nullptr) {
       /* Can't find oldfd, or wasn't opened by filename. Don't know what to do. */
       exec_point()->disable_shortcutting_bubble_up(
         "Could not figure out old file name for freopen(..., NULL)", oldfd);
@@ -820,8 +820,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
   handle_force_close(newfd);
 
   add_filefd(newfd, std::make_shared<FileFD>(
-      newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), FD_ORIGIN_DUP,
-      (*fds_)[oldfd]));
+      newfd, (((*fds_)[oldfd]->flags() & ~O_CLOEXEC) | flags), (*fds_)[oldfd]));
   return 0;
 }
 
