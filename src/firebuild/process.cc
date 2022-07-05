@@ -1002,15 +1002,21 @@ void Process::handle_read_from_inherited(const int fd, const bool is_pread) {
 
   (void)is_pread;  /* unused */
 
-  if (!get_fd(fd)) {
+  FileFD *file_fd = get_fd(fd);
+  if (!file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
         "Process successfully read from fd which is known to be closed, which means interception"
         " missed at least one open()", fd);
     return;
   }
-  /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
+
+  if (file_fd->type() == FD_IGNORED) {
+    return;
+  }
+
+  /* Note: this doesn't disable any shortcutting if file_fd->opened_by() == this,
    * i.e. the file was opened by the current process. */
-  Process* opened_by = (*fds_)[fd]->opened_by();
+  Process* opened_by = file_fd->opened_by();
   exec_point()->disable_shortcutting_bubble_up_to_excl(
       opened_by ? opened_by->exec_point() : nullptr, "Process read from inherited fd ", fd);
 }
@@ -1020,16 +1026,22 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
 
   (void)is_pwrite;  /* unused */
 
-  if (!get_fd(fd)) {
+  FileFD *file_fd = get_fd(fd);
+  if (!file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
         "Process successfully wrote to fd which is known to be closed, which means interception"
         " missed at least one open()", fd);
     return;
   }
-  if (!(*fds_)[fd]->pipe()) {
-    /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
+
+  if (file_fd->type() == FD_IGNORED) {
+    return;
+  }
+
+  if (!file_fd->pipe()) {
+    /* Note: this doesn't disable any shortcutting if file_fd->opened_by() == this,
      * i.e. the file was opened by the current process. */
-    Process* opened_by = (*fds_)[fd]->opened_by();
+    Process* opened_by = file_fd->opened_by();
     exec_point()->disable_shortcutting_bubble_up_to_excl(
         opened_by ? opened_by->exec_point() : nullptr,
         "Process wrote to inherited non-pipe fd ", fd);
@@ -1039,17 +1051,23 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
 void Process::handle_seek_in_inherited(const int fd, const bool modify_offset) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, modify_offset=%s", fd, D(modify_offset));
 
-  if (!get_fd(fd)) {
+  FileFD *file_fd = get_fd(fd);
+  if (!file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
         "Process successfully seeked in an fd which is known to be closed, which means interception"
         " missed at least one open()", fd);
     return;
   }
+
+  if (file_fd->type() == FD_IGNORED) {
+    return;
+  }
+
   // FIXME Handle the !modify_offset case
-  if (modify_offset && !(*fds_)[fd]->pipe()) {
-    /* Note: this doesn't disable any shortcutting if (*fds_)[fd]->opened_by() == this,
+  if (modify_offset && !file_fd->pipe()) {
+    /* Note: this doesn't disable any shortcutting if file_fd->opened_by() == this,
      * i.e. the file was opened by the current process. */
-    Process* opened_by = (*fds_)[fd]->opened_by();
+    Process* opened_by = file_fd->opened_by();
     exec_point()->disable_shortcutting_bubble_up_to_excl(
         opened_by ? opened_by->exec_point() : nullptr,
         "Process seeked in inherited non-pipe fd ", fd);
