@@ -17,6 +17,15 @@
 
 namespace firebuild {
 
+enum fd_type : char {
+  FD_UNINITIALIZED,  /* only used intermittently during object construction */
+  FD_IGNORED,        /* a path that's on ignore_list, e.g. /dev/null */
+  FD_FILE,           /* regular file */
+  FD_PIPE_IN,        /* the incoming endpoint of a pipe(), or the toplevel stdin */
+  FD_PIPE_OUT,       /* the outgoing endpoint of a pipe(), or the toplevel stdout, stderr */
+  FD_SPECIAL,        /* backed by memory, e.g. memfd, eventfd etc. */
+};
+
 class Process;
 class Pipe;
 
@@ -39,8 +48,8 @@ class Pipe;
  */
 class FileOFD {
  public:
-  FileOFD(const FileName *filename, int flags, Process *opened_by)
-      : id_(id_counter_++), filename_(filename), flags_(flags & ~FILE_CREATION_FLAGS),
+  FileOFD(fd_type type, const FileName *filename, int flags, Process *opened_by)
+      : id_(id_counter_++), type_(type), filename_(filename), flags_(flags & ~FILE_CREATION_FLAGS),
         opened_by_(opened_by) {
     if (filename_ && is_write(flags_)) {
       filename_->open_for_writing(opened_by_);
@@ -53,6 +62,7 @@ class FileOFD {
   }
 
   int id() const {return id_;}
+  fd_type type() const {return type_;}
   const FileName *filename() const {return filename_;}
   void set_flags(int flags) {
     flags_ = flags & ~(O_ACCMODE | FILE_CREATION_FLAGS);
@@ -63,6 +73,8 @@ class FileOFD {
  private:
   /* Unique FileOFD id, for debugging. */
   int id_;
+  /* Type. */
+  fd_type type_;
   /** If the file was opened by name during firebuild's supervision. */
   const FileName *filename_;
   /** The open() flags except for O_CLOEXEC, a.k.a. the fcntl(F_GETFL/F_SETFL) flags. */
@@ -87,14 +99,16 @@ class FileFD {
  public:
   /** Constructor for fds backed by internal memory. */
   FileFD(int fd, int flags, Process *opened_by)
-      : fd_(fd), ofd_(std::make_shared<FileOFD>(nullptr, flags, opened_by)),
+      : fd_(fd), ofd_(std::make_shared<FileOFD>(FD_SPECIAL, nullptr, flags, opened_by)),
         pipe_(), cloexec_(flags & O_CLOEXEC) {
     assert(fd >= 0);
   }
   /** Constructor for fds backed by a pipe including ones created by popen(). */
   FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process *opened_by,
          bool close_on_popen = false)
-      : fd_(fd), ofd_(std::make_shared<FileOFD>(nullptr, flags, opened_by)),
+      : fd_(fd),
+        ofd_(std::make_shared<FileOFD>(is_write(flags) ? FD_PIPE_OUT : FD_PIPE_IN,
+                                       nullptr, flags, opened_by)),
         pipe_(pipe), cloexec_(flags & O_CLOEXEC), close_on_popen_(close_on_popen) {
     assert(fd >= 0);
   }
@@ -108,7 +122,9 @@ class FileFD {
   }
   /** Constructor for fds obtained through opening files. */
   FileFD(const FileName* filename, int fd, int flags, Process *opened_by)
-      : fd_(fd), ofd_(std::make_shared<FileOFD>(filename, flags, opened_by)),
+      : fd_(fd),
+        ofd_(std::make_shared<FileOFD>(filename->is_in_ignore_location() ? FD_IGNORED : FD_FILE,
+                                       filename, flags, opened_by)),
         pipe_(), cloexec_(flags & O_CLOEXEC) {
     assert(fd >= 0);
   }
@@ -128,6 +144,7 @@ class FileFD {
   /* Getters/setters, some are just convenience proxies to ofd_'s corresponding method. */
   int fd() const {return fd_;}
   std::shared_ptr<FileOFD> ofd() const {return ofd_;}
+  fd_type type() const {return ofd_->type();}
   const FileName* filename() const {return ofd_->filename();}
   /* Note: This method does NOT change the O_CLOEXEC flag, use set_cloexec() for that. */
   void set_flags(int flags) {ofd_->set_flags(flags);}
@@ -156,7 +173,8 @@ class FileFD {
  private:
   int fd_;
   std::shared_ptr<FileOFD> ofd_;
-  /** If it's a pipe. */
+  /** If it's a pipe, i.e. type is FD_PIPE_[IN|OUT]. Except for the toplevel stdin where type is
+   ** FD_PIPE_IN but pipe_ is NULL. */
   // FIXME Should be moved to FileOFD. Requires nontrivial work around handle_close(), see #939.
   std::shared_ptr<Pipe> pipe_;
   bool cloexec_;
@@ -170,6 +188,7 @@ std::string d(const FileOFD& fofd, const int level = 0);
 std::string d(const FileOFD *fofd, const int level = 0);
 std::string d(const FileFD& ffd, const int level = 0);
 std::string d(const FileFD *ffd, const int level = 0);
+const char *fd_type_to_string(fd_type type);
 
 }  /* namespace firebuild */
 #endif  // FIREBUILD_FILE_FD_H_
