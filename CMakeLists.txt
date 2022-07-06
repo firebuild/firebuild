@@ -25,7 +25,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/modules)
 # TODO set to install dir
 set(DATADIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/firebuild" CACHE STRING "Firebuild's architecture-independent files' location")
 set(TENTATIVE_C_CXX_FLAGS
-  -std=c++17
+  -std=c++20
   -W
   -Wall
   -Wextra

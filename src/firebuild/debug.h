@@ -308,7 +308,7 @@ class MethodTracker {
   const T *obj_ptr_;
   std::string (*resolved_d_)(const T *, int);
 
-  DISALLOW_COPY_AND_ASSIGN(MethodTracker<T>);
+  DISALLOW_COPY_AND_ASSIGN(MethodTracker);
 };
 #endif  /* NDEBUG */
 
