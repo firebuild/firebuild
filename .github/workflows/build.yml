@@ -206,6 +206,8 @@ jobs:
     - name: install-deps
       run: |
         sudo sed -i 's/# deb-src/deb-src/' /etc/apt/sources.list
+        # work around https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1979244
+        echo 'APT::Get::Always-Include-Phased-Updates "true";' | sudo tee /etc/apt/apt.conf.d/99-firebuild-phased-updates
         sudo apt-get update
         sudo eatmydata apt-get -y install devscripts $BUILD_DEPS $TEST_DEPS
         sudo eatmydata apt-get build-dep vte2.91
