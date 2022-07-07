@@ -232,57 +232,28 @@ jobs:
         cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
   build-deb:
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, ubuntu-22.04]
     needs: style-checks
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@v2
     - uses: actions/cache@v3
       with:
         path: ~/.cache/debs
-        key: build-deb-debs-${{ needs.style-checks.outputs.week }}
+        key: build-deb-debs-${{ matrix.os }}-${{ needs.style-checks.outputs.week }}
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: hendrikmuhs/ccache-action@v1
       with:
-        key: build-deb
+        key: build-deb-${{ matrix.os }}
     - name: install-deps
       run: |
-        sudo eatmydata apt-get build-dep .
-    - name: deb
-      run: |
-        export PATH=/usr/lib/ccache:$PATH
-        # skip dh_buildinfo step
-        printf '\noverride_dh_buildinfo:\n' >> debian/rules
-        dpkg-buildpackage -j2 -us -uc
-        sudo apt-get install ../*.deb
-        firebuild -- ls
-    - name: save-cached-debs
-      run: |
-        rm -f ~/.cache/debs/*
-        cp /var/cache/apt/archives/*deb ~/.cache/debs/
-
-  # build on Ubuntu 20.04 which is the first supported LTS release
-  build-deb-focal:
-    needs: style-checks
-    runs-on: ubuntu-20.04
-    timeout-minutes: 15
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v3
-      with:
-        path: ~/.cache/debs
-        key: build-deb-debs-focal-${{ needs.style-checks.outputs.week }}
-    - name: restore-cached-debs
-      run: |
-        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
-      with:
-        key: build-deb-focal
-    - name: install-deps
-      run: |
-        sudo add-apt-repository -y ppa:rbalint/xxhash
+        ! [ ${{ matrix.os }} == "ubuntu-20.04" ] || sudo add-apt-repository -y -n ppa:rbalint/xxhash
+        sudo apt update
         sudo eatmydata apt-get build-dep .
     - name: deb
       run: |
