@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
-# Use GCC 10 instead of earlier versions to enable LTO for the firebuild binary
-ifeq ($(shell $(CXX) --version | head -n1 | cut -d\  -f4 | xargs dpkg --compare-versions 10 lt || echo buggy-lto),buggy-lto)
+# Use GCC 10 instead of earlier versions for better c++20 support
+ifeq ($(shell $(CXX) --version | head -n1 | cut -d\  -f4 | xargs dpkg --compare-versions 10 lt || echo buggy-cxx-20),buggy-cxx-20)
 export CC = gcc-10
 export CXX = g++-10
 endif
