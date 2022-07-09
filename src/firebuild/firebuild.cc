@@ -98,22 +98,27 @@ static void usage() {
          " 1  in case of failure\n");
 }
 
-static void export_locations(const char* configuration_name,
+
+static void export_sorted_locations(const char* configuration_name,
                              const std::string env_var_name,
                              std::map<std::string, std::string>* env) {
-  std::string locations;
   const libconfig::Setting& root = cfg->getRoot();
   const libconfig::Setting& locations_setting = root[configuration_name];
+  std::vector<std::string> locations;
   for (int i = 0; i < locations_setting.getLength(); i++) {
-    const std::string loc(locations_setting[i].c_str());
-    if (locations.length() == 0) {
-      locations.append(loc);
-    } else {
-      locations.append(":" + loc);
-    }
+    locations.emplace_back(locations_setting[i].c_str());
   }
-  if (locations.length() > 0) {
-    (*env)[env_var_name] = std::string(locations);
+  if (locations.size() > 0) {
+    std::sort(locations.begin(), locations.end());
+    std::string locations_appended;
+    for (auto loc : locations) {
+      if (locations_appended.length() == 0) {
+        locations_appended.append(loc);
+      } else {
+        locations_appended.append(":" + loc);
+      }
+    }
+    (*env)[env_var_name] = std::string(locations_appended);
     FB_DEBUG(firebuild::FB_DEBUG_PROC, " " + env_var_name + "=" + (*env)[env_var_name]);
   }
 }
@@ -157,7 +162,7 @@ static char** get_sanitized_env() {
     }
   }
 
-  export_locations("system_locations", "FB_SYSTEM_LOCATIONS", &env);
+  export_sorted_locations("system_locations", "FB_SYSTEM_LOCATIONS", &env);
 
   const char *ld_preload_value = getenv("LD_PRELOAD");
   if (ld_preload_value) {
