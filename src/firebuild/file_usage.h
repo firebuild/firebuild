@@ -97,7 +97,7 @@ class FileUsage {
   friend class DbInitializer;
   static DbInitializer db_initializer_;
   friend struct FileUsageHasher;
-  friend bool operator==(const FileUsage& lhs, const FileUsage& rhs);
+  friend bool operator==(const FileUsage& lhs, const FileUsage& rhs) = default;
 
   /** An unhandled error occurred during operation on the file. The process
    *  can't be short-cut, but the first such error code is stored here. */
@@ -105,8 +105,6 @@ class FileUsage {
 
   static const FileUsage* Get(const FileUsage& candidate);
 };
-
-bool operator==(const FileUsage& lhs, const FileUsage& rhs);
 
 struct FileUsageHasher {
   std::size_t operator()(const FileUsage& f) const noexcept {

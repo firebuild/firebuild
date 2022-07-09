@@ -149,10 +149,8 @@ class FileInfo {
   /** Which of the bits in mode_ are known. */
   mode_t mode_mask_ {0};
 
-  friend bool operator==(const FileInfo& lhs, const FileInfo& rhs);
+  friend bool operator==(const FileInfo& lhs, const FileInfo& rhs) = default;
 };
-
-bool operator==(const FileInfo& lhs, const FileInfo& rhs);
 
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.

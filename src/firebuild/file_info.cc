@@ -16,15 +16,6 @@
 
 namespace firebuild {
 
-bool operator==(const FileInfo& lhs, const FileInfo& rhs) {
-  return lhs.type_ == rhs.type_ &&
-         lhs.size_ == rhs.size_ &&
-         lhs.hash_known_ == rhs.hash_known_ &&
-         lhs.hash_ == rhs.hash_ &&
-         lhs.mode_ == rhs.mode_ &&
-         lhs.mode_mask_ == rhs.mode_mask_;
-}
-
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
