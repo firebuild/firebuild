@@ -118,7 +118,7 @@ void voidp_set_erase(voidp_set *set, const void *p) {
 }
 
 /**
- * Checks if a path semantically begins with the given subpath.
+ * Checks if a path semantically begins with one of the given sorted subpaths.
  *
  * Does string operations only, does not look at the file system.
  */
@@ -135,8 +135,25 @@ bool is_path_at_locations(const char * const path, cstring_view_array *location_
       continue;
     }
 
-    if (memcmp(location, path, location_len) != 0) {
+    if (path[location_len] != '/' && path_len > location_len) {
       continue;
+    }
+
+#if 0  // TODO(rbalint) enforce alignment of cstring_view_array entries to make this safe and quick
+    /* Try comparing only the first 8 bytes to potentially save a call to memcmp */
+    if (location_len >= sizeof(int64_t)
+        && *(const int64_t*)location != *(const int64_t*)path) {
+      /* Does not break the loop if path_ > location->name_ */
+      // TODO(rbalint) maybe the loop could be broken making this function even faster
+      continue;
+    }
+#endif
+
+    const int memcmp_res = memcmp(location, path, location_len);
+    if (memcmp_res < 0) {
+      continue;
+    } else if (memcmp_res > 0) {
+      return false;
     }
 
     if (path_len == location_len) {
