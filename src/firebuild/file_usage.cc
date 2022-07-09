@@ -42,14 +42,6 @@ FileUsage::DbInitializer::DbInitializer() {
 
 FileUsage::DbInitializer FileUsage::db_initializer_;
 
-bool operator==(const FileUsage& lhs, const FileUsage& rhs) {
-  return lhs.initial_state_ == rhs.initial_state_ &&
-      lhs.written_ == rhs.written_ &&
-      lhs.mode_changed_ == rhs.mode_changed_ &&
-      lhs.generation_ == rhs.generation_ &&
-      lhs.unknown_err_ == rhs.unknown_err_;
-}
-
 const FileUsage* FileUsage::Get(const FileUsage& candidate) {
   auto it = db_->find(candidate);
   if (it != db_->end()) {
