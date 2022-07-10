@@ -32,7 +32,6 @@ jobs:
         key: build-on-ubuntu-lts
     - name: install-deps
       run: |
-        sudo add-apt-repository -y ppa:rbalint/hopscotch-map
         sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
     - name: build-out-of-tree
       run: |
@@ -96,9 +95,7 @@ jobs:
         TZ=Europe/Budapest
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
         echo $TZ > /etc/timezone
-        apt-get -qq update
-        apt-get install -y eatmydata software-properties-common
-        add-apt-repository -y ppa:rbalint/hopscotch-map
+        apt-get install -y eatmydata
         eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc
     - name: build-out-of-tree
       run: |
@@ -131,7 +128,6 @@ jobs:
         key: clang-build
     - name: install-deps
       run: |
-        sudo add-apt-repository -y ppa:rbalint/hopscotch-map
         sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS $TEST_DEPS
     - name: build
       run: |
@@ -168,7 +164,6 @@ jobs:
         key: rebuild-self
     - name: install-deps
       run: |
-        sudo add-apt-repository -y ppa:rbalint/hopscotch-map
         sudo eatmydata apt-get -y install $BUILD_DEPS
     - name: rebuild self
       run: |
@@ -213,7 +208,6 @@ jobs:
         sudo sed -i 's/# deb-src/deb-src/' /etc/apt/sources.list
         # work around https://bugs.launchpad.net/ubuntu/+source/apt/+bug/1979244
         echo 'APT::Get::Always-Include-Phased-Updates "true";' | sudo tee /etc/apt/apt.conf.d/99-firebuild-phased-updates
-        sudo add-apt-repository -y -n ppa:rbalint/hopscotch-map
         sudo apt-get update
         sudo eatmydata apt-get -y install devscripts $BUILD_DEPS $TEST_DEPS
         sudo eatmydata apt-get build-dep vte2.91
@@ -259,7 +253,6 @@ jobs:
     - name: install-deps
       run: |
         ! [ ${{ matrix.os }} == "ubuntu-20.04" ] || sudo add-apt-repository -y -n ppa:rbalint/xxhash
-        sudo add-apt-repository -y -n ppa:rbalint/hopscotch-map
         sudo apt update
         sudo eatmydata apt-get build-dep .
     - name: deb
