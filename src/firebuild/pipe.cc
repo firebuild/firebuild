@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/epoll.h>
+#include <tsl/hopscotch_set.h>
 #include <unistd.h>
 
 #include <cassert>
@@ -510,12 +511,17 @@ void Pipe::drain() {
     return;
   }
   bool restart_iteration;
+  tsl::hopscotch_set<int> visited_fds;
   do {
     restart_iteration = false;
     for (auto pair : ffd2fd1_ends) {
       pipe_end* fd1_end = pair.second;
       assert(fd1_end);
       int fd = fd1_end->fd;
+      if (!visited_fds.insert(fd).second) {
+        /* Don't forward traffic again on already visited fds (after restarting iteration). */
+        continue;
+      }
       switch (forward(fd, true)) {
         case FB_PIPE_FD1_EOF: {
           /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
