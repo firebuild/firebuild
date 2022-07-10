@@ -5,14 +5,7 @@
 #ifndef FIREBUILD_PROCESS_H_
 #define FIREBUILD_PROCESS_H_
 
-// Workaround for https://github.com/Tessil/hopscotch-map/issues/55
-#ifndef __clang__
-#pragma GCC optimize ("-fno-strict-aliasing")   // NOLINT(whitespace/parens)
-#endif
 #include <tsl/hopscotch_map.h>
-#ifndef __clang__
-#pragma GCC reset_options
-#endif
 
 #include <cassert>
 #include <list>
