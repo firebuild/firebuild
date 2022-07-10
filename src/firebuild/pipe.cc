@@ -509,29 +509,40 @@ void Pipe::drain() {
   if (finished()) {
     return;
   }
-  for (auto pair : ffd2fd1_ends) {
-    pipe_end* fd1_end = pair.second;
-    assert(fd1_end);
-    int fd = fd1_end->fd;
-    switch (forward(fd, true)) {
-      case FB_PIPE_FD1_EOF: {
-        /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
-           function. */
-        close_one_fd1(fd);
-        break;
-      }
-      case FB_PIPE_FD0_EPIPE: {
-        if (fd0_conn >= 0) {
-          /* Clean up pipe. */
-          finish();
+  bool restart_iteration;
+  do {
+    restart_iteration = false;
+    for (auto pair : ffd2fd1_ends) {
+      pipe_end* fd1_end = pair.second;
+      assert(fd1_end);
+      int fd = fd1_end->fd;
+      switch (forward(fd, true)) {
+        case FB_PIPE_FD1_EOF: {
+          /* This close will not finish the pipe, since there must be an fd1 ptr held, passed to this
+             function. */
+          close_one_fd1(fd);
+          /* The iterator is invalid now, restart iteration */
+          restart_iteration = true;
+          break;
         }
+        case FB_PIPE_FD0_EPIPE: {
+          if (fd0_conn >= 0) {
+            /* Clean up pipe. */
+            finish();
+            /* Break the loop and exit to not touch the invalid iterator again. */
+            return;
+          }
+          break;
+        }
+        default:
+          /* Nothing to do, the fd1 end may keep operating. */
+          break;
+      }
+      if (restart_iteration) {
         break;
       }
-      default:
-        /* Nothing to do, the fd1 end may keep operating. */
-        break;
     }
-  }
+  } while (restart_iteration);
 }
 
 /* Add the contents of the given file to the Pipe's buffer. This is used when shortcutting a
