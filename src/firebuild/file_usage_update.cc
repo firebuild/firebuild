@@ -289,6 +289,11 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
       /* The directory already exists. It may not be a directory, but in that case process inputs
        * will not match either. */
       update.set_initial_type(ISDIR);
+    } else if (err == ENOENT) {
+      /* A directory component in pathname does not exist or is a dangling symbolic link */
+      // FIXME(rbalint) handle the dangling symlink case, too
+      update.set_initial_type(NOTEXIST);
+      update.parent_type_ = NOTEXIST;
     } else {
       /* We don't support other errors such as permission denied. */
       update.unknown_err_ = err;
