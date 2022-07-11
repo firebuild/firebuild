@@ -60,7 +60,7 @@ jobs:
         git clean -dxf
         cmake -DCOVERAGE=1 .
         make -j2 check coverage-info
-        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 72" | bc) = 1 ]
+        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 73" | bc) = 1 ]
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
