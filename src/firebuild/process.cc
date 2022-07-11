@@ -829,6 +829,35 @@ void Process::handle_socket(const int domain, const int type, const int protocol
   }
 }
 
+void Process::handle_socketpair(const int domain, const int type, const int protocol,
+                                const int fd0, const int fd1, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "domain=%d, type=%d, protocol=%d, fd0=%d, fd1=%d, error=%d",
+         domain, type, protocol, fd0, fd1, error);
+  /* Creating a socketpair is fine from shortcutting POV, it behaves like an anonymous file
+   * (e.g. memfd). */
+  (void)domain;
+  (void)protocol;
+  if (!error) {
+    for (const int fd : {fd0, fd1}) {
+      if (get_fd(fd)) {
+        /* We already have this fd, probably missed a close(). */
+        exec_point()->disable_shortcutting_bubble_up(
+            "Process created an fd which is known to be open, "
+            "which means interception missed at least one close()", fd);
+        handle_close(fd);
+      }
+      const int flags = O_RDWR
+          | ((type & SOCK_CLOEXEC) ? O_CLOEXEC : 0)
+          | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0);
+      add_filefd(fd, std::make_shared<FileFD>(fd, flags, this));
+    }
+  } else {
+    /* This is ulikely to happen and may not be deterministic .*/
+    exec_point()->disable_shortcutting_bubble_up("socketpair() call failed");
+  }
+}
+
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
                          const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "oldfd=%d, newfd=%d, flags=%d, error=%d",

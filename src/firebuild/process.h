@@ -406,6 +406,12 @@ class Process {
                      const int error);
 
   /**
+   * Handle socketpair() in the monitored process
+   */
+  void handle_socketpair(const int domain, const int type, const int protocol,
+                         const int fd0, const int fd1, const int error);
+
+  /**
    * Handle dup(), dup2() or dup3() in the monitored process
    * @param oldfd old fd
    * @param newfd new fd
