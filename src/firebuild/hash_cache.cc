@@ -195,13 +195,15 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo(const FileName* path, i
   }
 }
 
-const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName* path, int fd,
+const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName* path,
+                                                                  int max_writers, int fd,
                                                                   const struct stat64 *stat_ptr,
                                                                   bool store,
                                                                   bool skip_statinfo_update) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s, store=%s", D(path), fd, D(stat_ptr), D(store));
+  TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s, store=%s, skip_update=%s",
+      D(path), max_writers, fd, D(stat_ptr), D(store), D(skip_statinfo_update));
 
-  if (path->is_open_for_writing()) {
+  if (path->writers_count() > max_writers) {
     /* The file could be written while calculating the hash, don't take that risk. */
     return &dontknow_;
   }
@@ -267,11 +269,13 @@ bool HashCache::get_statinfo(const FileName* path, bool *is_dir, ssize_t *size) 
   }
 }
 
-bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, ssize_t *size,
-                         int fd, const struct stat64 *stat_ptr) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s", D(path), fd, D(stat_ptr));
+bool HashCache::get_hash(const FileName* path, int max_writers, Hash *hash, bool *is_dir,
+                         ssize_t *size, int fd, const struct stat64 *stat_ptr) {
+  TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s",
+      D(path), max_writers, fd, D(stat_ptr));
 
-  const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, fd, stat_ptr, false);
+  const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, max_writers, fd, stat_ptr,
+                                                                 false);
   if (entry->info.type() == NOTEXIST || entry->info.type() == DONTKNOW) {
     return false;
   }
@@ -285,11 +289,13 @@ bool HashCache::get_hash(const FileName* path, Hash *hash, bool *is_dir, ssize_t
   return true;
 }
 
-bool HashCache::store_and_get_hash(const FileName* path, Hash *hash,
+bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *hash,
                                    int fd, const struct stat64 *stat_ptr) {
-  TRACK(FB_DEBUG_HASH, "path=%s, fd=%d, stat=%s", D(path), fd, D(stat_ptr));
+  TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s",
+      D(path), max_writers, fd, D(stat_ptr));
 
-  const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, fd, stat_ptr, true);
+  const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, max_writers, fd, stat_ptr,
+                                                                 true);
   if (!entry) {
     return false;
   }
@@ -357,7 +363,8 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
    * information, because it's expensive to compute it so we defer it as long as possible. But if
    * the entry already contains it then save some time by not looking it up in the cache again. */
   if (!entry->info.hash_known()) {
-    entry = get_entry_with_statinfo_and_hash(path, -1, nullptr, false, true /* don't stat again */);
+    entry = get_entry_with_statinfo_and_hash(path, 0, -1, nullptr, false,
+                                             true /* don't stat again */);
 
     if ((entry->info.type() != ISREG && entry->info.type() != ISDIR)
         || !entry->info.hash_known()) {

@@ -44,7 +44,7 @@ void FileUsageUpdate::type_computer_open_rdonly() const {
   Hash hash;
   bool is_dir;
   ssize_t size = -1;
-  if (!hash_cache->get_hash(filename_, &hash, &is_dir, &size)) {
+  if (!hash_cache->get_hash(filename_, max_writers_, &hash, &is_dir, &size)) {
     unknown_err_ = errno;
     return;
   }
@@ -84,7 +84,7 @@ bool FileUsageUpdate::get_initial_type(FileType *type_ptr) const {
  */
 void FileUsageUpdate::hash_computer() const {
   Hash hash;
-  if (hash_cache->get_hash(filename_, &hash)) {
+  if (hash_cache->get_hash(filename_, max_writers_, &hash)) {
     initial_state_.set_hash(hash);
   } else {
     unknown_err_ = errno;
@@ -217,6 +217,7 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
       }
       update.parent_type_ = ISDIR;
       update.written_ = true;
+      update.max_writers_ = 1;
     } else {
       /* The file or directory was successfully opened for reading only.
        * Note that a plain open() can open a directory for reading, even without O_DIRECTORY. */

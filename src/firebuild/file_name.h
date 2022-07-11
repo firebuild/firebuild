@@ -45,15 +45,15 @@ class FileName {
       return (hash_db_->insert({this,  XXH3_128bits(name_, length_)}).first)->second;
     }
   }
-  bool is_open_for_writing() const {
+  int writers_count() const {
     /* Files in ignored locations should not even be queried. */
     assert(!is_in_ignore_location());
     auto it = write_ofds_db_->find(this);
     if (it != write_ofds_db_->end()) {
       assert(it->second.first > 0);
-      return true;
+      return it->second.first;
     } else {
-      return false;
+      return 0;
     }
   }
   void open_for_writing(Process* proc) const;

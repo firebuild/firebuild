@@ -168,7 +168,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   /* The executable and its hash */
   add_to_hash_state(state, proc->executable());
   Hash hash;
-  if (!hash_cache->get_hash(proc->executable(), &hash)) {
+  if (!hash_cache->get_hash(proc->executable(), 0, &hash)) {
     FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executable: " + d(proc->executable()));
     maybe_XXH3_freeState(state);
     return false;
@@ -181,7 +181,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     add_to_hash_state(state, hash);
   } else {
     add_to_hash_state(state, proc->executed_path());
-    if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+    if (!hash_cache->get_hash(proc->executed_path(), 0, &hash)) {
       FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executed path: " + d(proc->executed_path()));
       maybe_XXH3_freeState(state);
       return false;
@@ -193,7 +193,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
   add_to_hash_state(state, proc->libs().size());
   for (const auto lib : proc->libs()) {
-    if (!hash_cache->get_hash(lib, &hash)) {
+    if (!hash_cache->get_hash(lib, 0, &hash)) {
       FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of library: " + d(lib));
       maybe_XXH3_freeState(state);
       return false;
@@ -240,7 +240,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
     /* The executable and its hash */
     FBBFP_Builder_file executable;
-    if (!hash_cache->get_hash(proc->executable(), &hash)) {
+    if (!hash_cache->get_hash(proc->executable(), 0, &hash)) {
       FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executable: " + d(proc->executable()));
       maybe_XXH3_freeState(state);
       return false;
@@ -254,7 +254,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
       /* Those often match, don't create the same string twice. */
       fp.set_executed_path(reinterpret_cast<FBBFP_Builder *>(&executable));
     } else {
-      if (!hash_cache->get_hash(proc->executed_path(), &hash)) {
+      if (!hash_cache->get_hash(proc->executed_path(), 0, &hash)) {
         FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of executed path: " + d(proc->executed_path()));
         maybe_XXH3_freeState(state);
         return false;
@@ -271,7 +271,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
     lib_builders.reserve(proc->libs().size());
 
     for (const auto& lib : proc->libs()) {
-      if (!hash_cache->get_hash(lib, &hash)) {
+      if (!hash_cache->get_hash(lib, 0, &hash)) {
         FB_DEBUG(FB_DEBUG_PROC, "Could not get hash of library: " + d(lib));
         maybe_XXH3_freeState(state);
         return false;
@@ -503,7 +503,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
           /* TODO don't store and don't record if it was read with the same hash. */
           int fd = open(filename->c_str(), O_RDONLY);
           if (fd >= 0) {
-            if (!hash_cache->store_and_get_hash(filename, &new_hash, fd, &st)) {
+            if (!hash_cache->store_and_get_hash(filename, 0, &new_hash, fd, &st)) {
               /* unexpected error, now what? */
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
