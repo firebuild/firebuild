@@ -26,8 +26,8 @@
 
 namespace firebuild {
 
-std::vector<std::string> *ignore_locations = nullptr;
-std::vector<std::string> *system_locations = nullptr;
+cstring_view_array ignore_locations {nullptr, 0, 0};
+cstring_view_array system_locations {nullptr, 0, 0};
 
 ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* dont_intercept_matcher = nullptr;
@@ -185,13 +185,12 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
   delete mini_config;
 }
 
-static void init_locations(std::vector<std::string> **locations, const libconfig::Setting& items) {
-  assert(!*locations);
-  *locations = new std::vector<std::string>();
+static void init_locations(cstring_view_array* locations, const libconfig::Setting& items) {
+  cstring_view_array_init(locations);
   for (int i = 0; i < items.getLength(); i++) {
-    (*locations)->push_back(items[i].c_str());
+    cstring_view_array_append(locations, strdup(items[i].c_str()));
   }
-  std::sort((*locations)->begin(), (*locations)->end());
+  cstring_view_array_sort(locations);
 }
 
 static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) {

@@ -2038,8 +2038,6 @@ int main(const int argc, char *argv[]) {
     free(fb_conn_string);
     free(fb_tmp_dir);
     delete(proc_tree);
-    delete(firebuild::ignore_locations);
-    delete(firebuild::system_locations);
     delete(cfg);
     fclose(stdin);
     fclose(stdout);

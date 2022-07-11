@@ -10,6 +10,7 @@
 
 #include "firebuild/file_name.h"
 #include "firebuild/execed_process.h"
+#include "common/firebuild_common.h"
 
 namespace firebuild {
 
@@ -124,47 +125,8 @@ const FileName* FileName::GetParentDir(const char * const name, ssize_t length) 
  *
  * Does string operations only, does not look at the file system.
  */
-bool FileName::is_at_locations(const std::vector<std::string> *locations) const {
-  for (const std::string& location : *locations) {
-    const char *location_name = location.c_str();
-    size_t location_len = location.length();
-    while (location_len > 0 && location_name[location_len - 1] == '/') {
-      location_len--;
-    }
-
-    if (this->length_ < location_len) {
-      continue;
-    }
-
-    if (this->name_[location_len] != '/' && this->length_ > location_len) {
-      continue;
-    }
-
-    /* Try comparing only the first 8 bytes to potentially save a call to memcmp */
-    if (location_len >= sizeof(int64_t)
-        && (*reinterpret_cast<const int64_t*>(location_name)
-            != *reinterpret_cast<const int64_t*>(this->name_))) {
-      /* Does not break the loop if this->name_ > location->name_ */
-      // TODO(rbalint) maybe the loop could be broken making this function even faster
-      continue;
-    }
-
-    const int memcmp_res = memcmp(location_name, this->name_, location_len);
-    if (memcmp_res < 0) {
-      continue;
-    } else if (memcmp_res > 0) {
-      return false;
-    }
-
-    if (this->length_ == location_len) {
-      return true;
-    }
-
-    if (this->name_[location_len] == '/') {
-      return true;
-    }
-  }
-  return false;
+bool FileName::is_at_locations(const cstring_view_array* locations) const {
+  return is_path_at_locations(this->name_, this->length_, locations);
 }
 
 /* Global debugging methods.

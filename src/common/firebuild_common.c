@@ -29,6 +29,15 @@ void cstring_view_array_append(cstring_view_array *array, char *s) {
   array->len++;
 }
 
+static int cmp_cstring_view(const void *p1, const void *p2) {
+  return strcmp(((const cstring_view * const)p1)->c_str,
+                ((const cstring_view * const)p2)->c_str);
+}
+
+void cstring_view_array_sort(cstring_view_array *array) {
+  qsort(array->p, array->len, sizeof(cstring_view), cmp_cstring_view);
+}
+
 /* The string array needs to allocate more space to append a new entry. */
 bool is_cstring_view_array_full(cstring_view_array *array) {
   return !array || array->len == array->size_alloc;
@@ -122,11 +131,12 @@ void voidp_set_erase(voidp_set *set, const void *p) {
  *
  * Does string operations only, does not look at the file system.
  */
-bool is_path_at_locations(const char * const path, cstring_view_array *location_array) {
-  const size_t path_len = strlen(path);
+bool is_path_at_locations(const char * const path, const ssize_t len,
+                          const cstring_view_array *location_array) {
+  const ssize_t path_len = len >= 0 ? len : (ssize_t)strlen(path);
   for (int i = 0; i < location_array->len; i++) {
     const char * const location = location_array->p[i].c_str;
-    size_t location_len = location_array->p[i].length;
+    ssize_t location_len = location_array->p[i].length;
     while (location_len > 0 && location[location_len - 1] == '/') {
       location_len--;
     }
