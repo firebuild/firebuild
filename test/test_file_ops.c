@@ -11,6 +11,7 @@
 #include <sys/eventfd.h>
 #include <sys/mman.h>
 #include <sys/signalfd.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/timerfd.h>
 #include <sys/types.h>
@@ -140,6 +141,13 @@ int main() {
   fd = signalfd(-1, &mask, SFD_CLOEXEC);
   if (fd == -1) {
     perror("signalfd" LOC);
+    exit(1);
+  }
+  close(fd);
+
+  fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (fd == -1) {
+    perror("socket" LOC);
     exit(1);
   }
   close(fd);

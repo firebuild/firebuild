@@ -50,6 +50,7 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_fchdir *msg);
   static int handle(Process *proc, const FBBCOMM_Serialized_pipe_request *msg, int fd_conn);
   static int handle(Process *proc, const FBBCOMM_Serialized_pipe_fds *msg);
+  static int handle(Process *proc, const FBBCOMM_Serialized_socket *msg);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFBBAdaptor);

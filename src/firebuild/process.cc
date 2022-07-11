@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/signalfd.h>
+#include <sys/socket.h>
 #include <sys/timerfd.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -785,6 +786,47 @@ void Process::handle_pipe_fds(const int fd0, const int fd1) {
 
   /* Back to the default state. */
   proc_tree->DropPendingPipe(this);
+}
+
+void Process::handle_socket(const int domain, const int type, const int protocol, const int ret,
+                            const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "domain=%d, type=%d, protocol=%d, ret=%d, error=%d",
+         domain, type, protocol, ret, error);
+  /* Creating a socket is fine from shortcutting POV as long as no communication takes place
+   * over it. The created fd needs to be tracked, though. */
+  (void)domain;
+  (void)protocol;
+  if (!error) {
+    if (get_fd(ret)) {
+      /* We already have this fd, probably missed a close(). */
+      exec_point()->disable_shortcutting_bubble_up(
+          "Process created an fd which is known to be open, "
+          "which means interception missed at least one close()", ret);
+      handle_close(ret);
+    }
+    const int flags = O_RDWR
+        | ((type & SOCK_CLOEXEC) ? O_CLOEXEC : 0)
+        | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0);
+    add_filefd(ret, std::make_shared<FileFD>(ret, flags, this));
+    switch (type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK)) {
+      case SOCK_DGRAM:
+      case SOCK_RAW:
+      case SOCK_PACKET: {
+        exec_point()->disable_shortcutting_bubble_up(
+            "SOCK_DGRAM, SOCK_RAW and SOCK_PACKET sockets are not supported");
+        break;
+      }
+      default:
+        /* Other socket types are OK since they require connect/bind/listen operations before
+         * data can be exchanged with other processes and those disable shortcutting. */
+        break;
+    }
+  } else {
+    // TODO(rbalint) maybe add the result as a process input and allow shortcutting
+    // in the same circumstances, for example when hitting EACCESS in restricted build
+    // environment.
+    exec_point()->disable_shortcutting_bubble_up("socket() call failed");
+  }
 }
 
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,

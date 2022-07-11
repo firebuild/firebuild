@@ -1321,6 +1321,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       proc->exec_point()->disable_shortcutting_bubble_up("clone() is not supported");
       break;
     }
+    case FBBCOMM_TAG_socket: {
+      ::firebuild::ProcessFBBAdaptor::handle(
+           proc, reinterpret_cast<const FBBCOMM_Serialized_socket *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:
@@ -1338,6 +1343,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       break;
     }
     case FBBCOMM_TAG_gen_call: {
+      // TODO(rbalint) disable shortcutting after checking the performance impact
+      // and handling often used calls separately
       break;
     }
     default: {

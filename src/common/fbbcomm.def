@@ -826,5 +826,14 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("socket", [
+      (REQUIRED, "int", "domain"),
+      (REQUIRED, "int", "type"),
+      (REQUIRED, "int", "protocol"),
+      # return value, the file descriptor if != -1
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
   ]
 }
