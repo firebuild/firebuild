@@ -72,6 +72,12 @@ class FileUsageUpdate {
   /* The filename, used when needed to lazily initialize some fields. */
   const FileName *filename_;
 
+  /* Whenever hash computation takes place, this is the maximum number of allowed writers.
+   * E.g. if a file is opened for reading then this number is 0 (meaning no writers allowed at all),
+   * but when a file is opened for writing then this number is 1 (because the intercepted process
+   * has just opened it for writing, but there must not be any other writers.) */
+  int max_writers_ {0};
+
   void type_computer_open_rdonly() const;
   void type_computer_open_wronly_creat_notrunc_noexcl() const;
   void hash_computer() const;
