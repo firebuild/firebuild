@@ -19,7 +19,6 @@
 
 #include "common/firebuild_common.h"
 #include "common/platform.h"
-#include "firebuild/file.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
