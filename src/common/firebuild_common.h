@@ -39,6 +39,7 @@ typedef struct {
 
 void cstring_view_array_init(cstring_view_array *array);
 void cstring_view_array_append(cstring_view_array *array, char *s);
+void cstring_view_array_sort(cstring_view_array *array);
 void cstring_view_array_deep_free(cstring_view_array *array);
 bool is_cstring_view_array_full(cstring_view_array *array);
 void cstring_view_array_append_noalloc(cstring_view_array *array, char *s);
@@ -75,7 +76,8 @@ bool voidp_set_contains(const voidp_set *set, const void *p);
 void voidp_set_insert(voidp_set *set, const void *p);
 void voidp_set_erase(voidp_set *set, const void *p);
 
-bool is_path_at_locations(const char *path, cstring_view_array *prefix_array);
+bool is_path_at_locations(const char *path, const ssize_t len,
+                          const cstring_view_array *prefix_array);
 
 /**
  * Checks if the file name is canonical, i.e.:

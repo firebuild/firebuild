@@ -103,7 +103,7 @@ class FileName {
    *
    * Does string operations only, does not look at the file system.
    */
-  bool is_at_locations(const std::vector<std::string> *locations) const;
+  bool is_at_locations(const cstring_view_array *locations) const;
 
   const char * const name_;
   const uint32_t length_;
@@ -152,8 +152,8 @@ struct FileNameLess {
   }
 };
 
-extern std::vector<std::string> *ignore_locations;
-extern std::vector<std::string> *system_locations;
+extern cstring_view_array ignore_locations;
+extern cstring_view_array system_locations;
 
 inline const FileName* FileName::Get(const char * const name, ssize_t length) {
   FileName tmp_file_name(name, (length == -1) ? strlen(name) : length, false);
@@ -165,9 +165,9 @@ inline const FileName* FileName::Get(const char * const name, ssize_t length) {
     return &*it;
   } else {
     *const_cast<bool*>(&tmp_file_name.in_ignore_location_) =
-        tmp_file_name.is_at_locations(ignore_locations);
+        tmp_file_name.is_at_locations(&ignore_locations);
     *const_cast<bool*>(&tmp_file_name.in_system_location_) =
-        tmp_file_name.is_at_locations(system_locations);
+        tmp_file_name.is_at_locations(&system_locations);
     /* Not found, add a copy to the set. */
     return &*db_->insert(tmp_file_name).first;
   }
