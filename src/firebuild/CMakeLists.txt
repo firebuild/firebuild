@@ -61,7 +61,6 @@ add_executable(firebuild-bin
   process_fbb_adaptor.cc
   hash.cc
   hash_cache.cc
-  file.cc
   file_fd.cc
   file_info.cc
   file_usage.cc

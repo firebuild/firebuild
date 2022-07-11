@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 
-#include "firebuild/file.h"
 #include "firebuild/file_name.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/pipe.h"
