@@ -1326,6 +1326,11 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
            proc, reinterpret_cast<const FBBCOMM_Serialized_socket *>(fbbcomm_buf));
       break;
     }
+    case FBBCOMM_TAG_socketpair: {
+      ::firebuild::ProcessFBBAdaptor::handle(
+           proc, reinterpret_cast<const FBBCOMM_Serialized_socketpair *>(fbbcomm_buf));
+      break;
+    }
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:

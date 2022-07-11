@@ -835,5 +835,15 @@
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
+
+    ("socketpair", [
+      (REQUIRED, "int", "domain"),
+      (REQUIRED, "int", "type"),
+      (REQUIRED, "int", "protocol"),
+      (OPTIONAL, "int", "fd0"),
+      (OPTIONAL, "int", "fd1"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
   ]
 }
