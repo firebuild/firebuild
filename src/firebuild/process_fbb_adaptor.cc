@@ -229,4 +229,10 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_pipe_fds *
   return 0;
 }
 
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_socket *msg) {
+  proc->handle_socket(msg->get_domain(), msg->get_type(), msg->get_protocol(),
+                      msg->get_ret_with_fallback(-1), msg->get_error_no_with_fallback(0));
+  return 0;
+}
+
 }  /* namespace firebuild */

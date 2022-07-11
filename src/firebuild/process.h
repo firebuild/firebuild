@@ -400,6 +400,12 @@ class Process {
   void handle_pipe_fds(const int fd0, const int fd1);
 
   /**
+   * Handle socket() in the monitored process
+   */
+  void handle_socket(const int domain, const int type, const int protocol, const int ret,
+                     const int error);
+
+  /**
    * Handle dup(), dup2() or dup3() in the monitored process
    * @param oldfd old fd
    * @param newfd new fd
