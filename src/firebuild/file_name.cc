@@ -15,7 +15,7 @@ namespace firebuild {
 
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
 tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
-tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* FileName::write_fds_db_;
+tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* FileName::write_ofds_db_;
 tsl::hopscotch_map<const FileName*, file_generation_t>* FileName::generation_db_;
 
 const FileName* FileName::default_tmpdir;
@@ -23,7 +23,7 @@ const FileName* FileName::default_tmpdir;
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
   hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();
-  write_fds_db_ = new tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>();
+  write_ofds_db_ = new tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>();
   generation_db_ = new tsl::hopscotch_map<const FileName*, file_generation_t>();
 }
 
@@ -40,8 +40,8 @@ void FileName::open_for_writing(Process* proc) const {
     return;
   }
   assert(proc);
-  auto it = write_fds_db_->find(this);
-  if (it != write_fds_db_->end()) {
+  auto it = write_ofds_db_->find(this);
+  if (it != write_ofds_db_->end()) {
     auto& pair = it.value();
     assert(pair.first > 0);
     pair.first++;
@@ -62,7 +62,7 @@ void FileName::open_for_writing(Process* proc) const {
       }
     }
   } else {
-    write_fds_db_->insert({this, {1, proc}});
+    write_ofds_db_->insert({this, {1, proc}});
     auto it2 = generation_db_->find(this);
     if (it2 != generation_db_->end()) {
       assert(it2->second < UINT32_MAX);
@@ -81,13 +81,13 @@ void FileName::close_for_writing() const {
     /* Ignored locations can be ignored here, too. */
     return;
   }
-  auto it = write_fds_db_->find(this);
-  assert(it != write_fds_db_->end());
+  auto it = write_ofds_db_->find(this);
+  assert(it != write_ofds_db_->end());
   assert(it->second.first > 0);
   if (it->second.first > 1) {
     it.value().first--;
   } else {
-    write_fds_db_->erase(it);
+    write_ofds_db_->erase(it);
   }
 }
 

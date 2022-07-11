@@ -48,8 +48,8 @@ class FileName {
   bool is_open_for_writing() const {
     /* Files in ignored locations should not even be queried. */
     assert(!is_in_ignore_location());
-    auto it = write_fds_db_->find(this);
-    if (it != write_fds_db_->end()) {
+    auto it = write_ofds_db_->find(this);
+    if (it != write_ofds_db_->end()) {
       assert(it->second.first > 0);
       return true;
     } else {
@@ -111,11 +111,11 @@ class FileName {
   const bool in_system_location_;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
-  /** Number of FileFDs open for writing referencing this file. */
-  static tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* write_fds_db_;
+  /** Number of FileOFDs open for writing referencing this file. */
+  static tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* write_ofds_db_;
   /**
    * A generation of the file is when it is kept open by a set of writers.
-   * Whenever all writers close the file and thus the refcount in write_fds_db_ decreases to zero
+   * Whenever all writers close the file and thus the refcount in write_ofds_db_ decreases to zero
    * the generation is closed, but the generation number stays the same. When the new writer opens
    * the file a new generation is opened.
    * A file's generation number is 0 until it is opened for writing for the first time.
