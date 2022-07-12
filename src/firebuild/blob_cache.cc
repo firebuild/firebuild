@@ -26,10 +26,12 @@ BlobCache::BlobCache(const std::string &base_dir) : base_dir_(base_dir) {
 /*
  * Copy the contents from an open file descriptor to another,
  * preferring advanced technologies like copy on write.
+ * Might skip the beginning of the input file.
  */
-static bool copy_file(int fd_src, int fd_dst, const struct stat64 *stat_ptr = NULL) {
+static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst,
+                      const struct stat64 *stat_ptr = NULL) {
   /* Try CoW first. */
-  if (ioctl(fd_dst, FICLONE, fd_src) == 0) {
+  if (src_skip_bytes == 0 && ioctl(fd_dst, FICLONE, fd_src) == 0) {
     /* CoW succeeded. Moo! */
     return true;
   }
@@ -48,21 +50,22 @@ static bool copy_file(int fd_src, int fd_dst, const struct stat64 *stat_ptr = NU
     return false;
   }
 
-  if (fb_copy_file_range(fd_src, NULL, fd_dst, NULL, st->st_size, 0) == st->st_size) {
+  ssize_t len = st->st_size >= src_skip_bytes ? st->st_size - src_skip_bytes : 0;
+  if (fb_copy_file_range(fd_src, &src_skip_bytes, fd_dst, NULL, len, 0) == len) {
     /* copy_file_range() succeeded. */
     return true;
   }
 
   /* Try mmap() and write(). */
-  void *p = NULL;
-  if (st->st_size > 0) {
+  char *p = NULL;
+  if (len > 0) {
     /* Zero bytes can't be mmapped, we're fine with p == NULL then. */
-    p = mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd_src, 0);
+    p = reinterpret_cast<char *>(mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd_src, 0));
   }
   if (p != MAP_FAILED) {
     // FIXME Do we need to handle short writes
     // FIXME Do we need to split large files into smaller writes?
-    if (TEMP_FAILURE_RETRY(write(fd_dst, p, st->st_size) == st->st_size)) {
+    if (TEMP_FAILURE_RETRY(write(fd_dst, p + src_skip_bytes, len) == len)) {
       /* mmap() + write() succeeded. */
       munmap(p, st->st_size);
       return true;
@@ -117,17 +120,19 @@ static void construct_cached_file_name(const std::string &base, const Hash &key,
  * @param path The file to place in the cache
  * @param max_writers Maximum allowed number of writers to this file
  * @param fd_src Optionally the opened file descriptor to copy
- * @param len The file's size
+ * @param src_skip_bytes Number of bytes to omit from the beginning of the input file
+ * @param size The file's size (including the bytes to be skipped)
  * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
 bool BlobCache::store_file(const FileName *path,
                            int max_writers,
                            int fd_src,
-                           size_t len,
+                           loff_t src_skip_bytes,
+                           size_t size,
                            Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, max_writers=%d, fd_src=%d, size=%ld",
-      D(path), max_writers, fd_src, len);
+  TRACK(FB_DEBUG_CACHING, "path=%s, max_writers=%d, fd_src=%d, skip=%ld, size=%ld",
+      D(path), max_writers, fd_src, src_skip_bytes, size);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
@@ -152,7 +157,7 @@ bool BlobCache::store_file(const FileName *path,
    * result here. We know it's a regular file, we know its size, and the rest are irrelevant. */
   struct stat64 st;
   st.st_mode = S_IFREG;
-  st.st_size = len;
+  st.st_size = size;
 
   /* Copy the file to a temporary one under the cache */
   char *tmpfile;
@@ -172,7 +177,7 @@ bool BlobCache::store_file(const FileName *path,
     return false;
   }
 
-  if (!copy_file(fd_src, fd_dst, &st)) {
+  if (!copy_file(fd_src, src_skip_bytes, fd_dst, &st)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to copy file");
     if (close_fd_src) {
       close(fd_src);
@@ -248,15 +253,15 @@ bool BlobCache::store_file(const FileName *path,
  *
  * @param path The file to move to the cache
  * @param fd A fd referring to this file
- * @param len The file's length
+ * @param size The file's size
  * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
 bool BlobCache::move_store_file(const std::string &path,
                                 int fd,
-                                size_t len,
+                                size_t size,
                                 Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, fd=%d, len=%ld", D(path), fd, len);
+  TRACK(FB_DEBUG_CACHING, "path=%s, fd=%d, size=%ld", D(path), fd, size);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob by moving " + path);
 
@@ -265,7 +270,7 @@ bool BlobCache::move_store_file(const std::string &path,
    * We know that it's a regular file, we know its size, and the rest are irrelevant. */
   struct stat64 st;
   st.st_mode = S_IFREG;
-  st.st_size = len;
+  st.st_size = size;
   if (!key.set_from_fd(fd, &st, NULL)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd);
@@ -345,7 +350,7 @@ bool BlobCache::retrieve_file(const Hash &key,
     return false;
   }
 
-  if (!copy_file(fd_src, fd_dst)) {
+  if (!copy_file(fd_src, 0, fd_dst)) {
     FB_DEBUG(FB_DEBUG_CACHING, "Copying file from cache failed");
     assert(0);
     close(fd_src);
