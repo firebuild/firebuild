@@ -272,10 +272,12 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     }
 
     /* Try to shortcut the process. */
-    bool shortcutting_succeeded = proc->shortcut();
+    std::vector<int> fds_appended_to;
+    bool shortcutting_succeeded = proc->shortcut(&fds_appended_to);
     if (shortcutting_succeeded) {
       sv_msg.set_shortcut(true);
       sv_msg.set_exit_status(proc->fork_point()->exit_status());
+      sv_msg.set_fds_appended_to(fds_appended_to);
       if (fd0_reopen >= 0) {
         close(fd0_reopen);
       }

@@ -36,8 +36,9 @@ class ExecedProcessCacher {
                                                                   uint8_t **inouts_buf,
                                                                   size_t *inouts_buf_len);
   bool apply_shortcut(ExecedProcess *proc,
-                      const FBBSTORE_Serialized_process_inputs_outputs *inouts);
-  bool shortcut(ExecedProcess *proc);
+                      const FBBSTORE_Serialized_process_inputs_outputs *inouts,
+                      std::vector<int> *fds_appended_to);
+  bool shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to);
 
  private:
   bool env_fingerprintable(const std::string& name_and_value) const;
