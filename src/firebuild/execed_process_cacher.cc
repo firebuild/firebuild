@@ -558,7 +558,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
     }
   }
 
-  /* Pipe outputs */
+  /* Data appended to inherited files (pipes, regular files) */
   std::vector<FBBSTORE_Builder_append_to_fd> out_append_to_fd;
 
   /* Store what was written to the inherited pipes. Use the fd as of when the process started up,
@@ -566,25 +566,62 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
    * fds is irrelevant. Similarly, no need to store the data written to pipes opened by this
    * process, that data won't ever be replayed. */
   for (const inherited_file_t& inherited_file : proc->inherited_files()) {
-    /* Record the output as belonging to the lowest fd. */
-    int fd = inherited_file.fds[0];
-    std::shared_ptr<PipeRecorder> recorder = inherited_file.recorder;
-    if (recorder) {
-      assert(inherited_file.type == FD_PIPE_OUT);
-      bool is_empty;
-      Hash hash;
-      if (!recorder->store(&is_empty, &hash)) {
-        // FIXME handle error
-        FB_DEBUG(FB_DEBUG_CACHING,
-                 "Could not store pipe traffic in cache, not writing shortcut info");
-        return;
-      }
-      if (!is_empty) {
-        /* Note: pipes with no traffic are just simply not mentioned here in the "outputs" section.
-         * They were taken into account when computing the process's fingerprint. */
-        FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
-        new_append.set_fd(fd);
-        new_append.set_hash(hash.get());
+    if (is_write(inherited_file.flags)) {
+      /* Record the output as belonging to the lowest fd. */
+      int fd = inherited_file.fds[0];
+
+      if (inherited_file.type == FD_PIPE_OUT) {
+        std::shared_ptr<PipeRecorder> recorder = inherited_file.recorder;
+        if (recorder) {
+          bool is_empty;
+          Hash hash;
+          if (!recorder->store(&is_empty, &hash)) {
+            // FIXME handle error
+            FB_DEBUG(FB_DEBUG_CACHING,
+                     "Could not store pipe traffic in cache, not writing shortcut info");
+            return;
+          }
+          if (!is_empty) {
+            /* Note: pipes with no traffic are just simply not mentioned here in the "outputs" section.
+             * They were taken into account when computing the process's fingerprint. */
+            FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
+            new_append.set_fd(fd);
+            new_append.set_hash(hash.get());
+          }
+        }
+      } else if (inherited_file.type == FD_FILE) {
+        Hash hash;
+        struct stat64 st;
+        if (stat64(inherited_file.filename->c_str(), &st) < 0) {
+          // FIXME handle error
+          FB_DEBUG(FB_DEBUG_CACHING,
+                     "Could not stat file, not writing shortcut info");
+          return;
+        } else if (!S_ISREG(st.st_mode)) {
+          // FIXME handle error
+          FB_DEBUG(FB_DEBUG_CACHING,
+                     "Not a regular file, not writing shortcut info");
+          return;
+        } else if (st.st_size < inherited_file.start_offset) {
+          // FIXME handle error
+          FB_DEBUG(FB_DEBUG_CACHING,
+                     "File shrank during appending, not writing shortcut info");
+          return;
+        } else if (st.st_size > inherited_file.start_offset) {
+          /* Note: files that weren't appended to are just simply not mentioned here in the
+           * "outputs" section. They were taken into account when computing the fingerprint. */
+          if (!blob_cache->store_file(inherited_file.filename, 1, -1, inherited_file.start_offset,
+                                      st.st_size, &hash)) {
+            // FIXME handle error
+            FB_DEBUG(FB_DEBUG_CACHING,
+                     "Could not store file fragment in cache, not writing shortcut info");
+            return;
+          } else {
+            FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
+            new_append.set_fd(fd);
+            new_append.set_hash(hash.get());
+          }
+        }
       }
     }
   }
