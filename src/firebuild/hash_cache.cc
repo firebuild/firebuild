@@ -127,7 +127,7 @@ static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_
      * file in the blob cache. So use blob_cache's methods which in turn will compute the hash.
      * The file needs to be a regular file, cannot be a directory. */
     Hash hash;
-    bool ret = blob_cache->store_file(path, fd, entry->info.size(), &hash);
+    bool ret = blob_cache->store_file(path, 0, fd, entry->info.size(), &hash);
     if (ret) {
       entry->info.set_type(ISREG);
       // FIXME if hash_known_() then we could verify that it didn't change

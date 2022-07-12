@@ -115,21 +115,28 @@ static void construct_cached_file_name(const std::string &base, const Hash &key,
  * If fd >= 0 then that is used as the data source, the path is only used for debugging.
  *
  * @param path The file to place in the cache
+ * @param max_writers Maximum allowed number of writers to this file
  * @param fd_src Optionally the opened file descriptor to copy
  * @param len The file's size
  * @param key_out Optionally store the key (hash) here
  * @return Whether succeeded
  */
 bool BlobCache::store_file(const FileName *path,
+                           int max_writers,
                            int fd_src,
                            size_t len,
                            Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, fd_src=%d, size=%ld", D(path), fd_src, len);
+  TRACK(FB_DEBUG_CACHING, "path=%s, max_writers=%d, fd_src=%d, size=%ld",
+      D(path), max_writers, fd_src, len);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
 
-  /* Shortcutting is already disabled for parallel processes writing to the same file. */
-  assert_cmp(path->writers_count(), ==, 0);
+  if (path->writers_count() > max_writers) {
+    /* The file could be written while saving the file, don't take that risk. */
+    FB_DEBUG(FB_DEBUG_CACHING, "file is opened for writing by some other process");
+    return false;
+  }
+
   bool close_fd_src = false;
   if (fd_src == -1) {
     fd_src = open(path->c_str(), O_RDONLY);
