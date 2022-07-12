@@ -1033,8 +1033,6 @@ void Process::handle_read_from_inherited(const int fd, const bool is_pread) {
 void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, is_pwrite=%s", fd, D(is_pwrite));
 
-  (void)is_pwrite;  /* unused */
-
   FileFD *file_fd = get_fd(fd);
   if (!file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
@@ -1055,11 +1053,12 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
     return;
   }
 
-  if (!file_fd->pipe()) {
+  if (is_pwrite) {
     Process* opened_by = file_fd->opened_by();
+    // FIXME Is "pwrote" as past tense of "pwrite" correct? :-)
     exec_point()->disable_shortcutting_bubble_up_to_excl(
         opened_by ? opened_by->exec_point() : nullptr,
-        "Process wrote to inherited non-pipe fd ", fd);
+        "Process pwrote to inherited fd ", fd);
   }
 }
 
