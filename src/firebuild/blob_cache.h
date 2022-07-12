@@ -21,6 +21,7 @@ class BlobCache {
   ~BlobCache();
 
   bool store_file(const FileName *path,
+                  int max_writers,
                   int fd_src,
                   size_t len,
                   Hash *key_out);
