@@ -161,6 +161,7 @@ void ExecedProcess::initialize() {
       assert(inherited_file.type != FD_UNINITIALIZED);
       inherited_file.fds.push_back(file_fd->fd());
       inherited_file.filename = file_fd->filename();
+      inherited_file.flags = file_fd->flags();
       inherited_files.push_back(inherited_file);
     }
   }

@@ -48,6 +48,8 @@ typedef struct inherited_file_ {
   std::shared_ptr<PipeRecorder> recorder {};
   /* For type FD_FILE. */
   const FileName *filename {};
+  /* Flags. We need to know for regular files if they're opened for writing. */
+  int flags {-1};
   /* For writable FD_FILE: If the O_APPEND flag is not set then it's the seek offset when the
    * process started up. If O_APPEND is set then it's the file size as of that time. That is, in
    * either case, assuming no other process writes to the file, and assuming that this process does
