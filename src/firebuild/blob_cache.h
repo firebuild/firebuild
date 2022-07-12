@@ -23,11 +23,12 @@ class BlobCache {
   bool store_file(const FileName *path,
                   int max_writers,
                   int fd_src,
-                  size_t len,
+                  loff_t src_skip_bytes,
+                  size_t size,
                   Hash *key_out);
   bool move_store_file(const std::string &path,
                        int fd,
-                       size_t len,
+                       size_t size,
                        Hash *key_out);
   bool retrieve_file(const Hash &key,
                      const FileName *path_dst);
