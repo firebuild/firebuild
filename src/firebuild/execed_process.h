@@ -46,6 +46,13 @@ typedef struct inherited_file_ {
   std::vector<int> fds {};
   /* For FD_PIPE_OUT only: The recorder of the traffic, as seen from this exec point */
   std::shared_ptr<PipeRecorder> recorder {};
+  /* For type FD_FILE. */
+  const FileName *filename {};
+  /* For writable FD_FILE: If the O_APPEND flag is not set then it's the seek offset when the
+   * process started up. If O_APPEND is set then it's the file size as of that time. That is, in
+   * either case, assuming no other process writes to the file, and assuming that this process does
+   * sequential writes only, this is the offset from where this process writes its data. */
+  ssize_t start_offset {-1};
 } inherited_file_t;
 
 class ExecedProcess : public Process {

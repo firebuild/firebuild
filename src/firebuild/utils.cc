@@ -4,6 +4,7 @@
 #include "firebuild/utils.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -50,6 +51,33 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
     }
   } while (remaining > 0);
   return len;
+}
+
+bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags) {
+  char buf[64];
+  snprintf(buf, sizeof(buf), "/proc/%d/fdinfo/%d", pid, fd);
+  FILE *f = fopen(buf, "r");
+  if (f == NULL) {
+    return false;
+  }
+  bool offset_found = (offset == nullptr);
+  bool flags_found = (flags == nullptr);
+  ssize_t value;
+  while (!(offset_found && flags_found) && fscanf(f, "%63s%li", buf, &value) == 2) {
+    if (strcmp(buf, "pos:") == 0) {
+      if (offset) {
+        *offset = value;
+      }
+      offset_found = true;
+    } else if (strcmp(buf, "flags:") == 0) {
+      if (flags) {
+        *flags = value;
+      }
+      flags_found = true;
+    }
+  }
+  fclose(f);
+  return offset_found && flags_found;
 }
 
 namespace firebuild {
