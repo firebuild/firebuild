@@ -281,6 +281,11 @@ generate("int", ["creat", "creat64"], "const char *pathname, mode_t mode",
          msg="open")
 
 # Intercept fopen
+def open_ack_condition(msg):
+  return "success " \
+    "&& !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &system_locations) " \
+    "&& !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &ignore_locations)"
+
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.
 generate("FILE *", ["fopen", "fopen64"], "const char *pathname, const char *mode",
          before_lines=["int open_flags = intercept_fopen_mode_to_open_flags_helper(mode);",
@@ -295,7 +300,7 @@ generate("FILE *", ["fopen", "fopen64"], "const char *pathname, const char *mode
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, fd);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, pre_open_sent);"],
-         ack_condition="success && !is_path_at_locations(pathname, -1, &system_locations) && !is_path_at_locations(pathname, -1, &ignore_locations)")
+         ack_condition=open_ack_condition("open"))
 
 # Intercept freopen
 generate("FILE *", ["freopen", "freopen64"], "const char *pathname, const char *mode, FILE *stream",
@@ -311,7 +316,7 @@ generate("FILE *", ["freopen", "freopen64"], "const char *pathname, const char *
                          "if (success) fbbcomm_builder_freopen_set_ret(&ic_msg, newfd);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(freopen, pathname);",
                          "fbbcomm_builder_freopen_set_pre_open_sent(&ic_msg, pre_open_sent);"],
-         ack_condition="success && !is_path_at_locations(pathname, -1, &system_locations) && !is_path_at_locations(pathname, -1, &ignore_locations)")
+         ack_condition=open_ack_condition("freopen"))
 
 # High level stream operation only
 generate("FILE *", "fdopen", "int fd, const char *mode",
@@ -388,7 +393,7 @@ generate("DIR *", "opendir", "const char *pathname",
                          "if (success) fbbcomm_builder_open_set_ret(&ic_msg, IC_ORIG(dirfd)(ret));",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
                          "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
-         ack_condition="success && !is_path_at_locations(pathname, -1, &system_locations) && !is_path_at_locations(pathname, -1, &ignore_locations)")
+         ack_condition=open_ack_condition("open"))
 generate("int", "closedir", "DIR *dirp",
          before_lines=["int fd = safe_dirfd(dirp); /* save it here, we can't do dirfd() after the closedir() */"],
          msg="close",
