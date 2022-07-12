@@ -132,7 +132,7 @@ class ExecedProcess : public Process {
   /** Returns if the process can be short-cut */
   bool can_shortcut() const {return can_shortcut_;}
 
-  bool shortcut();
+  bool shortcut(std::vector<int> *fds_appended_to);
 
   /**
    * This particular process can't be short-cut because it performed calls preventing that.

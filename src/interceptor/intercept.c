@@ -1011,8 +1011,16 @@ static void fb_ic_init() {
 
   /* we may return immediately if supervisor decides that way */
   if (fbbcomm_serialized_scproc_resp_get_shortcut(sv_msg)) {
-    assert(fbbcomm_serialized_scproc_resp_has_exit_status(sv_msg));
-    insert_debug_msg("this process was shortcut by the supervisor, exiting");
+    insert_debug_msg("this process was shortcut by the supervisor");
+
+    for (fbb_size_t i = 0; i < fbbcomm_serialized_scproc_resp_get_fds_appended_to_count(sv_msg);
+         i++) {
+      int fd = fbbcomm_serialized_scproc_resp_get_fds_appended_to_at(sv_msg, i);
+      insert_debug_msg("seeking forward in fd");
+      ic_orig_lseek(fd, 0, SEEK_END);
+    }
+
+    insert_debug_msg("exiting");
     void(*orig_underscore_exit)(int) = (void(*)(int)) dlsym(RTLD_NEXT, "_exit");
     (*orig_underscore_exit)(fbbcomm_serialized_scproc_resp_get_exit_status(sv_msg));
     assert(0 && "_exit() did not exit");

@@ -139,6 +139,9 @@
       # Client-side fds to reopen to, messages of type "scproc_resp_reopen_fd".
       # Each item in this array corresponds to one ancillary fd.
       (ARRAY, FBB, "reopen_fds"),
+      # The inherited seekable fds that were appended to while shortcutting;
+      # the interceptor needs to seek forward in them.
+      (ARRAY, "int", "fds_appended_to"),
     ]),
 
     # Those function calls are not handled specially in interceptor lib and

@@ -408,11 +408,11 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
 }
 
 /* Find and apply shortcut */
-bool ExecedProcess::shortcut() {
+bool ExecedProcess::shortcut(std::vector<int> *fds_appended_to) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
   if (can_shortcut() && cacher_) {
-    return cacher_->shortcut(this);
+    return cacher_->shortcut(this, fds_appended_to);
   } else {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Shortcutting disabled:");

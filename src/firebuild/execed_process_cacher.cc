@@ -920,7 +920,8 @@ static void remove_files_and_dirs(
  * upwards all the shortcutted file read and write events.
  */
 bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
-                                         const FBBSTORE_Serialized_process_inputs_outputs *inouts) {
+                                         const FBBSTORE_Serialized_process_inputs_outputs *inouts,
+                                         std::vector<int> *fds_appended_to) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   size_t i;
@@ -978,31 +979,52 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
 
   remove_files_and_dirs(proc, outputs);
 
-  /* See what the process originally wrote to its pipes. Add these to the Pipes' buffers. */
+  /* See what the process originally wrote to its inherited files (pipes or regular files).
+   * Replay these. */
   for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
     const FBBSTORE_Serialized_append_to_fd *append_to_fd =
         reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
     FileFD *ffd = proc->get_fd(append_to_fd->get_fd());
     assert(ffd);
-    Pipe *pipe = ffd->pipe().get();
-    assert(pipe);
 
-    Hash hash(append_to_fd->get_hash());
-    int fd = blob_cache->get_fd_for_file(hash);
-    struct stat64 st;
-    if (fstat64(fd, &st) < 0) {
-      assert(0 && "fstat");
-    }
-    pipe->add_data_from_fd(fd, st.st_size);
+    if (ffd->type() == FD_PIPE_OUT) {
+      Pipe *pipe = ffd->pipe().get();
+      assert(pipe);
 
-    if (proc->parent()) {
-      /* Bubble up the replayed pipe data. */
-      std::vector<std::shared_ptr<PipeRecorder>>& recorders =
-          pipe->proc2recorders[proc->parent_exec_point()];
-      PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
+      Hash hash(append_to_fd->get_hash());
+      int fd = blob_cache->get_fd_for_file(hash);
+      struct stat64 st;
+      if (fstat64(fd, &st) < 0) {
+        assert(0 && "fstat");
+      }
+      pipe->add_data_from_fd(fd, st.st_size);
+
+      if (proc->parent()) {
+        /* Bubble up the replayed pipe data. */
+        std::vector<std::shared_ptr<PipeRecorder>>& recorders =
+            pipe->proc2recorders[proc->parent_exec_point()];
+        PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
+      }
+      close(fd);
+    } else if (ffd->type() == FD_FILE) {
+      assert(ffd->filename());
+
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│   Fetching file fragment from blobs cache: "
+               + d(ffd->filename()));
+      Hash hash(append_to_fd->get_hash());
+      blob_cache->retrieve_file(hash, ffd->filename(), true);
+
+      /* Tell the interceptor to seek forward in this fd. */
+      fds_appended_to->push_back(ffd->fd());
+    } else {
+      assert(0 && "wrong file_fd type");
     }
-    close(fd);
+
+    /* Bubble up the event that we wrote to this inherited fd. Currently this doesn't do anything,
+     * but it might change in the future. */
+    proc->handle_write_to_inherited(ffd->fd(), false);
   }
 
   /* Set the exit code, propagate upwards. */
@@ -1017,7 +1039,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
  *
  * Returns if it succeeded.
  */
-bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
+bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   if (no_fetch_) {
@@ -1048,7 +1070,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc) {
   FB_DEBUG(FB_DEBUG_SHORTCUT, inouts ? "│ Shortcutting:" : "│ Not shortcutting.");
 
   if (inouts) {
-    ret = apply_shortcut(proc, inouts);
+    ret = apply_shortcut(proc, inouts, fds_appended_to);
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Exiting with " + d(proc->fork_point()->exit_status()));
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;
