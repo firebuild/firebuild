@@ -4,6 +4,8 @@
 #ifndef FIREBUILD_UTILS_H_
 #define FIREBUILD_UTILS_H_
 
+#include <sys/types.h>
+
 #include <string>
 
 #include "./fbbcomm.h"
@@ -37,6 +39,9 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
   (((a)->tv_sec == (b)->tv_sec) ?               \
       (((a)->tv_nsec)OP((b)->tv_nsec)) :        \
        (((a)->tv_sec)OP((b)->tv_sec)))
+
+/** Get the seek offset and fcntl flags of the given process's given fd. Linux-specific. */
+bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags);
 
 namespace firebuild {
 

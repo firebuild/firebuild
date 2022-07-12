@@ -160,9 +160,40 @@ void ExecedProcess::initialize() {
       inherited_file.type = file_fd->type();
       assert(inherited_file.type != FD_UNINITIALIZED);
       inherited_file.fds.push_back(file_fd->fd());
+      inherited_file.filename = file_fd->filename();
       inherited_files.push_back(inherited_file);
     }
   }
+
+  for (inherited_file_t& inherited_file : inherited_files) {
+    if (inherited_file.type == FD_FILE) {
+      /* Remember the file size and seek offset. */
+      FileFD *file_fd = (*fds())[inherited_file.fds[0]].get();
+      struct stat64 st;
+      if (stat64(file_fd->filename()->c_str(), &st) < 0) {
+        disable_shortcutting_only_this("Failed to stat inherited file");
+      } else if (S_ISREG(st.st_mode) && is_write(file_fd->flags())) {
+        ssize_t offset;
+        int flags;
+        if (!get_fdinfo(pid(), file_fd->fd(), &offset, &flags)) {
+          disable_shortcutting_only_this("Failed to get fdinfo for inherited file");
+        } else {
+          // FIXME assert that flags and file_fd->flags() match
+          if (flags & O_APPEND) {
+            /* The current offset won't matter for writes, register the current size instead. */
+            inherited_file.start_offset = st.st_size;
+          } else {
+            if (offset != st.st_size) {
+              disable_shortcutting_only_this(
+                  "Inherited writable non-append fd not seeked to its end");
+            }
+            inherited_file.start_offset = offset;
+          }
+        }
+      }
+    }
+  }
+
   set_inherited_files(inherited_files);
 
   if (FB_DEBUGGING(FB_DEBUG_PROC)) {
