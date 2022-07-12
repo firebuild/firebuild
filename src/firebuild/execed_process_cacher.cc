@@ -963,7 +963,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                + d(path));
       assert(file->has_hash());
       Hash hash(file->get_hash());
-      blob_cache->retrieve_file(hash, path);
+      blob_cache->retrieve_file(hash, path, false);
     }
     if (file->has_mode()) {
       /* Refuse to apply setuid, setgid, sticky bit. */

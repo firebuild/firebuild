@@ -27,31 +27,53 @@ BlobCache::BlobCache(const std::string &base_dir) : base_dir_(base_dir) {
  * Copy the contents from an open file descriptor to another,
  * preferring advanced technologies like copy on write.
  * Might skip the beginning of the input file.
+ * Might append to the target file instead of replacing its contents. O_APPEND should _not_ be set
+ * on fd_dst because then the fast copy_file_range() method doesn't work.
  */
-static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst,
-                      const struct stat64 *stat_ptr = NULL) {
+static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst, bool append,
+                      const struct stat64 *src_stat_ptr = NULL) {
   /* Try CoW first. */
-  if (src_skip_bytes == 0 && ioctl(fd_dst, FICLONE, fd_src) == 0) {
-    /* CoW succeeded. Moo! */
-    return true;
+  if (src_skip_bytes == 0 && !append) {
+    if (ioctl(fd_dst, FICLONE, fd_src) == 0) {
+      /* CoW succeeded. Moo! */
+      return true;
+    }
+  } else {
+    // FIXME try FICLONERANGE
   }
 
-  /* Try copy_file_range(). Gotta get the source file's size. */
-  struct stat64 st_local;
-  if (!stat_ptr && fstat64(fd_src, &st_local) == -1) {
+  /* Try copy_file_range(). Gotta get the source file's size, and in append mode also the
+   * destination file's size */
+  struct stat64 src_st_local;
+  if (!src_stat_ptr && fstat64(fd_src, &src_st_local) == -1) {
     fb_perror("fstat");
     assert(0);
     return false;
   }
-  const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
-
-  if (!S_ISREG(st->st_mode)) {
+  const struct stat64 *src_st = src_stat_ptr ? src_stat_ptr : &src_st_local;
+  if (!S_ISREG(src_st->st_mode)) {
     FB_DEBUG(FB_DEBUG_CACHING, "not a regular file");
     return false;
   }
 
-  ssize_t len = st->st_size >= src_skip_bytes ? st->st_size - src_skip_bytes : 0;
-  if (fb_copy_file_range(fd_src, &src_skip_bytes, fd_dst, NULL, len, 0) == len) {
+  struct stat64 dst_st_local;
+  const struct stat64 *dst_st = nullptr;
+  if (append) {
+    if (fstat64(fd_dst, &dst_st_local) == -1) {
+      fb_perror("fstat");
+      assert(0);
+      return false;
+    }
+    dst_st = &dst_st_local;
+    if (!S_ISREG(dst_st->st_mode)) {
+      FB_DEBUG(FB_DEBUG_CACHING, "not a regular file");
+      return false;
+    }
+  }
+
+  ssize_t len = src_st->st_size >= src_skip_bytes ? src_st->st_size - src_skip_bytes : 0;
+  loff_t dst_skip_bytes = append ? dst_st->st_size : 0;
+  if (fb_copy_file_range(fd_src, &src_skip_bytes, fd_dst, &dst_skip_bytes, len, 0) == len) {
     /* copy_file_range() succeeded. */
     return true;
   }
@@ -60,20 +82,27 @@ static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst,
   char *p = NULL;
   if (len > 0) {
     /* Zero bytes can't be mmapped, we're fine with p == NULL then. */
-    p = reinterpret_cast<char *>(mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd_src, 0));
+    p = reinterpret_cast<char *>(mmap(NULL, src_st->st_size, PROT_READ, MAP_SHARED, fd_src, 0));
   }
   if (p != MAP_FAILED) {
     // FIXME Do we need to handle short writes
     // FIXME Do we need to split large files into smaller writes?
+    if (append && dst_st->st_size > 0) {
+      if (lseek(fd_dst, dst_st->st_size, SEEK_SET) < 0) {
+        fb_perror("lseek");
+        assert(0);
+        return false;
+      }
+    }
     if (TEMP_FAILURE_RETRY(write(fd_dst, p + src_skip_bytes, len) == len)) {
       /* mmap() + write() succeeded. */
-      munmap(p, st->st_size);
+      munmap(p, src_st->st_size);
       return true;
     }
   }
-  munmap(p, st->st_size);
+  munmap(p, src_st->st_size);
 
-  // FIXME Do we need to fallback to read() + write()? If so, may need to rewind fd_dst!!!
+  // FIXME Do we need to fallback to read() + write()? If so, may need to reposition fd_dst!!!
 
   return false;
 }
@@ -155,9 +184,9 @@ bool BlobCache::store_file(const FileName *path,
 
   /* In order to save an fstat64() call in copy_file() and set_from_fd(), create a "fake" stat
    * result here. We know it's a regular file, we know its size, and the rest are irrelevant. */
-  struct stat64 st;
-  st.st_mode = S_IFREG;
-  st.st_size = size;
+  struct stat64 src_st;
+  src_st.st_mode = S_IFREG;
+  src_st.st_size = size;
 
   /* Copy the file to a temporary one under the cache */
   char *tmpfile;
@@ -177,7 +206,7 @@ bool BlobCache::store_file(const FileName *path,
     return false;
   }
 
-  if (!copy_file(fd_src, src_skip_bytes, fd_dst, &st)) {
+  if (!copy_file(fd_src, src_skip_bytes, fd_dst, false, &src_st)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to copy file");
     if (close_fd_src) {
       close(fd_src);
@@ -194,9 +223,12 @@ bool BlobCache::store_file(const FileName *path,
   /* Copying complete. Compute checksum on the copy, to prevent cache
    * corruption if someone is modifying the original file. */
   Hash key;
-  /* Note that st belongs to fd_src, but we use it for fd_dst because the file type (regular file)
-   * and the size are the same, and the rest are irrelevant. */
-  if (!key.set_from_fd(fd_dst, &st, NULL)) {
+  /* In order to save an fstat64() call in set_from_fd(), create a "fake" stat result here. We
+   * know that it's a regular file, we know its size, and the rest are irrelevant. */
+  struct stat64 dst_st;
+  dst_st.st_mode = S_IFREG;
+  dst_st.st_size = src_st.st_size >= src_skip_bytes ? src_st.st_size - src_skip_bytes : 0;
+  if (!key.set_from_fd(fd_dst, &dst_st, NULL)) {
     FB_DEBUG(FB_DEBUG_CACHING, "failed to compute hash");
     close(fd_dst);
     unlink(tmpfile);
@@ -315,18 +347,23 @@ bool BlobCache::move_store_file(const std::string &path,
 /**
  * Retrieve the given file from the blob cache.
  *
- * The file is created with the default permissions, according to the
- * current umask.
+ * In non-append mode the file doesn't have to exist. If it doesn't exist, it's created with the
+ * default permissions, according to the current umask. If it already exists, its contents will be
+ * replaced, the permissions will be left unchanged.
+ *
+ * In append mode the file must already exist, the cache entry will be appended to it.
  *
  * Uses advanced technologies, such as copy on write, if available.
  *
  * @param key The key (the file's hash)
  * @param path_dst Where to place the file
+ * @param append Whether to use append mode
  * @return Whether succeeded
  */
 bool BlobCache::retrieve_file(const Hash &key,
-                              const FileName *path_dst) {
-  TRACK(FB_DEBUG_CACHING, "key=%s, path_dst=%s", D(key), D(path_dst));
+                              const FileName *path_dst,
+                              bool append) {
+  TRACK(FB_DEBUG_CACHING, "key=%s, path_dst=%s, append=%s", D(key), D(path_dst), D(append));
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + d(key) + " => " + d(path_dst));
@@ -342,7 +379,8 @@ bool BlobCache::retrieve_file(const Hash &key,
     return false;
   }
 
-  int fd_dst = open(path_dst->c_str(), O_WRONLY|O_CREAT|O_TRUNC, 0666);
+  int flags = append ? O_WRONLY : (O_WRONLY|O_CREAT|O_TRUNC);
+  int fd_dst = open(path_dst->c_str(), flags, 0666);
   if (fd_dst == -1) {
     fb_perror("Failed opening file to be recreated from cache");
     assert(0);
@@ -350,12 +388,14 @@ bool BlobCache::retrieve_file(const Hash &key,
     return false;
   }
 
-  if (!copy_file(fd_src, 0, fd_dst)) {
+  if (!copy_file(fd_src, 0, fd_dst, append)) {
     FB_DEBUG(FB_DEBUG_CACHING, "Copying file from cache failed");
     assert(0);
     close(fd_src);
     close(fd_dst);
-    unlink(path_dst->c_str());
+    if (!append) {
+      unlink(path_dst->c_str());
+    }
     return false;
   }
 
