@@ -238,10 +238,11 @@ class Process {
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
    * @param pre_open_sent interceptor already sent pre_open for this open
+   * @param tmp_file the file was opened as a temporary file by mkstemp() or friends
    */
   int handle_open(const int dirfd, const char * const ar_name, const size_t ar_len, const int flags,
-                  const mode_t mode, const int fd, const int error = 0, int fd_conn = -1,
-                  int ack_num = 0, const bool pre_open_sent = false);
+                  const mode_t mode, const int fd, const int error, int fd_conn,
+                  int ack_num, const bool pre_open_sent, bool tmp_file);
 
   /**
    * Handle file opening in the monitored process
@@ -381,9 +382,10 @@ class Process {
    * @param name relative or absolute file name
    * @param name_len length of name
    * @param error error code of mkdir()
+   * @param tmp_dir the call was mkdtemp() actually
    */
   int handle_mkdir(const int dirfd, const char * const name, const size_t name_len,
-                   const int error = 0);
+                   const int error, const bool tmp_dir);
 
   /**
    * Handle pipe creation in the monitored process, steps 1 and 2 out of 3. See #656 for the design.

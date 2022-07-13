@@ -25,8 +25,8 @@ class FileUsageUpdate {
         generation_(filename->generation()) {}
 
   static FileUsageUpdate get_from_open_params(const FileName *filename, int flags,
-                                              mode_t mode_with_umask, int err);
-  static FileUsageUpdate get_from_mkdir_params(const FileName *filename, int err);
+                                              mode_t mode_with_umask, int err, bool tmp_file);
+  static FileUsageUpdate get_from_mkdir_params(const FileName *filename, int err, bool tmp_dir);
   static FileUsageUpdate get_from_stat_params(const FileName *filename, mode_t mode, off_t size,
                                               int err);
   static FileUsageUpdate get_oldfile_usage_from_rename_params(const FileName* old_name,
@@ -36,6 +36,7 @@ class FileUsageUpdate {
   FileType parent_type() const {return parent_type_;}
   bool written() const {return written_;}
   bool mode_changed() const {return mode_changed_;}
+  bool tmp_file() const {return tmp_file_;}
   file_generation_t generation() const {return generation_;}
   bool unknown_err() const {return unknown_err_;}
 
@@ -97,6 +98,10 @@ class FileUsageUpdate {
    *  (Luckily for us there's no way to set individual bits, chmod() always sets all of them.
    *  So a single boolean can refer to all the 12 mode bits.) */
   bool mode_changed_ {false};
+
+  /** Created as a temporary file with mktemp() and friends or inferred to be a temporary file
+   *  by the supervisor. */
+  bool tmp_file_ {false};
 
   /* File's current generation. */
   file_generation_t generation_;

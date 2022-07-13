@@ -24,6 +24,7 @@ class FileUsage {
  public:
   bool written() const {return written_;}
   bool mode_changed() const {return mode_changed_;}
+  bool tmp_file() const {return tmp_file_;}
   file_generation_t generation() const {return generation_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
@@ -57,9 +58,9 @@ class FileUsage {
   explicit FileUsage(FileType type = DONTKNOW) : initial_state_(type) {}
 
   FileUsage(const FileName* filename, const FileInfo *initial_state, bool written,
-            bool mode_changed, int unknown_err):
+            bool mode_changed, bool tmp_file, int unknown_err):
       initial_state_(*initial_state), written_(written), mode_changed_(mode_changed),
-      generation_(filename->generation()), unknown_err_(unknown_err) {}
+      tmp_file_(tmp_file), generation_(filename->generation()), unknown_err_(unknown_err) {}
 
   /* Things that describe the filesystem when the process started up */
   FileInfo initial_state_;
@@ -75,6 +76,10 @@ class FileUsage {
    *  (Luckily for us there's no way to set individual bits, chmod() always sets all of them.
    *  So a single boolean can refer to all the 12 mode bits.) */
   bool mode_changed_ {false};
+
+  /** Created as a temporary file with mktemp() and friends or inferred to be a temporary file
+   *  by the supervisor. */
+  bool tmp_file_ {false};
 
   /** Generation of the file the process last seen (either by reading or writing to the file). */
   file_generation_t generation_ {0};
@@ -118,10 +123,11 @@ struct FileUsageHasher {
       uint64_t initial_mode_mask : 12;
       uint64_t written : 1;
       uint64_t mode_changed : 1;
-      uint64_t unused : 3;  /* 32 bits so far */
+      uint64_t tmp_file : 1;
+      uint64_t unused : 2;  /* 32 bits so far */
       uint64_t generation : 32;
     } merged_state = {f.initial_type(), f.initial_mode(), f.initial_mode_mask(),
-                      f.written_, f.mode_changed_, 0, f.generation_};
+      f.written_, f.mode_changed_, f.tmp_file(), 0, f.generation_};
     hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
     return hash;
   }

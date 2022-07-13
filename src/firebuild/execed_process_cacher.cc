@@ -394,6 +394,12 @@ static bool consistent_implicit_parent_dirs(
   return true;
 }
 
+static bool tmp_file_or_on_tmp_path(const FileUsage* fu, const FileName* filename,
+                                    const FileName* tmpdir) {
+  return (fu->tmp_file() || (strncmp(filename->c_str(), tmpdir->c_str(), tmpdir->length()) == 0
+                             && filename->c_str()[tmpdir->length()] == '/'));
+}
+
 void ExecedProcessCacher::store(const ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
@@ -541,10 +547,20 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
       case EXIST:
       case ISREG:
         // FIXME skip adding if the new state is the same as the old one
+        if (tmp_file_or_on_tmp_path(fu, filename, tmpdir)) {
+          FB_DEBUG(FB_DEBUG_CACHING,
+                   "Temporary file (" + d(filename) + ") can't be process output.");
+          return;
+        }
         add_file(&out_path_isreg, filename, new_file_info);
         break;
       case ISDIR:
         // FIXME skip adding if the new state is the same as the old one
+        if (tmp_file_or_on_tmp_path(fu, filename, tmpdir)) {
+          FB_DEBUG(FB_DEBUG_CACHING,
+                   "Temporary dir (" + d(filename) + ") can't be process output.");
+          return;
+        }
         add_file(&out_path_isdir, filename, new_file_info);
         out_path_isdir_filename_ptrs.insert(filename);
         break;

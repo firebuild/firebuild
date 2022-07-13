@@ -121,9 +121,10 @@ bool FileUsageUpdate::get_initial_hash(Hash *hash_ptr) const {
  * If the file's hash is important then we don't compute it yet but set hash_computer_ so that we
  * can compute it on demand.
  */
-FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, int flags,
-                                                      mode_t mode_with_umask, int err) {
-  TRACK(FB_DEBUG_PROC, "flags=%d, mode_with_umask=0%03o, err=%d", flags, mode_with_umask, err);
+FileUsageUpdate FileUsageUpdate::get_from_open_params(
+    const FileName *filename, int flags, mode_t mode_with_umask, int err, bool tmp_file) {
+  TRACK(FB_DEBUG_PROC, "flags=%d, mode_with_umask=0%03o, err=%d, tmp_file=%s",
+        flags, mode_with_umask, err, tmp_file ? "true" : "false");
 
   FileUsageUpdate update(filename);
 
@@ -146,7 +147,9 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
         update.set_initial_type(NOTEXIST);
         update.mode_changed_ = true;
         update.parent_type_ = ISDIR;
+        update.tmp_file_ = tmp_file;
       } else if (flags & O_TRUNC) {
+        assert(!tmp_file);
         if (!(flags & O_CREAT)) {
           /* A: What a nasty combo! We must take a note that the file existed, but don't care about
            * its previous contents (also it's too late now to figure that out). This implies that
@@ -179,6 +182,7 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
           update.parent_type_ = ISDIR;
         }
       } else {
+        assert(!tmp_file);
         if (!(flags & O_CREAT)) {
           /* D: Contents unchanged. Need to checksum the file, we'll do that lazily. Implies that
            * the parent directory exists, no need to note that separately. */
@@ -239,20 +243,42 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
           update.parent_type_ = NOTEXIST;
         }
       } else if (err == EEXIST) {
-        assert(flags & O_CREAT && flags & O_EXCL);
-        update.set_initial_type(EXIST);
+        if (!tmp_file) {
+          assert(flags & O_CREAT && flags & O_EXCL);
+          update.set_initial_type(EXIST);
+        } else {
+          /* Could not create a unique temporary filename.  Now the contents of template are
+           * undefined.*/
+          update.set_initial_type(DONTKNOW);
+          update.tmp_file_ = tmp_file;
+          /* This error is actually known and handled, but it is safer to just prevent merging
+           * this update by setting unknown_err_ because the path is undefined. */
+          update.unknown_err_ = err;
+        }
       } else if (err == ENOTDIR) {
         /* Occurs when opening the "foo/baz/bar" path when "foo/baz" is not a directory,
          * but for example a regular file. Or when "foo" is a regular file. We can't distinguish
          * between those cases, but if "/foo/baz" is a regular file we can safely shortcut the
          * process, because the process could not tell the difference either. */
         update.parent_type_ = ISREG;
+      } else if (err == EINVAL) {
+        update.set_initial_type(DONTKNOW);
+        if (tmp_file) {
+          /* Template was invalid, and is unmodified. We know nothing about that path. */
+          update.set_initial_type(DONTKNOW);
+          update.tmp_file_ = tmp_file;
+        }
+        /* This error is actually known and handled, but it is safer to just prevent merging
+         * this update because the path is not used */
+        update.unknown_err_ = err;
+        return update;
       } else {
         /* We don't support other errors such as permission denied. */
         update.unknown_err_ = err;
         return update;
       }
     } else {
+      assert(!tmp_file);
       /* Opening for reading failed. */
       if (err == ENOENT) {
         update.set_initial_type(NOTEXIST);
@@ -274,7 +300,8 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(const FileName *filename, 
  * Based on the parameters and return value of an mkdir() call, returns a FileUsageUpdate object that
  * reflects how our usage of this file changed.
  */
-FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename, int err) {
+FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename, int err,
+                                                       bool tmp_dir) {
   TRACK(FB_DEBUG_PROC, "err=%d", err);
 
   FileUsageUpdate update(filename);
@@ -284,6 +311,7 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
     update.parent_type_ = ISDIR;
     update.written_ = true;
     update.mode_changed_ = true;
+    update.tmp_file_ = tmp_dir;
   } else {
     if (err == EEXIST) {
       /* The directory already exists. It may not be a directory, but in that case process inputs
@@ -294,6 +322,16 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
       // FIXME(rbalint) handle the dangling symlink case, too
       update.set_initial_type(NOTEXIST);
       update.parent_type_ = NOTEXIST;
+    } else if (err == EINVAL) {
+      update.set_initial_type(DONTKNOW);
+      if (tmp_dir) {
+        /* Template was invalid, and is unmodified. We know nothing about that path. */
+        update.set_initial_type(DONTKNOW);
+        update.tmp_file_ = tmp_dir;
+        /* This error is actually known and handled, but it is safer to just prevent merging
+         * this update by still setting unknown_err_ because the path is not used */
+      }
+      update.unknown_err_ = err;
     } else {
       /* We don't support other errors such as permission denied. */
       update.unknown_err_ = err;
@@ -348,7 +386,7 @@ FileUsageUpdate FileUsageUpdate::get_oldfile_usage_from_rename_params(const File
    * to keep the generation number increasing. Otherwise it would be reset to 1, which is valid
    * for the newly created file (if the file did not exist before). */
   // TODO(rbalint) Error handling is way more complicated for rename than for open, fix that here.
-  FileUsageUpdate update = get_from_open_params(new_name, O_RDONLY, 0, error);
+  FileUsageUpdate update = get_from_open_params(new_name, O_RDONLY, 0, error, false);
   update.written_ = true;
   update.mode_changed_ = true;
   update.generation_ = old_name->generation();
