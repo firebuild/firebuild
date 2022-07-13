@@ -26,6 +26,7 @@
 #include <unistd.h>
 
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "./fbbcomm.h"
 
 /** A poor man's (plain C) implementation of a hashmap:
