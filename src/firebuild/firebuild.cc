@@ -924,7 +924,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
             int flags = action_open->get_flags();
             mode_t mode = action_open->get_mode();
             fork_child->handle_force_close(fd);
-            fork_child->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0);
+            fork_child->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0, -1, 0,
+                                    false, false);
             /* Revert the effect of "pre-opening" paths to be written in the posix_spawn message.*/
             if (is_write(flags)) {
               const firebuild::FileName* file_name = fork_child->get_absolute(AT_FDCWD, pathname,

@@ -177,7 +177,8 @@ int Process::handle_pre_open(const int dirfd, const char * const ar_name, const 
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const size_t ar_len,
                          const int flags, const mode_t mode, const int fd, const int error,
-                         int fd_conn, const int ack_num, const bool pre_open_sent) {
+                         int fd_conn, const int ack_num, const bool pre_open_sent,
+                         const bool tmp_file) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "dirfd=%d, ar_name=%s, flags=%d, mode=0%03o, pre_open_sent=%d, fd=%d, error=%d, "
          "fd_conn=%s, ack_num=%d",
@@ -207,8 +208,8 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
     name->close_for_writing();
   }
 
-  FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, flags,
-                                                                 mode & 07777 & ~umask(), error);
+  FileUsageUpdate update =
+      FileUsageUpdate::get_from_open_params(name, flags, mode & 07777 & ~umask(), error, tmp_file);
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     if (ack_num != 0) {
@@ -241,7 +242,7 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
 
     /* Register the opening of the new file, no matter if succeeded or failed. */
     return handle_open(AT_FDCWD, ar_name, ar_len, flags, 0666, fd, error, fd_conn,
-                       ack_num, pre_open_sent);
+                       ack_num, pre_open_sent, false);
   } else {
     /* Without a name pre_open should not have been sent. */
     assert(!pre_open_sent);
@@ -265,7 +266,7 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
 
       /* Register the reopening, no matter if succeeded or failed. */
       return handle_open(AT_FDCWD, filename->c_str(), filename->length(),
-                         flags, 0666, fd, error, fd_conn, ack_num, pre_open_sent);
+                         flags, 0666, fd, error, fd_conn, ack_num, pre_open_sent, false);
     }
   }
 }
@@ -654,7 +655,7 @@ int Process::handle_rmdir(const char * const ar_name, const size_t ar_name_len, 
 }
 
 int Process::handle_mkdir(const int dirfd, const char * const ar_name, const size_t ar_len,
-                          const int error) {
+                          const int error, const bool tmp_dir) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, ar_name=%s, error=%d",
          dirfd, D(ar_name), error);
 
@@ -665,7 +666,7 @@ int Process::handle_mkdir(const int dirfd, const char * const ar_name, const siz
     return -1;
   }
 
-  FileUsageUpdate update = FileUsageUpdate::get_from_mkdir_params(name, error);
+  FileUsageUpdate update = FileUsageUpdate::get_from_mkdir_params(name, error, tmp_dir);
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up(
         "Could not register the directory creation ", *name);

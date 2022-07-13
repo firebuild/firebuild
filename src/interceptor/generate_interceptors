@@ -1350,7 +1350,8 @@ generate("int", "mkstemp", "char *pathname",
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
-                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
+                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"
+                         "fbbcomm_builder_open_set_tmp_file(&ic_msg, true);"],
          send_ret_on_success=True,
          ack_condition="true")
 generate("int", "mkostemp", "char *pathname, int flags",
@@ -1361,7 +1362,8 @@ generate("int", "mkostemp", "char *pathname, int flags",
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
-                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
+                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"
+                         "fbbcomm_builder_open_set_tmp_file(&ic_msg, true);"],
          send_ret_on_success=True,
          ack_condition="true")
 generate("int", "mkstemps", "char *pathname, int suffixlen",
@@ -1372,7 +1374,8 @@ generate("int", "mkstemps", "char *pathname, int suffixlen",
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL);",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
-                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
+                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"
+                         "fbbcomm_builder_open_set_tmp_file(&ic_msg, true);"],
          send_ret_on_success=True,
          ack_condition="true")
 generate("int", "mkostemps", "char *pathname, int suffixlen, int flags",
@@ -1383,7 +1386,8 @@ generate("int", "mkostemps", "char *pathname, int suffixlen, int flags",
          msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, O_RDWR | O_CREAT | O_EXCL | (flags & (O_APPEND | O_CLOEXEC | O_SYNC)));",
                          "fbbcomm_builder_open_set_mode(&ic_msg, 0600);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(open, pathname);",
-                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"],
+                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, false);"
+                         "fbbcomm_builder_open_set_tmp_file(&ic_msg, true);"],
          send_ret_on_success=True,
          ack_condition="true")
 generate("char *", "mkdtemp", "char *pathname",
@@ -1391,7 +1395,8 @@ generate("char *", "mkdtemp", "char *pathname",
          msg="mkdir",
          msg_skip_fields=["pathname"],
          msg_add_fields=["fbbcomm_builder_mkdir_set_mode(&ic_msg, 0700);",
-                         "BUILDER_SET_ABSOLUTE_CANONICAL(mkdir, pathname);"],
+                         "BUILDER_SET_ABSOLUTE_CANONICAL(mkdir, pathname);",
+                         "fbbcomm_builder_mkdir_set_tmp_dir(&ic_msg, true);"],
          ack_condition="true")
 # FIXME needs support on the supervisor for starting to track an fd without knowing the backing file
 generate("FILE *", ["tmpfile", "tmpfile64"], "",

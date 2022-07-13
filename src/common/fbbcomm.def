@@ -208,6 +208,7 @@
       (OPTIONAL, "int", "error_no"),
       # pre_open message has been sent before this message
       (REQUIRED, "bool", "pre_open_sent"),
+      (OPTIONAL, "bool", "tmp_file"),
     ]),
 
     ("freopen", [
@@ -304,6 +305,7 @@
       (REQUIRED, "mode_t", "mode"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
+      (OPTIONAL, "bool", "tmp_dir"),
     ]),
 
     ("rmdir", [

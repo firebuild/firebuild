@@ -226,6 +226,13 @@ const FileUsage *FileUsage::merge(const FileUsageUpdate& update) const {
     }
   }
 
+  if (!tmp_file_) {
+    if (update.tmp_file()) {
+      tmp.tmp_file_ = true;
+      changed = true;
+    }
+  }
+
   if (!changed) {
     return this;
   } else {

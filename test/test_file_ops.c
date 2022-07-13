@@ -115,6 +115,23 @@ int main() {
     exit(1);
   }
 
+  char tmp_file[] = "tmpprefixXXXXXX";
+  fd = mkstemp(tmp_file);
+  if (fd == -1) {
+    perror("mkstemp" LOC);
+    exit(1);
+  }
+  close(fd);
+  unlink(tmp_file);
+
+  char tmp_dir[] = "./prefixXXXXXX";
+  char *mkdtemp_ret = mkdtemp(tmp_dir);
+  if (!mkdtemp_ret) {
+    perror("mkdtemp" LOC);
+    exit(1);
+  }
+  unlink(mkdtemp_ret);
+
   fd = memfd_create("foo", MFD_CLOEXEC);
   if (fd == -1) {
     perror("memfd_create" LOC);
