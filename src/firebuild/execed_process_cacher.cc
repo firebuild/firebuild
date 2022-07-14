@@ -400,7 +400,7 @@ static bool tmp_file_or_on_tmp_path(const FileUsage* fu, const FileName* filenam
                              && filename->c_str()[tmpdir->length()] == '/'));
 }
 
-void ExecedProcessCacher::store(const ExecedProcess *proc) {
+void ExecedProcessCacher::store(ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   if (no_store_) {
@@ -452,6 +452,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         // TODO(rbalint) extend hash cache and blob cache to reuse previously saved generations
         FB_DEBUG(FB_DEBUG_CACHING,
                  "A file (" + d(filename)+ ") changed since the process used it.");
+        proc->disable_shortcutting_only_this(
+            "A file could not be stored because it changed since the process used it.");
         return;
       }
 
@@ -514,6 +516,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
               close(fd);
+              proc->disable_shortcutting_only_this(
+                  "Could not store blob in cache, not writing shortcut info");
               return;
             }
             close(fd);
@@ -550,6 +554,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         if (tmp_file_or_on_tmp_path(fu, filename, tmpdir)) {
           FB_DEBUG(FB_DEBUG_CACHING,
                    "Temporary file (" + d(filename) + ") can't be process output.");
+          proc->disable_shortcutting_only_this("Process created a temporary file");
           return;
         }
         add_file(&out_path_isreg, filename, new_file_info);
@@ -559,6 +564,7 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         if (tmp_file_or_on_tmp_path(fu, filename, tmpdir)) {
           FB_DEBUG(FB_DEBUG_CACHING,
                    "Temporary dir (" + d(filename) + ") can't be process output.");
+          proc->disable_shortcutting_only_this("Process created a temporary dir");
           return;
         }
         add_file(&out_path_isdir, filename, new_file_info);
@@ -595,6 +601,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             // FIXME handle error
             FB_DEBUG(FB_DEBUG_CACHING,
                      "Could not store pipe traffic in cache, not writing shortcut info");
+            proc->disable_shortcutting_only_this(
+                "Could not store pipe traffic in cache, not writing shortcut info");
             return;
           }
           if (!is_empty) {
@@ -611,17 +619,23 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
         if (stat64(inherited_file.filename->c_str(), &st) < 0) {
           // FIXME handle error
           FB_DEBUG(FB_DEBUG_CACHING,
-                     "Could not stat file, not writing shortcut info");
+                   "Could not stat file, not writing shortcut info");
+          proc->disable_shortcutting_only_this(
+              "Could not stat file, not writing shortcut info");
           return;
         } else if (!S_ISREG(st.st_mode)) {
           // FIXME handle error
           FB_DEBUG(FB_DEBUG_CACHING,
                      "Not a regular file, not writing shortcut info");
+          proc->disable_shortcutting_only_this(
+              "Not a regular file, not writing shortcut info");
           return;
         } else if (st.st_size < inherited_file.start_offset) {
           // FIXME handle error
           FB_DEBUG(FB_DEBUG_CACHING,
                      "File shrank during appending, not writing shortcut info");
+          proc->disable_shortcutting_only_this(
+              "File shrank during appending, not writing shortcut info");
           return;
         } else if (st.st_size > inherited_file.start_offset) {
           /* Note: files that weren't appended to are just simply not mentioned here in the
@@ -631,6 +645,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
             // FIXME handle error
             FB_DEBUG(FB_DEBUG_CACHING,
                      "Could not store file fragment in cache, not writing shortcut info");
+            proc->disable_shortcutting_only_this(
+                "Could not store file fragment in cache, not writing shortcut info");
             return;
           } else {
             FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
@@ -646,6 +662,8 @@ void ExecedProcessCacher::store(const ExecedProcess *proc) {
   if (!consistent_implicit_parent_dirs(out_path_isreg,
                                        out_path_isdir_filename_ptrs,
                                        proc->file_usages())) {
+    proc->disable_shortcutting_only_this(
+        "Inconsistency: A parent dir of an output file must not exit for shortcutting.");
     return;
   }
 

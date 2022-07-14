@@ -30,7 +30,7 @@ class ExecedProcessCacher {
   bool fingerprint(const ExecedProcess *proc);
   void erase_fingerprint(const ExecedProcess *proc);
 
-  void store(const ExecedProcess *proc);
+  void store(ExecedProcess *proc);
 
   const FBBSTORE_Serialized_process_inputs_outputs *find_shortcut(const ExecedProcess *proc,
                                                                   uint8_t **inouts_buf,
