@@ -1126,10 +1126,14 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
 
   if (is_pwrite) {
     Process* opened_by = file_fd->opened_by();
-    // FIXME Is "pwrote" as past tense of "pwrite" correct? :-)
     exec_point()->disable_shortcutting_bubble_up_to_excl(
         opened_by ? opened_by->exec_point() : nullptr,
-        "Process pwrote to inherited fd ", fd);
+        "Process called pwrite() on inherited fd ", fd);
+  } else if (!file_fd->pipe() && !file_fd->filename()) {
+    Process* opened_by = file_fd->opened_by();
+    exec_point()->disable_shortcutting_bubble_up_to_excl(
+        opened_by ? opened_by->exec_point() : nullptr,
+        "Process wrote to inherited non-pipe and non-file fd ", fd);
   }
 }
 
