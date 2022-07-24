@@ -302,13 +302,13 @@ void thread_raise_delayed_signals();
  *  The signal is later re-raised from thread_signal_danger_zone_leave().
  *  There can be multiple levels nested.
  *  Inline so that it's as fast as possible. */
-inline void thread_signal_danger_zone_enter() { thread_signal_danger_zone_depth++; }
+static inline void thread_signal_danger_zone_enter() { thread_signal_danger_zone_depth++; }
 
 /** Leave one level of "signal danger zone".
  *  See thread_signal_danger_zone_enter() for how we delay signals.
  *  If leaving the outermost level, re-raise the delayed signals.
  *  Inline so that the typical branch is as fast as possible. */
-inline void thread_signal_danger_zone_leave() {
+static inline void thread_signal_danger_zone_leave() {
   /* Leave this danger zone first.
    *
    * If leaving the outermost danger zone, a signal can now kick in any time after this decrement,
