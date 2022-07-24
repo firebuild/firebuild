@@ -28,7 +28,7 @@
 #endif
 
 
-inline bool path_is_absolute(const char * p) {
+static inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
 #else
@@ -48,7 +48,7 @@ inline bool path_is_absolute(const char * p) {
  * @return 0 if they point to the same place, -1 or 1 if fd1 sorts lower or higher than fd2 in an
  * arbitrary ordering to help using fdcmp for sorting
  */
-inline int fdcmp(int fd1, int fd2) {
+static inline int fdcmp(int fd1, int fd2) {
 #ifdef __linux__
   pid_t pid = getpid();
   switch (syscall(SYS_kcmp, pid, pid, KCMP_FILE, fd1, fd2)) {

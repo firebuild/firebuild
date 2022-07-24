@@ -75,32 +75,33 @@ extern int32_t debug_flags;
 int32_t parse_debug_flags(const std::string& str);
 void init_debug_filter(const std::string commands);
 
-inline std::string d(int value, const int level = 0) {
+static inline std::string d(int value, const int level = 0) {
   (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(long value, const int level = 0) {  /* NOLINT(runtime/int) */
+static inline std::string d(long value, const int level = 0) {  /* NOLINT(runtime/int) */
   (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(long long value, const int level = 0) {  /* NOLINT(runtime/int) */
+static inline std::string d(long long value, const int level = 0) {  /* NOLINT(runtime/int) */
   (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(unsigned int value, const int level = 0) {
+static inline std::string d(unsigned int value, const int level = 0) {
   (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(unsigned long value, const int level = 0) {  /* NOLINT(runtime/int) */
+static inline std::string d(unsigned long value, const int level = 0) {  /* NOLINT(runtime/int) */
   (void)level;  /* unused */
   return std::to_string(value);
 }
-inline std::string d(unsigned long long value, const int level = 0) {  /* NOLINT(runtime/int) */
+static inline std::string d(unsigned long long value,   /* NOLINT(runtime/int) */
+                            const int level = 0) {
   (void)level;  /* unused */
   return std::to_string(value);
 }
 
-inline std::string d(bool value, const int level = 0) {
+static inline std::string d(bool value, const int level = 0) {
   (void)level;  /* unused */
   return value ? "true" : "false";
 }
@@ -118,7 +119,7 @@ std::string d(const struct stat64 *st, const int level = 0);
  *   [item1, item2, item3]
  */
 template <typename T>
-inline std::string d(const std::vector<T>& arr, const int level = 0) {
+static inline std::string d(const std::vector<T>& arr, const int level = 0) {
   std::string res = "[";
   bool first_val = true;
   unsigned int repeats = 1;
@@ -148,7 +149,7 @@ inline std::string d(const std::vector<T>& arr, const int level = 0) {
   return res;
 }
 template <typename T>
-inline std::string d(const std::vector<T> *arr, const int level = 0) {
+static inline std::string d(const std::vector<T> *arr, const int level = 0) {
   if (arr) {
     return d(*arr, level);
   } else {
@@ -160,7 +161,7 @@ inline std::string d(const std::vector<T> *arr, const int level = 0) {
  * Debug a shared_ptr of anything that is d()-debuggable.
  */
 template <typename T>
-inline std::string d(const std::shared_ptr<T>& ptr, const int level = 0) {
+static inline std::string d(const std::shared_ptr<T>& ptr, const int level = 0) {
   return d(ptr.get(), level);
 }
 
@@ -176,7 +177,7 @@ extern std::vector<int> fd_ages;
 #endif
 
 /* Increase the "age" of a given fd. */
-inline void bump_fd_age(int fd) {
+static inline void bump_fd_age(int fd) {
   (void)fd;  /* unused in non-debug build */
 #ifdef FB_EXTRA_DEBUG
   if (fd >= static_cast<ssize_t>(fd_ages.size())) {
@@ -189,7 +190,7 @@ inline void bump_fd_age(int fd) {
 /* Debug a file descriptor number.
  * If its age hasn't been bumped then report the number only, e.g. "7".
  * If its age has been bumped then report the fd number and with its age, e.g. "7.1", "7.2" etc. */
-inline std::string d_fd(int fd) {
+static inline std::string d_fd(int fd) {
 #ifdef FB_EXTRA_DEBUG
   if (fd >= 0 && fd < static_cast<ssize_t>(fd_ages.size()) && fd_ages[fd] > 0) {
     return std::to_string(fd) + "." + std::to_string(fd_ages[fd]);
