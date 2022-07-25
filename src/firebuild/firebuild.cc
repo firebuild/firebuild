@@ -1839,12 +1839,17 @@ int main(const int argc, char *argv[]) {
 
   /* Initialize the cache */
   std::string cache_dir;
-  const char *cache_dir_env = getenv("FIREBUILD_CACHE_DIR");
-  if (cache_dir_env == NULL || cache_dir_env[0] == '\0') {
-    const char *home_env = getenv("HOME");
-    cache_dir = std::string(home_env) + "/.fbcache";
-  } else {
+  char* cache_dir_env;
+  if ((cache_dir_env = getenv("FIREBUILD_CACHE_DIR")) && cache_dir_env[0] != '\0') {
     cache_dir = std::string(cache_dir_env);
+  } else if ((cache_dir_env = getenv("XDG_CACHE_HOME")) && cache_dir_env[0] != '\0') {
+    cache_dir = std::string(cache_dir_env) + "/firebuild";
+  } else if ((cache_dir_env = getenv("HOME")) && cache_dir_env[0] != '\0') {
+    cache_dir = std::string(cache_dir_env) + "/.cache/firebuild";
+  } else {
+    firebuild::fb_error("Please set HOME or XDG_CACHE_HOME or FIREBUILD_CACHE_DIR to let "
+                        "firebuild place the cache somewhere.");
+    exit(EXIT_FAILURE);
   }
 
   struct stat st;
