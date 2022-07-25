@@ -8,7 +8,9 @@
 #include <fcntl.h>
 #ifdef __linux__
 #include <linux/kcmp.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
 #endif
 #include <stdlib.h>
 #include <unistd.h>
@@ -68,6 +70,36 @@ inline int fdcmp(int fd1, int fd2) {
       abort();
   }
 #endif
+}
+
+/** Makes a directory hierarchy, like the mkdirhier(1) command */
+static inline int mkdirhier(const char *pathname, const mode_t mode) {
+  if (mkdir(pathname, mode) == 0) {
+    return 0;
+  } else {
+    switch (errno) {
+      case EEXIST:
+        return 0;
+      case ENOENT: {
+        const char *last_slash = strrchr(pathname, '/');
+        if (last_slash) {
+          ssize_t len = last_slash - pathname;
+          char* parent = (char*)alloca(len + 1);
+          memcpy(parent, pathname, len);
+          parent[len] = '\0';
+          if (mkdirhier(parent, mode) == 0) {
+            return mkdir(pathname, mode);
+          } else {
+            return -1;
+          }
+        } else {
+          return -1;
+        }
+      }
+      default:
+        return -1;
+    }
+  }
 }
 
 #endif  // COMMON_PLATFORM_H_
