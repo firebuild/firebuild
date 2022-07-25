@@ -1854,7 +1854,7 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   } else {
-    if (mkdir(cache_dir.c_str(), 0700) != 0) {
+    if (mkdirhier(cache_dir.c_str(), 0700) != 0) {
       firebuild::fb_perror("mkdir");
       exit(EXIT_FAILURE);
     }
