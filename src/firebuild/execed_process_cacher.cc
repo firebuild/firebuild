@@ -677,35 +677,35 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     return;
   }
 
-  /* Possibly sort the entries for easier debugging.
+  /* Sort the entries for better cache compression ratios and easier debugging.
    *
-   * Note that previously we carefully collected the non-system and system locations separately for
-   * performance reasons, and now we mix the two. But again, this sorting here is for debugging. */
-  if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
-    struct {
-      bool operator()(const FBBSTORE_Builder_file& a, const FBBSTORE_Builder_file& b) const {
-        return strcmp(a.get_path(), b.get_path()) < 0;
-      }
-    } file_less;
-    /* Sort non-system and system paths separately to not regress in shortcutting performance. */
-    std::sort(in_path.begin(), in_path.begin() + in_path_non_system_count, file_less);
-    std::sort(in_path.begin() + in_path_non_system_count, in_path.end(), file_less);
-    std::sort(out_path_isreg.begin(), out_path_isreg.end(), file_less);
-    std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
+   * Note that previously we carefully collected the inputs and outputs in system and non-system
+   * locations separately for performance reasons. Here the outputs are mixed because they are not
+   * likely to be in system locations, but inputs are still separated to system and non-system
+   * locations. */
+  struct {
+    bool operator()(const FBBSTORE_Builder_file& a, const FBBSTORE_Builder_file& b) const {
+      return strcmp(a.get_path(), b.get_path()) < 0;
+    }
+  } file_less;
+  /* Sort non-system and system paths separately to not regress in shortcutting performance. */
+  std::sort(in_path.begin(), in_path.begin() + in_path_non_system_count, file_less);
+  std::sort(in_path.begin() + in_path_non_system_count, in_path.end(), file_less);
+  std::sort(out_path_isreg.begin(), out_path_isreg.end(), file_less);
+  std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
 
-    struct {
-      bool operator()(const cstring_view& a, const cstring_view& b) const {
-        return strcmp(a.c_str, b.c_str) < 0;
-      }
-    } cstring_view_less;
-    /* Sort non-system and system paths separately to not regress in shortcutting performance. */
-    std::sort(in_path_notexist.begin(),
-              in_path_notexist.begin() + in_path_notexist_non_system_count, cstring_view_less);
-    std::sort(in_path_notexist.begin() + in_path_notexist_non_system_count,
-              in_path_notexist.end(), cstring_view_less);
+  struct {
+    bool operator()(const cstring_view& a, const cstring_view& b) const {
+      return strcmp(a.c_str, b.c_str) < 0;
+    }
+  } cstring_view_less;
+  /* Sort non-system and system paths separately to not regress in shortcutting performance. */
+  std::sort(in_path_notexist.begin(),
+            in_path_notexist.begin() + in_path_notexist_non_system_count, cstring_view_less);
+  std::sort(in_path_notexist.begin() + in_path_notexist_non_system_count,
+            in_path_notexist.end(), cstring_view_less);
 
-    std::sort(out_path_notexist.begin(), out_path_notexist.end());
-  }
+  std::sort(out_path_notexist.begin(), out_path_notexist.end());
 
   pi.set_path_item_fn(in_path.size(), file_item_fn, &in_path);
   pi.set_path_notexist(in_path_notexist);
