@@ -477,6 +477,12 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           }
           [[fallthrough]];
         default:
+          if (fu->initial_state().type() == ISREG
+              && tmp_file_or_on_tmp_path(fu, filename, tmpdir)) {
+            FB_DEBUG(FB_DEBUG_CACHING, "Not storing cache entry because it read "
+                     + d(filename) + ", which is a temporary file");
+            return;
+          }
           add_file(&in_path, filename, fu->initial_state());
           break;
       }
