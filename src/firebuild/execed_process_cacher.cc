@@ -436,6 +436,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   /* Outputs for verification. */
   tsl::hopscotch_set<const FileName*> out_path_isdir_filename_ptrs;
   const FileName* const tmpdir = FileName::default_tmpdir;
+  size_t in_path_non_system_count {0},
+      in_path_notexist_non_system_count {0};
 
   /* Construct in_path_* in 2 passes. First collect the non-system paths and then the system paths,
    * for better performance. */
@@ -487,6 +489,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           break;
       }
     }
+    in_path_non_system_count = in_path.size();
+    in_path_notexist_non_system_count = in_path_notexist.size();
   }
 
   for (const auto& pair : proc->file_usages()) {
@@ -683,7 +687,9 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         return strcmp(a.get_path(), b.get_path()) < 0;
       }
     } file_less;
-    std::sort(in_path.begin(), in_path.end(), file_less);
+    /* Sort non-system and system paths separately to not regress in shortcutting performance. */
+    std::sort(in_path.begin(), in_path.begin() + in_path_non_system_count, file_less);
+    std::sort(in_path.begin() + in_path_non_system_count, in_path.end(), file_less);
     std::sort(out_path_isreg.begin(), out_path_isreg.end(), file_less);
     std::sort(out_path_isdir.begin(), out_path_isdir.end(), file_less);
 
@@ -692,7 +698,11 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         return strcmp(a.c_str, b.c_str) < 0;
       }
     } cstring_view_less;
-    std::sort(in_path_notexist.begin(), in_path_notexist.end(), cstring_view_less);
+    /* Sort non-system and system paths separately to not regress in shortcutting performance. */
+    std::sort(in_path_notexist.begin(),
+              in_path_notexist.begin() + in_path_notexist_non_system_count, cstring_view_less);
+    std::sort(in_path_notexist.begin() + in_path_notexist_non_system_count,
+              in_path_notexist.end(), cstring_view_less);
 
     std::sort(out_path_notexist.begin(), out_path_notexist.end());
   }
