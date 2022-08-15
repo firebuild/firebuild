@@ -37,7 +37,7 @@ enum {
   /* The data stored in the cache */
   FB_DEBUG_CACHE        = 1 << 6,
   /* Sort the records in the cache */
-  FB_DEBUG_CACHESORT    = 1 << 7,
+  FB_DEBUG_DETERMINISTIC_CACHE    = 1 << 7,
   /* Placing in / retrieving from the cache */
   FB_DEBUG_CACHING      = 1 << 8,
   /* Shortcutting */

@@ -171,7 +171,7 @@ bool ObjCache::store(const Hash &key,
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
   Hash subkey({static_cast<uint64_t>(time.tv_sec), static_cast<uint64_t>(time.tv_nsec)});
-  if (FB_DEBUGGING(FB_DEBUG_CACHESORT)) {
+  if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
      * hash for a deterministic filename. */
     subkey.set_from_data(entry_serial, len);
