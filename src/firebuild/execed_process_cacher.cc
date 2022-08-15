@@ -681,7 +681,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
    *
    * Note that previously we carefully collected the non-system and system locations separately for
    * performance reasons, and now we mix the two. But again, this sorting here is for debugging. */
-  if (FB_DEBUGGING(FB_DEBUG_CACHESORT)) {
+  if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     struct {
       bool operator()(const FBBSTORE_Builder_file& a, const FBBSTORE_Builder_file& b) const {
         return strcmp(a.get_path(), b.get_path()) < 0;
