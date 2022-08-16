@@ -5,6 +5,7 @@
 #define COMMON_PLATFORM_H_
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #ifdef __linux__
 #include <linux/kcmp.h>
@@ -13,6 +14,7 @@
 #include <sys/types.h>
 #endif
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 
