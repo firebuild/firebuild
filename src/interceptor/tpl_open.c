@@ -21,7 +21,7 @@
 ### endif
 ### set after_lines = ["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"]
 ### set send_ret_on_success=True
-### set ack_condition = "success && (!path_is_absolute(pathname) || (!is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &system_locations) && !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &ignore_locations)))"
+### set ack_condition = "success && !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &system_locations) && !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &ignore_locations)"
 
 ### block before
 {{ super() }}
