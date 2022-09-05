@@ -174,7 +174,6 @@ void PipeRecorder::deactivate() {
   TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "");
 
   assert(!deactivated_);
-  assert(!abandoned_);
 
   if (fd_ >= 0) {
     close(fd_);
