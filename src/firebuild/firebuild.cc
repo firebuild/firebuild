@@ -1158,8 +1158,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       break;
     }
     case FBBCOMM_TAG_truncate: {
-      // FIXME Will be a bit tricky to implement, see #637.
-      proc->exec_point()->disable_shortcutting_bubble_up("truncate() is not supported");
+      ::firebuild::ProcessFBBAdaptor::handle(proc,
+          reinterpret_cast<const FBBCOMM_Serialized_truncate *>(fbbcomm_buf));
       break;
     }
     case FBBCOMM_TAG_unlink: {

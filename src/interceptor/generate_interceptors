@@ -1323,9 +1323,11 @@ generate("int", "pipe2", "int pipefd[2], int flags",
 
 # Intercept the truncate family
 generate("int", "truncate", "const char *pathname, off_t len",
+         before_lines=["if (i_am_intercepting) maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
          msg_skip_fields=["pathname", "len"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 generate("int", "truncate64", "const char *pathname, off64_t len",
+         before_lines=["if (i_am_intercepting) maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
          msg="truncate",
          msg_skip_fields=["pathname", "len"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])

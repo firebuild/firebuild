@@ -358,6 +358,26 @@ int Process::handle_close_range(const unsigned int first, const unsigned int las
   return 0;
 }
 
+int Process::handle_truncate(const char * const ar_name, const size_t ar_len,
+                             const off_t length, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "ar_name=%s, length=%ld, error=%d", D(ar_name), length, error);
+
+  const FileName* name = get_absolute(AT_FDCWD, ar_name, ar_len);
+  if (!name) {
+    exec_point()->disable_shortcutting_bubble_up("Could not find file to truncate()");
+    return -1;
+  }
+  /* truncate() always sends pre_open. */
+  name->close_for_writing();
+
+  // FIXME Will be a bit tricky to implement shortcutting, see #637.
+  (void)length;
+  (void)error;
+  exec_point()->disable_shortcutting_bubble_up("truncate() is not supported");
+  return 0;
+}
+
 int Process::handle_unlink(const int dirfd, const char * const ar_name, const size_t ar_len,
                            const int flags, const int error, const bool pre_open_sent) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,

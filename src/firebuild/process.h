@@ -296,6 +296,12 @@ class Process {
                          const int flags, const int error = 0);
 
   /**
+   * Handle truncate() in the monitored process..
+   */
+  int handle_truncate(const char * const ar_name, const size_t ar_len,
+                      const off_t length, const int error);
+
+  /**
    * Handle unlink in the monitored process
    * @param dirfd the dirfd of unlinkat(), or AT_FDCWD
    * @param name relative or absolute file name
