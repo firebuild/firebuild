@@ -7,16 +7,15 @@
 ### extends "tpl.c"
 
 ### block guard_connection_fd
-###   for (type, name) in types_and_names
-{# It is ugly to check for the variable name to end with "fd", but is simple and works well in practice. #}
-###     if type == "int" and name[-2:] == "fd"
-{# Unlike most methods which place the error code in errno and return -1, #}
-{# posix_spawn_file_actions_add*() return the error code directly.        #}
-{# FIXME Do we want to return an error here, or maybe pretend success?    #}
-  if ({{ name }} == fb_sv_conn) return EBADF;
-###     endif
-###   endfor
+{# Override the main template's corresponding block so that the       #}
+{# connection fd is _not_ guarded here. This is because matching the  #}
+{# raw fd number against the _current_ connection fd number is        #}
+{# incorrect. By the time the actions we register here will be        #}
+{# executed, the communication fd might have moved elsewhere due to   #}
+{# an intercepted dup2(), or reopened as a regular file due to a      #}
+{# preceding posix_spawn_file_action. See #875 for further details.   #}
 ### endblock
+
 ### block after
   if (success) {
     {{ func | replace("posix_spawn_file_actions_", "psfa_") }} ({{ names_str }});
