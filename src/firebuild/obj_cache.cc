@@ -125,7 +125,7 @@ bool ObjCache::store(const Hash &key,
     FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: storing entry, key " + d(key));
   }
 
-  if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+  if (FB_DEBUGGING(FB_DEBUG_CACHE) && debug_key) {
     /* Place a human-readable version of the key in the cache, for easier debugging. */
     const char* debug_postfix = "/%_directory_debug.json";
     char* path_debug =
