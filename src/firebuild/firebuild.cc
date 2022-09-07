@@ -228,13 +228,11 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     proc_tree->insert(proc);
     proc->initialize();
 
-    if (dont_intercept_matcher->match(proc->executable(), proc->executed_path(),
-                                      proc->args().size() > 0 ? proc->args()[0] : "")) {
+    if (dont_intercept_matcher->match(proc)) {
       /* Executables that should not be intercepted. */
       proc->disable_shortcutting_bubble_up("Executable set to not be intercepted");
       sv_msg.set_dont_intercept(true);
-    } else if (dont_shortcut_matcher->match(proc->executable(), proc->executed_path(),
-                                            proc->args().size() > 0 ? proc->args()[0] : "")) {
+    } else if (dont_shortcut_matcher->match(proc)) {
       if (quirks & FB_QUIRK_LTO_WRAPPER && proc->args().size() > 0 && proc->args()[0] == "make"
           && proc->parent_exec_point()
           && proc->parent_exec_point()->executable()->without_dirs() == "lto-wrapper" ) {
@@ -246,8 +244,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     }
 
     /* Check for executables that we prefer not to shortcut. */
-    if (skip_cache_matcher->match(proc->executable(), proc->executed_path(),
-                                  proc->args().size() > 0 ? proc->args()[0] : "")) {
+    if (skip_cache_matcher->match(proc)) {
       proc->disable_shortcutting_only_this("Executable matches skip_cache");
     }
 
