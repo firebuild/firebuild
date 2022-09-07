@@ -214,7 +214,7 @@ setup() {
 }
 
 @test "popen() a statically linked binary and a normal one" {
-  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+  ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_cmd_popen ./test_static r)
@@ -227,7 +227,7 @@ setup() {
 }
 
 @test "fork() + exec() a statically linked binary" {
-  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+  ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_cmd_fork_exec ./test_static)
@@ -244,7 +244,7 @@ setup() {
 }
 
 @test "posix_spawn() a statically linked binary" {
-  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+  ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_cmd_posix_spawn ./test_static)
@@ -254,7 +254,7 @@ setup() {
 }
 
 @test "clone() a statically linked binary" {
-  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+  ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_cmd_clone ./test_static)
@@ -264,7 +264,7 @@ setup() {
 }
 
 @test "system() a statically linked binary" {
-  ldd ./test_static 2>&1 | egrep -q '(not a dynamic executable|statically linked)'
+  ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_cmd_system './test_static 3' | tr '\n' ' ')

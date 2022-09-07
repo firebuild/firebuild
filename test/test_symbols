@@ -66,7 +66,7 @@ close_range
 posix_spawn_file_actions_addclosefrom_np
 "
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
-libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | egrep 'lib(c|dl|pthread).so' | cut -d' ' -f3)
+libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | grep -E 'lib(c|dl|pthread).so' | cut -d' ' -f3)
 (nm -D $libs | \
      grep ' [TWi] ' | \
      cut -d' ' -f3- ; \
@@ -93,7 +93,7 @@ grep '_chk$' < libc-symbols.txt > libc-fortify-symbols.txt
 fortify_missing=$(for chk in $(< libc-fortify-symbols.txt); do
   base="${chk%_chk}"
   base="${base#__}"
-  if fgrep -qx "$base" public-symbols.txt && ! fgrep -qx "$chk" public-symbols.txt; then
+  if grep -Fqx "$base" public-symbols.txt && ! grep -Fqx "$chk" public-symbols.txt; then
     echo "$chk"
   fi
 done)
