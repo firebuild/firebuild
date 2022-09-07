@@ -52,6 +52,7 @@ add_executable(firebuild-bin
   pipe.cc
   pipe_recorder.cc
   process.cc
+  exe_matcher.cc
   execed_process.cc
   execed_process_cacher.cc
   execed_process_env.cc
