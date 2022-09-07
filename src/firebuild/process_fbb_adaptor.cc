@@ -35,7 +35,7 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_freopen *m
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn,
                              const int ack_num) {
-  if (!msg->has_error_string() && msg->has_absolute_filename()) {
+  if (!msg->get_error() && msg->has_absolute_filename()) {
     return proc->handle_open(AT_FDCWD,
                              msg->get_absolute_filename(), msg->get_absolute_filename_len(),
                              O_RDONLY, 0, -1, 0, fd_conn, ack_num, false, false);

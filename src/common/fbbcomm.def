@@ -493,9 +493,11 @@
       (OPTIONAL, "int", "flag"),
       # absolute filename where (if) the library was found
       (OPTIONAL, STRING, "absolute_filename"),
-      # dlopen() does not set errno. We don't have access to an error code,
-      # but to an error string.
-      (OPTIONAL, STRING, "error_string"),
+      # dlopen() does not set errno. Also, as per #920, we cannot get
+      # the error string in a simple way without altering the
+      # intercepted process's behavior and without nasty hacks. So let's
+      # just go with a simple boolean denoting success vs. failure.
+      (REQUIRED, "bool", "error"),
     ]),
 
     ("memfd_create", [
