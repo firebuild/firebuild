@@ -130,7 +130,7 @@ int main() {
     perror("mkdtemp" LOC);
     exit(1);
   }
-  unlink(mkdtemp_ret);
+  rmdir(mkdtemp_ret);
 
   fd = memfd_create("foo", MFD_CLOEXEC);
   if (fd == -1) {
