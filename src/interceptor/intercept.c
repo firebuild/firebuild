@@ -969,7 +969,10 @@ static void fb_ic_init() {
 
   /* Read the scproc_resp message header. */
   msg_header header;
-  ssize_t ret = fb_read(fb_sv_conn, &header, sizeof(header));
+#ifndef NDEBUG
+  ssize_t ret =
+#endif
+      fb_read(fb_sv_conn, &header, sizeof(header));
   assert(ret == sizeof(header));
   assert(header.msg_size > 0);
   uint16_t fd_count = header.fd_count;
@@ -1000,9 +1003,10 @@ static void fb_ic_init() {
   /* This is the first message arriving on the socket, and it's reasonably small.
    * We can safely expect that the header and the payload are fully available (no short read).
    * However, a signal interrupt might occur. */
-  do {
-    ret = recvmsg(fb_sv_conn, &msgh, 0);
-  } while (ret < 0 && errno == EINTR);
+#ifndef NDEBUG
+  ret =
+#endif
+      TEMP_FAILURE_RETRY(IC_ORIG(recvmsg)(fb_sv_conn, &msgh, 0));
   assert(ret == header.msg_size);
   assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
 

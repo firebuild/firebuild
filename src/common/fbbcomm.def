@@ -764,7 +764,7 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process reads from the given inherited fd.
+    # The first time the process reads (including the recv() family) from the given inherited fd.
     # Also re-sent once with is_pread=true if that value was false the first time.
     ("read_from_inherited", [
       # file fd
@@ -777,7 +777,7 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process writes to the given inherited fd.
+    # The first time the process writes (including the send() family) to the given inherited fd.
     # Also re-sent once with is_pwrite=true if that value was false the first time.
     ("write_to_inherited", [
       # file fd

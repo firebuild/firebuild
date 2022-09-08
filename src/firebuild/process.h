@@ -490,16 +490,16 @@ class Process {
 
 
   /**
-   * Handle the first read()-like or the first pread()-like operation from an inherited fd in the
-   * monitored process
+   * Handle the first read()/recv()-like or the first pread()-like operation from an inherited fd in
+   * the monitored process
    * @param fd file descriptor
    * @param is_pread whether the read occurred at a specified position
    */
   void handle_read_from_inherited(const int fd, const bool is_pread);
 
   /**
-   * Handle the first write()-like or the first pwrite()-like operation to an inherited fd in the
-   * monitored process
+   * Handle the first write()/send()-like or the first pwrite()-like operation to an inherited fd in
+   * the monitored process
    * @param fd file descriptor
    * @param is_pwrite whether the write occurred at a specific position
    */
