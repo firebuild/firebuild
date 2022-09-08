@@ -2,7 +2,12 @@
 {# Copyright (c) 2020 Interri Kft.                                    #}
 {# This file is an unpublished work. All rights reserved.             #}
 {# ------------------------------------------------------------------ #}
-{# Template for functions reading from a file.                        #}
+{# Template for functions reading from a (regular or special) file,   #}
+{# including                                                          #}
+{# - low-level [p]read*() family                                      #}
+{# - high-level stdio like fread(), getc(), scanf() etc.              #}
+{# - low-level socket reading recv*() family                          #}
+{# and perhaps more.                                                  #}
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 

@@ -656,6 +656,25 @@ for i in ['', '__isoc99_']:
     for w in ['', 'w']:
       skip(i + v + "s" + w + "scanf")
 
+generate("ssize_t", "recv", "int fd, void *buf, size_t len, int flags",
+         tpl="read",
+         msg_skip_fields=["buf", "len", "flags"])
+generate("ssize_t", "__recv_chk", "int fd, void *buf, size_t len, size_t fortify_size, int flags",
+         tpl="read",
+         msg_skip_fields=["buf", "len", "fortify_size", "flags"])
+generate("ssize_t", "recvfrom", "int fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen",
+         tpl="read",
+         msg_skip_fields=["buf", "len", "flags", "src_addr", "addrlen"])
+generate("ssize_t", "__recvfrom_chk", "int fd, void *buf, size_t len, size_t fortify_size, int flags, struct sockaddr *src_addr, socklen_t *addrlen",
+         tpl="read",
+         msg_skip_fields=["buf", "len", "fortify_size", "flags", "src_addr", "addrlen"])
+generate("ssize_t", "recvmsg", "int fd, struct msghdr *msg, int flags",
+         tpl="read",
+         msg_skip_fields=["msg", "flags"])
+generate("int", "recvmmsg", "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, struct timespec *timeout",
+         tpl="read",
+         msg_skip_fields=["msgvec", "vlen", "flags", "timeout"])
+
 # Intercept operations that write to a file descriptor.
 # FIXME also intercept mmap with PROT_WRITE
 generate("ssize_t", "write", "int fd, const void *buf, size_t count",
@@ -870,6 +889,19 @@ for v in ['', 'v']:
 for v in ['', 'v']:
   for (c1, c2) in [('', ''), ('__', '_chk')]:
     skip(c1 + v + "asprintf" + c2)
+
+generate("ssize_t", "send", "int fd, const void *buf, size_t len, int flags",
+         tpl="write",
+         msg_skip_fields=["buf", "len", "flags"])
+generate("ssize_t", "sendto", "int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen",
+         tpl="write",
+         msg_skip_fields=["buf", "len", "flags", "dest_addr", "addrlen"])
+generate("ssize_t", "sendmsg", "int fd, const struct msghdr *msg, int flags",
+         tpl="write",
+         msg_skip_fields=["msg", "flags"])
+generate("int", "sendmmsg", "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags",
+         tpl="write",
+         msg_skip_fields=["msgvec", "vlen", "flags"])
 
 # Intercept querying or modifying the file offset
 # FIXME What's up with llseek, _llseek, __lseek, _IO_*seek* etc.?
@@ -1782,7 +1814,6 @@ skip("confstr")
 # Network
 # FIXME use the "once" template instead: we need to know it can't be shortcut
 skip("getsockname", "getpeername")
-skip("send", "recv", "sendto", "recvfrom", "sendmsg", "recvmsg")
 skip("getsockopt", "setsockopt", "accept", "accept4", "shutdown", "sockatmark")
 
 # Mounts

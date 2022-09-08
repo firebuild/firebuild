@@ -2,7 +2,13 @@
 {# Copyright (c) 2020 Interri Kft.                                    #}
 {# This file is an unpublished work. All rights reserved.             #}
 {# ------------------------------------------------------------------ #}
-{# Template for functions writing to a file.                          #}
+{# Template for functions writing to a (regular or special) file,     #}
+{# including                                                          #}
+{# - low-level [p]write*() family                                     #}
+{# - high-level stdio like fwrite(), putc(), printf(), perror() etc.  #}
+{# - low-level socket writing send*() family                          #}
+{# - ftruncate()                                                      #}
+{# and perhaps more.                                                  #}
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
