@@ -1774,6 +1774,7 @@ generate("int", "sethostid", "long hostid",
          tpl="once")
 
 generate("int", "socket", "int domain, int type, int protocol",
+         after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          send_ret_on_success=True)
 generate("int", "connect", "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          tpl="once")
@@ -1782,6 +1783,10 @@ generate("int", "bind", "int sockfd, const struct sockaddr *addr, socklen_t addr
 generate("int", "listen", "int sockfd, int backlog",
          tpl="once")
 generate("int", "socketpair", "int domain, int type, int protocol, int sv[2]",
+         after_lines=["if (i_am_intercepting && success) {",
+                      "  clear_notify_on_read_write_state(sv[0]);",
+                      "  clear_notify_on_read_write_state(sv[1]);",
+                      "}"],
          msg_skip_fields=["sv"],
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_socketpair_set_fd0(&ic_msg, sv[0]);",
