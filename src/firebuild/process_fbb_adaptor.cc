@@ -5,6 +5,7 @@
 #include "firebuild/process_fbb_adaptor.h"
 
 #include <string>
+#include <vector>
 
 #include "firebuild/execed_process.h"
 
@@ -194,6 +195,13 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_seek_in_in
   if (error == 0) {
     proc->handle_seek_in_inherited(msg->get_fd(), msg->get_modify_offset());
   }
+  return 0;
+}
+
+int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_recvmsg_scm_rights *msg) {
+  bool cloexec = msg->get_cloexec();
+  std::vector<int> fds = msg->get_fds_as_vector();
+  proc->handle_recvmsg_scm_rights(cloexec, fds);
   return 0;
 }
 

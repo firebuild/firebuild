@@ -23,6 +23,7 @@ enum fd_type : char {
   FD_PIPE_IN,        /* the incoming endpoint of a pipe(), or the toplevel stdin */
   FD_PIPE_OUT,       /* the outgoing endpoint of a pipe(), or the toplevel stdout, stderr */
   FD_SPECIAL,        /* backed by memory, e.g. memfd, eventfd etc. */
+  FD_SCM_RIGHTS,     /* received by a recv[m]msg() with SCM_RIGHTS, we don't know its type */
 };
 
 class Process;
@@ -96,9 +97,9 @@ class FileOFD {
  */
 class FileFD {
  public:
-  /** Constructor for fds backed by internal memory. */
-  FileFD(int fd, int flags, Process *opened_by)
-      : fd_(fd), ofd_(std::make_shared<FileOFD>(FD_SPECIAL, nullptr, flags, opened_by)),
+  /** Constructor for fds of a certain type. */
+  FileFD(int fd, int flags, fd_type type, Process *opened_by)
+      : fd_(fd), ofd_(std::make_shared<FileOFD>(type, nullptr, flags, opened_by)),
         pipe_(), cloexec_(flags & O_CLOEXEC) {
     assert(fd >= 0);
   }

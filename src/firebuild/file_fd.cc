@@ -77,6 +77,8 @@ const char *fd_type_to_string(fd_type type) {
       return "FD_PIPE_OUT";
     case FD_SPECIAL:
       return "FD_SPECIAL";
+    case FD_SCM_RIGHTS:
+      return "FD_SCM_RIGHTS";
     default:
       assert(0 && "unknown type");
       return "UNKNOWN";

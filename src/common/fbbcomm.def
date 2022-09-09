@@ -801,6 +801,12 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    # Received some file descriptors via a recv[m]msg() and SCM_RIGHTS.
+    ("recvmsg_scm_rights", [
+      (REQUIRED, "bool", "cloexec"),
+      (ARRAY, "int", "fds"),
+    ]),
+
     # Resource usage collected at exit. The exit status will be collected by the wait() in the parent
     ("rusage", [
       # user CPU time in microseconds

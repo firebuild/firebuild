@@ -669,10 +669,10 @@ generate("ssize_t", "__recvfrom_chk", "int fd, void *buf, size_t len, size_t for
          tpl="read",
          msg_skip_fields=["buf", "len", "fortify_size", "flags", "src_addr", "addrlen"])
 generate("ssize_t", "recvmsg", "int fd, struct msghdr *msg, int flags",
-         tpl="read",
+         tpl="recvmsg",
          msg_skip_fields=["msg", "flags"])
 generate("int", "recvmmsg", "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, struct timespec *timeout",
-         tpl="read",
+         tpl="recvmsg",
          msg_skip_fields=["msgvec", "vlen", "flags", "timeout"])
 
 # Intercept operations that write to a file descriptor.
