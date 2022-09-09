@@ -514,6 +514,13 @@ class Process {
   void handle_seek_in_inherited(const int fd, const bool modify_offset);
 
   /**
+   * Handle the intercepted process receiving some file descriptors via recv[m]msg() and SCM_RIGHTS
+   * @param cloexec the close on exec flag
+   * @param fds file descriptors
+   */
+  void handle_recvmsg_scm_rights(const bool cloexec, const std::vector<int> fds);
+
+  /**
    * Fail to change to a working directory
    */
   virtual void handle_fail_wd(const char * const d) = 0;

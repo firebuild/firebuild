@@ -626,38 +626,38 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
 }
 
 int Process::handle_memfd_create(const int flags, const int fd) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0,
+                                          FD_SPECIAL, this));
   return 0;
 }
 
 int Process::handle_timerfd_create(const int flags, const int fd) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & TFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & TFD_CLOEXEC) ? O_CLOEXEC : 0,
+                                          FD_SPECIAL, this));
   return 0;
 }
 
 int Process::handle_epoll_create(const int flags, const int fd) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EPOLL_CLOEXEC) ? O_CLOEXEC : 0, this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EPOLL_CLOEXEC) ? O_CLOEXEC : 0,
+                                          FD_SPECIAL, this));
   return 0;
 }
 
 int Process::handle_eventfd(const int flags, const int fd) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
+  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EFD_CLOEXEC) ? O_CLOEXEC : 0,
+                                          FD_SPECIAL, this));
   return 0;
 }
 
 int Process::handle_signalfd(const int oldfd, const int flags, const int newfd) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "oldfd=%d, flags=%d newfd=%d", oldfd, flags, newfd);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "oldfd=%d, flags=%d newfd=%d", oldfd, flags, newfd);
   if (oldfd == -1) {
-    add_filefd(newfd, std::make_shared<FileFD>(newfd, (flags & SFD_CLOEXEC) ? O_CLOEXEC : 0, this));
+    add_filefd(newfd, std::make_shared<FileFD>(newfd, (flags & SFD_CLOEXEC) ? O_CLOEXEC : 0,
+                                               FD_SPECIAL, this));
   } else {
     /* Reusing old fd, nothing to do.*/
     // TODO(rbalint) maybe the O_CLOEXEC flag could be updated, but the man page sounds like as
@@ -828,7 +828,7 @@ void Process::handle_socket(const int domain, const int type, const int protocol
     const int flags = O_RDWR
         | ((type & SOCK_CLOEXEC) ? O_CLOEXEC : 0)
         | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0);
-    add_filefd(ret, std::make_shared<FileFD>(ret, flags, this));
+    add_filefd(ret, std::make_shared<FileFD>(ret, flags, FD_SPECIAL, this));
     switch (type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK)) {
       case SOCK_DGRAM:
       case SOCK_RAW:
@@ -871,7 +871,7 @@ void Process::handle_socketpair(const int domain, const int type, const int prot
       const int flags = O_RDWR
           | ((type & SOCK_CLOEXEC) ? O_CLOEXEC : 0)
           | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0);
-      add_filefd(fd, std::make_shared<FileFD>(fd, flags, this));
+      add_filefd(fd, std::make_shared<FileFD>(fd, flags, FD_SPECIAL, this));
     }
   } else {
     /* This is ulikely to happen and may not be deterministic .*/
@@ -1189,6 +1189,24 @@ void Process::handle_seek_in_inherited(const int fd, const bool modify_offset) {
         "Process seeked in inherited non-pipe fd ", fd);
   }
 }
+
+void Process::handle_recvmsg_scm_rights(const bool cloexec, const std::vector<int> fds) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "cloexec=%s fds=%s", D(cloexec), D(fds));
+
+  for (int fd : fds) {
+    FileFD *file_fd = get_fd(fd);
+    if (file_fd) {
+      exec_point()->disable_shortcutting_bubble_up(
+        "Process successfully received fd via SCM_RIGHTS which is known to be open, which means"
+        " interception missed at least one close()", fd);
+    } else {
+      add_filefd(fd, std::make_shared<FileFD>(fd, cloexec ? O_CLOEXEC : 0, FD_SCM_RIGHTS, this));
+    }
+  }
+
+  exec_point()->disable_shortcutting_bubble_up("Receiving an fd via SCM_RIGHTS is not supported");
+}
+
 
 void Process::handle_set_wd(const char * const ar_d, const size_t ar_d_len) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "ar_d=%s", ar_d);
