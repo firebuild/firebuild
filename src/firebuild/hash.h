@@ -22,13 +22,17 @@ namespace firebuild {
  * The binary hash is the raw (i.e. architecture dependent XXH128_hash_t)
  * version of the XXH128 sum.
  *
- * The ASCII hash is the base64 representation of the canonical
+ * The ASCII hash is the base64-like representation of the canonical
  * representation, in ceil(128/6) = 22 characters. The two
- * non-alphanumeric characters of our base64 alphabet are '+' and '^'.
+ * non-alphanumeric characters of our base64 alphabet are '+' and '^' and
+ * none of the characters are at their usual position.
+ * The characters are reordered compared to the original base64 mapping.
+ * They are ordered by increasing ASCII code to have a set of hash values
+ * and their ASCII representation sort the same way.
  * No trailing '=' signs to denote the partial block.
  *
  * Command line equivalent:
- * xxh128sum | xxd -r -p | base64 | cut -c1-22 | tr / ^
+ * xxh128sum | xxd -r -p | base64 | cut -c1-22 | tr A-Za-z0-9+/ +0-9A-Z^a-z
  */
 class Hash {
  public:
@@ -80,7 +84,7 @@ class Hash {
     /* check that the last character is from the more restricted set,
      * namely represents 6 bits so that the last 4 of them are zeros */
     const char last_char {str[i++]};
-    if (last_char != 'A' && last_char != 'Q' && last_char != 'g' && last_char != 'w') {
+    if (last_char != '+' && last_char != 'F' && last_char != 'V' && last_char != 'k') {
       return false;
     }
     if (str[i] == '\0') {
@@ -93,8 +97,9 @@ class Hash {
  private:
   static void encode_block(const unsigned char *in, char *out);
   static void encode_last_block(const unsigned char *in, char *out);
+  /* AsciiHash's sorting relies on the characters being in ASCII order. */
   static constexpr char kEncodeMap[] =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+^";
+      "+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^abcdefghijklmnopqrstuvwxyz";
   static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
   XXH128_hash_t hash_;
 };
