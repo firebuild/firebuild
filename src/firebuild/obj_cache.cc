@@ -35,6 +35,9 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <utility>
+
 #include "firebuild/ascii_hash.h"
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
@@ -278,9 +281,9 @@ bool ObjCache::retrieve(const Hash &key,
 }
 
 /**
- * Return the list of subkeys for the given key.
+ * Return the list of subkeys for the given key in the order to be tried for shortcutting.
  *
- * // FIXME return them in some particular order??
+ * The last created subkey is returned first.
  *
  * // FIXME replace with some iterator-like approach?
  */
@@ -297,12 +300,38 @@ std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
   }
 
   struct dirent *dirent;
-  while ((dirent = readdir(dir)) != NULL) {
-    if (Hash::valid_ascii(dirent->d_name)) {
-      ret.push_back(AsciiHash(dirent->d_name));
+  if (!FB_DEBUGGING(FB_DEBUG_CACHE)) {
+    while ((dirent = readdir(dir)) != NULL) {
+      if (Hash::valid_ascii(dirent->d_name)) {
+        ret.push_back(AsciiHash(dirent->d_name));
+      }
+    }
+    struct {
+      bool operator()(const AsciiHash a, const AsciiHash b) const { return b < a; }
+    } reverse_order;
+    std::sort(ret.begin(), ret.end(), reverse_order);
+  } else {
+    /* Use the subkey's timestamp for sorting since with FB_DEBUG_CACHE the subkey
+     * is generated from the file's content, not the creation timestamp. */
+    std::vector<std::pair<AsciiHash, struct timespec>> subkey_timestamp_pairs;
+    struct stat st;
+    while ((dirent = readdir(dir)) != NULL) {
+      if (Hash::valid_ascii(dirent->d_name) && fstatat(dirfd(dir), dirent->d_name, &st, 0) == 0) {
+        subkey_timestamp_pairs.push_back({AsciiHash(dirent->d_name),
+                                          {st.st_mtim.tv_sec, st.st_mtim.tv_nsec}});
+      }
+    }
+    struct {
+      bool operator()(const std::pair<AsciiHash, struct timespec> a,
+                      const std::pair<AsciiHash, struct timespec> b) const {
+        return b.second.tv_sec < a.second.tv_sec ||
+            (b.second.tv_sec == a.second.tv_sec && b.second.tv_nsec < a.second.tv_nsec); }
+    } reverse_order;
+    std::sort(subkey_timestamp_pairs.begin(), subkey_timestamp_pairs.end(), reverse_order);
+    for (auto pair : subkey_timestamp_pairs) {
+      ret.push_back(pair.first);
     }
   }
-
   closedir(dir);
   return ret;
 }
