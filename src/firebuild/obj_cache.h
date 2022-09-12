@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "firebuild/ascii_hash.h"
 #include "firebuild/hash.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
@@ -22,10 +23,10 @@ class ObjCache {
              const FBBSTORE_Builder * const entry,
              const FBBFP_Serialized * const debug_key);
   bool retrieve(const Hash &key,
-                const Hash &subkey,
+                const char * const subkey,
                 uint8_t ** entry,
                 size_t * entry_len);
-  std::vector<Hash> list_subkeys(const Hash &key);
+  std::vector<AsciiHash> list_subkeys(const Hash &key);
 
  private:
   /* Including the "objs" subdir. */

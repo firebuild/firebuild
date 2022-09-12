@@ -23,7 +23,6 @@
 namespace firebuild  {
 
 unsigned char Hash::encode_map_[];
-signed char Hash::decode_map_[];
 Hash::HashMapsInitializer Hash::hash_maps_initializer_;
 
 /**
@@ -189,64 +188,6 @@ void Hash::set(XXH128_hash_t value) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
 
   hash_ = value;
-}
-
-/**
- * Helper method of set_from_ascii().
- *
- * Convert 4 input bytes (part of the base64 ASCII representation) into 3 output bytes (part of the
- * binary representation) according to base64 decoding.
- */
-void Hash::decode_block(const char *in, unsigned char *out) {
-  const unsigned char *in_unsigned = reinterpret_cast<const unsigned char *>(in);
-  uint32_t val = (decode_map_[in_unsigned[0]] << 18) |
-                 (decode_map_[in_unsigned[1]] << 12) |
-                 (decode_map_[in_unsigned[2]] <<  6) |
-                 (decode_map_[in_unsigned[3]]);
-  out[0] = val >> 16;
-  out[1] = val >> 8;
-  out[2] = val;
-}
-/** Similar to the previous, but for the last block (2 ASCII characters -> 1 byte of the binary) */
-void Hash::decode_last_block(const char *in, unsigned char *out) {
-  const unsigned char *in_unsigned = reinterpret_cast<const unsigned char *>(in);
-  out[0] = (decode_map_[in_unsigned[0]] << 2) |
-           (decode_map_[in_unsigned[1]] >> 4);
-}
-
-/**
- * The inverse of to_ascii(): Sets the binary hash value directly from the
- * given ASCII string. No hash computation takes place.
- *
- * Returns true if succeeded, false if the input is not a valid ASCII
- * representation of a hash.
- */
-bool Hash::set_from_ascii(const std::string &ascii) {
-  if (ascii.size() != kAsciiLength) {
-    return false;
-  }
-  /* check that all characters are from the set of valid chars */
-  for (unsigned int i = 0; i < kAsciiLength; i++) {
-    if (decode_map_[static_cast<int>(ascii[i])] < 0) {
-      return false;
-    }
-  }
-  /* check that the last character is from the more restricted set,
-   * namely represents 6 bits so that the last 4 of them are zeros */
-  if ((decode_map_[static_cast<int>(ascii[kAsciiLength - 1])] & 0x0f) != 0) {
-    return false;
-  }
-
-  XXH128_canonical_t canonical;
-  decode_block(&ascii[ 0], &canonical.digest[ 0]);
-  decode_block(&ascii[ 4], &canonical.digest[ 3]);
-  decode_block(&ascii[ 8], &canonical.digest[ 6]);
-  decode_block(&ascii[12], &canonical.digest[ 9]);
-  decode_block(&ascii[16], &canonical.digest[12]);
-  decode_last_block(&ascii[20], &canonical.digest[15]);
-  hash_ = XXH128_hashFromCanonical(&canonical);
-
-  return true;
 }
 
 /**
