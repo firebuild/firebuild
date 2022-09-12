@@ -35,6 +35,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "firebuild/ascii_hash.h"
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"
 #include "firebuild/fbbfp.h"
@@ -99,12 +100,13 @@ static void construct_cached_dir_name(const std::string &base, const Hash &key,
  */
 static void construct_cached_file_name(const std::string &base,
                                        const Hash &key,
-                                       const Hash &subkey,
+                                       const char* const subkey,
                                        bool create_dirs,
                                        char* path) {
   construct_cached_dir_name(base, key, create_dirs, path);
   path[base.length() + kObjCachePathLength - Hash::kAsciiLength - 1] = '/';
-  subkey.to_ascii(&path[base.length() + kObjCachePathLength - Hash::kAsciiLength]);
+  memcpy(&path[base.length() + kObjCachePathLength - Hash::kAsciiLength], subkey,
+         Hash::kAsciiLength + 1);
 }
 
 
@@ -176,7 +178,8 @@ bool ObjCache::store(const Hash &key,
      * hash for a deterministic filename. */
     subkey.set_from_data(entry_serial, len);
   }
-  construct_cached_file_name(base_dir_, key, subkey, true, path_dst);
+
+  construct_cached_file_name(base_dir_, key, subkey.to_ascii().c_str(), true, path_dst);
   free(entry_serial);
 
   if (rename(tmpfile, path_dst) == -1) {
@@ -217,7 +220,7 @@ bool ObjCache::store(const Hash &key,
  * @return Whether succeeded
  */
 bool ObjCache::retrieve(const Hash &key,
-                        const Hash &subkey,
+                        const char* const subkey,
                         uint8_t ** entry,
                         size_t * entry_len) {
   TRACK(FB_DEBUG_CACHING, "key=%s, subkey=%s", D(key), D(subkey));
@@ -281,10 +284,10 @@ bool ObjCache::retrieve(const Hash &key,
  *
  * // FIXME replace with some iterator-like approach?
  */
-std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
+std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
-  std::vector<Hash> ret;
+  std::vector<AsciiHash> ret;
   char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
   construct_cached_dir_name(base_dir_, key, false, path);
 
@@ -293,11 +296,10 @@ std::vector<Hash> ObjCache::list_subkeys(const Hash &key) {
     return ret;
   }
 
-  Hash subkey;
   struct dirent *dirent;
   while ((dirent = readdir(dir)) != NULL) {
-    if (subkey.set_from_ascii(dirent->d_name)) {
-      ret.push_back(subkey);
+    if (Hash::valid_ascii(dirent->d_name)) {
+      ret.push_back(AsciiHash(dirent->d_name));
     }
   }
 

@@ -765,8 +765,8 @@ static FileUsageUpdate file_to_file_usage_update(const FileName *filename,
  * Check whether the given ProcessInputs matches the file system's
  * current contents.
  */
-static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Hash& fingerprint) {
-  TRACK(FB_DEBUG_PROC, "fingerprint=%s", D(fingerprint));
+static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const char* const subkey) {
+  TRACK(FB_DEBUG_PROC, "subkey=%s", D(subkey));
 
   size_t i;
 
@@ -776,7 +776,7 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     const FileInfo query = file_to_file_info(file);
     if (!hash_cache->file_info_matches(path, query)) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(fingerprint) + " mismatches e.g. at " + d(path));
+      FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " mismatches e.g. at " + d(path));
       return false;
     }
   }
@@ -786,7 +786,7 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const Ha
     const FileInfo query(NOTEXIST);
     if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   " + d(fingerprint)
+               "│   " + d(subkey)
                + " mismatches e.g. at " + d(path)
                + ": path expected to be missing, existing object is found");
       return false;
@@ -819,14 +819,14 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
-  std::vector<Hash> subkeys = obj_cache->list_subkeys(fingerprint);
+  const std::vector<AsciiHash> subkeys = obj_cache->list_subkeys(fingerprint);
   if (subkeys.empty()) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
   }
-  for (const Hash& subkey : subkeys) {
+  for (const AsciiHash& subkey : subkeys) {
     uint8_t *candidate_inouts_buf;
     size_t candidate_inouts_buf_len;
-    if (!obj_cache->retrieve(fingerprint, subkey,
+    if (!obj_cache->retrieve(fingerprint, subkey.c_str(),
                              &candidate_inouts_buf, &candidate_inouts_buf_len)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   Cannot retrieve " + d(subkey) + " from objcache, ignoring");
@@ -843,7 +843,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     const FBBSTORE_Serialized_process_inputs *inputs =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
 
-    if (pi_matches_fs(inputs, subkey)) {
+    if (pi_matches_fs(inputs, subkey.c_str())) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
 #ifdef FB_EXTRA_DEBUG
       count++;

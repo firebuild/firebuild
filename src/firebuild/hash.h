@@ -48,7 +48,7 @@ class Hash {
 
   static size_t hash_size() {return hash_size_;}
   /** ASCII representation length without the trailing '\0' */
-  static const size_t kAsciiLength = 22;
+  static const size_t kAsciiLength {22};
 
   void set_from_data(const void *data, ssize_t size);
   bool set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out,
@@ -57,7 +57,6 @@ class Hash {
                      bool *is_dir_out = NULL, ssize_t *size_out = NULL);
 
   void set(XXH128_hash_t);
-  bool set_from_ascii(const std::string &ascii);
   XXH128_hash_t get() const { return hash_; }
   const XXH128_hash_t *get_ptr() const { return &hash_; }
   void to_ascii(char *out) const;
@@ -66,21 +65,42 @@ class Hash {
      to_ascii(ascii);
      return std::string(ascii);
   }
+  static bool valid_ascii(const char* const str) {
+    size_t i;
+    for (i = 0; i < Hash::kAsciiLength - 1; i++) {
+      if ((str[i] >= 'A' && str[i] <= 'Z') ||
+          (str[i] >= 'a' && str[i] <= 'z') ||
+          (str[i] >= '0' && str[i] <= '9') ||
+          str[i] == '+' || str[i] == '^') {
+        continue;
+      } else {
+        return false;
+      }
+    }
+    /* check that the last character is from the more restricted set,
+     * namely represents 6 bits so that the last 4 of them are zeros */
+    const char last_char {str[i++]};
+    if (last_char != 'A' && last_char != 'Q' && last_char != 'g' && last_char != 'w') {
+      return false;
+    }
+    if (str[i] == '\0') {
+      return true;
+    } else {
+      return false;
+    }
+  }
 
  private:
-  static void decode_block(const char *in, unsigned char *out);
-  static void decode_last_block(const char *in, unsigned char *out);
   static void encode_block(const unsigned char *in, char *out);
   static void encode_last_block(const unsigned char *in, char *out);
 
   static unsigned char encode_map_[64];
-  static signed char decode_map_[256];
 
   static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
   XXH128_hash_t hash_;
 
   /* This, along with the Hash::hash_maps_initializer_ definition in hash.cc,
-   * initializes the encode_map_ and decode_map_ arrays once at startup. */
+   * initializes the encode_map_ array once at startup. */
   class HashMapsInitializer {
    public:
     HashMapsInitializer() {
@@ -96,10 +116,6 @@ class Hash {
       }
       encode_map_[62] = '+';
       encode_map_[63] = '^';
-      memset(decode_map_, -1, 256);
-      for (int i = 0; i < 64; i++) {
-        decode_map_[encode_map_[i]] = i;
-      }
     }
   };
   friend class HashMapsInitializer;
