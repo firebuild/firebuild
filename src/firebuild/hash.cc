@@ -22,9 +22,6 @@
 
 namespace firebuild  {
 
-unsigned char Hash::encode_map_[];
-Hash::HashMapsInitializer Hash::hash_maps_initializer_;
-
 /**
  * Set the hash from the given buffer.
  */
@@ -200,16 +197,16 @@ void Hash::encode_block(const unsigned char *in, char *out) {
   uint32_t val = (in[0] << 16) |
                  (in[1] <<  8) |
                  (in[2]);
-  out[0] = encode_map_[ val >> 18        ];
-  out[1] = encode_map_[(val >> 12) & 0x3f];
-  out[2] = encode_map_[(val >>  6) & 0x3f];
-  out[3] = encode_map_[ val        & 0x3f];
+  out[0] = kEncodeMap[ val >> 18        ];
+  out[1] = kEncodeMap[(val >> 12) & 0x3f];
+  out[2] = kEncodeMap[(val >>  6) & 0x3f];
+  out[3] = kEncodeMap[ val        & 0x3f];
 }
 /** Similar to the previous, but for the last block (1 byte of the binary -> 2 ASCII characters */
 void Hash::encode_last_block(const unsigned char *in, char *out) {
   uint8_t val = in[0];
-  out[0] = encode_map_[ val >> 2        ];
-  out[1] = encode_map_[(val << 4) & 0x3f];
+  out[0] = kEncodeMap[ val >> 2        ];
+  out[1] = kEncodeMap[(val << 4) & 0x3f];
 }
 
 /**
