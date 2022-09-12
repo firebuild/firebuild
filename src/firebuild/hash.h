@@ -93,33 +93,10 @@ class Hash {
  private:
   static void encode_block(const unsigned char *in, char *out);
   static void encode_last_block(const unsigned char *in, char *out);
-
-  static unsigned char encode_map_[64];
-
+  static constexpr char kEncodeMap[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+^";
   static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
   XXH128_hash_t hash_;
-
-  /* This, along with the Hash::hash_maps_initializer_ definition in hash.cc,
-   * initializes the encode_map_ array once at startup. */
-  class HashMapsInitializer {
-   public:
-    HashMapsInitializer() {
-      int i;
-      for (i = 0; i < 26; i++) {
-        encode_map_[i] = 'A' + i;
-      }
-      for (i = 0; i < 26; i++) {
-        encode_map_[26 + i] = 'a' + i;
-      }
-      for (i = 0; i < 10; i++) {
-        encode_map_[52 + i] = '0' + i;
-      }
-      encode_map_[62] = '+';
-      encode_map_[63] = '^';
-    }
-  };
-  friend class HashMapsInitializer;
-  static HashMapsInitializer hash_maps_initializer_;
 };
 
 /* Global debugging methods.
