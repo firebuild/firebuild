@@ -21,8 +21,15 @@ extern cstring_view_array system_locations;
 extern ExeMatcher* dont_shortcut_matcher;
 extern ExeMatcher* dont_intercept_matcher;
 extern ExeMatcher* skip_cache_matcher;
+
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 extern int64_t min_cpu_time_u;
+
+/**
+ * Give up after shortcut_tries and run the process without shortcutting it.
+ * Value of 0 means trying all candidates.
+ */
+extern int shortcut_tries;
 
 /** Enabled quirks represented as flags. See "quirks" in etc/firebuild.conf. */
 extern int quirks;

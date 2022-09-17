@@ -825,6 +825,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   const FBBSTORE_Serialized_process_inputs_outputs *inouts = nullptr;
+  int shortcut_attempts {0};
 #ifdef FB_EXTRA_DEBUG
   int count = 0;
 #endif
@@ -838,6 +839,11 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   for (const AsciiHash& subkey : subkeys) {
     uint8_t *candidate_inouts_buf;
     size_t candidate_inouts_buf_len;
+    if (shortcut_attempts++ > shortcut_tries) {
+      FB_DEBUG(FB_DEBUG_SHORTCUT,
+               "│  Maximum shortcutting attempts (" + d(shortcut_tries) + ") exceeded, giving up");
+      break;
+    }
     if (!obj_cache->retrieve(fingerprint, subkey.c_str(),
                              &candidate_inouts_buf, &candidate_inouts_buf_len)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
