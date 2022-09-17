@@ -34,7 +34,7 @@ ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 int64_t min_cpu_time_u = 0;
-
+int shortcut_tries = 0;
 int quirks = 0;
 
 /** Parse configuration file
@@ -221,6 +221,13 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
     if (min_cpu_time_cfg.isNumber()) {
       float min_cpu_time_s = min_cpu_time_cfg;
       min_cpu_time_u = 1000000.0 * min_cpu_time_s;
+    }
+  }
+
+  if (cfg->exists("shortcut_tries")) {
+    libconfig::Setting& shortcut_tries_cfg = cfg->getRoot()["shortcut_tries"];
+    if (shortcut_tries_cfg.isNumber()) {
+      shortcut_tries = shortcut_tries_cfg;
     }
   }
 
