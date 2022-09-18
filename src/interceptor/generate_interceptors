@@ -1303,7 +1303,7 @@ generate("int", "utimensat", "int dirfd, const char *pathname, const struct time
 generate("int", "futimesat", "int dirfd, const char *pathname, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
+         msg_add_fields=["if (pathname) BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 
 # Intercept the futime family
