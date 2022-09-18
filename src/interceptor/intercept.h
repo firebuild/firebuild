@@ -223,12 +223,13 @@ static inline bool ic_cwd_ok() {
     int c_len;                                                          \
     if (fix_abs) {                                                      \
       assert(ic_cwd_ok());                                              \
-      memcpy(c_buf, ic_cwd, ic_cwd_len);                                \
-      c_buf[ic_cwd_len] = '/';                                          \
-      memcpy(&c_buf[ic_cwd_len + 1], field, orig_len + 1);              \
+      const size_t adjusted_cwd_len = ic_cwd_len == 1 ? 0 : ic_cwd_len; \
+      memcpy(c_buf, ic_cwd, adjusted_cwd_len);                          \
+      c_buf[adjusted_cwd_len] = '/';                                    \
+      memcpy(&c_buf[adjusted_cwd_len + 1], field, orig_len + 1);        \
       c_len =                                                           \
-          make_canonical(&c_buf[ic_cwd_len], orig_len + 1)              \
-          + ic_cwd_len;                                                 \
+          make_canonical(&c_buf[adjusted_cwd_len], orig_len + 1)        \
+          + adjusted_cwd_len;                                           \
       if (c_len > 1 && c_buf[c_len - 1] == '/') {                       \
         c_buf[c_len - 1] = '\0';                                        \
         c_len--;                                                        \
