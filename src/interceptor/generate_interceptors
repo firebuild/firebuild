@@ -1663,6 +1663,34 @@ skip("timer_create", "timer_delete", "timer_settime", "timer_gettime", "timer_ge
 # Getting high entropy randomness should disable shortcutting
 generate("ssize_t", "getrandom", "void* buf, size_t buflen, unsigned int flags",
          msg_skip_fields = ["buf", "buflen"])
+generate("int", "getentropy", "void* buffer, size_t length",
+         msg="getrandom",
+         msg_skip_fields = ["buffer", "length"],
+         # implemented by glibc as getrandom(..., 0)
+         msg_add_fields=["fbbcomm_builder_getrandom_set_flags(&ic_msg, 0);"])
+generate("uint32_t", "arc4random", "",
+         msg="getrandom",
+         # implemented by glibc as getrandom(..., 0)
+         msg_add_fields=["fbbcomm_builder_getrandom_set_flags(&ic_msg, 0);"],
+         success="true",
+         send_ret_on_success=False,
+         no_saved_errno=True)
+generate("void", "arc4random_buf", "void* buf, size_t nbytes",
+         msg="getrandom",
+         msg_skip_fields=["buf", "nbytes"],
+         # implemented by glibc as getrandom(..., 0)
+         msg_add_fields=["fbbcomm_builder_getrandom_set_flags(&ic_msg, 0);"],
+         success="true",
+         send_ret_on_success=False,
+         no_saved_errno=True)
+generate("uint32_t", "arc4random_uniform", "uint32_t upper_bound",
+         msg="getrandom",
+         msg_skip_fields = ["upper_bound"],
+         # implemented by glibc as getrandom(..., 0)
+         msg_add_fields=["fbbcomm_builder_getrandom_set_flags(&ic_msg, 0);"],
+         success="true",
+         send_ret_on_success=False,
+         no_saved_errno=True)
 
 # Querying current time - probably disable shortcutting, let the supervisor decide
 generate("time_t", "time", "time_t *loc",
