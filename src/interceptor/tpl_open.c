@@ -31,7 +31,10 @@
     mode = va_arg(ap, mode_t);
   }
 ###   endif
-  const int pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, pathname, flags);
+###   if "dirfd" not in sig_str
+  const int dirfd = AT_FDCWD;
+###   endif
+  const int pre_open_sent = i_am_intercepting && maybe_send_pre_open(dirfd, pathname, flags);
 ### endblock before
 
 ### block call_orig
