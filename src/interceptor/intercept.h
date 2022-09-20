@@ -122,6 +122,9 @@ void send_pre_open(int dirfd, const char* pathname);
 void send_pre_open_without_ack_request(int dirfd, const char* pathname);
 bool maybe_send_pre_open(int dirfd, const char* pathname, int flags);
 
+/** Send message and disable interception before clone() */
+void pre_clone_disable_interception(const int flags, bool syscall, bool *i_locked);
+
 /** Connection string to supervisor */
 extern char fb_conn_string[IC_PATH_BUFSIZE];
 
