@@ -86,6 +86,26 @@
 ###   endblock impl_c
 
 ### block call_orig
+  switch (number) {
+    case SYS_clone:
+      {
+        /* See clone(2) NOTES about differences between architectures. */
+#if defined(__s390__) || defined(__cris__)
+        void *stack =  va_arg(ap, void*);
+        unsigned long flags = va_arg(ap, unsigned long);
+#else
+        unsigned long flags = va_arg(ap, unsigned long);
+        void *stack =  va_arg(ap, void*);
+#endif
+        va_end(ap);
+        (void)stack;
+        if (i_am_intercepting) {
+          pre_clone_disable_interception(flags, true, &i_locked);
+          i_am_intercepting = false;
+        }
+        break;
+      }
+  }
   /* FIXME Find a different solution, see #178. */
   void *args = __builtin_apply_args();
   void const * const result = __builtin_apply((void *) IC_ORIG({{ func }}), args, 100);

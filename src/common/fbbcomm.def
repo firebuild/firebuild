@@ -830,6 +830,7 @@
     # disables interception and shortcutting
     ("clone", [
       (REQUIRED, "int", "flags", "fbbcomm_debug_clone_flags"),
+      (REQUIRED, "bool", "syscall"),
     ]),
 
 
