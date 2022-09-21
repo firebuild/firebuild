@@ -968,7 +968,8 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
 
   if (error) {
     // TODO(rbalint) add detailed error handling
-    return 0;
+    exec_point()->disable_shortcutting_bubble_up("Failed rename() is not supported");
+    return -1;
   }
 
   if (!old_name || !new_name) {
