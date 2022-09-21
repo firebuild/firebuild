@@ -31,9 +31,11 @@ class Pipe;
 
 /* We don't track these "file creation flags" because fcntl(F_SETFL) ignores them and fcntl(F_GETFL)
  * doesn't report them back. The list is taken from the open(2) manpage.
- * Also O_CLOEXEC is tracked in FileFD where it belongs to, rather than in FileOFD. */
+ * Also O_CLOEXEC is tracked in FileFD where it belongs to, rather than in FileOFD.
+ * O_TMPFILE is not listed here, because it is multiple bits and also does not create a named file.
+ * */
 #define FILE_CREATION_FLAGS (O_CLOEXEC | O_CREAT | O_DIRECTORY | O_EXCL | O_NOCTTY | O_NOFOLLOW | \
-                             O_TMPFILE | O_TRUNC)
+                             O_TRUNC)
 
 /**
  * Represents an "open file description" ("ofd") of the intercepted processes, as per the term's
