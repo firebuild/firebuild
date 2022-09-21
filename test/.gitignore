@@ -12,12 +12,14 @@ firebuild-build-report.html
 firebuild-profile.*
 libc-*symbols.txt
 libc-symbols.txt
+parallel_make_test_main*
 parallel_make_test.?.txt
 public-symbols*.txt
 public-symbols.txt
 run-firebuild
 stderr
 test_cache_dir
+test_cmd_clone
 test_cmd_fork_exec
 test_cmd_popen
 test_cmd_posix_spawn
