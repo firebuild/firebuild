@@ -372,7 +372,8 @@ void send_pre_open_without_ack_request(const int dirfd, const char* pathname) {
 
 bool maybe_send_pre_open(const int dirfd, const char* pathname, int flags) {
   if (pathname && is_write(flags) && (flags & O_TRUNC)
-      && !(flags & (O_EXCL | O_DIRECTORY |O_TMPFILE))
+      && !(flags & (O_EXCL | O_DIRECTORY))
+      && (flags & O_TMPFILE) != O_TMPFILE
       && !is_path_at_locations(pathname, -1, &ignore_locations)) {
     send_pre_open(dirfd, pathname);
     return true;

@@ -186,6 +186,8 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
          "fd_conn=%s, ack_num=%d",
          dirfd, D(ar_name), flags, mode, fd, pre_open_sent, error, D_FD(fd_conn), ack_num);
 
+  /* O_TMPFILE is actually multiple bits, 0x410000 */
+  const bool o_tmpfile_set = (flags & O_TMPFILE) == O_TMPFILE;
   const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
     // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
@@ -197,7 +199,14 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
   }
 
   if (fd >= 0) {
-    add_filefd(fd, std::make_shared<FileFD>(name, fd, flags, this));
+    if (o_tmpfile_set) {
+      /* open(..., O_TMPFILE) does not really open a file, but creates an unnamed temporary file in
+       * the specified directory. Treat it like it was a memory backed file and later register the
+       * directory's usage. */
+      add_filefd(fd, std::make_shared<FileFD>(fd, flags, FD_SPECIAL, this));
+    } else {
+      add_filefd(fd, std::make_shared<FileFD>(name, fd, flags, this));
+    }
   }
 
   if (pre_open_sent) {
@@ -210,8 +219,12 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
     name->close_for_writing();
   }
 
+  /* If O_TMPFILE was set we register the parent directory and it is not treated as a temporary
+   * dir here. */
   FileUsageUpdate update =
-      FileUsageUpdate::get_from_open_params(name, flags, mode & 07777 & ~umask(), error, tmp_file);
+      FileUsageUpdate::get_from_open_params(name, o_tmpfile_set ? O_RDWR | O_DIRECTORY : flags,
+                                            mode & 07777 & ~umask(), error,
+                                            o_tmpfile_set ? false : tmp_file);
   if (!exec_point()->register_file_usage_update(name, update)) {
     exec_point()->disable_shortcutting_bubble_up("Could not register the opening of a file", *name);
     if (ack_num != 0) {
