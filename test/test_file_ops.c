@@ -115,6 +115,13 @@ int main() {
     exit(1);
   }
 
+  fd = open("test_directory", O_RDWR | O_TMPFILE, 0744);
+  if (fd == -1) {
+    perror("open(..., O_TMPFILE)" LOC);
+    exit(1);
+  }
+  close(fd);
+
   char tmp_file[] = "tmpprefixXXXXXX";
   fd = mkstemp(tmp_file);
   if (fd == -1) {
