@@ -11,8 +11,6 @@
 
 namespace firebuild {
 
-class ExecedProcessCacher;
-
 ForkedProcess*
 ProcessFactory::getForkedProcess(const int pid, Process * const parent) {
   TRACK(FB_DEBUG_PROC, "pid=%d, parent=%s", pid, D(parent));
