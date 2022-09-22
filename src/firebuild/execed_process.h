@@ -104,7 +104,6 @@ class ExecedProcess : public Process {
   const tsl::hopscotch_map<const FileName*, const FileUsage*>& file_usages() const {
     return file_usages_;
   }
-  void set_cacher(ExecedProcessCacher *cacher) {cacher_ = cacher;}
   void do_finalize();
   void set_on_finalized_ack(int id, int fd);
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
@@ -270,11 +269,6 @@ class ExecedProcess : public Process {
   const char* cant_shortcut_reason_ = nullptr;
   /** Process the event preventing short-cutting happened in */
   const Process *cant_shortcut_proc_ = NULL;
-  /**
-   * Helper object for storing in / retrieving from cache.
-   * NULL if we prefer not to (although probably could)
-   * cache / shortcut this process. */
-  ExecedProcessCacher *cacher_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 

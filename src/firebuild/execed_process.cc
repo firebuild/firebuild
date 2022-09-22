@@ -66,7 +66,7 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
       initial_wd_(initial_wd), wds_(), failed_wds_(), args_(args), env_vars_(env_vars),
       executable_(executable), executed_path_(executed_path),
       original_executed_path_(original_executed_path),
-      libs_(libs), file_usages_(), created_pipes_(), cacher_(NULL) {
+      libs_(libs), file_usages_(), created_pipes_() {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this,
          "pid=%d, ppid=%d, initial_wd=%s, executable=%s, umask=%03o, parent=%s",
          pid, ppid, D(initial_wd), D(executable), umask, D(parent));
@@ -245,9 +245,9 @@ void ExecedProcess::do_finalize() {
   close_fds();
 
   /* store data for shortcutting */
-  if (cacher_ && !was_shortcut() && can_shortcut() && fork_point()->exit_status() != -1
+  if (!was_shortcut() && can_shortcut() && fork_point()->exit_status() != -1
       && aggr_cpu_time_u() >= min_cpu_time_u) {
-    cacher_->store(this);
+    execed_process_cacher->store(this);
   }
 
   inherited_files_.clear();
@@ -418,8 +418,8 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
 bool ExecedProcess::shortcut(std::vector<int> *fds_appended_to) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
-  if (can_shortcut() && cacher_) {
-    return cacher_->shortcut(this, fds_appended_to);
+  if (can_shortcut()) {
+    return execed_process_cacher->shortcut(this, fds_appended_to);
   } else {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "┌─");
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Shortcutting disabled:");
@@ -701,9 +701,7 @@ ExecedProcess::~ExecedProcess() {
   if (original_executed_path_ != executed_path_->c_str()) {
     free(original_executed_path_);
   }
-  if (cacher_) {
-    cacher_->erase_fingerprint(this);
-  }
+  execed_process_cacher->erase_fingerprint(this);
 }
 
 }  /* namespace firebuild */

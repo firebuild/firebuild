@@ -23,10 +23,7 @@ namespace firebuild {
 
 class ExecedProcessCacher {
  public:
-  ExecedProcessCacher(bool no_store,
-                      bool no_fetch,
-                      const libconfig::Setting& envs_skip);
-
+  static void init(const libconfig::Config* cfg);
   bool fingerprint(const ExecedProcess *proc);
   void erase_fingerprint(const ExecedProcess *proc);
 
@@ -41,6 +38,7 @@ class ExecedProcessCacher {
   bool shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to);
 
  private:
+  ExecedProcessCacher(bool no_store, bool no_fetch, const libconfig::Config* cfg);
   bool env_fingerprintable(const std::string& name_and_value) const;
 
   bool no_store_;
@@ -55,6 +53,9 @@ class ExecedProcessCacher {
 
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessCacher);
 };
+
+/* singleton */
+extern ExecedProcessCacher* execed_process_cacher;
 
 }  /* namespace firebuild */
 #endif  // FIREBUILD_EXECED_PROCESS_CACHER_H_

@@ -25,18 +25,34 @@ namespace firebuild {
 
 static const XXH64_hash_t kFingerprintVersion = 0;
 
-// TODO(rbalint) add pretty hash printer for debugging or switch to base64 hash storage format
+/* singleton*/
+ExecedProcessCacher* execed_process_cacher;
 
 /**
  * One object is responsible for handling the fingerprinting and caching
  * of multiple ExecedProcesses which potentially come from / go to the
  * same cache.
  */
+void ExecedProcessCacher::init(const libconfig::Config* cfg) {
+  /* Like CCACHE_READONLY: Don't store new results in the cache. */
+  bool no_store {getenv("FIREBUILD_READONLY") != NULL};
+  /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
+   * potentially store new ones. Note however that it might decrease the
+   * objcache hit ratio: new entries might be stored that eventually
+   * result in the same operation, but go through a slightly different
+   * path (e.g. different tmp file name), and thus look different in
+   * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
+   * more matches are found in the objcache. */
+  bool no_fetch {getenv("FIREBUILD_RECACHE") != NULL};
+  execed_process_cacher = new ExecedProcessCacher(no_store, no_fetch, cfg);
+}
+
 ExecedProcessCacher::ExecedProcessCacher(bool no_store,
                                          bool no_fetch,
-                                         const libconfig::Setting& envs_skip) :
+                                         const libconfig::Config* cfg) :
     no_store_(no_store), no_fetch_(no_fetch),
     envs_skip_(), fingerprints_(), fingerprint_msgs_() {
+  const libconfig::Setting& envs_skip = cfg->getRoot()["env_vars"]["fingerprint_skip"];
   for (int i = 0; i < envs_skip.getLength(); i++) {
     envs_skip_.insert(envs_skip[i].c_str());
   }
