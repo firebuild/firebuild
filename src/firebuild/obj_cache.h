@@ -4,6 +4,8 @@
 #ifndef FIREBUILD_OBJ_CACHE_H_
 #define FIREBUILD_OBJ_CACHE_H_
 
+#include <tsl/hopscotch_set.h>
+
 #include <string>
 #include <vector>
 
@@ -26,9 +28,16 @@ class ObjCache {
                 const char * const subkey,
                 uint8_t ** entry,
                 size_t * entry_len);
+  bool retrieve(const char* path,
+                uint8_t ** entry,
+                size_t * entry_len);
   std::vector<AsciiHash> list_subkeys(const Hash &key);
+  void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs);
 
  private:
+  void gc_obj_cache_dir(const std::string& path,
+                        tsl::hopscotch_set<AsciiHash>* referenced_blobs);
+
   /* Including the "objs" subdir. */
   std::string base_dir_;
   static constexpr char kDebugPostfix[] = "_debug.json";

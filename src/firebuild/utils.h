@@ -4,6 +4,7 @@
 #ifndef FIREBUILD_UTILS_H_
 #define FIREBUILD_UTILS_H_
 
+#include <dirent.h>
 #include <sys/types.h>
 
 #include <string>
@@ -42,6 +43,10 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
 
 /** Get the seek offset and fcntl flags of the given process's given fd. Linux-specific. */
 bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags);
+
+/** Get fixed up dirent type even if the underlying filesystem did not support d_type. */
+unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
+                                const std::string& dir_path);
 
 namespace firebuild {
 

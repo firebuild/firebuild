@@ -33,6 +33,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include <tsl/hopscotch_set.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -40,6 +41,7 @@
 
 #include "firebuild/ascii_hash.h"
 #include "firebuild/debug.h"
+#include "firebuild/execed_process_cacher.h"
 #include "firebuild/hash.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
@@ -239,7 +241,11 @@ bool ObjCache::retrieve(const Hash &key,
 
   char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, subkey, false, path);
+  return retrieve(path, entry, entry_len);
+}
 
+bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) {
+  TRACK(FB_DEBUG_CACHING, "path=%s", D(path));
   int fd = open(path, O_RDONLY);
   if (fd == -1) {
     fb_perror("open");
@@ -291,18 +297,13 @@ bool ObjCache::retrieve(const Hash &key,
  *
  * // FIXME replace with some iterator-like approach?
  */
-std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
-  TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
-
-  std::vector<AsciiHash> ret;
-  char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
-  construct_cached_dir_name(base_dir_, key, false, path);
-
+static std::vector<AsciiHash> list_subkeys_internal(const char* path) {
   DIR *dir = opendir(path);
   if (dir == NULL) {
-    return ret;
+    return std::vector<AsciiHash>();
   }
 
+  std::vector<AsciiHash> ret;
   struct dirent *dirent;
   if (!FB_DEBUGGING(FB_DEBUG_CACHE)) {
     while ((dirent = readdir(dir)) != NULL) {
@@ -337,6 +338,157 @@ std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
   }
   closedir(dir);
   return ret;
+}
+
+/**
+ * Return the list of subkeys for the given key in the order to be tried for shortcutting.
+ *
+ * The last created subkey is returned first.
+ *
+ * // FIXME replace with some iterator-like approach?
+ */
+std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
+  TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
+
+  char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
+  construct_cached_dir_name(base_dir_, key, false, path);
+  return list_subkeys_internal(path);
+}
+
+void ObjCache::gc_obj_cache_dir(const std::string& path,
+                                tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
+  DIR * dir = opendir(path.c_str());
+  if (dir == NULL) {
+    return;
+  }
+
+  /* Visit dirs recursively and check all the files. */
+  bool valid_ascii_found = false;
+  struct dirent *dirent;
+  std::vector<std::string> entries_to_delete;
+  std::vector<std::string> subdirs_to_visit;
+  while ((dirent = readdir(dir)) != NULL) {
+    const char* name = dirent->d_name;
+    if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+      continue;
+    }
+    switch (fixed_dirent_type(dirent, dir, path)) {
+      case DT_DIR: {
+        subdirs_to_visit.push_back(name);
+        gc_obj_cache_dir(path + "/" + name, referenced_blobs);
+        break;
+      }
+      case DT_REG: {
+        if (Hash::valid_ascii(name)) {
+          /* Good, will process this later using list_subkeys_internal() to process the subkeys
+           * in the order they would be used for shortcutting. */
+          valid_ascii_found = true;
+        } else {
+          /* Regular file, but not named as expected for a cache object. */
+          const char* debug_postfix = nullptr;
+          if (strcmp(name, kDirDebugJson) == 0) {
+            if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+              /* Keeping directory debuuging file, it may be removed with the otherwise empty dir
+               * later. */
+            } else {
+              entries_to_delete.push_back(name);
+            }
+          } else if ((debug_postfix = strstr(name, kDebugPostfix))) {
+            /* Files for debugging cache entries.*/
+            if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+              if (debug_postfix) {
+                char* related_name = reinterpret_cast<char*>(alloca(debug_postfix - name + 1));
+                memcpy(related_name, name, debug_postfix - name);
+                related_name[debug_postfix - name] = '\0';
+                struct stat st;
+                if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
+                  /* Keeping debugging file that has related object. If the object gets removed
+                   * the debugging file will be removed with it, too. */
+                } else {
+                  /* Removing old debugging file later to not break next readdir(). */
+                  entries_to_delete.push_back(name);
+                }
+              } else {
+                fb_error("Regular file among cache objects has unexpected name, keeping it: " +
+                           path + "/" + name);
+              }
+            } else {
+              /* Removing old debugging file later to not break next readdir(). */
+              entries_to_delete.push_back(name);
+            }
+          } else {
+            fb_error("Regular file among cache objects has unexpected name, keeping it: " +
+                     path + "/" + name);
+          }
+        }
+        break;
+      }
+      default:
+        fb_error("File's type is unexpected, it is not a directory nor a regular file: " +
+                 path + "/" + name);
+    }
+  }
+  for (const auto& entry : entries_to_delete) {
+    unlink((path + "/" + entry).c_str());
+    if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+      /* All debugging entries were kept in the previous round.
+       * Delete the ones related to entries to be deleted. */
+      unlink((path + "/" + entry + kDebugPostfix).c_str());
+    }
+  }
+  for (const auto& subdir : subdirs_to_visit) {
+    gc_obj_cache_dir(path + "/" + subdir, referenced_blobs);
+  }
+  /* Process valid entries. */
+  if (valid_ascii_found) {
+    std::vector<AsciiHash> entries = list_subkeys_internal(path.c_str());
+    for (const AsciiHash& entry : entries) {
+      uint8_t* entry_buf;
+      size_t entry_len;
+      if (retrieve((path + "/" + entry.c_str()).c_str(), &entry_buf, &entry_len)) {
+        if (execed_process_cacher->is_entry_usable(entry_buf, referenced_blobs)) {
+          /* The entry is usable and the referenced blobs were collected.  */
+          munmap(entry_buf, entry_len);
+        } else {
+          /* This entry is not usable, remove it. */
+          munmap(entry_buf, entry_len);
+          unlinkat(dirfd(dir), entry.c_str(), 0);
+        }
+      } else {
+        fb_error("File's type is unexpected, it is not a directory nor a regular file: " +
+                 path + "/" + entry.c_str());
+      }
+    }
+  }
+
+  /* Remove empty directory. */
+  rewinddir(dir);
+  bool has_valid_entries = false, has_dir_debug_json = false;
+  while ((dirent = readdir(dir)) != NULL) {
+    const char* name = dirent->d_name;
+    /* skip "." and ".." */
+    if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+      continue;
+    }
+    if ((strcmp(name, kDirDebugJson) == 0)) {
+      has_dir_debug_json = true;
+      continue;
+    }
+    has_valid_entries = true;
+    break;
+  }
+  if (!has_valid_entries && path != base_dir_) {
+    if (has_dir_debug_json) {
+      unlinkat(dirfd(dir), kDirDebugJson, 0);
+    }
+    /* The directory is now empty. It can be removed. */
+    rmdir(path.c_str());
+  }
+  closedir(dir);
+}
+
+void ObjCache::gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
+  gc_obj_cache_dir(base_dir_, referenced_blobs);
 }
 
 }  /* namespace firebuild */

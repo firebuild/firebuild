@@ -66,7 +66,7 @@ void ExecedProcessCacher::init(const libconfig::Config* cfg) {
   hash_cache = new HashCache();
 
   /* Like CCACHE_READONLY: Don't store new results in the cache. */
-  bool no_store {getenv("FIREBUILD_READONLY") != NULL};
+  bool no_store = getenv("FIREBUILD_READONLY") != NULL;
   /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
    * potentially store new ones. Note however that it might decrease the
    * objcache hit ratio: new entries might be stored that eventually
@@ -1253,6 +1253,76 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
 
   proc->set_was_shortcut(ret);
   return ret;
+}
+
+bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
+                                          tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
+  const FBBSTORE_Serialized *inouts_fbb =
+      reinterpret_cast<const FBBSTORE_Serialized *>(entry_buf);
+  if (inouts_fbb->get_tag() != FBBSTORE_TAG_process_inputs_outputs) {
+    return false;
+  }
+  const FBBSTORE_Serialized_process_inputs_outputs *inouts =
+      reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(inouts_fbb);
+
+  const FBBSTORE_Serialized *inputs_fbb = inouts->get_inputs();
+  if (inputs_fbb->get_tag() != FBBSTORE_TAG_process_inputs) {
+    return false;
+  }
+  const FBBSTORE_Serialized_process_inputs *inputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
+
+  /* Check existing regular system files files.
+   * Only existing ones because --gc may be run when some build dependencies are missing which
+   * would be installed before CI runs where firebuild is in use.
+   */
+  for (size_t i = 0; i < inputs->get_path_count(); i++) {
+    const FBBSTORE_Serialized_file *file =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
+    const auto path {FileName::Get(file->get_path(), file->get_path_len())};
+    const FileInfo query {file_to_file_info(file)};
+    if (query.type() == ISREG && path->is_in_system_location() &&
+        !hash_cache->file_info_matches(path, query) &&
+        hash_cache->file_info_matches(path, FileInfo(EXIST))) {
+      FB_DEBUG(FB_DEBUG_CACHING, "Cache entry expects a system file that has changed: " + d(path));
+      return false;
+    }
+  }
+  /* The entry seems to be valid, collect the referenced blobs. */
+  const FBBSTORE_Serialized_process_outputs *outputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
+      (inouts->get_outputs());
+  for (size_t i = 0; i < outputs->get_path_isreg_count(); i++) {
+    const FBBSTORE_Serialized_file *file =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
+    const auto path = FileName::Get(file->get_path(), file->get_path_len());
+    if (file->get_type() == ISREG && file->has_hash()) {
+      Hash hash {file->get_hash()};
+      char ascii_hash_buf[Hash::kAsciiLength + 1];
+      hash.to_ascii(ascii_hash_buf);
+      AsciiHash ascii_hash {ascii_hash_buf};
+      if (referenced_blobs->find(ascii_hash) == referenced_blobs->end()) {
+        int fd = blob_cache->get_fd_for_file(hash);
+        if (fd == -1) {
+          FB_DEBUG(FB_DEBUG_CACHING,
+                   "Cache entry contains reference to a blob missing from the cache: " + d(path));
+          FB_DEBUG(FB_DEBUG_CACHING, "The cache may have been corrupted.");
+          return false;
+        } else {
+          // TODO(rbalint) validate content's hash
+          close(fd);
+          referenced_blobs->insert(ascii_hash);
+        }
+      }
+    }
+  }
+  return true;
+}
+
+void ExecedProcessCacher::gc() {
+  tsl::hopscotch_set<AsciiHash> referenced_blobs {};
+  obj_cache->gc(&referenced_blobs);
+  blob_cache->gc(referenced_blobs);
 }
 
 }  /* namespace firebuild */

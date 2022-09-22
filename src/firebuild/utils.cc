@@ -3,6 +3,7 @@
 
 #include "firebuild/utils.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -109,6 +110,31 @@ bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags) {
   }
   fclose(f);
   return offset_found && flags_found;
+}
+
+unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
+                                const std::string& dir_path) {
+  if (dirent->d_type == DT_UNKNOWN) {
+    struct stat st;
+    if (fstatat(dirfd(dir), dirent->d_name, &st, AT_SYMLINK_NOFOLLOW) == -1) {
+      firebuild::fb_error("Failed checking stat()-ing file: " +
+                          dir_path + "/" + firebuild::d(dirent->d_name));
+      perror("fstatat");
+      return dirent->d_type;
+    } else {
+      switch (st.st_mode & S_IFMT) {
+        case S_IFREG:
+          return DT_REG;
+        case S_IFDIR:
+          return DT_DIR;
+        default:
+          /* Leaving d_type as it was. */
+          return DT_UNKNOWN;
+      }
+    }
+  } else {
+    return dirent->d_type;
+  }
 }
 
 namespace firebuild {
