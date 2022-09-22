@@ -3,12 +3,18 @@
 
 #include "firebuild/blob_cache.h"
 
+#include <dirent.h>
 #include <fcntl.h>
 #include <linux/fs.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <tsl/hopscotch_set.h>
 
+#include <vector>
+
+#include "firebuild/ascii_hash.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
@@ -390,14 +396,112 @@ int BlobCache::get_fd_for_file(const Hash &key) {
   char* path_src = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, false, path_src);
 
-  int fd = open(path_src, O_RDONLY);
-  if (fd == -1) {
-    fb_perror("Failed open() in get_fd_for_file()");
-    assert(0);
-    return -1;
+  return open(path_src, O_RDONLY);
+}
+
+void BlobCache::gc_blob_cache_dir(const std::string& path,
+                                  const tsl::hopscotch_set<AsciiHash>& referenced_blobs) {
+  DIR * dir = opendir(path.c_str());
+  if (dir == NULL) {
+    return;
   }
 
-  return fd;
+  /* Visit dirs recursively and check all the files. */
+  struct dirent *dirent;
+  std::vector<std::string> entries_to_delete;
+  std::vector<std::string> subdirs_to_visit;
+  while ((dirent = readdir(dir)) != NULL) {
+    const char* name = dirent->d_name;
+    if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+      continue;
+    }
+
+    switch (fixed_dirent_type(dirent, dir, path)) {
+      case DT_DIR: {
+        subdirs_to_visit.push_back(name);
+        gc_blob_cache_dir(path + "/" + name, referenced_blobs);
+        break;
+      }
+      case DT_REG: {
+        if (Hash::valid_ascii(name)) {
+          if (referenced_blobs.find(AsciiHash(name)) == referenced_blobs.end()) {
+            /* Not referenced, can be cleaned up*/
+            entries_to_delete.push_back(name);
+          } else {
+            /* Good, keeping the referenced blob. */
+          }
+          break;
+        } else {
+          /* Regular file, but not named as expected for a cache blob. */
+          const char* debug_postfix = nullptr;
+          if ((debug_postfix = strstr(name, kDebugPostfix))) {
+            /* Files for debugging blobs.*/
+            if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+              if (debug_postfix) {
+                char* related_name = reinterpret_cast<char*>(alloca(debug_postfix - name + 1));
+                memcpy(related_name, name, debug_postfix - name);
+                related_name[debug_postfix - name] = '\0';
+                struct stat st;
+                if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
+                  /* Keeping debugging file that has related blob. If the object gets removed
+                   * the debugging file will be removed with it, too. */
+                } else {
+                  /* Removing old debugging file later to not break next readdir(). */
+                  entries_to_delete.push_back(name);
+                }
+              } else {
+                fb_error("Regular file among cache objects has unexpected name, keeping it: " +
+                           path + "/" + name);
+              }
+            } else {
+              /* Removing old debugging file later to not break next readdir(). */
+              entries_to_delete.push_back(name);
+            }
+          } else {
+            fb_error("Regular file among cache blobs has unexpected name, keeping it: " +
+                     path + "/" + d(name));
+          }
+        }
+        break;
+      }
+      default:
+        fb_error("File's type is unexpected, it is not a directory nor a regular file: " +
+                 path + "/" + d(name));
+    }
+  }
+  for (const auto& entry : entries_to_delete) {
+    unlink((path + "/" + entry).c_str());
+    if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+      /* All debugging entries were kept in the previous round.
+       * Delete the ones related to entries to be deleted. */
+      unlink((path + "/" + entry + kDebugPostfix).c_str());
+    }
+  }
+  for (const auto& subdir : subdirs_to_visit) {
+    gc_blob_cache_dir(path + "/" + subdir, referenced_blobs);
+  }
+
+  /* Remove empty directory. */
+  rewinddir(dir);
+  bool has_valid_entries = false;
+  while ((dirent = readdir(dir)) != NULL) {
+    const char* name {dirent->d_name};
+    /* skip "." and ".." */
+    if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+      continue;
+    }
+    has_valid_entries = true;
+    break;
+  }
+  if (!has_valid_entries && path != base_dir_) {
+    /* The directory is now empty. It can be removed. */
+    rmdir(path.c_str());
+  }
+  closedir(dir);
+}
+
+void BlobCache::gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs) {
+  gc_blob_cache_dir(base_dir_, referenced_blobs);
 }
 
 }  /* namespace firebuild */

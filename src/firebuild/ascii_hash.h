@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstring>
 #include <string>
+#include <string_view>
 
 #include "firebuild/hash.h"
 
@@ -25,6 +26,9 @@ class AsciiHash {
   bool operator<(const AsciiHash& other) const {
     return memcmp(str_, other.str_, Hash::kAsciiLength) < 0;
   }
+  bool operator==(const AsciiHash& other) const {
+    return memcmp(str_, other.str_, Hash::kAsciiLength) == 0;
+  }
   const char * c_str() const {
     return str_;
   }
@@ -37,4 +41,15 @@ inline std::string d(const AsciiHash& ascii_hash, const int level = 0) {
 }
 
 }  /* namespace firebuild */
+
+namespace std {
+template <>
+class hash<firebuild::AsciiHash> {
+ public:
+  size_t operator()(const firebuild::AsciiHash &a) const {
+    return XXH3_64bits(a.c_str(), firebuild::Hash::kAsciiLength);
+  }
+};
+}
+
 #endif  // FIREBUILD_ASCII_HASH_H_

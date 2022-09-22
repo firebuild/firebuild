@@ -6,10 +6,12 @@
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <tsl/hopscotch_set.h>
 #include <unistd.h>
 
 #include <string>
 
+#include "firebuild/ascii_hash.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
 
@@ -34,8 +36,11 @@ class BlobCache {
                      const FileName *path_dst,
                      bool append);
   int get_fd_for_file(const Hash &key);
+  void gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs);
 
  private:
+  void gc_blob_cache_dir(const std::string& path,
+                         const tsl::hopscotch_set<AsciiHash>& referenced_blobs);
   /* Including the "blobs" subdir. */
   std::string base_dir_;
   static constexpr char kDebugPostfix[] = "_debug.txt";

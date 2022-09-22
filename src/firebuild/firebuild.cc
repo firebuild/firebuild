@@ -81,6 +81,9 @@ static void usage() {
          "   -D --debug-filter=list    comma separated list of commands to debug.\n"
          "                             Debug messages related to processes which are not listed\n"
          "                             are suppressed.\n"
+         "   -g --gc                   Garbage collect the cache.\n"
+         "                             Keeps debugging entries related to kept files when used\n"
+         "                             together with \"--debug cache\".\n"
          "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
          "                             the report's filename can be specified \n"
          "                             (firebuild-build-report.html by default). \n"
@@ -1753,7 +1756,7 @@ int main(const int argc, char *argv[]) {
   char *directory = NULL;
   std::list<std::string> config_strings = {};
   int c;
-
+  bool gc_only = false;
   /* init global data */
   cfg = new libconfig::Config();
 
@@ -1763,6 +1766,7 @@ int main(const int argc, char *argv[]) {
     int option_index = 0;
     static struct option long_options[] = {
       {"config-file",          required_argument, 0, 'c' },
+      {"gc",                   no_argument,       0, 'g' },
       {"directory",            required_argument, 0, 'C' },
       {"debug-flags",          required_argument, 0, 'd' },
       {"debug-filter",         required_argument, 0, 'D' },
@@ -1774,7 +1778,7 @@ int main(const int argc, char *argv[]) {
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:C:d:D:r::o:hi",
+    c = getopt_long(argc, argv, "c:C:d:D:r::o:ghi",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -1791,6 +1795,10 @@ int main(const int argc, char *argv[]) {
     case 'd':
       /* Merge the values, so that multiple '-d' options are also allowed. */
       firebuild::debug_flags |= firebuild::parse_debug_flags(optarg);
+      break;
+
+    case 'g':
+      gc_only = true;
       break;
 
     case 'D':
@@ -1835,7 +1843,7 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  if (optind >= argc) {
+  if (optind >= argc && !gc_only) {
     usage();
     exit(EXIT_FAILURE);
   }
@@ -1849,6 +1857,10 @@ int main(const int argc, char *argv[]) {
   /* Initialize the cache */
   firebuild::ExecedProcessCacher::init(cfg);
 
+  if (gc_only) {
+    firebuild::execed_process_cacher->gc();
+    exit(0);
+  }
   {
     char *pattern;
     if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {

@@ -36,6 +36,16 @@ class ExecedProcessCacher {
                       const FBBSTORE_Serialized_process_inputs_outputs *inouts,
                       std::vector<int> *fds_appended_to);
   bool shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to);
+  void gc();
+  /**
+   * Checks if the object cache entry can be used for shortcutting, i.e. all the referenced
+   * blobs are present in the blob cache and all the referenced system files on the system
+   * match the process inputs.
+   * @param[in] entry_buf object cache entry as stored
+   * @param[out] referenced_blobs if the entry is usable all the referenced blobs are added to this
+   *             set
+   */
+  bool is_entry_usable(uint8_t* entry_buf, tsl::hopscotch_set<AsciiHash>* referenced_blobs);
 
  private:
   ExecedProcessCacher(bool no_store, bool no_fetch, const libconfig::Config* cfg);
