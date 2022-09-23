@@ -175,7 +175,8 @@ bool ObjCache::store(const Hash &key,
   // make it more apparent that the subkey is not a hash of anything
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
-  Hash subkey({static_cast<uint64_t>(time.tv_sec), static_cast<uint64_t>(time.tv_nsec)});
+  /* XXH128_hash_t stores high and low 64 bits in little endian order. */
+  Hash subkey({static_cast<uint64_t>(time.tv_nsec), static_cast<uint64_t>(time.tv_sec)});
   if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
      * hash for a deterministic filename. */
