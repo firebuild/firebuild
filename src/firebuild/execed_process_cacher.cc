@@ -761,6 +761,18 @@ static FileUsageUpdate file_to_file_usage_update(const FileName *filename,
   return update;
 }
 
+static const FBBSTORE_Serialized_file* find_input_file(const FBBSTORE_Serialized_process_inputs *pi,
+                                                       const FileName* path) {
+  for (size_t i = 0; i < pi->get_path_count(); i++) {
+    const FBBSTORE_Serialized_file *file =
+        reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
+    if (FileName::Get(file->get_path(), file->get_path_len()) == path) {
+      return file;
+    }
+  }
+  return nullptr;
+}
+
 /**
  * Check whether the given ProcessInputs matches the file system's
  * current contents.
@@ -1051,7 +1063,28 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                + d(path));
       assert(file->has_hash());
       Hash hash(file->get_hash());
-      blob_cache->retrieve_file(hash, path, false);
+      if (!blob_cache->retrieve_file(hash, path, false)) {
+        /* The file may not be writable but it may be expected and already checked. */
+        const FBBSTORE_Serialized_file* input_file =
+            find_input_file(
+                reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inouts->get_inputs()),
+                path);
+        if (errno == EACCES && input_file && (file_to_file_info(file).mode_mask() & 0200)) {
+          /* The file has already been checked to be not writable and should be completely replaced
+           * from the cache. Let's remove it and try again. */
+          if (unlink(path->c_str()) == -1) {
+            fb_perror("Failed removing file to be replaced from cache");
+            assert(0);
+          }
+          if (!blob_cache->retrieve_file(hash, path, false)) {
+            fb_perror("Failed creating file from cache");
+            assert(0);
+          }
+        } else {
+          fb_perror("Failed opening file to be recreated from cache");
+          assert(0);
+        }
+      }
     }
     if (file->has_mode()) {
       /* Refuse to apply setuid, setgid, sticky bit. */
