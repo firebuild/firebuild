@@ -73,38 +73,7 @@ static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst, bool append
 
   ssize_t len = src_st->st_size >= src_skip_bytes ? src_st->st_size - src_skip_bytes : 0;
   loff_t dst_skip_bytes = append ? dst_st->st_size : 0;
-  if (fb_copy_file_range(fd_src, &src_skip_bytes, fd_dst, &dst_skip_bytes, len, 0) == len) {
-    /* copy_file_range() succeeded. */
-    return true;
-  }
-
-  /* Try mmap() and write(). */
-  char *p = NULL;
-  if (len > 0) {
-    /* Zero bytes can't be mmapped, we're fine with p == NULL then. */
-    p = reinterpret_cast<char *>(mmap(NULL, src_st->st_size, PROT_READ, MAP_SHARED, fd_src, 0));
-  }
-  if (p != MAP_FAILED) {
-    // FIXME Do we need to handle short writes
-    // FIXME Do we need to split large files into smaller writes?
-    if (append && dst_st->st_size > 0) {
-      if (lseek(fd_dst, dst_st->st_size, SEEK_SET) < 0) {
-        fb_perror("lseek");
-        assert(0);
-        return false;
-      }
-    }
-    if (TEMP_FAILURE_RETRY(write(fd_dst, p + src_skip_bytes, len) == len)) {
-      /* mmap() + write() succeeded. */
-      munmap(p, src_st->st_size);
-      return true;
-    }
-  }
-  munmap(p, src_st->st_size);
-
-  // FIXME Do we need to fallback to read() + write()? If so, may need to reposition fd_dst!!!
-
-  return false;
+  return fb_copy_file_range(fd_src, &src_skip_bytes, fd_dst, &dst_skip_bytes, len, 0) == len;
 }
 
 /* /x/xx/<ascii key> */
