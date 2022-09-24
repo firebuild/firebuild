@@ -237,7 +237,9 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
 bool HashCache::get_statinfo(const FileName* path, bool *is_dir, ssize_t *size) {
   TRACK(FB_DEBUG_HASH, "path=%s", D(path));
 
-  if (path->is_in_system_location()) {
+  if (path->is_in_ignore_location()) {
+    return false;
+  } else if (path->is_in_system_location()) {
     /* For system files go through our cache, as if we were interested in the hash too. */
     const HashCacheEntry *entry = get_entry_with_statinfo(path, -1, nullptr);
     if (entry->info.type() == NOTEXIST) {
@@ -274,6 +276,9 @@ bool HashCache::get_hash(const FileName* path, int max_writers, Hash *hash, bool
   TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s",
       D(path), max_writers, fd, D(stat_ptr));
 
+  if (path->is_in_ignore_location()) {
+    return false;
+  }
   const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, max_writers, fd, stat_ptr,
                                                                  false);
   if (entry->info.type() == NOTEXIST || entry->info.type() == DONTKNOW) {
@@ -294,6 +299,9 @@ bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *
   TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s",
       D(path), max_writers, fd, D(stat_ptr));
 
+  if (path->is_in_ignore_location()) {
+    return false;
+  }
   const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, max_writers, fd, stat_ptr,
                                                                  true);
   if (!entry) {
@@ -306,6 +314,12 @@ bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *
 bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
   TRACK(FB_DEBUG_HASH, "path=%s, query=%s", D(path), D(query));
 
+  if (path->is_in_ignore_location()) {
+    /* Information about files in the ignore locations should not be stored in the cache.
+     * Return false to not use this cache entry, while we could return true, because we should
+     * not care. */
+    return false;
+  }
   const HashCacheEntry *entry = get_entry_with_statinfo(path, -1, nullptr);
 
   /* We do have an up-to-date stat information now. Check if the query matches it. */
