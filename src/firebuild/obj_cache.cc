@@ -175,8 +175,12 @@ bool ObjCache::store(const Hash &key,
   // make it more apparent that the subkey is not a hash of anything
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
-  /* XXH128_hash_t stores high and low 64 bits in little endian order. */
-  Hash subkey({static_cast<uint64_t>(time.tv_nsec), static_cast<uint64_t>(time.tv_sec)});
+  /* XXH128_hash_t stores high and low 64 bits in little endian order.
+   * Store both seconds and nanoseconds in the highest 64 bits to have the non-zero bits
+   * closer to the beginning. The seconds since the epoch is stored in the first 34 bits
+   * that will be enough until 2514 and the nanoseconds are stored in the next 30. */
+  Hash subkey({0, (static_cast<uint64_t>(time.tv_sec) << 30) +
+      static_cast<uint64_t>(time.tv_nsec)});
   if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
      * hash for a deterministic filename. */
