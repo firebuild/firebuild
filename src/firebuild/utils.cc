@@ -28,8 +28,13 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
   FB_READV_WRITEV(writev, fd, iov, iovcnt);
 }
 
+/** wrapper for read() retrying on recoverable errors (EINTR and short read) */
+ssize_t fb_read(int fd, void *buf, size_t count) {
+  FB_READ_WRITE(read, fd, buf, count);
+}
+
 /** Wrapper retrying on recoverable errors (short copy) */
-ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len,
+ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, const size_t len,
                            unsigned int flags) {
   ssize_t ret;
   size_t remaining = len;
@@ -37,10 +42,36 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
     ret = copy_file_range(fd_in, off_in, fd_out, off_out, remaining, flags);
     if (ret == -1) {
       if (errno == EXDEV) {
-        firebuild::fb_perror("copy_file_range");
-        // TODO(rbalint) fall back to fb_read and fb_write
-        assert(0 && "cache and system or build area on different mount points is supported only "
-               "with Linux 5.3 and later");
+        /* Fall back to read and write. */
+        const bool do_malloc = remaining > 64 * 1024;
+        void* buf = do_malloc ? malloc(remaining) : alloca(remaining);
+        ssize_t bytes_read, bytes_written;
+        if (off_in) {
+          const off_t start_pos = lseek(fd_in, 0, SEEK_CUR);
+          ret = lseek(fd_in, *off_in, SEEK_SET);
+          assert_cmp(ret, ==, *off_in);
+          bytes_read = fb_read(fd_in, buf, remaining);
+          *off_in += bytes_read;
+          ret = lseek(fd_in, start_pos, SEEK_SET);
+          assert_cmp(ret, ==, start_pos);
+        } else {
+          bytes_read = fb_read(fd_in, buf, remaining);
+        }
+        if (off_out) {
+          const off_t start_pos = lseek(fd_out, 0, SEEK_CUR);
+          ret = lseek(fd_out, *off_out, SEEK_SET);
+          assert_cmp(ret, ==, *off_out);
+          bytes_written = fb_write(fd_out, buf, bytes_read);
+          *off_out += bytes_written;
+          ret = lseek(fd_out, start_pos, SEEK_SET);
+          assert_cmp(ret, ==, start_pos);
+        } else {
+          bytes_written = fb_write(fd_out, buf, bytes_read);
+        }
+        if (do_malloc) {
+          free(buf);
+        }
+        return bytes_written;
       } else {
         return ret;
       }
