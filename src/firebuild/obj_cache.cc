@@ -318,15 +318,14 @@ std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
     struct stat st;
     while ((dirent = readdir(dir)) != NULL) {
       if (Hash::valid_ascii(dirent->d_name) && fstatat(dirfd(dir), dirent->d_name, &st, 0) == 0) {
-        subkey_timestamp_pairs.push_back({AsciiHash(dirent->d_name),
-                                          {st.st_mtim.tv_sec, st.st_mtim.tv_nsec}});
+        subkey_timestamp_pairs.push_back({AsciiHash(dirent->d_name), st.st_mtim});
       }
     }
     struct {
       bool operator()(const std::pair<AsciiHash, struct timespec> a,
                       const std::pair<AsciiHash, struct timespec> b) const {
-        return b.second.tv_sec < a.second.tv_sec ||
-            (b.second.tv_sec == a.second.tv_sec && b.second.tv_nsec < a.second.tv_nsec); }
+        return timespeccmp(&(b.second), &(a.second), <);
+      }
     } reverse_order;
     std::sort(subkey_timestamp_pairs.begin(), subkey_timestamp_pairs.end(), reverse_order);
     for (auto pair : subkey_timestamp_pairs) {
