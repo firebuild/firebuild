@@ -351,9 +351,10 @@ bool BlobCache::retrieve_file(const Hash &key,
   int flags = append ? O_WRONLY : (O_WRONLY|O_CREAT|O_TRUNC);
   int fd_dst = open(path_dst->c_str(), flags, 0666);
   if (fd_dst == -1) {
-    fb_perror("Failed opening file to be recreated from cache");
-    assert(0);
-    close(fd_src);
+    if (append) {
+      fb_perror("Failed opening file to be recreated from cache");
+      assert(0);
+    }
     return false;
   }
 
