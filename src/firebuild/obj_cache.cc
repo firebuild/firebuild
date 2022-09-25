@@ -132,13 +132,13 @@ bool ObjCache::store(const Hash &key,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE) && debug_key) {
     /* Place a human-readable version of the key in the cache, for easier debugging. */
-    const char* debug_postfix = "/%_directory_debug.json";
     char* path_debug =
         reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
-                                       - Hash::kAsciiLength + strlen(debug_postfix) + 1));
+                                       - Hash::kAsciiLength + 1 +strlen(kDirDebugJson) + 1));
     construct_cached_dir_name(base_dir_, key, true, path_debug);
-    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength - 1],
-           debug_postfix, strlen(debug_postfix) + 1);
+    path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength - 1] = '/';
+    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength],
+           kDirDebugJson, strlen(kDirDebugJson) + 1);
 
     FILE *f = fopen(path_debug, "w");
     debug_key->debug(f);
@@ -204,12 +204,11 @@ bool ObjCache::store(const Hash &key,
 
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
     /* Place a human-readable version of the value in the cache, for easier debugging. */
-    const char* debug_postfix = "_debug.json";
     char* path_debug = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
-                                                      + strlen(debug_postfix) + 1));
+                                                      + strlen(kDebugPostfix) + 1));
     memcpy(path_debug, path_dst, base_dir_.length() + kObjCachePathLength);
-    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength], debug_postfix,
-           strlen(debug_postfix) + 1);
+    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength], kDebugPostfix,
+           strlen(kDebugPostfix) + 1);
 
     FILE *f = fopen(path_debug, "w");
     entry->debug(f);

@@ -31,6 +31,8 @@ class ObjCache {
  private:
   /* Including the "objs" subdir. */
   std::string base_dir_;
+  static constexpr char kDebugPostfix[] = "_debug.json";
+  static constexpr char kDirDebugJson[] = "%_directory_debug.json";
 };
 
 /* singleton */
