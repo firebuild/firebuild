@@ -34,6 +34,37 @@ ExecedProcessCacher* execed_process_cacher;
  * same cache.
  */
 void ExecedProcessCacher::init(const libconfig::Config* cfg) {
+  std::string cache_dir;
+  char* cache_dir_env;
+  if ((cache_dir_env = getenv("FIREBUILD_CACHE_DIR")) && cache_dir_env[0] != '\0') {
+    cache_dir = std::string(cache_dir_env);
+  } else if ((cache_dir_env = getenv("XDG_CACHE_HOME")) && cache_dir_env[0] != '\0') {
+    cache_dir = std::string(cache_dir_env) + "/firebuild";
+  } else if ((cache_dir_env = getenv("HOME")) && cache_dir_env[0] != '\0') {
+    cache_dir = std::string(cache_dir_env) + "/.cache/firebuild";
+  } else {
+    fb_error("Please set HOME or XDG_CACHE_HOME or FIREBUILD_CACHE_DIR to let "
+             "firebuild place the cache somewhere.");
+    exit(EXIT_FAILURE);
+  }
+
+  struct stat st;
+  if (stat(cache_dir.c_str(), &st) == 0) {
+    if (!S_ISDIR(st.st_mode)) {
+      fb_error("cache dir exists but is not a directory");
+      exit(EXIT_FAILURE);
+    }
+  } else {
+    if (mkdirhier(cache_dir.c_str(), 0700) != 0) {
+      fb_perror("mkdir");
+      exit(EXIT_FAILURE);
+    }
+  }
+  blob_cache = new BlobCache(cache_dir + "/blobs");
+  obj_cache = new ObjCache(cache_dir + "/objs");
+  PipeRecorder::set_base_dir((cache_dir + "/tmp").c_str());
+  hash_cache = new HashCache();
+
   /* Like CCACHE_READONLY: Don't store new results in the cache. */
   bool no_store {getenv("FIREBUILD_READONLY") != NULL};
   /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
