@@ -38,6 +38,7 @@ class BlobCache {
  private:
   /* Including the "blobs" subdir. */
   std::string base_dir_;
+  static constexpr char kDebugPostfix[] = "_debug.txt";
 };
 
 /* singleton */
