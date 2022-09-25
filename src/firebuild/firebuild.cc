@@ -24,13 +24,10 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/config.h"
-#include "firebuild/blob_cache.h"
 #include "firebuild/connection_context.h"
 #include "firebuild/epoll.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
-#include "firebuild/hash_cache.h"
-#include "firebuild/obj_cache.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/pipe.h"
@@ -1856,37 +1853,7 @@ int main(const int argc, char *argv[]) {
   firebuild::read_config(cfg, config_file, config_strings);
 
   /* Initialize the cache */
-  std::string cache_dir;
-  char* cache_dir_env;
-  if ((cache_dir_env = getenv("FIREBUILD_CACHE_DIR")) && cache_dir_env[0] != '\0') {
-    cache_dir = std::string(cache_dir_env);
-  } else if ((cache_dir_env = getenv("XDG_CACHE_HOME")) && cache_dir_env[0] != '\0') {
-    cache_dir = std::string(cache_dir_env) + "/firebuild";
-  } else if ((cache_dir_env = getenv("HOME")) && cache_dir_env[0] != '\0') {
-    cache_dir = std::string(cache_dir_env) + "/.cache/firebuild";
-  } else {
-    firebuild::fb_error("Please set HOME or XDG_CACHE_HOME or FIREBUILD_CACHE_DIR to let "
-                        "firebuild place the cache somewhere.");
-    exit(EXIT_FAILURE);
-  }
-
-  struct stat st;
-  if (stat(cache_dir.c_str(), &st) == 0) {
-    if (!S_ISDIR(st.st_mode)) {
-      firebuild::fb_error("cache dir exists but is not a directory");
-      exit(EXIT_FAILURE);
-    }
-  } else {
-    if (mkdirhier(cache_dir.c_str(), 0700) != 0) {
-      firebuild::fb_perror("mkdir");
-      exit(EXIT_FAILURE);
-    }
-  }
-  firebuild::blob_cache = new firebuild::BlobCache(cache_dir + "/blobs");
-  firebuild::obj_cache = new firebuild::ObjCache(cache_dir + "/objs");
   firebuild::ExecedProcessCacher::init(cfg);
-  firebuild::PipeRecorder::set_base_dir((cache_dir + "/tmp").c_str());
-  firebuild::hash_cache = new firebuild::HashCache();
 
   {
     char *pattern;
