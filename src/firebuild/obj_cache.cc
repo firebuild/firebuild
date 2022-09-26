@@ -40,6 +40,7 @@
 #include <utility>
 
 #include "firebuild/ascii_hash.h"
+#include "firebuild/config.h"
 #include "firebuild/debug.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/hash.h"
@@ -442,13 +443,20 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
   /* Process valid entries. */
   if (valid_ascii_found) {
     std::vector<AsciiHash> entries = list_subkeys_internal(path.c_str());
+    int usable_entries = 0;
     for (const AsciiHash& entry : entries) {
       uint8_t* entry_buf;
       size_t entry_len;
+      if (usable_entries >= shortcut_tries) {
+        /* This entry will never be tried. */
+        unlinkat(dirfd(dir), entry.c_str(), 0);
+        continue;
+      }
       if (retrieve((path + "/" + entry.c_str()).c_str(), &entry_buf, &entry_len)) {
         if (execed_process_cacher->is_entry_usable(entry_buf, referenced_blobs)) {
           /* The entry is usable and the referenced blobs were collected.  */
           munmap(entry_buf, entry_len);
+          usable_entries++;
         } else {
           /* This entry is not usable, remove it. */
           munmap(entry_buf, entry_len);

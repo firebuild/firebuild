@@ -307,12 +307,16 @@ setup() {
   ln -s invalid_obj_name test_cache_dir/objs/unexpected_symlink
   mkdir test_cache_dir/blobs/to_be_removed test_cache_dir/objs/to_be_removed
   touch test_cache_dir/objs/to_be_removed/%_directory_debug.json
+  mkdir test_cache_dir/objs/many-entries
+  for i in $(seq -w 30); do
+    cp test_cache_dir/objs/?/??/*/*+++++++ test_cache_dir/objs/many-entries/9123456789123456789${i}+
+  done
 
-  # debug files are kept with "-d cache"
   result=$(./run-firebuild -d cache --gc)
   assert_streq "$result" ""
   assert_streq "$(grep 'invalid_.*_name' stderr | wc -l)" "2"
   assert_streq "$(strip_stderr stderr | grep -v 'invalid_.*_name' | grep -v 'type is unexpected')" ""
+  # debug files are kept with "-d cache"
   [ -f test_cache_dir/objs/*/*/*/%_directory_debug.json ]
   # there is a non-directory debug json file as well
   [ -f test_cache_dir/objs/*/*/*/????????????*_debug.json ]
@@ -320,12 +324,13 @@ setup() {
   # empty dirs were removed from blobs/, the one in objs/ is kept due to %_directory_debug.json
   result=$(find test_cache_dir/blobs -name 'to_be_removed')
   assert_streq "$result" ""
+  assert_streq "$(ls test_cache_dir/objs/many-entries/ | wc -l)" "20"
 
-  # debug files are deleted without "-d cache"
   result=$( ./run-firebuild --gc)
   assert_streq "$result" ""
   assert_streq "$(grep 'invalid_.*_name' stderr | wc -l)" "2"
   assert_streq "$(strip_stderr stderr | grep -v 'invalid_.*_name' | grep -v 'type is unexpected')" ""
+  # debug files are deleted without "-d cache"
   result=$(find test_cache_dir/ -name '*debug*')
   assert_streq "$result" ""
   result=$(find test_cache_dir/ -name 'to_be_removed')
