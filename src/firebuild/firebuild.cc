@@ -59,7 +59,6 @@ static char *fb_conn_string;
 
 int listener;
 
-static int bats_inherited_fd = -1;
 static int child_pid, child_ret = 1;
 
 #ifdef FB_EXTRA_DEBUG
@@ -1755,11 +1754,6 @@ int main(const int argc, char *argv[]) {
   std::list<std::string> config_strings = {};
   int c;
 
-  /* running under BATS fd 3 is inherited */
-  if (fcntl(3, F_GETFD) != -1 || errno != EBADF) {
-    bats_inherited_fd = 3;
-  }
-
   /* init global data */
   cfg = new libconfig::Config();
 
@@ -2024,9 +2018,6 @@ int main(const int argc, char *argv[]) {
     fclose(stdin);
     fclose(stdout);
     fclose(stderr);
-    if (bats_inherited_fd > -1) {
-      close(bats_inherited_fd);
-    }
   }
 
   exit(child_ret);
