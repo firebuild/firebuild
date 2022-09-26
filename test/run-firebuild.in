@@ -2,12 +2,13 @@
 
 . @CMAKE_CURRENT_BINARY_DIR@/test_helper.bash
 
+# run firebuild closing fd 3 which is opened by bats
 env FIREBUILD_DATA_DIR="@CMAKE_SOURCE_DIR@/data" $FIREBUILD_PREFIX_CMD firebuild \
   -c @CMAKE_BINARY_DIR@/etc/firebuild.conf \
   -o 'env_vars.pass_through += "GCOV_PREFIX"' \
   -o 'env_vars.pass_through += "GCOV_PREFIX_STRIP"' \
   -o "ignore_locations += \"$GCOV_PREFIX\"" \
-  "$@" 2>stderr
+  "$@" 2>stderr 3>&-
 
 exitcode=$?
 
