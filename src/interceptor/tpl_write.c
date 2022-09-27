@@ -16,6 +16,11 @@
 ###   set is_pwrite = "false"
 ### endif
 
+### if msg_skip_fields is not defined
+###   set msg_skip_fields = []
+### endif
+### do msg_skip_fields.append("error_no")
+
 {% set msg = "write_to_inherited" %}
 {# No locking around the write(): see issue #279 #}
 {% set global_lock = 'never' %}

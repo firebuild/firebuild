@@ -6,6 +6,11 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
+### if msg_skip_fields is not defined
+###   set msg_skip_fields = []
+### endif
+### do msg_skip_fields.append("error_no")
+
 {% set msg = "seek_in_inherited" %}
 {# No locking around the seek(), to follow the pattern of tpl_{read,write}.c #}
 {% set global_lock = 'never' %}

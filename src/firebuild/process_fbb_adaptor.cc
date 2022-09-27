@@ -175,26 +175,17 @@ int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_ioctl *msg
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_read_from_inherited *msg) {
-  const int error = msg->get_error_no_with_fallback(0);
-  if (error == 0) {
-    proc->handle_read_from_inherited(msg->get_fd(), msg->get_is_pread());
-  }
+  proc->handle_read_from_inherited(msg->get_fd(), msg->get_is_pread());
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_write_to_inherited *msg) {
-  const int error = msg->get_error_no_with_fallback(0);
-  if (error == 0) {
-    proc->handle_write_to_inherited(msg->get_fd(), msg->get_is_pwrite());
-  }
+  proc->handle_write_to_inherited(msg->get_fd(), msg->get_is_pwrite());
   return 0;
 }
 
 int ProcessFBBAdaptor::handle(Process *proc, const FBBCOMM_Serialized_seek_in_inherited *msg) {
-  const int error = msg->get_error_no_with_fallback(0);
-  if (error == 0) {
-    proc->handle_seek_in_inherited(msg->get_fd(), msg->get_modify_offset());
-  }
+  proc->handle_seek_in_inherited(msg->get_fd(), msg->get_modify_offset());
   return 0;
 }
 
