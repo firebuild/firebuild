@@ -764,7 +764,7 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process reads (including the recv() family) from the given inherited fd.
+    # The first time the process attempts to read (including the recv() family) from the given inherited fd.
     # Also re-sent once with is_pread=true if that value was false the first time.
     ("read_from_inherited", [
       # file fd
@@ -773,11 +773,9 @@
       # rather than at the file's current offset in a way that advances this offset.
       # Also false if preadv2() with offset == -1 mimics plain old sequential read().
       (REQUIRED, "bool", "is_pread"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process writes (including the send() family) to the given inherited fd.
+    # The first time the process attempts to write (including the send() family) to the given inherited fd.
     # Also re-sent once with is_pwrite=true if that value was false the first time.
     ("write_to_inherited", [
       # file fd
@@ -786,19 +784,15 @@
       # rather than at the file's current offset in a way that advances this offset.
       # Also false if pwritev2() with offset == -1 mimics plain old sequential write().
       (REQUIRED, "bool", "is_pwrite"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
     ]),
 
-    # The first time the process queries or changes the seek offset.
+    # The first time the process attempts to query or change the seek offset.
     # Also re-sent once with modify_offset=true if that value was false the first time.
     ("seek_in_inherited", [
       # file fd
       (REQUIRED, "int", "fd"),
       # Whether the operation requested to change the offset
       (REQUIRED, "bool", "modify_offset"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
     ]),
 
     # Received some file descriptors via a recv[m]msg() and SCM_RIGHTS.
