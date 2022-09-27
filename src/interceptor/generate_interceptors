@@ -1635,10 +1635,9 @@ generate("int", ["execv", "execvp"], "const char *file, char *const argv[]",
          tpl="exec")
 generate("int", ["execve", "execvpe"], "const char *file, char *const argv[], char *const envp[]",
          tpl="exec")
-# No wrapper for execveat() in glibc 2.30.
-#generate("int", "execveat", "int dirfd, const char *file, char *const argv[], char *const envp[], int flags",
-#         tpl="exec")
-skip("execveat")
+# Note: execveat() appeared in glibc 2.34.
+generate("int", "execveat", "int dirfd, const char *file, char *const argv[], char *const envp[], int flags",
+         tpl="exec")
 generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
          tpl="exec")
 

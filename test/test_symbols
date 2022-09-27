@@ -52,6 +52,7 @@ _Fork
 arc4random
 arc4random_buf
 arc4random_uniform
+execveat
 stime
 ustat
 stat
