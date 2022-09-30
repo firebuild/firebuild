@@ -544,21 +544,3 @@ int main(const int argc, char *argv[]) {
 
   exit(child_ret);
 }
-
-namespace firebuild {
-
-/** Print error message */
-extern void fb_error(const std::string &msg) {
-  fprintf(stderr, "FIREBUILD ERROR: %s\n", msg.c_str());
-}
-
-/** Print debug message */
-extern void fb_debug(const std::string &msg) {
-  if (!debug_suppressed) {
-    fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
-  }
-}
-
-int32_t debug_flags = 0;
-
-}  /* namespace firebuild */

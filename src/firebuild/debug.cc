@@ -16,6 +16,20 @@ namespace firebuild {
 
 ExeMatcher* debug_filter {nullptr};
 __thread bool debug_suppressed {false};
+int32_t debug_flags = 0;
+
+/** Print error message */
+void fb_error(const std::string &msg) {
+  fprintf(stderr, "FIREBUILD ERROR: %s\n", msg.c_str());
+}
+
+/** Print debug message */
+void fb_debug(const std::string &msg) {
+  if (!debug_suppressed) {
+    fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
+  }
+}
+
 
 /**
  * Get a human friendly representation of a string, inside double
