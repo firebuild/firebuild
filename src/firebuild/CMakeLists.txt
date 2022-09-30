@@ -2,7 +2,7 @@
 # GCC raises warning about the GCC-optimized code
 set_source_files_properties(execed_process.cc execed_process_cacher.cc file_name.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
-set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
+set_source_files_properties(firebuild.cc message_processor.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -57,6 +57,7 @@ add_executable(firebuild-bin
   execed_process_cacher.cc
   execed_process_env.cc
   forked_process.cc
+  message_processor.cc
   process_factory.cc
   process_tree.cc
   process_fbb_adaptor.cc
