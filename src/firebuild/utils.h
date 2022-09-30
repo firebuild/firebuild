@@ -48,6 +48,11 @@ bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags);
 unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
                                 const std::string& dir_path);
 
+/**
+ * Bump RLIMIT_NOFILE to hard limit to allow more parallel interceptor connections.
+ */
+void bump_limits();
+
 namespace firebuild {
 
 void ack_msg(const int conn, const uint16_t ack_num);
