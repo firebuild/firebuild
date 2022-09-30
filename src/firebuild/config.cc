@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
+#include <map>
 #include <stdexcept>
 #include <vector>
 
@@ -254,6 +255,101 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
       }
     }
   }
+}
+
+static void export_sorted_locations(libconfig::Config *cfg, const char* configuration_name,
+                                    const std::string env_var_name,
+                                    std::map<std::string, std::string>* env) {
+  const libconfig::Setting& root = cfg->getRoot();
+  const libconfig::Setting& locations_setting = root[configuration_name];
+  std::vector<std::string> locations;
+  for (int i = 0; i < locations_setting.getLength(); i++) {
+    locations.emplace_back(locations_setting[i].c_str());
+  }
+  if (locations.size() > 0) {
+    std::sort(locations.begin(), locations.end());
+    std::string locations_appended;
+    for (auto loc : locations) {
+      if (locations_appended.length() == 0) {
+        locations_appended.append(loc);
+      } else {
+        locations_appended.append(":" + loc);
+      }
+    }
+    (*env)[env_var_name] = std::string(locations_appended);
+    FB_DEBUG(FB_DEBUG_PROC, " " + env_var_name + "=" + (*env)[env_var_name]);
+  }
+}
+
+char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
+                         bool insert_trace_markers) {
+  const libconfig::Setting& root = cfg->getRoot();
+
+  FB_DEBUG(FB_DEBUG_PROC, "Passing through environment variables:");
+
+  const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
+  std::map<std::string, std::string> env;
+  for (int i = 0; i < pass_through.getLength(); i++) {
+    std::string pass_through_env(pass_through[i].c_str());
+    char * got_env = getenv(pass_through_env.c_str());
+    if (got_env != NULL) {
+      env[pass_through_env] = std::string(got_env);
+      FB_DEBUG(FB_DEBUG_PROC, " " + std::string(pass_through_env) + "="
+               + env[pass_through_env]);
+    }
+  }
+  FB_DEBUG(FB_DEBUG_PROC, "");
+
+  FB_DEBUG(FB_DEBUG_PROC, "Setting preset environment variables:");
+  const libconfig::Setting& preset = root["env_vars"]["preset"];
+  for (int i = 0; i < preset.getLength(); i++) {
+    std::string str(preset[i].c_str());
+    size_t eq_pos = str.find('=');
+    if (eq_pos == std::string::npos) {
+      fb_error("Invalid present environment variable: " + str);
+      abort();
+    } else {
+      const std::string var_name = str.substr(0, eq_pos);
+      env[var_name] = str.substr(eq_pos + 1);
+      FB_DEBUG(FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
+    }
+  }
+
+  export_sorted_locations(cfg, "system_locations", "FB_SYSTEM_LOCATIONS", &env);
+  export_sorted_locations(cfg, "ignore_locations", "FB_IGNORE_LOCATIONS", &env);
+
+  const char *ld_preload_value = getenv("LD_PRELOAD");
+  if (ld_preload_value) {
+    env["LD_PRELOAD"] = LIBFIREBUILD_SO ":" + std::string(ld_preload_value);
+  } else {
+    env["LD_PRELOAD"] = LIBFIREBUILD_SO;
+  }
+  env["FB_SOCKET"] = fb_conn_string;
+  FB_DEBUG(FB_DEBUG_PROC, " FB_SOCKET=" + env["FB_SOCKET"]);
+
+  FB_DEBUG(FB_DEBUG_PROC, "");
+
+#ifdef FB_EXTRA_DEBUG
+  if (insert_trace_markers) {
+    env["FB_INSERT_TRACE_MARKERS"] = "1";
+  }
+#else
+  (void)insert_trace_markers;
+#endif
+
+  char ** ret_env =
+      static_cast<char**>(malloc(sizeof(char*) * (env.size() + 1)));
+
+  auto it = env.begin();
+  int i = 0;
+  while (it != env.end()) {
+    ret_env[i] = strdup(std::string(it->first + "=" + it->second).c_str());
+    it++;
+    i++;
+  }
+  ret_env[i] = NULL;
+
+  return ret_env;
 }
 
 }  /* namespace firebuild */

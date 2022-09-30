@@ -39,5 +39,14 @@ extern int quirks;
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);
 
+/**
+ * Construct a NULL-terminated array of "NAME=VALUE" environment variables
+ * for the build command. The returned stings and array must be free()-d.
+ *
+ * TODO: detect duplicates
+ */
+char** get_sanitized_env(libconfig::Config *cfg, const char* fb_conn_string,
+                         bool insert_trace_markers);
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_CONFIG_H_
