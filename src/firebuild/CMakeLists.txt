@@ -69,6 +69,7 @@ add_executable(firebuild-bin
   file_usage_update.cc
   blob_cache.cc
   obj_cache.cc
+  report.cc
   utils.cc
   fbbfp.cc
   fbbstore.cc
