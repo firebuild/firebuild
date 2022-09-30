@@ -104,23 +104,6 @@ static const char *get_tmpdir() {
   }
 }
 
-/**
- * Bump RLIMIT_NOFILE to hard limit to allow more parallel interceptor connections.
- */
-static void bump_limits() {
-  struct rlimit rlim;
-  getrlimit(RLIMIT_NOFILE, &rlim);
-  /* 8K is expected to be enough for up more than 2K parallel intercepted processes, thus try to
-   * bump the limit above that. */
-  rlim_t preferred_limit = (rlim.rlim_max == RLIM_INFINITY) ? 8192 : rlim.rlim_max;
-  if (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < preferred_limit) {
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, "Increasing limit of open files from "
-             + std::to_string(rlim.rlim_cur) + " to " + std::to_string(preferred_limit) + "");
-    rlim.rlim_cur = preferred_limit;
-    setrlimit(RLIMIT_NOFILE, &rlim);
-  }
-}
-
 }  /* namespace */
 
 /**
