@@ -16,6 +16,7 @@
 #include "firebuild/debug.h"
 #include "firebuild/epoll.h"
 #include "firebuild/execed_process.h"
+#include "firebuild/message_processor.h"
 #include "firebuild/linear_buffer.h"
 #include "firebuild/process.h"
 #include "firebuild/process_tree.h"
@@ -23,8 +24,6 @@
 extern firebuild::Epoll *epoll;
 
 namespace firebuild {
-
-extern void accept_exec_child(ExecedProcess* proc, int fd_conn, int fd0_reopen = -1);
 
 class ConnectionContext {
  public:
@@ -36,7 +35,7 @@ class ConnectionContext {
       if (exec_child_sock) {
         auto exec_child = exec_child_sock->incomplete_child;
         exec_child->set_fds(proc->pass_on_fds());
-        accept_exec_child(exec_child, exec_child_sock->sock);
+        MessageProcessor::accept_exec_child(exec_child, exec_child_sock->sock);
         proc_tree->DropQueuedExecChild(proc->pid());
       }
       proc->finish();
