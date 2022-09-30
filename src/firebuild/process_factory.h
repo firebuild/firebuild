@@ -28,8 +28,7 @@ class ProcessFactory {
   static ExecedProcess* getExecedProcess(const FBBCOMM_Serialized_scproc_query *const msg,
                                          Process * const parent,
                                          std::vector<std::shared_ptr<FileFD>>* fds);
-  static bool peekProcessDebuggingSuppressed(const FBBCOMM_Serialized *fbbcomm_buf,
-                                            ProcessTree* proc_tree);
+  static bool peekProcessDebuggingSuppressed(const FBBCOMM_Serialized *fbbcomm_buf);
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFactory);

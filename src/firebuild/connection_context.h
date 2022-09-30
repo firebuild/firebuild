@@ -24,21 +24,20 @@ extern firebuild::Epoll *epoll;
 
 namespace firebuild {
 
-extern void accept_exec_child(ExecedProcess* proc, int fd_conn,
-                              ProcessTree* proc_tree, int fd0_reopen = -1);
+extern void accept_exec_child(ExecedProcess* proc, int fd_conn, int fd0_reopen = -1);
 
 class ConnectionContext {
  public:
-  ConnectionContext(ProcessTree *proc_tree, int conn)
-      : buffer_(), proc_tree_(proc_tree), conn_(conn) {}
+  explicit ConnectionContext(int conn)
+      : buffer_(), conn_(conn) {}
   ~ConnectionContext() {
     if (proc) {
-      auto exec_child_sock = proc_tree_->Pid2ExecChildSock(proc->pid());
+      auto exec_child_sock = proc_tree->Pid2ExecChildSock(proc->pid());
       if (exec_child_sock) {
         auto exec_child = exec_child_sock->incomplete_child;
         exec_child->set_fds(proc->pass_on_fds());
-        accept_exec_child(exec_child, exec_child_sock->sock, proc_tree_);
-        proc_tree_->DropQueuedExecChild(proc->pid());
+        accept_exec_child(exec_child, exec_child_sock->sock);
+        proc_tree->DropQueuedExecChild(proc->pid());
       }
       proc->finish();
     }
@@ -53,7 +52,6 @@ class ConnectionContext {
  private:
   /** Partial interceptor message including the FBB header */
   LinearBuffer buffer_;
-  ProcessTree *proc_tree_;
   int conn_;
   DISALLOW_COPY_AND_ASSIGN(ConnectionContext);
 };

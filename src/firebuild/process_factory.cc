@@ -61,8 +61,7 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   return e;
 }
 
-bool ProcessFactory::peekProcessDebuggingSuppressed(const FBBCOMM_Serialized *fbbcomm_buf,
-                                                   ProcessTree* proc_tree) {
+bool ProcessFactory::peekProcessDebuggingSuppressed(const FBBCOMM_Serialized *fbbcomm_buf) {
   if (!debug_filter) {
     return false;
   }

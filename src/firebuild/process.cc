@@ -28,8 +28,6 @@
 #include "firebuild/debug.h"
 #include "firebuild/utils.h"
 
-extern firebuild::ProcessTree *proc_tree;
-
 namespace firebuild {
 
 static int fb_pid_counter;

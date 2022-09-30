@@ -50,8 +50,6 @@ firebuild::Epoll *epoll = nullptr;
 
 int sigchild_selfpipe[2];
 
-firebuild::ProcessTree *proc_tree;
-
 namespace {
 
 static char *fb_tmp_dir;
@@ -215,7 +213,7 @@ static void reject_exec_child(int fd_conn) {
 }
 
 void accept_exec_child(ExecedProcess* proc, int fd_conn,
-                       ProcessTree* proc_tree, int fd0_reopen) {
+                       int fd0_reopen) {
     TRACKX(FB_DEBUG_PROC, 1, 1, Process, proc, "fd_conn=%s, fd0_reopen=%s",
         D_FD(fd_conn), D_FD(fd0_reopen));
 
@@ -230,7 +228,7 @@ void accept_exec_child(ExecedProcess* proc, int fd_conn,
     std::vector<const FBBCOMM_Builder *> reopened_dups = {};
     std::vector<int> fifo_fds = {};
 
-    proc_tree->insert(proc);
+    firebuild::proc_tree->insert(proc);
     proc->initialize();
 
     if (dont_intercept_matcher->match(proc)) {
@@ -509,9 +507,9 @@ void accept_popen_child(Process* unix_parent, const pending_popen_t *pending_pop
       reinterpret_cast<FBBCOMM_Builder *>(&msg), &fd_send_to_parent, 1);
   close(fd_send_to_parent);
 
-  accept_exec_child(proc, pending_popen->child_conn, proc_tree, fd0_reopen);
+  accept_exec_child(proc, pending_popen->child_conn, fd0_reopen);
 
-  proc_tree->DropPendingPopen(unix_parent);
+  firebuild::proc_tree->DropPendingPopen(unix_parent);
   unix_parent->set_has_pending_popen(false);
 }
 
@@ -521,13 +519,13 @@ namespace {
 
 static void accept_fork_child(firebuild::Process* parent, int parent_fd, int parent_ack,
                               firebuild::Process** child_ref, int pid, int child_fd,
-                              int child_ack, firebuild::ProcessTree* proc_tree) {
+                              int child_ack) {
   TRACK(firebuild::FB_DEBUG_PROC,
         "parent_fd=%s, parent_ack=%d, parent=%s pid=%d child_fd=%s child_ack=%d",
         D_FD(parent_fd), parent_ack, D(parent), pid, D_FD(child_fd), child_ack);
 
   auto proc = firebuild::ProcessFactory::getForkedProcess(pid, parent);
-  proc_tree->insert(proc);
+  firebuild::proc_tree->insert(proc);
   *child_ref = proc;
   firebuild::ack_msg(parent_fd, parent_ack);
   firebuild::ack_msg(child_fd, child_ack);
@@ -565,7 +563,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
      * case when the outermost intercepted process starts up (no
      * parent will be found) or when this outermost process does an
      * exec (an exec parent will be found then). */
-    parent = proc_tree->pid2proc(pid);
+    parent = firebuild::proc_tree->pid2proc(pid);
 
     if (parent) {
       /* This PID was already seen, i.e. this process is the result of an exec*(),
@@ -580,18 +578,18 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
         auto proc =
             firebuild::ProcessFactory::getExecedProcess(
                 ic_msg, parent, fds);
-        proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
+        firebuild::proc_tree->QueueExecChild(parent->pid(), fd_conn, proc);
         *new_proc = proc;
         return;
       }
     } else if (ppid == getpid()) {
       /* This is the first intercepted process. */
-      parent = proc_tree->root();
+      parent = firebuild::proc_tree->root();
       fds = parent->pass_on_fds();
     } else {
       /* Locate the parent in case of system/popen/posix_spawn, but not
        * when the first intercepter process starts up. */
-      unix_parent = proc_tree->pid2proc(ppid);
+      unix_parent = firebuild::proc_tree->pid2proc(ppid);
       if (!unix_parent) {
         /* The parent could not be found. There could be one or more statically linked binaries in
          * the exec() - fork() chain. There is not much the supervisor can do, with so much missing
@@ -618,7 +616,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
         auto proc =
             firebuild::ProcessFactory::getExecedProcess(
                 ic_msg, nullptr, nullptr);
-        proc_tree->QueuePosixSpawnChild(ppid, fd_conn, proc);
+        firebuild::proc_tree->QueuePosixSpawnChild(ppid, fd_conn, proc);
         *new_proc = proc;
         delete fds;
         return;
@@ -651,11 +649,11 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
       fds = parent->pass_on_fds();
 
       parent->set_state(firebuild::FB_PROC_TERMINATED);
-      proc_tree->insert(parent);
+      firebuild::proc_tree->insert(parent);
 
       /* Now we can ack the previous posix_spawn()'s second message. */
       if (launch_type == firebuild::LAUNCH_TYPE_OTHER) {
-        proc_tree->AckParent(unix_parent->pid());
+        firebuild::proc_tree->AckParent(unix_parent->pid());
       }
     }
 
@@ -667,7 +665,8 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
       unix_parent->set_system_child(proc);
     } else if (launch_type == firebuild::LAUNCH_TYPE_POPEN) {
       /* Entry must have been created at the "popen" message */
-      firebuild::pending_popen_t *pending_popen = proc_tree->Proc2PendingPopen(unix_parent);
+      firebuild::pending_popen_t *pending_popen =
+          firebuild::proc_tree->Proc2PendingPopen(unix_parent);
       assert(pending_popen);
       /* Fill in the new fields */
       assert_null(pending_popen->child);
@@ -682,7 +681,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
       *new_proc = proc;
       return;
     }
-    accept_exec_child(proc, fd_conn, proc_tree);
+    accept_exec_child(proc, fd_conn);
     *new_proc = proc;
 
   } else if (tag == FBBCOMM_TAG_fork_child) {
@@ -690,7 +689,7 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
         reinterpret_cast<const FBBCOMM_Serialized_fork_child *>(fbbcomm_buf);
     auto pid = ic_msg->get_pid();
     auto ppid = ic_msg->get_ppid();
-    auto pending_ack = proc_tree->PPid2ParentAck(ppid);
+    auto pending_ack = firebuild::proc_tree->PPid2ParentAck(ppid);
     /* The supervisor needs up to date information about the fork parent in the ProcessTree
      * when the child Process is created. To ensure having up to date information all the
      * messages must be processed from the fork parent up to ForkParent and only then can
@@ -698,14 +697,14 @@ void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id
      */
     if (!pending_ack) {
       /* queue fork_child data and delay processing messages on this socket */
-      proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, new_proc);
+      firebuild::proc_tree->QueueForkChild(pid, fd_conn, ppid, ack_id, new_proc);
     } else {
-      auto pproc = proc_tree->pid2proc(ppid);
+      auto pproc = firebuild::proc_tree->pid2proc(ppid);
       assert(pproc);
       /* record new process */
       accept_fork_child(pproc, pending_ack->sock, pending_ack->ack_num,
-                        new_proc, pid, fd_conn, ack_id, proc_tree);
-      proc_tree->DropParentAck(ppid);
+                        new_proc, pid, fd_conn, ack_id);
+      firebuild::proc_tree->DropParentAck(ppid);
     }
   }
 }
@@ -722,16 +721,16 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
   switch (tag) {
     case FBBCOMM_TAG_fork_parent: {
       auto parent_pid = proc->pid();
-      auto fork_child_sock = proc_tree->Pid2ForkChildSock(parent_pid);
+      auto fork_child_sock = firebuild::proc_tree->Pid2ForkChildSock(parent_pid);
       if (!fork_child_sock) {
         /* wait for child */
-        proc_tree->QueueParentAck(parent_pid, ack_num, fd_conn);
+        firebuild::proc_tree->QueueParentAck(parent_pid, ack_num, fd_conn);
       } else {
         /* record new child process */
         accept_fork_child(proc, fd_conn, ack_num,
                           fork_child_sock->fork_child_ref, fork_child_sock->child_pid,
-                          fork_child_sock->sock, fork_child_sock->ack_num, proc_tree);
-        proc_tree->DropQueuedForkChild(parent_pid);
+                          fork_child_sock->sock, fork_child_sock->ack_num);
+        firebuild::proc_tree->DropQueuedForkChild(parent_pid);
       }
       return;
     }
@@ -790,7 +789,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
     case FBBCOMM_TAG_popen: {
       const FBBCOMM_Serialized_popen *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_popen *>(fbbcomm_buf);
-      assert(proc_tree->Proc2PendingPopen(proc) == nullptr);
+      assert(firebuild::proc_tree->Proc2PendingPopen(proc) == nullptr);
 
       int type_flags = ic_msg->get_type_flags();
       auto fds = proc->pass_on_fds(false);
@@ -804,7 +803,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
 
       firebuild::pending_popen_t pending_popen;
       pending_popen.type_flags = type_flags;  // FIXME why set it at two places?
-      proc_tree->QueuePendingPopen(proc, pending_popen);
+      firebuild::proc_tree->QueuePendingPopen(proc, pending_popen);
       proc->set_has_pending_popen(true);
       break;
     }
@@ -812,7 +811,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       const FBBCOMM_Serialized_popen_parent *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_popen_parent *>(fbbcomm_buf);
       /* Entry must have been created at the "popen" message */
-      firebuild::pending_popen_t *pending_popen = proc_tree->Proc2PendingPopen(proc);
+      firebuild::pending_popen_t *pending_popen = firebuild::proc_tree->Proc2PendingPopen(proc);
       assert(pending_popen);
       /* Fill in the new fields */
       assert(pending_popen->fd == -1);
@@ -908,7 +907,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       /* First, do the basic fork() */
       auto pid = ic_msg->get_pid();
       auto fork_child = firebuild::ProcessFactory::getForkedProcess(pid, proc);
-      proc_tree->insert(fork_child);
+      firebuild::proc_tree->insert(fork_child);
 
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Do the corresponding administration. */
@@ -999,7 +998,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
 
       proc->set_posix_spawn_pending(false);
 
-      auto posix_spawn_child_sock = proc_tree->Pid2PosixSpawnChildSock(proc->pid());
+      auto posix_spawn_child_sock = firebuild::proc_tree->Pid2PosixSpawnChildSock(proc->pid());
       if (posix_spawn_child_sock) {
         /* The child has already appeared, but had to wait for this "posix_spawn_parent" message.
          * Let the child continue (respond to the pending "scproc_query" with "scproc_resp"). */
@@ -1007,8 +1006,8 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
         fork_child->set_exec_child(posix_spawn_child);
         posix_spawn_child->set_parent(fork_child);
         posix_spawn_child->set_fds(fork_child->pass_on_fds());
-        accept_exec_child(posix_spawn_child, posix_spawn_child_sock->sock, proc_tree);
-        proc_tree->DropQueuedPosixSpawnChild(proc->pid());
+        accept_exec_child(posix_spawn_child, posix_spawn_child_sock->sock);
+        firebuild::proc_tree->DropQueuedPosixSpawnChild(proc->pid());
       } else {
         /* The child hasn't appeared yet. Register a pending exec, just like we do at exec*()
          * calls. This lets us detect a statically linked binary launched by posix_spawn(),
@@ -1059,7 +1058,7 @@ void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf,
       const FBBCOMM_Serialized_wait *ic_msg =
           reinterpret_cast<const FBBCOMM_Serialized_wait *>(fbbcomm_buf);
       const int pid = ic_msg->get_pid();
-      firebuild::Process *child = proc_tree->pid2proc(pid);
+      firebuild::Process *child = firebuild::proc_tree->pid2proc(pid);
       assert(child);
       int status;
       bool exited;
@@ -1442,7 +1441,7 @@ static void write_report(const std::string &html_filename,
       firebuild::fb_perror("fopen");
       firebuild::fb_error("Failed to open dot file for writing profile graph.");
     }
-    proc_tree->export_profile2dot(dot);
+    firebuild::proc_tree->export_profile2dot(dot);
     fclose(dot);
   }
 
@@ -1486,7 +1485,7 @@ static void write_report(const std::string &html_filename,
       }
     } else if (strstr(line, tree_filename) != NULL) {
       fprintf(dst_file, "<script type=\"text/javascript\">\n");
-      proc_tree->export2js(dst_file);
+      firebuild::proc_tree->export2js(dst_file);
       fprintf(dst_file, "    </script>\n");
     } else if (strstr(line, svg_filename) != NULL) {
       int svg = open((dir + "/" + svg_filename).c_str(), O_RDONLY);
@@ -1613,7 +1612,7 @@ static void ic_conn_readcb(const struct epoll_event* event, void *ctx) {
     if (!proc) {
       /* Now the message is complete, the debug suppression can be correctly set. */
       firebuild::debug_suppressed =
-          firebuild::ProcessFactory::peekProcessDebuggingSuppressed(fbbcomm_msg, proc_tree);
+          firebuild::ProcessFactory::peekProcessDebuggingSuppressed(fbbcomm_msg);
     }
 
     if (FB_DEBUGGING(firebuild::FB_DEBUG_COMM)) {
@@ -1648,13 +1647,13 @@ static void save_child_status(pid_t pid, int status, int * ret, bool orphan) {
 
   if (WIFEXITED(status)) {
     *ret = WEXITSTATUS(status);
-    firebuild::Process* proc = proc_tree->pid2proc(pid);
+    firebuild::Process* proc = firebuild::proc_tree->pid2proc(pid);
     if (proc && proc->fork_point()) {
       proc->fork_point()->set_exit_status(*ret);
     }
     FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(orphan ? "orphan" : "child")
              + " process exited with status " + std::to_string(*ret) + ". ("
-             + d(proc_tree->pid2proc(pid)) + ")");
+             + d(firebuild::proc_tree->pid2proc(pid)) + ")");
   } else if (WIFSIGNALED(status)) {
     fprintf(stderr, "%s process has been killed by signal %d\n",
             orphan ? "Orphan" : "Child",
@@ -1696,7 +1695,7 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
     waitpid_ret = waitpid(-1, &status, WNOHANG);
     if (waitpid_ret == child_pid) {
       /* This is the top process the supervisor started. */
-      firebuild::Process* proc = proc_tree->pid2proc(child_pid);
+      firebuild::Process* proc = firebuild::proc_tree->pid2proc(child_pid);
       assert(proc);
       firebuild::ProcessDebugSuppressor debug_suppressor(proc);
       save_child_status(waitpid_ret, status, &child_ret, false);
@@ -1704,7 +1703,7 @@ static void sigchild_cb(const struct epoll_event* event, void *arg) {
     } else if (waitpid_ret > 0) {
       /* This is an orphan process. Its fork parent quit without wait()-ing for it
        * and as a subreaper the supervisor received the SIGCHLD for it. */
-      firebuild::Process* proc = proc_tree->pid2proc(waitpid_ret);
+      firebuild::Process* proc = firebuild::proc_tree->pid2proc(waitpid_ret);
       if (proc) {
         /* Since the parent of this orphan process did not wait() for it, it will not be stored in
          * the cache even when finalizing it. */
@@ -1738,7 +1737,7 @@ static void accept_ic_conn(const struct epoll_event* event, void *arg) {
     firebuild::fb_perror("accept");
   } else {
     firebuild::bump_fd_age(fd);
-    auto conn_ctx = new firebuild::ConnectionContext(proc_tree, fd);
+    auto conn_ctx = new firebuild::ConnectionContext(fd);
     fcntl(fd, F_SETFL, O_NONBLOCK);
     epoll->add_fd(fd, EPOLLIN, ic_conn_readcb, conn_ctx);
   }
@@ -1931,10 +1930,10 @@ int main(const int argc, char *argv[]) {
     /* supervisor process */
 
     /* This creates some Pipe objects, so needs ev_base being set up. */
-    proc_tree = new firebuild::ProcessTree();
+    firebuild::proc_tree = new firebuild::ProcessTree();
 
     /* Add a ForkedProcess for the supervisor's forked child we never directly saw. */
-    proc_tree->insert_root(child_pid, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
+    firebuild::proc_tree->insert_root(child_pid, STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO);
 
     bump_limits();
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
@@ -1957,7 +1956,7 @@ int main(const int argc, char *argv[]) {
     }
 
     /* Finish all top pipes */
-    proc_tree->FinishInheritedFdPipes();
+    firebuild::proc_tree->FinishInheritedFdPipes();
     /* Close the self-pipe */
     close(sigchild_selfpipe[0]);
     close(sigchild_selfpipe[1]);
@@ -1967,7 +1966,7 @@ int main(const int argc, char *argv[]) {
     firebuild::debug_suppressed = false;
   }
 
-  if (!proc_tree->root()) {
+  if (!firebuild::proc_tree->root()) {
     fprintf(stderr, "ERROR: Could not collect any information about the build "
             "process\n");
     child_ret = EXIT_FAILURE;
@@ -2028,7 +2027,7 @@ int main(const int argc, char *argv[]) {
     delete epoll;
     free(fb_conn_string);
     free(fb_tmp_dir);
-    delete(proc_tree);
+    delete(firebuild::proc_tree);
     delete(cfg);
     fclose(stdin);
     fclose(stdout);

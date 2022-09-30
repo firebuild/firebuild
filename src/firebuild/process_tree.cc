@@ -14,6 +14,9 @@
 
 namespace firebuild {
 
+/* singleton */
+ProcessTree *proc_tree;
+
 ProcessTree::~ProcessTree() {
   TRACK(FB_DEBUG_PROCTREE, "");
 

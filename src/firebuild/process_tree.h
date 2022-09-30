@@ -262,5 +262,8 @@ class ProcessTree {
   DISALLOW_COPY_AND_ASSIGN(ProcessTree);
 };
 
+/* singleton */
+extern ProcessTree *proc_tree;
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_PROCESS_TREE_H_
