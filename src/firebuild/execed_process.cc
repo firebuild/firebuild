@@ -4,10 +4,7 @@
 
 #include "firebuild/execed_process.h"
 
-#include <algorithm>
-#include <map>
 #include <memory>
-#include <sstream>
 
 #include <libconfig.h++>
 
@@ -21,29 +18,6 @@
 extern bool generate_report;
 
 namespace firebuild {
-
-/**
- * Escape std::string for JavaScript
- * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
- * TODO: use JSONCpp instead to handle all cases
- */
-static std::string escapeJsonString(const std::string& input) {
-  std::ostringstream ss;
-  for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
-    switch (*iter) {
-      case '\\': ss << "\\\\"; break;
-      case '"': ss << "\\\""; break;
-      case '/': ss << "\\/"; break;
-      case '\b': ss << "\\b"; break;
-      case '\f': ss << "\\f"; break;
-      case '\n': ss << "\\n"; break;
-      case '\r': ss << "\\r"; break;
-      case '\t': ss << "\\t"; break;
-      default: ss << *iter; break;
-    }
-  }
-  return ss.str();
-}
 
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *initial_wd,
@@ -527,132 +501,6 @@ void ExecedProcess::disable_shortcutting_only_this(const char* reason,
       }
     }
   }
-}
-
-void ExecedProcess::export2js_recurse(const unsigned int level, FILE* stream,
-                                      unsigned int *nodeid) {
-  if (level > 0) {
-    fprintf(stream, "\n");
-  }
-  fprintf(stream, "%s{", std::string(2 * level, ' ').c_str());
-
-  export2js(level, stream, nodeid);
-  fprintf(stream, "%s children: [", std::string(2 * level, ' ').c_str());
-  Process::export2js_recurse(level, stream, nodeid);
-  if (level == 0) {
-    fprintf(stream, "]};\n");
-  } else {
-    fprintf(stream, "]},\n");
-  }
-}
-
-
-void ExecedProcess::export2js(const unsigned int level,
-                              FILE* stream, unsigned int * nodeid) {
-  // TODO(rbalint): escape all strings properly
-  auto indent_str = std::string(2 * level, ' ');
-  const char* indent = indent_str.c_str();
-
-  fprintf(stream, "name:\"%s\",\n", args()[0].c_str());
-  fprintf(stream, "%s id: %u,\n", indent, (*nodeid)++);
-  fprintf(stream, "%s pid: %u,\n", indent, pid());
-  fprintf(stream, "%s ppid: %u,\n", indent, ppid());
-  fprintf(stream, "%s fb_pid: %u,\n", indent, fb_pid());
-  fprintf(stream, "%s initial_wd:\"%s\",\n", indent, initial_wd()->c_str());
-  fprintf(stream, "%s exe:\"%s\",\n", indent, executable()->c_str());
-  fprintf(stream, "%s state: %u,\n", indent, state());
-  if (was_shortcut()) {
-    fprintf(stream, "%s was_shortcut: true,\n", indent);
-  }
-  if (!can_shortcut_) {
-    fprintf(stream, "%s cant_sc_reason: \"%s\",\n",
-            indent, escapeJsonString(cant_shortcut_reason_).c_str());
-    if (cant_shortcut_proc_->exec_proc()->fb_pid() != fb_pid()) {
-      fprintf(stream, "%s cant_sc_fb_pid: \"%u\",\n",
-              indent, cant_shortcut_proc_->exec_proc()->fb_pid());
-    }
-  }
-  fprintf(stream, "%s args: [", indent);
-  for (auto& arg : args()) {
-    fprintf(stream, "\"%s\",", escapeJsonString(arg).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s env: [", indent);
-  for (auto& env : env_vars()) {
-    fprintf(stream, "\"%s\",", escapeJsonString(env).c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s libs: [", indent);
-  for (auto& lib : libs()) {
-    fprintf(stream, "\"%s\",", lib->c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s wds: [", indent);
-  for (auto& wd : wds()) {
-    fprintf(stream, "\"%s\",", wd->c_str());
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s failed_wds: [", indent);
-  for (auto& f_wd : failed_wds()) {
-    fprintf(stream, "\"%s\",", f_wd->c_str());
-  }
-  fprintf(stream, "],\n");
-
-  /* sort files before printing */
-  std::vector<file_file_usage> ordered_file_usages;
-  for (auto& pair : file_usages()) {
-    ordered_file_usages.push_back({pair.first, pair.second});
-  }
-  std::sort(ordered_file_usages.begin(), ordered_file_usages.end(), file_file_usage_cmp);
-
-  fprintf(stream, "%s fcreated: [", indent);
-  for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
-    if (!isreg_with_hash && ffu.usage->written()) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s fmodified: [", indent);
-  for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
-    if (isreg_with_hash && ffu.usage->written()) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s fread: [", indent);
-  for (auto& ffu : ordered_file_usages) {
-    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
-    if (isreg_with_hash && !ffu.usage->written()) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  fprintf(stream, "%s fnotf: [", indent);
-  for (auto& ffu : ordered_file_usages) {
-    if (ffu.usage->initial_type() == NOTEXIST) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
-    }
-  }
-  fprintf(stream, "],\n");
-
-  if (state() != FB_PROC_FINALIZED) {
-    // TODO(rbalint) something went wrong
-  }
-  if (fork_point()->exit_status() != -1) {
-    fprintf(stream, "%s exit_status: %u,\n", indent, fork_point()->exit_status());
-  }
-  fprintf(stream, "%s utime_u: %lu,\n", indent, utime_u());
-  fprintf(stream, "%s stime_u: %lu,\n", indent, stime_u());
-  fprintf(stream, "%s aggr_time: %lu,\n", indent, aggr_cpu_time_u());
 }
 
 /* For debugging, a short imprecise reminder of the command line. Omits the path to the

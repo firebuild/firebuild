@@ -1632,16 +1632,6 @@ void Process::finish() {
   maybe_finalize();
 }
 
-void Process::export2js_recurse(const unsigned int level, FILE* stream,
-                                unsigned int *nodeid) {
-  if (exec_child() != NULL) {
-    exec_child_->export2js_recurse(level + 1, stream, nodeid);
-  }
-  for (auto& fork_child : fork_children_) {
-    fork_child->export2js_recurse(level, stream, nodeid);
-  }
-}
-
 /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
