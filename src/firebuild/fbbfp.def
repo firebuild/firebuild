@@ -90,6 +90,7 @@
       (REQUIRED, STRING, "original_executed_path"),   # tag "file"
       # Command parameters, starting with name of the command
       (ARRAY,    STRING, "args"),
+      (OPTIONAL, "XXH128_hash_t", "param_file_hash"),
       # Environment variables, filtered (to exclude e.g. $FB_SOCKET)
       # and sorted to a deterministic order
       (ARRAY,    STRING, "env"),
