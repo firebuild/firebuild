@@ -967,8 +967,21 @@ int Process::handle_rename(const int olddirfd, const char * const old_ar_name,
   if (new_name) new_name->close_for_writing();
 
   if (error) {
-    // TODO(rbalint) add detailed error handling
-    exec_point()->disable_shortcutting_bubble_up("Failed rename() is not supported");
+    switch (error) {
+      case EEXIST: {
+        FileUsageUpdate update(new_name);
+        update.set_initial_type(EXIST);
+        if (!exec_point()->register_file_usage_update(new_name, update)) {
+          exec_point()->disable_shortcutting_bubble_up(
+              "Could not register the renaming (to)", *new_name);
+          return -1;
+        }
+        return 0;
+      }
+      default:
+        // TODO(rbalint) add detailed error handling
+        exec_point()->disable_shortcutting_bubble_up("Failed rename() is not supported");
+    }
     return -1;
   }
 
