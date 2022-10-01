@@ -24,6 +24,7 @@ namespace firebuild {
 class ExecedProcessCacher {
  public:
   static void init(const libconfig::Config* cfg);
+  static unsigned int cache_format() {return cache_format_;}
   bool fingerprint(const ExecedProcess *proc);
   void erase_fingerprint(const ExecedProcess *proc);
 
@@ -61,6 +62,7 @@ class ExecedProcessCacher {
    * purposes, only if debugging is enabled. In serialized FBBFP format. */
   tsl::hopscotch_map<const ExecedProcess*, std::vector<char>> fingerprint_msgs_;
 
+  static unsigned int cache_format_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessCacher);
 };
 
