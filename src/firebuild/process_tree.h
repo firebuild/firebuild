@@ -99,13 +99,11 @@ class ProcessTree {
  public:
   ProcessTree()
       : inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(), ppid2fork_child_sock_(),
-        pid2exec_child_sock_(), pid2posix_spawn_child_sock_(), cmd_profs_() {}
+        pid2exec_child_sock_(), pid2posix_spawn_child_sock_() {}
   ~ProcessTree();
 
   void insert(Process *p);
   void insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int stderr_fd);
-  void export2js(FILE* stream);
-  void export_profile2dot(FILE* stream);
   ForkedProcess* root() {return root_;}
   Process* pid2proc(int pid) {
     auto it = pid2proc_.find(pid);
@@ -246,18 +244,11 @@ class ProcessTree {
    *  Store this rarely used data here to decrease the size of Process objects.
    *  The key is the process that performs the popen() call. */
   tsl::hopscotch_map<Process *, pending_popen_t> proc2pending_popen_ = {};
-  /**
-   * Profile is aggregated by command name (argv[0]).
-   * For each command (C) we store the cumulated CPU time in microseconds
-   * (system + user time), and count the invocations of each other command
-   * by C. */
-  tsl::hopscotch_map<std::string, cmd_prof> cmd_profs_;
   void insert_process(Process *p);
   void delete_process_subtree(Process *p);
   void profile_collect_cmds(const Process &p,
                             tsl::hopscotch_map<std::string, subcmd_prof> *cmds,
                             std::set<std::string> *ancestors);
-  void build_profile(const Process &p, std::set<std::string> *ancestors);
 
   DISALLOW_COPY_AND_ASSIGN(ProcessTree);
 };
