@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <string>
@@ -24,7 +25,9 @@
 namespace firebuild {
 
 static const XXH64_hash_t kFingerprintVersion = 0;
+static const unsigned int kCacheFormatVersion = 1;
 
+unsigned int ExecedProcessCacher::cache_format_ = 0;
 /* singleton*/
 ExecedProcessCacher* execed_process_cacher;
 
@@ -48,6 +51,17 @@ void ExecedProcessCacher::init(const libconfig::Config* cfg) {
     exit(EXIT_FAILURE);
   }
 
+  /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
+   * potentially store new ones. Note however that it might decrease the
+   * objcache hit ratio: new entries might be stored that eventually
+   * result in the same operation, but go through a slightly different
+   * path (e.g. different tmp file name), and thus look different in
+   * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
+   * more matches are found in the objcache. */
+  bool no_fetch {getenv("FIREBUILD_RECACHE") != NULL};
+  /* Like CCACHE_READONLY: Don't store new results in the cache. */
+  bool no_store = getenv("FIREBUILD_READONLY") != NULL;
+
   struct stat st;
   if (stat(cache_dir.c_str(), &st) == 0) {
     if (!S_ISDIR(st.st_mode)) {
@@ -60,21 +74,48 @@ void ExecedProcessCacher::init(const libconfig::Config* cfg) {
       exit(EXIT_FAILURE);
     }
   }
+  char* cache_format_file = strdup((cache_dir + "/cache-format").c_str());
+  if (stat(cache_format_file, &st) == 0) {
+    if (!S_ISREG(st.st_mode)) {
+      fb_error("$FIREBUILD_CACHE_DIR/cache-format exists but is not a regular file");
+      exit(EXIT_FAILURE);
+    }
+    FILE* f;
+    if (!(f = fopen(cache_format_file, "r"))) {
+      fb_perror("opening cache-format file failed");
+      exit(EXIT_FAILURE);
+    } else {
+      if (fscanf(f, "%u\n", &cache_format_) != 1 || cache_format() > kCacheFormatVersion) {
+        fb_error("Cache format version is not supported, not reading or writing the cache");
+        no_fetch = true;
+        no_store = true;
+      } else if (cache_format() == kCacheFormatVersion) {
+        /* Current format, we can use the cache. */
+      } else {
+        /* Cache is in a prior format. Either use it considering the differences where needed
+         * or upgrade it. */
+      }
+      fclose(f);
+    }
+  } else {
+    FILE* f;
+    if (!(f = fopen(cache_format_file, "wx"))) {
+      fb_perror("creating cache-format file failed");
+      exit(EXIT_FAILURE);
+    }
+    if (fprintf(f, "%d\n", kCacheFormatVersion) <= 0) {
+      fb_perror("writing cache-format file failed");
+      exit(EXIT_FAILURE);
+    }
+    fclose(f);
+  }
+  free(cache_format_file);
+
   blob_cache = new BlobCache(cache_dir + "/blobs");
   obj_cache = new ObjCache(cache_dir + "/objs");
   PipeRecorder::set_base_dir((cache_dir + "/tmp").c_str());
   hash_cache = new HashCache();
 
-  /* Like CCACHE_READONLY: Don't store new results in the cache. */
-  bool no_store = getenv("FIREBUILD_READONLY") != NULL;
-  /* Like CCACHE_RECACHE: Don't fetch entries from the cache, but still
-   * potentially store new ones. Note however that it might decrease the
-   * objcache hit ratio: new entries might be stored that eventually
-   * result in the same operation, but go through a slightly different
-   * path (e.g. different tmp file name), and thus look different in
-   * Firebuild's eyes. Firebuild refuses to shortcut a process if two or
-   * more matches are found in the objcache. */
-  bool no_fetch {getenv("FIREBUILD_RECACHE") != NULL};
   execed_process_cacher = new ExecedProcessCacher(no_store, no_fetch, cfg);
 }
 
