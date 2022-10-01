@@ -248,6 +248,22 @@ static const FBBSTORE_Builder *fbbstore_builder_append_to_fd_vector_item_fn(int 
   return reinterpret_cast<const FBBSTORE_Builder *>(builder);
 }
 
+static void hash_param_file(XXH3_state_t* state, const ExecedProcess *proc,
+                            const std::string& file, Hash* hash) {
+  bool is_dir;
+  if (hash_cache->get_hash(proc->get_absolute(AT_FDCWD, file.c_str(), file.length()),
+                           0, hash, &is_dir)) {
+    if (is_dir) {
+      /* Directory params are not hashed. */
+      *hash = Hash();
+    }
+  } else {
+    /* File may be an output file or not a file at all */
+    *hash = Hash();
+  }
+  add_to_hash_state(state, *hash);
+}
+
 /**
  * Compute the fingerprint, store it keyed by the process in fingerprints_.
  * Also store fingerprint_msgs_ if debugging is enabled.
@@ -269,8 +285,27 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   /* Size is added to not allow collisions between elements of different containers.
    * Otherwise "cmd foo BAR=1" would collide with "env BAR=1 cmd foo". */
   add_to_hash_state(state, proc->args().size());
-  for (const auto& arg : proc->args()) {
+  const std::vector<std::string>& args = proc->args();
+  const bool guess_file_params = quirks & FB_QUIRK_GUESS_FILE_PARAMS;
+  std::string found_param_file;
+  Hash found_param_file_hash;
+  for (const auto& arg : args) {
     add_to_hash_state(state, arg);
+    /* Since we are already iterating over the args let's find a hint for hash_param_files(). */
+    if (guess_file_params && (arg == "conftest.c" || arg == "objs/autotest.c")) {
+      found_param_file = arg;
+    }
+  }
+
+  /* Heuristics for including some parameter files in the fingerprint.
+   * For now only a single, already found parameter is covered.
+   * Note: Update kFingerprintVersion whenever this heuristic changes. */
+  if (guess_file_params && found_param_file.size() > 0) {
+    /* Number of files to be added. */
+    add_to_hash_state(state, 1);
+    hash_param_file(state, proc, found_param_file, &found_param_file_hash);
+  } else {
+    add_to_hash_state(state, 0);
   }
 
   /* Already sorted by the interceptor */
@@ -343,6 +378,10 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
 
     fp.set_wd(proc->initial_wd()->c_str());
     fp.set_args(proc->args());
+
+    if (guess_file_params && found_param_file.size() > 0) {
+      fp.set_param_file_hash(found_param_file_hash.get());
+    }
 
     /* Env vars are already sorted by the interceptor, but we need to do some filtering */
     std::vector<const char *> c_env;

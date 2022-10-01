@@ -216,7 +216,7 @@ class Process {
    * (possibly AT_FDCWD for the current directory). Return nullptr if the path is relative and
    * dirfd is invalid.
    */
-  const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length);
+  const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length) const;
 
   /**
    * Handle preparation for file opening in the monitored process
