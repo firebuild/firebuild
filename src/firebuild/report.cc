@@ -5,9 +5,12 @@
 
 #include <libgen.h>
 
+#include <algorithm>
 #include <limits>
 #include <set>
+#include <sstream>
 #include <string>
+#include <vector>
 
 #include "firebuild/debug.h"
 #include "firebuild/process_tree.h"
@@ -21,11 +24,172 @@ namespace firebuild {
  * by C. */
 tsl::hopscotch_map<std::string, cmd_prof> cmd_profs {};
 
+/**
+ * Escape std::string for JavaScript
+ * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
+ * TODO: use JSONCpp instead to handle all cases
+ */
+static std::string escapeJsonString(const std::string& input) {
+  std::ostringstream ss;
+  for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
+    switch (*iter) {
+      case '\\': ss << "\\\\"; break;
+      case '"': ss << "\\\""; break;
+      case '/': ss << "\\/"; break;
+      case '\b': ss << "\\b"; break;
+      case '\f': ss << "\\f"; break;
+      case '\n': ss << "\\n"; break;
+      case '\r': ss << "\\r"; break;
+      case '\t': ss << "\\t"; break;
+      default: ss << *iter; break;
+    }
+  }
+  return ss.str();
+}
+
+static void export2js(const ExecedProcess* proc, const unsigned int level,
+                      FILE* stream, unsigned int * nodeid) {
+  // TODO(rbalint): escape all strings properly
+  auto indent_str = std::string(2 * level, ' ');
+  const char* indent = indent_str.c_str();
+
+  fprintf(stream, "name:\"%s\",\n", proc->args()[0].c_str());
+  fprintf(stream, "%s id: %u,\n", indent, (*nodeid)++);
+  fprintf(stream, "%s pid: %u,\n", indent, proc->pid());
+  fprintf(stream, "%s ppid: %u,\n", indent, proc->ppid());
+  fprintf(stream, "%s fb_pid: %u,\n", indent, proc->fb_pid());
+  fprintf(stream, "%s initial_wd:\"%s\",\n", indent, proc->initial_wd()->c_str());
+  fprintf(stream, "%s exe:\"%s\",\n", indent, proc->executable()->c_str());
+  fprintf(stream, "%s state: %u,\n", indent, proc->state());
+  if (proc->was_shortcut()) {
+    fprintf(stream, "%s was_shortcut: true,\n", indent);
+  }
+  if (!proc->can_shortcut()) {
+    fprintf(stream, "%s cant_sc_reason: \"%s\",\n",
+            indent, escapeJsonString(proc->cant_shortcut_reason()).c_str());
+    if (proc->cant_shortcut_proc()->exec_proc()->fb_pid() != proc->fb_pid()) {
+      fprintf(stream, "%s cant_sc_fb_pid: \"%u\",\n",
+              indent, proc->cant_shortcut_proc()->exec_proc()->fb_pid());
+    }
+  }
+  fprintf(stream, "%s args: [", indent);
+  for (auto& arg : proc->args()) {
+    fprintf(stream, "\"%s\",", escapeJsonString(arg).c_str());
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s env: [", indent);
+  for (auto& env : proc->env_vars()) {
+    fprintf(stream, "\"%s\",", escapeJsonString(env).c_str());
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s libs: [", indent);
+  for (auto& lib : proc->libs()) {
+    fprintf(stream, "\"%s\",", lib->c_str());
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s wds: [", indent);
+  for (auto& wd : proc->wds()) {
+    fprintf(stream, "\"%s\",", wd->c_str());
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s failed_wds: [", indent);
+  for (auto& f_wd : proc->failed_wds()) {
+    fprintf(stream, "\"%s\",", f_wd->c_str());
+  }
+  fprintf(stream, "],\n");
+
+  /* sort files before printing */
+  std::vector<file_file_usage> ordered_file_usages;
+  for (auto& pair : proc->file_usages()) {
+    ordered_file_usages.push_back({pair.first, pair.second});
+  }
+  std::sort(ordered_file_usages.begin(), ordered_file_usages.end(), file_file_usage_cmp);
+
+  fprintf(stream, "%s fcreated: [", indent);
+  for (auto& ffu : ordered_file_usages) {
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
+    if (!isreg_with_hash && ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
+    }
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s fmodified: [", indent);
+  for (auto& ffu : ordered_file_usages) {
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
+    if (isreg_with_hash && ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
+    }
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s fread: [", indent);
+  for (auto& ffu : ordered_file_usages) {
+    bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
+    if (isreg_with_hash && !ffu.usage->written()) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
+    }
+  }
+  fprintf(stream, "],\n");
+
+  fprintf(stream, "%s fnotf: [", indent);
+  for (auto& ffu : ordered_file_usages) {
+    if (ffu.usage->initial_type() == NOTEXIST) {
+      fprintf(stream, "\"%s\",", ffu.file->c_str());
+    }
+  }
+  fprintf(stream, "],\n");
+
+  if (proc->state() != FB_PROC_FINALIZED) {
+    // TODO(rbalint) something went wrong
+  }
+  if (proc->fork_point()->exit_status() != -1) {
+    fprintf(stream, "%s exit_status: %u,\n", indent, proc->fork_point()->exit_status());
+  }
+  fprintf(stream, "%s utime_u: %lu,\n", indent, proc->utime_u());
+  fprintf(stream, "%s stime_u: %lu,\n", indent, proc->stime_u());
+  fprintf(stream, "%s aggr_time: %lu,\n", indent, proc->aggr_cpu_time_u());
+}
+
+static void export2js_recurse_ep(const ExecedProcess* proc, const unsigned int level, FILE* stream,
+                                 unsigned int *nodeid);
+
+static void export2js_recurse_p(const Process* proc, const unsigned int level, FILE* stream,
+                              unsigned int *nodeid) {
+  if (proc->exec_child() != NULL) {
+    export2js_recurse_ep(proc->exec_child(), level + 1, stream, nodeid);
+  }
+  for (const Process* fork_child : proc->fork_children()) {
+    export2js_recurse_p(fork_child, level, stream, nodeid);
+  }
+}
+
+static void export2js_recurse_ep(const ExecedProcess* proc, const unsigned int level, FILE* stream,
+                              unsigned int *nodeid) {
+  if (level > 0) {
+    fprintf(stream, "\n");
+  }
+  fprintf(stream, "%s{", std::string(2 * level, ' ').c_str());
+
+  export2js(proc, level, stream, nodeid);
+  fprintf(stream, "%s children: [", std::string(2 * level, ' ').c_str());
+  export2js_recurse_p(proc, level, stream, nodeid);
+  if (level == 0) {
+    fprintf(stream, "]};\n");
+  } else {
+    fprintf(stream, "]},\n");
+  }
+}
+
 static void export2js(ProcessTree* proc_tree, FILE * stream) {
   fprintf(stream, "data = ");
   unsigned int nodeid = 0;
   if (proc_tree->root()->exec_child()) {
-    proc_tree->root()->exec_child()->export2js_recurse(0, stream, &nodeid);
+    export2js_recurse_ep(proc_tree->root()->exec_child(), 0, stream, &nodeid);
   } else {
     // TODO(rbalint) provide nicer report on this error
     fprintf(stream, "{name: \"<unknown>\", id: 0, aggr_time: 0, children: []};");

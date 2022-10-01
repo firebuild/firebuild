@@ -134,6 +134,12 @@ class ExecedProcess : public Process {
   /** Returns if the process can be short-cut */
   bool can_shortcut() const {return can_shortcut_;}
 
+  /** Reason for this process can't be short-cut */
+  const char* cant_shortcut_reason() const {return cant_shortcut_reason_;}
+
+  /** Process the event preventing short-cutting happened in */
+  const Process* cant_shortcut_proc() const {return cant_shortcut_proc_;}
+
   bool shortcut(std::vector<int> *fds_appended_to);
 
   /**
@@ -181,11 +187,6 @@ class ExecedProcess : public Process {
 
   bool was_shortcut() const {return was_shortcut_;}
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
-
-  void export2js(const unsigned int level, FILE* stream,
-                 unsigned int * nodeid);
-  void export2js_recurse(const unsigned int level, FILE* stream,
-                         unsigned int *nodeid);
 
   std::string args_to_short_string() const;
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.

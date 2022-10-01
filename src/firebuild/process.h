@@ -10,10 +10,8 @@
 #include <cassert>
 #include <list>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
-#include <algorithm>
 
 #include "firebuild/debug.h"
 #include "firebuild/file_fd.h"
@@ -118,7 +116,7 @@ class Process {
   void terminate_top_orphans() const;
   int state() const {return state_;}
   void set_state(process_state s) {state_ = s;}
-  int fb_pid() {return fb_pid_;}
+  int fb_pid() const {return fb_pid_;}
   int pid() const {return pid_;}
   int ppid() const {return ppid_;}
   int exec_count() const {return exec_count_;}
@@ -536,9 +534,6 @@ class Process {
    * Handle umask() in the monitored process
    */
   void handle_umask(mode_t old_umask, mode_t new_umask);
-
-  virtual void export2js_recurse(const unsigned int level, FILE* stream,
-                                 unsigned int *nodeid);
 
   /* For debugging. */
   std::string pid_and_exec_count() const {return d(pid()) + "." + d(exec_count());}
