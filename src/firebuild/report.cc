@@ -6,6 +6,7 @@
 #include <libgen.h>
 
 #include <algorithm>
+#include <iostream>
 #include <limits>
 #include <set>
 #include <sstream>
@@ -457,6 +458,7 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
   }
   fclose(src_file);
   fclose(dst_file);
+  std::cout << "FIREBUILD: Generated report: " + html_filename << std::endl;
 }
 
 }  /* namespace firebuild */
