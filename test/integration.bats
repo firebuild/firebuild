@@ -30,7 +30,7 @@ setup() {
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
     result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -r -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
-    assert_streq "$result" "integration.bats"
+    assert_streq "$result" "$(printf 'integration.bats\nFIREBUILD: Generated report: firebuild-build-report.html')"
   done
 }
 
