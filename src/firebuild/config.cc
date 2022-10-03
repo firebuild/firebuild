@@ -23,6 +23,7 @@
 
 #define GLOBAL_CONFIG "/etc/firebuild.conf"
 #define USER_CONFIG ".firebuild.conf"
+#define XDG_CONFIG "firebuild/firebuild.conf"
 
 namespace firebuild {
 
@@ -37,39 +38,48 @@ int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
 int quirks = 0;
 
-/** Parse configuration file
+/**
+ * Parse configuration file
  *
- *  If custom_cfg_file is non-NULL, use that.
- *  Otherwise try ~/.firebuild.conf, or if that one does not exist then /etc/firebuild.conf.
- * */
+ * If custom_cfg_file is non-NULL, use that.
+ * Otherwise try ./firebuild.conf, ~/.firebuild.conf, $XDG_CONFIG_HOME/firebuild/firebuild.conf,
+ * /etc/firebuild.conf in that order.
+ */
 static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) {
-  /* we fall back to global configuration file */
-  std::string cfg_file(GLOBAL_CONFIG);
+  std::vector<std::string> cfg_files;
   if (custom_cfg_file != NULL) {
-    cfg_file = std::string(custom_cfg_file);
+    cfg_files = {custom_cfg_file};
   } else {
+    cfg_files = {".firebuild.conf"};
     char *homedir = getenv("HOME");
     if (homedir != NULL) {
       std::string user_cfg_file = homedir + std::string("/" USER_CONFIG);
-      int cfg_fd = open(user_cfg_file.c_str(), O_RDONLY);
-      if (cfg_fd != -1) {
-        /* fall back to private config file */
-        cfg_file = user_cfg_file;
-        close(cfg_fd);
+      cfg_files.push_back(user_cfg_file);
+    }
+    char *xdg_config_home = getenv("XDG_CONFIG_HOME");
+    if (xdg_config_home != NULL) {
+      std::string user_cfg_file = xdg_config_home + std::string("/" XDG_CONFIG);
+      cfg_files.push_back(user_cfg_file);
+    }
+    cfg_files.push_back(GLOBAL_CONFIG);
+  }
+  for (size_t i = 0; i < cfg_files.size(); i++) {
+    try {
+      cfg->readFile(cfg_files[i].c_str());
+    }
+    catch (const libconfig::FileIOException &fioex) {
+      if (i == cfg_files.size() - 1) {
+        std::cerr << "Could not read configuration file " << cfg_files[i] << std::endl;
+        exit(EXIT_FAILURE);
+      } else {
+        continue;
       }
     }
-  }
-  try {
-    cfg->readFile(cfg_file.c_str());
-  }
-  catch(const libconfig::FileIOException &fioex) {
-    std::cerr << "Could not read configuration file " << cfg_file << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  catch(const libconfig::ParseException &pex) {
-    std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
-              << " - " << pex.getError() << std::endl;
-    exit(EXIT_FAILURE);
+    catch (const libconfig::ParseException &pex) {
+      std::cerr << "Parse error at " << pex.getFile() << ":" << pex.getLine()
+                << " - " << pex.getError() << std::endl;
+      exit(EXIT_FAILURE);
+    }
   }
 }
 
