@@ -11,8 +11,6 @@ endif
 
 override_dh_auto_install:
 	dh_auto_install
-	mkdir -p debian/tmp/usr/share/man/man1
-	help2man -s 1 -n firebuild -o debian/tmp/usr/share/man/man1/firebuild.1 debian/tmp/usr/bin/firebuild
 
 override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)

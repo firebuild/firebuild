@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Copyright (c) 2022 Interri Kft.
+This file is an unpublished work. All rights reserved.
+-->
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.5//EN"
+  "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd" [
+]>
+<refentry id='firebuild.1'>
+  <!--  $Id$ -->
+  <refentryinfo>
+    <author>
+      <firstname>Balint</firstname>
+      <surname>Reczey</surname>
+      <contrib>Creation, 2022</contrib>
+    </author>
+  </refentryinfo>
+  <refmeta>
+    <refentrytitle>firebuild</refentrytitle>
+    <manvolnum>1</manvolnum>
+    <refmiscinfo class="sectdesc">User Commands</refmiscinfo>
+    <refmiscinfo class="source">firebuild</refmiscinfo>
+    <refmiscinfo class="version">@FIREBUILD_VERSION@</refmiscinfo>
+  </refmeta>
+  <refnamediv id='name'>
+    <refname>firebuild</refname>
+    <refpurpose>accelerate build</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv id='synopsis'>
+    <cmdsynopsis>
+      <command>firebuild</command>
+      <arg choice='opt'>
+	<replaceable>OPTIONS</replaceable>
+      </arg>
+      <arg choice='req'>
+        <replaceable>BUILD COMMAND</replaceable>
+      </arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1 id='description'>
+    <title>DESCRIPTION</title>
+    <para>
+      Execute BUILD COMMAND with Firebuild instrumentation
+    </para>
+  </refsect1>
+
+  <refsect1 id='options'>
+    <title>OPTIONS</title>
+    <para>
+      Mandatory arguments to long options are mandatory for short options too.
+    </para>
+      <varlistentry>
+	<term>
+	  <option>-c</option>, <option>--config-file=<replaceable>FILE</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            use <replaceable>FILE</replaceable> as configuration file
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-C</option>, <option>--directory=<replaceable>DIR</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            change directory before running the command
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-d</option>, <option>--debug-flags=<replaceable>list</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            comma separated list of debug flags, "-d help" to get a list.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-r</option>, <option>--generate-report=[<replaceable>HTML</replaceable>]</option>
+	</term>
+	<listitem>
+	  <para>
+            Generate a report on the build command execution.
+            The  report's  filename can be specified
+            (<filename>firebuild-build-report.html</filename> by default).
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-h</option>, <option>--help</option>
+	</term>
+	<listitem>
+	  <para>
+            show this help
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-o</option>, <option>--option=<replaceable>key=val</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            Add or replace a scalar in the config
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-o</option>, <option>--option=<replaceable>key+=val</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            Append to an array of scalars in the config
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-o</option>, <option>--option=<replaceable>key-=val</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            Remove from an array of scalars in the config
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-i</option>, <option>--insert-trace-markers</option>
+	</term>
+	<listitem>
+	  <para>
+            Perform <emphasis>open("/FIREBUILD debug message", 0)</emphasis> calls to let
+            users find unintercepted calls using strace or ltrace.
+            This works in debug builds only.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>--version</option>
+	</term>
+	<listitem>
+	  <para>
+            output version information and exit
+	  </para>
+	</listitem>
+      </varlistentry>
+  </refsect1>
+  <refsect1 id='exit_values'>
+    <title>EXIT STATUS</title>
+    <para>
+      Exit status of the <replaceable>BUILD COMMAND</replaceable> or 1 in case of failure
+      in <command>firebuild</command>.
+    </para>
+  </refsect1>
+</refentry>
