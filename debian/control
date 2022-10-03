@@ -5,17 +5,18 @@ Maintainer: Balint Reczey <balint@balintreczey.hu>
 Build-Depends: bats,
                cmake,
                debhelper-compat (= 12),
+               docbook-xsl,
                gcc (>= 4:10) | gcc-10,
                g++ (>= 4:10) | g++-10,
                graphviz,
-               help2man,
                libconfig++-dev,
                libjemalloc-dev,
                libtsl-hopscotch-map-dev,
                libxxhash-dev (>= 0.8),
                moreutils,
                node-d3,
-               python3-jinja2
+               python3-jinja2,
+               xsltproc
 Standards-Version: 4.4.1
 Homepage: https://firebuild.org
 Rules-Requires-Root: no
