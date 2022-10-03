@@ -76,7 +76,7 @@ struct timespec start_time;
 
 static void usage() {
   printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
-         "Execute BUILD COMMAND with Firebuild™ instrumentation\n"
+         "Execute BUILD COMMAND with Firebuild instrumentation\n"
          "\n"
          "Mandatory arguments to long options are mandatory for short options too.\n"
          "   -c --config-file=FILE     use FILE as configuration file\n"
