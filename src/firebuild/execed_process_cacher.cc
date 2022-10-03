@@ -78,29 +78,6 @@ void ExecedProcessCacher::init(const libconfig::Config* cfg) {
   execed_process_cacher = new ExecedProcessCacher(no_store, no_fetch, cfg);
 }
 
-ExecedProcessCacher::ExecedProcessCacher(bool no_store,
-                                         bool no_fetch,
-                                         const libconfig::Config* cfg) :
-    no_store_(no_store), no_fetch_(no_fetch),
-    envs_skip_(), fingerprints_(), fingerprint_msgs_() {
-  const libconfig::Setting& envs_skip = cfg->getRoot()["env_vars"]["fingerprint_skip"];
-  for (int i = 0; i < envs_skip.getLength(); i++) {
-    envs_skip_.insert(envs_skip[i].c_str());
-  }
-}
-
-/**
- * Helper for fingerprint() to decide which env vars matter
- */
-bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value) const {
-  /* Strip off the "=value" part. */
-  const std::string name = name_and_value.substr(0, name_and_value.find('='));
-
-  /* Env vars to skip, taken from the config files.
-   * Note: FB_SOCKET is already filtered out in the interceptor. */
-  return envs_skip_.find(name) == envs_skip_.end();
-}
-
 /**
  * Add file_name to fingerprint, including the ending '\0'.
  *
@@ -119,6 +96,17 @@ static void add_to_hash_state(XXH3_state_t* state, const FileName* file_name) {
  */
 static void add_to_hash_state(XXH3_state_t* state, const std::string& str) {
   if (XXH3_128bits_update(state, str.c_str(), str.length() + 1) == XXH_ERROR) {
+    abort();
+  }
+}
+
+/**
+ * Add string to fingerprint, including the ending '\0'.
+ *
+ * Adding the ending '\0' prevents hash collisions by concatenating strings.
+ */
+static void add_to_hash_state(XXH3_state_t* state, const char* str, size_t length) {
+  if (XXH3_128bits_update(state, str, length + 1) == XXH_ERROR) {
     abort();
   }
 }
@@ -146,6 +134,53 @@ static Hash state_to_hash(XXH3_state_t* state) {
   return Hash(digest);
 }
 
+/* Free XXH3_state_t when it is malloc()-ed. */
+static inline void maybe_XXH3_freeState(XXH3_state_t* state) {
+#ifndef XXH_INLINE_ALL
+  XXH3_freeState(state);
+#else
+  (void)state;
+#endif
+}
+
+ExecedProcessCacher::ExecedProcessCacher(bool no_store,
+                                         bool no_fetch,
+                                         const libconfig::Config* cfg) :
+    no_store_(no_store), no_fetch_(no_fetch),
+    envs_skip_(), ignore_locations_hash_(), fingerprints_(), fingerprint_msgs_() {
+  const libconfig::Setting& envs_skip = cfg->getRoot()["env_vars"]["fingerprint_skip"];
+  for (int i = 0; i < envs_skip.getLength(); i++) {
+    envs_skip_.insert(envs_skip[i].c_str());
+  }
+#ifdef XXH_INLINE_ALL
+  XXH3_state_t state_struct;
+  XXH3_state_t* state = &state_struct;
+#else
+  XXH3_state_t* state = XXH3_createState();
+#endif
+  if (XXH3_128bits_reset(state) == XXH_ERROR) {
+    abort();
+  }
+  /* Hash the already sorted ignore locations.*/
+  for (int i = 0; i < ignore_locations.len; i++) {
+    add_to_hash_state(state, ignore_locations.p[i].c_str, ignore_locations.p[i].length);
+  }
+  ignore_locations_hash_ = state_to_hash(state);
+  maybe_XXH3_freeState(state);
+}
+
+/**
+ * Helper for fingerprint() to decide which env vars matter
+ */
+bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value) const {
+  /* Strip off the "=value" part. */
+  const std::string name = name_and_value.substr(0, name_and_value.find('='));
+
+  /* Env vars to skip, taken from the config files.
+   * Note: FB_SOCKET is already filtered out in the interceptor. */
+  return envs_skip_.find(name) == envs_skip_.end();
+}
+
 /* Adaptor from C++ std::vector<FBBFP_Builder_file> to FBB's FBB array */
 static const FBBFP_Builder *fbbfp_builder_file_vector_item_fn(int i, const void *user_data) {
   const std::vector<FBBFP_Builder_file> *fbbs =
@@ -171,15 +206,6 @@ static const FBBSTORE_Builder *fbbstore_builder_append_to_fd_vector_item_fn(int 
   return reinterpret_cast<const FBBSTORE_Builder *>(builder);
 }
 
-/* Free XXH3_state_t when it is malloc()-ed. */
-static inline void maybe_XXH3_freeState(XXH3_state_t* state) {
-#ifndef XXH_INLINE_ALL
-  XXH3_freeState(state);
-#else
-  (void)state;
-#endif
-}
-
 /**
  * Compute the fingerprint, store it keyed by the process in fingerprints_.
  * Also store fingerprint_msgs_ if debugging is enabled.
@@ -196,6 +222,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   if (XXH3_128bits_reset_withSeed(state, kFingerprintVersion) == XXH_ERROR) {
     abort();
   }
+  add_to_hash_state(state, ignore_locations_hash_);
   add_to_hash_state(state, proc->initial_wd());
   /* Size is added to not allow collisions between elements of different containers.
    * Otherwise "cmd foo BAR=1" would collide with "env BAR=1 cmd foo". */

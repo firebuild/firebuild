@@ -55,6 +55,8 @@ class ExecedProcessCacher {
   bool no_fetch_;
   tsl::hopscotch_set<std::string> envs_skip_;
 
+  /** The hashed fingerprint of configured ignore locations. */
+  Hash ignore_locations_hash_;
   /* The hashed fingerprint of the processes handled by this cacher. */
   tsl::hopscotch_map<const ExecedProcess*, Hash> fingerprints_;
   /* The entire fingerprint of the processes handled by this cacher, for debugging
