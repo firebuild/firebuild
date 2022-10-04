@@ -1,6 +1,3 @@
-Generate (almost usable) default wrappers from header:
- grep '^ *extern' /usr/include/unistd.h | sed 's/extern \([^ ]*\)/IC_GENERIC(\1/;s/^\([^ ]*\) \*/\1* /;s/ \([^ ]*\) (/, \1, (/;s/).*/), {\n    ret = orig_fn(XXX);})/'
-
 Test wether Firebuild intercepts all syscalls:
 firebuild -i strace  -o/tmp/ls.trace ls
 awk 'BEGINFILE {SKIP=0}
@@ -16,5 +13,3 @@ Emacs code indentation style:
 (require 'google-c-style)
 (add-hook 'c-mode-common-hook 'google-set-c-style)
 (add-hook 'c-mode-common-hook 'google-make-newline-indent)
-
-
