@@ -579,8 +579,8 @@ class Process {
   tsl::hopscotch_map<int, ExecedProcess *> fd2popen_child_ {};
   /** commands of system(3), popen(3) and posix_spawn[p](3) that are expected to appear */
   ExecedProcessEnv *expected_child_;
-  /** Set upon an "execv" message, cleared upon "scproc_query" (i.e. new dynamically linked process
-   *  successfully started up) or "execv_failed". Also set in the child upon a "posix_spawn_parent"
+  /** Set upon an "exec" message, cleared upon "scproc_query" (i.e. new dynamically linked process
+   *  successfully started up) or "exec_failed". Also set in the child upon a "posix_spawn_parent"
    *  in the typical case that the child hasn't appeared yet. Lets us detect statically linked
    *  processes: if a process quits while this flag is true then it was most likely statically
    *  linked (or failed to link, etc.). */
