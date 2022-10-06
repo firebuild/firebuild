@@ -26,8 +26,10 @@ namespace firebuild {
 
 static const XXH64_hash_t kFingerprintVersion = 0;
 static const unsigned int kCacheFormatVersion = 1;
+static const char kCacheStatsFile[] = "stats";
 
 unsigned int ExecedProcessCacher::cache_format_ = 0;
+
 /* singleton*/
 ExecedProcessCacher* execed_process_cacher;
 
@@ -116,7 +118,7 @@ void ExecedProcessCacher::init(const libconfig::Config* cfg) {
   PipeRecorder::set_base_dir((cache_dir + "/tmp").c_str());
   hash_cache = new HashCache();
 
-  execed_process_cacher = new ExecedProcessCacher(no_store, no_fetch, cfg);
+  execed_process_cacher = new ExecedProcessCacher(no_store, no_fetch, cache_dir, cfg);
 }
 
 /**
@@ -186,9 +188,11 @@ static inline void maybe_XXH3_freeState(XXH3_state_t* state) {
 
 ExecedProcessCacher::ExecedProcessCacher(bool no_store,
                                          bool no_fetch,
+                                         const std::string& cache_dir,
                                          const libconfig::Config* cfg) :
     no_store_(no_store), no_fetch_(no_fetch),
-    envs_skip_(), ignore_locations_hash_(), fingerprints_(), fingerprint_msgs_() {
+    envs_skip_(), ignore_locations_hash_(), fingerprints_(), fingerprint_msgs_(),
+    cache_dir_(cache_dir) {
   const libconfig::Setting& envs_skip = cfg->getRoot()["env_vars"]["fingerprint_skip"];
   for (int i = 0; i < envs_skip.getLength(); i++) {
     envs_skip_.insert(envs_skip[i].c_str());
@@ -1287,6 +1291,8 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     return false;
   }
 
+  shortcut_attempts_++;
+
   bool ret = false;
   uint8_t * inouts_buf = NULL;
   size_t inouts_buf_len = 0;
@@ -1320,6 +1326,9 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
   FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
 
   proc->set_was_shortcut(ret);
+  if (ret) {
+    shortcut_hits_++;
+  }
   return ret;
 }
 
@@ -1385,6 +1394,54 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
     }
   }
   return true;
+}
+
+void ExecedProcessCacher::print_stats(const char* which) {
+  printf("Statistics of %s:\n", which);
+  printf("  Hits:        %6u / %u (%.2f %%)\n", shortcut_hits_, shortcut_attempts_,
+         shortcut_attempts_ > 0 ? (static_cast<float>(100 * shortcut_hits_) / shortcut_attempts_) :
+         0);
+  printf("  Misses:      %6u\n", shortcut_attempts_ - shortcut_hits_);
+  printf("  Uncacheable: %6u\n", not_shortcutting_);
+}
+
+void ExecedProcessCacher::add_stored_stats() {
+  /* Read cache statistics. */
+  FILE* f;
+  unsigned int shortcut_attempts, shortcut_hits, not_shortcutting;
+  const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
+  if ((f = fopen(stats_file.c_str(), "r"))) {
+    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u",
+               &shortcut_attempts, &shortcut_hits, &not_shortcutting) != 3) {
+      fb_error("Invalid stats file format at " + stats_file + ", using only current run's stats.");
+    } else {
+      shortcut_attempts_ += shortcut_attempts;
+      shortcut_hits_ += shortcut_hits;
+      not_shortcutting_ += not_shortcutting;
+    }
+    fclose(f);
+  }
+}
+
+void ExecedProcessCacher::update_stored_stats() {
+  // FIXME(rbalint) There is a slight chance for two parallel builds updating the stats at the
+  // same time making them inaccurate or invalid in format.
+  add_stored_stats();
+  FILE* f;
+  const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
+  if (!(f = fopen(stats_file.c_str(), "w"))) {
+    fb_perror(("opening cache stats file failed"));
+    exit(EXIT_FAILURE);
+  }
+  if (fprintf(f, "attempts: %u\nhits: %u\nskips: %u\n",
+              shortcut_attempts_, shortcut_hits_, not_shortcutting_) <= 0) {
+    fb_perror("writing cache stats file failed");
+    /* File may contain invalid data. */
+    // FIXME(rbalint) make this atomic
+    unlink(stats_file.c_str());
+    exit(EXIT_FAILURE);
+  }
+  fclose(f);
 }
 
 void ExecedProcessCacher::gc() {

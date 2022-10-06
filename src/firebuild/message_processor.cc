@@ -65,6 +65,7 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
     if (dont_intercept_matcher->match(proc)) {
       /* Executables that should not be intercepted. */
       proc->disable_shortcutting_bubble_up("Executable set to not be intercepted");
+      execed_process_cacher->not_shortcutting();
       sv_msg.set_dont_intercept(true);
     } else if (dont_shortcut_matcher->match(proc)) {
       if (quirks & FB_QUIRK_LTO_WRAPPER && proc->args().size() > 0 && proc->args()[0] == "make"
@@ -74,12 +75,14 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
       } else {
         /* Executables that are known not to be shortcuttable. */
         proc->disable_shortcutting_bubble_up("Executable set to be not shortcut");
+        execed_process_cacher->not_shortcutting();
       }
     }
 
     /* Check for executables that we prefer not to shortcut. */
     if (skip_cache_matcher->match(proc)) {
       proc->disable_shortcutting_only_this("Executable matches skip_cache");
+      execed_process_cacher->not_shortcutting();
     }
 
     /* If we still potentially can, and prefer to cache / shortcut this process,

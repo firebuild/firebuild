@@ -65,6 +65,8 @@ setup() {
     result=$(env PATH="${PATH/ccache/ccache-DISABLED/}" ./run-firebuild -- make -s -j8 -f test_parallel_make.Makefile)
     assert_streq "$result" "ok"
     assert_streq "$(strip_stderr stderr)" ""
+    result=$(./run-firebuild -s)
+    assert_streq "$(strip_stderr stderr)" ""
   done
 }
 
@@ -362,4 +364,16 @@ setup() {
   result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')
   assert_streq "$result" ""
   assert_streq "$(strip_stderr stderr)" "FIREBUILD ERROR: Cache format version is not supported, not reading or writing the cache"
+}
+
+@test "stats" {
+  # Use stats for current run
+  result=$( ./run-firebuild -s bash -c 'ls integration.bats' | sed 's/[0-9]/N/g;s/  */ /g')
+  assert_streq "$result" "$(printf 'integration.bats\n\nStatistics of current run:\n Hits: N / N (N.NN %%)\n Misses: N\n Uncacheable: N\n')"
+  # use --show-stats together with --gc ...
+  result=$( ./run-firebuild --gc --show-stats | sed 's/[0-9]/N/g;s/  */ /g')
+  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: N / N (N.NN %%)\n Misses: N\n Uncacheable: N\n')"
+  # ... and without --gc
+  result=$( ./run-firebuild -s | sed 's/[0-9]/N/g;s/  */ /g')
+  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: N / N (N.NN %%)\n Misses: N\n Uncacheable: N\n')"
 }

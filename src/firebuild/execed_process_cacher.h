@@ -37,6 +37,10 @@ class ExecedProcessCacher {
                       const FBBSTORE_Serialized_process_inputs_outputs *inouts,
                       std::vector<int> *fds_appended_to);
   bool shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to);
+  void not_shortcutting() {if (!no_fetch_) not_shortcutting_++;}
+  void add_stored_stats();
+  void print_stats(const char* what);
+  void update_stored_stats();
   void gc();
   /**
    * Checks if the object cache entry can be used for shortcutting, i.e. all the referenced
@@ -49,12 +53,16 @@ class ExecedProcessCacher {
   bool is_entry_usable(uint8_t* entry_buf, tsl::hopscotch_set<AsciiHash>* referenced_blobs);
 
  private:
-  ExecedProcessCacher(bool no_store, bool no_fetch, const libconfig::Config* cfg);
+  ExecedProcessCacher(bool no_store, bool no_fetch, const std::string& cache_dir,
+                      const libconfig::Config* cfg);
   bool env_fingerprintable(const std::string& name_and_value) const;
 
   bool no_store_;
   bool no_fetch_;
   tsl::hopscotch_set<std::string> envs_skip_;
+  unsigned int shortcut_attempts_ {0};
+  unsigned int shortcut_hits_ {0};
+  unsigned int not_shortcutting_ {0};
 
   /** The hashed fingerprint of configured ignore locations. */
   Hash ignore_locations_hash_;
@@ -65,6 +73,7 @@ class ExecedProcessCacher {
   tsl::hopscotch_map<const ExecedProcess*, std::vector<char>> fingerprint_msgs_;
 
   static unsigned int cache_format_;
+  std::string cache_dir_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcessCacher);
 };
 
