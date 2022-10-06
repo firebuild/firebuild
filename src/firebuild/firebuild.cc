@@ -77,6 +77,7 @@ static void usage() {
          "   -o --option=key=val       Add or replace a scalar in the config\n"
          "   -o --option=key+=val      Append to an array of scalars in the config\n"
          "   -o --option=key-=val      Remove from an array of scalars in the config\n"
+         "   -s --show-stats           Show cache hit statistics.\n"
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
          "                             to let users find unintercepted calls using\n"
          "                             strace or ltrace. This works in debug builds only.\n"
@@ -252,7 +253,7 @@ int main(const int argc, char *argv[]) {
   char *directory = NULL;
   std::list<std::string> config_strings = {};
   int c;
-  bool gc_only = false;
+  bool gc = false, print_stats = false;
   /* init global data */
   cfg = new libconfig::Config();
 
@@ -269,12 +270,13 @@ int main(const int argc, char *argv[]) {
       {"generate-report",      optional_argument, 0, 'r' },
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
+      {"show-stats",           no_argument,       0, 's' },
       {"insert-trace-markers", no_argument,       0, 'i' },
       {"version",              no_argument,       0, 'v' },
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:C:d:D:r::o:ghi",
+    c = getopt_long(argc, argv, "c:C:d:D:r::o:ghis",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -294,7 +296,7 @@ int main(const int argc, char *argv[]) {
       break;
 
     case 'g':
-      gc_only = true;
+      gc = true;
       break;
 
     case 'D':
@@ -328,6 +330,10 @@ int main(const int argc, char *argv[]) {
       }
       break;
 
+    case 's':
+      print_stats = true;
+      break;
+
     case 'v':
       printf("Firebuild " FIREBUILD_VERSION "\n\n"
              "This is an unpublished work. All rights reserved.\n");
@@ -339,9 +345,12 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
   }
-  if (optind >= argc && !gc_only) {
-    usage();
-    exit(EXIT_FAILURE);
+
+  if (optind >= argc) {
+    if (!gc && !print_stats) {
+      usage();
+      exit(EXIT_FAILURE);
+    }
   }
 
   if (FB_DEBUGGING(firebuild::FB_DEBUG_TIME)) {
@@ -353,10 +362,17 @@ int main(const int argc, char *argv[]) {
   /* Initialize the cache */
   firebuild::ExecedProcessCacher::init(cfg);
 
-  if (gc_only) {
+  if (gc) {
     firebuild::execed_process_cacher->gc();
+  }
+  if (optind >= argc) {
+    if (print_stats) {
+      firebuild::execed_process_cacher->add_stored_stats();
+      firebuild::execed_process_cacher->print_stats("stored cache");
+    }
     exit(0);
   }
+
   {
     char *pattern;
     if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {
@@ -495,6 +511,13 @@ int main(const int argc, char *argv[]) {
                       ru_chldr.ru_stime.tv_sec, ru_chldr.ru_stime.tv_usec / 1000,
                       ru_total.ru_stime.tv_sec, ru_total.ru_stime.tv_usec / 1000);
     }
+
+    if (print_stats) {
+      /* Separate stats from other output. */
+      fprintf(stdout, "\n");
+      firebuild::execed_process_cacher->print_stats("current run");
+    }
+    firebuild::execed_process_cacher->update_stored_stats();
 
     /* show process tree if needed */
     if (generate_report) {

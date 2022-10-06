@@ -156,6 +156,19 @@ This file is an unpublished work. All rights reserved.
       </varlistentry>
       <varlistentry>
 	<term>
+	  <option>-s</option>, <option>--show-stats</option>
+	</term>
+	<listitem>
+	  <para>
+            Show cache hit statistics. When used together with <replaceable>BUILD COMMAND</replaceable>,
+            the statistics of the current run are shown. Without a
+            <replaceable>BUILD COMMAND</replaceable> it shows the cumulative statistics of
+            all prior runs (since the creation of the used cache directory).
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
 	  <option>-i</option>, <option>--insert-trace-markers</option>
 	</term>
 	<listitem>
