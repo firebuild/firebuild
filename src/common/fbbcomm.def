@@ -535,7 +535,7 @@
       (REQUIRED, "int", "ret"),
     ]),
 
-    ("execv", [
+    ("exec", [
       # file to execute
       (OPTIONAL, STRING, "file"),
       # file fd to execute, in case of fexecve()
@@ -556,7 +556,7 @@
       (REQUIRED, "int64_t", "stime_u"),
     ]),
 
-    ("execv_failed", [
+    ("exec_failed", [
       # error no., when ret = -1
       (REQUIRED, "int", "error_no"),
     ]),

@@ -558,8 +558,8 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       }
       return;
     }
-    case FBBCOMM_TAG_execv_failed: {
-      // FIXME(rbalint) check execv parameter and record what needs to be
+    case FBBCOMM_TAG_exec_failed: {
+      // FIXME(rbalint) check exec parameter and record what needs to be
       // checked when shortcutting the process
       proc->set_exec_pending(false);
       break;
@@ -935,11 +935,11 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           reinterpret_cast<const FBBCOMM_Serialized_pipe_fds *>(fbbcomm_buf));
       break;
     }
-    case FBBCOMM_TAG_execv: {
-      const FBBCOMM_Serialized_execv *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_execv *>(fbbcomm_buf);
+    case FBBCOMM_TAG_exec: {
+      const FBBCOMM_Serialized_exec *ic_msg =
+          reinterpret_cast<const FBBCOMM_Serialized_exec *>(fbbcomm_buf);
       proc->update_rusage(ic_msg->get_utime_u(), ic_msg->get_stime_u());
-      // FIXME(rbalint) save execv parameters
+      // FIXME(rbalint) save exec parameters
       proc->set_exec_pending(true);
       break;
     }
