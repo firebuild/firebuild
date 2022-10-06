@@ -77,7 +77,28 @@ This file is an unpublished work. All rights reserved.
 	</term>
 	<listitem>
 	  <para>
-            comma separated list of debug flags, "-d help" to get a list.
+            comma separated list of debug flags, <option>-d help</option> to get a list.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-D</option>, <option>--debug-filter=<replaceable>list</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            Comma separated list of commands to debug. Debug messages related to processes which are not listed are suppressed.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
+	  <option>-g</option>, <option>--gc</option>
+	</term>
+	<listitem>
+	  <para>
+            Garbage collect the cache. Keeps debugging entries related to kept files when used
+            together with <option>--debug cache</option>.
 	  </para>
 	</listitem>
       </varlistentry>
