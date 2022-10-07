@@ -54,37 +54,6 @@
   }
 ### endblock no_intercept
 
-{# TODO fix syscall() interception with clang #}
-###   block decl_h
-#ifndef __clang__
-  {{ super() }}
-#endif
-###   endblock decl_h
-
-###   block decl_c
-#ifndef __clang__
-  {{ super() }}
-#endif
-###   endblock decl_c
-
-###   block init_c
-#ifndef __clang__
-  {{ super() }}
-#endif
-###   endblock init_c
-
-###   block reset_c
-#ifndef __clang__
-  {{ super() }}
-#endif
-###   endblock reset_c
-
-###   block impl_c
-#ifndef __clang__
-  {{ super() }}
-#endif
-###   endblock impl_c
-
 ### block call_orig
   switch (number) {
     case SYS_clone:
@@ -102,8 +71,17 @@
         break;
       }
   }
-  /* FIXME Find a different solution, see #178. */
-  void *args = __builtin_apply_args();
-  void const * const result = __builtin_apply((void *) IC_ORIG({{ func }}), args, 100);
-  ret = *({{ rettype }}*)result;
+  /* Pass on several long parameters unchanged, see #178. */
+  va_list ap_pass;
+  va_start(ap_pass, number);
+  long arg1 = va_arg(ap_pass, long);
+  long arg2 = va_arg(ap_pass, long);
+  long arg3 = va_arg(ap_pass, long);
+  long arg4 = va_arg(ap_pass, long);
+  long arg5 = va_arg(ap_pass, long);
+  long arg6 = va_arg(ap_pass, long);
+  long arg7 = va_arg(ap_pass, long);
+  long arg8 = va_arg(ap_pass, long);
+  va_end(ap_pass);
+  ret = IC_ORIG({{ func }})(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 ### endblock call_orig

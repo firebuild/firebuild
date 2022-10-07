@@ -48,7 +48,7 @@ jobs:
       run: |
         export PATH=/usr/lib/ccache:$PATH
         cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
-        make -j2 check
+        make -j2
     - name: test
       run: |
         make check
@@ -128,12 +128,16 @@ jobs:
         key: clang-build
     - name: install-deps
       run: |
-        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS $TEST_DEPS
+        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS $TEST_DEPS valgrind
     - name: build
       run: |
         export PATH=/usr/lib/ccache:$PATH
         env CXX=clang++ CC=clang cmake .
-        make -j2 check
+        make -j2
+    - name: test
+      run: |
+        make check
+        test/close_fds_exec make valgrind-check
     - name: clean
       run: make clean
     - name: scan-build
