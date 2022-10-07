@@ -132,7 +132,7 @@ jobs:
     - name: build
       run: |
         export PATH=/usr/lib/ccache:$PATH
-        env CXX=clang++ CC=clang cmake .
+        env CC=clang CXX=clang++ LD=ld.lld cmake .
         make -j2
     - name: test
       run: |
