@@ -89,16 +89,12 @@
   switch (number) {
     case SYS_clone:
       {
-        /* See clone(2) NOTES about differences between architectures. */
+        /* Need to extract 'flags'. See clone(2) NOTES about differences between architectures. */
 #if defined(__s390__) || defined(__cris__)
-        void *stack =  va_arg(ap, void*);
-        unsigned long flags = va_arg(ap, unsigned long);
-#else
-        unsigned long flags = va_arg(ap, unsigned long);
-        void *stack =  va_arg(ap, void*);
+        va_arg(ap, void*);  /* skip over 'stack' */
 #endif
+        unsigned long flags = va_arg(ap, unsigned long);
         va_end(ap);
-        (void)stack;
         if (i_am_intercepting) {
           pre_clone_disable_interception(flags, true, &i_locked);
           i_am_intercepting = false;
