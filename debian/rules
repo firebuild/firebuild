@@ -16,9 +16,6 @@ endif
 %:
 	dh $@
 
-override_dh_auto_install:
-	dh_auto_install
-
 override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
 	make -C obj-* check
