@@ -5,6 +5,13 @@ ifeq ($(shell $(CXX) --version | head -n1 | cut -d\  -f4 | xargs dpkg --compare-
 export CC = gcc-10
 export CXX = g++-10
 endif
+# Clang does not support -ffat-lto-objects and this breaks check_c_compiler_flag() tests in cmake
+ifeq ($(CC),clang)
+export DEB_CFLAGS_MAINT_STRIP = -ffat-lto-objects
+export DEB_CPPFLAGS_MAINT_STRIP = -ffat-lto-objects
+export DEB_CXXFLAGS_MAINT_STRIP = -ffat-lto-objects
+export DEB_LDLAGS_MAINT_STRIP = -ffat-lto-objects
+endif
 
 %:
 	dh $@
