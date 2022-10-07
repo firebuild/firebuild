@@ -16,6 +16,14 @@ endif
 %:
 	dh $@
 
+
+# dwz does not support dwarf-5 binaries emitted by clang
+# https://sourceware.org/bugzilla/show_bug.cgi?id=28985
+override_dh_dwz:
+ifneq ($(CC),clang)
+	dh_dwz
+endif
+
 override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
 	make -C obj-* check
