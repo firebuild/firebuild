@@ -327,6 +327,15 @@ class Process {
                      const mode_t st_mode, const off_t st_size, const int error = 0);
 
   /**
+   * Handle statfs in the monitored process
+   * @param name absolute file name
+   * @param name_len length of name
+   * @param error error code of statfs() variant
+   */
+  int handle_statfs(const char * const name, const size_t name_len,
+                    const int error = 0);
+
+  /**
    * Handle access, e[uid]access, faccessat in the monitored process
    */
   int handle_faccessat(const int dirfd, const char * const name, const size_t name_len,

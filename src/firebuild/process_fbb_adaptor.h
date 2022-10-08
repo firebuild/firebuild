@@ -254,6 +254,15 @@ class ProcessFBBAdaptor {
     return 0;
   }
 
+  static int handle(Process *proc, const FBBCOMM_Serialized_statfs *msg) {
+    if (msg->has_pathname()) {
+      return proc->handle_statfs(msg->get_pathname(), msg->get_pathname_len(),
+                                 msg->get_error_no_with_fallback(0));
+    } else {
+      return proc->handle_statfs(nullptr, 0, msg->get_error_no_with_fallback(0));
+    }
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFBBAdaptor);
 };

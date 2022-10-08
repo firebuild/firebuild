@@ -857,5 +857,10 @@
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
+
+    ("statfs", [
+      (OPTIONAL, STRING, "pathname"),
+      (OPTIONAL, "int", "error_no"),
+    ]),
   ]
 }
