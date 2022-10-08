@@ -1127,6 +1127,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       PFBBA_HANDLE(proc, socketpair, fbbcomm_buf);
       break;
     }
+    case FBBCOMM_TAG_statfs:
+      ProcessFBBAdaptor::handle(
+           proc, reinterpret_cast<const FBBCOMM_Serialized_statfs *>(fbbcomm_buf));
+      break;
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:

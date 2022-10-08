@@ -482,6 +482,35 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
   return 0;
 }
 
+int Process::handle_statfs(const char * const a_name, const size_t length,
+                           const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "a_name=%s, error=%d", D(a_name), error);
+
+  if (a_name == nullptr) {
+    /* Operating on an opened fd, i.e. fstatfs(). */
+    exec_point()->disable_shortcutting_bubble_up(
+        "fstatfs() family operating on fds is not supported");
+    return -1;
+  }
+  /* Operating on a file reached by its name, made absolute by the interceptor. */
+#ifdef FB_EXTRA_DEBUG
+  assert(path_is_absolute(a_name));
+#endif
+  const FileName* name = FileName::Get(a_name, length);
+  if (error == ENOENT) {
+    FileUsageUpdate update(name, NOTEXIST);
+    if (!exec_point()->register_file_usage_update(name, update)) {
+      exec_point()->disable_shortcutting_bubble_up("Could not register failed statfs()", *name);
+    }
+  } else {
+    // TODO(rbalint) add more supported cases
+    exec_point()->disable_shortcutting_bubble_up(
+        "Successful statfs() calls are not supported.");
+    return -1;
+  }
+  return 0;
+}
+
 int Process::handle_faccessat(const int dirfd, const char * const ar_name, const size_t ar_name_len,
                               const int mode, const int flags, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,

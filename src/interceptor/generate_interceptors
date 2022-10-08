@@ -1221,23 +1221,36 @@ generate("int", "isfdtype", "int fd, int fdtype",
 
 # Disable shortcutting on the statfs family
 generate("int", "ustat", "dev_t dev, struct ustat *ubuf",
-         tpl="once")
-generate("int", "statfs", "const char *path, struct statfs *buf",
-         tpl="once")
-generate("int", "statfs64", "const char *path, struct statfs64 *buf",
-         tpl="once")
+         msg="statfs",
+         msg_skip_fields=["dev", "ubuf"])
+generate("int", "statfs", "const char *pathname, struct statfs *buf",
+         msg="statfs",
+         msg_skip_fields=["pathname", "buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
+generate("int", "statfs64", "const char *pathname, struct statfs64 *buf",
+         msg="statfs",
+         msg_skip_fields=["pathname", "buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
 generate("int", "fstatfs", "int fd, struct statfs *buf",
-         tpl="once")
+         msg="statfs",
+         msg_skip_fields=["fd", "buf"])
 generate("int", "fstatfs64", "int fd, struct statfs64 *buf",
-         tpl="once")
-generate("int", "statvfs", "const char *path, struct statvfs *buf",
-         tpl="once")
-generate("int", "statvfs64", "const char *path, struct statvfs64 *buf",
-         tpl="once")
+         msg="statfs",
+         msg_skip_fields=["fd", "buf"])
+generate("int", "statvfs", "const char *pathname, struct statvfs *buf",
+         msg="statfs",
+         msg_skip_fields=["pathname", "buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
+generate("int", "statvfs64", "const char *pathname, struct statvfs64 *buf",
+         msg="statfs",
+         msg_skip_fields=["pathname", "buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
 generate("int", "fstatvfs", "int fd, struct statvfs *buf",
-         tpl="once")
+         msg="statfs",
+         msg_skip_fields=["fd", "buf"])
 generate("int", "fstatvfs64", "int fd, struct statvfs64 *buf",
-         tpl="once")
+         msg="statfs",
+         msg_skip_fields=["fd", "buf"])
 
 # Intercept lockf */
 generate("int", "lockf", "int fd, int cmd, off_t len")
