@@ -258,6 +258,8 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
         quirks |= FB_QUIRK_IGNORE_TMP_LISTING;
       } else if (quirk == "lto-wrapper") {
         quirks |= FB_QUIRK_LTO_WRAPPER;
+      } else if (quirk == "ignore-time-queries") {
+        quirks |= FB_QUIRK_IGNORE_TIME_QUERIES;
       } else {
         if (FB_DEBUGGING(FB_DEBUG_CONFIG)) {
           std::cerr <<"Ignoring unknown quirk: " + quirk << std::endl;

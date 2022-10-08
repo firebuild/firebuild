@@ -420,6 +420,9 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("clock_gettime", [
+    ]),
+
     ("utime", [
       # ..at(), like utimensat
       (OPTIONAL, "int", "dirfd"),

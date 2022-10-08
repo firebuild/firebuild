@@ -1693,17 +1693,21 @@ generate("uint32_t", "arc4random_uniform", "uint32_t upper_bound",
 
 # Querying current time - probably disable shortcutting, let the supervisor decide
 generate("time_t", "time", "time_t *loc",
-         success="true",
+         msg="clock_gettime",
          tpl="once")
 generate("int", "ftime", "struct timeb *tp",
+         msg="clock_gettime",
          tpl="once")
 # sys/time.h declares the funcion with void *tz and not matching that generates an error
 # generate("int", "gettimeofday", "struct timeval *tv, struct timezone *tz",
 generate("int", "gettimeofday", "struct timeval *tv, void *tz",
+         msg="clock_gettime",
          tpl="once")
 generate("int", "clock_gettime", "clockid_t clk_id, struct timespec *tp",
+         msg="clock_gettime",
          tpl="once")
 generate("int", ["ntp_gettime", "ntp_gettimex"], "struct ntptimeval *ntv",
+         msg="clock_gettime",
          tpl="once")
 
 # Disable setting the time
