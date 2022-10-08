@@ -1104,6 +1104,17 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           "Changing file timestamps is not supported");
       break;
     }
+    case FBBCOMM_TAG_clock_gettime: {
+      if (quirks & FB_QUIRK_IGNORE_TIME_QUERIES) {
+        FB_DEBUG(FB_DEBUG_PROC, "Allow shortcutting time query "
+                 "(ignore-time-queries quirk)");
+      } else {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Time queries such as clock_gettime() prevent shortcutting unless the "
+            "\"ignore-time-queries\" quirk is set.");
+      }
+      break;
+    }
     case FBBCOMM_TAG_clone: {
       proc->exec_point()->disable_shortcutting_bubble_up("clone() is not supported");
       break;
