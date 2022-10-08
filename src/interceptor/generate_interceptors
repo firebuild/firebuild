@@ -195,7 +195,7 @@ def generate(rettype, funcs, sig, **dict):
   template = env.get_template(dict['tpl'])
 
   if 'msg' not in dict:
-    dict['msg'] = funcs[0]
+    dict['msg'] = funcs[0] if dict['tpl'] != 'tpl_once.c' else 'gen_call'
 
   if 'success' not in dict:
     if rettype == 'void':

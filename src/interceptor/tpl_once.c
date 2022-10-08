@@ -25,9 +25,11 @@ bool ic_called_{{ func }};
   /* Notify the supervisor */
   if (!ic_called_{{ func }}) {
     ic_called_{{ func }} = true;
-    FBBCOMM_Builder_gen_call ic_msg;
-    fbbcomm_builder_gen_call_init(&ic_msg);
-    fbbcomm_builder_gen_call_set_call(&ic_msg, "{{ func }}");
+    FBBCOMM_Builder_{{ msg }} ic_msg;
+    fbbcomm_builder_{{ msg }}_init(&ic_msg);
+###   if msg == 'gen_call'
+    fbbcomm_builder_{{ msg }}_set_call(&ic_msg, "{{ func }}");
+###   endif
 
 ###   if ack
     /* Send and wait for ack */
