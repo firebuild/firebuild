@@ -1739,10 +1739,9 @@ generate("int", "ntp_adjtime", "struct timex *buf",
 
 # Skip scheduling parameters
 skip("nice", "getpriority", "setpriority", "getrusage", "profil", "acct")
-generate("int", "prctl", "int option, unsigned long arg2, unsigned long arg3, unsigned long arg4, unsigned long arg5",
-         tpl="once")
 
 # Process stuff
+skip("prctl")
 skip("getpid", "getppid", "getpgrp", "getpgid", "__getpgid", "setpgid", "setpgrp", "setsid", "getsid")
 generate("mode_t", "umask", "mode_t mask",
          success="true",
