@@ -258,5 +258,16 @@ class ProcessFBBAdaptor {
   DISALLOW_COPY_AND_ASSIGN(ProcessFBBAdaptor);
 };
 
+#define PFBBA_HANDLE(process, tag, buffer)                              \
+  ProcessFBBAdaptor::handle(                                            \
+      process,                                                          \
+      reinterpret_cast<const FBBCOMM_Serialized_##tag *>(buffer))
+
+#define PFBBA_HANDLE_ACKED(process, tag, buffer, fd_conn, ack_num)      \
+  ProcessFBBAdaptor::handle(                                            \
+      process,                                                          \
+      reinterpret_cast<const FBBCOMM_Serialized_##tag *>(buffer),       \
+      fd_conn, ack_num)
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_PROCESS_FBB_ADAPTOR_H_
