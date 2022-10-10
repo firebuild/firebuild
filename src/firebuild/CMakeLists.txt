@@ -60,7 +60,6 @@ add_executable(firebuild-bin
   message_processor.cc
   process_factory.cc
   process_tree.cc
-  process_fbb_adaptor.cc
   hash.cc
   hash_cache.cc
   file_fd.cc
