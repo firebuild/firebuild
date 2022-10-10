@@ -934,8 +934,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_pipe_fds: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_pipe_fds *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, pipe_fds, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_exec: {
@@ -947,126 +946,102 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_pre_open: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_pre_open *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, pre_open, fbbcomm_buf);
      break;
     }
     case FBBCOMM_TAG_open: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_open *>(fbbcomm_buf), fd_conn, ack_num);
+      PFBBA_HANDLE_ACKED(proc, open, fbbcomm_buf, fd_conn, ack_num);
       /* ACK is sent by the msg handler if needed. */
       return;
     }
     case FBBCOMM_TAG_freopen: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_freopen *>(fbbcomm_buf), fd_conn, ack_num);
+      PFBBA_HANDLE_ACKED(proc, freopen, fbbcomm_buf, fd_conn, ack_num);
       /* ACK is sent by the msg handler if needed. */
       return;
     }
     case FBBCOMM_TAG_dlopen: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_dlopen *>(fbbcomm_buf), fd_conn, ack_num);
+      PFBBA_HANDLE_ACKED(proc, dlopen, fbbcomm_buf, fd_conn, ack_num);
       /* ACK is sent by the msg handler if needed. */
       return;
     }
     case FBBCOMM_TAG_close: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_close *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, close, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_closefrom: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_closefrom *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, closefrom, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_close_range: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_close_range *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, close_range, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_truncate: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_truncate *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, truncate, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_unlink: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_unlink *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, unlink, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_mkdir: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_mkdir *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, mkdir, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_rmdir: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_rmdir *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, rmdir, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_dup3: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_dup3 *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, dup3, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_dup: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_dup *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, dup, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_rename: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_rename *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, rename, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_symlink: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_symlink *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, symlink, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_fcntl: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_fcntl *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, fcntl, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_ioctl: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_ioctl *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, ioctl, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_umask: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_umask *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, umask, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_chdir: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_chdir *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, chdir, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_fchdir: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_fchdir *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, fchdir, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_read_from_inherited: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_read_from_inherited *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, read_from_inherited, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_write_to_inherited: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_write_to_inherited *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, write_to_inherited, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_seek_in_inherited: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_seek_in_inherited *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, seek_in_inherited, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_recvmsg_scm_rights: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_recvmsg_scm_rights *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, recvmsg_scm_rights, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_link: {
@@ -1074,43 +1049,35 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_fstatat: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_fstatat *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, fstatat, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_faccessat: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_faccessat *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, faccessat, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_fchmodat: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_fchmodat *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, fchmodat, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_memfd_create: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_memfd_create *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, memfd_create, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_timerfd_create: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_timerfd_create *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, timerfd_create, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_epoll_create: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_epoll_create *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, epoll_create, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_eventfd: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_eventfd *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, eventfd, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_signalfd: {
-      ProcessFBBAdaptor::handle(proc,
-          reinterpret_cast<const FBBCOMM_Serialized_signalfd *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, signalfd, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_getrandom: {
@@ -1157,13 +1124,11 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_socket: {
-      ProcessFBBAdaptor::handle(
-           proc, reinterpret_cast<const FBBCOMM_Serialized_socket *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, socket, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_socketpair: {
-      ProcessFBBAdaptor::handle(
-           proc, reinterpret_cast<const FBBCOMM_Serialized_socketpair *>(fbbcomm_buf));
+      PFBBA_HANDLE(proc, socketpair, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_fb_debug:
