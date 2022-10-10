@@ -1797,8 +1797,7 @@ skip("mmap", "munmap")
 
 # Hostname stuff - report gethostname, getdomainname, gethostid.
 # The supervisor might decide whether to disable shortcutting, or ignore this difference
-generate("int", "gethostname", "char *name, size_t len",
-         tpl="once")
+generate("int", "gethostname", "char *name, size_t len")
 generate("int", "__gethostname_chk", "char *name, size_t len, size_t fortify_size",
          tpl="once")
 generate("int", "getdomainname", "char *name, size_t len",

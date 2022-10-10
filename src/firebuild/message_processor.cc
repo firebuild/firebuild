@@ -1131,12 +1131,15 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       ProcessFBBAdaptor::handle(
            proc, reinterpret_cast<const FBBCOMM_Serialized_statfs *>(fbbcomm_buf));
       break;
+    case FBBCOMM_TAG_gethostname:
+      /* Ignore gethostname. With a local cache it should not make a difference, while
+       * in a shared cache the intention is to use cached results from other machines. */
+      break;
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:
     case FBBCOMM_TAG_fpathconf:
     case FBBCOMM_TAG_getdomainname:
-    case FBBCOMM_TAG_gethostname:
     case FBBCOMM_TAG_lockf:
     case FBBCOMM_TAG_pathconf:
     case FBBCOMM_TAG_readlink:
