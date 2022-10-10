@@ -1151,8 +1151,11 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_gen_call: {
-      // TODO(rbalint) disable shortcutting after checking the performance impact
-      // and handling often used calls separately
+      const char* reason =
+          strdup((std::string(reinterpret_cast<const FBBCOMM_Serialized_gen_call *>(
+              fbbcomm_buf)->get_call()) + " is not supported").c_str());
+      proc->exec_point()->disable_shortcutting_bubble_up(reason);
+      ExecedProcess::add_malloced_cant_shortcut_reason(reason);
       break;
     }
     default: {
