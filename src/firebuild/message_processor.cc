@@ -371,8 +371,7 @@ static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t
 
   int tag = fbbcomm_buf->get_tag();
   if (tag == FBBCOMM_TAG_scproc_query) {
-    const FBBCOMM_Serialized_scproc_query *ic_msg =
-        reinterpret_cast<const FBBCOMM_Serialized_scproc_query *>(fbbcomm_buf);
+    auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_scproc_query *>(fbbcomm_buf);
     auto pid = ic_msg->get_pid();
     auto ppid = ic_msg->get_ppid();
     const char* ic_version = ic_msg->get_version();
@@ -514,8 +513,7 @@ static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t
     *new_proc = proc;
 
   } else if (tag == FBBCOMM_TAG_fork_child) {
-    const FBBCOMM_Serialized_fork_child *ic_msg =
-        reinterpret_cast<const FBBCOMM_Serialized_fork_child *>(fbbcomm_buf);
+    auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_fork_child *>(fbbcomm_buf);
     auto pid = ic_msg->get_pid();
     auto ppid = ic_msg->get_ppid();
     auto pending_ack = proc_tree->PPid2ParentAck(ppid);
@@ -568,14 +566,12 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_rusage: {
-      const FBBCOMM_Serialized_rusage *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_rusage *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_rusage *>(fbbcomm_buf);
       proc->resource_usage(ic_msg->get_utime_u(), ic_msg->get_stime_u());
       break;
     }
     case FBBCOMM_TAG_system: {
-      const FBBCOMM_Serialized_system *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_system *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_system *>(fbbcomm_buf);
       assert_null(proc->system_child());
       /* system(cmd) launches a child of argv = ["sh", "-c", cmd] */
       auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false));
@@ -587,8 +583,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     }
     case FBBCOMM_TAG_system_ret: {
       assert(proc->system_child());
-      const FBBCOMM_Serialized_system_ret *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_system_ret *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_system_ret *>(fbbcomm_buf);
       /* system() implicitly waits for the child to finish. */
       int ret = ic_msg->get_ret();
       if (ret == -1 || !WIFEXITED(ret)) {
@@ -614,8 +609,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_popen: {
-      const FBBCOMM_Serialized_popen *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_popen *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_popen *>(fbbcomm_buf);
       assert(proc_tree->Proc2PendingPopen(proc) == nullptr);
 
       int type_flags = ic_msg->get_type_flags();
@@ -635,8 +629,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_popen_parent: {
-      const FBBCOMM_Serialized_popen_parent *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_popen_parent *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_popen_parent *>(fbbcomm_buf);
       /* Entry must have been created at the "popen" message */
       pending_popen_t *pending_popen = proc_tree->Proc2PendingPopen(proc);
       assert(pending_popen);
@@ -654,8 +647,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       return;
     }
     case FBBCOMM_TAG_popen_failed: {
-      const FBBCOMM_Serialized_popen_failed *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_popen_failed *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_popen_failed *>(fbbcomm_buf);
       // FIXME what if !has_cmd() ?
       delete(proc->pop_expected_child_fds(
           std::vector<std::string>({"sh", "-c", ic_msg->get_cmd()}),
@@ -663,8 +655,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_pclose: {
-      const FBBCOMM_Serialized_pclose *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_pclose *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_pclose *>(fbbcomm_buf);
       if (!ic_msg->has_error_no()) {
         /* pclose() is essentially an fclose() first, then a waitpid(), but the interceptor
          * sends an extra close message in advance thus here the fd is already tracked as closed. */
@@ -691,8 +682,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_posix_spawn: {
-      const FBBCOMM_Serialized_posix_spawn *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_posix_spawn *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_posix_spawn *>(fbbcomm_buf);
       auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false));
       std::vector<std::string> argv = ic_msg->get_arg_as_vector();
       expected_child->set_argv(argv);
@@ -728,9 +718,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_posix_spawn_parent: {
-      const FBBCOMM_Serialized_posix_spawn_parent *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_parent *>(fbbcomm_buf);
-
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_parent *>(fbbcomm_buf);
       /* First, do the basic fork() */
       auto pid = ic_msg->get_pid();
       auto fork_child = ProcessFactory::getForkedProcess(pid, proc);
@@ -743,7 +731,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
         switch (action->get_tag()) {
           case FBBCOMM_TAG_posix_spawn_file_action_open: {
             /* A successful open to a particular fd, silently closing the previous file if any. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
+            auto action_open =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
             const char *pathname = action_open->get_pathname();
             const size_t pathname_len = action_open->get_pathname_len();
@@ -771,7 +759,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
              *   Only signal errors for file descriptors out of range.
              * whereas signaling the error means to abort posix_spawn and thus not reach
              * this code here. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_close *action_close =
+            auto action_close =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_close *>(action);
             int fd = action_close->get_fd();
             fork_child->handle_force_close(fd);
@@ -779,7 +767,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           }
           case FBBCOMM_TAG_posix_spawn_file_action_closefrom: {
             /* A successful closefrom. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_closefrom *action_closefrom =
+            auto action_closefrom =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_closefrom *>
                 (action);
             int lowfd = action_closefrom->get_lowfd();
@@ -791,7 +779,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
              * Note that as per https://austingroupbugs.net/view.php?id=411 and glibc's
              * implementation, oldfd==newfd clears the close-on-exec bit (here only,
              * not in a real dup2()). */
-            const FBBCOMM_Serialized_posix_spawn_file_action_dup2 *action_dup2 =
+            auto action_dup2 =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_dup2 *>(action);
             int oldfd = action_dup2->get_oldfd();
             int newfd = action_dup2->get_newfd();
@@ -804,7 +792,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           }
           case FBBCOMM_TAG_posix_spawn_file_action_chdir: {
             /* A successful chdir. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_chdir *action_chdir =
+            auto action_chdir =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_chdir *>(action);
             const char *pathname = action_chdir->get_pathname();
             fork_child->handle_set_wd(pathname);
@@ -812,7 +800,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           }
           case FBBCOMM_TAG_posix_spawn_file_action_fchdir: {
             /* A successful fchdir. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_fchdir *action_fchdir =
+            auto action_fchdir =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_fchdir *>(action);
             int fd = action_fchdir->get_fd();
             fork_child->handle_set_fwd(fd);
@@ -850,8 +838,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_posix_spawn_failed: {
-      const FBBCOMM_Serialized_posix_spawn_failed *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_failed *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_failed *>(fbbcomm_buf);
       std::vector<std::string> arg = ic_msg->get_arg_as_vector();
       delete(proc->pop_expected_child_fds(arg, nullptr, nullptr, true));
       proc->set_posix_spawn_pending(false);
@@ -862,7 +849,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
         switch (action->get_tag()) {
           case FBBCOMM_TAG_posix_spawn_file_action_open: {
             /* A successful open to a particular fd, silently closing the previous file if any. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
+            auto action_open =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
             int flags = action_open->get_flags();
             if (is_write(flags)) {
@@ -882,8 +869,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_wait: {
-      const FBBCOMM_Serialized_wait *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_wait *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_wait *>(fbbcomm_buf);
       const int pid = ic_msg->get_pid();
       Process *child = proc_tree->pid2proc(pid);
       assert(child);
@@ -938,8 +924,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_exec: {
-      const FBBCOMM_Serialized_exec *ic_msg =
-          reinterpret_cast<const FBBCOMM_Serialized_exec *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_exec *>(fbbcomm_buf);
       proc->update_rusage(ic_msg->get_utime_u(), ic_msg->get_stime_u());
       // FIXME(rbalint) save exec parameters
       proc->set_exec_pending(true);
@@ -1081,7 +1066,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_getrandom: {
-      auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_getrandom *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_getrandom *>(fbbcomm_buf);
       const unsigned int flags = ic_msg->get_flags_with_fallback(0);
       const std::string pathname(flags & GRND_RANDOM ? "/dev/random" : "/dev/urandom");
       if (!FileName::Get(pathname)->is_in_ignore_location()) {
@@ -1091,7 +1076,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       break;
     }
     case FBBCOMM_TAG_futime: {
-      auto *ic_msg = reinterpret_cast<const FBBCOMM_Serialized_futime *>(fbbcomm_buf);
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_futime *>(fbbcomm_buf);
       const int fd = ic_msg->get_fd();
       const FileFD* ffd = proc->get_fd(fd);
       if (!ic_msg->has_error_no() && ffd && is_write(ffd->flags()) && ic_msg->get_all_utime_now()) {
@@ -1200,8 +1185,7 @@ void MessageProcessor::ic_conn_readcb(const struct epoll_event* event, void *ctx
     }
 
     /* Have at least one full message. */
-    const FBBCOMM_Serialized *fbbcomm_msg =
-        reinterpret_cast<const FBBCOMM_Serialized *>(buf.data() + sizeof(*header));
+    auto fbbcomm_msg = reinterpret_cast<const FBBCOMM_Serialized *>(buf.data() + sizeof(*header));
 
     if (!proc) {
       /* Now the message is complete, the debug suppression can be correctly set. */
