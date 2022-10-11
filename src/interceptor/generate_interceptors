@@ -1745,10 +1745,15 @@ skip("nice", "getpriority", "setpriority", "getrusage", "profil", "acct")
 # Process stuff
 skip("prctl")
 skip("getpid", "getppid", "getpgrp", "getpgid", "__getpgid", "setpgid", "setpgrp", "setsid", "getsid")
+generate("int", "pidfd_open", "pid_t pid, unsigned int flags",
+         tpl="once")
+# can be skipped, since pidfd_open already disables shortcutting
+skip("pidfd_getfd", "pidfd_send_signal")
 generate("mode_t", "umask", "mode_t mask",
          success="true",
          send_ret_on_success=True,
          send_msg_on_error=False)
+
 # Note: getumask is gone since glibc 2.24
 
 # FIXME {get,set,p}rlimit

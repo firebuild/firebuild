@@ -67,6 +67,7 @@ mknod
 mknodat
 closefrom
 close_range
+pidfd_open
 posix_spawn_file_actions_addclosefrom_np
 shm_open
 shm_unlink
