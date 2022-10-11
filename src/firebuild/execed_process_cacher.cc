@@ -228,16 +228,14 @@ bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value)
 
 /* Adaptor from C++ std::vector<FBBFP_Builder_file> to FBB's FBB array */
 static const FBBFP_Builder *fbbfp_builder_file_vector_item_fn(int i, const void *user_data) {
-  const std::vector<FBBFP_Builder_file> *fbbs =
-      reinterpret_cast<const std::vector<FBBFP_Builder_file> *>(user_data);
+  auto fbbs = reinterpret_cast<const std::vector<FBBFP_Builder_file> *>(user_data);
   const FBBFP_Builder_file *builder = &(*fbbs)[i];
   return reinterpret_cast<const FBBFP_Builder *>(builder);
 }
 
 /* Adaptor from C++ std::vector<FBBFP_Builder_ofd> to FBB's FBB array */
 static const FBBFP_Builder *fbbfp_builder_ofd_vector_item_fn(int i, const void *user_data) {
-  const std::vector<FBBFP_Builder_ofd> *fbbs =
-      reinterpret_cast<const std::vector<FBBFP_Builder_ofd> *>(user_data);
+  auto fbbs = reinterpret_cast<const std::vector<FBBFP_Builder_ofd> *>(user_data);
   const FBBFP_Builder_ofd *builder = &(*fbbs)[i];
   return reinterpret_cast<const FBBFP_Builder *>(builder);
 }
@@ -245,8 +243,7 @@ static const FBBFP_Builder *fbbfp_builder_ofd_vector_item_fn(int i, const void *
 /* Adaptor from C++ std::vector<FBBSTORE_Builder_append_to_fd> to FBB's FBB array */
 static const FBBSTORE_Builder *fbbstore_builder_append_to_fd_vector_item_fn(int i,
                                                                             const void *user_data) {
-  const std::vector<FBBSTORE_Builder_append_to_fd> *fbbs =
-      reinterpret_cast<const std::vector<FBBSTORE_Builder_append_to_fd> *>(user_data);
+  auto fbbs = reinterpret_cast<const std::vector<FBBSTORE_Builder_append_to_fd> *>(user_data);
   const FBBSTORE_Builder_append_to_fd *builder = &(*fbbs)[i];
   return reinterpret_cast<const FBBSTORE_Builder *>(builder);
 }
@@ -450,8 +447,7 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
 }
 
 static const FBBSTORE_Builder* file_item_fn(int idx, const void *user_data) {
-  const std::vector<FBBSTORE_Builder_file>* fbb_file_vector =
-      reinterpret_cast<const std::vector<FBBSTORE_Builder_file> *>(user_data);
+  auto fbb_file_vector = reinterpret_cast<const std::vector<FBBSTORE_Builder_file> *>(user_data);
   return reinterpret_cast<const FBBSTORE_Builder *>(&(*fbb_file_vector)[idx]);
 }
 
@@ -883,8 +879,7 @@ static FileUsageUpdate file_to_file_usage_update(const FileName *filename,
 static const FBBSTORE_Serialized_file* find_input_file(const FBBSTORE_Serialized_process_inputs *pi,
                                                        const FileName* path) {
   for (size_t i = 0; i < pi->get_path_count(); i++) {
-    const FBBSTORE_Serialized_file *file =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
     if (FileName::Get(file->get_path(), file->get_path_len()) == path) {
       return file;
     }
@@ -902,8 +897,7 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const ch
   size_t i;
 
   for (i = 0; i < pi->get_path_count(); i++) {
-    const FBBSTORE_Serialized_file *file =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     const FileInfo query = file_to_file_info(file);
     if (!hash_cache->file_info_matches(path, query)) {
@@ -969,15 +963,14 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
                "│   Cannot retrieve " + d(subkey) + " from objcache, ignoring");
       continue;
     }
-    const FBBSTORE_Serialized *candidate_inouts_fbb =
-        reinterpret_cast<const FBBSTORE_Serialized *>(candidate_inouts_buf);
+    auto candidate_inouts_fbb = reinterpret_cast<const FBBSTORE_Serialized *>(candidate_inouts_buf);
     assert_cmp(candidate_inouts_fbb->get_tag(), ==, FBBSTORE_TAG_process_inputs_outputs);
-    const FBBSTORE_Serialized_process_inputs_outputs *candidate_inouts =
+    auto candidate_inouts =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(candidate_inouts_fbb);
 
     const FBBSTORE_Serialized *inputs_fbb = candidate_inouts->get_inputs();
     assert_cmp(inputs_fbb->get_tag(), ==, FBBSTORE_TAG_process_inputs);
-    const FBBSTORE_Serialized_process_inputs *inputs =
+    auto inputs =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
 
     if (pi_matches_fs(inputs, subkey.c_str())) {
@@ -1038,11 +1031,9 @@ static bool restore_dirs(
     const FBBSTORE_Serialized_process_outputs *outputs;
     bool operator()(const int& i1, const int& i2) const {
       const FBBSTORE_Serialized *file1_generic = outputs->get_path_isdir_at(i1);
-      const FBBSTORE_Serialized_file *file1 =
-          reinterpret_cast<const FBBSTORE_Serialized_file *>(file1_generic);
+      auto file1 = reinterpret_cast<const FBBSTORE_Serialized_file *>(file1_generic);
       const FBBSTORE_Serialized *file2_generic = outputs->get_path_isdir_at(i2);
-      const FBBSTORE_Serialized_file *file2 =
-          reinterpret_cast<const FBBSTORE_Serialized_file *>(file2_generic);
+      auto file2 = reinterpret_cast<const FBBSTORE_Serialized_file *>(file2_generic);
       return file1->get_path_len() < file2->get_path_len();
     }
   } pathname_length_less;
@@ -1052,8 +1043,7 @@ static bool restore_dirs(
   for (i = 0; i < outputs->get_path_isdir_count(); i++) {
     const FBBSTORE_Serialized *dir_generic = outputs->get_path_isdir_at(indices[i]);
     assert_cmp(dir_generic->get_tag(), ==, FBBSTORE_TAG_file);
-    const FBBSTORE_Serialized_file *dir =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
+    auto dir = reinterpret_cast<const FBBSTORE_Serialized_file *>(dir_generic);
     const auto path = FileName::Get(dir->get_path(), dir->get_path_len());
     assert(dir->has_mode());
     mode_t mode = dir->get_mode();
@@ -1157,8 +1147,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
         (inouts->get_inputs());
 
     for (i = 0; i < inputs->get_path_count(); i++) {
-      const FBBSTORE_Serialized_file *file =
-          reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
+      auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
       const auto path = FileName::Get(file->get_path(), file->get_path_len());
       FileInfo info = file_to_file_info(file);
       proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, info));
@@ -1179,8 +1168,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   for (i = 0; i < outputs->get_path_isreg_count(); i++) {
-    const FBBSTORE_Serialized_file *file =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     if (file->get_type() == ISREG) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
@@ -1227,8 +1215,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   /* See what the process originally wrote to its inherited files (pipes or regular files).
    * Replay these. */
   for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
-    const FBBSTORE_Serialized_append_to_fd *append_to_fd =
-        reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
+    auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
     FileFD *ffd = proc->get_fd(append_to_fd->get_fd());
     assert(ffd);
@@ -1334,28 +1321,24 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
 
 bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
                                           tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
-  const FBBSTORE_Serialized *inouts_fbb =
-      reinterpret_cast<const FBBSTORE_Serialized *>(entry_buf);
+  auto inouts_fbb = reinterpret_cast<const FBBSTORE_Serialized *>(entry_buf);
   if (inouts_fbb->get_tag() != FBBSTORE_TAG_process_inputs_outputs) {
     return false;
   }
-  const FBBSTORE_Serialized_process_inputs_outputs *inouts =
-      reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(inouts_fbb);
+  auto inouts = reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(inouts_fbb);
 
   const FBBSTORE_Serialized *inputs_fbb = inouts->get_inputs();
   if (inputs_fbb->get_tag() != FBBSTORE_TAG_process_inputs) {
     return false;
   }
-  const FBBSTORE_Serialized_process_inputs *inputs =
-      reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
+  auto inputs = reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
 
   /* Check existing regular system files files.
    * Only existing ones because --gc may be run when some build dependencies are missing which
    * would be installed before CI runs where firebuild is in use.
    */
   for (size_t i = 0; i < inputs->get_path_count(); i++) {
-    const FBBSTORE_Serialized_file *file =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
     const auto path {FileName::Get(file->get_path(), file->get_path_len())};
     const FileInfo query {file_to_file_info(file)};
     if (query.type() == ISREG && path->is_in_system_location() &&
@@ -1366,12 +1349,10 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
     }
   }
   /* The entry seems to be valid, collect the referenced blobs. */
-  const FBBSTORE_Serialized_process_outputs *outputs =
-      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
-      (inouts->get_outputs());
+  auto outputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>(inouts->get_outputs());
   for (size_t i = 0; i < outputs->get_path_isreg_count(); i++) {
-    const FBBSTORE_Serialized_file *file =
-        reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     if (file->get_type() == ISREG && file->has_hash()) {
       Hash hash {file->get_hash()};
