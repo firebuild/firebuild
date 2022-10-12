@@ -351,6 +351,11 @@ int main(const int argc, char *argv[]) {
       usage();
       exit(EXIT_FAILURE);
     }
+  } else {
+    if (gc) {
+      printf("The --gc (or -g) option can be used only without a BUILD COMMAND.");
+      exit(EXIT_FAILURE);
+    }
   }
 
   if (FB_DEBUGGING(firebuild::FB_DEBUG_TIME)) {
@@ -362,10 +367,12 @@ int main(const int argc, char *argv[]) {
   /* Initialize the cache */
   firebuild::ExecedProcessCacher::init(cfg);
 
-  if (gc) {
-    firebuild::execed_process_cacher->gc();
-  }
   if (optind >= argc) {
+    if (gc) {
+      firebuild::execed_process_cacher->gc();
+      firebuild::execed_process_cacher->read_stored_cached_bytes();
+      firebuild::execed_process_cacher->update_stored_bytes();
+    }
     if (print_stats) {
       firebuild::execed_process_cacher->add_stored_stats();
       firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_STORED);
@@ -522,6 +529,8 @@ int main(const int argc, char *argv[]) {
       fprintf(stdout, "\n");
       firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_CURRENT);
     }
+    firebuild::execed_process_cacher->read_stored_cached_bytes();
+    firebuild::execed_process_cacher->update_stored_bytes();
     firebuild::execed_process_cacher->update_stored_stats();
 
     /* show process tree if needed */

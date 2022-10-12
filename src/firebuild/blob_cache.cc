@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "firebuild/ascii_hash.h"
+#include "firebuild/execed_process_cacher.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash.h"
@@ -214,12 +215,18 @@ bool BlobCache::store_file(const FileName *path,
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
-  if (rename(tmpfile, path_dst) == -1) {
-    fb_perror("Failed renaming file while storing it");
-    assert(0);
-    unlink(tmpfile);
-    free(tmpfile);
-    return false;
+  if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+    if (errno == EEXIST) {
+      FB_DEBUG(FB_DEBUG_CACHING, "blob is already stored");
+      unlink(tmpfile);
+    } else {
+      fb_perror("Failed renaming file while storing it");
+      assert(0);
+      free(tmpfile);
+      return false;
+    }
+  } else {
+    execed_process_cacher->update_cached_bytes(size);
   }
   free(tmpfile);
 
@@ -236,6 +243,7 @@ bool BlobCache::store_file(const FileName *path,
       fb_perror("BlobCache::store_file");
       assert(0);
     }
+    execed_process_cacher->update_cached_bytes(txt.size());
     close(debugfd);
   }
 
@@ -288,11 +296,18 @@ bool BlobCache::move_store_file(const std::string &path,
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
-  if (rename(path.c_str(), path_dst) == -1) {
-    fb_perror("Failed renaming file to cache");
-    assert(0);
-    unlink(path.c_str());
-    return false;
+  if (renameat2(AT_FDCWD, path.c_str(), AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+    if (errno == EEXIST) {
+      FB_DEBUG(FB_DEBUG_CACHING, "blob is already stored");
+      unlink(path.c_str());
+    } else {
+      fb_perror("Failed renaming file to cache");
+      assert(0);
+      unlink(path.c_str());
+      return false;
+    }
+  } else {
+    execed_process_cacher->update_cached_bytes(size);
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -384,6 +399,38 @@ int BlobCache::get_fd_for_file(const Hash &key) {
   return open(path_src, O_RDONLY);
 }
 
+void BlobCache::delete_entries(const std::string& path,
+                               const std::vector<std::string>& entries,
+                               const std::string& debug_postfix) {
+  struct stat st;
+  for (const auto& entry : entries) {
+    const std::string absolute_entry = path + "/" + entry;
+    if (fstatat(AT_FDCWD, absolute_entry.c_str(), &st, AT_SYMLINK_NOFOLLOW) != 0) {
+      fb_perror(entry.c_str());
+    } else {
+      if (unlink(absolute_entry.c_str()) == 0) {
+        execed_process_cacher->update_cached_bytes(-st.st_size);
+      } else {
+        fb_perror("unlink");
+      }
+    }
+    if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
+      const std::string absolute_debug_entry = absolute_entry + debug_postfix;
+      if (fstatat(AT_FDCWD, absolute_debug_entry.c_str(), &st, AT_SYMLINK_NOFOLLOW) != 0) {
+        fb_perror(absolute_debug_entry.c_str());
+      } else {
+        /* All debugging entries were kept in the previous round.
+         * Delete the ones related to entries to be deleted. */
+        if (unlink(absolute_debug_entry.c_str()) == 0) {
+          execed_process_cacher->update_cached_bytes(-st.st_size);
+        } else {
+          fb_perror("unlink");
+        }
+      }
+    }
+  }
+}
+
 void BlobCache::gc_blob_cache_dir(const std::string& path,
                                   const tsl::hopscotch_set<AsciiHash>& referenced_blobs) {
   DIR * dir = opendir(path.c_str());
@@ -448,14 +495,7 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
                  path + "/" + d(name));
     }
   }
-  for (const auto& entry : entries_to_delete) {
-    unlink((path + "/" + entry).c_str());
-    if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-      /* All debugging entries were kept in the previous round.
-       * Delete the ones related to entries to be deleted. */
-      unlink((path + "/" + entry + kDebugPostfix).c_str());
-    }
-  }
+  delete_entries(path, entries_to_delete, kDebugPostfix);
   for (const auto& subdir : subdirs_to_visit) {
     gc_blob_cache_dir(path + "/" + subdir, referenced_blobs);
   }

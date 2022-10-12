@@ -10,7 +10,7 @@ on:
 
 env:
   BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
-  TEST_DEPS: bats node-d3 graphviz moreutils fakeroot
+  TEST_DEPS: bc bats node-d3 graphviz moreutils fakeroot
 jobs:
   build-on-ubuntu-lts:
     needs: style-checks

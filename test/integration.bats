@@ -313,6 +313,9 @@ setup() {
   for i in $(seq -w 30); do
     cp test_cache_dir/objs/?/??/*/??????????? test_cache_dir/objs/many-entries/12345678${i}+
   done
+  # update cache size
+  new_cache_size=$((cat test_cache_dir/size | tr '\n' ' ' ; printf '+ 30 *' ; (du --apparent-size -b test_cache_dir/objs/?/??/*/??????????? | cut -f1) ) | bc)
+  echo $new_cache_size > test_cache_dir/size
 
   result=$(./run-firebuild -o 'shortcut_tries = 18' -d cache --gc)
   assert_streq "$result" ""
@@ -372,12 +375,12 @@ setup() {
   result=$(./run-firebuild -- bash -c 'ls integration.bats')
   result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -- bash -c 'ls integration.bats')
   # Use stats for current run
-  result=$(./run-firebuild -s bash -c 'ls integration.bats' | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/')
-  assert_streq "$result" "$(printf 'integration.bats\n\nStatistics of current run:\n Hits: 1 / 1 (100.00 %%)\n Misses: 0\n Uncacheable: 0\nSaved CPU time: N ms\n')"
+  result=$(./run-firebuild -s bash -c 'ls integration.bats' | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
+  assert_streq "$result" "$(printf 'integration.bats\n\nStatistics of current run:\n Hits: 1 / 1 (100.00 %%)\n Misses: 0\n Uncacheable: 0\nNewly cached: N kB\nSaved CPU time: N ms\n')"
   # use --show-stats together with --gc ...
-  result=$(./run-firebuild --gc --show-stats | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/')
-  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 1 / 4 (25.00 %%)\n Misses: 3\n Uncacheable: 1\nSaved CPU time: N ms\n')"
+  result=$(./run-firebuild --gc --show-stats | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
+  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 1 / 4 (25.00 %%)\n Misses: 3\n Uncacheable: 1\nCache size: N kB\nSaved CPU time: N ms\n')"
   # ... and without --gc
-  result=$(./run-firebuild -s | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/')
-  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 1 / 4 (25.00 %%)\n Misses: 3\n Uncacheable: 1\nSaved CPU time: N ms\n')"
+  result=$(./run-firebuild -s | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
+  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 1 / 4 (25.00 %%)\n Misses: 3\n Uncacheable: 1\nCache size: N kB\nSaved CPU time: N ms\n')"
 }

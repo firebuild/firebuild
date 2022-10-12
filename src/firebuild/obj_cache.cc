@@ -145,9 +145,12 @@ bool ObjCache::store(const Hash &key,
     memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Subkey::kAsciiLength],
            kDirDebugJson, strlen(kDirDebugJson) + 1);
 
-    FILE *f = fopen(path_debug, "w");
-    debug_key->debug(f);
-    fclose(f);
+    FILE *f = fopen(path_debug, "wx");
+    if (f) {
+      debug_key->debug(f);
+      execed_process_cacher->update_cached_bytes(ftell(f));
+      fclose(f);
+    }
   }
 
   const char* tmpfile_end = "/new.XXXXXX";
@@ -197,13 +200,22 @@ bool ObjCache::store(const Hash &key,
   construct_cached_file_name(base_dir_, key, subkey.c_str(), true, path_dst);
   free(entry_serial);
 
-  if (rename(tmpfile, path_dst) == -1) {
-    fb_perror("Failed rename() while storing cache object");
-    assert(0);
-    unlink(tmpfile);
-    free(tmpfile);
-    return false;
+  if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+    if (errno == EEXIST) {
+      FB_DEBUG(FB_DEBUG_CACHING, "cache object is already stored");
+      unlink(tmpfile);
+      return true;
+    } else {
+      fb_perror("Failed rename() while storing cache object");
+      assert(0);
+      unlink(tmpfile);
+      free(tmpfile);
+      return false;
+    }
+  } else {
+    execed_process_cacher->update_cached_bytes(len);
   }
+
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "  subkey " + d(subkey));
   }
@@ -217,9 +229,12 @@ bool ObjCache::store(const Hash &key,
     memcpy(&path_debug[base_dir_.length() + kObjCachePathLength], kDebugPostfix,
            strlen(kDebugPostfix) + 1);
 
-    FILE *f = fopen(path_debug, "w");
-    entry->debug(f);
-    fclose(f);
+    FILE *f = fopen(path_debug, "wx");
+    if (f) {
+      entry->debug(f);
+      execed_process_cacher->update_cached_bytes(ftell(f));
+      fclose(f);
+    }
   }
   return true;
 }
@@ -439,14 +454,9 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
                  path + "/" + name);
     }
   }
-  for (const auto& entry : entries_to_delete) {
-    unlink((path + "/" + entry).c_str());
-    if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-      /* All debugging entries were kept in the previous round.
-       * Delete the ones related to entries to be deleted. */
-      unlink((path + "/" + entry + kDebugPostfix).c_str());
-    }
-  }
+  /* This actually deletes entries from here, the ObjCache,
+   * just uses the implementation in BlobCache. */
+  BlobCache::delete_entries(path, entries_to_delete, kDebugPostfix);
   for (const auto& subdir : subdirs_to_visit) {
     gc_obj_cache_dir(path + "/" + subdir, referenced_blobs);
   }
@@ -459,7 +469,16 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
       size_t entry_len;
       if (usable_entries >= shortcut_tries) {
         /* This entry will never be tried. */
-        unlinkat(dirfd(dir), entry.c_str(), 0);
+        struct stat st;
+        if (fstatat(dirfd(dir), entry.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0) {
+          if (unlinkat(dirfd(dir), entry.c_str(), 0) == 0) {
+            execed_process_cacher->update_cached_bytes(-st.st_size);
+          } else {
+            fb_perror("unlinkat");
+          }
+        } else {
+          fb_perror("fstatat");
+        }
         continue;
       }
       if (retrieve((path + "/" + entry.c_str()).c_str(), &entry_buf, &entry_len)) {
@@ -470,7 +489,11 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
         } else {
           /* This entry is not usable, remove it. */
           munmap(entry_buf, entry_len);
-          unlinkat(dirfd(dir), entry.c_str(), 0);
+          if (unlinkat(dirfd(dir), entry.c_str(), 0) == 0) {
+            execed_process_cacher->update_cached_bytes(-entry_len);
+          } else {
+            fb_perror("unlinkat");
+          }
         }
       } else {
         fb_error("File's type is unexpected, it is not a directory nor a regular file: " +
@@ -497,7 +520,16 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
   }
   if (!has_valid_entries && path != base_dir_) {
     if (has_dir_debug_json) {
-      unlinkat(dirfd(dir), kDirDebugJson, 0);
+      struct stat st;
+      if (fstatat(dirfd(dir), kDirDebugJson, &st, AT_SYMLINK_NOFOLLOW) == 0) {
+        if (unlinkat(dirfd(dir), kDirDebugJson, 0) == 0) {
+          execed_process_cacher->update_cached_bytes(-st.st_size);
+        } else {
+          fb_perror("unlinkat");
+        }
+      } else {
+        fb_perror(kDebugPostfix);
+      }
     }
     /* The directory is now empty. It can be removed. */
     rmdir(path.c_str());
