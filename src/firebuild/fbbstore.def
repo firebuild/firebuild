@@ -118,6 +118,9 @@
     ("process_inputs_outputs", [
       (REQUIRED, FBB,    "inputs"),                # tag "process_inputs"
       (REQUIRED, FBB,    "outputs"),               # tag "process_outputs"
+      # Aggregate CPU time used by this process and all children in milliseconds.
+      # Not set when deterministic cache debugging is enabled.
+      (OPTIONAL, "int",  "cpu_time_ms"),
     ]),
   ]
 }

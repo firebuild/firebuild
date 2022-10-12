@@ -39,6 +39,9 @@ class ExecedProcessCacher {
   bool shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to);
   void not_shortcutting() {if (!no_fetch_) not_shortcutting_++;}
   void add_stored_stats();
+  void set_self_cpu_time_ms(unsigned int time_ms) {
+    self_cpu_time_ms_ = time_ms;
+  }
   void print_stats(const char* what);
   void update_stored_stats();
   void gc();
@@ -63,6 +66,8 @@ class ExecedProcessCacher {
   unsigned int shortcut_attempts_ {0};
   unsigned int shortcut_hits_ {0};
   unsigned int not_shortcutting_ {0};
+  int64_t self_cpu_time_ms_ {0};
+  int64_t cache_saved_cpu_time_ms_ {0};
 
   /** The hashed fingerprint of configured ignore locations. */
   Hash ignore_locations_hash_;
