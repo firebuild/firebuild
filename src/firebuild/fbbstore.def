@@ -119,19 +119,5 @@
       (REQUIRED, FBB,    "inputs"),                # tag "process_inputs"
       (REQUIRED, FBB,    "outputs"),               # tag "process_outputs"
     ]),
-
-  # Legacy - can we remove it?
-  #  ("process", [
-  #    # process id
-  #    (REQUIRED, "pid_t",         "pid"),
-  #    # Checksum (binary) of process and children
-  #    (REQUIRED, "XXH128_hash_t", "hash"),
-  #    (REQUIRED, FBB,             "inputs_outputs"),  # tag "process_inputs_outputs"
-  #    # exit status of the process
-  #    (REQUIRED, "int",           "exit_status"),
-  #    (REQUIRED, "XXH128_hash_t", "child_hash"),
-  #    # TODO
-  #    # signals?
-  #  ]),
   ]
 }
