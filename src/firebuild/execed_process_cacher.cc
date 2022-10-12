@@ -21,6 +21,7 @@
 #include "firebuild/hash_cache.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
+#include "firebuild/process_tree.h"
 
 namespace firebuild {
 
@@ -885,6 +886,9 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   FBBSTORE_Builder_process_inputs_outputs pio;
   pio.set_inputs(reinterpret_cast<FBBSTORE_Builder *>(&pi));
   pio.set_outputs(reinterpret_cast<FBBSTORE_Builder *>(&po));
+  if (!FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
+    pio.set_cpu_time_ms((proc->aggr_cpu_time_u() / 1000) + proc->shortcut_cpu_time_ms());
+  }
 
   const FBBFP_Serialized *debug_msg = NULL;
   if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
@@ -1355,6 +1359,12 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
   if (inouts) {
     ret = apply_shortcut(proc, inouts, fds_appended_to);
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Exiting with " + d(proc->fork_point()->exit_status()));
+    if (ret) {
+      shortcut_hits_++;
+      if (inouts->has_cpu_time_ms()) {
+        proc->add_shortcut_cpu_time_ms(inouts->get_cpu_time_ms());
+      }
+    }
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;
     munmap(inouts_buf, inouts_buf_len);
@@ -1362,9 +1372,6 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
   FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
 
   proc->set_was_shortcut(ret);
-  if (ret) {
-    shortcut_hits_++;
-  }
   return ret;
 }
 
@@ -1442,6 +1449,40 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
   return true;
 }
 
+static void print_time(FILE* f, const int time_ms) {
+  double time = time_ms;
+  if (time_ms < 0) {
+    fprintf(f, "-");
+    time = -time_ms;
+  }
+  if (time < 1000) {
+    fprintf(f, "%.0f ms", time);
+    return;
+  }
+  time /= 1000;
+  if (time < 60) {
+    fprintf(f, "%.2f seconds", time);
+    return;
+  }
+  time /= 60;
+  if (time < 60) {
+    fprintf(f, "%.2f minutes", time);
+    return;
+  }
+  time /= 60;
+  if (time < 24) {
+    fprintf(f, "%.2f hours", time);
+    return;
+  }
+  time /= 24;
+  if (time < 7) {
+    fprintf(f, "%.2f days", time);
+    return;
+  }
+  time /= 7;
+  fprintf(f, "%.2f weeks", time);
+}
+
 void ExecedProcessCacher::print_stats(const char* which) {
   printf("Statistics of %s:\n", which);
   printf("  Hits:        %6u / %u (%.2f %%)\n", shortcut_hits_, shortcut_attempts_,
@@ -1449,6 +1490,10 @@ void ExecedProcessCacher::print_stats(const char* which) {
          0);
   printf("  Misses:      %6u\n", shortcut_attempts_ - shortcut_hits_);
   printf("  Uncacheable: %6u\n", not_shortcutting_);
+  printf("Saved CPU time:  ");
+  print_time(stdout, cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
+             (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0));
+  printf("\n");
 }
 
 void ExecedProcessCacher::add_stored_stats() {
@@ -1457,8 +1502,9 @@ void ExecedProcessCacher::add_stored_stats() {
   unsigned int shortcut_attempts, shortcut_hits, not_shortcutting;
   const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
   if ((f = fopen(stats_file.c_str(), "r"))) {
-    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u",
-               &shortcut_attempts, &shortcut_hits, &not_shortcutting) != 3) {
+    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u\nsaved_cpu_ms: %ld",
+               &shortcut_attempts, &shortcut_hits, &not_shortcutting,
+               &cache_saved_cpu_time_ms_) != 4) {
       fb_error("Invalid stats file format at " + stats_file + ", using only current run's stats.");
     } else {
       shortcut_attempts_ += shortcut_attempts;
@@ -1479,8 +1525,10 @@ void ExecedProcessCacher::update_stored_stats() {
     fb_perror(("opening cache stats file failed"));
     exit(EXIT_FAILURE);
   }
-  if (fprintf(f, "attempts: %u\nhits: %u\nskips: %u\n",
-              shortcut_attempts_, shortcut_hits_, not_shortcutting_) <= 0) {
+  if (fprintf(f, "attempts: %u\nhits: %u\nskips: %u\nsaved_cpu_ms: %ld\n",
+              shortcut_attempts_, shortcut_hits_, not_shortcutting_,
+              cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
+              (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) <= 0) {
     fb_perror("writing cache stats file failed");
     /* File may contain invalid data. */
     // FIXME(rbalint) make this atomic

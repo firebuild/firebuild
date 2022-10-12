@@ -481,14 +481,19 @@ int main(const int argc, char *argv[]) {
             "process\n");
     child_ret = EXIT_FAILURE;
   } else {
+    struct rusage ru_myslf;
+    getrusage(RUSAGE_SELF, &ru_myslf);
+    const unsigned int cpu_time_self_ms =
+        ru_myslf.ru_utime.tv_sec * 1000 + ru_myslf.ru_utime.tv_usec / 1000 +
+        ru_myslf.ru_stime.tv_sec * 1000 + ru_myslf.ru_stime.tv_usec / 1000;
+    firebuild::execed_process_cacher->set_self_cpu_time_ms(cpu_time_self_ms);
     /* Print times, including user and sys time separately for firebuild itself and its children.
      * The syntax is similar to bash's "time", although easier to parse (raw seconds in decimal). */
     if (FB_DEBUGGING(firebuild::FB_DEBUG_TIME)) {
       struct timespec end_time, diff_time;
-      struct rusage ru_myslf, ru_chldr, ru_total;
+      struct rusage ru_chldr, ru_total;
 
       clock_gettime(CLOCK_MONOTONIC, &end_time);
-      getrusage(RUSAGE_SELF, &ru_myslf);
       getrusage(RUSAGE_CHILDREN, &ru_chldr);
 
       timespecsub(&end_time, &start_time, &diff_time);

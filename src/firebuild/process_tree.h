@@ -113,6 +113,9 @@ class ProcessTree {
       return NULL;
     }
   }
+  int64_t shortcut_cpu_time_ms() {
+    return (root_ && root_->exec_child()) ? root_->exec_child()->shortcut_cpu_time_ms() : 0;
+  }
   void QueueForkChild(int pid, int sock, int ppid, int ack_num, Process **fork_child_ref) {
     assert(!Pid2ForkChildSock(ppid));
     ppid2fork_child_sock_[ppid] = {sock, pid, ack_num, fork_child_ref};

@@ -237,6 +237,7 @@ void ExecedProcess::do_finalize() {
   /* Propagate resource usage. */
   if (parent_exec_point()) {
     parent_exec_point()->add_children_cpu_time_u(aggr_cpu_time_u());
+    parent_exec_point()->add_shortcut_cpu_time_ms(shortcut_cpu_time_ms());
   }
 
   /* Call the base class's method */

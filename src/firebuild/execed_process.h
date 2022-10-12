@@ -85,6 +85,8 @@ class ExecedProcess : public Process {
   int64_t stime_u() const {return stime_u_;}
   int64_t cpu_time_u() const {return utime_u_ + stime_u_;}
   void add_children_cpu_time_u(const int64_t t) {children_cpu_time_u_ += t;}
+  void add_shortcut_cpu_time_ms(const int64_t t) {shortcut_cpu_time_ms_ += t;}
+  int64_t shortcut_cpu_time_ms() const {return shortcut_cpu_time_ms_;}
   int64_t aggr_cpu_time_u() const {return cpu_time_u() + children_cpu_time_u_;}
   const FileName* initial_wd() const {return initial_wd_;}
   const tsl::hopscotch_set<const FileName*>& wds() const {return wds_;}
@@ -207,8 +209,14 @@ class ExecedProcess : public Process {
   int64_t utime_u_ = 0;
   /** Sum of system time in microseconds for all forked but not exec()-ed children */
   int64_t stime_u_ = 0;
-  /** Sum of user and system time in microseconds for all finalized exec()-ed children */
+  /**
+   * Sum of user and system time in microseconds for all finalized exec()-ed children.
+   * Shortcut processes are treated as if their CPU time was 0. */
   int64_t children_cpu_time_u_ = 0;
+  /**
+   * Aggregate CPU time saved by shortcutting in all transitive children and this process.
+   * It becomes final when all exec()-ed children are finalized. */
+  int64_t shortcut_cpu_time_ms_ {0};
   /** Directory the process exec()-started in */
   const FileName* initial_wd_;
   /** Working directories visited by the process and all fork()-children */
