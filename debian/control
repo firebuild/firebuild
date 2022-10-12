@@ -3,6 +3,7 @@ Section: devel
 Priority: optional
 Maintainer: Balint Reczey <balint@balintreczey.hu>
 Build-Depends: bats,
+               bc,
                cmake,
                debhelper-compat (= 12),
                docbook-xsl,

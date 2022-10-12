@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include <string>
+#include <vector>
 
 #include "firebuild/ascii_hash.h"
 #include "firebuild/file_name.h"
@@ -94,6 +95,8 @@ class BlobCache {
    */
   int get_fd_for_file(const Hash &key);
   void gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs);
+  static void delete_entries(const std::string& path, const std::vector<std::string>& entries,
+                             const std::string& debug_postfix);
 
  private:
   void gc_blob_cache_dir(const std::string& path,

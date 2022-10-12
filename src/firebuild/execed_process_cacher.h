@@ -63,12 +63,20 @@ class ExecedProcessCacher {
                       std::vector<int> *fds_appended_to);
   bool shortcut(ExecedProcess *proc, std::vector<int> *fds_appended_to);
   void not_shortcutting() {if (!no_fetch_) not_shortcutting_++;}
+  /** Add stored hit statistics and cache size to current run's counters. */
   void add_stored_stats();
   void set_self_cpu_time_ms(unsigned int time_ms) {
     self_cpu_time_ms_ = time_ms;
   }
   void print_stats(stats_type what);
   void update_stored_stats();
+  /** Get bytes stored in the cache reading cachedir/size file. */
+  ssize_t get_stored_bytes_from_cache() const;
+  void read_stored_cached_bytes();
+  /** Store number of bytes cached to cachedir/size file. */
+  void update_stored_bytes();
+  /** Register cache size change occurred in the current run. */
+  void update_cached_bytes(ssize_t bytes) {this_runs_cached_bytes_ += bytes;}
   void gc();
   /**
    * Checks if the object cache entry can be used for shortcutting, i.e. all the referenced
@@ -96,6 +104,13 @@ class ExecedProcessCacher {
   unsigned int not_shortcutting_ {0};
   int64_t self_cpu_time_ms_ {0};
   int64_t cache_saved_cpu_time_ms_ {0};
+  /**
+   * Number of bytes added to (or freed from) the cache in the current run.
+   * It can be negative in case of a garbage collection run.
+   */
+  ssize_t this_runs_cached_bytes_ {0};
+  /** Number of bytes in the cache as stored in the cachedir/size file. */
+  ssize_t stored_cached_bytes_ {0};
 
   /** The hashed fingerprint of configured ignore locations. */
   Hash ignore_locations_hash_;

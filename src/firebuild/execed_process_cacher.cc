@@ -28,6 +28,7 @@ namespace firebuild {
 static const XXH64_hash_t kFingerprintVersion = 0;
 static const unsigned int kCacheFormatVersion = 1;
 static const char kCacheStatsFile[] = "stats";
+static const char kCacheSizeFile[] = "size";
 
 unsigned int ExecedProcessCacher::cache_format_ = 0;
 
@@ -1509,6 +1510,26 @@ static void print_time(FILE* f, const int time_ms) {
   fprintf(f, "%.2f weeks", time);
 }
 
+static void print_bytes(FILE* f, const ssize_t bytes) {
+  double size = bytes;
+  if (size < 0) {
+    fprintf(f, "-");
+    size = -size;
+  }
+  size /= 1000;
+  if (size < 1000) {
+    fprintf(f, "%.2f kB", size);
+    return;
+  }
+  size /= 1000;
+  if (size < 1000) {
+    fprintf(f, "%.2f MB", size);
+    return;
+  }
+  size /= 1000;
+  fprintf(f, "%.2f GB", size);
+}
+
 void ExecedProcessCacher::print_stats(stats_type what) {
   printf("Statistics of %s:\n", what == FB_SHOW_STATS_CURRENT ? "current run" : "stored cache");
   printf("  Hits:        %6u / %u (%.2f %%)\n", shortcut_hits_, shortcut_attempts_,
@@ -1516,6 +1537,14 @@ void ExecedProcessCacher::print_stats(stats_type what) {
          0);
   printf("  Misses:      %6u\n", shortcut_attempts_ - shortcut_hits_);
   printf("  Uncacheable: %6u\n", not_shortcutting_);
+  if (what == FB_SHOW_STATS_CURRENT) {
+    printf("Newly cached:  ");
+    print_bytes(stdout, this_runs_cached_bytes_);
+  } else {
+    printf("Cache size:    ");
+    print_bytes(stdout, get_stored_bytes_from_cache());
+  }
+  printf("\n");
   printf("Saved CPU time:  ");
   print_time(stdout, cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
              (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0));
@@ -1551,6 +1580,35 @@ void ExecedProcessCacher::update_stored_stats() {
               cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
               (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) < 0) {
     fb_error("writing cache stats file failed");
+    exit(EXIT_FAILURE);
+  }
+}
+
+ssize_t ExecedProcessCacher::get_stored_bytes_from_cache() const {
+  FILE* f;
+  const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
+  ssize_t cached_bytes = 0;
+  if ((f = fopen(size_file.c_str(), "r"))) {
+    if (fscanf(f, "%ld\n", &cached_bytes) != 1) {
+      fb_error("Invalid size file format in " + size_file);
+    }
+    fclose(f);
+  }
+  assert_cmp(cached_bytes, >=, 0);
+  return cached_bytes;
+}
+
+void ExecedProcessCacher::read_stored_cached_bytes() {
+  stored_cached_bytes_ = get_stored_bytes_from_cache();
+}
+
+void ExecedProcessCacher::update_stored_bytes() {
+  // FIXME(rbalint) There is a slight chance for two parallel builds updating the size at the
+  // same time making them inaccurate
+  const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
+  const ssize_t new_size = this_runs_cached_bytes_ + stored_cached_bytes_;
+  if (file_overwrite_printf(size_file, "%ld\n", new_size) < 0) {
+    fb_error("writing cache size file failed");
     exit(EXIT_FAILURE);
   }
 }
