@@ -76,13 +76,13 @@
       /* We have to fall back as described in man execvp.
        * This code is for glibc >= 2.24. For older versions
        * we'd need to prepend ".:", see issue 153. */
-      confstr_buf_len = IC_ORIG(confstr)(_CS_PATH, NULL, 0);
+      confstr_buf_len = ic_orig_confstr(_CS_PATH, NULL, 0);
     }
     /* Use the stack rather than the heap, make sure it lives
      * until we send the message. */
     if (confstr_buf_len > 0) {
       char *path_confstr = alloca(confstr_buf_len);
-      IC_ORIG(confstr)(_CS_PATH, path_confstr, confstr_buf_len);
+      ic_orig_confstr(_CS_PATH, path_confstr, confstr_buf_len);
       fbbcomm_builder_exec_set_path(&ic_msg, path_confstr);
     }
 ###   endif
@@ -95,7 +95,7 @@
 
     /* Get CPU time used up to this exec() */
     struct rusage ru;
-    IC_ORIG(getrusage)(RUSAGE_SELF, &ru);
+    ic_orig_getrusage(RUSAGE_SELF, &ru);
     timersub(&ru.ru_stime, &initial_rusage.ru_stime, &ru.ru_stime);
     timersub(&ru.ru_utime, &initial_rusage.ru_utime, &ru.ru_utime);
     fbbcomm_builder_exec_set_utime_u(&ic_msg,
@@ -107,18 +107,17 @@
   }
 
   /* Perform the call. */
+{% set ic_orig_func = "ic_orig_" + func %}
 ###   if l
   /* Instead of execl*(), call its execv*() counterpart. */
-{% set ic_orig_func = func.replace("l", "v") %}
-###   else
-{% set ic_orig_func = func %}
+{% set ic_orig_func = ic_orig_func.replace("l", "v") %}
 ###   endif
 ###   if not e
   /* Instead of exec*() without "e", call its exec*e() counterpart. */
 {% set ic_orig_func = ic_orig_func + "e" %}
 ###   endif
   errno = saved_errno;
-  ret = IC_ORIG({{ ic_orig_func }})({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv, env_fixed_up{% if at %}, flags{% endif %});
+  ret = {{ ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv, env_fixed_up{% if at %}, flags{% endif %});
   saved_errno = errno;
 
   if (i_am_intercepting) {

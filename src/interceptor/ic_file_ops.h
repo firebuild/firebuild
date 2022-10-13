@@ -20,7 +20,7 @@ void copy_notify_on_read_write_state(const int to_fd, const int from_fd);
 
 /* Same as fileno(), but with safe NULL pointer handling. */
 static inline int safe_fileno(FILE *stream) {
-  int ret = stream ? IC_ORIG(fileno)(stream) : -1;
+  int ret = stream ? ic_orig_fileno(stream) : -1;
   if (ret == fb_sv_conn) {
     assert(0 && "fileno() returned the connection fd");
   }
@@ -29,7 +29,7 @@ static inline int safe_fileno(FILE *stream) {
 
 /* Same as dirfd(), but with safe NULL pointer handling. */
 static inline int safe_dirfd(DIR *dirp) {
-  int ret = dirp ? IC_ORIG(dirfd)(dirp) : -1;
+  int ret = dirp ? ic_orig_dirfd(dirp) : -1;
   if (ret == fb_sv_conn) {
     assert(0 && "dirfd() returned the connection fd");
   }

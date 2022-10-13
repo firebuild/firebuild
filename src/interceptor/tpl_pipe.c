@@ -60,7 +60,7 @@
 #ifndef NDEBUG
     received =
 #endif
-        TEMP_FAILURE_RETRY(IC_ORIG(recvmsg)(fb_sv_conn, &msgh, (flags & O_CLOEXEC) ? MSG_CMSG_CLOEXEC : 0));
+        TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, (flags & O_CLOEXEC) ? MSG_CMSG_CLOEXEC : 0));
     assert(received == sv_msg_hdr.msg_size);
     assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_pipe_created);
 
@@ -88,7 +88,7 @@
     }
   } else {
     /* just create the pipe */
-    ret = IC_ORIG(pipe2)(pipefd, flags);
+    ret = ic_orig_pipe2(pipefd, flags);
   }
 ### endblock call_orig
 

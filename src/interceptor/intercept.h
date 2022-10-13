@@ -45,8 +45,6 @@ extern psfa *psfas;
 extern int psfas_num;
 extern int psfas_alloc;
 
-#define IC_ORIG(function) ic_orig_##function
-
 /** This tells whether the supervisor needs to be notified on a read or write
  *  event. The supervisor needs to be notified only on the first of each kind,
  *  and only for file descriptors that were inherited by the process.

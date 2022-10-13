@@ -83,5 +83,5 @@
   long arg7 = va_arg(ap_pass, long);
   long arg8 = va_arg(ap_pass, long);
   va_end(ap_pass);
-  ret = IC_ORIG({{ func }})(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+  ret = ic_orig_{{ func }}(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 ### endblock call_orig

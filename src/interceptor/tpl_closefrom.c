@@ -21,13 +21,13 @@
 
   if (lowfd > fb_sv_conn) {
     /* Just go ahead. */
-    IC_ORIG(closefrom)(lowfd);
+    ic_orig_closefrom(lowfd);
   } else if (lowfd == fb_sv_conn) {
     /* Need to skip the first fd. */
-    IC_ORIG(closefrom)(lowfd + 1);
+    ic_orig_closefrom(lowfd + 1);
   } else {
     /* Need to leave a hole in the range. */
-    IC_ORIG(close_range)(lowfd, fb_sv_conn - 1, 0);
-    IC_ORIG(closefrom)(fb_sv_conn + 1);
+    ic_orig_close_range(lowfd, fb_sv_conn - 1, 0);
+    ic_orig_closefrom(fb_sv_conn + 1);
   }
 ### endblock call_orig

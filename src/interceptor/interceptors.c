@@ -15,7 +15,7 @@
 #include "interceptor/intercept.h"
 
 void init_interceptors() {
-/* Include the auto-generated initializations of the IC_ORIG() function pointers */
+/* Include the auto-generated initializations of the ic_orig function pointers */
 #include "interceptor/gen_init.c"
 
   reset_interceptors();
@@ -26,7 +26,7 @@ void reset_interceptors() {
 #include "interceptor/gen_reset.c"
 }
 
-/* Include the auto-generated definitions of the IC_ORIG() function pointers */
+/* Include the auto-generated definitions of the ic_orig function pointers */
 #include "interceptor/gen_def.c"
 
 /* Include the auto-generated implementations of the interceptor functions */

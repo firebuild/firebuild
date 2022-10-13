@@ -52,7 +52,7 @@
 {#                                                                    #}
 ### if gen == 'decl.h'
 ###   block decl_h
-extern {{ rettype }} (*IC_ORIG({{ func }}) )({{ sig_str }});
+extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
 ###   endblock decl_h
 ### endif
 {#                                                                    #}
@@ -60,7 +60,7 @@ extern {{ rettype }} (*IC_ORIG({{ func }}) )({{ sig_str }});
 {#                                                                    #}
 ### if gen == 'def.c'
 ###   block decl_c
-{{ rettype }} (*IC_ORIG({{ func }}) )({{ sig_str }});
+{{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
 ###   endblock decl_c
 ### endif
 {#                                                                    #}
@@ -68,7 +68,7 @@ extern {{ rettype }} (*IC_ORIG({{ func }}) )({{ sig_str }});
 {#                                                                    #}
 ### if gen == 'init.c'
 ###   block init_c
-IC_ORIG({{ func }} = )({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func }}");
+ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func }}");
 ###   endblock init_c
 ### endif
 {#                                                                    #}
@@ -197,7 +197,7 @@ IC_ORIG({{ func }} = )({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ fun
 ###         else
 ###           if not vararg
   {%+ if rettype != 'void' %}ret = {% endif -%}
-  IC_ORIG({{ func }})({{ names_str }});
+  ic_orig_{{ func }}({{ names_str }});
 ###           else
 #error "Need to implement call_orig for vararg function {{ func }}()"
 ###           endif
