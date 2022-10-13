@@ -59,9 +59,9 @@ extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
 {# --- Template for 'def.c' ----------------------------------------- #}
 {#                                                                    #}
 ### if gen == 'def.c'
-###   block decl_c
+###   block def_c
 {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
-###   endblock decl_c
+###   endblock def_c
 ### endif
 {#                                                                    #}
 {# --- Template for 'init.c' ---------------------------------------- #}
