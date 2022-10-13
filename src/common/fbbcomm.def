@@ -710,15 +710,6 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
-    ("syscall", [
-      # syscall number (id)
-      (OPTIONAL, "long", "number"),
-      # return value
-      (OPTIONAL, "long", "ret"),
-      # error no., when ret = -1
-      (OPTIONAL, "int", "error_no"),
-    ]),
-
     ("gethostname", [
       # name
       (OPTIONAL, STRING, "name"),
@@ -827,9 +818,7 @@
     # disables interception and shortcutting
     ("clone", [
       (REQUIRED, "int", "flags", "fbbcomm_debug_clone_flags"),
-      (REQUIRED, "bool", "syscall"),
     ]),
-
 
     # reading from /dev/urandom is allowed (GRND_RANDOM flag not set)
     ("getrandom", [

@@ -9,10 +9,20 @@
 {% set msg_skip_fields = ["fn", "stack", "arg"] %}
 
 ### block call_orig
+
+### if syscall
+  /* Need to extract 'flags'. See clone(2) NOTES about differences between architectures. */
+#if defined(__s390__) || defined(__cris__)
+  va_arg(ap, void*);  /* skip over 'stack' */
+#endif
+  unsigned long flags = va_arg(ap, unsigned long);
+### endif
+
   if (i_am_intercepting) {
-    pre_clone_disable_interception(flags, false, &i_locked);
+    pre_clone_disable_interception(flags, &i_locked);
   }
 
+### if not syscall
   int vararg_count = 0;
   if (flags & (CLONE_CHILD_CLEARTID | CLONE_CHILD_SETTID)) {
     vararg_count = 3;
@@ -38,6 +48,23 @@
       }
     }
   }
+### else
+  /* The order of parameters is heavily architecture dependent. */
+  /* Pass on several long parameters unchanged, as in tpl_syscall.c. */
+  va_list ap_pass;
+  va_start(ap_pass, number);
+  long arg1 = va_arg(ap_pass, long);
+  long arg2 = va_arg(ap_pass, long);
+  long arg3 = va_arg(ap_pass, long);
+  long arg4 = va_arg(ap_pass, long);
+  long arg5 = va_arg(ap_pass, long);
+  long arg6 = va_arg(ap_pass, long);
+  long arg7 = va_arg(ap_pass, long);
+  long arg8 = va_arg(ap_pass, long);
+  va_end(ap_pass);
+  ret = ic_orig_{{ func }}(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+### endif
+
 ### endblock call_orig
 
 ### block send_msg

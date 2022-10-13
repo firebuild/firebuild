@@ -52,7 +52,11 @@
 {#                                                                    #}
 ### if gen == 'decl.h'
 ###   block decl_h
+###     if not syscall
 extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
+###     else
+#define ic_orig_{{ func }}(...) ic_orig_syscall({{ func }} __VA_OPT__(,) __VA_ARGS__)
+###     endif
 ###   endblock decl_h
 ### endif
 {#                                                                    #}
@@ -60,7 +64,9 @@ extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
 {#                                                                    #}
 ### if gen == 'def.c'
 ###   block def_c
+###     if not syscall
 {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
+###     endif
 ###   endblock def_c
 ### endif
 {#                                                                    #}
@@ -68,7 +74,9 @@ extern {{ rettype }} (*ic_orig_{{ func }}) ({{ sig_str }});
 {#                                                                    #}
 ### if gen == 'init.c'
 ###   block init_c
+###     if not syscall
 ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func }}");
+###     endif
 ###   endblock init_c
 ### endif
 {#                                                                    #}
@@ -83,13 +91,23 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 {#                                                                    #}
 ### if gen == 'list.txt'
 ###   block list_txt
+###     if not syscall
 {{ func }}
+###     endif
 ###   endblock list_txt
 ### endif
 {#                                                                    #}
-{# --- Template for 'impl.c' ---------------------------------------- #}
+{# --- Template for 'impl.c' and 'impl_syscalls.c.inc' -------------- #}
 {#                                                                    #}
-### if gen == 'impl.c'
+{# If func does not begin with 'SYS_' then it is an actual libc       #}
+{# function (perhaps a thin wrapper around a kernel syscall).         #}
+{# We generate a complete function definition into 'impl.c'.          #}
+{#                                                                    #}
+{# If func begins with 'SYS_' then it denotes the first parameter of  #}
+{# a syscall(). We generate a 'case' label into 'impl_syscalls.c.inc' #}
+{# which is to be '#include'd within a 'switch' statement.            #}
+{#                                                                    #}
+### if gen in ['impl.c', 'impl_syscalls.c.inc']
 
 ###   macro grab_lock_if_needed(grab_condition)
   /* Grabbing the global lock (unless it's already ours, e.g. we're in a signal handler) */
@@ -111,6 +129,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 /* Generated from {{ tpl }} */
 ###   block impl_c
 
+###     if not syscall
 /* Make the intercepting function visible */
 #pragma GCC visibility push(default)
 #pragma GCC diagnostic push
@@ -127,10 +146,23 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 #endif
 
 {{ rettype }} {{ func }} ({{ sig_str }}) {
+###     else
+#ifdef {{ func }}  /* this is prone against typos in the syscall name, but handles older kernels */
+case {{ func }}: {
+  va_list ap_args;
+  va_start(ap_args, number);
+###       for arg in args
+  {{ arg['vatype_and_name'] }} = va_arg(ap_args, {{ arg['vatype'] }});
+###       endfor
+  va_end(ap_args);
+
+###     endif
+
 ###     if rettype != 'void'
   {{ rettype }} ret;
 ###     endif
   bool i_am_intercepting = intercepting_enabled;  /* use a copy, in case another thread modifies it */
+  (void)i_am_intercepting;  /* sometimes it's unused, silence warning */
 
   /* Guard the communication channel */
 ###     block guard_connection_fd
@@ -144,8 +176,16 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 ###     if vararg
   /* Auto-generated for vararg functions */
+###       if not syscall
   va_list ap;
   va_start(ap, {{ args[-1]['name'] }});
+###       else
+  va_list ap;
+  va_start(ap, number);
+###         for arg in args
+  va_arg(ap_args, {{ arg['type'] }});  /* consume {{ arg['name'] }} */
+###         endfor
+###       endif
 ###     endif
 
   /* Maybe don't intercept? */
@@ -314,8 +354,13 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
   return ret;
 ###     endif
 }
+###     if not syscall
 #pragma GCC diagnostic pop
 #pragma GCC visibility pop
+###     else
+break;
+#endif  /* {{ func }} */
+###     endif
 
 
 ###   endblock impl_c

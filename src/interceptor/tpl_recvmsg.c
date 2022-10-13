@@ -19,7 +19,7 @@
 ### block send_msg
   {{ super() }}  {# tpl_read.c's stuff #}
 
-{% if func == 'recvmmsg' %}
+{% if 'recvmmsg' in func %}
   /* recvmmsg() can return multiple messages. Loop over them. For simplicity, handle them
    * separately, i.e. send separate FBB messages if more of them have SCM_RIGHTS fds. */
   int i;
@@ -63,7 +63,7 @@
       }
     }
 
-{% if func == 'recvmmsg' %}
+{% if 'recvmmsg' in func %}
   }  /* looping over msgvec */
 {% endif %}
 

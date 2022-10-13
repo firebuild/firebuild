@@ -16,10 +16,10 @@ extern bool ic_called_{{ func }};
 ic_called_{{ func }} = false;
 ### endblock reset_c
 
-### block impl_c
+### block def_c
 bool ic_called_{{ func }};
 {{ super() }}
-### endblock impl_c
+### endblock def_c
 
 ### block send_msg
   /* Notify the supervisor */

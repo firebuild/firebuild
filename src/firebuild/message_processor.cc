@@ -1144,7 +1144,6 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     case FBBCOMM_TAG_pathconf:
     case FBBCOMM_TAG_readlink:
     case FBBCOMM_TAG_scproc_resp:
-    case FBBCOMM_TAG_syscall:
     case FBBCOMM_TAG_sysconf:
       {
       // TODO(rbalint)

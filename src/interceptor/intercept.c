@@ -382,14 +382,13 @@ bool maybe_send_pre_open(const int dirfd, const char* pathname, int flags) {
   }
 }
 
-void pre_clone_disable_interception(const int flags, const bool syscall, bool *i_locked) {
+void pre_clone_disable_interception(const int flags, bool *i_locked) {
   FBBCOMM_Builder_clone ic_msg;
   fbbcomm_builder_clone_init(&ic_msg);
 
   /* Skipping 'fn' */
   /* Skipping 'stack' */
   fbbcomm_builder_clone_set_flags(&ic_msg, flags);
-  fbbcomm_builder_clone_set_syscall(&ic_msg, syscall);
   /* Skipping 'arg' */
   /* Not sending return value */
   /* Send and go on, no ack */
