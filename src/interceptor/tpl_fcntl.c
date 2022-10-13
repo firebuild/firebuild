@@ -63,7 +63,15 @@
       has_int_arg = true;
       /* Start another vararg business that doesn't conflict with the one in call_orig, see #178. */
       va_list ap_int;
+###   if not syscall
+      /* Find 'arg' of an fcntl(fd, cmd, arg) */
       va_start(ap_int, cmd);
+###   else
+      /* Find 'arg' of a syscall(SYS_fcntl, fd, cmd, arg) */
+      va_start(ap_int, number);
+      va_arg(ap_int, int);  /* skip over fd */
+      va_arg(ap_int, int);  /* skip over cmd */
+###   endif
       int_arg = va_arg(ap_int, int);
       va_end(ap_int);
       break;

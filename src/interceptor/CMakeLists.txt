@@ -13,7 +13,7 @@ if (SANITIZE)
 endif()
 
 add_custom_command (
-  OUTPUT gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c
+  OUTPUT gen_decl.h gen_def.c gen_impl.c gen_impl_syscalls.c.inc gen_init.c gen_list.txt gen_reset.c
   DEPENDS generate_interceptors
   tpl.c
   tpl_clone.c
@@ -50,7 +50,7 @@ add_custom_command (
   COMMAND ./generate_interceptors ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating interceptor files from templates")
 
-add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_init.c gen_list.txt gen_reset.c)
+add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_impl_syscalls.c.inc gen_init.c gen_list.txt gen_reset.c)
 
 add_library(firebuild SHARED
   env.c
