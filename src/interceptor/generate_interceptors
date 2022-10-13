@@ -80,14 +80,28 @@ def split_param_spec(sig):
   return ret
 
 
-# For one parameter specification of a C function, extract the type and the name.
-# E.g. "int (*compar)(void *, void *)" -> ("int (*)(void *, void *)", "compar")
-def get_type_and_name(sig):
+# For one parameter specification of a C function, extract the type and the name into a dictionary.
+#
+# E.g. "int pipefd[2]" ->    name: "pipefd"
+#                            type: "int[2]"
+#                   type_and_name: "int pipefd[2]"
+#                          vatype: "int *"
+#                 vatype_and_name: "int *pipefd"
+#
+# E.g. "int (*compar)(void *, void *)" ->   name: "compar"
+#                                   type, vatype: "int (*)(void *, void *)"
+#                 type_and_name, vatype_and_name: "int (*compar)(void *, void *)"
+#
+def get_arg(sig):
+  arg = {}
   sig = sig.strip()
   name_end = len(sig)
+  dimension = 0
   # Handle array declaration, e.g. "[2]" in "int pipefd[2]".
   while name_end > 0 and sig[name_end - 1] == ']':
     name_end = sig.rindex('[', 0, name_end)
+    dimension += 1
+  subscript_begin = name_end
   # Handle function pointer parameter, e.g. "int (*compar)(void *, void *)".
   # Walk backwards from the end, locate the beginning of the parameter list.
   if name_end > 0 and sig[name_end - 1] == ')':
@@ -106,7 +120,12 @@ def get_type_and_name(sig):
   while name_start > 0 and (sig[name_start - 1].isalnum() or sig[name_start - 1] == '_'):
       name_start -= 1
   # The variable name is between name_start and name_end, the rest is the signature.
-  return (sig[0:name_start].strip() + sig[name_end:].strip(), sig[name_start:name_end].strip())
+  arg['name'] = sig[name_start:name_end].strip()
+  arg['type'] = sig[0:name_start].strip() + sig[name_end:].strip()
+  arg['type_and_name'] = sig[0:name_start] + arg['name'] + sig[name_end:].strip()  # it's essentially sig
+  arg['vatype'] = sig[0:name_start].strip() + dimension * '*' + sig[name_end:subscript_begin].strip()
+  arg['vatype_and_name'] = sig[0:name_start] + ('*' * dimension) + arg['name'] + sig[name_end:subscript_begin].strip()
+  return arg
 
 
 # Given a method signature (return type, types and names of parameters)
@@ -120,9 +139,25 @@ def get_type_and_name(sig):
 #           rettype = "int"
 #               sig = "const char *pathname, int flags, int pipefd[2], ..."
 # ->
-#             types = ["const char *", "int", "int[2]"]
-#             names = ["pathname, "flags", "pipefd"]
-#   types_and_names = [("const char *", "pathname"), ("int", "flags"), ("int[2]", "pipefd")]
+#              args = [{
+#                                      'name': "pathname",
+#                                      'type': "const char *",
+#                             'type_and_name': "const char *pathname",
+#                                    'vatype': "const char *",
+#                           'vatype_and_name': "const char *pathname",
+#                      }, {
+#                                      'name': "flags"
+#                                      'type': "int",
+#                             'type_and_name': "int flags",
+#                                    'vatype': "int",
+#                           'vatype_and_name': "int flags",
+#                      }, {
+#                                      'name': "pipefd",
+#                                      'type': "int[2]",
+#                             'type_and_name': "int pipefd[2]",
+#                                    'vatype': "int *",
+#                           'vatype_and_name': "int *pipefd",
+#                      }]
 #            vararg = True
 #         types_str = "const char *, int, int[2], ..."
 #           sig_str = "const char *pathname, int flags, int pipefd[2], ..."
@@ -133,9 +168,7 @@ def get_type_and_name(sig):
 #   debug_after_fmt ≈ ", ret = %d"
 #  debug_after_args ≈ ", ret"
 def add_signature_to_dict(rettype, sig, dict):
-  dict['types'] = []
-  dict['names'] = []
-  dict['types_and_names'] = []
+  dict['args'] = []
   dict['vararg'] = False
   dict['sig_str'] = sig
 
@@ -150,17 +183,15 @@ def add_signature_to_dict(rettype, sig, dict):
     if type_and_name == '...':
       dict['vararg'] = True
     else:
-      (type, name) = get_type_and_name(type_and_name)
-      dict['types'].append(type)
-      dict['names'].append(name)
-      dict['types_and_names'].append((type, name))
+      arg = get_arg(type_and_name)
+      dict['args'].append(arg)
 
-      add_debug_to_dict(type, name, dict)
+      add_debug_to_dict(arg['type'], arg['name'], dict)
 
-  dict['types_str'] = ', '.join(dict['types'])
+  dict['types_str'] = ', '.join(arg['type'] for arg in dict['args'])
   if dict['vararg']:
     dict['types_str'] += ', ...'
-  dict['names_str'] = ', '.join(dict['names'])
+  dict['names_str'] = ', '.join(arg['name'] for arg in dict['args'])
 
   add_debug_to_dict(rettype, 'ret', dict)
 
@@ -209,7 +240,7 @@ def generate(rettype, funcs, sig, **dict):
 
   if 'msg_skip_fields' in dict:
     for msg_skip in dict['msg_skip_fields']:
-      if msg_skip != "error_no" and msg_skip not in dict['names']:
+      if msg_skip != "error_no" and msg_skip not in [arg['name'] for arg in dict['args']]:
         print("generate_interceptors: invalid msg_skip_fields value '" + msg_skip + "' for func '" + funcs[0] + "'")
         exit(1)
 

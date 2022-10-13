@@ -134,10 +134,10 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
   /* Guard the communication channel */
 ###     block guard_connection_fd
-###       for (type, name) in types_and_names
+###       for arg in args
 {# It is ugly to check for the variable name to end with "fd", but is simple and works well in practice. #}
-###         if type == "int" and name[-2:] == "fd"
-  if ({{ name }} == fb_sv_conn) { errno = EBADF; return {% if '*' in rettype %}NULL{% else %}-1{% endif %}; }
+###         if arg['type'] == "int" and arg['name'][-2:] == "fd"
+  if ({{ arg['name'] }} == fb_sv_conn) { errno = EBADF; return {% if '*' in rettype %}NULL{% else %}-1{% endif %}; }
 ###         endif
 ###       endfor
 ###     endblock
@@ -145,7 +145,7 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 ###     if vararg
   /* Auto-generated for vararg functions */
   va_list ap;
-  va_start(ap, {{ names[-1] }});
+  va_start(ap, {{ args[-1]['name'] }});
 ###     endif
 
   /* Maybe don't intercept? */
@@ -231,11 +231,11 @@ ic_orig_{{ func }} = ({{ rettype }}(*)({{ sig_str }})) dlsym(RTLD_NEXT, "{{ func
 
 ###           block set_fields
     /* Auto-generated from the function signature */
-###             for (type, name) in types_and_names
-###               if not msg_skip_fields or name not in msg_skip_fields
-    fbbcomm_builder_{{ msg }}_set_{{ name }}(&ic_msg, {{ name }});
+###             for arg in args
+###               if not msg_skip_fields or arg['name'] not in msg_skip_fields
+    fbbcomm_builder_{{ msg }}_set_{{ arg['name'] }}(&ic_msg, {{ arg['name'] }});
 ###               else
-    /* Skipping '{{ name }}' */
+    /* Skipping '{{ arg['name'] }}' */
 ###               endif
 ###             endfor
 ###             if msg_add_fields
