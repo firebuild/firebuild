@@ -24,7 +24,7 @@
   /* Perform the call.
    * This will call the registered atexit / on_exit handlers,
    * including our handle_exit() which will notify the supervisor. */
-  IC_ORIG({{ func }})({{ names_str }});
+  ic_orig_{{ func }}({{ names_str }});
 
   /* Make scan-build happy */
   (void)i_locked;
