@@ -15,6 +15,7 @@ namespace firebuild {
 
 class AsciiHash {
  public:
+  AsciiHash() = default;
   explicit AsciiHash(const char * const str) {
 #ifdef FB_EXTRA_DEBUG
     assert(Hash::valid_ascii(str));

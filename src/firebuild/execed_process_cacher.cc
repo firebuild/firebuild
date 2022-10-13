@@ -987,7 +987,8 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const ch
 const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_shortcut(
     const ExecedProcess *proc,
     uint8_t **inouts_buf,
-    size_t *inouts_buf_len) {
+    size_t *inouts_buf_len,
+    AsciiHash* subkey_out) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   const FBBSTORE_Serialized_process_inputs_outputs *inouts = nullptr;
@@ -1034,6 +1035,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
 #endif
         *inouts_buf = candidate_inouts_buf;
         *inouts_buf_len = candidate_inouts_buf_len;
+        *subkey_out = subkey;
         inouts = candidate_inouts;
 #ifdef FB_EXTRA_DEBUG
         /* Let's play safe for now and not break out of this loop, let's
@@ -1350,8 +1352,9 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + d(proc->env_vars())); */
   }
 
+  AsciiHash subkey;
   if (proc->can_shortcut()) {
-    inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len);
+    inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len, &subkey);
   }
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, inouts ? "│ Shortcutting:" : "│ Not shortcutting.");
@@ -1360,6 +1363,8 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     ret = apply_shortcut(proc, inouts, fds_appended_to);
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Exiting with " + d(proc->fork_point()->exit_status()));
     if (ret) {
+      Hash fp = fingerprints_[proc];
+      obj_cache->mark_as_used(fp, subkey.c_str());
       shortcut_hits_++;
       if (inouts->has_cpu_time_ms()) {
         proc->add_shortcut_cpu_time_ms(inouts->get_cpu_time_ms());

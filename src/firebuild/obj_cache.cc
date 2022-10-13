@@ -291,6 +291,16 @@ bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) 
   return true;
 }
 
+void ObjCache::mark_as_used(const Hash &key,
+                            const char* const subkey) {
+  TRACK(FB_DEBUG_CACHING, "key=%s, subkey=%s", D(key), D(subkey));
+
+  char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
+  construct_cached_file_name(base_dir_, key, subkey, false, path);
+  /* Touch the used file. */
+  struct timespec times[2] = {{0, UTIME_OMIT}, {0, UTIME_NOW}};
+  utimensat(AT_FDCWD, path, times, 0);
+}
 /**
  * Return the list of subkeys for the given key in the order to be tried for shortcutting.
  *
@@ -319,6 +329,8 @@ static std::vector<AsciiHash> list_subkeys_internal(const char* path) {
   } else {
     /* Use the subkey's timestamp for sorting since with FB_DEBUG_CACHE the subkey
      * is generated from the file's content, not the creation timestamp. */
+    /* Note: Since using a subkey for shortcutting also sets mtime this ordering
+     * may not match the ordering without debugging. */
     std::vector<std::pair<AsciiHash, struct timespec>> subkey_timestamp_pairs;
     struct stat st;
     while ((dirent = readdir(dir)) != NULL) {

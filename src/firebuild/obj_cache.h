@@ -31,6 +31,7 @@ class ObjCache {
   bool retrieve(const char* path,
                 uint8_t ** entry,
                 size_t * entry_len);
+  void mark_as_used(const Hash &key, const char * const subkey);
   std::vector<AsciiHash> list_subkeys(const Hash &key);
   void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs);
 
