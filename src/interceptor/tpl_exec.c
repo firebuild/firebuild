@@ -25,7 +25,7 @@
   va_end(ap);
   char *argv[argc + 1];
   argv[0] = (/* non-const */ char *) arg;
-  va_start(ap, {{ names[-1] }});
+  va_start(ap, {{ args[-1]['name'] }});
   for (i = 1; i <= argc ; i++) {
     argv[i] = va_arg(ap, char*);
   }
