@@ -1368,6 +1368,30 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
   return ret;
 }
 
+/**
+ * Checks if the blob is present in the blob cache and saves existing blobs' hash to
+ * referenced_blobs. */
+static bool blob_present(const Hash& hash, tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
+  char ascii_hash_buf[Hash::kAsciiLength + 1];
+  hash.to_ascii(ascii_hash_buf);
+  AsciiHash ascii_hash {ascii_hash_buf};
+  if (referenced_blobs->find(ascii_hash) == referenced_blobs->end()) {
+    int fd = blob_cache->get_fd_for_file(hash);
+    if (fd == -1) {
+      FB_DEBUG(FB_DEBUG_CACHING,
+               "Cache entry contains reference to an output blob missing from the cache: " +
+               d(ascii_hash));
+      FB_DEBUG(FB_DEBUG_CACHING, "The cache may have been corrupted.");
+      return false;
+    } else {
+      // TODO(rbalint) validate content's hash
+      close(fd);
+      referenced_blobs->insert(ascii_hash);
+    }
+  }
+  return true;
+}
+
 bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
                                           tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
   auto inouts_fbb = reinterpret_cast<const FBBSTORE_Serialized *>(entry_buf);
@@ -1402,25 +1426,17 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
       reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>(inouts->get_outputs());
   for (size_t i = 0; i < outputs->get_path_isreg_count(); i++) {
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
-    const auto path = FileName::Get(file->get_path(), file->get_path_len());
     if (file->get_type() == ISREG && file->has_hash()) {
-      Hash hash {file->get_hash()};
-      char ascii_hash_buf[Hash::kAsciiLength + 1];
-      hash.to_ascii(ascii_hash_buf);
-      AsciiHash ascii_hash {ascii_hash_buf};
-      if (referenced_blobs->find(ascii_hash) == referenced_blobs->end()) {
-        int fd = blob_cache->get_fd_for_file(hash);
-        if (fd == -1) {
-          FB_DEBUG(FB_DEBUG_CACHING,
-                   "Cache entry contains reference to a blob missing from the cache: " + d(path));
-          FB_DEBUG(FB_DEBUG_CACHING, "The cache may have been corrupted.");
-          return false;
-        } else {
-          // TODO(rbalint) validate content's hash
-          close(fd);
-          referenced_blobs->insert(ascii_hash);
-        }
+      if (!blob_present(Hash(file->get_hash()), referenced_blobs)) {
+        return false;
       }
+    }
+  }
+  for (size_t i = 0; i < outputs->get_append_to_fd_count(); i++) {
+    auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
+        (outputs->get_append_to_fd_at(i));
+    if (!blob_present(Hash(append_to_fd->get_hash()), referenced_blobs)) {
+      return false;
     }
   }
   return true;
