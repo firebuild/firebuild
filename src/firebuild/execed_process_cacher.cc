@@ -1452,25 +1452,16 @@ void ExecedProcessCacher::add_stored_stats() {
 
 void ExecedProcessCacher::update_stored_stats() {
   // FIXME(rbalint) There is a slight chance for two parallel builds updating the stats at the
-  // same time making them inaccurate or invalid in format.
+  // same time making them inaccurate.
   add_stored_stats();
-  FILE* f;
   const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
-  if (!(f = fopen(stats_file.c_str(), "w"))) {
-    fb_perror(("opening cache stats file failed"));
-    exit(EXIT_FAILURE);
-  }
-  if (fprintf(f, "attempts: %u\nhits: %u\nskips: %u\nsaved_cpu_ms: %ld\n",
+  if (file_overwrite_printf(stats_file, "attempts: %u\nhits: %u\nskips: %u\nsaved_cpu_ms: %ld\n",
               shortcut_attempts_, shortcut_hits_, not_shortcutting_,
               cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
-              (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) <= 0) {
-    fb_perror("writing cache stats file failed");
-    /* File may contain invalid data. */
-    // FIXME(rbalint) make this atomic
-    unlink(stats_file.c_str());
+              (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) < 0) {
+    fb_error("writing cache stats file failed");
     exit(EXIT_FAILURE);
   }
-  fclose(f);
 }
 
 void ExecedProcessCacher::gc() {

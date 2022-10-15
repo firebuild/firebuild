@@ -139,6 +139,31 @@ unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
   }
 }
 
+int file_overwrite_printf(const std::string& path, const char* format, ...) {
+  int ret;
+  FILE* f;
+  const std::string tmp_path = path + "." + std::to_string(getpid());
+  if (!(f = fopen(tmp_path.c_str(), "w"))) {
+    perror("fopen");
+    exit(EXIT_FAILURE);
+  }
+  va_list ap;
+  va_start(ap, format);
+  ret = vfprintf(f, format, ap);
+  if (ret == -1) {
+    perror("vfprintf");
+    unlink(tmp_path.c_str());
+    return ret;
+  }
+  va_end(ap);
+  fclose(f);
+  ret = rename(tmp_path.c_str(), path.c_str());
+  if (ret < 0) {
+    unlink(tmp_path.c_str());
+  }
+  return ret;
+}
+
 void bump_limits() {
   struct rlimit rlim;
   getrlimit(RLIMIT_NOFILE, &rlim);

@@ -48,6 +48,9 @@ bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags);
 unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
                                 const std::string& dir_path);
 
+/** Overwrite file with the passed printf formatted string */
+int file_overwrite_printf(const std::string& path, const char* format, ...);
+
 /**
  * Bump RLIMIT_NOFILE to hard limit to allow more parallel interceptor connections.
  */
