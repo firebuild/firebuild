@@ -371,9 +371,13 @@ int main(const int argc, char *argv[]) {
     if (gc) {
       firebuild::execed_process_cacher->gc();
       firebuild::execed_process_cacher->update_stored_bytes();
+      /* Store GC runs, too. */
+      firebuild::execed_process_cacher->update_stored_stats();
     }
     if (print_stats) {
-      firebuild::execed_process_cacher->add_stored_stats();
+      if (!gc) {
+        firebuild::execed_process_cacher->add_stored_stats();
+      }
       firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_STORED);
     }
     exit(0);
