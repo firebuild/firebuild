@@ -77,6 +77,8 @@ class ExecedProcessCacher {
   void update_stored_bytes();
   /** Register cache size change occurred in the current run. */
   void update_cached_bytes(ssize_t bytes) {this_runs_cached_bytes_ += bytes;}
+  /* A garbage collection run is needed, e.g. because the cache is too big. */
+  bool is_gc_needed() const;
   void gc();
   /**
    * Checks if the object cache entry can be used for shortcutting, i.e. all the referenced

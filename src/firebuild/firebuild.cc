@@ -523,6 +523,9 @@ int main(const int argc, char *argv[]) {
                       ru_total.ru_stime.tv_sec, ru_total.ru_stime.tv_usec / 1000);
     }
 
+    if (firebuild::execed_process_cacher->is_gc_needed()) {
+      firebuild::execed_process_cacher->gc();
+    }
     if (print_stats) {
       /* Separate stats from other output. */
       fprintf(stdout, "\n");

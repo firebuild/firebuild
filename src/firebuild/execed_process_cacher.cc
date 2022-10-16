@@ -1613,6 +1613,10 @@ void ExecedProcessCacher::update_stored_bytes() {
   }
 }
 
+bool ExecedProcessCacher::is_gc_needed() const {
+  return (get_stored_bytes_from_cache() + this_runs_cached_bytes_) > max_cache_size;
+}
+
 void ExecedProcessCacher::gc() {
   /* Remove unusable entries first. */
   tsl::hopscotch_set<AsciiHash> referenced_blobs {};
