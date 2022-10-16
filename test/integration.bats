@@ -314,7 +314,7 @@ setup() {
     cp test_cache_dir/objs/?/??/*/*+++++++ test_cache_dir/objs/many-entries/9123456789123456789${i}+
   done
 
-  result=$(./run-firebuild -d cache --gc)
+  result=$(./run-firebuild -o 'shortcut_tries = 18' -d cache --gc)
   assert_streq "$result" ""
   assert_streq "$(grep 'invalid_.*_name' stderr | wc -l)" "2"
   assert_streq "$(strip_stderr stderr | grep -v 'invalid_.*_name' | grep -v 'type is unexpected')" ""
@@ -326,7 +326,7 @@ setup() {
   # empty dirs were removed from blobs/, the one in objs/ is kept due to %_directory_debug.json
   result=$(find test_cache_dir/blobs -name 'to_be_removed')
   assert_streq "$result" ""
-  assert_streq "$(ls test_cache_dir/objs/many-entries/ | wc -l)" "20"
+  assert_streq "$(ls test_cache_dir/objs/many-entries/ | wc -l)" "18"
 
   result=$( ./run-firebuild --gc)
   assert_streq "$result" ""
