@@ -116,6 +116,7 @@ class ExecedProcessCacher {
   ssize_t this_runs_cached_bytes_ {0};
   /** Number of bytes in the cache as stored in the cachedir/size file. */
   ssize_t stored_cached_bytes_ {0};
+  unsigned int gc_runs_ {0};
 
   /** The hashed fingerprint of configured ignore locations. */
   Hash ignore_locations_hash_;

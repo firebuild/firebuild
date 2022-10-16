@@ -1537,6 +1537,7 @@ void ExecedProcessCacher::print_stats(stats_type what) {
          0);
   printf("  Misses:      %6u\n", shortcut_attempts_ - shortcut_hits_);
   printf("  Uncacheable: %6u\n", not_shortcutting_);
+  printf("  GC runs:     %6u\n", gc_runs_);
   if (what == FB_SHOW_STATS_CURRENT) {
     printf("Newly cached:  ");
     print_bytes(stdout, this_runs_cached_bytes_);
@@ -1554,17 +1555,18 @@ void ExecedProcessCacher::print_stats(stats_type what) {
 void ExecedProcessCacher::add_stored_stats() {
   /* Read cache statistics. */
   FILE* f;
-  unsigned int shortcut_attempts, shortcut_hits, not_shortcutting;
+  unsigned int shortcut_attempts, shortcut_hits, not_shortcutting, gc_runs;
   const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
   if ((f = fopen(stats_file.c_str(), "r"))) {
-    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u\nsaved_cpu_ms: %ld",
-               &shortcut_attempts, &shortcut_hits, &not_shortcutting,
-               &cache_saved_cpu_time_ms_) != 4) {
+    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u\ngc_runs: %u\nsaved_cpu_ms: %ld\n",
+               &shortcut_attempts, &shortcut_hits, &not_shortcutting, &gc_runs,
+               &cache_saved_cpu_time_ms_) != 5) {
       fb_error("Invalid stats file format at " + stats_file + ", using only current run's stats.");
     } else {
       shortcut_attempts_ += shortcut_attempts;
       shortcut_hits_ += shortcut_hits;
       not_shortcutting_ += not_shortcutting;
+      gc_runs_ += gc_runs;
     }
     fclose(f);
   }
@@ -1575,10 +1577,11 @@ void ExecedProcessCacher::update_stored_stats() {
   // same time making them inaccurate.
   add_stored_stats();
   const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
-  if (file_overwrite_printf(stats_file, "attempts: %u\nhits: %u\nskips: %u\nsaved_cpu_ms: %ld\n",
-              shortcut_attempts_, shortcut_hits_, not_shortcutting_,
-              cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
-              (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) < 0) {
+  if (file_overwrite_printf(
+          stats_file, "attempts: %u\nhits: %u\nskips: %u\ngc_runs: %u\nsaved_cpu_ms: %ld\n",
+          shortcut_attempts_, shortcut_hits_, not_shortcutting_, gc_runs_,
+          cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
+          (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) < 0) {
     fb_error("writing cache stats file failed");
     exit(EXIT_FAILURE);
   }
@@ -1618,6 +1621,7 @@ bool ExecedProcessCacher::is_gc_needed() const {
 }
 
 void ExecedProcessCacher::gc() {
+  gc_runs_++;
   /* Remove unusable entries first. */
   tsl::hopscotch_set<AsciiHash> referenced_blobs {};
   ssize_t cache_bytes = 0, debug_bytes = 0, unexpected_file_bytes = 0;
