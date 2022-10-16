@@ -1614,6 +1614,7 @@ void ExecedProcessCacher::update_stored_bytes() {
 }
 
 void ExecedProcessCacher::gc() {
+  /* Remove unusable entries first. */
   tsl::hopscotch_set<AsciiHash> referenced_blobs {};
   ssize_t cache_bytes = 0, debug_bytes = 0, unexpected_file_bytes = 0;
   obj_cache->gc(&referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
@@ -1627,6 +1628,50 @@ void ExecedProcessCacher::gc() {
     if (cache_bytes + debug_bytes != this_runs_cached_bytes_ + get_stored_bytes_from_cache()) {
       FB_DEBUG(FB_DEBUG_CACHING, "A parallel firebuild process modified the cache or the stored "
                "cache size was wrong. Adjusting the stored cache size.");
+    }
+  }
+
+  /* Check if the cache size is within limits. */
+  if (stored_cached_bytes_ + this_runs_cached_bytes_ > max_cache_size) {
+    FB_DEBUG(FB_DEBUG_CACHING,
+             "Cache size (" + d(stored_cached_bytes_ + this_runs_cached_bytes_) + ") " +
+             "is above " + d(max_cache_size) + " bytes limit, removing older entries");
+    /** Target for this_runs_cached_bytes_ to end up with a cache 20% below its size limit. */
+    const ssize_t target_this_runs_cached_bytes = (max_cache_size * 0.8) - stored_cached_bytes_;
+    std::vector<obj_timestamp_size_t> obj_ts_sizes =
+        obj_cache->gc_collect_sorted_obj_timestamp_sizes();
+    int round = 0;
+    while (this_runs_cached_bytes_ > target_this_runs_cached_bytes) {
+      /* Set kept_ratio to to keep ~80% of the objs to keep ~80% of targeted cache size
+       * and target lower kept ratio in each round if the target 80% is not reached. */
+      const double kept_ratio = (max_cache_size * (0.8 - round * 0.05))
+          / (stored_cached_bytes_ + this_runs_cached_bytes_);
+      if (kept_ratio <= 0.0) {
+        break;
+      }
+      size_t keep_objects_count = obj_ts_sizes.size() * kept_ratio;
+      FB_DEBUG(FB_DEBUG_CACHING, "Removing " + d(obj_ts_sizes.size() - keep_objects_count) + " " +
+               "cache objects out of " + d(obj_ts_sizes.size()));
+      for (size_t i = keep_objects_count; i < obj_ts_sizes.size(); i++) {
+        const char* name = obj_ts_sizes[i].obj.c_str();
+        if (unlink(name) != 0) {
+          fb_error(name);
+          fb_perror("unlink");
+        } else {
+          update_cached_bytes(-obj_ts_sizes[i].size);
+        }
+      }
+      obj_ts_sizes.resize(keep_objects_count);
+
+      /* Remove unreferenced blobs, too. */
+      referenced_blobs.clear();
+
+      /* Not adjusting the stored cache size this time. */
+      cache_bytes = debug_bytes = unexpected_file_bytes = 0;
+      obj_cache->gc(&referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
+      blob_cache->gc(referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
+
+      round++;
     }
   }
 }

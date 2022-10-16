@@ -347,6 +347,11 @@ setup() {
   assert_streq "$result" ""
   result=$(find test_cache_dir/ -name 'to_be_removed')
   assert_streq "$result" ""
+
+  result=$( ./run-firebuild -o 'max_cache_size = 0.00002' --gc)
+  cp -r test_cache_dir test_cache_dir.bak
+  assert_streq "$result" ""
+  assert_streq "$(strip_stderr stderr | grep -v 'invalid_.*_name' | grep -v ' unexpected')" ""
   rm -f foo
 }
 

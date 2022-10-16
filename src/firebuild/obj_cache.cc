@@ -347,6 +347,55 @@ std::vector<Subkey> ObjCache::list_subkeys(const Hash &key) {
   return list_subkeys_internal(path);
 }
 
+static void gc_collect_obj_timestamp_sizes_internal(
+    const std::string& path,
+    std::vector<obj_timestamp_size_t>* obj_timestamp_sizes) {
+  DIR * dir = opendir(path.c_str());
+  if (dir == NULL) {
+    return;
+  }
+
+  /* Visit dirs recursively and collect all the files named as valid subkeys. */
+  struct dirent *dirent;
+  while ((dirent = readdir(dir)) != NULL) {
+    const char* name = dirent->d_name;
+    if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+      continue;
+    }
+    switch (fixed_dirent_type(dirent, dir, path)) {
+      case DT_DIR: {
+        gc_collect_obj_timestamp_sizes_internal(path + "/" + name, obj_timestamp_sizes);
+        break;
+      }
+      case DT_REG: {
+        struct stat st;
+        if (Subkey::valid_ascii(name) && fstatat(dirfd(dir), name, &st, 0) == 0) {
+          obj_timestamp_sizes->push_back({path + "/" + name, st.st_mtim, st.st_size});
+        }
+        break;
+      }
+      default:
+        /* Just ignore the file which is not a cache object named as a valid subkey. */
+        break;
+    }
+  }
+  closedir(dir);
+}
+
+std::vector<obj_timestamp_size_t>
+ObjCache::gc_collect_sorted_obj_timestamp_sizes() {
+  std::vector<obj_timestamp_size_t> obj_timestamp_sizes;
+  gc_collect_obj_timestamp_sizes_internal(base_dir_, &obj_timestamp_sizes);
+  struct {
+    bool operator()(const obj_timestamp_size_t& a,
+                    const obj_timestamp_size_t& b) const {
+      return timespeccmp(&(b.ts), &(a.ts), <);
+    }
+  } reverse;
+  std::sort(obj_timestamp_sizes.begin(), obj_timestamp_sizes.end(), reverse);
+  return obj_timestamp_sizes;
+}
+
 void ObjCache::gc_obj_cache_dir(const std::string& path,
                                 tsl::hopscotch_set<AsciiHash>* referenced_blobs,
                                 ssize_t* cache_bytes, ssize_t* debug_bytes,

@@ -13,6 +13,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <vector>
@@ -37,6 +38,7 @@ ExeMatcher* skip_cache_matcher = nullptr;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
+int64_t max_cache_size = 0;
 int quirks = 0;
 
 /**
@@ -244,6 +246,18 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
     libconfig::Setting& shortcut_tries_cfg = cfg->getRoot()["shortcut_tries"];
     if (shortcut_tries_cfg.isNumber()) {
       shortcut_tries = shortcut_tries_cfg;
+    }
+  }
+
+  if (cfg->exists("max_cache_size")) {
+    libconfig::Setting& max_cache_size_cfg = cfg->getRoot()["max_cache_size"];
+    if (max_cache_size_cfg.isNumber()) {
+      double max_cache_size_gb = max_cache_size_cfg;
+      max_cache_size = max_cache_size_gb * 1000000000;
+      if (max_cache_size < 0) {
+        /* Fix up negative numbers. */
+        max_cache_size = 0;
+      }
     }
   }
 
