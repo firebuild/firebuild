@@ -187,6 +187,11 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
         adding = x_float;
         break;
       }
+      case libconfig::Setting::TypeInt: {
+        int x_int = x;
+        adding = x_int;
+        break;
+      }
       default:
         std::cerr << "This type is not supported" << std::endl;
         exit(EXIT_FAILURE);
