@@ -107,6 +107,9 @@ class ExecedProcessCacher {
   /**
    * Number of bytes added to (or freed from) the cache in the current run.
    * It can be negative in case of a garbage collection run.
+   * "This run" means the lifetime for the firebuild process including potentially
+   * running a build command and running gc(), including potentially processing the cache
+   * multiple times in ExecedProcessCacher::gc().
    */
   ssize_t this_runs_cached_bytes_ {0};
   /** Number of bytes in the cache as stored in the cachedir/size file. */

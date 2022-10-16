@@ -30,6 +30,10 @@ extern int64_t min_cpu_time_u;
  * Value of 0 means trying all candidates.
  */
 extern int shortcut_tries;
+/**
+ * Maximum size of the files stored in the cache, in bytes.
+ */
+extern int64_t max_cache_size;
 
 /** Enabled quirks represented as flags. See "quirks" in etc/firebuild.conf. */
 extern int quirks;

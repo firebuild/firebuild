@@ -16,6 +16,12 @@
 
 namespace firebuild {
 
+typedef struct obj_timestamp_size_ {
+  std::string obj {""};
+  struct timespec ts {0, 0};
+  ssize_t size {0};
+} obj_timestamp_size_t;
+
 /**
  * obj-cache is a weird caching structure where a key can contain
  * multiple values. More precisely, a key contains a list of subkeys,
@@ -83,6 +89,8 @@ class ObjCache {
    */
   void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
           ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
+  /* Returns {object path, timestamp, size} ordered by decreasing timestamp. */
+  std::vector<obj_timestamp_size_t> gc_collect_sorted_obj_timestamp_sizes();
 
  private:
   /**
@@ -104,7 +112,6 @@ class ObjCache {
   static constexpr char kDebugPostfix[] = "_debug.json";
   static constexpr char kDirDebugJson[] = "%_directory_debug.json";
 };
-
 /* singleton */
 extern ObjCache *obj_cache;
 
