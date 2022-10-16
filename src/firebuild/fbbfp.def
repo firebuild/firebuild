@@ -78,6 +78,7 @@
     # not included here. Things that only become known while the process is
     # running, such as the files it reads, aren't included either.
     ("process_fingerprint", [
+      (REQUIRED, "int",  "kFingerprintVersion"),
       (ARRAY,    STRING, "ignore_locations"),
       # The initial umask
       (REQUIRED, "mode_t", "umask"),

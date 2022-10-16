@@ -379,6 +379,7 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
      * memory allocation/freeing for all the substrings. */
     FBBFP_Builder_process_fingerprint fp;
 
+    fp.set_kFingerprintVersion(kFingerprintVersion);
     std::vector<std::string> ignore_locations_vec;
     for (int i = 0; i < ignore_locations.len; i++) {
       ignore_locations_vec.push_back(ignore_locations.p[i].c_str);
