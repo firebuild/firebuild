@@ -267,6 +267,9 @@ static void hash_param_file(XXH3_state_t* state, const ExecedProcess *proc,
 /**
  * Compute the fingerprint, store it keyed by the process in fingerprints_.
  * Also store fingerprint_msgs_ if debugging is enabled.
+ *
+ * Note: Don't forget updating the debugging part below, too, when changing the
+ * fingerprint generation!
  */
 bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
@@ -375,6 +378,12 @@ bool ExecedProcessCacher::fingerprint(const ExecedProcess *proc) {
      * The entry is the serialized message so that we don't have to fiddle with
      * memory allocation/freeing for all the substrings. */
     FBBFP_Builder_process_fingerprint fp;
+
+    std::vector<std::string> ignore_locations_vec;
+    for (int i = 0; i < ignore_locations.len; i++) {
+      ignore_locations_vec.push_back(ignore_locations.p[i].c_str);
+    }
+    fp.set_ignore_locations(ignore_locations_vec);
 
     fp.set_wd(proc->initial_wd()->c_str());
     fp.set_args(proc->args());
