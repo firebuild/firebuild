@@ -23,6 +23,7 @@ class Base64 {
 
  private:
   static void encode_3byte_block(const unsigned char *in, char *out);
+  static void encode_2byte_block(const unsigned char *in, char *out);
   static void encode_1byte_block(const unsigned char *in, char *out);
   /* Subkey's sorting relies on the characters being in ASCII order. */
   static constexpr char kEncodeMap[] =

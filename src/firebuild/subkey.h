@@ -4,6 +4,8 @@
 #ifndef FIREBUILD_SUBKEY_H_
 #define FIREBUILD_SUBKEY_H_
 
+#include <endian.h>
+
 #include <cassert>
 #include <cstring>
 #include <string>
@@ -17,6 +19,13 @@ namespace firebuild {
 class Subkey {
  public:
   Subkey() = default;
+  explicit Subkey(uint64_t key) {
+    uint64_t be_key = htobe64(key);
+    Base64::encode(reinterpret_cast<const unsigned char*>(&be_key), str_, sizeof(uint64_t));
+  }
+  explicit Subkey(const unsigned char digest[8]) {
+    Base64::encode(digest, str_, sizeof(uint64_t));
+  }
   explicit Subkey(const char * const str) {
 #ifdef FB_EXTRA_DEBUG
     assert(valid_ascii(str));
@@ -33,7 +42,7 @@ class Subkey {
     return str_;
   }
   /** ASCII representation length without the trailing '\0' */
-  static const size_t kAsciiLength {22};
+  static const size_t kAsciiLength {11};
   static bool valid_ascii(const char* const str) {
     return Base64::valid_ascii(str, kAsciiLength);
   }

@@ -311,7 +311,7 @@ setup() {
   touch test_cache_dir/objs/to_be_removed/%_directory_debug.json
   mkdir test_cache_dir/objs/many-entries
   for i in $(seq -w 30); do
-    cp test_cache_dir/objs/?/??/*/*+++++++ test_cache_dir/objs/many-entries/9123456789123456789${i}+
+    cp test_cache_dir/objs/?/??/*/??????????? test_cache_dir/objs/many-entries/12345678${i}+
   done
 
   result=$(./run-firebuild -o 'shortcut_tries = 18' -d cache --gc)
@@ -321,7 +321,8 @@ setup() {
   # debug files are kept with "-d cache"
   [ -f test_cache_dir/objs/*/*/*/%_directory_debug.json ]
   # there is a non-directory debug json file as well
-  [ -f test_cache_dir/objs/*/*/*/????????????*_debug.json ]
+  debug_json=$(ls test_cache_dir/objs/*/*/*/*_debug.json | grep -v %_directory)
+  [ -f "${debug_json}" ]
   [ -f test_cache_dir/blobs/*/*/*_debug.txt ]
   # empty dirs were removed from blobs/, the one in objs/ is kept due to %_directory_debug.json
   result=$(find test_cache_dir/blobs -name 'to_be_removed')

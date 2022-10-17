@@ -176,23 +176,25 @@ bool ObjCache::store(const Hash &key,
 
   /* Create randomized object file */
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
-  // TODO(rbalint) user shorter subkey and use different alphabet to
-  // make it more apparent that the subkey is not a hash of anything
   struct timespec time;
   clock_gettime(CLOCK_REALTIME, &time);
-  /* XXH128_hash_t stores high and low 64 bits in little endian order.
-   * Store both seconds and nanoseconds in the highest 64 bits to have the non-zero bits
-   * closer to the beginning. The seconds since the epoch is stored in the first 34 bits
+  /* Store both seconds and nanoseconds in 64 bits.
+   * The seconds since the epoch is stored in the first 34 bits
    * that will be enough until 2514 and the nanoseconds are stored in the next 30. */
-  Hash subkey({0, (static_cast<uint64_t>(time.tv_sec) << 30) +
-      static_cast<uint64_t>(time.tv_nsec)});
+  Subkey subkey =
+      Subkey((static_cast<uint64_t>(time.tv_sec) << 30) + static_cast<uint64_t>(time.tv_nsec));
   if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
      * hash for a deterministic filename. */
-    subkey.set_from_data(entry_serial, len);
+    XXH128_hash_t entry_hash = XXH3_128bits(entry_serial, len);
+    XXH128_canonical_t canonical;
+    XXH128_canonicalFromHash(&canonical, entry_hash);
+    /* Use only the first part of the digest in for the subkey. */
+    // TODO(rbalint) switching to XXH64_hash_t somehow does not match xxh64sum's output, debug that
+    subkey = Subkey(canonical.digest);
   }
 
-  construct_cached_file_name(base_dir_, key, subkey.to_ascii().c_str(), true, path_dst);
+  construct_cached_file_name(base_dir_, key, subkey.c_str(), true, path_dst);
   free(entry_serial);
 
   if (rename(tmpfile, path_dst) == -1) {

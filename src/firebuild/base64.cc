@@ -45,6 +45,14 @@ void Base64::encode_3byte_block(const unsigned char *in, char *out) {
   out[3] = kEncodeMap[ val        & 0x3f];
 }
 
+/** Similar to the previous, but for 2 input bytes (2 byte of the binary -> 3 ASCII characters */
+void Base64::encode_2byte_block(const unsigned char *in, char *out) {
+  uint16_t val = (in[0] <<  8) | (in[1]);
+  out[0] = kEncodeMap[(val >> 10) & 0x3f];
+  out[1] = kEncodeMap[(val >>  4) & 0x3f];
+  out[2] = kEncodeMap[(val <<  2) & 0x3f];
+}
+
 /** Similar to the previous, but for 1 input byte (1 byte of the binary -> 2 ASCII characters */
 void Base64::encode_1byte_block(const unsigned char *in, char *out) {
   uint8_t val = in[0];
@@ -61,6 +69,11 @@ void Base64::encode(const unsigned char* in, char *out, int in_length) {
     encode_3byte_block(&in[12], out + 16);
     encode_1byte_block(&in[15], out + 20);
     out[22] = '\0';
+  } else if (in_length == 8) {
+    encode_3byte_block(&in[0], out);
+    encode_3byte_block(&in[3], out + 4);
+    encode_2byte_block(&in[6], out + 8);
+    out[11] = '\0';
   } else {
     // TODO(rbalint) support other lengths, maybe drop those hand-unrolled loops if
     // something is faster
