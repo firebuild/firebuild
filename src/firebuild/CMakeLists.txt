@@ -44,6 +44,7 @@ add_custom_command(
 add_custom_target(fbbstore_gen_files ALL DEPENDS fbbstore.cc fbbstore.h fbbstore_decode.c)
 
 add_executable(firebuild-bin
+  base64.cc
   config.cc
   debug.cc
   epoll.cc

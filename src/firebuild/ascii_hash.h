@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 
+#include "firebuild/base64.h"
 #include "firebuild/hash.h"
 
 namespace firebuild {

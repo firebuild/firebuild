@@ -16,6 +16,7 @@
 #include <cassert>
 #include <vector>
 
+#include "firebuild/base64.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
 #include "firebuild/utils.h"
@@ -188,28 +189,6 @@ void Hash::set(XXH128_hash_t value) {
 }
 
 /**
- * Helper method of to_ascii().
- *
- * Convert 3 input bytes (part of the binary representation) into 4 output bytes (part of the base64
- * ASCII representation) according to base64 encoding.
- */
-void Hash::encode_block(const unsigned char *in, char *out) {
-  uint32_t val = (in[0] << 16) |
-                 (in[1] <<  8) |
-                 (in[2]);
-  out[0] = kEncodeMap[ val >> 18        ];
-  out[1] = kEncodeMap[(val >> 12) & 0x3f];
-  out[2] = kEncodeMap[(val >>  6) & 0x3f];
-  out[3] = kEncodeMap[ val        & 0x3f];
-}
-/** Similar to the previous, but for the last block (1 byte of the binary -> 2 ASCII characters */
-void Hash::encode_last_block(const unsigned char *in, char *out) {
-  uint8_t val = in[0];
-  out[0] = kEncodeMap[ val >> 2        ];
-  out[1] = kEncodeMap[(val << 4) & 0x3f];
-}
-
-/**
  * Get the ASCII representation.
  *
  * See the class's documentation for the exact format.
@@ -218,14 +197,10 @@ void Hash::to_ascii(char *out) const {
   XXH128_canonical_t canonical;
   XXH128_canonicalFromHash(&canonical, hash_);
 
-  encode_block(&canonical.digest[ 0], out);
-  encode_block(&canonical.digest[ 3], out +  4);
-  encode_block(&canonical.digest[ 6], out +  8);
-  encode_block(&canonical.digest[ 9], out + 12);
-  encode_block(&canonical.digest[12], out + 16);
-  encode_last_block(&canonical.digest[15], out + 20);
+  Base64::encode(canonical.digest, out, sizeof(canonical.digest));
   out[kAsciiLength] = '\0';
 }
+
 
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
