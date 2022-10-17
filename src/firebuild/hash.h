@@ -10,6 +10,7 @@
 #include <cstring>
 #include <string>
 
+#include "firebuild/base64.h"
 #include "firebuild/file_name.h"
 
 namespace firebuild {
@@ -70,36 +71,10 @@ class Hash {
      return std::string(ascii);
   }
   static bool valid_ascii(const char* const str) {
-    size_t i;
-    for (i = 0; i < Hash::kAsciiLength - 1; i++) {
-      if ((str[i] >= 'A' && str[i] <= 'Z') ||
-          (str[i] >= 'a' && str[i] <= 'z') ||
-          (str[i] >= '0' && str[i] <= '9') ||
-          str[i] == '+' || str[i] == '^') {
-        continue;
-      } else {
-        return false;
-      }
-    }
-    /* check that the last character is from the more restricted set,
-     * namely represents 6 bits so that the last 4 of them are zeros */
-    const char last_char {str[i++]};
-    if (last_char != '+' && last_char != 'F' && last_char != 'V' && last_char != 'k') {
-      return false;
-    }
-    if (str[i] == '\0') {
-      return true;
-    } else {
-      return false;
-    }
+    return Base64::valid_ascii(str, kAsciiLength);
   }
 
  private:
-  static void encode_block(const unsigned char *in, char *out);
-  static void encode_last_block(const unsigned char *in, char *out);
-  /* AsciiHash's sorting relies on the characters being in ASCII order. */
-  static constexpr char kEncodeMap[] =
-      "+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^abcdefghijklmnopqrstuvwxyz";
   static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
   XXH128_hash_t hash_;
 };
