@@ -25,9 +25,6 @@ class AsciiHash {
        str_[i] = str[i];
      }
   }
-  bool operator<(const AsciiHash& other) const {
-    return memcmp(str_, other.str_, Hash::kAsciiLength) < 0;
-  }
   bool operator==(const AsciiHash& other) const {
     return memcmp(str_, other.str_, Hash::kAsciiLength) == 0;
   }

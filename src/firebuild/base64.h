@@ -24,7 +24,7 @@ class Base64 {
  private:
   static void encode_3byte_block(const unsigned char *in, char *out);
   static void encode_1byte_block(const unsigned char *in, char *out);
-  /* AsciiHash's sorting relies on the characters being in ASCII order. */
+  /* Subkey's sorting relies on the characters being in ASCII order. */
   static constexpr char kEncodeMap[] =
       "+0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ^abcdefghijklmnopqrstuvwxyz";
 };
