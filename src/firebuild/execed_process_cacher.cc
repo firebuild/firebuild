@@ -988,7 +988,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     const ExecedProcess *proc,
     uint8_t **inouts_buf,
     size_t *inouts_buf_len,
-    AsciiHash* subkey_out) {
+    Subkey* subkey_out) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   const FBBSTORE_Serialized_process_inputs_outputs *inouts = nullptr;
@@ -999,11 +999,11 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   Hash fingerprint = fingerprints_[proc];  // FIXME error handling
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
-  const std::vector<AsciiHash> subkeys = obj_cache->list_subkeys(fingerprint);
+  const std::vector<Subkey> subkeys = obj_cache->list_subkeys(fingerprint);
   if (subkeys.empty()) {
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
   }
-  for (const AsciiHash& subkey : subkeys) {
+  for (const Subkey& subkey : subkeys) {
     uint8_t *candidate_inouts_buf;
     size_t candidate_inouts_buf_len;
     if (shortcut_attempts++ > shortcut_tries) {
@@ -1352,7 +1352,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     /* FB_DEBUG(FB_DEBUG_SHORTCUT, "│   env = " + d(proc->env_vars())); */
   }
 
-  AsciiHash subkey;
+  Subkey subkey;
   if (proc->can_shortcut()) {
     inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len, &subkey);
   }

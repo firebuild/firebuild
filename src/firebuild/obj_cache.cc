@@ -39,13 +39,14 @@
 #include <algorithm>
 #include <utility>
 
-#include "firebuild/ascii_hash.h"
+#include "firebuild/blob_cache.h"
 #include "firebuild/config.h"
 #include "firebuild/debug.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/hash.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
+#include "firebuild/subkey.h"
 #include "firebuild/utils.h"
 
 namespace firebuild {
@@ -59,7 +60,8 @@ ObjCache::ObjCache(const std::string &base_dir) : base_dir_(base_dir) {
 
 
 /* /x/xx/<ascii key>/<ascii subkey> */
-static size_t kObjCachePathLength = 1 + 1 + 1 + 2 + 1 + 2 * Hash::kAsciiLength + 1;
+static size_t kObjCachePathLength =
+    1 + 1 + 1 + 2 + 1 + Hash::kAsciiLength + 1 + Subkey::kAsciiLength;
 
 /*
  * Constructs the directory name where the cached files are to be
@@ -110,9 +112,9 @@ static void construct_cached_file_name(const std::string &base,
                                        bool create_dirs,
                                        char* path) {
   construct_cached_dir_name(base, key, create_dirs, path);
-  path[base.length() + kObjCachePathLength - Hash::kAsciiLength - 1] = '/';
-  memcpy(&path[base.length() + kObjCachePathLength - Hash::kAsciiLength], subkey,
-         Hash::kAsciiLength + 1);
+  path[base.length() + kObjCachePathLength - Subkey::kAsciiLength - 1] = '/';
+  memcpy(&path[base.length() + kObjCachePathLength - Subkey::kAsciiLength], subkey,
+         Subkey::kAsciiLength + 1);
 }
 
 
@@ -137,10 +139,10 @@ bool ObjCache::store(const Hash &key,
     /* Place a human-readable version of the key in the cache, for easier debugging. */
     char* path_debug =
         reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength
-                                       - Hash::kAsciiLength + 1 +strlen(kDirDebugJson) + 1));
+                                       - Subkey::kAsciiLength + 1 +strlen(kDirDebugJson) + 1));
     construct_cached_dir_name(base_dir_, key, true, path_debug);
-    path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength - 1] = '/';
-    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Hash::kAsciiLength],
+    path_debug[base_dir_.length() + kObjCachePathLength - Subkey::kAsciiLength - 1] = '/';
+    memcpy(&path_debug[base_dir_.length() + kObjCachePathLength - Subkey::kAsciiLength],
            kDirDebugJson, strlen(kDirDebugJson) + 1);
 
     FILE *f = fopen(path_debug, "w");
@@ -308,22 +310,22 @@ void ObjCache::mark_as_used(const Hash &key,
  *
  * // FIXME replace with some iterator-like approach?
  */
-static std::vector<AsciiHash> list_subkeys_internal(const char* path) {
+static std::vector<Subkey> list_subkeys_internal(const char* path) {
   DIR *dir = opendir(path);
   if (dir == NULL) {
-    return std::vector<AsciiHash>();
+    return std::vector<Subkey>();
   }
 
-  std::vector<AsciiHash> ret;
+  std::vector<Subkey> ret;
   struct dirent *dirent;
   if (!FB_DEBUGGING(FB_DEBUG_CACHE)) {
     while ((dirent = readdir(dir)) != NULL) {
-      if (Hash::valid_ascii(dirent->d_name)) {
-        ret.push_back(AsciiHash(dirent->d_name));
+      if (Subkey::valid_ascii(dirent->d_name)) {
+        ret.push_back(Subkey(dirent->d_name));
       }
     }
     struct {
-      bool operator()(const AsciiHash a, const AsciiHash b) const { return b < a; }
+      bool operator()(const Subkey a, const Subkey b) const { return b < a; }
     } reverse_order;
     std::sort(ret.begin(), ret.end(), reverse_order);
   } else {
@@ -331,16 +333,16 @@ static std::vector<AsciiHash> list_subkeys_internal(const char* path) {
      * is generated from the file's content, not the creation timestamp. */
     /* Note: Since using a subkey for shortcutting also sets mtime this ordering
      * may not match the ordering without debugging. */
-    std::vector<std::pair<AsciiHash, struct timespec>> subkey_timestamp_pairs;
+    std::vector<std::pair<Subkey, struct timespec>> subkey_timestamp_pairs;
     struct stat st;
     while ((dirent = readdir(dir)) != NULL) {
-      if (Hash::valid_ascii(dirent->d_name) && fstatat(dirfd(dir), dirent->d_name, &st, 0) == 0) {
-        subkey_timestamp_pairs.push_back({AsciiHash(dirent->d_name), st.st_mtim});
+      if (Subkey::valid_ascii(dirent->d_name) && fstatat(dirfd(dir), dirent->d_name, &st, 0) == 0) {
+        subkey_timestamp_pairs.push_back({Subkey(dirent->d_name), st.st_mtim});
       }
     }
     struct {
-      bool operator()(const std::pair<AsciiHash, struct timespec> a,
-                      const std::pair<AsciiHash, struct timespec> b) const {
+      bool operator()(const std::pair<Subkey, struct timespec> a,
+                      const std::pair<Subkey, struct timespec> b) const {
         return timespeccmp(&(b.second), &(a.second), <);
       }
     } reverse_order;
@@ -360,7 +362,7 @@ static std::vector<AsciiHash> list_subkeys_internal(const char* path) {
  *
  * // FIXME replace with some iterator-like approach?
  */
-std::vector<AsciiHash> ObjCache::list_subkeys(const Hash &key) {
+std::vector<Subkey> ObjCache::list_subkeys(const Hash &key) {
   TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
 
   char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
@@ -392,7 +394,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
         break;
       }
       case DT_REG: {
-        if (Hash::valid_ascii(name)) {
+        if (Subkey::valid_ascii(name)) {
           /* Good, will process this later using list_subkeys_internal() to process the subkeys
            * in the order they would be used for shortcutting. */
           valid_ascii_found = true;
@@ -454,9 +456,9 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
   }
   /* Process valid entries. */
   if (valid_ascii_found) {
-    std::vector<AsciiHash> entries = list_subkeys_internal(path.c_str());
+    std::vector<Subkey> entries = list_subkeys_internal(path.c_str());
     int usable_entries = 0;
-    for (const AsciiHash& entry : entries) {
+    for (const Subkey& entry : entries) {
       uint8_t* entry_buf;
       size_t entry_len;
       if (usable_entries >= shortcut_tries) {

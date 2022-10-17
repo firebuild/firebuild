@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "firebuild/ascii_hash.h"
+#include "firebuild/subkey.h"
 #include "firebuild/hash.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
@@ -32,7 +32,7 @@ class ObjCache {
                 uint8_t ** entry,
                 size_t * entry_len);
   void mark_as_used(const Hash &key, const char * const subkey);
-  std::vector<AsciiHash> list_subkeys(const Hash &key);
+  std::vector<Subkey> list_subkeys(const Hash &key);
   void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs);
 
  private:
