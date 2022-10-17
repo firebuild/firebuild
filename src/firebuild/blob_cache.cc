@@ -330,29 +330,15 @@ bool BlobCache::move_store_file(const std::string &path,
  *
  * Uses advanced technologies, such as copy on write, if available.
  *
- * @param key The key (the file's hash)
+ * @param blob_fd opened file descriptor of the blob to be used
  * @param path_dst Where to place the file
  * @param append Whether to use append mode
  * @return Whether succeeded
  */
-bool BlobCache::retrieve_file(const Hash &key,
+bool BlobCache::retrieve_file(int blob_fd,
                               const FileName *path_dst,
                               bool append) {
-  TRACK(FB_DEBUG_CACHING, "key=%s, path_dst=%s, append=%s", D(key), D(path_dst), D(append));
-
-  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: retrieving blob " + d(key) + " => " + d(path_dst));
-  }
-
-  char* path_src = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
-  construct_cached_file_name(base_dir_, key, false, path_src);
-
-  int fd_src = open(path_src, O_RDONLY);
-  if (fd_src == -1) {
-    fb_perror("Failed retrieving file from cache");
-    assert(0);
-    return false;
-  }
+  TRACK(FB_DEBUG_CACHING, "blob_fd=%d, path_dst=%s, append=%s", blob_fd, D(path_dst), D(append));
 
   int flags = append ? O_WRONLY : (O_WRONLY|O_CREAT|O_TRUNC);
   int fd_dst = open(path_dst->c_str(), flags, 0666);
@@ -364,10 +350,10 @@ bool BlobCache::retrieve_file(const Hash &key,
     return false;
   }
 
-  if (!copy_file(fd_src, 0, fd_dst, append)) {
+  if (!copy_file(blob_fd, 0, fd_dst, append)) {
     FB_DEBUG(FB_DEBUG_CACHING, "Copying file from cache failed");
     assert(0);
-    close(fd_src);
+    close(blob_fd);
     close(fd_dst);
     if (!append) {
       unlink(path_dst->c_str());
@@ -375,7 +361,6 @@ bool BlobCache::retrieve_file(const Hash &key,
     return false;
   }
 
-  close(fd_src);
   close(fd_dst);
   return true;
 }
