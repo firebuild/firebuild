@@ -32,7 +32,7 @@ class BlobCache {
                        int fd,
                        size_t size,
                        Hash *key_out);
-  bool retrieve_file(const Hash &key,
+  bool retrieve_file(int blob_fd,
                      const FileName *path_dst,
                      bool append);
   int get_fd_for_file(const Hash &key);

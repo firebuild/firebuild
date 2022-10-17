@@ -1182,6 +1182,24 @@ static void remove_files_and_dirs(
   }
 }
 
+static void close_all(std::vector<int>* fds) {
+  for (int fd : *fds) {
+    close(fd);
+  }
+}
+
+static bool add_blob_fd_from_hash(const XXH128_hash_t& fbb_hash, std::vector<int>* blob_fds) {
+  Hash hash(fbb_hash);
+  int fd;
+  if ((fd = blob_cache->get_fd_for_file(hash)) != -1) {
+    blob_fds->push_back(fd);
+  } else {
+    close_all(blob_fds);
+    return false;
+  }
+  return true;
+}
+
 /**
  * Applies the given shortcut.
  *
@@ -1194,6 +1212,30 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   size_t i;
+  std::vector<int> blob_fds;
+
+  const FBBSTORE_Serialized_process_outputs *outputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
+      (inouts->get_outputs());
+
+  /* Pre-open blobs to be used later to prevent a parallel GC run from removing them while
+   * shortcutting. */
+  for (i = 0; i < outputs->get_path_isreg_count(); i++) {
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
+    if (file->get_type() == ISREG) {
+      assert(file->has_hash());
+      if (!add_blob_fd_from_hash(file->get_hash(), &blob_fds)) {
+        return false;
+      }
+    }
+  }
+  for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
+    auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
+        (outputs->get_append_to_fd_at(i));
+    if (!add_blob_fd_from_hash(append_to_fd->get_hash(), &blob_fds)) {
+      return false;
+    }
+  }
 
   /* Bubble up all the file operations we're about to perform. */
   if (proc->parent_exec_point()) {
@@ -1214,14 +1256,12 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     }
   }
 
-  const FBBSTORE_Serialized_process_outputs *outputs =
-      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
-      (inouts->get_outputs());
-
   if (!restore_dirs(proc, outputs)) {
+    close_all(&blob_fds);
     return false;
   }
 
+  size_t next_blob_fd_idx = 0;
   for (i = 0; i < outputs->get_path_isreg_count(); i++) {
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
@@ -1231,7 +1271,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                + d(path));
       assert(file->has_hash());
       Hash hash(file->get_hash());
-      if (!blob_cache->retrieve_file(hash, path, false)) {
+      if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false)) {
         /* The file may not be writable but it may be expected and already checked. */
         const FBBSTORE_Serialized_file* input_file =
             find_input_file(
@@ -1244,7 +1284,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
             fb_perror("Failed removing file to be replaced from cache");
             assert(0);
           }
-          if (!blob_cache->retrieve_file(hash, path, false)) {
+          /* Try retrieving the same file again. */
+          if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false)) {
             fb_perror("Failed creating file from cache");
             assert(0);
           }
@@ -1280,7 +1321,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       assert(pipe);
 
       Hash hash(append_to_fd->get_hash());
-      int fd = blob_cache->get_fd_for_file(hash);
+      int fd = blob_fds[next_blob_fd_idx++];
       struct stat64 st;
       if (fstat64(fd, &st) < 0) {
         assert(0 && "fstat");
@@ -1301,7 +1342,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                "│   Fetching file fragment from blobs cache: "
                + d(ffd->filename()));
       Hash hash(append_to_fd->get_hash());
-      blob_cache->retrieve_file(hash, ffd->filename(), true);
+      blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], ffd->filename(), true);
 
       /* Tell the interceptor to seek forward in this fd. */
       fds_appended_to->push_back(ffd->fd());
@@ -1318,6 +1359,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   // TODO(egmont) what to do with resource usage?
   proc->fork_point()->set_exit_status(outputs->get_exit_status());
 
+  close_all(&blob_fds);
   return true;
 }
 
