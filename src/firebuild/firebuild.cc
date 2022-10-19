@@ -368,7 +368,7 @@ int main(const int argc, char *argv[]) {
   if (optind >= argc) {
     if (print_stats) {
       firebuild::execed_process_cacher->add_stored_stats();
-      firebuild::execed_process_cacher->print_stats("stored cache");
+      firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_STORED);
     }
     exit(0);
   }
@@ -520,7 +520,7 @@ int main(const int argc, char *argv[]) {
     if (print_stats) {
       /* Separate stats from other output. */
       fprintf(stdout, "\n");
-      firebuild::execed_process_cacher->print_stats("current run");
+      firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_CURRENT);
     }
     firebuild::execed_process_cacher->update_stored_stats();
 
