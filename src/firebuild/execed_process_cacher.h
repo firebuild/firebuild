@@ -21,6 +21,11 @@
 
 namespace firebuild {
 
+enum stats_type {
+  FB_SHOW_STATS_CURRENT,
+  FB_SHOW_STATS_STORED,
+};
+
 class ExecedProcessCacher {
  public:
   /**
@@ -62,7 +67,7 @@ class ExecedProcessCacher {
   void set_self_cpu_time_ms(unsigned int time_ms) {
     self_cpu_time_ms_ = time_ms;
   }
-  void print_stats(const char* what);
+  void print_stats(stats_type what);
   void update_stored_stats();
   void gc();
   /**

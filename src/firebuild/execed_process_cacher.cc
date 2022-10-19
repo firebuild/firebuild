@@ -1509,8 +1509,8 @@ static void print_time(FILE* f, const int time_ms) {
   fprintf(f, "%.2f weeks", time);
 }
 
-void ExecedProcessCacher::print_stats(const char* which) {
-  printf("Statistics of %s:\n", which);
+void ExecedProcessCacher::print_stats(stats_type what) {
+  printf("Statistics of %s:\n", what == FB_SHOW_STATS_CURRENT ? "current run" : "stored cache");
   printf("  Hits:        %6u / %u (%.2f %%)\n", shortcut_hits_, shortcut_attempts_,
          shortcut_attempts_ > 0 ? (static_cast<float>(100 * shortcut_hits_) / shortcut_attempts_) :
          0);
