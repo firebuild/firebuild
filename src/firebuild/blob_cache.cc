@@ -344,7 +344,8 @@ int BlobCache::get_fd_for_file(const Hash &key) {
 
 void BlobCache::delete_entries(const std::string& path,
                                const std::vector<std::string>& entries,
-                               const std::string& debug_postfix) {
+                               const std::string& debug_postfix,
+                               ssize_t* debug_bytes) {
   struct stat st;
   for (const auto& entry : entries) {
     const std::string absolute_entry = path + "/" + entry;
@@ -366,6 +367,8 @@ void BlobCache::delete_entries(const std::string& path,
          * Delete the ones related to entries to be deleted. */
         if (unlink(absolute_debug_entry.c_str()) == 0) {
           execed_process_cacher->update_cached_bytes(-st.st_size);
+          /* The size of this debug file has already been added to debug_bytes, reverse that. */
+          *debug_bytes -= st.st_size;
         } else {
           fb_perror("unlink");
         }
@@ -375,7 +378,9 @@ void BlobCache::delete_entries(const std::string& path,
 }
 
 void BlobCache::gc_blob_cache_dir(const std::string& path,
-                                  const tsl::hopscotch_set<AsciiHash>& referenced_blobs) {
+                                  const tsl::hopscotch_set<AsciiHash>& referenced_blobs,
+                                  ssize_t* cache_bytes, ssize_t* debug_bytes,
+                                  ssize_t* unexpected_file_bytes) {
   DIR * dir = opendir(path.c_str());
   if (dir == NULL) {
     return;
@@ -403,6 +408,7 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
             entries_to_delete.push_back(name);
           } else {
             /* Good, keeping the referenced blob. */
+            *cache_bytes += file_size(dir, name);
           }
           break;
         } else {
@@ -417,7 +423,9 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
               struct stat st;
               if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
                 /* Keeping debugging file that has related blob. If the object gets removed
-                 * the debugging file will be removed with it, too. */
+                 * the debugging file will be removed with it, too. In that case debug_bytes
+                 * needs to be adjusted again. */
+                *debug_bytes += file_size(dir, name);
               } else {
                 /* Removing old debugging file later to not break next readdir(). */
                 entries_to_delete.push_back(name);
@@ -429,6 +437,7 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
           } else {
             fb_error("Regular file among cache blobs has unexpected name, keeping it: " +
                      path + "/" + d(name));
+            *unexpected_file_bytes += file_size(dir, name);
           }
         }
         break;
@@ -438,9 +447,10 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
                  path + "/" + d(name));
     }
   }
-  delete_entries(path, entries_to_delete, kDebugPostfix);
+  delete_entries(path, entries_to_delete, kDebugPostfix, debug_bytes);
   for (const auto& subdir : subdirs_to_visit) {
-    gc_blob_cache_dir(path + "/" + subdir, referenced_blobs);
+    gc_blob_cache_dir(path + "/" + subdir, referenced_blobs, cache_bytes, debug_bytes,
+                      unexpected_file_bytes);
   }
 
   /* Remove empty directory. */
@@ -462,8 +472,9 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
   closedir(dir);
 }
 
-void BlobCache::gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs) {
-  gc_blob_cache_dir(base_dir_, referenced_blobs);
+void BlobCache::gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs, ssize_t* cache_bytes,
+                   ssize_t* debug_bytes, ssize_t* unexpected_file_bytes) {
+  gc_blob_cache_dir(base_dir_, referenced_blobs, cache_bytes, debug_bytes, unexpected_file_bytes);
 }
 
 }  /* namespace firebuild */

@@ -348,7 +348,9 @@ std::vector<Subkey> ObjCache::list_subkeys(const Hash &key) {
 }
 
 void ObjCache::gc_obj_cache_dir(const std::string& path,
-                                tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
+                                tsl::hopscotch_set<AsciiHash>* referenced_blobs,
+                                ssize_t* cache_bytes, ssize_t* debug_bytes,
+                                ssize_t* unexpected_file_bytes) {
   DIR * dir = opendir(path.c_str());
   if (dir == NULL) {
     return;
@@ -381,6 +383,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
             if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
               /* Keeping directory debuuging file, it may be removed with the otherwise empty dir
                * later. */
+              *debug_bytes += file_size(dir, name);
             } else {
               entries_to_delete.push_back(name);
             }
@@ -394,6 +397,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
               if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
                 /* Keeping debugging file that has related object. If the object gets removed
                  * the debugging file will be removed with it, too. */
+                *debug_bytes += file_size(dir, name);
               } else {
                 /* Removing old debugging file later to not break next readdir(). */
                 entries_to_delete.push_back(name);
@@ -405,6 +409,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
           } else {
             fb_error("Regular file among cache objects has unexpected name, keeping it: " +
                      path + "/" + name);
+            *unexpected_file_bytes += file_size(dir, name);
           }
         }
         break;
@@ -416,9 +421,10 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
   }
   /* This actually deletes entries from here, the ObjCache,
    * just uses the implementation in BlobCache. */
-  BlobCache::delete_entries(path, entries_to_delete, kDebugPostfix);
+  BlobCache::delete_entries(path, entries_to_delete, kDebugPostfix, debug_bytes);
   for (const auto& subdir : subdirs_to_visit) {
-    gc_obj_cache_dir(path + "/" + subdir, referenced_blobs);
+    gc_obj_cache_dir(path + "/" + subdir, referenced_blobs, cache_bytes, debug_bytes,
+                     unexpected_file_bytes);
   }
   /* Process valid entries. */
   if (valid_ascii_found) {
@@ -446,6 +452,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
           /* The entry is usable and the referenced blobs were collected.  */
           munmap(entry_buf, entry_len);
           usable_entries++;
+          *cache_bytes += entry_len;
         } else {
           /* This entry is not usable, remove it. */
           munmap(entry_buf, entry_len);
@@ -458,6 +465,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
       } else {
         fb_error("File's type is unexpected, it is not a directory nor a regular file: " +
                  path + "/" + entry.c_str());
+        *unexpected_file_bytes += file_size(nullptr, (path + "/" + entry.c_str()).c_str());
       }
     }
   }
@@ -484,6 +492,7 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
       if (fstatat(dirfd(dir), kDirDebugJson, &st, AT_SYMLINK_NOFOLLOW) == 0) {
         if (unlinkat(dirfd(dir), kDirDebugJson, 0) == 0) {
           execed_process_cacher->update_cached_bytes(-st.st_size);
+          *debug_bytes -= st.st_size;
         } else {
           fb_perror("unlinkat");
         }
@@ -497,8 +506,9 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
   closedir(dir);
 }
 
-void ObjCache::gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs) {
-  gc_obj_cache_dir(base_dir_, referenced_blobs);
+void ObjCache::gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
+                  ssize_t* debug_bytes, ssize_t* unexpected_file_bytes) {
+  gc_obj_cache_dir(base_dir_, referenced_blobs, cache_bytes, debug_bytes, unexpected_file_bytes);
 }
 
 }  /* namespace firebuild */

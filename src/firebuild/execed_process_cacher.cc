@@ -1615,8 +1615,20 @@ void ExecedProcessCacher::update_stored_bytes() {
 
 void ExecedProcessCacher::gc() {
   tsl::hopscotch_set<AsciiHash> referenced_blobs {};
-  obj_cache->gc(&referenced_blobs);
-  blob_cache->gc(referenced_blobs);
+  ssize_t cache_bytes = 0, debug_bytes = 0, unexpected_file_bytes = 0;
+  obj_cache->gc(&referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
+  blob_cache->gc(referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
+  if (unexpected_file_bytes > 0) {
+    fb_error("There are " + d(unexpected_file_bytes) + " bytes in the cache stored in files "
+             "with unexpected name.");
+  }
+  stored_cached_bytes_ = cache_bytes + debug_bytes - this_runs_cached_bytes_;
+  if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
+    if (cache_bytes + debug_bytes != this_runs_cached_bytes_ + get_stored_bytes_from_cache()) {
+      FB_DEBUG(FB_DEBUG_CACHING, "A parallel firebuild process modified the cache or the stored "
+               "cache size was wrong. Adjusting the stored cache size.");
+    }
+  }
 }
 
 }  /* namespace firebuild */

@@ -370,7 +370,6 @@ int main(const int argc, char *argv[]) {
   if (optind >= argc) {
     if (gc) {
       firebuild::execed_process_cacher->gc();
-      firebuild::execed_process_cacher->read_stored_cached_bytes();
       firebuild::execed_process_cacher->update_stored_bytes();
     }
     if (print_stats) {

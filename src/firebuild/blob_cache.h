@@ -94,13 +94,41 @@ class BlobCache {
    * @return A read-only fd, or -1
    */
   int get_fd_for_file(const Hash &key);
-  void gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs);
+  /**
+   * Garbage collect the blob cache
+   * @param referenced_blobs blobs referenced from the object cache, they won't be deleted
+   * @param[in,out] cache_bytes increased by every found and kept blob's size
+   * @param[in,out] debug_bytes increased by every found and kept debug file's size
+   * @param[in,out] unexpected_file_bytes increased by every found and kept file's size that has
+                    unexpected name, i.e. it is not used as a blob, nor a debug file
+   */
+  void gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs, ssize_t* cache_bytes,
+          ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
+  /**
+   * Delete entries on the the specified path also deleting the debug entries related to the entries
+   * to delete.
+   * @param path path where the entries reside
+   * @param entries entries to delete
+   * @param debug_postfix string to prepend to entries to get the related debug entries
+   * @param[in,out] debug_bytes decremented when removing a debug entry
+   */
   static void delete_entries(const std::string& path, const std::vector<std::string>& entries,
-                             const std::string& debug_postfix);
+                             const std::string& debug_postfix, ssize_t* debug_bytes);
 
  private:
+  /**
+   * Garbage collect a blob cache directory
+   * @param path blob cache directory's absolute path
+   * @param referenced_blobs blobs referenced from the object cache, they won't be deleted
+   * @param[in,out] cache_bytes increased by every found and kept blob's size
+   * @param[in,out] debug_bytes increased by every found and kept debug file's size
+   * @param[in,out] unexpected_file_bytes increased by every found and kept file's size that has
+                    unexpected name, i.e. it is not used as a blob, nor a debug file
+   */
   void gc_blob_cache_dir(const std::string& path,
-                         const tsl::hopscotch_set<AsciiHash>& referenced_blobs);
+                         const tsl::hopscotch_set<AsciiHash>& referenced_blobs,
+                         ssize_t* cache_bytes, ssize_t* debug_bytes,
+                         ssize_t* unexpected_file_bytes);
   /* Including the "blobs" subdir. */
   std::string base_dir_;
   static constexpr char kDebugPostfix[] = "_debug.txt";

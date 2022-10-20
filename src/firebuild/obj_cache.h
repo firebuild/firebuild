@@ -72,11 +72,32 @@ class ObjCache {
                 size_t * entry_len);
   void mark_as_used(const Hash &key, const char * const subkey);
   std::vector<Subkey> list_subkeys(const Hash &key);
-  void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs);
+  /**
+   * Garbage collect the object cache
+   * @param referenced_blobs blobs referenced from the object cache entries. It is updated while
+   *        processing the cache objects.
+   * @param[in,out] cache_bytes increased by every found and kept obj's size
+   * @param[in,out] debug_bytes increased by every found and kept debug file's size
+   * @param[in,out] unexpected_file_bytes increased by every found and kept file's size that has
+                    unexpected name, i.e. it is not used as a cache object, nor a debug file
+   */
+  void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
+          ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
 
  private:
+  /**
+   * Garbage collect an object cache directory
+   * @param path object cache directory's absolute path
+   * @param referenced_blobs blobs referenced from the object cache entries. It is updated while
+   *        processing the cache objects.
+   * @param[in,out] cache_bytes increased by every found and kept obj's size
+   * @param[in,out] debug_bytes increased by every found and kept debug file's size
+   * @param[in,out] unexpected_file_bytes increased by every found and kept file's size that has
+            unexpected name, i.e. it is not used as a cache object, nor a debug file
+   */
   void gc_obj_cache_dir(const std::string& path,
-                        tsl::hopscotch_set<AsciiHash>* referenced_blobs);
+                        tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
+                        ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
 
   /* Including the "objs" subdir. */
   std::string base_dir_;
