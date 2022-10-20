@@ -422,21 +422,16 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
           if ((debug_postfix = strstr(name, kDebugPostfix))) {
             /* Files for debugging blobs.*/
             if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-              if (debug_postfix) {
-                char* related_name = reinterpret_cast<char*>(alloca(debug_postfix - name + 1));
-                memcpy(related_name, name, debug_postfix - name);
-                related_name[debug_postfix - name] = '\0';
-                struct stat st;
-                if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
-                  /* Keeping debugging file that has related blob. If the object gets removed
-                   * the debugging file will be removed with it, too. */
-                } else {
-                  /* Removing old debugging file later to not break next readdir(). */
-                  entries_to_delete.push_back(name);
-                }
+              char* related_name = reinterpret_cast<char*>(alloca(debug_postfix - name + 1));
+              memcpy(related_name, name, debug_postfix - name);
+              related_name[debug_postfix - name] = '\0';
+              struct stat st;
+              if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
+                /* Keeping debugging file that has related blob. If the object gets removed
+                 * the debugging file will be removed with it, too. */
               } else {
-                fb_error("Regular file among cache objects has unexpected name, keeping it: " +
-                           path + "/" + name);
+                /* Removing old debugging file later to not break next readdir(). */
+                entries_to_delete.push_back(name);
               }
             } else {
               /* Removing old debugging file later to not break next readdir(). */
