@@ -139,6 +139,17 @@ unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
   }
 }
 
+off_t file_size(DIR* dir, const char* name) {
+  struct stat st;
+  int dir_fd = dir ? dirfd(dir) : AT_FDCWD;
+  if (fstatat(dir_fd, name, &st, 0) == 0) {
+    return S_ISREG(st.st_mode) ? st.st_size : 0;
+  } else {
+    firebuild::fb_perror("fstatat");
+    return 0;
+  }
+}
+
 int file_overwrite_printf(const std::string& path, const char* format, ...) {
   int ret;
   FILE* f;
