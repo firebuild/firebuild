@@ -347,7 +347,6 @@ void BlobCache::gc_blob_cache_dir(const std::string& path,
     switch (fixed_dirent_type(dirent, dir, path)) {
       case DT_DIR: {
         subdirs_to_visit.push_back(name);
-        gc_blob_cache_dir(path + "/" + name, referenced_blobs);
         break;
       }
       case DT_REG: {
