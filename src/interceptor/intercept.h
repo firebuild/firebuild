@@ -140,15 +140,51 @@ extern bool ic_init_done;
 
 extern bool intercepting_enabled;
 
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_init():
+ * Add an entry, with a new empty string array, to our pool.
+ */
 extern void psfa_init(const posix_spawn_file_actions_t *p);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_destroy():
+ * Remove the entry, freeing up the string array, from our pool.
+ * Do not shrink psfas.
+ */
 extern void psfa_destroy(const posix_spawn_file_actions_t *p);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_addopen():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_open builder to our structures.
+ */
 extern void psfa_addopen(const posix_spawn_file_actions_t *p, int fd,
                          const char *pathname, int flags, mode_t mode);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclose():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_close builder to our structures.
+ */
 extern void psfa_addclose(const posix_spawn_file_actions_t *p, int fd);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclosefrom_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_closefrom builder to our structures.
+ */
 extern void psfa_addclosefrom_np(const posix_spawn_file_actions_t *p, int fd);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_adddup2():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_dup2 builder to our structures.
+ */
 extern void psfa_adddup2(const posix_spawn_file_actions_t *p, int oldfd, int newfd);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_chdir_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_chdir builder to our structures.
+ */
 extern void psfa_addchdir_np(const posix_spawn_file_actions_t *p, const char *pathname);
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_fchdir_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_fchdir builder to our structures.
+ */
 extern void psfa_addfchdir_np(const posix_spawn_file_actions_t *p, int fd);
+/**
+ * Find the voidp_array for a given posix_spawn_file_actions.
+ */
 extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 
 extern voidp_set popened_streams;
@@ -288,10 +324,22 @@ extern void (*orig_signal_handlers[IC_WRAP_SIGRTMAX])(void);
 /** Whether we can intercept the given signal. */
 bool signal_is_wrappable(int);
 
-/** Wrapper for 1 argument signal handlers. */
+/** When a signal handler is installed using signal(), sigset(), or sigaction() without the
+ *  SA_SIGINFO flag, this wrapper gets installed instead.
+ *
+ *  See tpl_signal.c for how this wrapper is installed instead of the actual handler.
+ *
+ *  This wrapper makes sure that the actual signal handler is only executed straight away if the
+ *  thread is not inside a "signal danger zone". Otherwise execution is deferred until the danger
+ *  zone is left (thread_signal_danger_zone_leave()).
+ */
 void wrapper_signal_handler_1arg(int);
 
-/** Wrapper for 3 argument signal handlers. */
+/** When a signal handler is installed using sigaction() with the SA_SIGINFO flag,
+ *  this wrapper gets installed instead.
+ *
+ *  See wrapper_signal_handler_1arg() for further details.
+ */
 void wrapper_signal_handler_3arg(int, siginfo_t *, void *);
 
 /** Internal helper for thread_signal_danger_zone_leave(), see there for details. */
@@ -338,6 +386,11 @@ void release_global_lock();
 
 extern void fb_ic_load();
 extern void handle_exit();
+/**
+ * A wrapper in front of the start_routine of a pthread_create(), inserting a useful trace marker.
+ * pthread_create()'s two parameters start_routine and arg are accessed via one,
+ * malloc()'ed in the intercepted pthread_create() and free()'d here.
+ */
 void *pthread_start_routine_wrapper(void *routine_and_arg);
 extern int __libc_start_main(int (*main)(int, char **, char **),
                              int argc, char **ubp_av,
