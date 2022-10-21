@@ -10,6 +10,13 @@ namespace firebuild {
 
 class Report {
  public:
+  /**
+   * Write report to specified file
+   *
+   * @param html_filename report file to be written
+   * @param datadir report template's location
+   * TODO(rbalint) error handling
+   */
   static void write(const std::string &html_filename, const std::string &datadir);
 };
 

@@ -32,6 +32,11 @@ typedef enum {
   FILE_TYPE_MAX = ISDIR
 } FileType;
 
+/**
+ * FileInfo describes the (potentially partial) information that we know about a certain file, as it
+ * looked like / looks like / will look like in a certain point in time. It's up to the user of this
+ * structure to decide which point in time they refer to.
+ */
 class FileInfo {
  public:
   explicit FileInfo(FileType type = DONTKNOW, ssize_t size = -1, const Hash *hash = nullptr) :

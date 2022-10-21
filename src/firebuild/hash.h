@@ -55,12 +55,44 @@ class Hash {
   /** ASCII representation length without the trailing '\0' */
   static const size_t kAsciiLength {22};
 
+  /**
+   * Set the hash from the given buffer.
+   */
   void set_from_data(const void *data, ssize_t size);
+  /**
+   * Set the hash from the given opened file descriptor.
+   * The file seek position (read/write offset) is irrelevant.
+   *
+   * If fd is a directory, its sorted listing is hashed.
+   *
+   * If stat_ptr is not NULL then it must contain fd's stat data. This can save an fstat() call.
+   *
+   * @param fd The file descriptor
+   * @param stat_ptr Optionally the stat data of fd
+   * @param is_dir_out Optionally store here whether fd refers to a directory
+   * @param size_out Optionally store the file's size (only if it's a regular file)
+   * @return Whether succeeded
+   */
   bool set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out,
                    ssize_t *size_out = NULL);
+  /**
+   * Set the hash from the given file or directory.
+   *
+   * If a directory is specified, its sorted listing is hashed.
+   *
+   * @param filename The filename
+   * @param stat_ptr Optionally the stat data of fd
+   * @param is_dir_out Optionally store here whether filename refers to a directory
+   * @param size_out Optionally store the file's size (only if it's a regular file)
+   * @return Whether succeeded
+   */
   bool set_from_file(const FileName *filename, const struct stat64 *stat_ptr,
                      bool *is_dir_out = NULL, ssize_t *size_out = NULL);
 
+  /**
+   * Sets the hash value directly from the given value.
+   * No hash computation takes place.
+   */
   void set(XXH128_hash_t);
   XXH128_hash_t get() const { return hash_; }
   const XXH128_hash_t *get_ptr() const { return &hash_; }

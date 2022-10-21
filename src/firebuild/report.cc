@@ -360,11 +360,7 @@ static ssize_t sendfile_full(int out_fd, int in_fd) {
   return ret;
 }
 
-/**
- * Write report to specified file
- *
- * @param html_filename report file to be written
- * @param datadir report template's location
+/*
  * TODO(rbalint) error handling
  */
 void Report::write(const std::string &html_filename, const std::string &datadir) {

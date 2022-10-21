@@ -34,11 +34,6 @@ unsigned int ExecedProcessCacher::cache_format_ = 0;
 /* singleton*/
 ExecedProcessCacher* execed_process_cacher;
 
-/**
- * One object is responsible for handling the fingerprinting and caching
- * of multiple ExecedProcesses which potentially come from / go to the
- * same cache.
- */
 void ExecedProcessCacher::init(const libconfig::Config* cfg) {
   std::string cache_dir;
   char* cache_dir_env;
@@ -215,9 +210,6 @@ ExecedProcessCacher::ExecedProcessCacher(bool no_store,
   maybe_XXH3_freeState(state);
 }
 
-/**
- * Helper for fingerprint() to decide which env vars matter
- */
 bool ExecedProcessCacher::env_fingerprintable(const std::string& name_and_value) const {
   /* Strip off the "=value" part. */
   const std::string name = name_and_value.substr(0, name_and_value.find('='));
@@ -265,10 +257,7 @@ static void hash_param_file(XXH3_state_t* state, const ExecedProcess *proc,
   add_to_hash_state(state, *hash);
 }
 
-/**
- * Compute the fingerprint, store it keyed by the process in fingerprints_.
- * Also store fingerprint_msgs_ if debugging is enabled.
- *
+/*
  * Note: Don't forget updating the debugging part below, too, when changing the
  * fingerprint generation!
  */
@@ -974,16 +963,6 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const ch
   return true;
 }
 
-/**
- * Look up the cache for an entry describing what this process did the
- * last time.
- *
- * This means fetching all the entries corresponding to the process's
- * fingerprint, and finding the one matching the file system.
- *
- * Returns a new object, to be deleted by the caller, if exactly one
- * match was found.
- */
 const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_shortcut(
     const ExecedProcess *proc,
     uint8_t **inouts_buf,

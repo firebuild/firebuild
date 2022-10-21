@@ -297,17 +297,6 @@ void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   }
 }
 
-/**
- * Flip whether we wish to only send data from the Pipe's buffer (which we want if the buffer is
- * nonempty) or if we wish to read (and probably immediately send that). Also configure epoll
- * accordingly.
- *
- * Note: This method can't be called if the current Pipe represents one of regular files the top
- * process inherited for writing. E.g. if you execute:
- *   firebuild command args > outfile
- * then care has to be taken not to call this method on "outfile".
- * This is because epoll_ctl() doesn't support regular files.
- */
 void Pipe::set_send_only_mode(const bool mode) {
   TRACKX(FB_DEBUG_PIPE, 1, 0, Pipe, this, "mode=%s", D(mode));
 
@@ -335,13 +324,6 @@ void Pipe::set_send_only_mode(const bool mode) {
   }
 }
 
-/**
- * Try to send some of the data that's in the buffers. Also flips send_only_mode (and thus
- * configures epoll) according to whether further sending is needed.
- *
- * The Pipe might represent a regular file that the top process inherited for writing. In this case
- * this method should successfully write the entire buffer, and thus not call set_send_only_mode().
- */
 pipe_op_result Pipe::send_buf() {
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "");
 
@@ -555,8 +537,6 @@ void Pipe::drain() {
   } while (restart_iteration);
 }
 
-/* Add the contents of the given file to the Pipe's buffer. This is used when shortcutting a
- * process, the cached data is injected into the Pipe. */
 void Pipe::add_data_from_fd(int fd, size_t len) {
   if (len > 0) {
     buf_.read(fd, len);
@@ -596,7 +576,6 @@ std::string d(const Pipe *pipe, const int level) {
   }
 }
 
-/* Global counter, so that each Pipe object gets a unique ID. */
 int Pipe::id_counter_ = 0;
 
 }  /* namespace firebuild */

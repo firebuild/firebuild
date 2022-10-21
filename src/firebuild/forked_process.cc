@@ -75,9 +75,6 @@ ForkedProcess::~ForkedProcess() {
   TRACKX(FB_DEBUG_PROC, 1, 0, Process, this, "");
 }
 
-/* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
- * level is the nesting level of objects calling each other's d(), bigger means less info to print.
- * See #431 for design and rationale. */
 std::string ForkedProcess::d_internal(const int level) const {
   if (level > 0) {
     /* brief */

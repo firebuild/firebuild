@@ -16,14 +16,53 @@
 
 namespace firebuild {
 
+/**
+ * obj-cache is a weird caching structure where a key can contain
+ * multiple values. More precisely, a key contains a list of subkeys,
+ * and a (key, subkey) pair points to a value.
+ *
+ * In practice, one ProcessFingerprint can have multiple
+ * ProcessInputsOutputs associated with it. The key is the hash of
+ * ProcessFingerprint's serialization. The subkey happens to be the hash
+ * of ProcessInputsOutputs's serialization, although it could easily be
+ * anything else.
+ *
+ * Currently the backend is the filesystem. The multiple values are
+ * stored as separate file of a given directory. The list of subkeys is
+ * retrieved by listing the directory.
+ *
+ * E.g. ProcessFingerprint1's hash in ASCII is "fingerprint1". Underneath
+ * it there are two values: ProcessInputsOutputs1's hash in ASCII is
+ * "inputsoutputs1",ProcessInputsOutputs2's hash in ASCII is
+ * "inputsoutputs2". The directory structure is:
+ * - f/fi/fingerprint1/inputsoutputs1
+ * - f/fi/fingerprint1/inputsoutputs2
+ */
 class ObjCache {
  public:
   explicit ObjCache(const std::string &base_dir);
   ~ObjCache();
 
+  /**
+   * Store a serialized entry in obj-cache.
+   *
+   * @param key The key
+   * @param entry The entry to serialize and store
+   * @param debug_key Optionally the key as pb for debugging purposes
+   * @return Whether succeeded
+   */
   bool store(const Hash &key,
              const FBBSTORE_Builder * const entry,
              const FBBFP_Serialized * const debug_key);
+  /**
+   * Retrieve an entry from the obj-cache.
+   *
+   * @param key The key
+   * @param subkey The subkey
+   * @param[out] entry mmap()-ed cache entry. It is the caller's responsibility to munmap() it later.
+   * @param[out] entry_len entry's length in bytes
+   * @return Whether succeeded
+   */
   bool retrieve(const Hash &key,
                 const char * const subkey,
                 uint8_t ** entry,

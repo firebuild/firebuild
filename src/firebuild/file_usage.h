@@ -20,6 +20,19 @@ namespace firebuild {
 
 struct FileUsageHasher;
 
+/**
+ * FileUsage describes, for one particular Process and one particular
+ * filename, the inital and final contents found at the given location
+ * with as much accuracy as it matters to us.
+ *
+ * E.g. if the Process potentially reads from the file then its original
+ * hash is computed and stored here, but if the Process does not read
+ * the contents then it is not stored. Similarly, it's recorded whether
+ * the process potentially modified the file.
+ *
+ * All these objects are kept in a global pool. If two such objects have
+ * identical contents then they are the same object (same pointer).
+ */
 class FileUsage {
  public:
   bool written() const {return written_;}
@@ -47,7 +60,24 @@ class FileUsage {
     return no_hash_not_written_states_[FileInfo::file_type_to_int(type)];
   }
 
-  const FileUsage *merge(const FileUsageUpdate& update) const;
+  /**
+   * Merge a FileUsageUpdate object into this one.
+   *
+   * "this" describes the older events which happened to a file, and "update" describes the new ones.
+   *
+   * "this" is not updated, a possibly different pointer is returned which refers to the merged value.
+   *
+   * "update" might on demand compute certain values (currently the hash). It's formally "const", but
+   * with some "mutable" members. The value behind the "update" reference is updated, so when this
+   * change is bubbled up, at the next levels it'll have this field already filled in.
+   *
+   * Sometimes the file usages to merge are conflicting, like a directory was expected to not exist,
+   * then it is expected to exist without creating it in the meantime. In those cases the return is
+   * nullptr and it should disable shortcutting of the process and its ancestors.
+   *
+   * @return pointer to the merge result, or nullptr in case of an error
+   */
+  const FileUsage* merge(const FileUsageUpdate& update) const;
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
