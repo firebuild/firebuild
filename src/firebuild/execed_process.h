@@ -111,8 +111,30 @@ class ExecedProcess : public Process {
   Process* exec_proc() const {return const_cast<ExecedProcess*>(this);}
   void resource_usage(const int64_t utime_u, const int64_t stime_u);
 
+  /**
+   * Initialization stuff that can only be done after placing the
+   * ExecedProcess in the ProcessTree.
+   */
   void initialize();
+  /**
+   * Registers a file operation described in "update" into the filename "name", and bubbles it up to
+   * the root.
+   *
+   * "update" might contain some lazy bits that will be computed on demand.
+   *
+   * In some rare cases the filename within "update" might differ from "name", in that case the
+   * filename mentioned in "update" is used to lazily figure out the required values (such as
+   * checksum), but it is registered as if it belonged to the file mentioned in this method's "name"
+   * parameter. Currently this trick is only used for a rename()'s source path.
+   *
+   * This method also registers the implicit parent directory and bubbles it up, as per the
+   * information contained in "update".
+   */
   bool register_file_usage_update(const FileName *name, const FileUsageUpdate& update);
+  /**
+   * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist and is of
+   * the given "type" (e.g. ISDIR, NOTEXIST), and bubbles it up to the root.
+   */
   bool register_parent_directory(const FileName *name, FileType type = ISDIR);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
   std::vector<inherited_file_t>& inherited_files() {return inherited_files_;}
@@ -142,6 +164,7 @@ class ExecedProcess : public Process {
   /** Process the event preventing short-cutting happened in */
   const Process* cant_shortcut_proc() const {return cant_shortcut_proc_;}
 
+  /** Find and apply shortcut */
   bool shortcut(std::vector<int> *fds_appended_to);
 
   /**
@@ -190,6 +213,8 @@ class ExecedProcess : public Process {
   bool was_shortcut() const {return was_shortcut_;}
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
 
+  /** For debugging, a short imprecise reminder of the command line. Omits the path to the
+   * executable, and strips off the middle. Does not escape or quote. */
   std::string args_to_short_string() const;
   static void add_malloced_cant_shortcut_reason(const char* reason);
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.

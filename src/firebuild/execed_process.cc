@@ -96,10 +96,6 @@ void ExecedProcess::set_parent(Process *parent) {
   maybe_shortcutable_ancestor_ = parent_exec_point->closest_shortcut_point();
 }
 
-/**
- * Initialization stuff that can only be done after placing the
- * ExecedProcess in the ProcessTree.
- */
 void ExecedProcess::initialize() {
   TRACKX(FB_DEBUG_PROC, 0, 1, Process, this, "");
 
@@ -248,20 +244,6 @@ void ExecedProcess::do_finalize() {
   }
 }
 
-/**
- * Registers a file operation described in "update" into the filename "name", and bubbles it up to
- * the root.
- *
- * "update" might contain some lazy bits that will be computed on demand.
- *
- * In some rare cases the filename within "update" might differ from "name", in that case the
- * filename mentioned in "update" is used to lazily figure out the required values (such as
- * checksum), but it is registered as if it belonged to the file mentioned in this method's "name"
- * parameter. Currently this trick is only used for a rename()'s source path.
- *
- * This method also registers the implicit parent directory and bubbles it up, as per the
- * information contained in "update".
- */
 bool ExecedProcess::register_file_usage_update(const FileName *name,
                                         const FileUsageUpdate& update) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, update=%s", D(name), D(update));
@@ -369,10 +351,6 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
   return true;
 }
 
-/**
- * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist and is of
- * the given "type" (e.g. ISDIR, NOTEXIST), and bubbles it up to the root.
- */
 bool ExecedProcess::register_parent_directory(const FileName *name,
                                               FileType type) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
@@ -391,7 +369,6 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
   return register_file_usage_update(parent_dir, update);
 }
 
-/* Find and apply shortcut */
 bool ExecedProcess::shortcut(std::vector<int> *fds_appended_to) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 
@@ -513,8 +490,6 @@ void ExecedProcess::add_malloced_cant_shortcut_reason(const char* reason) {
   malloced_cant_shortcut_reasons_->insert(reason);
 }
 
-/* For debugging, a short imprecise reminder of the command line. Omits the path to the
- * executable, and strips off the middle. Does not escape or quote. */
 std::string ExecedProcess::args_to_short_string() const {
   const int max_len = 65;
   if (args().size() == 0) {
@@ -539,9 +514,6 @@ std::string ExecedProcess::args_to_short_string() const {
   }
 }
 
-/* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
- * level is the nesting level of objects calling each other's d(), bigger means less info to print.
- * See #431 for design and rationale. */
 std::string ExecedProcess::d_internal(const int level) const {
   if (level > 0) {
     /* brief */

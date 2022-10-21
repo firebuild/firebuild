@@ -1,12 +1,6 @@
 /* Copyright (c) 2022 Interri Kft. */
 /* This file is an unpublished work. All rights reserved. */
 
-/**
- * FileInfo describes the (potentially partial) information that we know about a certain file, as it
- * looked like / looks like / will look like in a certain point in time. It's up to the user of this
- * structure to decide which point in time they refer to.
- */
-
 #include "firebuild/file_info.h"
 
 #include "common/firebuild_common.h"

@@ -58,7 +58,29 @@ void bump_limits();
 
 namespace firebuild {
 
+/**
+ * ACK a message from the supervised process
+ * @param conn connection file descriptor to send the ACK on
+ * @param ack_num the ACK id
+ */
 void ack_msg(const int conn, const uint16_t ack_num);
+/**
+ * Send an FBB message along with its header, potentially attaching two fds as ancillary data.
+ *
+ * These fds will appear in the intercepted process as opened file descriptors, possibly at
+ * different numeric values (the numbers are automatically rewritten by the kernel).
+ * This is sort of a cross-process dup(), see SCM_RIGHTS in cmsg(3) and unix(7).
+ * Also see #656 for the overall design why we're doing this.
+ *
+ * If there are fds to attach, the message header and the message payload are sent in separate
+ * steps, the message payload carrying the attached fds.
+ *
+ * @param conn connection file descriptor
+ * @param ack_num the ack_num to send
+ * @param msg the FBB message's builder object
+ * @param fds pointer to the file descriptor array
+ * @param fd_count number of fds to send
+ */
 void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds = NULL, int fd_count = 0);
 
 void fb_perror(const char *s);

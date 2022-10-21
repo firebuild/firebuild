@@ -160,12 +160,44 @@ class PipeRecorder {
   /** Close the backing fd, drop the data that was written so far. Set to abandoned state. */
   void abandon();
 
+  /**
+   * Returns whether any of the given recorders is active, i.e. still records data.
+   */
   static bool has_active_recorder(const std::vector<std::shared_ptr<PipeRecorder>>& recorders);
 
+  /**
+   * Record the given data, from an in-memory buffer, to all the given recorders that are still active.
+   *
+   * See pipe_recorder.h for the big picture, as well as the design rationale behind this static
+   * method taking multiple PipeRecorders at once.
+   */
   static void record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                       const char *buf, ssize_t len);
+  /**
+   * Record the given data, from the given Unix pipe, to all the given recorders that are still
+   * active.
+   *
+   * The recorders array must contain at least one active recorder.
+   *
+   * The Unix pipe must have the given amount of data readily available, as guaranteed by a previous
+   * tee(2) call. The data is consumed from the pipe.
+   *
+   * See pipe_recorder.h for the big picture, as well as the design rationale behind this static
+   * method taking multiple PipeRecorders at once.
+   */
   static void record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                          int fd, ssize_t len);
+  /**
+   * Record the given data, from the beginning of the given regular file, to all the given recorders
+   * that are still active.
+   *
+   * The current seek offset is irrelevant. len must match the file's size.
+   *
+   * (This is used when replaying and bubbling up pipe traffic.)
+   *
+   * See in pipe_recorder.h for the big picture, as well as the design rationale behind this static
+   * method taking multiple PipeRecorders at once.
+   */
   static void record_data_from_regular_fd(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                           int fd, ssize_t len);
 
@@ -177,9 +209,33 @@ class PipeRecorder {
   std::string d_internal(const int level = 0) const;
 
  private:
+  /**
+   * Perform the delayed opening of the backing file.
+   * To be called the first time when there's data to record.
+   */
   void open_backing_file();
+  /**
+   * Add non-empty data to this PipeRecorder from a memory buffer, using write().
+   *
+   * Internal private helper. Callers should call the static record_*() methods instead.
+   */
   void add_data_from_buffer(const char *buf, ssize_t len);
+  /**
+   * Add non-empty data to this PipeRecorder from a pipe, using splice().
+   *
+   * The Unix pipe must have the given amount of data readily available, as guaranteed by a previous
+   * tee(2) call. The data is consumed from the pipe.
+   *
+   * Internal private helper. Callers should call the static record_*() methods instead.
+   */
   void add_data_from_unix_pipe(int pipe_fd, ssize_t len);
+  /**
+   * Add non-empty data to this PipeRecorder, by copying it from another file using copy_file_range().
+   *
+   * The current seek offset in fd_in is irrelevant.
+   *
+   * Internal private helper. Callers should call the static record_*() methods instead.
+   */
   void add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t len);
 
   /* The ExecedProcess we're recording for, i.e. the ExecedProcess that created this PipeRecorder to

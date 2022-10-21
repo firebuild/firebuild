@@ -72,6 +72,9 @@ class FileName {
   static const FileName* Get(const std::string& name) {
     return Get(name.c_str(), name.size());
   }
+  /**
+   * Return parent dir or nullptr for "/"
+   */
   static const FileName* GetParentDir(const char * const name, ssize_t length);
 
   bool is_in_ignore_location() const {return in_ignore_location_;}

@@ -168,8 +168,11 @@ class Pipe {
   void add_fd1_and_proc(int fd1, FileFD*, ExecedProcess *proc,
                         std::vector<std::shared_ptr<PipeRecorder>> recorders);
   /**
-   * Send contents of the buffer to the 'to' side
-   * @return send operation's result
+   * Try to send some of the data that's in the buffers. Also flips send_only_mode (and thus
+   * configures epoll) according to whether further sending is needed.
+   *
+   * The Pipe might represent a regular file that the top process inherited for writing. In this case
+   * this method should successfully write the entire buffer, and thus not call set_send_only_mode().
    */
   pipe_op_result send_buf();
   bool buffer_empty() {
@@ -177,6 +180,17 @@ class Pipe {
   }
   void reset_fd0_ptrs_self_ptr_() {fd0_ptrs_held_self_ptr_.reset();}
   void reset_fd1_ptrs_self_ptr_() {fd1_ptrs_held_self_ptr_.reset();}
+  /**
+   * Flip whether we wish to only send data from the Pipe's buffer (which we want if the buffer is
+   * nonempty) or if we wish to read (and probably immediately send that). Also configure epoll
+   * accordingly.
+   *
+   * Note: This method can't be called if the current Pipe represents one of regular files the top
+   * process inherited for writing. E.g. if you execute:
+   *   firebuild command args > outfile
+   * then care has to be taken not to call this method on "outfile".
+   * This is because epoll_ctl() doesn't support regular files.
+   */
   void set_send_only_mode(bool mode);
   bool send_only_mode() {return send_only_mode_;}
   int id() const {return id_;}
@@ -213,7 +227,9 @@ class Pipe {
     return fd0_conn == -1;
   }
 
-  /** Add data from the given fd to the buffer. */
+  /**
+   * Add the contents of the given file to the Pipe's buffer. This is used when shortcutting a
+   * process, the cached data is injected into the Pipe. */
   void add_data_from_fd(int fd, size_t len);
 
  private:
@@ -241,6 +257,7 @@ class Pipe {
    *  inherited from the external world. */
   Process* creator_;
 
+  /** Global counter, so that each Pipe object gets a unique ID. */
   static int id_counter_;
   static void pipe_fd0_write_cb(const struct epoll_event* event, void *arg);
   static void pipe_fd1_read_cb(const struct epoll_event* event, void *arg);

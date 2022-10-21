@@ -92,9 +92,6 @@ void FileName::close_for_writing() const {
   }
 }
 
-/**
- * Return parent dir or nullptr for "/"
- */
 const FileName* FileName::GetParentDir(const char * const name, ssize_t length) {
   /* name is canonicalized, so just simply strip the last component */
   ssize_t slash_pos = length - 1;
@@ -120,11 +117,6 @@ const FileName* FileName::GetParentDir(const char * const name, ssize_t length) 
   }
 }
 
-/**
- * Checks if a path semantically begins with one of the given sorted subpaths.
- *
- * Does string operations only, does not look at the file system.
- */
 bool FileName::is_at_locations(const cstring_view_array* locations) const {
   return is_path_at_locations(this->name_, this->length_, locations);
 }

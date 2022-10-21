@@ -18,23 +18,16 @@ ExeMatcher* debug_filter {nullptr};
 __thread bool debug_suppressed {false};
 int32_t debug_flags = 0;
 
-/** Print error message */
 void fb_error(const std::string &msg) {
   fprintf(stderr, "FIREBUILD ERROR: %s\n", msg.c_str());
 }
 
-/** Print debug message */
 void fb_debug(const std::string &msg) {
   if (!debug_suppressed) {
     fprintf(stderr, "FIREBUILD: %s\n", msg.c_str());
   }
 }
 
-
-/**
- * Get a human friendly representation of a string, inside double
- * quotes, for debugging purposes.
- */
 std::string d(const std::string& str, const int level) {
   (void)level;  /* unused */
   std::string ret = "\"";
@@ -55,10 +48,6 @@ std::string d(const std::string& str, const int level) {
   return ret;
 }
 
-/**
- * Get a human friendly representation of a C string, inside double
- * quotes (unless NULL), for debugging purposes.
- */
 std::string d(const char *str, const int level) {
   if (str) {
     return d(std::string(str), level);
@@ -67,9 +56,6 @@ std::string d(const char *str, const int level) {
   }
 }
 
-/**
- * Get a human friendly representation of a struct stat, for debugging purposes.
- */
 std::string d(const struct stat64& st, const int level) {
   (void)level;  /* unused */
 
@@ -84,9 +70,6 @@ std::string d(const struct stat64& st, const int level) {
   return ret;
 }
 
-/**
- * Get a human friendly representation of a struct stat, for debugging purposes.
- */
 std::string d(const struct stat64 *st, const int level) {
   if (st) {
     return d(*st, level);
@@ -95,16 +78,6 @@ std::string d(const struct stat64 *st, const int level) {
   }
 }
 
-/**
- * Get a human friendly representation of the current local time, for
- * debugging purposes.
- *
- * The format was chosen as a compromise between standards, common
- * practices, best readability, and best accuracy. It currently looks
- * like:
- *
- *   2019-12-31 23:59:59.999999 +0100
- */
 std::string pretty_timestamp() {
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -150,11 +123,6 @@ static struct flag available_flags[] = {
 
 #define SEPARATORS ",:"
 
-/**
- * Parse the debug flags similarly to GLib's g_parse_debug_string().
- *
- * Currently case-sensitive (i.e. all lowercase is expected).
- */
 int32_t parse_debug_flags(const std::string& str) {
   int32_t flags = 0;
   bool all = false;

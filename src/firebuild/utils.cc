@@ -21,22 +21,18 @@
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 
-/** wrapper for writev() retrying on recoverable errors (EINTR and short write) */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(write, fd, buf, count);
 }
 
-/** wrapper for writev() retrying on recoverable errors (EINTR and short write) */
 ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt) {
   FB_READV_WRITEV(writev, fd, iov, iovcnt);
 }
 
-/** wrapper for read() retrying on recoverable errors (EINTR and short read) */
 ssize_t fb_read(int fd, void *buf, size_t count) {
   FB_READ_WRITE(read, fd, buf, count);
 }
 
-/** Wrapper retrying on recoverable errors (short copy) */
 ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, const size_t len,
                            unsigned int flags) {
   ssize_t ret;
@@ -180,11 +176,6 @@ void bump_limits() {
 
 namespace firebuild {
 
-/**
- * ACK a message from the supervised process
- * @param conn connection file descriptor to send the ACK on
- * @param ack_num the ACK id
- */
 void ack_msg(const int conn, const uint16_t ack_num) {
   TRACK(FB_DEBUG_COMM, "conn=%s, ack_num=%d", D_FD(conn), ack_num);
 
@@ -195,23 +186,6 @@ void ack_msg(const int conn, const uint16_t ack_num) {
   FB_DEBUG(firebuild::FB_DEBUG_COMM, "ACK sent");
 }
 
-/**
- * Send an FBB message along with its header, potentially attaching two fds as ancillary data.
- *
- * These fds will appear in the intercepted process as opened file descriptors, possibly at
- * different numeric values (the numbers are automatically rewritten by the kernel).
- * This is sort of a cross-process dup(), see SCM_RIGHTS in cmsg(3) and unix(7).
- * Also see #656 for the overall design why we're doing this.
- *
- * If there are fds to attach, the message header and the message payload are sent in separate
- * steps, the message payload carrying the attached fds.
- *
- * @param conn connection file descriptor
- * @param ack_num the ack_num to send
- * @param msg the FBB message's builder object
- * @param fds pointer to the file descriptor array
- * @param fd_count number of fds to send
- */
 void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int fd_count) {
   TRACK(FB_DEBUG_COMM, "conn=%s, ack_num=%d fd_count=%d", D_FD(conn), ack_num, fd_count);
 

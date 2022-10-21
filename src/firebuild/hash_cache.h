@@ -25,6 +25,29 @@ struct HashCacheEntry {
   bool is_stored {};  /* it's known to be present in the blob cache because we stored it earlier */
 };
 
+/**
+ * This class implements a global (that is, once per firebuild process) in-memory cache of file
+ * hashes.
+ *
+ * This cache stores the hash of files and directories that are found, along with some statinfo that
+ * lets determine if the hash needs to be refreshed.
+ *
+ * Internally, different strategies are used for files under system (read-only) locations (as per
+ * the config file) and for non-system (read-write) locations. The public API completely hides this
+ * and provides a unified interface for both types.
+ *
+ * For system locations we expect that they don't change during Firebuild's lifetime. Once cached,
+ * the actual file is no longer checked. Nonexisting files are also cached.
+ *
+ * (Note though: Currently as soon as someone asks for the file's size or permissions, we compute
+ * its checksum too. It's very unlikely that a build procedure stat()s a system file successfully
+ * and then does not read it. In turn, the code becomes simpler, it doesn't have to cope with files
+ * whose size is already cached but the checksum isn't yet. This might change in the future.)
+ *
+ * For non-system locations we always begin by stat()ing the file, and the cached checksum is
+ * forgotten in case of statinfo mismatch. Accordingly, negative entries aren't cached, it just
+ * wouldn't make sense.
+ */
 class HashCache {
  public:
   HashCache() {}

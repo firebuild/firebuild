@@ -67,11 +67,17 @@ enum {
 #define FB_DEBUG(flag, msg) if (FB_DEBUGGING(flag)) \
     firebuild::fb_debug(msg)
 
+/** Print debug message */
 void fb_debug(const std::string &msg);
 
 /** Current debugging flags */
 extern int32_t debug_flags;
 
+/**
+ * Parse the debug flags similarly to GLib's g_parse_debug_string().
+ *
+ * Currently case-sensitive (i.e. all lowercase is expected).
+ */
 int32_t parse_debug_flags(const std::string& str);
 void init_debug_filter(const std::string commands);
 
@@ -106,10 +112,26 @@ static inline std::string d(bool value, const int level = 0) {
   return value ? "true" : "false";
 }
 
+/**
+ * Get a human friendly representation of a string, inside double
+ * quotes, for debugging purposes.
+ */
 std::string d(const std::string& str, const int level = 0);
+
+/**
+ * Get a human friendly representation of a C string, inside double
+ * quotes (unless NULL), for debugging purposes.
+ */
 std::string d(const char *str, const int level = 0);
 
+/**
+ * Get a human friendly representation of a struct stat, for debugging purposes.
+ */
 std::string d(const struct stat64& st, const int level = 0);
+
+/**
+ * Get a human friendly representation of a struct stat, for debugging purposes.
+ */
 std::string d(const struct stat64 *st, const int level = 0);
 
 /**
@@ -204,7 +226,16 @@ static inline std::string d_fd(int fd) {
  * which is valid only inside the expression where D_FD() is called. */
 #define D_FD(fd) firebuild::d_fd(fd).c_str()
 
-/** Get a human-readable timestamp according to local time. */
+/**
+ * Get a human friendly representation of the current local time, for
+ * debugging purposes.
+ *
+ * The format was chosen as a compromise between standards, common
+ * practices, best readability, and best accuracy. It currently looks
+ * like:
+ *
+ *   2019-12-31 23:59:59.999999 +0100
+ */
 std::string pretty_timestamp();
 
 

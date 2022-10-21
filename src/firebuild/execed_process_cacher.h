@@ -23,13 +23,32 @@ namespace firebuild {
 
 class ExecedProcessCacher {
  public:
+  /**
+   * One object is responsible for handling the fingerprinting and caching
+   * of multiple ExecedProcesses which potentially come from / go to the
+   * same cache.
+   */
   static void init(const libconfig::Config* cfg);
   static unsigned int cache_format() {return cache_format_;}
+  /**
+   * Compute the fingerprint, store it keyed by the process in fingerprints_.
+   * Also store fingerprint_msgs_ if debugging is enabled.
+   */
   bool fingerprint(const ExecedProcess *proc);
   void erase_fingerprint(const ExecedProcess *proc);
 
   void store(ExecedProcess *proc);
 
+  /**
+   * Look up the cache for an entry describing what this process did the
+   * last time.
+   *
+   * This means fetching all the entries corresponding to the process's
+   * fingerprint, and finding the one matching the file system.
+   *
+   * Returns a new object, to be deleted by the caller, if exactly one
+   * match was found.
+   */
   const FBBSTORE_Serialized_process_inputs_outputs *find_shortcut(const ExecedProcess *proc,
                                                                   uint8_t **inouts_buf,
                                                                   size_t *inouts_buf_len,
@@ -59,6 +78,9 @@ class ExecedProcessCacher {
  private:
   ExecedProcessCacher(bool no_store, bool no_fetch, const std::string& cache_dir,
                       const libconfig::Config* cfg);
+  /**
+   * Helper for fingerprint() to decide which env vars matter
+   */
   bool env_fingerprintable(const std::string& name_and_value) const;
 
   bool no_store_;
