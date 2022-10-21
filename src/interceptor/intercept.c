@@ -22,34 +22,24 @@
 static void fb_ic_load_constructor(int argc, char **argv) __attribute__((constructor));
 static void fb_ic_cleanup() __attribute__((destructor));
 
-/** file fd states */
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
-/** Resource usage at the process' last exec() */
 struct rusage initial_rusage;
 
-/** Global lock for preventing parallel system and popen calls */
 pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/** Global lock for serializing critical interceptor actions */
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
 
-/** Connection string to supervisor */
 char fb_conn_string[IC_PATH_BUFSIZE] = {'\0'};
-
-/** Connection string length */
 size_t fb_conn_string_len = 0;
 
-/** Connection file descriptor to supervisor */
 int fb_sv_conn = -1;
 
-/** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
 /** Control for running the initialization exactly once */
 pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
 
-/** Fast check for whether interceptor init has been run */
 bool ic_init_done = false;
 
 /** System locations to not ask ACK for when opening them, as set in the environment variable. */
@@ -58,15 +48,11 @@ char system_locations_env_buf[4096];
 /** Ignore locations to not ask ACK for when opening them, as set in the environment variable. */
 char ignore_locations_env_buf[4096];
 
-/** System locations to not ask ACK for when opening them. */
 STATIC_CSTRING_VIEW_ARRAY(system_locations, 32);
-
-/** Ignore locations to not ask ACK for when opening them. */
 STATIC_CSTRING_VIEW_ARRAY(ignore_locations, 32);
 
 bool intercepting_enabled = true;
 
-/** Current working directory as reported to the supervisor */
 char ic_cwd[IC_PATH_BUFSIZE] = {0};
 size_t ic_cwd_len = 0;
 
@@ -74,10 +60,6 @@ size_t ic_cwd_len = 0;
 static int ic_argc;
 static char **ic_argv;
 
-/**
- * Stored PID
- * When getpid() returns a different value, we missed a fork() :-)
- */
 int ic_pid;
 
 __thread const char *thread_intercept_on = NULL;
@@ -89,7 +71,6 @@ __thread uint64_t thread_delayed_signals_bitmap = 0;
 
 void (*orig_signal_handlers[IC_WRAP_SIGRTMAX])(void) = {NULL};
 
-/** Whether to install our wrapper for the given signal. */
 bool signal_is_wrappable(int signum) {
   /* Safety check, so that we don't crash if the user passes an invalid value to signal(),
    * sigset() or sigaction(). Just let the original function handle it somehow. */
@@ -100,15 +81,6 @@ bool signal_is_wrappable(int signum) {
   return true;
 }
 
-/** When a signal handler is installed using signal(), sigset(), or sigaction() without the
- *  SA_SIGINFO flag, this wrapper gets installed instead.
- *
- *  See tpl_signal.c for how this wrapper is installed instead of the actual handler.
- *
- *  This wrapper makes sure that the actual signal handler is only executed straight away if the
- *  thread is not inside a "signal danger zone". Otherwise execution is deferred until the danger
- *  zone is left (thread_signal_danger_zone_leave()).
- */
 void wrapper_signal_handler_1arg(int signum) {
   char debug_msg[256];
 
@@ -132,11 +104,6 @@ void wrapper_signal_handler_1arg(int signum) {
   thread_signal_handler_running_depth--;
 }
 
-/** When a signal handler is installed using sigaction() with the SA_SIGINFO flag,
- *  this wrapper gets installed instead.
- *
- *  See wrapper_signal_handler_3arg() for further details.
- */
 void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   char debug_msg[256];
 
@@ -164,7 +131,6 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   thread_signal_handler_running_depth--;
 }
 
-/** Internal helper for thread_signal_danger_zone_leave(), see there for details. */
 void thread_raise_delayed_signals() {
   /* Execute the delayed signals, by re-raising them. */
   char debug_msg[256];
@@ -178,7 +144,6 @@ void thread_raise_delayed_signals() {
   }
 }
 
-/** Take the global lock if the thread does not hold it already */
 void grab_global_lock(bool *i_locked, const char * const function_name) {
   thread_signal_danger_zone_enter();
 
@@ -226,10 +191,8 @@ void release_global_lock() {
 /** debugging flags */
 int32_t debug_flags = 0;
 
-/** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
 char env_ld_library_path[IC_PATH_BUFSIZE] = {0};
 
-/** Insert marker open()-s for strace, ltrace, etc. */
 bool insert_trace_markers = false;
 
 /** Next ACK id*/
@@ -242,7 +205,6 @@ int psfas_num = 0;
 int psfas_alloc = 0;
 
 
-/** Insert debug message */
 void insert_debug_msg(const char* m) {
 #ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {
@@ -256,7 +218,6 @@ void insert_debug_msg(const char* m) {
 #endif
 }
 
-/** Insert interception begin marker */
 void insert_begin_marker(const char* m) {
   if (insert_trace_markers) {
     char tpl[256] = "intercept-begin: ";
@@ -264,7 +225,6 @@ void insert_begin_marker(const char* m) {
   }
 }
 
-/** Insert interception end marker */
 void insert_end_marker(const char* m) {
   if (insert_trace_markers) {
     char tpl[256] = "intercept-end: ";
@@ -307,7 +267,7 @@ static uint16_t fb_recv_ack(int fd) {
 
 /** Send the serialized version of the given message over the wire,
  *  prefixed with the ack num and the message length */
-void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint16_t ack_num) {
+static void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint16_t ack_num) {
   int len = fbbcomm_builder_measure(ic_msg);
   char *buf = alloca(sizeof(msg_header) + len);
   memset(buf, 0, sizeof(msg_header));
@@ -323,8 +283,6 @@ void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint16_t ack_nu
   fb_write(fd, buf, sizeof(msg_header) + len);
 }
 
-/** Send message, delaying all signals in the current thread.
- *  The caller has to take care of thread locking. */
 void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
@@ -333,8 +291,6 @@ void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_leave();
 }
 
-/** Send message and wait for ACK, delaying all signals in the current thread.
- *  The caller has to take care of thread locking. */
 void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
@@ -407,18 +363,6 @@ void pre_clone_disable_interception(const int flags, bool *i_locked) {
   }
 }
 
-/**
- * Make the filename canonical in place.
- *
- * String operation only, does not look at the actual file system.
- * Removes double slashes, trailing slashes (except if the entire path is "/")
- * and "." components.
- * Preserves ".." components, since they might point elsewhere if a symlink led to
- * its containing directory.
- * See #401 for further details and gotchas.
- *
- * Returns the length of the canonicalized path.
- */
 size_t make_canonical(char *path, size_t original_length) {
   char *src = path, *dst = path;  /* dst <= src all the time */
   bool add_slash = true;
@@ -761,11 +705,6 @@ void handle_exit() {
   }
 }
 
-/**
- * A wrapper in front of the start_routine of a pthread_create(), inserting a useful trace marker.
- * pthread_create()'s two parameters start_routine and arg are accessed via one,
- * malloc()'ed in the intercepted pthread_create() and free()'d here.
- */
 void *pthread_start_routine_wrapper(void *routine_and_arg) {
   if (insert_trace_markers) {
     char buf[256];
@@ -803,7 +742,6 @@ int fb_connect_supervisor() {
   return conn;
 }
 
-/**  Set up the main supervisor connection */
 void fb_init_supervisor_conn() {
   if (fb_conn_string[0] == '\0') {
     strncpy(fb_conn_string, getenv("FB_SOCKET"), sizeof(fb_conn_string));
@@ -1183,12 +1121,10 @@ static void fb_ic_cleanup() {
 }
 
 
-/** wrapper for read() retrying on recoverable errors (EINTR and short read) */
 ssize_t fb_read(int fd, void *buf, size_t count) {
   FB_READ_WRITE(*ic_orig_read, fd, buf, count);
 }
 
-/** wrapper for write() retrying on recoverable errors (EINTR and short write) */
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(*ic_orig_write, fd, buf, count);
 }
@@ -1210,10 +1146,6 @@ void fb_debug(const char* msg) {
 }
 
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_init():
- * Add an entry, with a new empty string array, to our pool.
- */
 void psfa_init(const posix_spawn_file_actions_t *p) {
   // FIXME guard with mutex!
 
@@ -1251,11 +1183,6 @@ static void psfa_item_free(void *p) {
   free(p);
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_destroy():
- * Remove the entry, freeing up the string array, from our pool.
- * Do not shrink psfas.
- */
 void psfa_destroy(const posix_spawn_file_actions_t *p) {
   // FIXME guard with mutex!
 
@@ -1273,10 +1200,6 @@ void psfa_destroy(const posix_spawn_file_actions_t *p) {
   }
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_addopen():
- * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_open builder to our structures.
- */
 void psfa_addopen(const posix_spawn_file_actions_t *p,
                   int fd,
                   const char *pathname,
@@ -1297,10 +1220,6 @@ void psfa_addopen(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclose():
- * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_close builder to our structures.
- */
 void psfa_addclose(const posix_spawn_file_actions_t *p,
                    int fd) {
   voidp_array *obj = psfa_find(p);
@@ -1315,10 +1234,6 @@ void psfa_addclose(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_addclosefrom_np():
- * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_closefrom builder to our structures.
- */
 void psfa_addclosefrom_np(const posix_spawn_file_actions_t *p,
                           int lowfd) {
   voidp_array *obj = psfa_find(p);
@@ -1333,10 +1248,6 @@ void psfa_addclosefrom_np(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_adddup2():
- * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_dup2 builder to our structures.
- */
 void psfa_adddup2(const posix_spawn_file_actions_t *p,
                   int oldfd,
                   int newfd) {
@@ -1353,10 +1264,6 @@ void psfa_adddup2(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_chdir_np():
- * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_chdir builder to our structures.
- */
 void psfa_addchdir_np(const posix_spawn_file_actions_t *p,
                       const char *pathname) {
   voidp_array *obj = psfa_find(p);
@@ -1371,10 +1278,6 @@ void psfa_addchdir_np(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
-/**
- * Additional bookkeeping to do after a successful posix_spawn_file_actions_fchdir_np():
- * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_fchdir builder to our structures.
- */
 void psfa_addfchdir_np(const posix_spawn_file_actions_t *p,
                        int fd) {
   voidp_array *obj = psfa_find(p);
@@ -1389,9 +1292,6 @@ void psfa_addfchdir_np(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
-/**
- * Find the voidp_array for a given posix_spawn_file_actions.
- */
 voidp_array *psfa_find(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (psfas[i].p == p) {
