@@ -1,5 +1,9 @@
-/* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
-/* This file is an unpublished work. All rights reserved. */
+/*
+ * Copyright (c) 2022 Firebuild Inc.
+ * All rights reserved.
+ * Free for personal use and commercial trial.
+ * Non-trial commercial use requires licenses available from https://firebuild.com.
+ */
 
 #include "firebuild/process_tree.h"
 
