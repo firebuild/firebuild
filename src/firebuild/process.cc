@@ -611,6 +611,7 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
   (void)mode;  /* No need to remember what we chmod to, we'll stat at the end. */
 
   const FileName *name;
+  ExecedProcess *register_from = exec_point();
 
   /* Linux's fchmodat() doesn't support AT_EMPTY_PATH. The attempt to fix it at
    * https://patchwork.kernel.org/project/linux-fsdevel/patch/148830142269.7103.7429913851447595016.stgit@bahia/
@@ -636,9 +637,17 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
       }
     }
 
+    /* Disable shortcutting the processes that inherited this fd. If the fd was opened by the
+     * current process (or a fork ancestor), as it's usually the case, then this is an empty set.
+     * See #927. */
+    register_from = file_fd->opened_by() ? file_fd->opened_by()->exec_point() : nullptr;
+    exec_point()->disable_shortcutting_bubble_up_to_excl(
+        register_from,
+        "fchmod() on an inherited fd not supported");
+
     name = file_fd->filename();
     if (!name) {
-      /* Cannot find file name, maybe it's a pipe or similar. Take no action. */
+      /* Cannot find file name, maybe it's a pipe or similar. Take no further action. */
       return 0;
     }
   } else {
@@ -654,14 +663,19 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
   }
 
   if (error) {
-    exec_point()->disable_shortcutting_bubble_up("Cannot register a failed fchmodat() on", *name);
+    if (register_from) {
+      register_from->disable_shortcutting_bubble_up("Cannot register a failed fchmodat() on",
+                                                    *name);
+    }
     return -1;
   }
 
   FileUsageUpdate update(name, EXIST, false, true);
-  if (!exec_point()->register_file_usage_update(name, update)) {
-    exec_point()->disable_shortcutting_bubble_up("Could not register fchmodat() on", *name);
-    return -1;
+  if (register_from) {
+    if (!register_from->register_file_usage_update(name, update)) {
+      register_from->disable_shortcutting_bubble_up("Could not register fchmodat() on", *name);
+      return -1;
+    }
   }
 
   return 0;
