@@ -1,6 +1,9 @@
 {# ------------------------------------------------------------------ #}
-{# Copyright (c) 2022 Interri Kft.                                    #}
-{# This file is an unpublished work. All rights reserved.             #}
+{# Copyright (c) 2022 Firebuild Inc.                                  #}
+{# All rights reserved.                                               #}
+{# Free for personal use and commercial trial.                        #}
+{# Non-trial commercial use requires licenses available from          #}
+{# https://firebuild.com                                              #}
 {# ------------------------------------------------------------------ #}
 {# Template for the recv[m]msg() calls.                               #}
 {# In addition to the "read" template, i.e. notifying the supervisor  #}

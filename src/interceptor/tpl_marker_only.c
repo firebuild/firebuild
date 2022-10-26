@@ -1,6 +1,9 @@
 {# ------------------------------------------------------------------ #}
-{# Copyright (c) 2020 Interri Kft.                                    #}
-{# This file is an unpublished work. All rights reserved.             #}
+{# Copyright (c) 2022 Firebuild Inc.                                  #}
+{# All rights reserved.                                               #}
+{# Free for personal use and commercial trial.                        #}
+{# Non-trial commercial use requires licenses available from          #}
+{# https://firebuild.com                                              #}
 {# ------------------------------------------------------------------ #}
 {# Template for methods where we only insert a trace marker, but      #}
 {# other than that do not intercept (no locking or anything).         #}

@@ -1,6 +1,9 @@
 {# ------------------------------------------------------------------ #}
-{# Copyright (c) 2020 Interri Kft.                                    #}
-{# This file is an unpublished work. All rights reserved.             #}
+{# Copyright (c) 2022 Firebuild Inc.                                  #}
+{# All rights reserved.                                               #}
+{# Free for personal use and commercial trial.                        #}
+{# Non-trial commercial use requires licenses available from          #}
+{# https://firebuild.com                                              #}
 {# ------------------------------------------------------------------ #}
 {# This is the base template file that other templates derive from.   #}
 {# In the mean time, this template is suitable for generating the     #}

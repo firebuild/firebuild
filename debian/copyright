@@ -4,9 +4,16 @@ Upstream-Contact: info@firebuild.io
 Source: https://firebuild.io
 
 Files: *
-Copyright: 2013-2021 Balint Reczey
-                     Interri Kft.
-License: All-rights-reserved
+Copyright: 2022 Firebuild Inc.
+License: Firebuild-license
 
-License: All-rights-reserved
- This project is an unpublished work. All rights reserved.
+License: Firebuild-license
+ All rights reserved.
+ .
+ Free for personal use or commercial trial
+ .
+ Non-trial commercial use requires licenses available from
+ https://firebuild.com.
+ .
+ Modification and redistribution are permitted, but commercial use of derivative
+ works is subject to the same requirements of this license

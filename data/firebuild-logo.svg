@@ -12,7 +12,12 @@
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <title
+     id="title862">Firebuild Logo</title>
   <defs
      id="defs73">
     <rect
@@ -46,13 +51,13 @@
      inkscape:pagecheckerboard="true"
      showgrid="false"
      inkscape:snap-global="false"
-     inkscape:zoom="0.29744735"
-     inkscape:cx="3293.0198"
-     inkscape:cy="2418.9155"
-     inkscape:window-width="3830"
-     inkscape:window-height="2081"
-     inkscape:window-x="0"
-     inkscape:window-y="32"
+     inkscape:zoom="0.10516352"
+     inkscape:cx="2904.9998"
+     inkscape:cy="2952.5448"
+     inkscape:window-width="2150"
+     inkscape:window-height="1271"
+     inkscape:window-x="640"
+     inkscape:window-y="2192"
      inkscape:window-maximized="1"
      inkscape:current-layer="g75"
      fit-margin-top="100"
@@ -193,4 +198,26 @@
          sodipodi:nodetypes="ccccc" />
     </g>
   </g>
+  <metadata
+     id="metadata858">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>Firebuild Logo</dc:title>
+        <dc:date>2022</dc:date>
+        <dc:publisher>
+          <cc:Agent>
+            <dc:title>Firebuild Inc.</dc:title>
+          </cc:Agent>
+        </dc:publisher>
+        <dc:rights>
+          <cc:Agent>
+            <dc:title>Released under Firebuild's license, see accompanied LICENSE.md</dc:title>
+          </cc:Agent>
+        </dc:rights>
+        <cc:license
+           rdf:resource="https://github.com/firebuild/firebuild/blob/license/LICENSE.md" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
 </svg>

@@ -1,6 +1,9 @@
 {# ------------------------------------------------------------------ #}
-{# Copyright (c) 2020 Interri Kft.                                    #}
-{# This file is an unpublished work. All rights reserved.             #}
+{# Copyright (c) 2022 Firebuild Inc.                                  #}
+{# All rights reserved.                                               #}
+{# Free for personal use and commercial trial.                        #}
+{# Non-trial commercial use requires licenses available from          #}
+{# https://firebuild.com                                              #}
 {# ------------------------------------------------------------------ #}
 {# Template for pthread_create, inherited from marker_only.           #}
 {# Insert another trace markers, telling the pid.                     #}

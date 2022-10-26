@@ -1,5 +1,9 @@
-/* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
-/* This file is an unpublished work. All rights reserved. */
+/*
+ * Copyright (c) 2022 Firebuild Inc.
+ * All rights reserved.
+ * Free for personal use and commercial trial.
+ * Non-trial commercial use requires licenses available from https://firebuild.com.
+ */
 
 #include "firebuild/firebuild.h"
 
@@ -264,7 +268,18 @@ int main(const int argc, char *argv[]) {
 
     case 'v':
       printf("Firebuild " FIREBUILD_VERSION "\n\n"
-             "This is an unpublished work. All rights reserved.\n");
+             "Copyright (c) 2022 Firebuild Inc.\n"
+             "All rights reserved.\n"
+             "Free for personal use and commercial trial.\n"
+             "Non-trial commercial use requires licenses available from https://firebuild.com.\n"
+             "\n"
+             "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n"
+             "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n"
+             "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n"
+             "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n"
+             "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n"
+             "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n"
+             "SOFTWARE.\n");
       exit(EXIT_SUCCESS);
       break;
 
