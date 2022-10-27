@@ -1,5 +1,5 @@
 Source: firebuild
-Section: devel
+Section: non-free/devel
 Priority: optional
 Maintainer: Balint Reczey <balint@balintreczey.hu>
 Build-Depends: bats,
