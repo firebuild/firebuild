@@ -941,16 +941,22 @@ static const FBBSTORE_Serialized_file* find_input_file(const FBBSTORE_Serialized
 }
 
 /**
- * Check whether the given ProcessInputs matches the file system's
- * current contents.
+ * Check whether the given process inputs match the file system's current contents
+ * and the outputs are likely applicable.
  */
-static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const char* const subkey) {
+static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *candidate_inouts,
+                           const char* const subkey) {
   TRACK(FB_DEBUG_PROC, "subkey=%s", D(subkey));
+
+  const FBBSTORE_Serialized *inputs_fbb = candidate_inouts->get_inputs();
+  assert_cmp(inputs_fbb->get_tag(), ==, FBBSTORE_TAG_process_inputs);
+  auto inputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
 
   size_t i;
 
-  for (i = 0; i < pi->get_path_count(); i++) {
-    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(pi->get_path_at(i));
+  for (i = 0; i < inputs->get_path_count(); i++) {
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     const FileInfo query = file_to_file_info(file);
     if (!hash_cache->file_info_matches(path, query)) {
@@ -959,8 +965,9 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const ch
     }
   }
 
-  for (i = 0; i < pi->get_path_notexist_count(); i++) {
-    const auto path = FileName::Get(pi->get_path_notexist_at(i), pi->get_path_notexist_len_at(i));
+  for (i = 0; i < inputs->get_path_notexist_count(); i++) {
+    const auto path = FileName::Get(inputs->get_path_notexist_at(i),
+                                    inputs->get_path_notexist_len_at(i));
     const FileInfo query(NOTEXIST);
     if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
@@ -971,6 +978,28 @@ static bool pi_matches_fs(const FBBSTORE_Serialized_process_inputs *pi, const ch
     }
   }
 
+  const FBBSTORE_Serialized_process_outputs *outputs =
+      reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
+      (candidate_inouts->get_outputs());
+
+  /* Check if shortcut is applicable, i.e. outputs can be created/can be written, etc. */
+  // TODO(rbalint) extend these checks
+  for (i = 0; i < outputs->get_path_isreg_count(); i++) {
+    auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
+    if (file->get_type() == ISREG && access(file->get_path(), W_OK) == -1) {
+      if (errno == EACCES) {
+        /* The regular file can't be written, let's see if that was expected. */
+        const auto path = FileName::Get(file->get_path(), file->get_path_len());
+        const FBBSTORE_Serialized_file* input_file = find_input_file(inputs, path);
+        if (input_file && (file_to_file_info(file).mode_mask() & 0200)) {
+          /* The file has already been checked to be not writable and will be replaced while
+           * applying the shortcut. */
+        } else {
+          return false;
+        }
+      }
+    }
+  }
   return true;
 }
 
@@ -1022,12 +1051,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     auto candidate_inouts =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(candidate_inouts_fbb);
 
-    const FBBSTORE_Serialized *inputs_fbb = candidate_inouts->get_inputs();
-    assert_cmp(inputs_fbb->get_tag(), ==, FBBSTORE_TAG_process_inputs);
-    auto inputs =
-        reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inputs_fbb);
-
-    if (pi_matches_fs(inputs, subkey.c_str())) {
+    if (pio_matches_fs(candidate_inouts, subkey.c_str())) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
 #ifdef FB_EXTRA_DEBUG
       count++;
