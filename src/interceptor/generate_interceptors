@@ -1834,7 +1834,7 @@ generate("long", "SYS_futex", "uint32_t *uaddr, int futex_op, uint32_t val, cons
          tpl="marker_only")
 
 # Skip the getcwd family: The initial working directory is part of the fingerprint
-skip("getcwd", "SYS_getcwd", "getwd", "get_current_dir_name")
+skip("getcwd", "__getcwd_chk", "SYS_getcwd", "getwd", "__getwd_chk", "get_current_dir_name")
 
 # Time and alarm handling: These are fine, no action required
 # TODO(rbalint) those may affect output if the process measures time that way
@@ -1967,7 +1967,7 @@ skip("getusershell", "endusershell", "setusershell")
 
 # Tty stuff
 skip("ttyname", "ttyname_r", "ttyslot", "isatty", "vhangup", "SYS_vhangup", "getpass")
-skip("tcgetpgrp", "tcsetpgrp", "getlogin", "getlogin_r")
+skip("tcgetpgrp", "tcsetpgrp", "getlogin", "getlogin_r"," __getlogin_r_chk")
 skip("ctermid", "cuserid")
 generate("int", "setlogin", "const char *name",
          tpl="once")
@@ -1977,7 +1977,7 @@ skip("revoke")
 
 # System stuff
 skip("daemon")
-skip("getpagesize", "SYS_getpagesize")
+skip("getpagesize", "__getpagesize", "SYS_getpagesize")
 skip("getdtablesize", "SYS_getdtablesize")
 
 # Memory management
@@ -2039,7 +2039,7 @@ generate("long", "fpathconf", "int fd, int name",
 
 # Intercept sysconf
 # FIXME Sometimes a retval == -1 does not denote error. Same for pathconf.
-generate("long", "sysconf", "int name",
+generate("long", ["sysconf", "__sysconf"], "int name",
          send_ret_on_success=True)
 
 # Intercept syscall
@@ -2051,7 +2051,8 @@ generate("long", "syscall", "long number, ...",
 
 # FIXME This is temporary only, until intercepting confstr is implemented:
 #generate("size_t", "confstr", "int name, char *buf, size_t len")
-skip("confstr")
+#generate("size_t", "__confstr_chk", "int name, char *buf, size_t len, size_t fortify_size")
+skip("confstr", "__confstr_chk")
 
 # Network
 # FIXME use the "once" template instead: we need to know it can't be shortcut
