@@ -14,6 +14,9 @@
 
 namespace firebuild {
 
+/* singleton */
+Epoll *epoll = nullptr;
+
 void Epoll::ensure_room_fd(int fd) {
   if (fd >= static_cast<ssize_t>(fd_contexts_.size())) {
     fd_contexts_.resize(fd + 1);
