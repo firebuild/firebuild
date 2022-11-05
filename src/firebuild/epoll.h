@@ -165,6 +165,9 @@ class Epoll {
   int event_current_ = 0;
 };
 
+/* singleton */
+extern Epoll *epoll;
+
 }  /* namespace firebuild */
 
 #endif  // FIREBUILD_EPOLL_H_

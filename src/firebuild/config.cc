@@ -29,6 +29,8 @@
 
 namespace firebuild {
 
+libconfig::Config * cfg = nullptr;
+
 cstring_view_array ignore_locations {nullptr, 0, 0};
 cstring_view_array system_locations {nullptr, 0, 0};
 

@@ -16,6 +16,9 @@
 
 namespace firebuild {
 
+/** global configuration */
+extern libconfig::Config * cfg;
+
 extern cstring_view_array ignore_locations;
 extern cstring_view_array system_locations;
 extern ExeMatcher* dont_shortcut_matcher;

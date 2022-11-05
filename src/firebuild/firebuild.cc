@@ -1,23 +1,25 @@
 /* Copyright (c) 2014 Balint Reczey <balint@balintreczey.hu> */
 /* This file is an unpublished work. All rights reserved. */
 
+#include "firebuild/firebuild.h"
 
 #include <signal.h>
 #include <getopt.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
 #include <time.h>
 #include <fcntl.h>
 
+#include <list>
 #include <string>
 #include <stdexcept>
 #include <libconfig.h++>
 
 #include "firebuild/debug.h"
+#include "firebuild/sigchild_callback.h"
 #include "firebuild/config.h"
 #include "firebuild/connection_context.h"
 #include "firebuild/epoll.h"
@@ -25,26 +27,21 @@
 #include "firebuild/message_processor.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/process.h"
-#include "firebuild/process_debug_suppressor.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/report.h"
 
-/** global configuration */
-libconfig::Config * cfg;
 bool generate_report = false;
 
-firebuild::Epoll *epoll = nullptr;
-
 int sigchild_selfpipe[2];
+
+int listener;
+
+int child_pid, child_ret = 1;
 
 namespace {
 
 static char *fb_tmp_dir;
 static char *fb_conn_string;
-
-int listener;
-
-static int child_pid, child_ret = 1;
 
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
@@ -137,26 +134,6 @@ static int create_listener() {
   return listener;
 }
 
-static void save_child_status(pid_t pid, int status, int * ret, bool orphan) {
-  TRACK(firebuild::FB_DEBUG_PROC, "pid=%d, status=%d, orphan=%s", pid, status, D(orphan));
-
-  if (WIFEXITED(status)) {
-    *ret = WEXITSTATUS(status);
-    firebuild::Process* proc = firebuild::proc_tree->pid2proc(pid);
-    if (proc && proc->fork_point()) {
-      proc->fork_point()->set_exit_status(*ret);
-    }
-    FB_DEBUG(firebuild::FB_DEBUG_COMM, std::string(orphan ? "orphan" : "child")
-             + " process exited with status " + std::to_string(*ret) + ". ("
-             + d(firebuild::proc_tree->pid2proc(pid)) + ")");
-  } else if (WIFSIGNALED(status)) {
-    fprintf(stderr, "%s process has been killed by signal %d\n",
-            orphan ? "Orphan" : "Child",
-            WTERMSIG(status));
-  }
-}
-
-
 /* This is the installed handler for SIGCHLD, using the good ol' self-pipe trick to cooperate with
  * epoll_wait() without race condition. Our measurements show this is faster than epoll_pwait(). */
 static void sigchild_handler(int signum) {
@@ -169,55 +146,6 @@ static void sigchild_handler(int signum) {
     (void)write_ret;  /* unused */
   }
 }
-
-/* This is the actual business logic for SIGCHLD, called synchronously when processing the events
- * returned by epoll_wait(). */
-static void sigchild_cb(const struct epoll_event* event, void *arg) {
-  TRACK(firebuild::FB_DEBUG_PROC, "");
-
-  (void)event;  /* unused */
-  (void)arg;    /* unused */
-
-  char dummy;
-  int read_ret = read(sigchild_selfpipe[0], &dummy, 1);
-  (void)read_ret;  /* unused */
-
-  int status = 0;
-  pid_t waitpid_ret;
-
-  /* Collect exiting children. */
-  do {
-    waitpid_ret = waitpid(-1, &status, WNOHANG);
-    if (waitpid_ret == child_pid) {
-      /* This is the top process the supervisor started. */
-      firebuild::Process* proc = firebuild::proc_tree->pid2proc(child_pid);
-      assert(proc);
-      firebuild::ProcessDebugSuppressor debug_suppressor(proc);
-      save_child_status(waitpid_ret, status, &child_ret, false);
-      proc->set_been_waited_for();
-    } else if (waitpid_ret > 0) {
-      /* This is an orphan process. Its fork parent quit without wait()-ing for it
-       * and as a subreaper the supervisor received the SIGCHLD for it. */
-      firebuild::Process* proc = firebuild::proc_tree->pid2proc(waitpid_ret);
-      if (proc) {
-        /* Since the parent of this orphan process did not wait() for it, it will not be stored in
-         * the cache even when finalizing it. */
-        assert(!proc->been_waited_for());
-      }
-      int ret = -1;
-      save_child_status(waitpid_ret, status, &ret, true);
-    }
-  } while (waitpid_ret > 0);
-
-  if (waitpid_ret < 0) {
-    /* All children exited. Stop listening on the socket, and set listener to -1 to tell the main
-     * epoll loop to quit. */
-    epoll->del_fd(listener);
-    close(listener);
-    listener = -1;
-  }
-}
-
 
 static void accept_ic_conn(const struct epoll_event* event, void *arg) {
   TRACK(firebuild::FB_DEBUG_COMM, "listener=%d", listener);
@@ -234,7 +162,7 @@ static void accept_ic_conn(const struct epoll_event* event, void *arg) {
     firebuild::bump_fd_age(fd);
     auto conn_ctx = new firebuild::ConnectionContext(fd);
     fcntl(fd, F_SETFL, O_NONBLOCK);
-    epoll->add_fd(fd, EPOLLIN, firebuild::MessageProcessor::ic_conn_readcb, conn_ctx);
+    firebuild::epoll->add_fd(fd, EPOLLIN, firebuild::MessageProcessor::ic_conn_readcb, conn_ctx);
   }
 }
 
@@ -255,7 +183,7 @@ int main(const int argc, char *argv[]) {
   int c;
   bool gc = false, print_stats = false;
   /* init global data */
-  cfg = new libconfig::Config();
+  firebuild::cfg = new libconfig::Config();
 
   /* parse options */
   setenv("POSIXLY_CORRECT", "1", true);
@@ -362,10 +290,10 @@ int main(const int argc, char *argv[]) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
   }
 
-  firebuild::read_config(cfg, config_file, config_strings);
+  firebuild::read_config(firebuild::cfg, config_file, config_strings);
 
   /* Initialize the cache */
-  firebuild::ExecedProcessCacher::init(cfg);
+  firebuild::ExecedProcessCacher::init(firebuild::cfg);
 
   if (optind >= argc) {
     if (gc) {
@@ -397,7 +325,8 @@ int main(const int argc, char *argv[]) {
   }
 
   firebuild::FileName::default_tmpdir = firebuild::FileName::Get("/tmp", strlen("/tmp"));
-  auto env_exec = firebuild::get_sanitized_env(cfg, fb_conn_string, insert_trace_markers);
+  auto env_exec = firebuild::get_sanitized_env(firebuild::cfg, fb_conn_string,
+                                               insert_trace_markers);
 
   /* Set up sigchild handler */
   if (pipe2(sigchild_selfpipe, O_CLOEXEC | O_NONBLOCK) != 0) {
@@ -411,11 +340,11 @@ int main(const int argc, char *argv[]) {
   sigaction(SIGCHLD, &sa, NULL);
 
   /* Configure epoll */
-  epoll = new firebuild::Epoll(EPOLL_CLOEXEC);
+  firebuild::epoll = new firebuild::Epoll(EPOLL_CLOEXEC);
 
   /* Open listener socket before forking child to always let the child connect */
   listener = create_listener();
-  epoll->add_fd(listener, EPOLLIN, accept_ic_conn, NULL);
+  firebuild::epoll->add_fd(listener, EPOLLIN, accept_ic_conn, NULL);
 
   /* Collect orphan children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
@@ -459,7 +388,7 @@ int main(const int argc, char *argv[]) {
     /* no SIGPIPE if a supervised process we're writing to unexpectedly dies */
     signal(SIGPIPE, SIG_IGN);
 
-    epoll->add_fd(sigchild_selfpipe[0], EPOLLIN, sigchild_cb, NULL);
+    firebuild::epoll->add_fd(sigchild_selfpipe[0], EPOLLIN, firebuild::sigchild_cb, NULL);
 
     /* Main loop for processing interceptor messages */
     while (listener >= 0) {
@@ -469,10 +398,10 @@ int main(const int argc, char *argv[]) {
        * If our immediate child exited (rather than some orphan descendant thereof, see
        * prctl(PR_SET_CHILD_SUBREAPER) above) then the handler sigchild_cb() will set listener to
        * -1, that's how we'll break out of this loop. */
-      epoll->wait();
+      firebuild::epoll->wait();
 
       /* Process the reported events, if any. */
-      epoll->process_all_events();
+      firebuild::epoll->process_all_events();
     }
 
     /* Finish all top pipes */
@@ -561,11 +490,11 @@ int main(const int argc, char *argv[]) {
     }
 
     /* No more epoll needed, this also closes all tracked fds */
-    delete epoll;
+    delete firebuild::epoll;
     free(fb_conn_string);
     free(fb_tmp_dir);
     delete(firebuild::proc_tree);
-    delete(cfg);
+    delete(firebuild::cfg);
     fclose(stdin);
     fclose(stdout);
     fclose(stderr);

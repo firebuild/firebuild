@@ -70,6 +70,7 @@ add_executable(firebuild-bin
   blob_cache.cc
   obj_cache.cc
   report.cc
+  sigchild_callback.cc
   utils.cc
   fbbfp.cc
   fbbstore.cc
