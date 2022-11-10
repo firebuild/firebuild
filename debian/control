@@ -26,6 +26,7 @@ Package: firebuild
 Architecture: any
 Depends: ${shlibs:Depends},
          ${misc:Depends},
+         libfirebuild0 (= ${binary:Version})
 Suggests: graphviz,
           node-d3
 Description: Build analyzer and catalyst
