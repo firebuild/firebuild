@@ -1,0 +1,13 @@
+#! /bin/sh
+
+set -e
+
+. /usr/share/debconf/confmodule
+
+db_get firebuild/license-accepted
+if [ "$RET" != "true" ]; then
+    # show license again
+    db_fset firebuild/license-accepted seen false
+fi
+db_input critical firebuild/license-accepted || true
+db_go

@@ -265,6 +265,7 @@ jobs:
         # skip dh_buildinfo step
         printf '\noverride_dh_buildinfo:\n' >> debian/rules
         dpkg-buildpackage -j2 -us -uc
+        echo debconf firebuild/license-accepted select true | sudo debconf-set-selections
         sudo apt-get install ../*.deb
         firebuild -- ls
     - name: save-cached-debs

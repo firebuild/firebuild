@@ -1,0 +1,28 @@
+Template: firebuild/license-accepted
+Type: boolean
+Default: false
+_Description: Do you accept the terms of the Firebuild license?
+ Firebuild users are required to acknowledge and accept the license.
+ Please find it below. If you accept this license, the package
+ installation will continue. If you refuse it, it will be interrupted.
+ .
+ Firebuild is free for personal use or commercial trial.
+ .
+ Non-trial commercial use requires licenses available from https://firebuild.com.
+ .
+ Modification and redistribution are permitted, but commercial use of derivative works is subject to the same requirements of this license.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+
+Template: firebuild/license-refused
+Type: error
+_Description: The license has been refused
+ Please remove the firebuild packages or reinstall the firebuild package
+ (e.g. via apt-get install --reinstall firebuild) to get prompted to
+ accept the license again.
