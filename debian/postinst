@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+. /usr/share/debconf/confmodule
+
+case "$1" in
+    configure)
+        db_get firebuild/license-accepted
+        if [ "$RET" != "true" ]; then
+            db_input critical firebuild/license-refused || true
+            db_go
+            exit 1
+        fi
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
