@@ -42,6 +42,15 @@ setup() {
   done
 }
 
+@test "dash bash exec chain with allow-list" {
+  for i in 1 2; do
+    result=$(./run-firebuild -d cache -o 'processes.dont_shortcut -= "ls"' -o 'processes.shortcut_allow_list += "bash"' -- dash -c "exec bash -c exec\\ bash\\ -c\\ ls\\\\\ integration.bats")
+    assert_streq "$result" "integration.bats"
+    assert_streq "$(strip_stderr stderr)" ""
+    assert_streq "$(grep -h 'original_executed_path' test_cache_dir/objs/*/*/*/%_directory_debug.json | sed 's|/.*/||' | uniq -c)" '      2     "original_executed_path": "bash",'
+  done
+}
+
 @test "simple pipe" {
   for i in 1 2; do
     result=$(./run-firebuild -- bash -c 'seq 30000 | (sleep 0.01 && grep ^9)')

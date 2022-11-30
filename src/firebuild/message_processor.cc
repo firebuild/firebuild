@@ -62,6 +62,11 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
     proc_tree->insert(proc);
     proc->initialize();
 
+    if (shortcut_allow_list_matcher && !shortcut_allow_list_matcher->match(proc)) {
+      proc->disable_shortcutting_only_this("Executable is not allowed to be shortcut");
+      execed_process_cacher->not_shortcutting();
+    }
+
     if (dont_intercept_matcher->match(proc)) {
       /* Executables that should not be intercepted. */
       proc->disable_shortcutting_bubble_up("Executable set to not be intercepted");
