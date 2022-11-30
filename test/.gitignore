@@ -32,6 +32,7 @@ test_file_ops
 test_file_ops_2
 test_file_ops_3
 test_helper.bash
+test_sendfile
 test_static
 test_system
 test_wait
