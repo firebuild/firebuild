@@ -23,6 +23,7 @@ class ExeMatcher {
   bool match(const ExecedProcess* const proc) const;
   bool match(const FileName* exe_file, const FileName* executed_file,
              const std::string& arg0) const;
+  bool empty() const {return base_names_.empty() && full_names_.empty();}
   void add(const std::string name) {
     if (name.find('/') == std::string::npos) {
       base_names_.insert(name);

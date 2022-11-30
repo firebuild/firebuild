@@ -21,6 +21,7 @@ extern libconfig::Config * cfg;
 
 extern cstring_view_array ignore_locations;
 extern cstring_view_array system_locations;
+extern ExeMatcher* shortcut_allow_list_matcher;
 extern ExeMatcher* dont_shortcut_matcher;
 extern ExeMatcher* dont_intercept_matcher;
 extern ExeMatcher* skip_cache_matcher;

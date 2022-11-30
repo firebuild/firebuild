@@ -34,6 +34,7 @@ libconfig::Config * cfg = nullptr;
 cstring_view_array ignore_locations {nullptr, 0, 0};
 cstring_view_array system_locations {nullptr, 0, 0};
 
+ExeMatcher* shortcut_allow_list_matcher = nullptr;
 ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
@@ -267,6 +268,11 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   init_locations(&ignore_locations, cfg->getRoot()["ignore_locations"]);
   init_locations(&system_locations, cfg->getRoot()["system_locations"]);
 
+  init_matcher(&shortcut_allow_list_matcher, cfg->getRoot()["processes"]["shortcut_allow_list"]);
+  if (shortcut_allow_list_matcher->empty()) {
+    delete(shortcut_allow_list_matcher);
+    shortcut_allow_list_matcher = nullptr;
+  }
   init_matcher(&dont_shortcut_matcher, cfg->getRoot()["processes"]["dont_shortcut"]);
   init_matcher(&dont_intercept_matcher, cfg->getRoot()["processes"]["dont_intercept"]);
   init_matcher(&skip_cache_matcher, cfg->getRoot()["processes"]["skip_cache"]);
