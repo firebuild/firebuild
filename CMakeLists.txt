@@ -108,3 +108,4 @@ configure_file("${CMAKE_SOURCE_DIR}/etc/firebuild.conf" "${CMAKE_BINARY_DIR}/etc
 
 install(FILES "${CMAKE_BINARY_DIR}/etc/firebuild.conf" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
 install(FILES data/build-report.html DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/firebuild")
+install(FILES data/firebuild-logo.svg DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/firebuild")
