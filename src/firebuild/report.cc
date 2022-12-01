@@ -48,13 +48,18 @@ static std::string escapeJsonString(const std::string& input) {
   return ss.str();
 }
 
+static const char* full_relative_path_or_basename(const char *name) {
+  const char* name_last_slash = strrchr(name, '/');
+  return name_last_slash && path_is_absolute(name) ? name_last_slash + 1 : name;
+}
+
 static void export2js(const ExecedProcess* proc, const unsigned int level,
                       FILE* stream, unsigned int * nodeid) {
   // TODO(rbalint): escape all strings properly
   auto indent_str = std::string(2 * level, ' ');
   const char* indent = indent_str.c_str();
 
-  fprintf(stream, "name:\"%s\",\n", proc->args()[0].c_str());
+  fprintf(stream, "name:\"%s\",\n", full_relative_path_or_basename(proc->args()[0].c_str()));
   fprintf(stream, "%s id: %u,\n", indent, (*nodeid)++);
   fprintf(stream, "%s pid: %u,\n", indent, proc->pid());
   fprintf(stream, "%s ppid: %u,\n", indent, proc->ppid());
@@ -304,7 +309,7 @@ static void export_profile2dot(FILE* stream) {
 
   for (auto& pair : cmd_profs) {
     fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", pair.first.c_str(),
-            pair.first.c_str());
+            full_relative_path_or_basename(pair.first.c_str()));
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
             percent_of(pair.second.aggr_time, build_time),
             percent_of(pair.second.cmd_time, build_time),
