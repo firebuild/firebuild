@@ -432,7 +432,7 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
       if (d3 == -1) {
         /* File is not available locally, use the online version. */
         fprintf(dst_file, "<script type=\"text/javascript\" "
-                "src=\"https://firebuild.io/d3.v5.min.js\"></script>\n");
+                "src=\"https://firebuild.com/d3.v5.min.js\"></script>\n");
         fflush(dst_file);
       } else {
         fprintf(dst_file, "<script type=\"text/javascript\">\n");
