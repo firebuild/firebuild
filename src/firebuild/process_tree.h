@@ -26,14 +26,14 @@
 namespace firebuild {
 
 struct subcmd_prof {
-  int64_t sum_aggr_time = 0;
+  int64_t sum_aggr_time_u = 0;
   int64_t count = 0;
   bool recursed = false;
 };
 
 struct cmd_prof {
-  int64_t aggr_time = 0;
-  int64_t cmd_time = 0;
+  int64_t aggr_time_u = 0;
+  int64_t cmd_time_u = 0;
   /**  {time_u, count} */
   tsl::hopscotch_map<std::string, subcmd_prof> subcmds = {};
 };

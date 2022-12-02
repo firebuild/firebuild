@@ -197,7 +197,7 @@
       }
 
       function hide_low_CPU(d) {
-          if ((d.data.aggr_time < root.cpu_limit) || (d.children && d.children.length > root.branch_limit)) {
+          if ((d.data.aggr_time_u < root.cpu_limit) || (d.children && d.children.length > root.branch_limit)) {
               toggleAll(d);
           } else {
               if (d.children) {
@@ -206,7 +206,7 @@
           }
       }
 
-      root.cpu_limit = 0.1 * root.data.aggr_time;
+      root.cpu_limit = 0.1 * root.data.aggr_time_u;
       root.branch_limit = 20 ;
       hide_low_CPU(root);
       update(root);
@@ -421,7 +421,7 @@
               .attr("dy", ".35em")
               .attr("text-anchor", "middle")
               .on("click", function (d) { details(d.data); })
-              .text(function(d) {return fraction_as_percent(d.data.aggr_time, root.data.aggr_time);})
+              .text(function(d) {return fraction_as_percent(d.data.aggr_time_u, root.data.aggr_time_u);})
               .append("svg:title")
               .text("Show details");
           nodeEnter.append("svg:text")
@@ -430,7 +430,7 @@
               .attr("dy", ".35em")
               .attr("text-anchor", "middle")
               .on("click", function (d) { details(d.data); })
-              .text(function(d) {return "(" + fraction_as_percent(d.data.aggr_time, root.data.aggr_time) + ")";})
+              .text(function(d) {return "(" + fraction_as_percent(d.data.aggr_time_u, root.data.aggr_time_u) + ")";})
               .append("svg:title")
               .text("Show details");
 

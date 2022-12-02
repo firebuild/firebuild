@@ -158,7 +158,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   }
   fprintf(stream, "%s utime_u: %lu,\n", indent, proc->utime_u());
   fprintf(stream, "%s stime_u: %lu,\n", indent, proc->stime_u());
-  fprintf(stream, "%s aggr_time: %lu,\n", indent, proc->aggr_cpu_time_u());
+  fprintf(stream, "%s aggr_time_u: %lu,\n", indent, proc->aggr_cpu_time_u());
 }
 
 static void export2js_recurse_ep(const ExecedProcess* proc, const unsigned int level, FILE* stream,
@@ -198,7 +198,7 @@ static void export2js(ProcessTree* proc_tree, FILE * stream) {
     export2js_recurse_ep(proc_tree->root()->exec_child(), 0, stream, &nodeid);
   } else {
     // TODO(rbalint) provide nicer report on this error
-    fprintf(stream, "{name: \"<unknown>\", id: 0, aggr_time: 0, children: []};");
+    fprintf(stream, "{name: \"<unknown>\", id: 0, aggr_time_u: 0, children: []};");
   }
 }
 
@@ -208,7 +208,7 @@ static void profile_collect_cmds(const Process &p,
   if (p.exec_child() != NULL) {
     ExecedProcess *ec = static_cast<ExecedProcess*>(p.exec_child());
     if (ancestors->count(ec->args()[0]) == 0) {
-      (*cmds)[ec->args()[0]].sum_aggr_time += ec->aggr_cpu_time_u();
+      (*cmds)[ec->args()[0]].sum_aggr_time_u += ec->aggr_cpu_time_u();
     } else {
       if (!(*cmds)[ec->args()[0]].recursed) {
         (*cmds)[ec->args()[0]].recursed = true;
@@ -228,11 +228,11 @@ static void build_profile(const Process &p,
     auto *e = static_cast<const ExecedProcess*>(&p);
     auto &cmd_prof = cmd_profs[e->args()[0]];
     if (ancestors->count(e->args()[0]) == 0) {
-      cmd_prof.aggr_time += e->aggr_cpu_time_u();
+      cmd_prof.aggr_time_u += e->aggr_cpu_time_u();
       ancestors->insert(e->args()[0]);
       first_visited = true;
     }
-    cmd_prof.cmd_time += e->utime_u() +  e->stime_u();
+    cmd_prof.cmd_time_u += e->utime_u() +  e->stime_u();
     profile_collect_cmds(p, &cmd_prof.subcmds, ancestors);
   }
   if (p.exec_child() != NULL) {
@@ -311,23 +311,23 @@ static void export_profile2dot(FILE* stream) {
     fprintf(stream, "    \"%s\" [label=<<B>%s</B><BR/>", pair.first.c_str(),
             full_relative_path_or_basename(pair.first.c_str()));
     fprintf(stream, "%.2lf%%<BR/>(%.2lf%%)>, color=\"%s\"]\n",
-            percent_of(pair.second.aggr_time, build_time),
-            percent_of(pair.second.cmd_time, build_time),
-            pct_to_hsv_str(percent_of(pair.second.aggr_time,
+            percent_of(pair.second.aggr_time_u, build_time),
+            percent_of(pair.second.cmd_time_u, build_time),
+            pct_to_hsv_str(percent_of(pair.second.aggr_time_u,
                                       build_time)).c_str());
     for (auto& pair2 : pair.second.subcmds) {
       fprintf(stream, "    \"%s\" -> \"%s\" [label=\"",
               pair.first.c_str(), pair2.first.c_str());
       if (!pair2.second.recursed) {
-        fprintf(stream, "%.2lf%%\\n", percent_of(pair2.second.sum_aggr_time,
+        fprintf(stream, "%.2lf%%\\n", percent_of(pair2.second.sum_aggr_time_u,
                                               build_time));
       }
       fprintf(stream, "×%lu\", color=\"%s\","
               " penwidth=\"%lf\"];",
               pair2.second.count,
-              pct_to_hsv_str(percent_of(pair2.second.sum_aggr_time,
+              pct_to_hsv_str(percent_of(pair2.second.sum_aggr_time_u,
                                         build_time)).c_str(),
-              (min_penwidth  + ((percent_of(pair2.second.sum_aggr_time,
+              (min_penwidth  + ((percent_of(pair2.second.sum_aggr_time_u,
                                             build_time) / 100)
                                 * (max_penwidth - min_penwidth))));
     }
