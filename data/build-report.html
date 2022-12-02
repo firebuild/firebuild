@@ -430,7 +430,7 @@
               .attr("dy", ".35em")
               .attr("text-anchor", "middle")
               .on("click", function (d) { details(d.data); })
-              .text(function(d) {return "(" + fraction_as_percent(d.data.aggr_time_u, root.data.aggr_time_u) + ")";})
+              .text(function(d) {return "(" + fraction_as_percent(d.data.utime_u + d.data.stime_u, root.data.aggr_time_u) + ")";})
               .append("svg:title")
               .text("Show details");
 
