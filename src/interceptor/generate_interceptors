@@ -281,7 +281,7 @@ def generate(rettype, funcs, sig, **dict):
         exit(1)
 
   for func in funcs:
-    if func in generated and func not in ["vfork", "SYS_vfork", "__vfork"]:
+    if func in generated and func not in ["gettimeofday", "__gettimeofday", "vfork", "SYS_vfork", "__vfork"]:
       print("generate_interceptors: Error: Already generated '" + func + "'", file=sys.stderr)
       exit(1)
     generated[func] = True
@@ -1970,8 +1970,15 @@ generate("int", "ftime", "struct timeb *tp",
          msg="clock_gettime",
          tpl="once")
 # sys/time.h declares the funcion with void *tz and not matching that generates an error
-# generate("int", "gettimeofday", "struct timeval *tv, struct timezone *tz",
-generate("int", ["gettimeofday", "SYS_gettimeofday", "__gettimeofday", "__gettimeofday64"], "struct timeval *tv, void *tz",
+generate("int", ["gettimeofday", "__gettimeofday"], "struct timeval *tv, struct timezone *tz",
+         ifdef_guard=not_glibc_ge(2, 31),
+         msg="clock_gettime",
+         tpl="once")
+generate("int", ["gettimeofday", "__gettimeofday", "__gettimeofday64"], "struct timeval *tv, void *tz",
+         ifdef_guard=glibc_ge(2, 31),
+         msg="clock_gettime",
+         tpl="once")
+generate("int", "SYS_gettimeofday", "struct timeval *tv, void *tz",
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_clock_gettime64
