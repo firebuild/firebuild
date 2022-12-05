@@ -65,8 +65,6 @@ size_t fb_conn_string_len = 0;
 
 int fb_sv_conn = -1;
 
-int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
-
 bool ic_called_syscall[IC_CALLED_SYSCALL_SIZE] = {0};
 
 /** Control for running the initialization exactly once */
@@ -1267,17 +1265,6 @@ static void fb_ic_init() {
     }
   }
 
-  /* pthread_sigmask() is only available if we're linked against libpthread.
-   * Otherwise use the single-threaded sigprocmask(). */
-#ifdef __APPLE__
-  ic_pthread_sigmask = pthread_sigmask;
-#else
-  ic_pthread_sigmask = dlsym(RTLD_NEXT, "pthread_sigmask");
-  if (!ic_pthread_sigmask) {
-    ic_pthread_sigmask = &sigprocmask;
-  }
-#endif
-
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
   ic_init_done = true;
@@ -1289,15 +1276,7 @@ static void fb_ic_init() {
  */
 void fb_ic_load() {
   if (!ic_init_done) {
-    int (*orig_pthread_once)(pthread_once_t *, void (*)(void)) = dlsym(RTLD_NEXT, "pthread_once");
-    if (orig_pthread_once) {
-      /* Symbol found means that we are linked to libpthread. Use its method to guarantee that we
-       * initialize exactly once. */
-      (*orig_pthread_once)(&ic_init_control, fb_ic_init);
-    } else  {
-      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded. */
-      fb_ic_init();
-    }
+    pthread_once(&ic_init_control, fb_ic_init);
   }
 }
 

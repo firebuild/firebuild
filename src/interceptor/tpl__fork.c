@@ -48,11 +48,11 @@
    * signals before forking. */
   sigset_t set_orig, set_block_all;
   sigfillset(&set_block_all);
-  (*ic_pthread_sigmask)(SIG_SETMASK, &set_block_all, &set_orig);
+  pthread_sigmask(SIG_SETMASK, &set_block_all, &set_orig);
 
   atfork_child_handler();
 
-  (*ic_pthread_sigmask)(SIG_SETMASK, &set_orig, NULL);
+  pthread_sigmask(SIG_SETMASK, &set_orig, NULL);
   } else {
     atfork_parent_handler();
   }
