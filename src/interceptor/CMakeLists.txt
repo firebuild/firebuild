@@ -66,7 +66,7 @@ set_target_properties(firebuild PROPERTIES VERSION "0.0.0" SOVERSION 0)
 if (NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
   set_target_properties(firebuild PROPERTIES INTERPROCEDURAL_OPTIMIZATION True)
 endif()
-target_link_libraries(firebuild dl)
+target_link_libraries(firebuild dl pthread)
 target_link_options(firebuild PUBLIC -Wno-strict-overflow ${SANITIZE_INTERCEPTOR_LINK_OPTIONS})
 
 install(TARGETS firebuild DESTINATION ${CMAKE_INSTALL_LIBDIR})
