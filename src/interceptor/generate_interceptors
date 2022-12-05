@@ -1885,8 +1885,8 @@ generate("int", "ftime", "struct timeb *tp",
          msg="clock_gettime",
          tpl="once")
 # sys/time.h declares the funcion with void *tz and not matching that generates an error
-# generate("int", "gettimeofday", "struct timeval *tv, struct timezone *tz",
-generate("int", ["gettimeofday", "SYS_gettimeofday"], "struct timeval *tv, void *tz",
+generate("int", "gettimeofday", "struct timeval *tv, struct timezone *tz",
+#generate("int", ["gettimeofday", "SYS_gettimeofday"], "struct timeval *tv, void *tz",
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_clock_gettime64
