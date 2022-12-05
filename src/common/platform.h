@@ -28,6 +28,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #endif
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +44,42 @@
 #define CLOSE_RANGE_CLOEXEC (1U << 2)
 #endif
 
+#ifndef CLONE_PIDFD
+#define CLONE_PIDFD 0x00001000
+#endif
+
+#ifndef STATX_TYPE
+#define STATX_TYPE 0x0001U
+#define STATX_MODE 0x0002U
+#define STATX_SIZE 0x0200U
+
+struct statx_timestamp {
+  __s64 tv_sec;
+  __u32 tv_nsec;
+};
+
+struct statx {
+  __u32 stx_mask;
+  __u32 stx_blksize;
+  __u64 stx_attributes;
+  __u32 stx_nlink;
+  __u32 stx_uid;
+  __u32 stx_gid;
+  __u16 stx_mode;
+  __u64 stx_ino;
+  __u64 stx_size;
+  __u64 stx_blocks;
+  __u64 stx_attributes_mask;
+  struct statx_timestamp stx_atime;
+  struct statx_timestamp stx_btime;
+  struct statx_timestamp stx_ctime;
+  struct statx_timestamp stx_mtime;
+  __u32 stx_rdev_major;
+  __u32 stx_rdev_minor;
+  __u32 stx_dev_major;
+  __u32 stx_dev_minor;
+};
+#endif
 
 #if SIZE_WIDTH == 64
 #define PRIsize "lu"

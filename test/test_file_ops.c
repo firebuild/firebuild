@@ -200,6 +200,7 @@ int main() {
     close(pipe_fds[1]);
   }
 
+#ifdef STATX_TYPE
 /* Allow skipping this test since the ASAN & UBSAN build finds out that this code is incorrect. */
 #ifndef SKIP_TEST_NULL_NONNULL_PARAMS
 #pragma GCC diagnostic push
@@ -207,6 +208,7 @@ int main() {
   /* Call statx with invalid parameters, like cargo does. */
   statx(0, NULL, 0, STATX_ALL, NULL);
 #pragma GCC diagnostic pop
+#endif
 #endif
 
   if (stat(".", &st_buf) != 0) {

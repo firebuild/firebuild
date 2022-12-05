@@ -25,6 +25,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include "common/platform.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
