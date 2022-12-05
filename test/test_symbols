@@ -48,6 +48,11 @@ fi
 
 # Some symbols have been removed from or introduced recently to glibc
 known_extra="
+__bss_start
+_edata
+_end
+_fini
+_init
 _Fork
 arc4random
 arc4random_buf
