@@ -9,9 +9,7 @@ find_package(PkgConfig REQUIRED)
 # xxh128's algorithm changed and became officially supported in 0.8.0
 pkg_check_modules(XXHASH REQUIRED libxxhash>=0.8.0)
 if (WITH_JEMALLOC)
-  pkg_check_modules(JEMALLOC REQUIRED jemalloc)
-else()
-  set(JEMALLOC_LIBRARIES "")
+  pkg_check_modules(JEMALLOC jemalloc)
 endif()
 find_package(tsl-hopscotch-map REQUIRED)
 
