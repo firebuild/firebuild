@@ -559,16 +559,19 @@ generate("int", ["renameat", "SYS_renameat"], "int olddirfd, const char *oldpath
                          "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(rename, newdirfd, newpath);"],
          msg="rename",
          ack_condition="true")
-generate("int", ["renameat2", "SYS_renameat2"], "int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags",
-         before_lines=["if (i_am_intercepting) {",
-                       "  send_pre_open_without_ack_request(olddirfd, oldpath);",
-                       "  send_pre_open(newdirfd, newpath);",
-                       "}"],
-         msg_skip_fields=["oldpath", "newpath"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(rename, olddirfd, oldpath);",
-                         "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(rename, newdirfd, newpath);"],
-         msg="rename",
-         ack_condition="true")
+for func_guard in [("SYS_renameat2", None), ("renameat2", glibc_ge(2, 28))]:
+  (func, ifdef_guard) = func_guard
+  generate("int", func, "int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags",
+           ifdef_guard=ifdef_guard,
+           before_lines=["if (i_am_intercepting) {",
+                         "  send_pre_open_without_ack_request(olddirfd, oldpath);",
+                         "  send_pre_open(newdirfd, newpath);",
+                         "}"],
+           msg_skip_fields=["oldpath", "newpath"],
+           msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(rename, olddirfd, oldpath);",
+                           "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(rename, newdirfd, newpath);"],
+           msg="rename",
+           ack_condition="true")
 
 # Intercept operations that read from a file descriptor.
 # FIXME also intercept mmap with PROT_READ
@@ -1097,12 +1100,15 @@ generate("int", "fseeko", "FILE *stream, off_t offset, int whence",
          modify_offset="offset != 0 || whence != SEEK_CUR",
          msg_skip_fields=["stream", "offset", "whence"],
          msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
-generate("int", ["fseeko64", "__fseeko64"], "FILE *stream, off64_t offset, int whence",
-         tpl="seek",
-         before_lines=["int fd = safe_fileno(stream);"],
-         modify_offset="offset != 0 || whence != SEEK_CUR",
-         msg_skip_fields=["stream", "offset", "whence"],
-         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+for func_guard in [("fseeko64", None), ("__fseeko64", glibc_ge(2, 28))]:
+  (func, ifdef_guard) = func_guard
+  generate("int", func, "FILE *stream, off64_t offset, int whence",
+           ifdef_guard=ifdef_guard,
+           tpl="seek",
+           before_lines=["int fd = safe_fileno(stream);"],
+           modify_offset="offset != 0 || whence != SEEK_CUR",
+           msg_skip_fields=["stream", "offset", "whence"],
+           msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
 generate("long", "ftell", "FILE *stream",
          tpl="seek",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -1115,12 +1121,15 @@ generate("off_t", "ftello", "FILE *stream",
          modify_offset="false",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
-generate("off64_t", ["ftello64", "__ftello64"], "FILE *stream",
-         tpl="seek",
-         before_lines=["int fd = safe_fileno(stream);"],
-         modify_offset="false",
-         msg_skip_fields=["stream"],
-         msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
+for func_guard in [("ftello64", None), ("__ftello64", glibc_ge(2, 28))]:
+  (func, ifdef_guard) = func_guard
+  generate("off64_t", func, "FILE *stream",
+           ifdef_guard=ifdef_guard,
+           tpl="seek",
+           before_lines=["int fd = safe_fileno(stream);"],
+           modify_offset="false",
+           msg_skip_fields=["stream"],
+           msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
 generate("int", "fgetpos", "FILE *stream, fpos_t *pos",
          tpl="seek",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -1386,18 +1395,21 @@ generate("int", ["fstatat64", "SYS_fstatat64", "__fstatat64_time64"], "int fd, c
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # since glibc 2.28
-generate("int", ["statx", "SYS_statx"], "int fd, const char *pathname, int flags, unsigned int mask, struct statx *statx_buf",
-         # TODO(rbalint) have separate statx() message with mask also sent
-         msg="fstatat",
-         # Always query type and mode to let the supervisor have valid stx_mode
-         before_lines=["mask |= STATX_TYPE | STATX_MODE | STATX_SIZE;"],
-         msg_skip_fields=["pathname", "mask", "statx_buf"],
-         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
-                         "if (success) {",
-                         "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
-                         "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, statx_buf->stx_size);",
-                         # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
-                         "}"])
+for func_guard in [("SYS_statx", None), ("statx", glibc_ge(2, 28))]:
+  (func, ifdef_guard) = func_guard
+  generate("int", func, "int fd, const char *pathname, int flags, unsigned int mask, struct statx *statx_buf",
+           ifdef_guard=ifdef_guard,
+           # TODO(rbalint) have separate statx() message with mask also sent
+           msg="fstatat",
+           # Always query type and mode to let the supervisor have valid stx_mode
+           before_lines=["mask |= STATX_TYPE | STATX_MODE | STATX_SIZE;"],
+           msg_skip_fields=["pathname", "mask", "statx_buf"],
+           msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
+                           "if (success) {",
+                           "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
+                           "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, statx_buf->stx_size);",
+                           # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
+                           "}"])
 # Treat isfdtype() as a fstat()
 generate("int", "isfdtype", "int fd, int fdtype",
          msg="fstatat",
@@ -1453,8 +1465,12 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
 
 # Intercept fcntl and fcntl64
 # The return value is selectively set from tpl_fcntl.c for certain commands.
-generate("int", ["fcntl", "fcntl64", "SYS_fcntl64", "SYS_fcntl", "__fcntl", "__fcntl_time64"], "int fd, int cmd, ...",
-         tpl="fcntl")
+for func_guard in [(["fcntl", "SYS_fcntl64", "SYS_fcntl", "__fcntl", "__fcntl_time64"], None), ("fcntl64", glibc_ge(2, 28))]:
+  (func, ifdef_guard) = func_guard
+  generate("int", func, "int fd, int cmd, ...",
+           ifdef_guard=ifdef_guard,
+           msg="fcntl",
+           tpl="fcntl")
 
 # Intercept ioctl - cmd is long in glibc, int in the Linux kernel
 generate("int", ["ioctl", "__ioctl_time64"], "int fd, unsigned long cmd, ...",
@@ -1792,9 +1808,11 @@ generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t 
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addchdir_np", "posix_spawn_file_actions_t *file_actions, const char *pathname",
+         ifdef_guard=glibc_ge(2, 29),
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addfchdir_np", "posix_spawn_file_actions_t *file_actions, int fd",
+         ifdef_guard=glibc_ge(2, 29),
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 
