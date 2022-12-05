@@ -24,6 +24,7 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -271,4 +272,12 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int f
 void fb_perror(const char *s) {
   perror((std::string("FIREBUILD: ") + s).c_str());
 }
+
+#ifdef FIREBUILD_INTERNAL_RENAMEAT2
+int renameat2(int olddirfd, const char *oldpath,
+              int newdirfd, const char *newpath, unsigned int flags) {
+  return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+}
+#endif
+
 }  /* namespace firebuild */
