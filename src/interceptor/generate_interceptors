@@ -511,7 +511,7 @@ generate("int", ["renameat", "SYS_renameat"], "int olddirfd, const char *oldpath
                          "BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(rename, newdirfd, newpath);"],
          msg="rename",
          ack_condition="true")
-generate("int", ["renameat2", "SYS_renameat2"], "int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags",
+generate("int", ["SYS_renameat2"], "int olddirfd, const char *oldpath, int newdirfd, const char *newpath, unsigned int flags",
          before_lines=["if (i_am_intercepting) {",
                        "  send_pre_open_without_ack_request(olddirfd, oldpath);",
                        "  send_pre_open(newdirfd, newpath);",
@@ -1321,7 +1321,7 @@ generate("int", ["fstatat64", "SYS_fstatat64"], "int fd, const char *pathname, s
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # since glibc 2.28
-generate("int", ["statx", "SYS_statx"], "int fd, const char *pathname, int flags, unsigned int mask, struct statx *statx_buf",
+generate("int", ["SYS_statx"], "int fd, const char *pathname, int flags, unsigned int mask, struct statx *statx_buf",
          # TODO(rbalint) have separate statx() message with mask also sent
          msg="fstatat",
          # Always query type and mode to let the supervisor have valid stx_mode
@@ -1388,7 +1388,7 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
 
 # Intercept fcntl and fcntl64
 # The return value is selectively set from tpl_fcntl.c for certain commands.
-generate("int", ["fcntl", "fcntl64", "SYS_fcntl"], "int fd, int cmd, ...",
+generate("int", ["fcntl", "SYS_fcntl"], "int fd, int cmd, ...",
          tpl="fcntl")
 
 # Intercept ioctl - cmd is long in glibc, int in the Linux kernel
@@ -1709,12 +1709,12 @@ generate("int", "posix_spawn_file_actions_addclosefrom_np", "posix_spawn_file_ac
 generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t *file_actions, int oldfd, int newfd",
          tpl="posix_spawn_file_actions",
          success="ret == 0")
-generate("int", "posix_spawn_file_actions_addchdir_np", "posix_spawn_file_actions_t *file_actions, const char *pathname",
-         tpl="posix_spawn_file_actions",
-         success="ret == 0")
-generate("int", "posix_spawn_file_actions_addfchdir_np", "posix_spawn_file_actions_t *file_actions, int fd",
-         tpl="posix_spawn_file_actions",
-         success="ret == 0")
+#generate("int", "posix_spawn_file_actions_addchdir_np", "posix_spawn_file_actions_t *file_actions, const char *pathname",
+#         tpl="posix_spawn_file_actions",
+#         success="ret == 0")
+#generate("int", "posix_spawn_file_actions_addfchdir_np", "posix_spawn_file_actions_t *file_actions, int fd",
+#         tpl="posix_spawn_file_actions",
+#         success="ret == 0")
 
 # Insert a trace marker for clone and pthread_create
 generate("int", "clone", "int (*fn)(void *), void *stack, int flags, void *arg, ...",
