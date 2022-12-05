@@ -16,6 +16,13 @@ endif
 %:
 	dh $@
 
+ifneq (,$(filter $(distrelease),bionic))
+# Bionic's jemalloc does not ship pkgconfig files needed to detect it.
+# TODO check performance with and without jemalloc on Bionic and maybe change
+# detection to work without pkgconfig
+override_dh_auto_configure:
+   dh_auto_configure -- -DJEMALLOC_LIBRARIES=-ljemalloc
+endif
 
 # dwz does not support dwarf-5 binaries emitted by clang
 # https://sourceware.org/bugzilla/show_bug.cgi?id=28985

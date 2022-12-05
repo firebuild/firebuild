@@ -5,7 +5,8 @@
 # uses HW acceleration. See: https://bugs.debian.org/977345
 option(ENABLE_XXH_INLINE_ALL "Enable -DXXH_INLINE_ALL" ON)
 
-# Disable linking with jemalloc may help in triaging memory handling issues
+# Detect and link with jemalloc when it is available.
+# Disabling linking with jemalloc may help in triaging memory handling issues.
 option(WITH_JEMALLOC "Link with jemalloc" ON)
 
 # Enables ASan for the supervisor and UBSan for the supervisor and the interceptor
