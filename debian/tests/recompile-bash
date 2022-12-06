@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+echo debconf firebuild/license-accepted select true | debconf-set-selections
+apt-get -yqq install firebuild
+for i in 1 2; do
+    rm -rf bash-*
+    apt-get source bash 2>&1
+    apt-get -yqq build-dep bash
+    (cd bash-* && /usr/bin/time -f "real${i}=%e\nuser${i}=%U\nsys${i}=%S" -a --output=../time.log firebuild -- sh -c "./configure && make -j4")
+done
+echo "Build times:"
+cat time.log
+# ./configure is harder to accelerate, but the second run should still be at least 80% faster
+CPU_TIME_PERCENT2=$( (cat time.log ; echo "(user2+sys2)*100/(user1+sys1)") | bc)
+echo "CPU time of the second build was ${CPU_TIME_PERCENT2}% of the first build"
+[ $CPU_TIME_PERCENT2 -lt 20 ]
