@@ -1,0 +1,3 @@
+Tests: recompile-bash
+Depends: bash, bc, debconf, time
+Restrictions: needs-root, allow-stderr
