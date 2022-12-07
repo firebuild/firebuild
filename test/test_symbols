@@ -77,11 +77,13 @@ function check_function_class () {
 
 # Extract and sort the public symbols of our library,
 # filtering out the ones added by gcov (__gcov* and mangle_path)
+# and ones appearing with old toolchains(__bss_start, _edata, etc.)
 nm -D "$binary_dir/src/interceptor/libfirebuild.so" | \
   grep -v ' [Uvw] ' | \
   cut -d' ' -f3- | \
   grep -v '^__gcov_' | \
   grep -v '^mangle_path$' | \
+  egrep -v '^_(_bss_start|edata|end|fini|init)$' | \
   LC_ALL=C sort | uniq > public-symbols.txt
 
 # Gather and sort the allowed public symbols
