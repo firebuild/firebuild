@@ -551,8 +551,19 @@ static bool consistent_implicit_parent_dirs(
 
 static bool tmp_file_or_on_tmp_path(const FileUsage* fu, const FileName* filename,
                                     const FileName* tmpdir) {
-  return (fu->tmp_file() || (strncmp(filename->c_str(), tmpdir->c_str(), tmpdir->length()) == 0
-                             && filename->c_str()[tmpdir->length()] == '/'));
+  if (fu->tmp_file()) {
+    return true;
+  } else {
+    if (strncmp(filename->c_str(), tmpdir->c_str(), tmpdir->length()) == 0
+        && filename->c_str()[tmpdir->length()] == '/') {
+      const FileName* top_dir = proc_tree->top_dir();
+      assert(top_dir);
+      return !(strncmp(filename->c_str(), top_dir->c_str(), top_dir->length()) == 0
+               && filename->c_str()[top_dir->length()] == '/');
+    } else {
+      return false;
+    }
+  }
 }
 
 void ExecedProcessCacher::store(ExecedProcess *proc) {

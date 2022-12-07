@@ -8,6 +8,7 @@
 #include <tsl/hopscotch_map.h>
 #include <tsl/hopscotch_set.h>
 
+#include <filesystem>
 #include <list>
 #include <map>
 #include <memory>
@@ -99,12 +100,15 @@ class ProcessTree {
  public:
   ProcessTree()
       : inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(), ppid2fork_child_sock_(),
-        pid2exec_child_sock_(), pid2posix_spawn_child_sock_() {}
+        pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
+        top_dir_(FileName::Get(std::filesystem::current_path())) {
+  }
   ~ProcessTree();
 
   void insert(Process *p);
   void insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int stderr_fd);
   ForkedProcess* root() {return root_;}
+  const FileName* top_dir() const {return top_dir_;}
   Process* pid2proc(int pid) {
     auto it = pid2proc_.find(pid);
     if (it != pid2proc_.end()) {
@@ -247,6 +251,10 @@ class ProcessTree {
    *  Store this rarely used data here to decrease the size of Process objects.
    *  The key is the process that performs the popen() call. */
   tsl::hopscotch_map<Process *, pending_popen_t> proc2pending_popen_ = {};
+  /**
+   * Directory the first executed process starts in. This is presumably the top directory
+   * of the project to be built. */
+  const FileName* top_dir_ {nullptr};
   void insert_process(Process *p);
   void delete_process_subtree(Process *p);
   void profile_collect_cmds(const Process &p,

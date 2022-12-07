@@ -4,7 +4,6 @@
 #include "firebuild/process_tree.h"
 
 #include <math.h>
-
 #include <cstdio>
 
 #include "common/platform.h"
