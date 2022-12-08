@@ -304,6 +304,9 @@ extern __thread sig_atomic_t thread_signal_danger_zone_depth;
  *  If thread_signal_danger_zone_depth > 0, the contents are undefined and must not be relied on. */
 extern __thread bool thread_has_global_lock;
 
+/** The thread is performing a popen() call. */
+extern __thread bool thread_performs_popen;
+
 /** Counting the depth of nested signal handlers running in the current thread. */
 extern __thread sig_atomic_t thread_signal_handler_running_depth;
 

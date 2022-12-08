@@ -38,7 +38,9 @@
     env_fixup(environ_saved, environ);
   }
 
+  thread_performs_popen = true;
   {{ super() }}
+  thread_performs_popen = false;
 
   if (do_env_fixup) {
     environ = environ_saved;

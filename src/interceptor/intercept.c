@@ -65,6 +65,7 @@ int ic_pid;
 __thread const char *thread_intercept_on = NULL;
 __thread sig_atomic_t thread_signal_danger_zone_depth = 0;
 __thread bool thread_has_global_lock = false;
+__thread bool thread_performs_popen = false;
 __thread sig_atomic_t thread_signal_handler_running_depth = 0;
 __thread sig_atomic_t thread_libc_nesting_depth = 0;
 __thread uint64_t thread_delayed_signals_bitmap = 0;
@@ -600,7 +601,7 @@ static void atfork_parent_handler(void) {
   /* The variable i_am_intercepting from the intercepted fork() is
    * not available here, and storing it in a thread-global variable is
    * probably not worth the trouble. */
-  if (intercepting_enabled) {
+  if (intercepting_enabled && !thread_performs_popen) {
     FBBCOMM_Builder_fork_parent ic_msg;
     fbbcomm_builder_fork_parent_init(&ic_msg);
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
@@ -627,7 +628,7 @@ static void atfork_child_handler(void) {
    * probably not worth the trouble. The intercepted fork() will attempt
    * to unlock if it grabbed the lock, which will silently fail, that's
    * okay. */
-  if (intercepting_enabled) {
+  if (intercepting_enabled && !thread_performs_popen) {
     pthread_mutex_init(&ic_global_lock, NULL);
 
     /* Add a useful trace marker */
