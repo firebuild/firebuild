@@ -256,7 +256,7 @@ jobs:
         key: build-deb-${{ matrix.os }}
     - name: install-deps
       run: |
-        ! [ ${{ matrix.os }} == "ubuntu-20.04" ] || sudo add-apt-repository -y -n ppa:rbalint/xxhash
+        ! [ ${{ matrix.os }} == "ubuntu-20.04" ] || sudo add-apt-repository -y -n ppa:firebuild/build-deps
         sudo apt update
         sudo eatmydata apt-get build-dep .
     - name: deb
