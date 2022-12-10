@@ -1,13 +1,9 @@
 ## Installation
 
-For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0):
+For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0 or Valgrind earlier than 3.17.0):
 
-    sudo apt-add-repository ppa:rbalint/xxhash
+    sudo apt-add-repository ppa:firebuild/build-deps
     
-For Ubuntu earlier than 21.04 (Valgrind earlier than 3.17.0):
-
-    sudo apt-add-repository ppa:rbalint/valgrind
-
 Install the build dependencies:
 
     sudo apt update
