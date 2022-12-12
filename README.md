@@ -10,7 +10,7 @@ same environment:
 
 <img align="center" alt="Firebuild accelerates cc and ld with LTO" src="doc/parallel-make-acceleration.svg">
 
-The commands can be compilation or other build artifact generation steps, tests or any command that
+The commands can be compilation or other build artifact generation steps, tests, or any command that
 produces predictable output. The commands to cache and replay from the cache are determined
 automatically based on `firebuild`'s [configuration](etc/firebuild.conf) and each command's and its
 children's observed behavior.
