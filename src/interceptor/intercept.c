@@ -273,9 +273,7 @@ static void fb_send_msg(int fd, const void /*FBBCOMM_Builder*/ *ic_msg, uint16_t
   memset(buf, 0, sizeof(msg_header));
   fbbcomm_builder_serialize(ic_msg, buf + sizeof(msg_header));
 #pragma GCC diagnostic push
-#ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
-#endif
   memset(buf, 0, sizeof(msg_header));
   ((msg_header *)buf)->ack_id = ack_num;
   ((msg_header *)buf)->msg_size = len;

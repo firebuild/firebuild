@@ -16,9 +16,7 @@
 #include <stdio.h>
 
 #pragma GCC diagnostic push
-#ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
-#endif
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma GCC diagnostic ignored "-Wunused-variable"
 

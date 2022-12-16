@@ -51,9 +51,7 @@
           fbbcomm_builder_recvmsg_scm_rights_init(&ic_msg1);
           fbbcomm_builder_recvmsg_scm_rights_set_cloexec(&ic_msg1, flags & MSG_CMSG_CLOEXEC);
 #pragma GCC diagnostic push
-#ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
-#endif
           fbbcomm_builder_recvmsg_scm_rights_set_fds(&ic_msg1, (int *) CMSG_DATA(cmsg), num_fds);
 #pragma GCC diagnostic pop
           {{ grab_lock_if_needed('true') | indent(8) }}

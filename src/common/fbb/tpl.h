@@ -33,13 +33,13 @@
 #include "common/cstring_view.h"
 
 #pragma GCC diagnostic push
-#ifdef __clang__
 #pragma GCC diagnostic ignored "-Wcast-align"
 {#
  # Looks like a clang bug: with -std=c11 the code compiles fine, but with -std=gnu11
  # (the default, which is supposed to be c11 plus some extensions) it complains that:
  # "redefinition of typedef [...] is a C11 feature"
  #}
+#ifdef __clang__
 #pragma GCC diagnostic ignored "-Wtypedef-redefinition"
 #endif
 
