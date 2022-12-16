@@ -6,6 +6,7 @@
 #include <libgen.h>
 
 #include <algorithm>
+#include <cinttypes>
 #include <iostream>
 #include <limits>
 #include <set>
@@ -156,9 +157,9 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   if (proc->fork_point()->exit_status() != -1) {
     fprintf(stream, "%s exit_status: %u,\n", indent, proc->fork_point()->exit_status());
   }
-  fprintf(stream, "%s utime_u: %lu,\n", indent, proc->utime_u());
-  fprintf(stream, "%s stime_u: %lu,\n", indent, proc->stime_u());
-  fprintf(stream, "%s aggr_time_u: %lu,\n", indent, proc->aggr_cpu_time_u());
+  fprintf(stream, "%s utime_u: %" PRId64 ",\n", indent, proc->utime_u());
+  fprintf(stream, "%s stime_u: %" PRId64 ",\n", indent, proc->stime_u());
+  fprintf(stream, "%s aggr_time_u: %" PRId64 ",\n", indent, proc->aggr_cpu_time_u());
 }
 
 static void export2js_recurse_ep(const ExecedProcess* proc, const unsigned int level, FILE* stream,
@@ -322,7 +323,7 @@ static void export_profile2dot(FILE* stream) {
         fprintf(stream, "%.2lf%%\\n", percent_of(pair2.second.sum_aggr_time_u,
                                               build_time));
       }
-      fprintf(stream, "×%lu\", color=\"%s\","
+      fprintf(stream, "×%" PRId64 "\", color=\"%s\","
               " penwidth=\"%lf\"];",
               pair2.second.count,
               pct_to_hsv_str(percent_of(pair2.second.sum_aggr_time_u,

@@ -4,6 +4,7 @@
 
 #include "firebuild/execed_process.h"
 
+#include <cinttypes>
 #include <memory>
 
 #include <libconfig.h++>
@@ -204,7 +205,8 @@ void ExecedProcess::set_been_waited_for() {
 }
 
 void ExecedProcess::resource_usage(const int64_t utime_u, const int64_t stime_u) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "utime_u=%ld, stime_u=%ld", utime_u, stime_u);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "utime_u=%" PRId64 ", stime_u=%" PRId64, utime_u, stime_u);
 
   /* store resource usage for this process */
   Process::resource_usage(utime_u, stime_u);
