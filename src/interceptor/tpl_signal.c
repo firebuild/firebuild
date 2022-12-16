@@ -9,7 +9,7 @@
 ### extends "tpl.c"
 
 ### block call_orig
-###   if func in ['signal', 'sigset']
+###   if func in ['signal', 'SYS_signal', 'sigset']
   if (signal_is_wrappable(signum)) {
     sighandler_t old_orig_signal_handler = (sighandler_t)orig_signal_handlers[signum - 1];
     orig_signal_handlers[signum - 1] = (void (*)(void))handler;
@@ -22,7 +22,7 @@
   } else {
     ret = ic_orig_{{ func }}(signum, handler);
   }
-###   elif func == 'sigaction'
+###   elif func in ['sigaction', 'SYS_sigaction']
   if (signal_is_wrappable(signum)) {
     struct sigaction wrapped_act;
     void (*old_orig_signal_handler)(void) = orig_signal_handlers[signum - 1];
@@ -44,7 +44,7 @@
         wrapped_act.sa_handler = new_signal_handler;
       }
     }
-    ret = ic_orig_sigaction(signum, act ? &wrapped_act : NULL, oldact);
+    ret = ic_orig_{{ func }}(signum, act ? &wrapped_act : NULL, oldact);
     if (ret == 0 && oldact != NULL) {
       if (oldact->sa_flags & SA_SIGINFO) {
         /* sa_sigaction, handler called with 3 args */
