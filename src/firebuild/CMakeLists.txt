@@ -1,8 +1,12 @@
 
 # GCC raises warning about the GCC-optimized code
-set_source_files_properties(debug.cc execed_process.cc execed_process_cacher.cc file_name.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
+set_source_files_properties(debug.cc execed_process.cc file_name.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
-set_source_files_properties(firebuild.cc message_processor.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
+# FBB structures and placing them aligned in buffers ensure that members will be aligned properly, too
+set_source_files_properties(execed_process_cacher.cc PROPERTIES COMPILE_FLAGS "-Wno-cast-align -Wno-strict-overflow")
+set_source_files_properties(message_processor.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"' -Wno-cast-align")
+
+set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)

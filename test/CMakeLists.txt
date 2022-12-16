@@ -54,6 +54,7 @@ target_link_libraries(test_static "-static")
 
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/data "${CMAKE_BINARY_DIR}/test/data" SYMBOLIC)
+set_source_files_properties(fbb_test.cc PROPERTIES COMPILE_FLAGS "-Wno-cast-align")
 add_executable(fbb_test EXCLUDE_FROM_ALL fbb_test.cc fbbtest.cc)
 add_dependencies(fbb_test fbbtest_gen_files)
 add_test(fbb ./fbb_test)
