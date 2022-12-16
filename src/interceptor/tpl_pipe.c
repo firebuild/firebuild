@@ -61,7 +61,7 @@
     received =
 #endif
         TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, (flags & O_CLOEXEC) ? MSG_CMSG_CLOEXEC : 0));
-    assert(received == sv_msg_hdr.msg_size);
+    assert(received >= 0 && received == (ssize_t)sv_msg_hdr.msg_size);
     assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_pipe_created);
 
     thread_signal_danger_zone_leave();

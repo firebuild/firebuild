@@ -105,7 +105,7 @@
       received =
 #endif
           TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, 0));
-      assert(received == sv_msg_hdr.msg_size);
+      assert(received >= 0 && received == (ssize_t)sv_msg_hdr.msg_size);
       assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_popen_fd);
       assert(sv_msg_hdr.fd_count == 1);
 
