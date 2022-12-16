@@ -210,9 +210,12 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int f
 
   char *buf = reinterpret_cast<char *>(alloca(sizeof(msg_header) + len));
   memset(buf, 0, sizeof(msg_header));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
   reinterpret_cast<msg_header *>(buf)->ack_id = ack_num;
   reinterpret_cast<msg_header *>(buf)->msg_size = len;
   reinterpret_cast<msg_header *>(buf)->fd_count = fd_count;
+#pragma GCC diagnostic pop
 
   msg->serialize(buf + sizeof(msg_header));
 
