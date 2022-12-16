@@ -1,6 +1,6 @@
 
 # GCC raises warning about the GCC-optimized code
-set_source_files_properties(execed_process.cc execed_process_cacher.cc file_name.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
+set_source_files_properties(debug.cc execed_process.cc execed_process_cacher.cc file_name.cc obj_cache.cc utils.cc PROPERTIES COMPILE_FLAGS "-Wno-strict-overflow")
 
 set_source_files_properties(firebuild.cc message_processor.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
