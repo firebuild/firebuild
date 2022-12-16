@@ -39,7 +39,7 @@ typedef enum {
  */
 class FileInfo {
  public:
-  explicit FileInfo(FileType type = DONTKNOW, ssize_t size = -1, const Hash *hash = nullptr) :
+  explicit FileInfo(FileType type = DONTKNOW, off_t size = -1, const Hash *hash = nullptr) :
       type_(type),
       size_(size),
       hash_known_(hash != nullptr),
@@ -50,8 +50,8 @@ class FileInfo {
   FileType type() const {return type_;}
   void set_type(FileType type) {type_ = type;}
   bool size_known() const {return size_ >= 0;}
-  ssize_t size() const {return size_;}
-  void set_size(ssize_t size) {
+  off_t size() const {return size_;}
+  void set_size(off_t size) {
     size_ = size;
   }
   bool hash_known() const {return hash_known_;}
@@ -121,7 +121,7 @@ class FileInfo {
    *  (If the type is NOTEXIST_OR_ISREG and the size is known, the size is necessarily 0. This is
    *  our knowledge about the initial / prior state of a file if open(O_CREAT|O_WRONLY) results in
    *  an empty file.) */
-  ssize_t size_;
+  off_t size_;
 
   /** Whether the checksum is known. Only if type_ is ISREG, NOTEXIST_OR_ISREG or ISDIR.
    *  For regular files, knowing the checksum implies we know the size, too.

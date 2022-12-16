@@ -41,7 +41,7 @@ class BlobCache {
                   int max_writers,
                   int fd_src,
                   loff_t src_skip_bytes,
-                  size_t size,
+                  loff_t size,
                   Hash *key_out);
   /**
    * Store the given regular file in the blob cache, with its hash as the key.
@@ -64,7 +64,7 @@ class BlobCache {
    */
   bool move_store_file(const std::string &path,
                        int fd,
-                       size_t size,
+                       loff_t size,
                        Hash *key_out);
   /**
    * Retrieve the given file from the blob cache.

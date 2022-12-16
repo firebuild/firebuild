@@ -74,7 +74,7 @@ class Hash {
    * @return Whether succeeded
    */
   bool set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out,
-                   ssize_t *size_out = NULL);
+                   off_t *size_out = NULL);
   /**
    * Set the hash from the given file or directory.
    *
@@ -87,7 +87,7 @@ class Hash {
    * @return Whether succeeded
    */
   bool set_from_file(const FileName *filename, const struct stat64 *stat_ptr,
-                     bool *is_dir_out = NULL, ssize_t *size_out = NULL);
+                     bool *is_dir_out = NULL, off_t *size_out = NULL);
 
   /**
    * Sets the hash value directly from the given value.

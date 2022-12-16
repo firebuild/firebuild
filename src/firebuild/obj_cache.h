@@ -19,7 +19,7 @@ namespace firebuild {
 typedef struct obj_timestamp_size_ {
   std::string obj {""};
   struct timespec ts {0, 0};
-  ssize_t size {0};
+  off_t size {0};
 } obj_timestamp_size_t;
 
 /**

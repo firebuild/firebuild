@@ -151,7 +151,7 @@ void ExecedProcess::initialize() {
       if (stat64(file_fd->filename()->c_str(), &st) < 0) {
         disable_shortcutting_only_this("Failed to stat inherited file");
       } else if (S_ISREG(st.st_mode) && is_write(file_fd->flags())) {
-        ssize_t offset;
+        off_t offset;
         int flags;
         if (!get_fdinfo(pid(), file_fd->fd(), &offset, &flags)) {
           disable_shortcutting_only_this("Failed to get fdinfo for inherited file");

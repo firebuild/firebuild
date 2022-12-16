@@ -78,7 +78,7 @@ static bool copy_file(int fd_src, loff_t src_skip_bytes, int fd_dst, bool append
     }
   }
 
-  ssize_t len = src_st->st_size >= src_skip_bytes ? src_st->st_size - src_skip_bytes : 0;
+  off_t len = src_st->st_size >= src_skip_bytes ? src_st->st_size - src_skip_bytes : 0;
   loff_t dst_skip_bytes = append ? dst_st->st_size : 0;
   return fb_copy_file_range(fd_src, &src_skip_bytes, fd_dst, &dst_skip_bytes, len, 0) == len;
 }
@@ -120,7 +120,7 @@ bool BlobCache::store_file(const FileName *path,
                            int max_writers,
                            int fd_src,
                            loff_t src_skip_bytes,
-                           size_t size,
+                           loff_t size,
                            Hash *key_out) {
   TRACK(FB_DEBUG_CACHING, "path=%s, max_writers=%d, fd_src=%d, skip=%ld, size=%ld",
       D(path), max_writers, fd_src, src_skip_bytes, size);
@@ -241,7 +241,7 @@ bool BlobCache::store_file(const FileName *path,
 
 bool BlobCache::move_store_file(const std::string &path,
                                 int fd,
-                                size_t size,
+                                loff_t size,
                                 Hash *key_out) {
   TRACK(FB_DEBUG_CACHING, "path=%s, fd=%d, size=%ld", D(path), fd, size);
 
