@@ -87,8 +87,8 @@ class ObjCache {
    * @param[in,out] unexpected_file_bytes increased by every found and kept file's size that has
                     unexpected name, i.e. it is not used as a cache object, nor a debug file
    */
-  void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
-          ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
+  void gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, off_t* cache_bytes,
+          off_t* debug_bytes, off_t* unexpected_file_bytes);
   /* Returns {object path, timestamp, size} ordered by decreasing timestamp. */
   std::vector<obj_timestamp_size_t> gc_collect_sorted_obj_timestamp_sizes();
 
@@ -104,8 +104,8 @@ class ObjCache {
             unexpected name, i.e. it is not used as a cache object, nor a debug file
    */
   void gc_obj_cache_dir(const std::string& path,
-                        tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
-                        ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
+                        tsl::hopscotch_set<AsciiHash>* referenced_blobs, off_t* cache_bytes,
+                        off_t* debug_bytes, off_t* unexpected_file_bytes);
 
   /* Including the "objs" subdir. */
   std::string base_dir_;

@@ -398,8 +398,8 @@ ObjCache::gc_collect_sorted_obj_timestamp_sizes() {
 
 void ObjCache::gc_obj_cache_dir(const std::string& path,
                                 tsl::hopscotch_set<AsciiHash>* referenced_blobs,
-                                ssize_t* cache_bytes, ssize_t* debug_bytes,
-                                ssize_t* unexpected_file_bytes) {
+                                off_t* cache_bytes, off_t* debug_bytes,
+                                off_t* unexpected_file_bytes) {
   DIR * dir = opendir(path.c_str());
   if (dir == NULL) {
     return;
@@ -555,8 +555,8 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
   closedir(dir);
 }
 
-void ObjCache::gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, ssize_t* cache_bytes,
-                  ssize_t* debug_bytes, ssize_t* unexpected_file_bytes) {
+void ObjCache::gc(tsl::hopscotch_set<AsciiHash>* referenced_blobs, off_t* cache_bytes,
+                  off_t* debug_bytes, off_t* unexpected_file_bytes) {
   gc_obj_cache_dir(base_dir_, referenced_blobs, cache_bytes, debug_bytes, unexpected_file_bytes);
 }
 

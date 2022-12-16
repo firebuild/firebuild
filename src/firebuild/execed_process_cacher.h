@@ -71,12 +71,12 @@ class ExecedProcessCacher {
   void print_stats(stats_type what);
   void update_stored_stats();
   /** Get bytes stored in the cache reading cachedir/size file. */
-  ssize_t get_stored_bytes_from_cache() const;
+  off_t get_stored_bytes_from_cache() const;
   void read_stored_cached_bytes();
   /** Store number of bytes cached to cachedir/size file. */
   void update_stored_bytes();
   /** Register cache size change occurred in the current run. */
-  void update_cached_bytes(ssize_t bytes) {this_runs_cached_bytes_ += bytes;}
+  void update_cached_bytes(off_t bytes) {this_runs_cached_bytes_ += bytes;}
   /* A garbage collection run is needed, e.g. because the cache is too big. */
   bool is_gc_needed() const;
   void gc();
@@ -113,9 +113,9 @@ class ExecedProcessCacher {
    * running a build command and running gc(), including potentially processing the cache
    * multiple times in ExecedProcessCacher::gc().
    */
-  ssize_t this_runs_cached_bytes_ {0};
+  off_t this_runs_cached_bytes_ {0};
   /** Number of bytes in the cache as stored in the cachedir/size file. */
-  ssize_t stored_cached_bytes_ {0};
+  off_t stored_cached_bytes_ {0};
   unsigned int gc_runs_ {0};
 
   /** The hashed fingerprint of configured ignore locations. */
