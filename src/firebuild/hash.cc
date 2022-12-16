@@ -32,7 +32,7 @@ void Hash::set_from_data(const void *data, ssize_t size) {
   hash_ = XXH3_128bits(data, size);
 }
 
-bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, ssize_t *size_out) {
+bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, off_t *size_out) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "fd=%d, stat=%s", fd, D(stat_ptr));
 
   struct stat64 st_local;
@@ -123,7 +123,7 @@ bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, 
 }
 
 bool Hash::set_from_file(const FileName *filename, const struct stat64 *stat_ptr,
-                         bool *is_dir_out, ssize_t *size_out) {
+                         bool *is_dir_out, off_t *size_out) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "filename=%s", D(filename));
 
   int fd;

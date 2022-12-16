@@ -83,7 +83,7 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
   return len;
 }
 
-bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags) {
+bool get_fdinfo(pid_t pid, int fd, off_t *offset, int *flags) {
   char buf[64];
   snprintf(buf, sizeof(buf), "/proc/%d/fdinfo/%d", pid, fd);
   FILE *f = fopen(buf, "r");
@@ -92,8 +92,8 @@ bool get_fdinfo(pid_t pid, int fd, ssize_t *offset, int *flags) {
   }
   bool offset_found = (offset == nullptr);
   bool flags_found = (flags == nullptr);
-  ssize_t value;
-  while (!(offset_found && flags_found) && fscanf(f, "%63s%li", buf, &value) == 2) {
+  off_t value;
+  while (!(offset_found && flags_found) && fscanf(f, "%63s%ld", buf, &value) == 2) {
     if (strcmp(buf, "pos:") == 0) {
       if (offset) {
         *offset = value;
