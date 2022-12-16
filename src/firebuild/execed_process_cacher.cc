@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -1593,7 +1594,7 @@ void ExecedProcessCacher::add_stored_stats() {
   unsigned int shortcut_attempts, shortcut_hits, not_shortcutting, gc_runs;
   const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
   if ((f = fopen(stats_file.c_str(), "r"))) {
-    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u\ngc_runs: %u\nsaved_cpu_ms: %ld\n",
+    if (fscanf(f, "attempts: %u\nhits: %u\nskips: %u\ngc_runs: %u\nsaved_cpu_ms: %" SCNd64 "\n",
                &shortcut_attempts, &shortcut_hits, &not_shortcutting, &gc_runs,
                &cache_saved_cpu_time_ms_) != 5) {
       fb_error("Invalid stats file format at " + stats_file + ", using only current run's stats.");
@@ -1613,7 +1614,7 @@ void ExecedProcessCacher::update_stored_stats() {
   add_stored_stats();
   const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
   if (file_overwrite_printf(
-          stats_file, "attempts: %u\nhits: %u\nskips: %u\ngc_runs: %u\nsaved_cpu_ms: %ld\n",
+          stats_file, "attempts: %u\nhits: %u\nskips: %u\ngc_runs: %u\nsaved_cpu_ms: %" PRId64 "\n",
           shortcut_attempts_, shortcut_hits_, not_shortcutting_, gc_runs_,
           cache_saved_cpu_time_ms_ - self_cpu_time_ms_ +
           (proc_tree ? proc_tree->shortcut_cpu_time_ms() : 0)) < 0) {
