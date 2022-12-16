@@ -969,7 +969,7 @@ static void fb_ic_init() {
   ret =
 #endif
       TEMP_FAILURE_RETRY(ic_orig_recvmsg(fb_sv_conn, &msgh, 0));
-  assert(ret == header.msg_size);
+  assert(ret >= 0 && ret == (ssize_t)header.msg_size);
   assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
 
   FBBCOMM_Serialized_scproc_resp *sv_msg = (FBBCOMM_Serialized_scproc_resp *) sv_msg_generic;
