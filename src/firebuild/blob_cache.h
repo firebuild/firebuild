@@ -102,8 +102,8 @@ class BlobCache {
    * @param[in,out] unexpected_file_bytes increased by every found and kept file's size that has
                     unexpected name, i.e. it is not used as a blob, nor a debug file
    */
-  void gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs, ssize_t* cache_bytes,
-          ssize_t* debug_bytes, ssize_t* unexpected_file_bytes);
+  void gc(const tsl::hopscotch_set<AsciiHash>& referenced_blobs, off_t* cache_bytes,
+          off_t* debug_bytes, off_t* unexpected_file_bytes);
   /**
    * Delete entries on the the specified path also deleting the debug entries related to the entries
    * to delete.
@@ -113,7 +113,7 @@ class BlobCache {
    * @param[in,out] debug_bytes decremented when removing a debug entry
    */
   static void delete_entries(const std::string& path, const std::vector<std::string>& entries,
-                             const std::string& debug_postfix, ssize_t* debug_bytes);
+                             const std::string& debug_postfix, off_t* debug_bytes);
 
  private:
   /**
@@ -127,8 +127,8 @@ class BlobCache {
    */
   void gc_blob_cache_dir(const std::string& path,
                          const tsl::hopscotch_set<AsciiHash>& referenced_blobs,
-                         ssize_t* cache_bytes, ssize_t* debug_bytes,
-                         ssize_t* unexpected_file_bytes);
+                         off_t* cache_bytes, off_t* debug_bytes,
+                         off_t* unexpected_file_bytes);
   /* Including the "blobs" subdir. */
   std::string base_dir_;
   static constexpr char kDebugPostfix[] = "_debug.txt";

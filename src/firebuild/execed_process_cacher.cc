@@ -1546,7 +1546,7 @@ static void print_time(FILE* f, const int time_ms) {
   fprintf(f, "%.2f weeks", time);
 }
 
-static void print_bytes(FILE* f, const ssize_t bytes) {
+static void print_bytes(FILE* f, const off_t bytes) {
   double size = bytes;
   if (size < 0) {
     fprintf(f, "-");
@@ -1623,10 +1623,10 @@ void ExecedProcessCacher::update_stored_stats() {
   }
 }
 
-ssize_t ExecedProcessCacher::get_stored_bytes_from_cache() const {
+off_t ExecedProcessCacher::get_stored_bytes_from_cache() const {
   FILE* f;
   const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
-  ssize_t cached_bytes = 0;
+  off_t cached_bytes = 0;
   if ((f = fopen(size_file.c_str(), "r"))) {
     if (fscanf(f, "%ld\n", &cached_bytes) != 1) {
       fb_error("Invalid size file format in " + size_file);
@@ -1645,7 +1645,7 @@ void ExecedProcessCacher::update_stored_bytes() {
   // FIXME(rbalint) There is a slight chance for two parallel builds updating the size at the
   // same time making them inaccurate
   const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
-  const ssize_t new_size = this_runs_cached_bytes_ + stored_cached_bytes_;
+  const off_t new_size = this_runs_cached_bytes_ + stored_cached_bytes_;
   if (file_overwrite_printf(size_file, "%ld\n", new_size) < 0) {
     fb_error("writing cache size file failed");
     exit(EXIT_FAILURE);
@@ -1660,7 +1660,7 @@ void ExecedProcessCacher::gc() {
   gc_runs_++;
   /* Remove unusable entries first. */
   tsl::hopscotch_set<AsciiHash> referenced_blobs {};
-  ssize_t cache_bytes = 0, debug_bytes = 0, unexpected_file_bytes = 0;
+  off_t cache_bytes = 0, debug_bytes = 0, unexpected_file_bytes = 0;
   obj_cache->gc(&referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
   blob_cache->gc(referenced_blobs, &cache_bytes, &debug_bytes, &unexpected_file_bytes);
   if (unexpected_file_bytes > 0) {
@@ -1681,7 +1681,7 @@ void ExecedProcessCacher::gc() {
              "Cache size (" + d(stored_cached_bytes_ + this_runs_cached_bytes_) + ") " +
              "is above " + d(max_cache_size) + " bytes limit, removing older entries");
     /** Target for this_runs_cached_bytes_ to end up with a cache 20% below its size limit. */
-    const ssize_t target_this_runs_cached_bytes = (max_cache_size * 0.8) - stored_cached_bytes_;
+    const off_t target_this_runs_cached_bytes = (max_cache_size * 0.8) - stored_cached_bytes_;
     std::vector<obj_timestamp_size_t> obj_ts_sizes =
         obj_cache->gc_collect_sorted_obj_timestamp_sizes();
     int round = 0;
@@ -1693,7 +1693,7 @@ void ExecedProcessCacher::gc() {
       if (kept_ratio <= 0.0) {
         break;
       }
-      size_t keep_objects_count = obj_ts_sizes.size() * kept_ratio;
+      off_t keep_objects_count = obj_ts_sizes.size() * kept_ratio;
       FB_DEBUG(FB_DEBUG_CACHING, "Removing " + d(obj_ts_sizes.size() - keep_objects_count) + " " +
                "cache objects out of " + d(obj_ts_sizes.size()));
       for (size_t i = keep_objects_count; i < obj_ts_sizes.size(); i++) {
