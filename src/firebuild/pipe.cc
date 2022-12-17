@@ -112,7 +112,7 @@ std::shared_ptr<Pipe> Pipe::fd1_shared_ptr() {
 
 void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
                             std::vector<std::shared_ptr<PipeRecorder>> recorders) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s, proc=%s, #recorders=%ld",
+  TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, this, "fd1_conn=%s, proc=%s, #recorders=%" PRIsize,
          D_FD(fd1_conn), D(proc), recorders.size());
 
 #ifdef FB_EXTRA_DEBUG

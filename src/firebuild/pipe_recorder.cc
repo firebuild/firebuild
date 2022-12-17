@@ -40,7 +40,7 @@ void PipeRecorder::open_backing_file() {
 }
 
 void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "len=%ld", len);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "len=%" PRIssize, len);
 
   assert(!deactivated_);
   assert(!abandoned_);
@@ -61,7 +61,7 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
 }
 
 void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "pipe_fd=%d, len=%ld", pipe_fd, len);
+  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "pipe_fd=%d, len=%" PRIssize, pipe_fd, len);
 
   assert(!deactivated_);
   assert(!abandoned_);
@@ -84,7 +84,7 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
 }
 
 void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t len) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "fd_in=%d, off_in=%ld, len=%ld",
+  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "fd_in=%d, off_in=%ld, len=%" PRIssize,
          fd_in, off_in, len);
 
   assert(fd_in >= 0);
@@ -173,7 +173,7 @@ bool PipeRecorder::has_active_recorder(
 
 void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                            const char *buf, ssize_t len) {
-  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, len=%ld", recorders->size(), len);
+  TRACK(FB_DEBUG_PIPE, "#recorders=%" PRIsize ", len=%" PRIssize, recorders->size(), len);
 
   assert_cmp(len, >, 0);
 
@@ -188,7 +188,8 @@ void PipeRecorder::record_data_from_buffer(std::vector<std::shared_ptr<PipeRecor
 
 void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRecorder>> *recorders,
                                               int fd, ssize_t len) {
-  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
+  TRACK(FB_DEBUG_PIPE, "#recorders=%" PRIsize ", fd=%d, len=%" PRIssize,
+        recorders->size(), fd, len);
 
 #ifdef FB_EXTRA_DEBUG
   assert(has_active_recorder(*recorders));
@@ -217,7 +218,8 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
 void PipeRecorder::record_data_from_regular_fd(
     std::vector<std::shared_ptr<PipeRecorder>> *recorders,
     int fd, ssize_t len) {
-  TRACK(FB_DEBUG_PIPE, "#recorders=%ld, fd=%d, len=%ld", recorders->size(), fd, len);
+  TRACK(FB_DEBUG_PIPE, "#recorders=%" PRIsize ", fd=%d, len=%" PRIssize,
+        recorders->size(), fd, len);
 
   assert_cmp(len, >, 0);
 

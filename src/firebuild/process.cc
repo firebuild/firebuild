@@ -1324,7 +1324,7 @@ const FileName* Process::get_fd_filename(int fd) const {
 
 const FileName* Process::get_absolute(const int dirfd, const char * const name,
                                       ssize_t length) const {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, name=%s, length=%ld",
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "dirfd=%d, name=%s, length=%" PRIssize,
          dirfd, D(name), length);
 
   if (path_is_absolute(name)) {

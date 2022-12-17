@@ -37,11 +37,11 @@ def add_debug_to_dict(type, name, dict):
     "uid_t":         ("before", "%u"),
     "gid_t":         ("before", "%u"),
     "long":          ("before", "%ld"),
-    "ssize_t":       ("before", "%ld"),
+    "ssize_t":       ("before", "%\" PRIssize \""),
     "off_t":         ("before", "%ld"),
     "off64_t":       ("before", "%ld"),
     "unsigned long": ("before", "%lu"),
-    "size_t":        ("before", "%lu"),
+    "size_t":        ("before", "%\" PRIsize \""),
     "const char *":  ("before", "\\\"%s\\\""),
     "char *":        ("after",  "\\\"%s\\\""),  # assume the call modifies, so log at the end
     "FILE *":        ("before", "%p"),
