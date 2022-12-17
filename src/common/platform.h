@@ -13,6 +13,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -27,6 +28,14 @@
 #define CLOSE_RANGE_CLOEXEC (1U << 2)
 #endif
 
+
+#if SIZE_WIDTH == 64
+#define PRIsize "lu"
+#define PRIssize "ld"
+#else
+#define PRIsize "u"
+#define PRIssize "d"
+#endif
 
 static inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32

@@ -13,6 +13,7 @@
 
 #include <vector>
 
+#include "common/platform.h"
 #include "firebuild/cxx_lang_utils.h"
 #include "firebuild/debug.h"
 
@@ -40,7 +41,7 @@ class LinearBuffer {
    * @return number of bytes read
    */
   ssize_t read(int fd, ssize_t howmuch) {
-    TRACK(FB_DEBUG_COMM, "fd=%s, howmuch=%ld", D_FD(fd), howmuch);
+    TRACK(FB_DEBUG_COMM, "fd=%s, howmuch=%" PRIssize, D_FD(fd), howmuch);
 
     assert_cmp(howmuch, !=, 0);
     if (howmuch >= 0) {
@@ -92,7 +93,7 @@ class LinearBuffer {
   }
   /** Discard howmuch bytes from the beginning of the data. */
   void discard(const size_t howmuch) {
-    TRACK(FB_DEBUG_COMM, "howmuch=%ld", howmuch);
+    TRACK(FB_DEBUG_COMM, "howmuch=%" PRIsize, howmuch);
 
     assert_cmp(howmuch, <=, length_);
     length_ -= howmuch;
@@ -109,7 +110,7 @@ class LinearBuffer {
   size_t data_start_offset_;
   size_t length_;
   void ensure_space(ssize_t howmuch) {
-    TRACK(FB_DEBUG_COMM, "howmuch=%ld", howmuch);
+    TRACK(FB_DEBUG_COMM, "howmuch=%" PRIssize, howmuch);
 
     assert_cmp(howmuch, >=, 0);
     if (data_start_offset_ > 256 * 1024) {
