@@ -37,6 +37,12 @@
 #define PRIssize "d"
 #endif
 
+#if __WORDSIZE == 64
+#define PRIoff64 "ld"
+#else
+#define PRIoff64 "lld"
+#endif
+
 static inline bool path_is_absolute(const char * p) {
 #ifdef _WIN32
   return !PathIsRelative(p);
