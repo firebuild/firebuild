@@ -6,14 +6,14 @@
 
 Firebuild is an automatic build accelerator. It works by caching the outputs of executed commands
 and replaying the results when the same commands are executed with the same parameters within the
-same environment:
-
-<img align="center" alt="Firebuild accelerates cc and ld with LTO" src="doc/parallel-make-acceleration.svg">
+same environment.
 
 The commands can be compilation or other build artifact generation steps, tests, or any command that
 produces predictable output. The commands to cache and replay from the cache are determined
 automatically based on `firebuild`'s [configuration](etc/firebuild.conf) and each command's and its
 children's observed behavior.
+
+<img align="center" alt="Firebuild accelerates cc and ld with LTO" src="doc/parallel-make-acceleration.svg">
 
 ## Usage
 
