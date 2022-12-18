@@ -25,6 +25,13 @@ The first build is typically a 5-10% slower due to the overhead of analyzing the
 the cache. Successive builds can be 5-20 times or even faster depending on the project and the changes
 between the builds.
 
+## Installation
+
+Binaries for supported Ubuntu releases can be downloaded from the [official PPA](https://launchpad.net/~firebuild/+archive/ubuntu/stable):
+
+    sudo add-apt-repository ppa:firebuild/stable
+    sudo apt install firebuild
+
 ## Building from source
 
 For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0 or Valgrind earlier than 3.17.0):
