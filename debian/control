@@ -31,13 +31,32 @@ Depends: ${shlibs:Depends},
 Pre-Depends: debconf | debconf-2.0
 Suggests: graphviz,
           node-d3
-Description: Build analyzer and catalyst
- Firebuild analyzes the build process and speeds them up.
+Description: Automatic build accelerator
+ It works by caching the outputs of executed commands and replaying the
+ results when the same commands are executed with the same parameters
+ within the same environment.
+ .
+ The commands can be compilation or other build artifact generation
+ steps, tests, or any command that produces predictable output. The
+ commands to cache and replay from the cache are determined
+ automatically based on firebuild's configuration and each command's
+ and its children's observed behavior.
 
 Package: libfirebuild0
 Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Pre-Depends: debconf | debconf-2.0
-Description: Build analyzer and catalyst - shared libraries
- Firebuild analyzes the build process and speeds them up.
+Description: Automatic build accelerator - shared library
+ It works by caching the outputs of executed commands and replaying the
+ results when the same commands are executed with the same parameters
+ within the same environment.
+ .
+ The commands can be compilation or other build artifact generation
+ steps, tests, or any command that produces predictable output. The
+ commands to cache and replay from the cache are determined
+ automatically based on firebuild's configuration and each command's
+ and its children's observed behavior.
+ .
+ This package provides the shared library preloaded by the intercepted
+ processes.
