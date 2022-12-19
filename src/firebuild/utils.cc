@@ -94,19 +94,14 @@ bool get_fdinfo(pid_t pid, int fd, off_t *offset, int *flags) {
   if (f == NULL) {
     return false;
   }
-  bool offset_found = (offset == nullptr);
-  bool flags_found = (flags == nullptr);
+  bool offset_found = false, flags_found = false;
   off_t value;
   while (!(offset_found && flags_found) && fscanf(f, "%63s%ld", buf, &value) == 2) {
     if (strcmp(buf, "pos:") == 0) {
-      if (offset) {
-        *offset = value;
-      }
+      *offset = value;
       offset_found = true;
     } else if (strcmp(buf, "flags:") == 0) {
-      if (flags) {
-        *flags = value;
-      }
+      *flags = value;
       flags_found = true;
     }
   }
