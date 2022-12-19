@@ -46,7 +46,7 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
        (((a)->tv_sec)OP((b)->tv_sec)))
 
 /** Get the seek offset and fcntl flags of the given process's given fd. Linux-specific. */
-bool get_fdinfo(pid_t pid, int fd, off_t *offset, int *flags);
+bool get_fdinfo(pid_t pid, int fd, off_t *offset, int *flags) __attribute__((nonnull(3, 4)));
 
 /** Get fixed up dirent type even if the underlying filesystem did not support d_type. */
 unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
