@@ -1,0 +1,4 @@
+version=4
+opts="filenamemangle=s%(?:.*?)?v?(\d[\d.]*@ARCHIVE_EXT@)%@PACKAGE@-$1%" \
+    https://github.com/firebuild/firebuild/tags \
+    (?:.*?/)?v?@ANY_VERSION@@ARCHIVE_EXT@
