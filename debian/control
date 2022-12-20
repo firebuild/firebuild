@@ -20,7 +20,7 @@ Build-Depends: bats,
                python3-jinja2,
                xsltproc
 Standards-Version: 4.4.1
-Homepage: https://firebuild.org
+Homepage: https://firebuild.com
 Rules-Requires-Root: no
 
 Package: firebuild
