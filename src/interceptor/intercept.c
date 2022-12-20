@@ -23,6 +23,14 @@
 #include "interceptor/interceptors.h"
 #include "common/firebuild_common.h"
 
+#if defined(__s390x__) || defined (__powerpc64__)
+#define VDSO_NAME "linux-vdso64.so.1"
+#elif defined(__i386__)
+#define VDSO_NAME "linux-gate.so.1"
+#else
+#define VDSO_NAME "linux-vdso.so.1"
+#endif
+
 static void fb_ic_load_constructor(int argc, char **argv) __attribute__((constructor));
 static void fb_ic_cleanup() __attribute__((destructor));
 
@@ -534,7 +542,7 @@ static bool skip_shared_lib(const char *name, const size_t len) {
     /* This is internal to Firebuild, filter it out. */
     return true;
   }
-  if (strcmp(name, "linux-vdso.so.1") == 0) {
+  if (strcmp(name, VDSO_NAME) == 0) {
     /* This is an in-kernel library, filter it out. */
     return true;
   }
