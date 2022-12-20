@@ -14,12 +14,16 @@
 ### block call_orig
 ###   if func in ['signal', 'SYS_signal', 'sigset']
   if (signal_is_wrappable(signum)) {
+###     if func in ['signal', 'sigset']
     sighandler_t old_orig_signal_handler = (sighandler_t)orig_signal_handlers[signum - 1];
-    orig_signal_handlers[signum - 1] = (void (*)(void))handler;
+###     else
+    long int old_orig_signal_handler = (long int)orig_signal_handlers[signum - 1];
+###     endif
     sighandler_t new_signal_handler =
         (handler == SIG_IGN || handler == SIG_DFL) ? handler : wrapper_signal_handler_1arg;
+    orig_signal_handlers[signum - 1] = (void (*)(void))handler;
     ret = ic_orig_{{ func }}(signum, new_signal_handler);
-    if (ret == wrapper_signal_handler_1arg) {
+    if ((void (*)(int))ret == wrapper_signal_handler_1arg) {
       ret = old_orig_signal_handler;
     }
   } else {

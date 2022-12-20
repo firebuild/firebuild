@@ -1823,7 +1823,10 @@ generate("int", "fexecve", "int fd, char *const argv[], char *const envp[]",
 
 # Signal handling
 # FIXME SYS_osf_signal, SYS_osf_old_sigsetmask, SYS_osf_old_sigaction
-generate("sighandler_t", ["signal", "SYS_signal", "sigset"], "int signum, sighandler_t handler",
+generate("sighandler_t", ["signal", "sigset"], "int signum, sighandler_t handler",
+         tpl="signal",
+         success="1")
+generate("long int", ["SYS_signal"], "int signum, sighandler_t handler",
          tpl="signal",
          success="1")
 generate("int", ["sigaction", "SYS_sigaction"], "int signum, const struct sigaction *act, struct sigaction *oldact",
