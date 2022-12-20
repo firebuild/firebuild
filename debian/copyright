@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: firebuild
-Upstream-Contact: info@firebuild.io
-Source: https://firebuild.io
+Upstream-Contact: info@firebuild.com
+Source: https://firebuild.com
 
 Files: *
 Copyright: 2022 Firebuild Inc.
