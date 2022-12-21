@@ -7,6 +7,7 @@
 
 #define _GNU_SOURCE
 #include <dirent.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -120,7 +121,7 @@ int main() {
   }
 
   fd = open("test_directory", O_RDWR | O_TMPFILE, 0744);
-  if (fd == -1) {
+  if (fd == -1 && errno != ENOTSUP) {
     perror("open(..., O_TMPFILE)" LOC);
     exit(1);
   }
