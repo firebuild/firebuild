@@ -21,8 +21,12 @@ int main() {
   int fd1, fd2;
   fd1 = open(".", O_RDWR | O_TMPFILE, 0644);
   if (fd1 == -1) {
-    perror("open" LOC);
-    exit(1);
+    if (errno == ENOTSUP) {
+      return 0;
+    } else {
+      perror("open" LOC);
+      exit(1);
+    }
   }
   fd2 = open("integration.bats", O_RDWR);
   if (fd2 == -1) {
