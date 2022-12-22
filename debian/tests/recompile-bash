@@ -4,6 +4,8 @@ set -e
 
 echo debconf firebuild/license-accepted select true | debconf-set-selections
 apt-get -yqq install firebuild
+firebuild --version
+
 for i in 1 2; do
     rm -rf bash-*
     apt-get source bash 2>&1
