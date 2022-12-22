@@ -73,7 +73,6 @@ jobs:
     container: ubuntu:jammy
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
     - name: disable-apt-docker-clean
       run: |
         # don't clean apt archive cache to make deb caching work
@@ -96,14 +95,24 @@ jobs:
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
         echo $TZ > /etc/timezone
         apt-get install -y eatmydata
-        eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc
+        eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc git
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: build-out-of-tree
       run: |
         export PATH=/usr/lib/ccache:$PATH
+        # avoid git error about repository ownership
+        git config --global --add safe.directory $PWD
         mkdir build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
         make -j2
+        # Version should be set in the source before tagging a release,
+        # then the version should be unset right in the next commit.
+        BUILT_VERSION=$(src/firebuild/firebuild --version | head -n1 | cut -d" "  -f2)
+        GIT_VERSION=$(git describe --tags  | sed s/^v//)
+        dpkg --compare-versions $BUILT_VERSION ge $GIT_VERSION
     - name: build-in-tree
       run: |
         export PATH=/usr/lib/ccache:$PATH
