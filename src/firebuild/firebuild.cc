@@ -90,6 +90,7 @@ static void usage() {
          "   -o --option=key+=val      Append to an array of scalars in the config\n"
          "   -o --option=key-=val      Remove from an array of scalars in the config\n"
          "   -s --show-stats           Show cache hit statistics.\n"
+         "   -z --zero-stats           Zero cache hit statistics.\n"
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
          "                             to let users find unintercepted calls using\n"
          "                             strace or ltrace. This works in debug builds only.\n"
@@ -196,7 +197,7 @@ int main(const int argc, char *argv[]) {
   char *directory = NULL;
   std::list<std::string> config_strings = {};
   int c;
-  bool gc = false, print_stats = false;
+  bool gc = false, print_stats = false, reset_stats = false;
   /* init global data */
   firebuild::cfg = new libconfig::Config();
 
@@ -214,12 +215,13 @@ int main(const int argc, char *argv[]) {
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
       {"show-stats",           no_argument,       0, 's' },
+      {"zero-stats",           no_argument,       0, 'z' },
       {"insert-trace-markers", no_argument,       0, 'i' },
       {"version",              no_argument,       0, 'v' },
       {0,                                0,       0,  0  }
     };
 
-    c = getopt_long(argc, argv, "c:C:d:D:r::o:ghis",
+    c = getopt_long(argc, argv, "c:C:d:D:r::o:ghisz",
                     long_options, &option_index);
     if (c == -1)
       break;
@@ -294,6 +296,10 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_SUCCESS);
       break;
 
+    case 'z':
+      reset_stats = true;
+      break;
+
     default:
       usage();
       exit(EXIT_FAILURE);
@@ -301,7 +307,7 @@ int main(const int argc, char *argv[]) {
   }
 
   if (optind >= argc) {
-    if (!gc && !print_stats) {
+    if (!gc && !print_stats && !reset_stats) {
       usage();
       exit(EXIT_FAILURE);
     }
@@ -321,6 +327,9 @@ int main(const int argc, char *argv[]) {
   /* Initialize the cache */
   firebuild::ExecedProcessCacher::init(firebuild::cfg);
 
+  if (reset_stats) {
+    firebuild::execed_process_cacher->reset_stored_stats();
+  }
   if (optind >= argc) {
     if (gc) {
       firebuild::execed_process_cacher->gc();

@@ -1623,6 +1623,14 @@ void ExecedProcessCacher::add_stored_stats() {
   }
 }
 
+void ExecedProcessCacher::reset_stored_stats() {
+  const std::string stats_file = cache_dir_ + "/" + kCacheStatsFile;
+  if (unlink(stats_file.c_str()) == -1 && errno != ENOENT) {
+    fb_perror("removing stats file failed");
+    exit(EXIT_FAILURE);
+  }
+}
+
 void ExecedProcessCacher::update_stored_stats() {
   // FIXME(rbalint) There is a slight chance for two parallel builds updating the stats at the
   // same time making them inaccurate.

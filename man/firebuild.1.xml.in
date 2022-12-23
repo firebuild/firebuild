@@ -181,6 +181,16 @@ SOFTWARE.
       </varlistentry>
       <varlistentry>
 	<term>
+	  <option>-z</option>, <option>--zero-stats</option>
+	</term>
+	<listitem>
+	  <para>
+            Zero cache hit statistics before performing any other action.
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
 	  <option>-i</option>, <option>--insert-trace-markers</option>
 	</term>
 	<listitem>

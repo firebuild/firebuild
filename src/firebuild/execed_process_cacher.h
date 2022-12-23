@@ -80,6 +80,7 @@ class ExecedProcessCacher {
   void not_shortcutting() {if (!no_fetch_) not_shortcutting_++;}
   /** Add stored hit statistics and cache size to current run's counters. */
   void add_stored_stats();
+  void reset_stored_stats();
   void set_self_cpu_time_ms(unsigned int time_ms) {
     self_cpu_time_ms_ = time_ms;
   }
