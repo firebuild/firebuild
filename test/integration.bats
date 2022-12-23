@@ -392,7 +392,7 @@ setup() {
 
 @test "stats" {
   # Populate the cache
-  result=$(./run-firebuild -- bash -c 'ls integration.bats')
+  result=$(./run-firebuild -z -- bash -c 'ls integration.bats')
   result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -- bash -c 'ls integration.bats')
   # Use stats for current run
   result=$(./run-firebuild -s bash -c 'ls integration.bats' | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
@@ -403,4 +403,9 @@ setup() {
   # ... and without --gc
   result=$(./run-firebuild -s | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
   assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 1 / 4 (25.00 %%)\n Misses: 3\n Uncacheable: 1\n GC runs: 1\nCache size: N kB\nSaved CPU time: N ms\n')"
+  result=$(./run-firebuild -z)
+  assert_streq "$result" ""
+  assert_streq "$(strip_stderr stderr)" ""
+  result=$(./run-firebuild -s | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
+  assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 0 / 0 (0.00 %%)\n Misses: 0\n Uncacheable: 0\n GC runs: 0\nCache size: N kB\nSaved CPU time: N ms\n')"
 }
