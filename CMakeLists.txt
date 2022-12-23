@@ -4,8 +4,10 @@ project(Firebuild C CXX)
 
 include(CMakeOptions.txt)
 
-# Set in tagged commits only
-set(FIREBUILD_VERSION "0.2.9.1")
+if (NOT DEFINED FIREBUILD_VERSION)
+  # Set in tagged commits only
+  #set(FIREBUILD_VERSION "0.2.9.1")
+endif()
 
 if (NOT DEFINED FIREBUILD_VERSION)
   execute_process(COMMAND git describe OUTPUT_VARIABLE FIREBUILD_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
