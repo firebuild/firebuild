@@ -30,19 +30,19 @@ between the builds.
 ### Ccache, sccache and other compiler wrappers
 
 Ccache works by having an understanding of how the C/C++ compiler works and it supports only the
-C/C++/Obj-C family of languages. Sccache adds Rust on top of that, but the concept is the same.
+C/C++/Obj-C family of languages. Sccache adds Rust on top of those, and the concept is the same.
 
 Firebuild supports accelerating any command that behaves reasonably well, like not downloading
 files from the network to produce output. As a result you can accelerate the linker (even with LTO)
-, or the configure steps of C/C++ builds, which together made it consistently beat ccache in
-[our testing](https://github.com/firebuild/firebuild-infra/pull/59).
+, or the configure and code generation steps of C/C++ project builds, which together made it
+consistently beat ccache in [our testing](https://github.com/firebuild/firebuild-infra/pull/59).
 
-Firebuild also supports many other compilers, such as the Fortran, Java (including Javadoc
+Firebuild also supports many other compilers, such as Fortran, Java (including Javadoc
 generation) and Scala compilers which are not accelerated by ccache.
 
 ### Bazel and similar build systems
 
-For Bazel you need to use and maintain the Bazel build system, while Firebuilds works with any
+Bazel requires maintaining the Bazel build system, while Firebuilds works with any
 build system that does not implement its own caching. You just need to prefix your build command
 with firebuild, like it is done for accelerating bash's build in the autopkgtest:
 [debian/tests/recompile-bash](debian/tests/recompile-bash)
