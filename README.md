@@ -32,6 +32,9 @@ Binaries for supported Ubuntu releases can be downloaded from the [official PPA]
     sudo add-apt-repository ppa:firebuild/stable
     sudo apt install firebuild
 
+If you would like to use `firebuild` in your GitHub pipeline there is a [GitHub Action](https://github.com/marketplace/actions/firebuild-for-github-actions) to do just that.
+
+
 ## Building from source
 
 For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0 or Valgrind earlier than 3.17.0):
