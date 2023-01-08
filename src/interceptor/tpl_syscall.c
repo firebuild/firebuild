@@ -32,16 +32,31 @@ long {{ func }} ({{ sig_str }}) {
 #include "interceptor/gen_impl_syscalls.c.inc"
 
     default: {
+      /* Warm up */
+      int saved_errno = errno;
+      if (!ic_init_done) fb_ic_load();
+      bool i_am_intercepting = intercepting_enabled;  /* use a copy, in case another thread modifies it */
+      (void)i_am_intercepting;  /* sometimes it's unused, silence warning */
+
 #ifdef FB_EXTRA_DEBUG
       if (insert_trace_markers) {
         char debug_buf[256];
         snprintf(debug_buf, sizeof(debug_buf), "%s%s{{ debug_before_fmt }}",
-            "[not intercepting] ",
+            i_am_intercepting ? "" : "[not intercepting] ",
             "{{ func }}"{{ debug_before_args }});
         insert_begin_marker(debug_buf);
       }
 #endif
 
+      /* Notify the supervisor */
+      bool i_locked = false;  /* "i" as in "me, myself and I" */
+      if (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_{{ func }}[number]) {
+        /* Grabbing the global lock (unless it's already ours, e.g. we're in a signal handler) */
+        if (i_am_intercepting) {
+          grab_global_lock(&i_locked, "{{ func }}");
+        }
+        /* Global lock grabbed */
+      }
       /* Pass on several long parameters unchanged, see #178. */
       va_list ap_pass;
       va_start(ap_pass, number);
@@ -54,18 +69,39 @@ long {{ func }} ({{ sig_str }}) {
       long arg7 = va_arg(ap_pass, long);
       long arg8 = va_arg(ap_pass, long);
       va_end(ap_pass);
-      long ret = get_ic_orig_{{ func }}()(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 
+      errno = saved_errno;
+      long ret = get_ic_orig_{{ func }}()(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+      saved_errno = errno;
+
+      if (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_{{ func }}[number]) {
+        if (number >= 0 && number < IC_CALLED_SYSCALL_SIZE) {
+          ic_called_{{ func }}[number] = true;
+        }
+        FBBCOMM_Builder_gen_call ic_msg;
+        fbbcomm_builder_gen_call_init(&ic_msg);
+        char call[32];
+        snprintf(call, sizeof(call), "{{ func }}(%ld)", number);
+        fbbcomm_builder_gen_call_set_call(&ic_msg, call);
+        fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+
+        /* Releasing the global lock (if we grabbed it in this pass) */
+        if (i_locked) {
+          release_global_lock();
+        }
+        /* Global lock released */
+      }
 #ifdef FB_EXTRA_DEBUG
       if (insert_trace_markers) {
         char debug_buf[256];
         snprintf(debug_buf, sizeof(debug_buf), "%s%s{{ debug_after_fmt }}",
-            "[not intercepting] ",
+            i_am_intercepting ? "" : "[not intercepting] ",
             "{{ func }}"{{ debug_after_args }});
         insert_end_marker(debug_buf);
       }
 #endif
 
+      errno = saved_errno;
       return ret;
     }
   }

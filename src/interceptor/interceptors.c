@@ -32,6 +32,7 @@
 void reset_interceptors() {
 /* Include the auto-generated resetting of the internal states */
 #include "interceptor/gen_reset.c"
+  memset(ic_called_syscall, false, sizeof(ic_called_syscall[0]) * IC_CALLED_SYSCALL_SIZE);
 }
 
 /* Include the auto-generated definitions of the get_ic_orig function pointers */
