@@ -94,6 +94,10 @@ extern fd_state ic_fd_states[];
 /** An uint64_t bitmap is used for delayed signals. */
 #define IC_WRAP_SIGRTMAX 64
 
+/** Called unknown syscalls */
+#define IC_CALLED_SYSCALL_SIZE 1024
+extern bool ic_called_syscall[];
+
 /** Resource usage at the process' last exec() */
 extern struct rusage initial_rusage;
 

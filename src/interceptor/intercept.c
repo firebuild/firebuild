@@ -60,6 +60,8 @@ int fb_sv_conn = -1;
 
 int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
 
+bool ic_called_syscall[IC_CALLED_SYSCALL_SIZE] = {0};
+
 /** Control for running the initialization exactly once */
 pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
 
