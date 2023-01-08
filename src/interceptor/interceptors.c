@@ -29,11 +29,6 @@
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/intercept.h"
 
-void init_interceptors() {
-/* Include the auto-generated initializations of the get_ic_orig function pointers */
-  reset_interceptors();
-}
-
 void reset_interceptors() {
 /* Include the auto-generated resetting of the internal states */
 #include "interceptor/gen_reset.c"
