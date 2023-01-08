@@ -821,7 +821,7 @@ static void fb_ic_init() {
 
   voidp_set_init(&popened_streams);
 
-  init_interceptors();
+  reset_interceptors();
 
   assert(thread_intercept_on == NULL);
   thread_intercept_on = "init";

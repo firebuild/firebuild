@@ -75,7 +75,6 @@ struct ustat;
 #endif
 #endif
 
-void init_interceptors();
 void reset_interceptors();
 
 /* Include the auto-generated declarations of the get_ic_orig function pointers,
