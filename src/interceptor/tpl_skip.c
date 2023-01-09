@@ -19,6 +19,17 @@
 {# Template for methods that we don't intercept.                      #}
 {# This is a standalone template, does not extend tpl.c.              #}
 {# ------------------------------------------------------------------ #}
-### if gen == 'decl.h'
+### if syscall
+###   if gen == 'impl_syscalls.c.inc'
+#ifdef {{ func }}  /* this is prone against typos in the syscall name, but handles older kernels */
+case {{ func }}: {
+  skip_interception = true;
+  goto default_syscall_handling;
+}
+#endif
+###   endif
+### else
+###   if gen == 'decl.h'
 #define get_ic_orig_{{ func }}() {{ func }}
+###   endif
 ### endif
