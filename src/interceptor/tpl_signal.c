@@ -33,12 +33,12 @@
     sighandler_t new_signal_handler =
         (handler == SIG_IGN || handler == SIG_DFL) ? handler : wrapper_signal_handler_1arg;
     orig_signal_handlers[signum - 1] = (void (*)(void))handler;
-    ret = get_ic_orig_{{ func }}()(signum, new_signal_handler);
+    ret = {{ call_ic_orig_func }}(signum, new_signal_handler);
     if ((void (*)(int))ret == wrapper_signal_handler_1arg) {
       ret = old_orig_signal_handler;
     }
   } else {
-    ret = get_ic_orig_{{ func }}()(signum, handler);
+    ret = {{ call_ic_orig_func }}(signum, handler);
   }
 ###   elif func in ['sigaction', 'SYS_sigaction']
   if (signal_is_wrappable(signum)) {
@@ -62,7 +62,7 @@
         wrapped_act.sa_handler = new_signal_handler;
       }
     }
-    ret = get_ic_orig_{{ func }}()(signum, act ? &wrapped_act : NULL, oldact);
+    ret = {{ call_ic_orig_func }}(signum, act ? &wrapped_act : NULL, oldact);
     if (ret == 0 && oldact != NULL) {
       if (oldact->sa_flags & SA_SIGINFO) {
         /* sa_sigaction, handler called with 3 args */
