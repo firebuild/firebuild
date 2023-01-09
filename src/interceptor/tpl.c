@@ -219,9 +219,11 @@ case {{ func }}: {
   }
 #endif
 
-###     if global_lock == 'before'
+###     block grab_lock
+###       if global_lock == 'before'
   {{ grab_lock_if_needed('i_am_intercepting') }}
-###     endif
+###       endif
+###     endblock grab_lock
 
 ###     block body
   bool success = false;
