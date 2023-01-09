@@ -35,6 +35,13 @@ bool ic_called_{{ func }};
 {{ super() }}
 ### endblock def_c
 
+### block grab_lock
+###       if global_lock == 'before'
+{% set grab_lock_condition = "i_am_intercepting && !ic_called_" + func %}
+  {{ grab_lock_if_needed(grab_lock_condition) }}
+###       endif
+### endblock grab_lock
+
 ### block send_msg
   /* Notify the supervisor */
   if (!ic_called_{{ func }}) {
