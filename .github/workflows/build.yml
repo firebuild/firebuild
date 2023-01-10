@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
         path: ~/.cache/debs
@@ -96,7 +96,7 @@ jobs:
         echo $TZ > /etc/timezone
         apt-get install -y eatmydata
         eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc git
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: build-out-of-tree
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
         path: ~/.cache/debs
@@ -164,7 +164,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
         path: ~/.cache/debs
@@ -205,7 +205,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
         path: ~/.cache/debs
@@ -252,7 +252,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions/cache@v3
       with:
         path: ~/.cache/debs
@@ -288,7 +288,7 @@ jobs:
       week: ${{ steps.week-of-year.outputs.week }} # map step output to job output
     timeout-minutes: 2
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: install-deps
       run: |
         # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
