@@ -298,4 +298,4 @@ jobs:
       # this will be used by other jobs to invalidate cache after a week
     - name: week of year
       id: week-of-year
-      run: echo "::set-output name=week::$(/bin/date -u "+%V")"
+      run: echo "week=$(/bin/date -u "+%V")" >> $GITHUB_OUTPUT
