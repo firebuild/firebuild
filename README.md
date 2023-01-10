@@ -25,6 +25,20 @@ The first build is typically a 5-10% slower due to the overhead of analyzing the
 the cache. Successive builds can be 5-20 times or even faster depending on the project and the changes
 between the builds.
 
+### Improving hit rate
+
+If the hit rate (check with `firebuild -s`) is not at the expected levels run firebuild with `-d proc`
+to see why particular commands can't be stored to the cache or with `-d shortcut` to see what prevents
+shortcutting of particular commands.
+
+Firebuild can also generate a report about the whole build process with `firebuild -r <build command>`
+that helps finding the slowest parts of the build and also helps finding what could not be shortcut.
+
+#### Clang PCH's embedded timestamps prevents shortcutting
+
+Clang embeds timestamps in precompiled headers (PCHs) by default on Linux in the PCH generation
+steps (`-emit-pch`). To let Firebuild cache PCHs use `-Xclang -fno-pch-timestamp` with `clang`.
+
 ## How it compares to other build accelerators?
 
 ### Ccache, sccache and other compiler wrappers
@@ -84,7 +98,7 @@ For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0 or Valgrind earlier tha
 Install the build dependencies:
 
     sudo apt update
-    sudo apt install cmake bats graphviz libconfig++-dev node-d3 libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev moreutils python3-jinja2 fakeroot
+    sudo apt install clang cmake bats graphviz libconfig++-dev node-d3 libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev moreutils python3-jinja2 fakeroot
 
 Build:
 

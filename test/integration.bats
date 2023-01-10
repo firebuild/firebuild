@@ -409,3 +409,23 @@ setup() {
   result=$(./run-firebuild -s | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
   assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 0 / 0 (0.00 %%)\n Misses: 0\n Uncacheable: 0\n GC runs: 0\nCache size: N kB\nSaved CPU time: N ms\n')"
 }
+
+@test "clang pch" {
+  # this test is very slow under valgrind
+  ! with_valgrind || skip
+  for no_pch_param in "" "-fno-pch-timestamp"; do
+    for i in 1 2; do
+      rm -f test_pch.h.pch test_pch.*.s
+      result=$(./run-firebuild -- clang -cc1 ${no_pch_param} $TEST_SOURCE_DIR/test_pch.h -emit-pch -o test_pch.h.pch)
+      assert_streq "$result" ""
+      assert_streq "$(strip_stderr stderr)" ""
+      # not reproducible to check test_pch.h.pch's embedded timestamp again
+      result=$(./run-firebuild -- clang -cc1 -include-pch test_pch.h.pch $TEST_SOURCE_DIR/test_pch.c -o test_pch.$i.s)
+      assert_streq "$result" ""
+      assert_streq "$(strip_stderr stderr)" ""
+      sleep 0.01
+      touch test_pch.h
+      rm -f test_pch.h.pch test_pch.*.s
+    done
+  done
+}
