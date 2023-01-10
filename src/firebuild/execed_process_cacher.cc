@@ -599,6 +599,26 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     return;
   }
 
+  // TODO(rbalint) narrow down the cases when all args are checked
+  const std::vector<std::string>& args = proc->args();
+  for (const auto& arg : args) {
+    if (arg == "-emit-pch") {
+      bool fno_pch_timestamp_found = false;
+      for (const auto& arg_inner_loop : args) {
+        if (arg_inner_loop == "-fno-pch-timestamp") {
+          fno_pch_timestamp_found = true;
+          break;
+        }
+      }
+      if (!fno_pch_timestamp_found) {
+        proc->disable_shortcutting_bubble_up(
+            "Clang's -emit-pch without -Xclang -fno-pch-timestamp prevents shortcutting");
+        return;
+      }
+      break;
+    }
+  }
+
   /* Go through the files the process opened for reading and/or writing.
    * Construct the cache entry parts describing the initial and the final state
    * of them. */

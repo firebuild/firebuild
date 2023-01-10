@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Balint Reczey <balint@balintreczey.hu>
 Build-Depends: bats,
                bc,
+               clang,
                cmake (>= 3.13),
                debhelper-compat (= 12),
                docbook-xsl,

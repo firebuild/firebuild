@@ -4,6 +4,7 @@ export PATH=@CMAKE_BINARY_DIR@/src/firebuild:${PATH/ccache/ccache-DISABLED/}
 export FIREBUILD_CACHE_DIR=@CMAKE_CURRENT_BINARY_DIR@/test_cache_dir
 export GCOV_PREFIX=@CMAKE_BINARY_DIR@/gcov
 export GCOV_PREFIX_STRIP=$(echo @CMAKE_BINARY_DIR@ | tr -dc / | wc -c)
+export TEST_SOURCE_DIR=@CMAKE_SOURCE_DIR@/test
 
 function strip_stderr () {
     awk '/^==[0-9]*== $/ {next} /FILE DESCRIPTORS: 0 open at exit/ {next} {print}' < $1
