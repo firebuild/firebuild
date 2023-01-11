@@ -10,7 +10,7 @@ for i in 1 2; do
     rm -rf bash-*
     apt-get source bash 2>&1
     apt-get -yqq build-dep bash
-    (cd bash-* && /usr/bin/time -f "real${i}=%e\nuser${i}=%U\nsys${i}=%S" -a --output=../time.log firebuild -- sh -c "./configure && make -j4")
+    (cd bash-* && /usr/bin/time -f "real${i}=%e\nuser${i}=%U\nsys${i}=%S" -a --output=../time.log firebuild -s -- sh -c "./configure && make -j4")
 done
 echo "Build times:"
 cat time.log
