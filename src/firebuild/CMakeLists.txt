@@ -18,7 +18,7 @@ endif()
 find_package(tsl-hopscotch-map REQUIRED)
 
 if (SANITIZE)
-  set(SANITIZE_SUPERVISOR_LINK_OPTIONS -fsanitize=address -fsanitize=undefined)
+  set(SANITIZE_SUPERVISOR_LINK_OPTIONS -static-libasan -fsanitize=address -fsanitize=undefined)
 endif()
 
 add_custom_command(
