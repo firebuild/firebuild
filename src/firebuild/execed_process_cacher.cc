@@ -599,8 +599,6 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     return;
   }
 
-  Hash fingerprint = fingerprints_[proc];
-
   /* Go through the files the process opened for reading and/or writing.
    * Construct the cache entry parts describing the initial and the final state
    * of them. */
@@ -913,6 +911,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   }
 
   /* Store in the cache everything about this process. */
+  const Hash fingerprint = fingerprints_[proc];
   obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg);
 }
 
