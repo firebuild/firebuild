@@ -81,7 +81,7 @@ setup() {
 
 @test "orphan processes" {
   for i in 1 2; do
-    if ! set | grep -q valgrind; then
+    if ! with_valgrind; then
       result=$(./run-firebuild -o 'processes.dont_shortcut += "sleep"' -- bash -c 'for i in $(seq 10); do (sleep 0.3; ls integration.bats; false)& done; /bin/echo foo' | sort)
     else
       result=$(./run-firebuild -o 'processes.dont_shortcut += "sleep"' -- bash -c 'for i in $(seq 10); do (sleep 1; ls integration.bats; false)& done; /bin/echo foo' | sort)
@@ -218,7 +218,7 @@ setup() {
     strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBXXX.SO' from LD_PRELOAD cannot be preloaded"
     strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBYYY.SO' from LD_PRELOAD cannot be preloaded"
     # Valgrind finds an error in fakeroot https://bugs.debian.org/983272
-    if ! set | grep -q valgrind; then
+    if ! with_valgrind; then
       result=$(fakeroot ./run-firebuild -- id -u)
       assert_streq "$result" "0"
       result=$(./run-firebuild -- fakeroot id -u)
@@ -308,7 +308,7 @@ setup() {
   for i in 1 2; do
     # Valgrind ignores the limit bumped internally in firebuild
     # See: https://bugs.kde.org/show_bug.cgi?id=432508
-    result=$(set | grep -q valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait')
+    result=$(with_valgrind && ulimit -S -n 8000 ; ./run-firebuild -- bash -c 'for i in $(seq 2000); do sleep 1 & done;  wait')
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
   done

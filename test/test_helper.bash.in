@@ -14,3 +14,7 @@ function assert_streq () {
     echo "assert_streq: [ \"$1\" = \"$2\" ]"
     [ "$1" = "$2" ]
 }
+
+function with_valgrind () {
+    set | grep -q '^FIREBUILD_PREFIX_CMD=.*valgrind'
+}
