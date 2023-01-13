@@ -46,7 +46,7 @@
 ### block call_orig
   /* Fix up the environment */
   void *env_fixed_up;
-  if (env_needs_fixup((char **) envp)) {
+  if (i_am_intercepting && env_needs_fixup((char **) envp)) {
     int env_fixup_size = get_env_fixup_size((char **) envp);
     env_fixed_up = alloca(env_fixup_size);
     env_fixup((char **) envp, env_fixed_up);
