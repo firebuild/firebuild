@@ -40,23 +40,11 @@
 ### endblock before
 
 ### block call_orig
-  /* Fix up the environment */
-  /* This is racy because it operates on the global "environ", but is probably good enough. */
-  /* A proper solution would require to prefix "cmd" with a wrapper that fixes it up, but that could be slow. */
-  bool do_env_fixup = false;
-  char **environ_saved = environ;
-  if (env_needs_fixup(environ)) {
-    do_env_fixup = true;
-    int env_fixup_size = get_env_fixup_size(environ);
-    environ = alloca(env_fixup_size);
-    env_fixup(environ_saved, environ);
-  }
+  ENVIRON_SAVE_AND_FIXUP(did_env_fixup, environ_saved);
 
   {{ super() }}
 
-  if (do_env_fixup) {
-    environ = environ_saved;
-  }
+  ENVIRON_RESTORE(did_env_fixup, environ_saved);
 ### endblock call_orig
 
 ### block after

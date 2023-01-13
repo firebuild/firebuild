@@ -51,6 +51,31 @@ int get_env_fixup_size(char **env);
 void env_fixup(char **env, void *buf);
 
 /**
+ * Fix up the environment
+ *
+ * This is racy because it operates on the global "environ", but is probably good enough.
+ * A proper solution would require to prefix "cmd" with a wrapper that fixes it up, but that could
+ * be slow. */
+#define ENVIRON_SAVE_AND_FIXUP(did_env_fixup, environ_saved)    \
+  bool did_env_fixup = false;                                   \
+  char **environ_saved = environ;                               \
+  if (env_needs_fixup(environ)) {                               \
+    did_env_fixup = true;                                       \
+    int env_fixup_size = get_env_fixup_size(environ);           \
+    environ = alloca(env_fixup_size);                           \
+    env_fixup(environ_saved, environ);                          \
+  }                                                             \
+  do {                                                          \
+  } while (0)
+
+#define ENVIRON_RESTORE(did_env_fixup, environ_saved)   \
+  if (did_env_fixup) {                                  \
+    environ = environ_saved;                            \
+  }                                                     \
+  do {                                                  \
+  } while (0)
+
+/**
  * Remove environment variables injected by firebuild, to disable interception of children.
  */
 void env_purge(char **env);
