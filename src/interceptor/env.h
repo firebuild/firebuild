@@ -59,7 +59,7 @@ void env_fixup(char **env, void *buf);
 #define ENVIRON_SAVE_AND_FIXUP(did_env_fixup, environ_saved)    \
   bool did_env_fixup = false;                                   \
   char **environ_saved = environ;                               \
-  if (env_needs_fixup(environ)) {                               \
+  if (i_am_intercepting && env_needs_fixup(environ)) {          \
     did_env_fixup = true;                                       \
     int env_fixup_size = get_env_fixup_size(environ);           \
     environ = alloca(env_fixup_size);                           \

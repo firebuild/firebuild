@@ -98,11 +98,10 @@ static bool ld_preload_needs_fixup(char **env) {
 bool env_needs_fixup(char **env) {
   /* FB_SYSTEM_LOCATIONS and FB_IGNORE_LOCATIONS are not fixed up because they are not needed
    * for correctness, just for improving performance a bit. */
-  return intercepting_enabled &&
-      (fb_insert_trace_markers_needs_fixup(env) ||
-       fb_socket_needs_fixup(env) ||
-       ld_library_path_needs_fixup(env) ||
-       ld_preload_needs_fixup(env));
+  return (fb_insert_trace_markers_needs_fixup(env) ||
+          fb_socket_needs_fixup(env) ||
+          ld_library_path_needs_fixup(env) ||
+          ld_preload_needs_fixup(env));
 }
 
 int get_env_fixup_size(char **env) {
