@@ -403,6 +403,21 @@ static inline void thread_signal_danger_zone_leave() {
 void grab_global_lock(bool *i_locked, const char * const function_name);
 void release_global_lock();
 
+/**
+ * Notify the supervisor after a fork(). Do it from the first registered pthread_atfork
+ * handler so that it happens before other such handlers are run.
+ * See #819 for further details.
+ */
+void atfork_parent_handler(void);
+
+/**
+ * Reconnect to the supervisor and reinitialize other stuff in the child
+ * after a fork(). Do it from the first registered pthread_atfork
+ * handler so that it happens before other such handlers are run.
+ * See #237 for further details.
+ */
+void atfork_child_handler(void);
+
 extern void fb_ic_load();
 extern void handle_exit();
 /**
