@@ -23,8 +23,9 @@
 
 namespace firebuild {
 
-ExecedProcessEnv::ExecedProcessEnv(std::vector<std::shared_ptr<FileFD>>* fds)
-    : argv_(), launch_type_(LAUNCH_TYPE_OTHER), type_flags_(), fds_(fds) { }
+ExecedProcessEnv::ExecedProcessEnv(std::vector<std::shared_ptr<FileFD>>* fds,
+                                   LaunchType launch_type)
+    : argv_(), launch_type_(launch_type), type_flags_(), fds_(fds) { }
 
 void ExecedProcessEnv::set_sh_c_command(const std::string &cmd) {
   argv_.push_back("sh");

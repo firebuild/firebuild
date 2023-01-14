@@ -501,7 +501,7 @@ static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t
       proc_tree->insert(parent);
 
       /* Now we can ack the previous posix_spawn()'s second message. */
-      if (launch_type == LAUNCH_TYPE_OTHER) {
+      if (launch_type == LAUNCH_TYPE_POSIX_SPAWN) {
         proc_tree->AckParent(unix_parent->pid());
       }
     }
@@ -594,10 +594,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_system *>(fbbcomm_buf);
       assert_null(proc->system_child());
       /* system(cmd) launches a child of argv = ["sh", "-c", cmd] */
-      auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false));
+      auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false), LAUNCH_TYPE_SYSTEM);
       // FIXME what if !has_cmd() ?
       expected_child->set_sh_c_command(ic_msg->get_cmd());
-      expected_child->set_launch_type(LAUNCH_TYPE_SYSTEM);
       proc->set_expected_child(expected_child);
       break;
     }
@@ -635,10 +634,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       int type_flags = ic_msg->get_type_flags();
       auto fds = proc->pass_on_fds(false);
       /* popen(cmd) launches a child of argv = ["sh", "-c", cmd] */
-      auto expected_child = new ExecedProcessEnv(fds);
+      auto expected_child = new ExecedProcessEnv(fds, LAUNCH_TYPE_POPEN);
       // FIXME what if !has_cmd() ?
       expected_child->set_sh_c_command(ic_msg->get_cmd());
-      expected_child->set_launch_type(LAUNCH_TYPE_POPEN);
       expected_child->set_type_flags(type_flags);
       proc->set_expected_child(expected_child);
 
@@ -703,7 +701,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     }
     case FBBCOMM_TAG_posix_spawn: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_posix_spawn *>(fbbcomm_buf);
-      auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false));
+      auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false), LAUNCH_TYPE_POSIX_SPAWN);
       std::vector<std::string> argv = ic_msg->get_arg_as_vector();
       expected_child->set_argv(argv);
       proc->set_expected_child(expected_child);
