@@ -31,6 +31,7 @@ namespace firebuild {
 typedef enum {
   LAUNCH_TYPE_SYSTEM,
   LAUNCH_TYPE_POPEN,
+  LAUNCH_TYPE_POSIX_SPAWN,
   LAUNCH_TYPE_OTHER
 } LaunchType;
 
@@ -41,7 +42,7 @@ typedef enum {
  */
 class ExecedProcessEnv {
  public:
-  explicit ExecedProcessEnv(std::vector<std::shared_ptr<FileFD>>* fds);
+  ExecedProcessEnv(std::vector<std::shared_ptr<FileFD>>* fds, LaunchType launch_type);
   ~ExecedProcessEnv() {delete fds_;}
 
   std::vector<std::string>& argv() {return argv_;}
@@ -52,7 +53,6 @@ class ExecedProcessEnv {
     fds_ = nullptr;
     return ret;
   }
-  void set_launch_type(LaunchType value) {launch_type_ = value;}
   LaunchType launch_type() const {return launch_type_;}
   void set_type_flags(int type_flags) {type_flags_ = type_flags;}
   int type_flags() const {return type_flags_;}
