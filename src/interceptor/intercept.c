@@ -614,12 +614,7 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
   return 0;
 }
 
-/**
- * Notify the supervisor after a fork(). Do it from the first registered pthread_atfork
- * handler so that it happens before other such handlers are run.
- * See #819 for further details.
- */
-static void atfork_parent_handler(void) {
+void atfork_parent_handler(void) {
   /* The variable i_am_intercepting from the intercepted fork() is
    * not available here, and storing it in a thread-global variable is
    * probably not worth the trouble. */
@@ -630,13 +625,7 @@ static void atfork_parent_handler(void) {
   }
 }
 
-/**
- * Reconnect to the supervisor and reinitialize other stuff in the child
- * after a fork(). Do it from the first registered pthread_atfork
- * handler so that it happens before other such handlers are run.
- * See #237 for further details.
- */
-static void atfork_child_handler(void) {
+void atfork_child_handler(void) {
   /* ic_pid still have parent process' pid */
   pid_t ppid = ic_pid;
   /* Reset, getrusage will report the correct self resource usage. */

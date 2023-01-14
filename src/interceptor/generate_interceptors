@@ -258,7 +258,7 @@ def generate(rettype, funcs, sig, **dict):
         exit(1)
 
   for func in funcs:
-    if func in generated:
+    if func in generated and func not in ["vfork", "SYS_vfork"]:
       print("generate_interceptors: Error: Already generated '" + func + "'", file=sys.stderr)
       exit(1)
     generated[func] = True
@@ -296,6 +296,12 @@ def skip(*list):
     generate('', func, '',
              tpl="skip")
 
+
+def glibc_ge(major, minor):
+  return "#if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ({}, {})".format(major, minor)
+
+def not_glibc_ge(major, minor):
+  return "#if !defined(__GLIBC_PREREQ) || !__GLIBC_PREREQ({}, {})".format(major, minor)
 
 # Initialize the output files with their headers.
 # Also truncate them before we'll reopen them plenty of times for appending.
@@ -1673,9 +1679,15 @@ generate("void", "SYS_exit_group", "int status",
 # Intercept fork() and variants
 generate("pid_t", ["fork", "SYS_fork"], "",
          tpl="fork")
-# NOTE: Mapping those to fork() breaks the ABI since the fork handlers were not supposed to run for those calls,
-#       OTOH the fork handlers notify the supervisor about the calls.
-generate("pid_t", ["vfork", "_Fork", "SYS_vfork"], "",
+generate("pid_t", ["_Fork"], "",
+         tpl="_fork")
+generate("pid_t", ["vfork", "SYS_vfork"], "",
+         ifdef_guard=glibc_ge(2, 34),
+         tpl="_fork")
+# NOTE: Mapping to fork() breaks the ABI since the fork handlers were not supposed to run
+#       OTOH the fork handlers notify the supervisor about the call.
+generate("pid_t", ["vfork", "SYS_vfork"], "",
+         ifdef_guard=not_glibc_ge(2, 34),
          tpl="fork")
 
 # Intercept system
