@@ -1543,11 +1543,14 @@ generate("int", ["ftruncate64", "SYS_ftruncate64"], "int fd, off64_t len",
          msg_skip_fields=["len"])
 
 # Intercept the fallocate() family
-# TODO(rbalint) handle them as writes
 generate("int", "posix_fallocate", "int fd, off_t offset, off_t len",
-         tpl="once")
+         is_pwrite="true",
+         msg_skip_fields=["offset", "len"],
+         tpl="write")
 generate("int", ["fallocate", "SYS_fallocate"], "int fd, int mode, off_t offset, off_t len",
-         tpl="once")
+         is_pwrite="true",
+         msg_skip_fields=["mode", "offset", "len"],
+         tpl="write")
 
 # Intercept the mkstemp family
 # Note: these update the pathname template in place.
