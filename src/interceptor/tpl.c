@@ -39,6 +39,8 @@
 {#                       '<condition>' (default: 'false')             #}
 {#  after_send_lines:    Things to place after sending msg            #}
 {#  diagnostic_ignored:  GCC diagnostic ignored for the function      #}
+{#  ifdef_guard          #if or #ifdef guard wrapping declarations,   #}
+{#                       definitions and other func related parts     #}
 {# ------------------------------------------------------------------ #}
 {# Jinja lacks native support for generating multiple files.          #}
 {# Work it around by running multiple times, each time with a         #}
@@ -65,18 +67,28 @@
 {# --- Template for 'decl.h' ---------------------------------------- #}
 {#                                                                    #}
 ### if gen == 'decl.h'
+###   if ifdef_guard
+{{ ifdef_guard }}
+###   endif
 ###   block decl_h
 ###     if not syscall
 extern {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }});
 ###     else
 #define ic_orig_{{ func }}(...) get_ic_orig_syscall()({{ func }} __VA_OPT__(,) __VA_ARGS__)
 ###     endif
+
 ###   endblock decl_h
+###   if ifdef_guard
+#endif
+###   endif
 ### endif
 {#                                                                    #}
 {# --- Template for 'def.c' ----------------------------------------- #}
 {#                                                                    #}
 ### if gen == 'def.c'
+###   if ifdef_guard
+{{ ifdef_guard }}
+###   endif
 ###   block def_c
 ###     if not syscall
 inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
@@ -88,18 +100,29 @@ inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
 }
 ###     endif
 ###   endblock def_c
+###   if ifdef_guard
+#endif
+###   endif
 ### endif
 {#                                                                    #}
 {# --- Template for 'reset.c' --------------------------------------- #}
 {#                                                                    #}
 ### if gen == 'reset.c'
+###   if ifdef_guard
+{{ ifdef_guard }}
+###   endif
 ###   block reset_c
 ###   endblock reset_c
+###   if ifdef_guard
+#endif
+###   endif
 ### endif
 {#                                                                    #}
 {# --- Template for 'list.txt' -------------------------------------- #}
 {#                                                                    #}
 ### if gen == 'list.txt'
+{# Since ifdef_guard-s are not working here list.txt may have         #}
+{# duplicates.                                                        #}
 ###   block list_txt
 ###     if not syscall
 {{ func }}
@@ -138,6 +161,10 @@ inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
 
 /* Generated from {{ tpl }} */
 ###   block impl_c
+
+###     if ifdef_guard
+{{ ifdef_guard }}
+###     endif
 
 ###     if not syscall
 /* Make the intercepting function visible */
@@ -374,6 +401,9 @@ break;
 #endif  /* {{ func }} */
 ###     endif
 
+###     if ifdef_guard
+#endif
+###     endif
 
 ###   endblock impl_c
 ### endif
