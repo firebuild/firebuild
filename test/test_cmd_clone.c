@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <sched.h>
 #include <stdio.h>
-#include <sys/mman.h>
+#include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -43,14 +43,21 @@ int main(int argc, char *argv[]) {
   }
 
   char *stack, *stack_top;
-  stack = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK,
-               -1, 0);
-  if (stack == MAP_FAILED) {
-    perror("mmap");
+  stack = malloc(STACK_SIZE);
+  if (!stack) {
+    perror("malloc");
     return 1;
   }
   stack_top = stack + STACK_SIZE;
-  int ret = clone(child, stack_top, CLONE_PTRACE|SIGCHLD, &argv[1]);
+  /* This clone can be intercepted. */
+  int ret = clone(child, stack_top, CLONE_VFORK|SIGCHLD, &argv[1]);
+  if (ret == -1) {
+    errno = ret;
+    perror("clone");
+    return 1;
+  }
+  /* This one disables interception. */
+  ret = clone(child, stack_top, CLONE_PTRACE|SIGCHLD, &argv[1]);
   if (ret == -1) {
     errno = ret;
     perror("clone");
