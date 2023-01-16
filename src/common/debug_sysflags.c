@@ -372,7 +372,9 @@ void debug_signum(FILE *f, int signum) {
   DEBUG_VALUE_VALUE(f, signum, SIGPIPE);
   DEBUG_VALUE_VALUE(f, signum, SIGALRM);
   DEBUG_VALUE_VALUE(f, signum, SIGTERM);
+#ifdef SIGSTKFLT
   DEBUG_VALUE_VALUE(f, signum, SIGSTKFLT);
+#endif
   DEBUG_VALUE_VALUE(f, signum, SIGCHLD);
   DEBUG_VALUE_VALUE(f, signum, SIGCONT);
   DEBUG_VALUE_VALUE(f, signum, SIGSTOP);
