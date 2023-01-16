@@ -314,19 +314,30 @@ void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_leave();
 }
 
-void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
+uint16_t fb_fbbcomm_send_msg_with_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
   thread_signal_danger_zone_enter();
 
   uint16_t ack_num = get_next_ack_id();
   fb_send_msg(fd, ic_msg, ack_num);
 
-#ifndef NDEBUG
+  return ack_num;
+}
+
+void fb_fbbcomm_check_ack(int fd, uint16_t ack_num) {
+#ifdef NDEBUG
+  (void)ack_num;
+#else
   uint16_t ack_num_resp =
 #endif
       fb_recv_ack(fd);
   assert(ack_num_resp == ack_num);
 
   thread_signal_danger_zone_leave();
+}
+
+void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd) {
+  uint16_t ack_num = fb_fbbcomm_send_msg_with_ack(ic_msg, fd);
+  fb_fbbcomm_check_ack(fd, ack_num);
 }
 
 static void send_pre_open_internal(const int dirfd, const char* pathname, bool need_ack) {
@@ -384,6 +395,16 @@ void pre_clone_disable_interception(const int flags, bool *i_locked) {
     release_global_lock();
     *i_locked = false;
   }
+}
+
+int clone_trampoline(void *arg) {
+  clone_trampoline_arg *trampoline_arg = (clone_trampoline_arg *)arg;
+  thread_signal_danger_zone_leave();
+  if (trampoline_arg->i_locked) {
+    release_global_lock();
+  }
+  atfork_child_handler();
+  return(trampoline_arg->orig_fn(trampoline_arg->orig_arg));
 }
 
 size_t make_canonical(char *path, size_t original_length) {

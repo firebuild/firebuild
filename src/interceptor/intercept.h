@@ -87,6 +87,12 @@ typedef struct {
   bool notify_on_seek:1;
 } fd_state;
 
+typedef struct {
+  int (*orig_fn)(void *);
+  void *orig_arg;
+  bool i_locked;
+} clone_trampoline_arg;
+
 /** file fd states */
 #define IC_FD_STATES_SIZE 4096
 extern fd_state ic_fd_states[];
@@ -127,6 +133,14 @@ extern pthread_mutex_t ic_global_lock;
  *  The caller has to take care of thread locking. */
 void fb_fbbcomm_send_msg(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
 
+/** Send delaying all signals in the current thread, returning the ACK number sent.
+ *  The caller has to take care of thread locking. */
+uint16_t fb_fbbcomm_send_msg_with_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
+
+/** Wait for ACK, processing delayed signals in the current thread.
+ *  The caller has to take care of thread locking. */
+void fb_fbbcomm_check_ack(int fd, uint16_t ack_num);
+
 /** Send message and wait for ACK, delaying all signals in the current thread.
  *  The caller has to take care of thread locking. */
 void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
@@ -141,6 +155,10 @@ bool maybe_send_pre_open(int dirfd, const char* pathname, int flags);
 
 /** Send message and disable interception before clone() */
 void pre_clone_disable_interception(const int flags, bool *i_locked);
+
+/** Function to call by the intercepted clone(), registering into the supervisor then
+ calling the original clone() fn param. */
+int clone_trampoline(void *arg);
 
 /** Connection string to supervisor */
 extern char fb_conn_string[IC_PATH_BUFSIZE];
