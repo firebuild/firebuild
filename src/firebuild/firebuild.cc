@@ -87,6 +87,7 @@ static void usage() {
          "                             (firebuild-build-report.html by default). \n"
          "   -h --help                 show this help\n"
          "   -o --option=key=val       Add or replace a scalar in the config\n"
+         "   -o --option=key=[]        Clear an array in the config\n"
          "   -o --option=key+=val      Append to an array of scalars in the config\n"
          "   -o --option=key-=val      Remove from an array of scalars in the config\n"
          "   -s --show-stats           Show cache hit statistics.\n"

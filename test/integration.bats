@@ -393,7 +393,7 @@ setup() {
 @test "stats" {
   # Populate the cache
   result=$(./run-firebuild -z -- bash -c 'ls integration.bats')
-  result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -- bash -c 'ls integration.bats')
+  result=$(./run-firebuild -o 'processes.dont_shortcut = []' -- bash -c 'ls integration.bats')
   # Use stats for current run
   result=$(./run-firebuild -s bash -c 'ls integration.bats' | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
   assert_streq "$result" "$(printf 'integration.bats\n\nStatistics of current run:\n Hits: 1 / 1 (100.00 %%)\n Misses: 0\n Uncacheable: 0\n GC runs: 0\nNewly cached: N kB\nSaved CPU time: N ms\n')"

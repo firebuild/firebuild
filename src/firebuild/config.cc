@@ -113,6 +113,8 @@ static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) 
  *      Append the scalar `value` to the existing array `key`
  *    key -= value
  *      Remove the scalar `value` from the existing array `key`, if found
+ *    key = "[]":
+ *      Clear an array
  *
  *  E.g. str = "processes.dont_shortcut += \"myapp\""
  *
@@ -190,6 +192,24 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
       }
     }
   } else {
+    if (type == libconfig::Setting::TypeArray) {
+      if (x.getLength() > 0) {
+        std::cerr << "Arrays can only be reset" << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      try {
+        libconfig::Setting& array = cfg->lookup(name);
+        const std::string setting_name = array.getName();
+        libconfig::Setting& parent = array.getParent();
+        parent.remove(setting_name);
+        parent.add(setting_name, type);
+      } catch(libconfig::SettingNotFoundException&) {
+        std::cerr << "Setting not found" << std::endl;
+        exit(EXIT_FAILURE);
+      }
+      delete mini_config;
+      return;
+    }
     /* Set a given value, overwriting the previous value if necessary. */
     try {
       cfg->getRoot().remove(name);

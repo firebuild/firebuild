@@ -148,6 +148,16 @@ SOFTWARE.
       </varlistentry>
       <varlistentry>
 	<term>
+	  <option>-o</option>, <option>--option=<replaceable>key=[]</replaceable></option>
+	</term>
+	<listitem>
+	  <para>
+            Clear an array in the config
+	  </para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term>
 	  <option>-o</option>, <option>--option=<replaceable>key+=val</replaceable></option>
 	</term>
 	<listitem>
