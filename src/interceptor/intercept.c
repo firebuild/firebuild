@@ -828,8 +828,11 @@ static void fb_ic_init() {
   store_locations("FB_IGNORE_LOCATIONS", &ignore_locations, ignore_locations_env_buf,
                   sizeof(ignore_locations_env_buf));
 
-  /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay. */
+#ifndef __mips__
+  /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay.
+   * On MIPS it is not enough, signals > 64 will not be wrapped. */
   assert(SIGRTMAX <= IC_WRAP_SIGRTMAX);
+#endif
 
   voidp_set_init(&popened_streams);
 
