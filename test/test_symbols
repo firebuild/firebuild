@@ -137,4 +137,7 @@ check_function_class "_chk" "fortified"
 # Check the *64 variants
 check_function_class "64" "64bit"
 
+# Check the *_time64 variants
+check_function_class "_time64" "time64"
+
 exit $status
