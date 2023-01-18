@@ -145,7 +145,8 @@ class ExecedProcess : public Process {
    * This method also registers the implicit parent directory and bubbles it up, as per the
    * information contained in "update".
    */
-  bool register_file_usage_update(const FileName *name, const FileUsageUpdate& update);
+  bool register_file_usage_update(const FileName *name, const FileUsageUpdate& update)
+      __attribute__((nonnull(2)));
   /**
    * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist and is of
    * the given "type" (e.g. ISDIR, NOTEXIST), and bubbles it up to the root.
