@@ -311,7 +311,7 @@ for gen in set(libc_outputs + syscall_outputs):
 
 
 # Intercept vararg open() and friends
-generate("int", ["open", "open64", "SYS_open"], "const char *pathname, int flags, ...",
+generate("int", ["open", "open64", "__open64", "SYS_open"], "const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"])
 generate("int", ["openat", "openat64", "SYS_openat"], "int dirfd, const char *pathname, int flags, ...",
@@ -565,7 +565,7 @@ generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, off_t offse
          tpl="read",
          is_pread="true",
          msg_skip_fields=["buf", "count", "offset", "fortify_size"])
-generate("ssize_t", ["pread64", "SYS_pread64"], "int fd, void *buf, size_t count, off64_t offset",
+generate("ssize_t", ["pread64", "__pread64", "SYS_pread64"], "int fd, void *buf, size_t count, off64_t offset",
          tpl="read",
          is_pread="true",
          msg_skip_fields=["buf", "count", "offset"])
@@ -795,7 +795,7 @@ generate("ssize_t", "pwrite", "int fd, const void *buf, size_t count, off_t offs
          tpl="write",
          is_pwrite="true",
          msg_skip_fields=["buf", "count", "offset"])
-generate("ssize_t", ["pwrite64", "SYS_pwrite64"], "int fd, const void *buf, size_t count, off64_t offset",
+generate("ssize_t", ["pwrite64", "__pwrite64", "SYS_pwrite64"], "int fd, const void *buf, size_t count, off64_t offset",
          tpl="write",
          is_pwrite="true",
          msg_skip_fields=["buf", "count", "offset"])
@@ -1029,7 +1029,7 @@ generate("int", ["sendmmsg", "SYS_sendmmsg"], "int fd, struct mmsghdr *msgvec, u
 # TODO(rbalint) report as read and write without disabling shortcutting
 generate("ssize_t", ["sendfile", "SYS_sendfile"], "int out_fd, int in_fd, off_t *offset, size_t count",
          tpl="once")
-generate("ssize_t", "SYS_sendfile64", "int out_fd, int in_fd, off64_t *offset, size_t count",
+generate("ssize_t", ["sendfile64", "SYS_sendfile64"], "int out_fd, int in_fd, off64_t *offset, size_t count",
          tpl="once")
 generate("ssize_t", ["copy_file_range", "SYS_copy_file_range"], "int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags",
          tpl="once")
@@ -1056,7 +1056,7 @@ generate("int", "fseeko", "FILE *stream, off_t offset, int whence",
          modify_offset="offset != 0 || whence != SEEK_CUR",
          msg_skip_fields=["stream", "offset", "whence"],
          msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
-generate("int", "fseeko64", "FILE *stream, off64_t offset, int whence",
+generate("int", ["fseeko64", "__fseeko64"], "FILE *stream, off64_t offset, int whence",
          tpl="seek",
          before_lines=["int fd = safe_fileno(stream);"],
          modify_offset="offset != 0 || whence != SEEK_CUR",
@@ -1074,7 +1074,7 @@ generate("off_t", "ftello", "FILE *stream",
          modify_offset="false",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_seek_in_inherited_set_fd(&ic_msg, fd);"])
-generate("off64_t", "ftello64", "FILE *stream",
+generate("off64_t", ["ftello64", "__ftello64"], "FILE *stream",
          tpl="seek",
          before_lines=["int fd = safe_fileno(stream);"],
          modify_offset="false",
@@ -1317,7 +1317,7 @@ generate("int", ["fstat", "SYS_newfstat"], "int fd, struct stat *stat_buf",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", ["fstat64", "SYS_fstat64"], "int fd, struct stat64 *stat_buf",
+generate("int", ["fstat64", "__fstat64", "SYS_fstat64"], "int fd, struct stat64 *stat_buf",
          msg="fstatat",
          msg_skip_fields=["stat_buf"],
          msg_add_fields=["if (success) {",
@@ -1553,7 +1553,15 @@ generate("int", "posix_fallocate", "int fd, off_t offset, off_t len",
          is_pwrite="true",
          msg_skip_fields=["offset", "len"],
          tpl="write")
+generate("int", "posix_fallocate64", "int fd, off64_t offset, off64_t len",
+         is_pwrite="true",
+         msg_skip_fields=["offset", "len"],
+         tpl="write")
 generate("int", ["fallocate", "SYS_fallocate"], "int fd, int mode, off_t offset, off_t len",
+         is_pwrite="true",
+         msg_skip_fields=["mode", "offset", "len"],
+         tpl="write")
+generate("int", "fallocate64", "int fd, int mode, off64_t offset, off64_t len",
          is_pwrite="true",
          msg_skip_fields=["mode", "offset", "len"],
          tpl="write")
