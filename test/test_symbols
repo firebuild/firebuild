@@ -31,6 +31,32 @@ status=0
 # Additional allowed public symbols that are not auto-generated into gen_list.txt.
 additional_allowed_symbols=""
 
+function check_function_class () {
+    local postfix=$1
+    local class=$2
+    # Get the list of libc, libdl and libpthread symbols of this class
+    grep ${postfix}'$' < libc-symbols.txt > libc-${class}-symbols.txt
+
+    # Get the list of libc symbols that we don't override, but override the
+    # counterpart with the postfix
+    local missing=$(for chk in $(< libc-${class}-symbols.txt); do
+                          base="${chk%${postfix}}"
+                          base="${base#__}"
+                          if grep -Fqx "$base" public-symbols.txt && ! grep -Fqx "$chk" public-symbols.txt; then
+                              echo "$chk"
+                          fi
+                      done)
+
+    # Report the non-overridden symbols
+    if [ -z "$missing" ]; then
+        echo "All expected ${class} methods overridden"
+    else
+        echo "${class@u} methods not overridden:"
+        echo "$missing" | sed 's/^\(.*\)$/  \1/'
+        status=1
+    fi
+}
+
 # Extract and sort the public symbols of our library,
 # filtering out the ones added by gcov (__gcov* and mangle_path)
 nm -D "$binary_dir/src/interceptor/libfirebuild.so" | \
@@ -105,25 +131,10 @@ else
   status=1
 fi
 
-# Get the list of libc, libdl and libpthread fortified symbols
-grep '_chk$' < libc-symbols.txt > libc-fortify-symbols.txt
+# Check the list of libc, libdl and libpthread fortified symbols
+check_function_class "_chk" "fortified"
 
-# Get the list of fortified libc symbols that we don't override, but override the non-fortified counterpart
-fortify_missing=$(for chk in $(< libc-fortify-symbols.txt); do
-  base="${chk%_chk}"
-  base="${base#__}"
-  if grep -Fqx "$base" public-symbols.txt && ! grep -Fqx "$chk" public-symbols.txt; then
-    echo "$chk"
-  fi
-done)
-
-# Report the non-overridden fortified symbols
-if [ -z "$fortify_missing" ]; then
-  echo "All expected fortified methods overridden"
-else
-  echo "Fortified methods not overridden:"
-  echo "$fortify_missing" | sed 's/^\(.*\)$/  \1/'
-  status=1
-fi
+# Check the *64 variants
+check_function_class "64" "64bit"
 
 exit $status
