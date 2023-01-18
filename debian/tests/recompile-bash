@@ -17,4 +17,13 @@ cat time.log
 # ./configure is harder to accelerate, but the second run should still be at least 80% faster
 CPU_TIME_PERCENT2=$( (cat time.log ; echo "(user2+sys2)*100/(user1+sys1)") | bc)
 echo "CPU time of the second build was ${CPU_TIME_PERCENT2}% of the first build"
-[ $CPU_TIME_PERCENT2 -lt 20 ]
+case $(dpkg-architecture -q DEB_HOST_ARCH) in
+    armel)
+        # armel results typically just below 20%, while the hit rate is similar to other architectures'
+        [ $CPU_TIME_PERCENT2 -lt 30 ]
+        ;;
+    *)
+        # 2nd builds are typically just below 10% of the first builds
+        [ $CPU_TIME_PERCENT2 -lt 20 ]
+        ;;
+esac
