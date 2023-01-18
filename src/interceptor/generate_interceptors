@@ -38,6 +38,29 @@ env = Environment(loader=FileSystemLoader('.'),
 # Use a practically unique temporary filename, see #314
 tmpsuffix = ".tmp." + str(os.getpid())
 
+# Time related functions defined on 32 bit architectures
+time64_functions = set({
+  "__adjtime64",
+  "__clock_adjtime64",
+  "__clock_gettime64",
+  "__clock_settime64",
+  "__futimens64",
+  "__futimes64",
+  "__futimesat64",
+  "__gettimeofday64",
+  "__lutimes64",
+  "__ntp_gettime64",
+  "__ntp_gettimex64",
+  "__recvmmsg64",
+  "__recvmsg64",
+  "__sendmmsg64",
+  "__sendmsg64",
+  "__settimeofday64",
+  "__time64",
+  "__utime64",
+  "__utimensat64",
+  "__utimes64"
+})
 
 # Best effort to try to debug as many parameters as easily doable.
 def add_debug_to_dict(type, name, dict):
@@ -271,6 +294,11 @@ def generate(rettype, funcs, sig, **dict):
       syscall = False
       outputs = libc_outputs
       call_ic_orig_func = "get_ic_orig_" + func + "()"
+      if func.endswith("_time64") or func in time64_functions:
+        if 'ifdef_guard' not in dict or dict['ifdef_guard'] is None:
+          dict['ifdef_guard'] = glibc_ge(2, 34) + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
+        else:
+          dict['ifdef_guard'] = dict['ifdef_guard'] + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
     for gen in outputs:
       rendered = template.render(gen=gen, rettype=rettype, func=func, syscall=syscall,
                                  call_ic_orig_func=call_ic_orig_func, **dict)
@@ -298,10 +326,10 @@ def skip(*list):
 
 
 def glibc_ge(major, minor):
-  return "#if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ({}, {})".format(major, minor)
+  return "#if (defined(__GLIBC_PREREQ) && __GLIBC_PREREQ({}, {}))".format(major, minor)
 
 def not_glibc_ge(major, minor):
-  return "#if !defined(__GLIBC_PREREQ) || !__GLIBC_PREREQ({}, {})".format(major, minor)
+  return "#if (!defined(__GLIBC_PREREQ) || !__GLIBC_PREREQ({}, {}))".format(major, minor)
 
 # Initialize the output files with their headers.
 # Also truncate them before we'll reopen them plenty of times for appending.
@@ -771,11 +799,11 @@ generate("ssize_t", ["recvfrom", "SYS_recvfrom"], "int fd, void *buf, size_t len
 generate("ssize_t", "__recvfrom_chk", "int fd, void *buf, size_t len, size_t fortify_size, int flags, struct sockaddr *src_addr, socklen_t *addrlen",
          tpl="read",
          msg_skip_fields=["buf", "len", "fortify_size", "flags", "src_addr", "addrlen"])
-generate("ssize_t", ["recvmsg", "SYS_recvmsg"], "int fd, struct msghdr *msg, int flags",
+generate("ssize_t", ["recvmsg", "SYS_recvmsg", "__recvmsg64"], "int fd, struct msghdr *msg, int flags",
          tpl="recvmsg",
          msg_skip_fields=["msg", "flags"])
 # FIXME add SYS_recvmmsg_time64
-generate("int", ["recvmmsg", "SYS_recvmmsg"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, struct timespec *timeout",
+generate("int", ["recvmmsg", "SYS_recvmmsg", "__recvmmsg64"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, struct timespec *timeout",
          tpl="recvmsg",
          msg_skip_fields=["msgvec", "vlen", "flags", "timeout"])
 
@@ -1019,10 +1047,10 @@ generate("ssize_t", ["send", "SYS_send"], "int fd, const void *buf, size_t len, 
 generate("ssize_t", ["sendto", "SYS_sendto"], "int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen",
          tpl="write",
          msg_skip_fields=["buf", "len", "flags", "dest_addr", "addrlen"])
-generate("ssize_t", ["sendmsg", "SYS_sendmsg"], "int fd, const struct msghdr *msg, int flags",
+generate("ssize_t", ["sendmsg", "SYS_sendmsg", "__sendmsg64"], "int fd, const struct msghdr *msg, int flags",
          tpl="write",
          msg_skip_fields=["msg", "flags"])
-generate("int", ["sendmmsg", "SYS_sendmmsg"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags",
+generate("int", ["sendmmsg", "SYS_sendmmsg", "__sendmmsg64"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags",
          tpl="write",
          msg_skip_fields=["msgvec", "vlen", "flags"])
 
@@ -1284,7 +1312,7 @@ generate("int", "stat", "const char *pathname, struct stat *stat_buf",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", ["stat64", "SYS_stat64"], "const char *pathname, struct stat64 *stat_buf",
+generate("int", ["stat64", "SYS_stat64", "__stat64_time64"], "const char *pathname, struct stat64 *stat_buf",
          msg="fstatat",
          msg_skip_fields=["pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1301,7 +1329,7 @@ generate("int", "lstat", "const char *pathname, struct stat *stat_buf",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", ["lstat64", "SYS_lstat64"], "const char *pathname, struct stat64 *stat_buf",
+generate("int", ["lstat64", "SYS_lstat64", "__lstat64_time64"], "const char *pathname, struct stat64 *stat_buf",
          msg="fstatat",
          msg_skip_fields=["pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1317,7 +1345,7 @@ generate("int", ["fstat", "SYS_newfstat"], "int fd, struct stat *stat_buf",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", ["fstat64", "__fstat64", "SYS_fstat64"], "int fd, struct stat64 *stat_buf",
+generate("int", ["fstat64", "__fstat64", "SYS_fstat64", "__fstat64_time64"], "int fd, struct stat64 *stat_buf",
          msg="fstatat",
          msg_skip_fields=["stat_buf"],
          msg_add_fields=["if (success) {",
@@ -1332,7 +1360,7 @@ generate("int", ["fstatat", "SYS_newfstatat"], "int fd, const char *pathname, st
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", ["fstatat64", "SYS_fstatat64"], "int fd, const char *pathname, struct stat64 *stat_buf, int flags",
+generate("int", ["fstatat64", "SYS_fstatat64", "__fstatat64_time64"], "int fd, const char *pathname, struct stat64 *stat_buf, int flags",
          msg="fstatat",
          msg_skip_fields=["pathname", "stat_buf"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
@@ -1408,11 +1436,11 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
 
 # Intercept fcntl and fcntl64
 # The return value is selectively set from tpl_fcntl.c for certain commands.
-generate("int", ["fcntl", "fcntl64", "SYS_fcntl"], "int fd, int cmd, ...",
+generate("int", ["fcntl", "fcntl64", "SYS_fcntl", "__fcntl_time64"], "int fd, int cmd, ...",
          tpl="fcntl")
 
 # Intercept ioctl - cmd is long in glibc, int in the Linux kernel
-generate("int", "ioctl", "int fd, unsigned long cmd, ...",
+generate("int", ["ioctl", "__ioctl_time64"], "int fd, unsigned long cmd, ...",
          tpl="ioctl",
          send_ret_on_success=True)
 generate("int", "SYS_ioctl", "int fd, unsigned int cmd, ...",
@@ -1454,38 +1482,38 @@ generate("int", ["faccessat", "SYS_faccessat2"], "int dirfd, const char *pathnam
 
 # Intercept the (l)utime family
 # FIXME SYS_osf_utimes, SYS_utimensat_time{32,64}, SYS_futimesat_time32
-generate("int", ["utime", "SYS_utime"], "const char *pathname, const struct utimbuf *times",
+generate("int", ["utime", "SYS_utime", "__utime64"], "const char *pathname, const struct utimbuf *times",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", ["utimes", "SYS_utimes"], "const char *pathname, const struct timeval times[2]",
+generate("int", ["utimes", "SYS_utimes", "__utimes64"], "const char *pathname, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", "lutimes", "const char *pathname, const struct timeval times[2]",
+generate("int", ["lutimes", "__lutimes64"], "const char *pathname, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
                          "fbbcomm_builder_utime_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", ["utimensat", "SYS_utimensat"], "int dirfd, const char *pathname, const struct timespec times[2], int flags",
+generate("int", ["utimensat", "SYS_utimensat", "__utimensat64"], "int dirfd, const char *pathname, const struct timespec times[2], int flags",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
-generate("int", ["futimesat", "SYS_futimesat"], "int dirfd, const char *pathname, const struct timeval times[2]",
+generate("int", ["futimesat", "SYS_futimesat", "__futimesat64"], "int dirfd, const char *pathname, const struct timeval times[2]",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["if (pathname) BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
 
 # Intercept the futime family
-generate("int", "futimes", "int fd, const struct timeval times[2]",
+generate("int", ["futimes", "__futimes64"], "int fd, const struct timeval times[2]",
          msg="futime",
          msg_skip_fields=["times"],
          msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL);"])
-generate("int", "futimens", "int fd, const struct timespec times[2]",
+generate("int", ["futimens", "__futimens64"], "int fd, const struct timespec times[2]",
          msg="futime",
          msg_skip_fields=["times"],
          msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
@@ -1789,7 +1817,7 @@ generate("pid_t", ["waitpid", "SYS_waitpid"], "pid_t pid, int *wstatus, int opti
          msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
                          "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
-generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
+generate("pid_t", ["wait3", "__wait3_time64"], "int *wstatus, int options, struct rusage *rusage",
          global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
@@ -1801,7 +1829,7 @@ generate("pid_t", "wait3", "int *wstatus, int options, struct rusage *rusage",
          msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
                          "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
-generate("pid_t", ["wait4", "SYS_wait4"], "pid_t pid, int *wstatus, int options, struct rusage *rusage",
+generate("pid_t", ["wait4", "SYS_wait4", "__wait4_time64"], "pid_t pid, int *wstatus, int options, struct rusage *rusage",
          global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
@@ -1918,7 +1946,7 @@ generate("uint32_t", "arc4random_uniform", "uint32_t upper_bound",
          no_saved_errno=True)
 
 # Querying current time - probably disable shortcutting, let the supervisor decide
-generate("time_t", ["time", "SYS_time"], "time_t *loc",
+generate("time_t", ["time", "SYS_time", "__time64"], "time_t *loc",
          msg="clock_gettime",
          tpl="once")
 generate("int", "ftime", "struct timeb *tp",
@@ -1926,33 +1954,33 @@ generate("int", "ftime", "struct timeb *tp",
          tpl="once")
 # sys/time.h declares the funcion with void *tz and not matching that generates an error
 # generate("int", "gettimeofday", "struct timeval *tv, struct timezone *tz",
-generate("int", ["gettimeofday", "SYS_gettimeofday"], "struct timeval *tv, void *tz",
+generate("int", ["gettimeofday", "SYS_gettimeofday", "__gettimeofday64"], "struct timeval *tv, void *tz",
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_clock_gettime64
-generate("int", ["clock_gettime", "SYS_clock_gettime"], "clockid_t clk_id, struct timespec *tp",
+generate("int", ["clock_gettime", "SYS_clock_gettime", "__clock_gettime64"], "clockid_t clk_id, struct timespec *tp",
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_osf_ntp_gettime
-generate("int", ["ntp_gettime", "ntp_gettimex"], "struct ntptimeval *ntv",
+generate("int", ["ntp_gettime", "ntp_gettimex", "__ntp_gettime64", "__ntp_gettimex64"], "struct ntptimeval *ntv",
          msg="clock_gettime",
          tpl="once")
 
 # Disable setting the time
 generate("int", "stime", "const time_t *t",
          tpl="once")
-generate("int", ["settimeofday", "SYS_settimeofday"], "const struct timeval *tv, const struct timezone *tz",
+generate("int", ["settimeofday", "SYS_settimeofday", "__settimeofday64"], "const struct timeval *tv, const struct timezone *tz",
          tpl="once")
 # FIXME SYS_clock_settime64
-generate("int", ["clock_settime", "SYS_clock_settime"], "clockid_t clk_id, const struct timespec *tp",
+generate("int", ["clock_settime", "SYS_clock_settime", "__clock_settime64"], "clockid_t clk_id, const struct timespec *tp",
          tpl="once")
 # FIXME SYS_osf_adjtime, SYS_old_adjtimex
-generate("int", "adjtime", "const struct timeval *delta, struct timeval *olddelta",
+generate("int", ["adjtime", "__adjtime64"], "const struct timeval *delta, struct timeval *olddelta",
          tpl="once")
 generate("int", ["adjtimex", "SYS_adjtimex"], "struct timex *buf",
          tpl="once")
 # FIXME SYS_clock_adjtime64
-generate("int", ["clock_adjtime", "SYS_clock_adjtime"], "clockid_t clk_id, struct timex *buf",
+generate("int", ["clock_adjtime", "SYS_clock_adjtime", "__clock_adjtime64"], "clockid_t clk_id, struct timex *buf",
          tpl="once")
 # FIXME SYS_osf_ntp_adjtime, SYS_osf_utc_adjtime
 generate("int", "ntp_adjtime", "struct timex *buf",
