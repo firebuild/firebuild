@@ -537,6 +537,12 @@ int Process::handle_faccessat(const int dirfd, const char * const ar_name, const
   /* Note: faccessat() obviously cannot operate on an already opened file, doesn't support
    * AT_EMPTY_PATH. */
   const FileName* name = get_absolute(dirfd, ar_name, ar_name_len);
+  if (!name) {
+    // FIXME don't disable shortcutting if chmod() failed due to the invalid dirfd
+    exec_point()->disable_shortcutting_bubble_up(
+        "Invalid dirfd or filename passed faccessat()");
+    return -1;
+  }
 
   FileUsageUpdate update(name);
 
