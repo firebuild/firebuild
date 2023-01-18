@@ -186,6 +186,11 @@ inline {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }}) {
 ###     else
 #ifdef {{ func }}  /* this is prone against typos in the syscall name, but handles older kernels */
 case {{ func }}: {
+#define IC_SYSCALL_{{ func }}_IS_INTERCEPTED
+/* The 64 bit variant has to be defined earlier. */
+#if defined {{ func }}64 && !defined IC_SYSCALL_{{ func }}64_IS_INTERCEPTED
+#error "Missing {{ func }}64 interception"
+#endif
   va_list ap_args;
   va_start(ap_args, number);
 ###       for arg in args
