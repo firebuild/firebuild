@@ -1055,9 +1055,9 @@ generate("int", ["sendmmsg", "SYS_sendmmsg", "__sendmmsg64"], "int fd, struct mm
          msg_skip_fields=["msgvec", "vlen", "flags"])
 
 # TODO(rbalint) report as read and write without disabling shortcutting
-generate("ssize_t", ["sendfile", "SYS_sendfile"], "int out_fd, int in_fd, off_t *offset, size_t count",
-         tpl="once")
 generate("ssize_t", ["sendfile64", "SYS_sendfile64"], "int out_fd, int in_fd, off64_t *offset, size_t count",
+         tpl="once")
+generate("ssize_t", ["sendfile", "SYS_sendfile"], "int out_fd, int in_fd, off_t *offset, size_t count",
          tpl="once")
 generate("ssize_t", ["copy_file_range", "SYS_copy_file_range"], "int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags",
          tpl="once")
@@ -1391,6 +1391,11 @@ generate("int", "isfdtype", "int fd, int fdtype",
 generate("int", ["ustat", "SYS_ustat"], "dev_t dev, struct ustat *ubuf",
          msg="statfs",
          msg_skip_fields=["dev", "ubuf"])
+# Note: SYS_statfs64 is like statfs64() but also takes a size parameter.
+generate("int", "SYS_statfs64", "const char *pathname, size_t sz, struct statfs64 *buf",
+         msg="statfs",
+         msg_skip_fields=["pathname", "sz", "buf"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
 generate("int", ["statfs", "SYS_statfs"], "const char *pathname, struct statfs *buf",
          msg="statfs",
          msg_skip_fields=["pathname", "buf"],
@@ -1399,21 +1404,16 @@ generate("int", "statfs64", "const char *pathname, struct statfs64 *buf",
          msg="statfs",
          msg_skip_fields=["pathname", "buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
-# Note: SYS_statfs64 is like statfs64() but also takes a size parameter.
-generate("int", "SYS_statfs64", "const char *pathname, size_t sz, struct statfs64 *buf",
+# Note: SYS_fstatfs64 is like fstatfs64() but also takes a size parameter.
+generate("int", "SYS_fstatfs64", "int fd, size_t sz, struct statfs64 *buf",
          msg="statfs",
-         msg_skip_fields=["pathname", "sz", "buf"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(statfs, pathname);"])
+         msg_skip_fields=["fd", "sz", "buf"])
 generate("int", ["fstatfs", "SYS_fstatfs"], "int fd, struct statfs *buf",
          msg="statfs",
          msg_skip_fields=["fd", "buf"])
 generate("int", "fstatfs64", "int fd, struct statfs64 *buf",
          msg="statfs",
          msg_skip_fields=["fd", "buf"])
-# Note: SYS_fstatfs64 is like fstatfs64() but also takes a size parameter.
-generate("int", "SYS_fstatfs64", "int fd, size_t sz, struct statfs64 *buf",
-         msg="statfs",
-         msg_skip_fields=["fd", "sz", "buf"])
 generate("int", "statvfs", "const char *pathname, struct statvfs *buf",
          msg="statfs",
          msg_skip_fields=["pathname", "buf"],
@@ -1436,7 +1436,7 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
 
 # Intercept fcntl and fcntl64
 # The return value is selectively set from tpl_fcntl.c for certain commands.
-generate("int", ["fcntl", "fcntl64", "SYS_fcntl", "__fcntl_time64"], "int fd, int cmd, ...",
+generate("int", ["fcntl", "fcntl64", "SYS_fcntl64", "SYS_fcntl", "__fcntl_time64"], "int fd, int cmd, ...",
          tpl="fcntl")
 
 # Intercept ioctl - cmd is long in glibc, int in the Linux kernel
@@ -1556,22 +1556,22 @@ generate("int", ["pipe2", "SYS_pipe2"], "int pipefd[2], int flags",
                          "}"])
 
 # Intercept the truncate family
-generate("int", ["truncate", "SYS_truncate"], "const char *pathname, off_t len",
-         before_lines=["if (i_am_intercepting) maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
-         msg_skip_fields=["pathname", "len"],
-         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 generate("int", ["truncate64", "SYS_truncate64"], "const char *pathname, off64_t len",
          before_lines=["if (i_am_intercepting) maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
          msg="truncate",
          msg_skip_fields=["pathname", "len"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
+generate("int", ["truncate", "SYS_truncate"], "const char *pathname, off_t len",
+         before_lines=["if (i_am_intercepting) maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
+         msg_skip_fields=["pathname", "len"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(truncate, pathname);"])
 # For our purposes, ftruncate() is just like pwrite(): modifies the file's contents
 # in a way other than simply writing sequential data at the current offset.
-generate("int", ["ftruncate", "SYS_ftruncate"], "int fd, off_t len",
+generate("int", ["ftruncate64", "SYS_ftruncate64"], "int fd, off64_t len",
          tpl="write",
          is_pwrite="true",
          msg_skip_fields=["len"])
-generate("int", ["ftruncate64", "SYS_ftruncate64"], "int fd, off64_t len",
+generate("int", ["ftruncate", "SYS_ftruncate"], "int fd, off_t len",
          tpl="write",
          is_pwrite="true",
          msg_skip_fields=["len"])
@@ -1958,7 +1958,7 @@ generate("int", ["gettimeofday", "SYS_gettimeofday", "__gettimeofday64"], "struc
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_clock_gettime64
-generate("int", ["clock_gettime", "SYS_clock_gettime", "__clock_gettime64"], "clockid_t clk_id, struct timespec *tp",
+generate("int", ["clock_gettime", "SYS_clock_gettime64", "SYS_clock_gettime", "__clock_gettime64"], "clockid_t clk_id, struct timespec *tp",
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_osf_ntp_gettime
@@ -1972,7 +1972,7 @@ generate("int", "stime", "const time_t *t",
 generate("int", ["settimeofday", "SYS_settimeofday", "__settimeofday64"], "const struct timeval *tv, const struct timezone *tz",
          tpl="once")
 # FIXME SYS_clock_settime64
-generate("int", ["clock_settime", "SYS_clock_settime", "__clock_settime64"], "clockid_t clk_id, const struct timespec *tp",
+generate("int", ["clock_settime", "SYS_clock_settime64", "SYS_clock_settime", "__clock_settime64"], "clockid_t clk_id, const struct timespec *tp",
          tpl="once")
 # FIXME SYS_osf_adjtime, SYS_old_adjtimex
 generate("int", ["adjtime", "__adjtime64"], "const struct timeval *delta, struct timeval *olddelta",
@@ -1980,7 +1980,7 @@ generate("int", ["adjtime", "__adjtime64"], "const struct timeval *delta, struct
 generate("int", ["adjtimex", "SYS_adjtimex"], "struct timex *buf",
          tpl="once")
 # FIXME SYS_clock_adjtime64
-generate("int", ["clock_adjtime", "SYS_clock_adjtime", "__clock_adjtime64"], "clockid_t clk_id, struct timex *buf",
+generate("int", ["clock_adjtime", "SYS_clock_adjtime64", "SYS_clock_adjtime", "__clock_adjtime64"], "clockid_t clk_id, struct timex *buf",
          tpl="once")
 # FIXME SYS_osf_ntp_adjtime, SYS_osf_utc_adjtime
 generate("int", "ntp_adjtime", "struct timex *buf",
