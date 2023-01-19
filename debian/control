@@ -16,7 +16,6 @@ Build-Depends: bats,
                libtsl-hopscotch-map-dev,
                libxxhash-dev (>= 0.8),
                moreutils,
-               node-d3,
                po-debconf,
                python3-jinja2,
                xsltproc
