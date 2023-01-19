@@ -20,7 +20,7 @@ Build-Depends: bats,
                po-debconf,
                python3-jinja2,
                xsltproc
-Standards-Version: 4.4.1
+Standards-Version: 4.6.2
 Homepage: https://firebuild.com
 Rules-Requires-Root: no
 XS-Autobuild: yes
