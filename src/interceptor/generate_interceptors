@@ -1992,8 +1992,12 @@ generate("int", ["gettimeofday", "__gettimeofday"], "struct timeval *tv, struct 
          ifdef_guard=not_glibc_ge(2, 31),
          msg="clock_gettime",
          tpl="once")
-generate("int", ["gettimeofday", "__gettimeofday", "__gettimeofday64"], "struct timeval *tv, void *tz",
+generate("int", ["gettimeofday", "__gettimeofday"], "struct timeval *tv, void *tz",
          ifdef_guard=glibc_ge(2, 31),
+         msg="clock_gettime",
+         tpl="once")
+generate("int", "__gettimeofday64", "struct timeval *tv, void *tz",
+         ifdef_guard=glibc_ge(2, 34),
          msg="clock_gettime",
          tpl="once")
 generate("int", "SYS_gettimeofday", "struct timeval *tv, void *tz",
