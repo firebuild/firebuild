@@ -40,7 +40,7 @@
   } else {
     ret = {{ call_ic_orig_func }}(signum, handler);
   }
-###   elif func in ['sigaction', 'SYS_sigaction']
+###   elif func in ['sigaction', 'SYS_sigaction', '__sigaction']
   if (signal_is_wrappable(signum)) {
     struct sigaction wrapped_act;
     void (*old_orig_signal_handler)(void) = orig_signal_handlers[signum - 1];

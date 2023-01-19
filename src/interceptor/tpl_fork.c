@@ -32,7 +32,7 @@
 ### endblock before
 
 ### block call_orig
-###   if func == 'vfork'
+###   if func in ['vfork', '__vfork']
   /* vfork interception would be a bit complicated to implement properly
    * and most of the programs will work properly with fork */
 ###   endif
