@@ -32,20 +32,38 @@ status=0
 additional_allowed_symbols=""
 
 function check_function_class () {
-    local postfix=$1
+    local fix=$1
     local class=$2
+    local kind=$3
+    local base
     # Get the list of libc, libdl and libpthread symbols of this class
-    grep ${postfix}'$' < libc-symbols.txt > libc-${class}-symbols.txt
+                        case $kind in
+                            "prefix")
+                                grep ^${fix} < libc-symbols.txt > libc-${class}-symbols.txt
+                                ;;
+                            "postfix")
+                                grep ${fix}'$' < libc-symbols.txt > libc-${class}-symbols.txt
+                        esac
 
     # Get the list of libc symbols that we don't override, but override the
-    # counterpart with the postfix
+    # counterpart with the prefix/postfix
     local missing=$(for chk in $(< libc-${class}-symbols.txt); do
-                          base="${chk%${postfix}}"
-                          base="${base#__}"
-                          if grep -Fqx "$base" public-symbols.txt && ! grep -Fqx "$chk" public-symbols.txt; then
-                              echo "$chk"
-                          fi
-                      done)
+                        case $kind in
+                            "prefix")
+                                base="${chk#__}"
+                                if grep -Fqx "$base" public-symbols.txt && ! grep -Fqx "$chk" public-symbols.txt; then
+                                    echo "$chk"
+                                fi
+                                ;;
+                            "postfix")
+                                base="${chk%${fix}}"
+                                base="${base#__}"
+                                if grep -Fqx "$base" public-symbols.txt && ! grep -Fqx "$chk" public-symbols.txt; then
+                                    echo "$chk"
+                                fi
+                                ;;
+                        esac
+                    done)
 
     # Report the non-overridden symbols
     if [ -z "$missing" ]; then
@@ -132,12 +150,15 @@ else
 fi
 
 # Check the list of libc, libdl and libpthread fortified symbols
-check_function_class "_chk" "fortified"
+check_function_class "_chk" "fortified" "postfix"
 
 # Check the *64 variants
-check_function_class "64" "64bit"
+check_function_class "64" "64bit" "postfix"
 
 # Check the *_time64 variants
-check_function_class "_time64" "time64"
+check_function_class "_time64" "time64" "postfix"
+
+# Check the __* variants
+check_function_class "__" "underscore" "prefix"
 
 exit $status
