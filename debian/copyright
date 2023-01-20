@@ -4,15 +4,19 @@ Upstream-Contact: info@firebuild.com
 Source: https://firebuild.com
 
 Files: *
-Copyright: 2022 Firebuild Inc.
+Copyright: 2022-2023 Firebuild Inc.
 License: Firebuild-license
 
 Files: debian/*
-Copyright: 2022 Firebuild Inc.
+Copyright: 2022-2023 Firebuild Inc.
 License: Expat
 Comment: The packaging explicitly uses a more liberal license to clearly
  allow and encourage modifications for integrating the software into software
  distributions.
+
+Files: debian/po/de.po
+Copyright: 2023 Helge Kreutzmann <debian@helgefjell.de>
+License: Expat
 
 License: Firebuild-license
  All rights reserved.
