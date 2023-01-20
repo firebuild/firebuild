@@ -80,6 +80,8 @@ setup() {
 }
 
 @test "orphan processes" {
+  # Orphan process detection does not work in WSL1
+  [ "$(systemd-detect-virt)" != "wsl" ] || skip
   for i in 1 2; do
     if ! with_valgrind; then
       result=$(./run-firebuild -o 'processes.dont_shortcut += "sleep"' -- bash -c 'for i in $(seq 10); do (sleep 0.3; ls integration.bats; false)& done; /bin/echo foo' | sort)
