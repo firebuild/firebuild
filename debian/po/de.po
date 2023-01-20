@@ -1,0 +1,103 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the firebuild package.
+# Helge Kreutzmann <debian@helgefjell.de>, 2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: firebuild 0.2.10-1\n"
+"Report-Msgid-Bugs-To: firebuild@packages.debian.org\n"
+"POT-Creation-Date: 2022-11-14 17:54+0100\n"
+"PO-Revision-Date: 2023-01-20 16:44+0100\n"
+"Last-Translator: Helge Kreutzmann <debian@helgefjell.de>\n"
+"Language-Team: German <debian-l10n-german@lists.debian.org>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Do you accept the terms of the Firebuild license?"
+msgstr "Akzeptieren Sie die Bedingungen der Firebuild-Lizenz?"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Firebuild users are required to acknowledge and accept the license. Please "
+"find it below. If you accept this license, the package installation will "
+"continue. If you refuse it, it will be interrupted."
+msgstr ""
+"Benutzer von Firebuild müssen die Lizenz bestätigen und akzeptieren. Sie "
+"finden diese nachfolgend. Falls Sie der Lizenz zustimmen, wird die "
+"Paketinstallation fortfahren. Falls Sie diese ablehnen, wird die "
+"Installation unterbrochen."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Firebuild is free for personal use or commercial trial."
+msgstr ""
+"Firebuild ist für die persönliche Verwendung und kommerzielle Erprobung "
+"kostenlos."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Non-trial commercial use requires licenses available from https://firebuild."
+"com."
+msgstr ""
+"Kommerzielle Verwendung jenseits der Erprobung benötigt eine von "
+"https://firebuild.com erhältliche Lizenz."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Modification and redistribution are permitted, but commercial use of "
+"derivative works is subject to the same requirements of this license."
+msgstr ""
+"Veränderung und Weiterverteilung sind erlaubt, aber kommerzielle Verwendung "
+"von abgeleiteten Werken unterliegt den gleichen Bedingungen dieser Lizenz."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+"IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING "
+"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS "
+"IN THE SOFTWARE."
+msgstr ""
+"DIE SOFTWARE WIRD \"WIE BESEHEN\" ZUR VERFÜGUNG GESTELLT, OHNE GARANTIE "
+"JEGLICHER ART, AUSDRÜCKLICH ODER STILLSCHWEIGEND, EINSCHLIESSLICH, ABER "
+"NICHT BESCHRÄNKT AUF DIE GARANTIE DER MARKTGÄNGIGKEIT, EIGNUNG FÜR EINEN "
+"BESTIMMTEN ZWECK UND NICHTVERLETZUNG VON RECHTEN. IN KEINEM FALL SIND DIE "
+"AUTOREN ODER URHEBERRECHTSINHABER FÜR IRGENDWELCHE ANSPRÜCHE, SCHÄDEN ODER "
+"ANDERE HAFTUNGSGRÜNDE HAFTBAR, EGAL OB AUS VERTRAGSAUSÜBUNG, UNERLAUBTER "
+"HANDLUNG ODER ANDERWEITIG, DIE AUS ODER IN VERBINDUNG MIT DER SOFTWARE ODER "
+"DER NUTZUNG ODER DEM SONSTIGEN UMGANG MIT DER SOFTWARE ENTSTEHEN."
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid "The license has been refused"
+msgstr "Die Lizenz wurde abgelehnt"
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid ""
+"Please remove the firebuild packages or reinstall the firebuild package (e."
+"g. via apt-get install --reinstall firebuild) to get prompted to accept the "
+"license again."
+msgstr ""
+"Bitte entfernen Sie die Firebuild-Pakete oder installieren Sie die Firebuild-"
+"Pakete neu (z.B. mittels apt-get install --reinstall firebuild), um erneut "
+"bezüglich der Zustimmung zur Lizenz gefragt zu werden."
