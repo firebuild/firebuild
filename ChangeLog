@@ -1,0 +1,42 @@
+
+0.2.11 / 2023-01-21
+==================
+
+  * debian: Update copyright
+  * debian: Initial German debconf translation
+  * supervisor: Pass through HOME environment variable
+  * tests: Skip testing orphan process handling on WSL
+  * tests: Don't test with fakeroot if fakeroot does not work
+  * debian: Build-depend on fakeroot (with <!nocheck>)
+  * tests: Ignore ENOSYS error from memfd_create, timerfd_create and eventfd
+  * tests: open(..., O_TMPFILE) returns EISDIR on WSL1, ignore that
+  * supervisor: Fall back to emulating copy_file_range on ENOSYS error
+  * supervisor: Fall back to renameat() if renameat2() return ENOSYS or EINVAL
+  * interceptor: __gettimeofday64 is added only in Glibc 2.34
+  * debian: Don't require node-d3 for building firebuild
+  * interceptor: Add #ifdef guards for a few functions not existing in glibc 2.27
+  * supervisor: Add minimal renameat2() wrapper when it is missing
+  * interceptor: Define gettimeofday() for Glibc < 2.31, too
+  * test: Ignore harmless extra symbols appearing with older toolchains
+  * interceptor: Ignore new public symbols appearing on Bionic
+  * common: Define CLONE_PIDFD and statx() structs and defines when they are missing
+  * debian: Armel autopkgtests are slower
+  * interceptor: Check and intercept missing __* variants
+  * interceptor: Check if *64 syscall variants are intercepted
+  * interceptor: Check the *_time64 bit variants of intercepted functions are also intercepted
+  * interceptor: Check if *64 bit variants of intercepted functions are also intercepted
+  * debian: Bump standards version No changes were needed
+  * supervisor: Handle faccessat() with unknown dirfd
+  * interceptor: MIPS has > 64 signals, don't assert() on that
+  * common: Don't decode SIGSTKFLT in debugging when it is not defined
+  * supervisor: Add --option=key=[] option to clear a configuration array
+  * readme: bc is a required test dependency
+  * interceptor: Intercept clone() with flags == CLONE_VFORK | SIGCHLD as a fork()
+  * interceptor: Intercept _Fork calling pthread_atfork handlers directly
+  * interceptor: Enable/disable interception of functions with #ifdef guards
+  * supervisor: Add LAUNCH_TYPE_POSIX_SPAWN
+  * interceptor: Don't check global intercepting_enabled in env_needs_fixup()
+  * interceptor: Factor out fixing up and restoring environment to a macro
+  * interceptor: Treat fallocate() and posix_fallocate() as pwrites
+  * report: Fix typo in the title
+  * debian: Show firebuild stats in autopkgtest
