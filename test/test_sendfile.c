@@ -36,7 +36,7 @@ int main() {
   int fd1, fd2;
   fd1 = open(".", O_RDWR | O_TMPFILE, 0644);
   if (fd1 == -1) {
-    if (errno == ENOTSUP) {
+    if (errno == ENOTSUP || errno == EISDIR) {
       return 0;
     } else {
       perror("open" LOC);
