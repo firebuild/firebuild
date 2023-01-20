@@ -183,7 +183,7 @@ bool ObjCache::store(const Hash &key,
   construct_cached_file_name(base_dir_, key, subkey.c_str(), true, path_dst);
   free(entry_serial);
 
-  if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+  if (fb_renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
     if (errno == EEXIST) {
       FB_DEBUG(FB_DEBUG_CACHING, "cache object is already stored");
       unlink(tmpfile);

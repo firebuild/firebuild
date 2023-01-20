@@ -107,15 +107,11 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds = NULL
 
 void fb_perror(const char *s);
 
-#if defined (__GLIBC_PREREQ) && __GLIBC_PREREQ (2, 28)
-/* Just use glibc's renameat2 */
-#else
 #ifndef RENAME_NOREPLACE
 #define RENAME_NOREPLACE (1 << 0)
 #endif
-#define FIREBUILD_INTERNAL_RENAMEAT2
-extern int renameat2(int olddirfd, const char *oldpath,
-                     int newdirfd, const char *newpath, unsigned int flags);
-#endif
+int fb_renameat2(int olddirfd, const char *oldpath,
+                 int newdirfd, const char *newpath, unsigned int flags);
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_

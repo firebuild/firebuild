@@ -272,12 +272,25 @@ void send_fbb(int conn, int ack_num, const FBBCOMM_Builder *msg, int *fds, int f
 void fb_perror(const char *s) {
   perror((std::string("FIREBUILD: ") + s).c_str());
 }
-
-#ifdef FIREBUILD_INTERNAL_RENAMEAT2
-int renameat2(int olddirfd, const char *oldpath,
-              int newdirfd, const char *newpath, unsigned int flags) {
-  return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
-}
+#
+int fb_renameat2(int olddirfd, const char *oldpath,
+                 int newdirfd, const char *newpath, unsigned int flags) {
+  int ret;
+#if defined (__GLIBC_PREREQ) && __GLIBC_PREREQ (2, 28)
+  ret = renameat2(olddirfd, oldpath, newdirfd, newpath, flags);
+#else
+  ret = syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
 #endif
+  if (ret == -1 && (errno == ENOSYS || errno == EINVAL)) {
+    if (flags & RENAME_NOREPLACE && faccessat(newdirfd, newpath, F_OK, 0) == 0) {
+      errno = EEXIST;
+      return -1;
+    } else {
+      return renameat(olddirfd, oldpath, newdirfd, newpath);
+    }
+  } else {
+    return ret;
+  }
+}
 
 }  /* namespace firebuild */

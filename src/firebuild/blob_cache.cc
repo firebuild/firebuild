@@ -216,7 +216,7 @@ bool BlobCache::store_file(const FileName *path,
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
-  if (renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+  if (fb_renameat2(AT_FDCWD, tmpfile, AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
     if (errno == EEXIST) {
       FB_DEBUG(FB_DEBUG_CACHING, "blob is already stored");
       unlink(tmpfile);
@@ -278,7 +278,7 @@ bool BlobCache::move_store_file(const std::string &path,
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
-  if (renameat2(AT_FDCWD, path.c_str(), AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
+  if (fb_renameat2(AT_FDCWD, path.c_str(), AT_FDCWD, path_dst, RENAME_NOREPLACE) == -1) {
     if (errno == EEXIST) {
       FB_DEBUG(FB_DEBUG_CACHING, "blob is already stored");
       unlink(path.c_str());
