@@ -132,7 +132,8 @@ int main() {
   }
 
   fd = open("test_directory", O_RDWR | O_TMPFILE, 0744);
-  if (fd == -1 && errno != ENOTSUP) {
+  /* Error on WSL1 is EISDIR. */
+  if (fd == -1 && (errno != ENOTSUP && errno != EISDIR)) {
     perror("open(..., O_TMPFILE)" LOC);
     exit(1);
   }
