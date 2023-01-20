@@ -157,21 +157,21 @@ int main() {
   rmdir(mkdtemp_ret);
 
   fd = memfd_create("foo", MFD_CLOEXEC);
-  if (fd == -1) {
+  if (fd == -1 && errno != ENOSYS) {
     perror("memfd_create" LOC);
     exit(1);
   }
   close(fd);
 
   fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
-  if (fd == -1) {
+  if (fd == -1 && errno != ENOSYS) {
     perror("timerfd_create" LOC);
     exit(1);
   }
   close(fd);
 
   fd = eventfd(0, EFD_CLOEXEC);
-  if (fd == -1) {
+  if (fd == -1 && errno != ENOSYS) {
     perror("eventfd" LOC);
     exit(1);
   }
