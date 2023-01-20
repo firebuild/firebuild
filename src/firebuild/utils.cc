@@ -56,7 +56,7 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
   do {
     ret = copy_file_range(fd_in, off_in, fd_out, off_out, remaining, flags);
     if (ret == -1) {
-      if (errno == EXDEV) {
+      if (errno == EXDEV || errno == ENOSYS) {
         /* Fall back to read and write. */
         const bool do_malloc = remaining > 64 * 1024;
         void* buf = do_malloc ? malloc(remaining) : alloca(remaining);
