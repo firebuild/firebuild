@@ -125,7 +125,8 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
     }
 
     /* Try to shortcut the process. */
-    std::vector<int> fds_appended_to;
+    std::vector<int> fds_appended_to, seekable_fds;
+    std::vector<int64_t> seekable_fds_size;
     bool shortcutting_succeeded = proc->shortcut(&fds_appended_to);
     if (shortcutting_succeeded) {
       sv_msg.set_shortcut(true);
@@ -208,7 +209,17 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
           dups->init();
           dups->set_fds(inherited_file.fds);
           reopened_dups.push_back(reinterpret_cast<FBBCOMM_Builder *>(dups));
+        } else if (inherited_file.type == FD_FILE) {
+          int fd = inherited_file.fds[0];
+          auto file_fd = proc->get_shared_fd(fd);
+          /* The current offset won't matter for writes. */
+          if (!(file_fd->flags() & O_APPEND)) {
+            seekable_fds.push_back(fd);
+            seekable_fds_size.push_back(inherited_file.start_offset);
+          }
         }
+        sv_msg.set_seekable_fds(seekable_fds);
+        sv_msg.set_seekable_fds_size(seekable_fds_size);
       }
 
       sv_msg.set_reopen_fds(reopened_dups);
@@ -1041,6 +1052,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     }
     case FBBCOMM_TAG_seek_in_inherited: {
       PFBBA_HANDLE(proc, seek_in_inherited, fbbcomm_buf);
+      break;
+    }
+    case FBBCOMM_TAG_inherited_fd_offset: {
+      PFBBA_HANDLE(proc, inherited_fd_offset, fbbcomm_buf);
       break;
     }
     case FBBCOMM_TAG_recvmsg_scm_rights: {

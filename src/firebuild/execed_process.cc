@@ -166,23 +166,9 @@ void ExecedProcess::initialize() {
       if (stat64(file_fd->filename()->c_str(), &st) < 0) {
         disable_shortcutting_only_this("Failed to stat inherited file");
       } else if (S_ISREG(st.st_mode) && is_write(file_fd->flags())) {
-        off_t offset = 0;
-        int flags = 0;
-        if (!get_fdinfo(pid(), file_fd->fd(), &offset, &flags)) {
-          disable_shortcutting_only_this("Failed to get fdinfo for inherited file");
-        } else {
-          // FIXME assert that flags and file_fd->flags() match
-          if (flags & O_APPEND) {
-            /* The current offset won't matter for writes, register the current size instead. */
-            inherited_file.start_offset = st.st_size;
-          } else {
-            if (offset != st.st_size) {
-              disable_shortcutting_only_this(
-                  "Inherited writable non-append fd not seeked to its end");
-            }
-            inherited_file.start_offset = offset;
-          }
-        }
+        /* Assume that the file is seeked to the end. Otherwise the interceptor will
+         * report the offset back. */
+        inherited_file.start_offset = st.st_size;
       }
     }
   }

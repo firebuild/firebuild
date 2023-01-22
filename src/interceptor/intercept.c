@@ -1111,6 +1111,22 @@ static void fb_ic_init() {
     }
   }
 
+  /* Report back each inherited fd not seeked to the end. */
+  for (fbb_size_t i = 0; i < fbbcomm_serialized_scproc_resp_get_seekable_fds_count(sv_msg);
+       i++) {
+    int fd = fbbcomm_serialized_scproc_resp_get_seekable_fds_at(sv_msg, i);
+    int64_t size = fbbcomm_serialized_scproc_resp_get_seekable_fds_size_at(sv_msg, i);
+    insert_debug_msg("get offset of fd");
+    off64_t offset = get_ic_orig_lseek64()(fd, 0, SEEK_CUR);
+    if (offset != size) {
+      FBBCOMM_Builder_inherited_fd_offset ic_msg;
+      fbbcomm_builder_inherited_fd_offset_init(&ic_msg);
+      fbbcomm_builder_inherited_fd_offset_set_fd(&ic_msg, fd);
+      fbbcomm_builder_inherited_fd_offset_set_offset(&ic_msg, offset);
+      fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+    }
+  }
+
   /* pthread_sigmask() is only available if we're linked against libpthread.
    * Otherwise use the single-threaded sigprocmask(). */
   ic_pthread_sigmask = dlsym(RTLD_NEXT, "pthread_sigmask");

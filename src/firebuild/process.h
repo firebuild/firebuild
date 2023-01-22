@@ -538,6 +538,13 @@ class Process {
   void handle_seek_in_inherited(const int fd, const bool modify_offset);
 
   /**
+   * Handle interceptorting the start offset of an inherited file that's not seeked to the end.
+   * @param fd file descriptor
+   * @param offset the offset in the file
+   */
+  void handle_inherited_fd_offset(const int fd, const int64_t offset);
+
+  /**
    * Handle the intercepted process receiving some file descriptors via recv[m]msg() and SCM_RIGHTS
    * @param cloexec the close on exec flag
    * @param fds file descriptors

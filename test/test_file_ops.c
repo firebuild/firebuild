@@ -228,9 +228,12 @@ int main() {
   }
 
   /* Run part 2. */
+  fd = open("test_nonempty_2.txt", O_WRONLY);
+  lseek(fd, -2, SEEK_END);
   if (system("./test_file_ops_2") != 0) {
     exit(1);
   }
+  close(fd);
 
   /* Cleanup. */
   if (unlink("test_empty_1.txt") != 0) {
