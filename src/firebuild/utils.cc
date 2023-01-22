@@ -99,28 +99,6 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
   return len;
 }
 
-bool get_fdinfo(pid_t pid, int fd, off_t *offset, int *flags) {
-  char buf[64];
-  snprintf(buf, sizeof(buf), "/proc/%d/fdinfo/%d", pid, fd);
-  FILE *f = fopen(buf, "r");
-  if (f == NULL) {
-    return false;
-  }
-  bool offset_found = false, flags_found = false;
-  off_t value;
-  while (!(offset_found && flags_found) && fscanf(f, "%63s%ld", buf, &value) == 2) {
-    if (strcmp(buf, "pos:") == 0) {
-      *offset = value;
-      offset_found = true;
-    } else if (strcmp(buf, "flags:") == 0) {
-      *flags = value;
-      flags_found = true;
-    }
-  }
-  fclose(f);
-  return offset_found && flags_found;
-}
-
 unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
                                 const std::string& dir_path) {
   if (dirent->d_type == DT_UNKNOWN) {

@@ -154,6 +154,17 @@
       # The inherited seekable fds that were appended to while shortcutting;
       # the interceptor needs to seek forward in them.
       (ARRAY, "int", "fds_appended_to"),
+      # File backed seekable fds that could be seeked to the end or not.
+      # If they are not at the end the interceptor must send back an inherited_fd_offset message.
+      (ARRAY, "int", "seekable_fds"),
+      # Size of the backed seekable fds as the supervisor knows it.
+      (ARRAY, "int64_t", "seekable_fds_size"),
+    ]),
+
+    # The inherited fd's offset at the start of the process
+    ("inherited_fd_offset", [
+      (REQUIRED, "int", "fd"),
+      (REQUIRED, "int64_t", "offset"),
     ]),
 
     # Those function calls are not handled specially in interceptor lib and

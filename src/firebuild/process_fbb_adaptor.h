@@ -211,6 +211,11 @@ class ProcessFBBAdaptor {
     return 0;
   }
 
+  static int handle(Process *proc, const FBBCOMM_Serialized_inherited_fd_offset *msg) {
+    proc->handle_seek_in_inherited(msg->get_fd(), msg->get_offset());
+    return 0;
+  }
+
   static int handle(Process *proc, const FBBCOMM_Serialized_recvmsg_scm_rights *msg) {
     bool cloexec = msg->get_cloexec();
     std::vector<int> fds = msg->get_fds_as_vector();
