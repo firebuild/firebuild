@@ -227,6 +227,10 @@ int main() {
     exit(1);
   }
 
+  if (system(NULL) == 0) {
+    exit(1);
+  }
+
   /* Run part 2. */
   if (system("./test_file_ops_2") != 0) {
     exit(1);

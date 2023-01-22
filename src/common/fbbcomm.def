@@ -579,7 +579,7 @@
     # system(3)
     ("system", [
       # command, only SystemRet is sent when command was NULL
-      (REQUIRED, STRING, "cmd"),
+      (OPTIONAL, STRING, "cmd"),
       # return value is sent in SystemRet
     ]),
 

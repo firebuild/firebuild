@@ -595,8 +595,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       assert_null(proc->system_child());
       /* system(cmd) launches a child of argv = ["sh", "-c", cmd] */
       auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false), LAUNCH_TYPE_SYSTEM);
-      // FIXME what if !has_cmd() ?
-      expected_child->set_sh_c_command(ic_msg->get_cmd());
+      if (ic_msg->has_cmd()) {
+        expected_child->set_sh_c_command(ic_msg->get_cmd());
+      }
       proc->set_expected_child(expected_child);
       break;
     }

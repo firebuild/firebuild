@@ -1761,8 +1761,6 @@ generate("pid_t", ["vfork", "SYS_vfork"], "",
 
 # Intercept system
 generate("int", "system", "const char *cmd",
-         # ignore calls just checking for available shell
-         send_msg_condition="cmd != NULL",
          tpl="system")
 
 # Intercept popen and pclose
