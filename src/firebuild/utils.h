@@ -110,5 +110,10 @@ void fb_perror(const char *s);
 int fb_renameat2(int olddirfd, const char *oldpath,
                  int newdirfd, const char *newpath, unsigned int flags);
 
+/**
+ * Deduplicated strings allocated for the lifetime of the firebuild process.
+ */
+const std::string& deduplicated_string(std::string);
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_
