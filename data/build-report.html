@@ -256,16 +256,12 @@
       }
 
       function print_string(s) {
-          if (-1 == s.indexOf(' ')) {
-              return s;
-          } else {
-              // TODO escaping is far from being perfect
-              return '"' + s.replace(/"/g,'\\"') + '"';
-          }
+          // TODO escaping is far from being perfect
+          return '"' + s.replace(/"/g,'\\"') + '"';
       }
 
-      function print_string_array(a) {
-          return a.reduce(function(p, c) {return p + ((p == '')?'':' ') + print_string(c)}, '');
+      function print_string_array(a, item_end) {
+          return a.reduce(function(p, c) {return p + ((p == '')?'':' ') + print_string(c) + item_end}, '');
       }
 
       function details(d) {
@@ -305,17 +301,17 @@
           /* every element needs to be updated, otherwise they would show the previous node's values */
           document.getElementById('detailed_name').innerHTML = d.name;
           document.getElementById('detailed_wd').innerHTML = d.initial_wd;
-          document.getElementById('detailed_args').innerHTML = print_string_array(d.args);
-          document.getElementById('detailed_env').innerHTML = print_string_array(d.env).replace(/ /g, "<br/>");
-          document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs).replace(/ /g, "<br/>");
+          document.getElementById('detailed_args').innerHTML = print_string_array(d.args, '');
+          document.getElementById('detailed_env').innerHTML = print_string_array(d.env, '<br/>');
+          document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs, '<br/>');
           document.getElementById('cant_shortcut').innerHTML = d.cant_sc_reason ? d.cant_sc_reason + ((d.cant_sc_fb_pid)?' in a <a href="#" onclick="jump_details(' + d.cant_sc_fb_pid + ');">child process</a>':"") : "none";
           document.getElementById('shortcut').innerHTML = d.was_shortcut ? "true" : "false";
-          document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated).replace(/ /g, "<br/>");
-          document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified).replace(/ /g, "<br/>");
-          document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread).replace(/ /g, "<br/>");
-          document.getElementById('detailed_fnotf').innerHTML = print_string_array(d.fnotf).replace(/ /g, "<br/>");
-          document.getElementById('detailed_wds').innerHTML = print_string_array(d.wds).replace(/ /g, "<br/>");
-          document.getElementById('detailed_failed_wds').innerHTML = print_string_array(d.failed_wds).replace(/ /g, "<br/>");
+          document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated, '<br/>');
+          document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified, '<br/>');
+          document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread, '<br/>');
+          document.getElementById('detailed_fnotf').innerHTML = print_string_array(d.fnotf, '<br/>');
+          document.getElementById('detailed_wds').innerHTML = print_string_array(d.wds, '<br/>');
+          document.getElementById('detailed_failed_wds').innerHTML = print_string_array(d.failed_wds, '<br/>');
           document.getElementById('detailed_executable').innerHTML = d.exe;
           document.getElementById('detailed_pid').innerHTML = d.pid;
           document.getElementById('detailed_ppid').innerHTML = d.ppid;
