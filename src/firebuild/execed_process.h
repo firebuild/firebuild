@@ -232,7 +232,6 @@ class ExecedProcess : public Process {
   /** For debugging, a short imprecise reminder of the command line. Omits the path to the
    * executable, and strips off the middle. Does not escape or quote. */
   std::string args_to_short_string() const;
-  static void add_malloced_cant_shortcut_reason(const char* reason);
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
    * See #431 for design and rationale. */
@@ -320,12 +319,6 @@ class ExecedProcess : public Process {
   const char* cant_shortcut_reason_ = nullptr;
   /** Process the event preventing short-cutting happened in */
   const Process *cant_shortcut_proc_ = NULL;
-  /**
-   * malloc()-ed strings that were stored in cant_shortcut_reason_.
-   * Most of the reasons are statically allocated strings, but some of them are not.
-   * The dynamically allocated ones need to be kept reachable to avoid Valgrind
-   * error reports about leaking them. */
-  static tsl::hopscotch_set<const char*>* malloced_cant_shortcut_reasons_;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 

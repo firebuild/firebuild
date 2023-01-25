@@ -35,8 +35,6 @@ extern bool generate_report;
 
 namespace firebuild {
 
-tsl::hopscotch_set<const char*>* ExecedProcess::malloced_cant_shortcut_reasons_ = nullptr;
-
 ExecedProcess::ExecedProcess(const int pid, const int ppid,
                              const FileName *initial_wd,
                              const FileName *executable,
@@ -484,13 +482,6 @@ void ExecedProcess::disable_shortcutting_only_this(const char* reason,
       }
     }
   }
-}
-
-void ExecedProcess::add_malloced_cant_shortcut_reason(const char* reason) {
-  if (!malloced_cant_shortcut_reasons_) {
-    malloced_cant_shortcut_reasons_ = new tsl::hopscotch_set<const char*>();
-  }
-  malloced_cant_shortcut_reasons_->insert(reason);
 }
 
 std::string ExecedProcess::args_to_short_string() const {
