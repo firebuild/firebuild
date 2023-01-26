@@ -18,6 +18,10 @@ Files: debian/po/de.po
 Copyright: 2023 Helge Kreutzmann <debian@helgefjell.de>
 License: Expat
 
+Files: debian/po/nl.po
+Copyright: 2023 Frans Spiesschaert <Frans.Spiesschaert@yucom.be>
+License: Expat
+
 License: Firebuild-license
  All rights reserved.
  .

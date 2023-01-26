@@ -1,0 +1,107 @@
+# Dutch translation of firebuild debconf templates.
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the firebuild package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+# Frans Spiesschaert <Frans.Spiesschaert@yucom.be>, 2023.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: firebuild_0.2.10-1\n"
+"Report-Msgid-Bugs-To: firebuild@packages.debian.org\n"
+"POT-Creation-Date: 2022-11-14 17:54+0100\n"
+"PO-Revision-Date: 2023-01-20 16:48+0100\n"
+"Language: nl\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Last-Translator: Frans Spiesschaert <Frans.Spiesschaert@yucom.be>\n"
+"Language-Team: Debian Dutch l10n Team <debian-l10n-dutch@lists.debian.org>\n"
+"X-Generator: Poedit 2.2.1\n"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Do you accept the terms of the Firebuild license?"
+msgstr "Aanvaardt u de voorwaarden van de Firebuild-licentie?"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Firebuild users are required to acknowledge and accept the license. Please "
+"find it below. If you accept this license, the package installation will "
+"continue. If you refuse it, it will be interrupted."
+msgstr ""
+"Gebruikers van Firebuild moeten ontvangst van de licentie bevestigen en deze "
+"accepteren. U vindt ze hieronder. Als u deze licentie accepteert, zal de "
+"installatie van het pakket doorgaan. Als u ze weigert, zal de installatie "
+"worden afgebroken."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Firebuild is free for personal use or commercial trial."
+msgstr ""
+"Firebuild is vrij te gebruiken voor persoonlijk gebruik of voor een "
+"commerciële proefperiode."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Non-trial commercial use requires licenses available from https://firebuild."
+"com."
+msgstr ""
+"Voor commercieel gebruik buiten de proefperiode is een licentie vereist, "
+"welke beschikbaar zijn op https://firebuild.com."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Modification and redistribution are permitted, but commercial use of "
+"derivative works is subject to the same requirements of this license."
+msgstr ""
+"Wijziging en herdistributie zijn toegestaan, maar commercieel gebruik van "
+"afgeleide werken is onderworpen aan dezelfde vereisten uit deze licentie."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+"IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING "
+"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS "
+"IN THE SOFTWARE."
+msgstr ""
+"DE SOFTWARE WORDT GELEVERD \"ZOALS DEZE IS\", ZONDER EENDER WELKE GARANTIE, "
+"UITDRUKKELIJK OF IMPLICIET, MET INBEGRIP VAN, MAAR NIET BEPERKT TOT DE "
+"GARANTIE VAN VERKOOPBAARHEID, GESCHIKTHEID VOOR EEN BEPAALD DOEL OF VRIJ TE "
+"ZIJN VAN INBREUKEN. IN GEEN GEVAL KUNNEN DE AUTEURS OF DE "
+"AUTEURSRECHTENHOUDERS AANSPRAKELIJK ZIJN VOOR ENIGE SCHULDVORDERING, SCHADE-"
+"EIS OF ANDERE AANSPRAKELIJKHEID, ONGEACHT OF DEZE KADERT IN EEN CONTRACTUELE "
+"HANDELING, EEN ONRECHTMATIGE DAAD OF ANDERSZINS, HET GEVOLG IS VAN, "
+"VOORTVLOEIT UIT OF IN VERBAND STAAT MET DE SOFTWARE OF HET GEBRUIK ERVAN OF "
+"VAN ANDERE HANDELINGEN IN DE SOFTWARE."
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid "The license has been refused"
+msgstr "De licentie werd geweigerd"
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid ""
+"Please remove the firebuild packages or reinstall the firebuild package (e."
+"g. via apt-get install --reinstall firebuild) to get prompted to accept the "
+"license again."
+msgstr ""
+"Verwijder de firebuild-pakketten of installeer het firebuild-pakket opnieuw "
+"(bijvoorbeeld via apt-get install --reinstall firebuild) om opnieuw de vraag "
+"te krijgen de licentie te accepteren."
