@@ -328,9 +328,15 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
        * case, in the next iteration of the loop "update" will already contain this value. */
       fu_new = fu->merge(update);
       if (!fu_new) {
-        FB_DEBUG(FB_DEBUG_FS, "Could not merge " + d(name) + " file usage " + d(fu) + " with " +
-                 d(update));
-        disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
+        if (FB_DEBUGGING(FB_DEBUG_FS) || generate_report) {
+          std::string reason("Could not merge " + d(name) + " file usage " + d(fu) + " with "
+                             + d(update));
+          FB_DEBUG(FB_DEBUG_FS, reason);
+          disable_shortcutting_bubble_up(
+              "Could not register unsupported file usage combination:", reason);
+        } else {
+          disable_shortcutting_bubble_up("Could not register unsupported file usage combination");
+        }
         return false;
       }
     }
@@ -443,21 +449,27 @@ void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
 void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const int fd,
                                                    const ExecedProcess *p) {
-  disable_shortcutting_bubble_up(reason, p);
+  disable_shortcutting_bubble_up(
+      generate_report ? deduplicated_string(std::string(reason) + " fd: " + d(fd)).c_str()
+      : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
 }
 
 void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const FileName& file,
                                                    const ExecedProcess *p) {
-  disable_shortcutting_bubble_up(reason, p);
+  disable_shortcutting_bubble_up(
+      generate_report ? deduplicated_string(std::string(reason) + " file: " + d(file)).c_str()
+      : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, "file: " + d(file));
 }
 
 void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const std::string& str,
                                                    const ExecedProcess *p) {
-  disable_shortcutting_bubble_up(reason, p);
+  disable_shortcutting_bubble_up(
+      generate_report ? deduplicated_string(std::string(reason) + " " + d(str)).c_str()
+      : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, d(str));
 }
 
