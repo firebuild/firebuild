@@ -1112,7 +1112,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       const std::string pathname(flags & GRND_RANDOM ? "/dev/random" : "/dev/urandom");
       if (!FileName::Get(pathname)->is_in_ignore_location()) {
         proc->exec_point()->disable_shortcutting_bubble_up(
-            ("Using " + pathname + " is not allowed").c_str());
+            deduplicated_string("Using " + pathname + " is not allowed").c_str());
       }
       break;
     }
