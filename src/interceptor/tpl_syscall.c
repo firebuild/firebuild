@@ -22,11 +22,15 @@
 
 ### block impl_c
 
+###     if ifdef_guard
+{{ ifdef_guard }}
+###     endif
+
 /* Make the intercepting function visible */
 #pragma GCC visibility push(default)
 #pragma GCC diagnostic push
 
-long {{ func }} ({{ sig_str }}) {
+{{ rettype }} {{ func }} ({{ sig_str }}) {
   bool skip_interception = false;
 
   switch (number) {
@@ -78,7 +82,7 @@ long {{ func }} ({{ sig_str }}) {
       if (!skip_interception) {
         errno = saved_errno;
       }
-      long ret = get_ic_orig_{{ func }}()(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+      {{ rettype }} ret = get_ic_orig_{{ func }}()(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
       if (!skip_interception) {
         saved_errno = errno;
         if (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_{{ func }}[number]) {
@@ -118,5 +122,9 @@ long {{ func }} ({{ sig_str }}) {
 }
 
 #pragma GCC visibility pop
+
+###     if ifdef_guard
+#endif
+###     endif
 
 ### endblock impl_c
