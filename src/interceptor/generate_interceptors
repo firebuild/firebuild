@@ -326,10 +326,10 @@ def skip(*list):
 
 
 def glibc_ge(major, minor):
-  return "#if (defined(__GLIBC_PREREQ) && __GLIBC_PREREQ({}, {}))".format(major, minor)
+  return "#if FB_GLIBC_PREREQ({}, {})".format(major, minor)
 
 def not_glibc_ge(major, minor):
-  return "#if (!defined(__GLIBC_PREREQ) || !__GLIBC_PREREQ({}, {}))".format(major, minor)
+  return "#if !FB_GLIBC_PREREQ({}, {})".format(major, minor)
 
 # Initialize the output files with their headers.
 # Also truncate them before we'll reopen them plenty of times for appending.
