@@ -2,7 +2,7 @@ include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 # gnu89 required to avoid the __isoc99_scanf hell
 # ignored warnings most likely don't exist in every compiler version
-set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89 -Wno-pragmas -Wno-unknown-warning-option ${FAT_ARCH_C_FLAGS}")
+set_source_files_properties(interceptors.c PROPERTIES COMPILE_FLAGS "-std=gnu89 -Wno-pragmas -Wno-unknown-warning-option -Wno-deprecated-declarations ${FAT_ARCH_C_FLAGS}")
 
 # the trace markers may truncate the marker messages
 set_source_files_properties(intercept.c
