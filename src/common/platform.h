@@ -34,6 +34,12 @@
 #include <string.h>
 #include <unistd.h>
 
+/* Convenience macro because #if defined (__GLIBC_PREREQ) && __GLIBC_PREREQ (x, y) does not work. */
+#ifdef __GLIBC_PREREQ
+#define FB_GLIBC_PREREQ __GLIBC_PREREQ
+#else
+#define FB_GLIBC_PREREQ(major, minor) 0
+#endif
 
 #ifdef __has_include
 #if __has_include(<linux/close_range.h>)

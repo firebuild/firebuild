@@ -61,6 +61,7 @@ struct ustat;
 #include <wchar.h>
 
 #include "./fbbcomm.h"
+#include "common/platform.h"
 
 #ifndef __GLIBC_PREREQ
 #define FB_SSIZE_T ssize_t

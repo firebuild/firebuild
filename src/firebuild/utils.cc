@@ -36,6 +36,7 @@
 
 #include "./fbbcomm.h"
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "firebuild/debug.h"
 
 tsl::hopscotch_set<std::string>* deduplicated_strings = nullptr;
@@ -257,7 +258,7 @@ void fb_perror(const char *s) {
 int fb_renameat2(int olddirfd, const char *oldpath,
                  int newdirfd, const char *newpath, unsigned int flags) {
   int ret;
-#if defined (__GLIBC_PREREQ) && __GLIBC_PREREQ (2, 28)
+#if FB_GLIBC_PREREQ(2, 28)
   ret = renameat2(olddirfd, oldpath, newdirfd, newpath, flags);
 #else
   ret = syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
