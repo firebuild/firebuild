@@ -522,7 +522,9 @@ void debug_signum(FILE *f, int signum) {
   DEBUG_VALUE_VALUE(f, signum, SIGPROF);
   DEBUG_VALUE_VALUE(f, signum, SIGWINCH);
   DEBUG_VALUE_VALUE(f, signum, SIGIO);
+#ifdef SIGPWR
   DEBUG_VALUE_VALUE(f, signum, SIGPWR);
+#endif
   DEBUG_VALUE_VALUE(f, signum, SIGSYS);
   DEBUG_VALUE_END_DEC(f, signum);
 }
@@ -595,6 +597,8 @@ void debug_wstatus(FILE *f, int wstatus) {
  */
 void debug_clone_flags(FILE *f, int flags) {
   DEBUG_BITMAP_START(f, flags);
+/* If CLONE_VM is not defined most likely other flags are not defined either. */
+#ifdef CLONE_VM
   DEBUG_BITMAP_FLAG(f, flags, CLONE_VM);
   DEBUG_BITMAP_FLAG(f, flags, CLONE_FS);
   DEBUG_BITMAP_FLAG(f, flags, CLONE_FILES);
@@ -619,6 +623,7 @@ void debug_clone_flags(FILE *f, int flags) {
   DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWPID);
   DEBUG_BITMAP_FLAG(f, flags, CLONE_NEWNET);
   DEBUG_BITMAP_FLAG(f, flags, CLONE_IO);
+#endif
   DEBUG_BITMAP_END_HEX(f, flags & ~0xff);
   fprintf(f, "|");
   debug_signum(f, flags & 0xff);
