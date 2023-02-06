@@ -24,10 +24,10 @@
 #include <fcntl.h>
 #ifdef __linux__
 #include <linux/kcmp.h>
+#endif
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#endif
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
