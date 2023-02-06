@@ -110,7 +110,8 @@ struct statx {
 #define PRImode "u"
 #endif
 
-#if SIZE_WIDTH == 64
+#if (defined(SIZE_WIDTH) && (SIZE_WIDTH == 64)) \
+  || (defined(__SIZE_WIDTH__) && (__SIZE_WIDTH__ == 64))
 #define PRIsize "lu"
 #define PRIssize "ld"
 #else
