@@ -1689,7 +1689,7 @@ off_t ExecedProcessCacher::get_stored_bytes_from_cache() const {
   const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
   off_t cached_bytes = 0;
   if ((f = fopen(size_file.c_str(), "r"))) {
-    if (fscanf(f, "%ld\n", &cached_bytes) != 1) {
+    if (fscanf(f, "%" SCNoff "\n", &cached_bytes) != 1) {
       fb_error("Invalid size file format in " + size_file);
     }
     fclose(f);

@@ -58,6 +58,10 @@
 #define loff_t off_t
 #endif
 
+#ifdef __APPLE__
+#define off64_t off_t
+#endif
+
 #ifdef __linux__
 #ifndef STATX_TYPE
 #define STATX_TYPE 0x0001U
@@ -116,8 +120,10 @@ struct statx {
 
 #ifdef __APPLE__
 #define PRIoff "lld"
+#define SCNoff "lld"
 #else
 #define PRIoff "ld"
+#define SCNoff "ld"
 #endif
 
 #if __WORDSIZE == 64
