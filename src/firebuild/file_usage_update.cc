@@ -362,7 +362,7 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
  */
 FileUsageUpdate FileUsageUpdate::get_from_stat_params(const FileName *filename, mode_t mode,
                                                       off_t size, int err) {
-  TRACK(FB_DEBUG_PROC, "mode=%d, size=%ld, err=%d", mode, size, err);
+  TRACK(FB_DEBUG_PROC, "mode=%d, size=%" PRIoff ", err=%d", mode, size, err);
 
   FileUsageUpdate update(filename);
 
