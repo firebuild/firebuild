@@ -26,6 +26,7 @@
 #include <cassert>
 
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/hash.h"
 #include "firebuild/pipe.h"
