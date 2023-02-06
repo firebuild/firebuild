@@ -54,6 +54,7 @@
 #define CLONE_PIDFD 0x00001000
 #endif
 
+#ifdef __linux__
 #ifndef STATX_TYPE
 #define STATX_TYPE 0x0001U
 #define STATX_MODE 0x0002U
@@ -85,7 +86,8 @@ struct statx {
   __u32 stx_dev_major;
   __u32 stx_dev_minor;
 };
-#endif
+#endif  // STATX_TYPE
+#endif  // __linux__
 
 #if SIZE_WIDTH == 64
 #define PRIsize "lu"
