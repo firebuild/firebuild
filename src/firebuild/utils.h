@@ -25,6 +25,7 @@
 
 #include <string>
 
+#include "common/platform.h"
 #include "./fbbcomm.h"
 
 /** Wrapper retrying on recoverable errors */

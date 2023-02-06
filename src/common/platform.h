@@ -54,6 +54,10 @@
 #define CLONE_PIDFD 0x00001000
 #endif
 
+#ifndef __linux__
+#define loff_t off_t
+#endif
+
 #ifdef __linux__
 #ifndef STATX_TYPE
 #define STATX_TYPE 0x0001U
