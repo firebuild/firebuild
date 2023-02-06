@@ -1203,7 +1203,11 @@ static void fb_ic_init() {
     int fd = fbbcomm_serialized_scproc_resp_get_seekable_fds_at(sv_msg, i);
     int64_t size = fbbcomm_serialized_scproc_resp_get_seekable_fds_size_at(sv_msg, i);
     insert_debug_msg("get offset of fd");
+#ifdef __APPLE__
+    off_t offset = get_ic_orig_lseek()(fd, 0, SEEK_CUR);
+#else
     off64_t offset = get_ic_orig_lseek64()(fd, 0, SEEK_CUR);
+#endif
     if (offset != size) {
       FBBCOMM_Builder_inherited_fd_offset ic_msg;
       fbbcomm_builder_inherited_fd_offset_init(&ic_msg);
