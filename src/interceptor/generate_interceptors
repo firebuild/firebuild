@@ -858,6 +858,7 @@ generate("ssize_t", ["recvmsg", "SYS_recvmsg", "__recvmsg64"], "int fd, struct m
          msg_skip_fields=["msg", "flags"])
 # FIXME add SYS_recvmmsg_time64
 generate("int", ["recvmmsg", "SYS_recvmmsg", "__recvmmsg64"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags, struct timespec *timeout",
+         platforms=['linux'],
          tpl="recvmsg",
          msg_skip_fields=["msgvec", "vlen", "flags", "timeout"])
 
@@ -1115,6 +1116,7 @@ generate("ssize_t", ["sendmsg", "SYS_sendmsg", "__sendmsg64"], "int fd, const st
          tpl="write",
          msg_skip_fields=["msg", "flags"])
 generate("int", ["sendmmsg", "SYS_sendmmsg", "__sendmmsg", "__sendmmsg64"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags",
+         platforms=['linux'],
          tpl="write",
          msg_skip_fields=["msgvec", "vlen", "flags"])
 
