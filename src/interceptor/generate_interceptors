@@ -1124,6 +1124,10 @@ generate("int", ["sendmmsg", "SYS_sendmmsg", "__sendmmsg", "__sendmmsg64"], "int
 generate("ssize_t", ["sendfile64", "SYS_sendfile64"], "int out_fd, int in_fd, off64_t *offset, size_t count",
          tpl="once")
 generate("ssize_t", ["sendfile", "SYS_sendfile"], "int out_fd, int in_fd, off_t *offset, size_t count",
+         platforms=['linux'],
+         tpl="once")
+generate("int", ["sendfile", "SYS_sendfile"], "int fd, int s, off_t offset, off_t *len, struct sf_hdtr *hdtr, int flags",
+         platforms=['darwin'],
          tpl="once")
 generate("ssize_t", ["copy_file_range", "SYS_copy_file_range"], "int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags",
          platforms=['linux'],
