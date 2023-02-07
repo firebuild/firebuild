@@ -70,12 +70,14 @@ int main() {
     exit(1);
   }
 
+#ifndef __APPLE__
   if (copy_file_range(fd2, NULL, fd1, NULL, 10, 0) == -1) {
     perror("copy_file_range" LOC);
     close(fd1);
     close(fd2);
     exit(1);
   }
+#endif
 
   close(fd1);
   close(fd2);
