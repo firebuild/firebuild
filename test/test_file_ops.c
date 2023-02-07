@@ -145,6 +145,7 @@ int main() {
     exit(1);
   }
 
+#ifdef O_TMPFILE
   fd = open("test_directory", O_RDWR | O_TMPFILE, 0744);
   /* Error on WSL1 is EISDIR. */
   if (fd == -1 && (errno != ENOTSUP && errno != EISDIR)) {
@@ -152,6 +153,7 @@ int main() {
     exit(1);
   }
   close(fd);
+#endif
 
   char tmp_file[] = "tmpprefixXXXXXX";
   fd = mkstemp(tmp_file);
