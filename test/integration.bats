@@ -287,6 +287,7 @@ setup() {
 }
 
 @test "clone() a statically linked binary" {
+  [ -x ./test_cmd_clone ] || skip
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
