@@ -58,7 +58,13 @@ ssize_t fb_copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_ou
   ssize_t ret;
   size_t remaining = len;
   do {
+#ifdef __APPLE__
+    ret = -1;
+    errno = ENOSYS;
+    (void)flags;
+#else
     ret = copy_file_range(fd_in, off_in, fd_out, off_out, remaining, flags);
+#endif
     if (ret == -1) {
       if (errno == EXDEV || errno == ENOSYS) {
         /* Fall back to read and write. */
