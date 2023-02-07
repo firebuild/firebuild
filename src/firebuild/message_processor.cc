@@ -1111,7 +1111,12 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     case FBBCOMM_TAG_getrandom: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_getrandom *>(fbbcomm_buf);
       const unsigned int flags = ic_msg->get_flags_with_fallback(0);
+#ifdef GRND_RANDOM
       const std::string pathname(flags & GRND_RANDOM ? "/dev/random" : "/dev/urandom");
+#else
+      const std::string pathname("/dev/urandom");
+      (void)flags;
+#endif
       if (!FileName::Get(pathname)->is_in_ignore_location()) {
         proc->exec_point()->disable_shortcutting_bubble_up(
             deduplicated_string("Using " + pathname + " is not allowed").c_str());
