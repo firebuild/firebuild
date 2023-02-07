@@ -42,6 +42,7 @@ add_custom_command (
   tpl_readlink.c
   tpl_recvmsg.c
   tpl_seek.c
+  tpl_shm_open.c
   tpl_signal.c
   tpl_skip.c
   tpl_syscall.c
