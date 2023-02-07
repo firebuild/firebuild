@@ -22,7 +22,12 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __APPLE__
+#include <sys/socket.h>
+#include <sys/uio.h>
+#else
 #include <sys/sendfile.h>
+#endif
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -56,7 +61,12 @@ int main() {
     exit(1);
   }
 
+#ifdef __APPLE__
+  off_t len = 10;
+  if (sendfile(fd2, fd1, 0, &len, NULL, 0) == -1) {
+#else
   if (sendfile(fd1, fd2, NULL, 10) == -1) {
+#endif
     perror("sendfile" LOC);
     close(fd1);
     close(fd2);
