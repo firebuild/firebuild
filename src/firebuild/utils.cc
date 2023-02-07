@@ -267,7 +267,13 @@ int fb_renameat2(int olddirfd, const char *oldpath,
 #if FB_GLIBC_PREREQ(2, 28)
   ret = renameat2(olddirfd, oldpath, newdirfd, newpath, flags);
 #else
+#ifdef SYS_renameat2
   ret = syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+#else
+  ret = -1;
+  errno = ENOSYS;
+  (void)flags;
+#endif
 #endif
   if (ret == -1 && (errno == ENOSYS || errno == EINVAL)) {
     if (flags & RENAME_NOREPLACE && faccessat(newdirfd, newpath, F_OK, 0) == 0) {
