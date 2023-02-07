@@ -104,7 +104,7 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
 }
 
 void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t len) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "fd_in=%d, off_in=%" PRIoff64 ", len=%" PRIssize,
+  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "fd_in=%d, off_in=%" PRIloff ", len=%" PRIssize,
          fd_in, off_in, len);
 
   assert(fd_in >= 0);
