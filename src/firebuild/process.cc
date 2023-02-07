@@ -940,17 +940,38 @@ void Process::handle_socket(const int domain, const int type, const int protocol
       handle_close(ret);
     }
     const int flags = O_RDWR
+#ifdef SOCK_CLOEXEC
         | ((type & SOCK_CLOEXEC) ? O_CLOEXEC : 0)
-        | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0);
+#endif
+#ifdef SOCK_NONBLOCK
+        | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0)
+#endif
+      | 0;
     add_filefd(ret, std::make_shared<FileFD>(ret, flags, FD_SPECIAL, this));
+#if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
     switch (type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK)) {
+#elif defined(SOCK_CLOEXEC)
+#error ""
+#elif defined(SOCK_NONBLOCK)
+#else
+    switch (type) {
+#endif
+#if defined(SOCK_DGRAM)
       case SOCK_DGRAM:
+#endif
+#if defined(SOCK_RAW)
       case SOCK_RAW:
-      case SOCK_PACKET: {
+#endif
+#if defined(SOCK_PACKET)
+      case SOCK_PACKET:
+#endif
+#if defined(SOCK_DGRAM) || defined(SOCK_RAW) || defined(SOCK_PACKET)
+        {
         exec_point()->disable_shortcutting_bubble_up(
             "SOCK_DGRAM, SOCK_RAW and SOCK_PACKET sockets are not supported");
         break;
       }
+#endif
       default:
         /* Other socket types are OK since they require connect/bind/listen operations before
          * data can be exchanged with other processes and those disable shortcutting. */
@@ -973,6 +994,9 @@ void Process::handle_socketpair(const int domain, const int type, const int prot
    * (e.g. memfd). */
   (void)domain;
   (void)protocol;
+#if !defined(SOCK_CLOEXEC) && !defined(SOCK_NONBLOCK)
+  (void)type;
+#endif
   if (!error) {
     for (const int fd : {fd0, fd1}) {
       if (get_fd(fd)) {
@@ -983,8 +1007,13 @@ void Process::handle_socketpair(const int domain, const int type, const int prot
         handle_close(fd);
       }
       const int flags = O_RDWR
+#ifdef SOCK_CLOEXEC
           | ((type & SOCK_CLOEXEC) ? O_CLOEXEC : 0)
-          | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0);
+#endif
+#ifdef SOCK_NONBLOCK
+          | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0)
+#endif
+        | 0;
       add_filefd(fd, std::make_shared<FileFD>(fd, flags, FD_SPECIAL, this));
     }
   } else {

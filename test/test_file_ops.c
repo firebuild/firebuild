@@ -211,7 +211,11 @@ int main() {
   }
   close(fd);
 
-  if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, pipe_fds) != 0) {
+  if (socketpair(AF_UNIX, SOCK_STREAM
+#ifdef SOCK_CLOEXEC
+                 | SOCK_CLOEXEC
+#endif
+                 , 0, pipe_fds) != 0) {
     perror("socketpair" LOC);
     exit(1);
   } else {
