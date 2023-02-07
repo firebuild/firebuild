@@ -19,7 +19,13 @@
 #ifndef FIREBUILD_SUBKEY_H_
 #define FIREBUILD_SUBKEY_H_
 
+#ifdef __APPLE__
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
+#define htobe64(x) OSSwapHostToBigInt64(x)
+#else
 #include <endian.h>
+#endif
 
 #include <cassert>
 #include <cstring>
