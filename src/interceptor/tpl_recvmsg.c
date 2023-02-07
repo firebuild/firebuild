@@ -63,7 +63,9 @@
           /* Notify the supervisor */
           FBBCOMM_Builder_recvmsg_scm_rights ic_msg1;
           fbbcomm_builder_recvmsg_scm_rights_init(&ic_msg1);
+#ifdef MSG_CMSG_CLOEXEC
           fbbcomm_builder_recvmsg_scm_rights_set_cloexec(&ic_msg1, flags & MSG_CMSG_CLOEXEC);
+#endif
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-align"
           fbbcomm_builder_recvmsg_scm_rights_set_fds(&ic_msg1, (int *) CMSG_DATA(cmsg), num_fds);
