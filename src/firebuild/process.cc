@@ -205,7 +205,11 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
          dirfd, D(ar_name), flags, mode, fd, pre_open_sent, error, D_FD(fd_conn), ack_num);
 
   /* O_TMPFILE is actually multiple bits, 0x410000 */
+#ifdef O_TMPFILE
   const bool o_tmpfile_set = (flags & O_TMPFILE) == O_TMPFILE;
+#else
+  const bool o_tmpfile_set = false;
+#endif
   const FileName* name = get_absolute(dirfd, ar_name, ar_len);
   if (!name) {
     // FIXME don't disable shortcutting if openat() failed due to the invalid dirfd
