@@ -33,6 +33,7 @@
 #ifdef __APPLE__
 #include <mach/error.h>
 #include <mach-o/dyld.h>
+#include <netdb.h>
 #else
 #include <error.h>
 #endif
@@ -44,8 +45,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#ifdef __APPLE__
+#include <sys/mman.h>
+#include <sys/random.h>
+#endif
 #include <sys/resource.h>
 #include <sys/socket.h>
+#ifdef __APPLE__
+#include <sys/shm.h>
+#endif
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/syscall.h>
