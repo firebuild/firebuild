@@ -134,6 +134,12 @@ struct statx {
 #endif
 
 #ifdef __APPLE__
+#define PRIloff "lld"
+#else
+#define PRIloff PRIoff64
+#endif
+
+#ifdef __APPLE__
 #define sighandler_t sig_t
 #endif
 

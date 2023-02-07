@@ -146,7 +146,7 @@ bool BlobCache::store_file(const FileName *path,
                            loff_t src_skip_bytes,
                            loff_t size,
                            Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, max_writers=%d, fd_src=%d, skip=%" PRIoff64 ", size=%" PRIoff64,
+  TRACK(FB_DEBUG_CACHING, "path=%s, max_writers=%d, fd_src=%d, skip=%" PRIloff ", size=%" PRIloff,
       D(path), max_writers, fd_src, src_skip_bytes, size);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob " + d(path));
@@ -267,7 +267,7 @@ bool BlobCache::move_store_file(const std::string &path,
                                 int fd,
                                 loff_t size,
                                 Hash *key_out) {
-  TRACK(FB_DEBUG_CACHING, "path=%s, fd=%d, size=%" PRIoff64, D(path), fd, size);
+  TRACK(FB_DEBUG_CACHING, "path=%s, fd=%d, size=%" PRIloff, D(path), fd, size);
 
   FB_DEBUG(FB_DEBUG_CACHING, "BlobCache: storing blob by moving " + path);
 
