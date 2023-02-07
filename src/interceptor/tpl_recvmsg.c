@@ -56,7 +56,7 @@
          * My best bet is that we'd need the inverse of CMSG_LEN(), for which there is no macro.
          * We could find the inverse by calling CMSG_LEN() with our guesses in a loop. Or open
          * up the definition from the glibc header to invert it, which is what I'm doing here. */
-        int len = cmsg->cmsg_len - CMSG_ALIGN(sizeof (struct cmsghdr));
+        int len = cmsg->cmsg_len - (CMSG_DATA(cmsg) - (unsigned char *)cmsg);
         assert(len >= 0);
         int num_fds = len / sizeof(int);
         if (num_fds > 0) {
