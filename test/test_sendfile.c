@@ -34,6 +34,7 @@
 
 int main() {
   int fd1, fd2;
+#ifdef O_TMPFILE
   fd1 = open(".", O_RDWR | O_TMPFILE, 0644);
   if (fd1 == -1) {
     if (errno == ENOTSUP || errno == EISDIR) {
@@ -43,6 +44,11 @@ int main() {
       exit(1);
     }
   }
+#else
+  /* sendfile() will fail, but that still excercises most of the code. */
+  // TODO(rbalint) create socket and test with that
+  fd1 = 0;
+#endif
   fd2 = open("integration.bats", O_RDWR);
   if (fd2 == -1) {
     perror("open" LOC);
