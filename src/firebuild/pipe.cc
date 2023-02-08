@@ -332,10 +332,26 @@ void Pipe::set_send_only_mode(const bool mode) {
         epoll->del_fd(it.first);
       }
       /* should try again writing when fd0 becomes writable */
+      if (epoll->is_added_fd(fd0_conn)) {
+        fd0_conn = epoll->remap_to_not_added_fd(fd0_conn);
+        bump_fd_age(fd0_conn);
+      }
       epoll->add_fd(fd0_conn, EPOLLOUT, Pipe::pipe_fd0_write_cb, this);
     } else {
+      tsl::hopscotch_map<int, pipe_end *> conn2fd1_ends_to_remap_first = {};
       for (auto it : conn2fd1_ends) {
-        epoll->add_fd(it.first, EPOLLIN, Pipe::pipe_fd1_read_cb, this);
+        if (epoll->is_added_fd(it.first)) {
+          conn2fd1_ends_to_remap_first.insert({it.first, it.second});
+        } else {
+          epoll->add_fd(it.first, EPOLLIN, Pipe::pipe_fd1_read_cb, this);
+        }
+      }
+      for (auto it : conn2fd1_ends_to_remap_first) {
+        int new_conn = epoll->remap_to_not_added_fd(it.first);
+        bump_fd_age(new_conn);
+        conn2fd1_ends.erase(it.first);
+        conn2fd1_ends[new_conn] = it.second;
+        epoll->add_fd(new_conn, EPOLLIN, Pipe::pipe_fd1_read_cb, this);
       }
       /* Should not be woken up by fd0 staying writable until data arrives. */
       epoll->del_fd(fd0_conn);

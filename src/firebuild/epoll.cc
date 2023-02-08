@@ -32,6 +32,27 @@ namespace firebuild {
 /* singleton */
 Epoll *epoll = nullptr;
 
+void Epoll::delete_closed_fd_context(int fd) {
+      if (fd_contexts_[fd].callback_user_data) {
+        struct epoll_event fake_event {EPOLLHUP, {}};
+        set_event_fd(&fake_event, fd);
+        (*fd_contexts_[fd].callback)(&fake_event, fd_contexts_[fd].callback_user_data);
+      }
+}
+
+Epoll::~Epoll() {
+  close(main_fd_);
+  for (size_t fd = 0; fd < fd_contexts_.size(); fd++) {
+    if (fd_contexts_[fd].callback != nullptr) {
+      /* This fd is still open while firebuild is quitting. This may be connected to a
+       * orphan process. Simulate the termination of the process by closing the fd and letting
+       * the callback to act on it and free the user data. */
+      close(fd);
+      delete_closed_fd_context(fd);
+    }
+  }
+}
+
 void Epoll::ensure_room_fd(int fd) {
   if (fd >= static_cast<ssize_t>(fd_contexts_.size())) {
     fd_contexts_.resize(fd + 1);
@@ -41,6 +62,23 @@ void Epoll::ensure_room_fd(int fd) {
 bool Epoll::is_added_fd(int fd) {
   return fd < static_cast<ssize_t>(fd_contexts_.size())
       && fd_contexts_[fd].callback != nullptr;
+}
+
+int Epoll::remap_to_not_added_fd(int fd) {
+  assert(fd_contexts_[fd].callback);
+  std::vector<int> close_fds = {fd};
+  do {
+    int ret = dup(fd);
+    if (is_added_fd(ret)) {
+      close_fds.push_back(ret);
+    } else {
+      for (int close_fd : close_fds) {
+        closed_context_fds_.push(close_fd);
+      }
+      return ret;
+    }
+  } while (0);
+  return -1;
 }
 
 void Epoll::add_fd(int fd, uint32_t events,
@@ -54,7 +92,10 @@ void Epoll::add_fd(int fd, uint32_t events,
   memset(&ee, 0, sizeof(ee));
   ee.events = events;
   set_event_fd(&ee, fd);
-  epoll_ctl(main_fd_, EPOLL_CTL_ADD, fd, &ee);
+  if (epoll_ctl(main_fd_, EPOLL_CTL_ADD, fd, &ee) == -1) {
+    fb_perror("Error adding epoll fd");
+    abort();
+  }
 }
 
 void Epoll::del_fd(int fd) {

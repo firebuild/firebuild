@@ -24,6 +24,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <queue>
 #include <vector>
 
 #include "firebuild/utils.h"
@@ -53,25 +54,15 @@ class Epoll {
   explicit Epoll(int flags) {
     main_fd_ = epoll_create1(flags);
   }
-  ~Epoll() {
-    close(main_fd_);
-    for (size_t fd = 0; fd < fd_contexts_.size(); fd++) {
-      if (fd_contexts_[fd].callback != nullptr) {
-        /* This fd is still open while firebuild is quitting. This may be connected to a
-         * orphan process. Simulate the termination of the process by closing the fd and letting
-         * the callback to act on it and free the user data. */
-        close(fd);
-        if (fd_contexts_[fd].callback_user_data) {
-          struct epoll_event fake_event {EPOLLHUP, {}};
-          set_event_fd(&fake_event, fd);
-          (*fd_contexts_[fd].callback)(&fake_event, fd_contexts_[fd].callback_user_data);
-        }
-      }
-    }
-  }
+  ~Epoll();
 
   /** Whether we've added an fd to epollfd (according to our own bookkeeping */
   bool is_added_fd(int fd);
+
+  /**
+   * Dup already added fd to an fd that's not added yet to epollfd.
+   * Also close fd. */
+  int remap_to_not_added_fd(int fd);
 
   /** Thin wrapper around epoll_ctl(). Makes sure that the fd isn't added yet to epollfd
    *  (according to our own bookkeeping) and adds it with the given parameters. */
@@ -125,6 +116,14 @@ class Epoll {
   /** Call the relevant callback for all the returned events in events_, and all the expired
    *  timers. */
   void process_all_events() {
+    /* Loop through the file descriptors for which the close() were missed. */
+    while (!closed_context_fds_.empty()) {
+      int fd = closed_context_fds_.front();
+      delete_closed_fd_context(fd);
+      closed_context_fds_.pop();
+      close(fd);
+    }
+
     /* Loop through the file descriptors.
      * In case of a signal, event_count_ might be -1, but that's fine for this loop. */
     for (event_current_ = 0; event_current_ < event_count_; event_current_++) {
@@ -157,6 +156,9 @@ class Epoll {
   /** Make sure epoll_fd_contexts is large enough to contain fd. */
   inline void ensure_room_fd(int fd);
 
+  /** Clean up context for a closed fd. */
+  void delete_closed_fd_context(int fd);
+
   /* Our main epoll fd. */
   int main_fd_ = -1;
 
@@ -164,6 +166,9 @@ class Epoll {
    * if and only if its callback is non-null. */
   std::vector<fd_context> fd_contexts_ {};
 
+  /* Closed fds that still have context in fd_contexts_. Those contexts need to be cleared
+   * up before using the fds again with epoll_ctl(). */
+  std::queue<int> closed_context_fds_ {};
   /* For each timer id, tells when to fire and what to call. The entry is "active" if and only its
    * callback is non-null. */
   std::vector<timer_context> timer_contexts_ {};

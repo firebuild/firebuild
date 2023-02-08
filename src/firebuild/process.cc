@@ -800,6 +800,9 @@ void Process::handle_pipe_request(const int flags, const int fd_conn) {
     close(up[1]);
     return;
   }
+  if (epoll->is_added_fd(down[1])) {
+    down[1] = epoll->remap_to_not_added_fd(down[1]);
+  }
 
   /* Send the "pipe_created" message with two attached fds.
    * down[0] becomes pipefd[0], up[1] becomes pipefd[1] in the interceptor. */
