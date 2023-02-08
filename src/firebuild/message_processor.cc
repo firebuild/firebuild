@@ -182,6 +182,9 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
           int ret = pipe2(fifo_fd, file_fd->flags() & ~O_ACCMODE);
           (void)ret;
           assert(ret == 0);
+          if (epoll->is_added_fd(fifo_fd[0])) {
+            fifo_fd[0] = epoll->remap_to_not_added_fd(fifo_fd[0]);
+          }
           bump_fd_age(fifo_fd[0]);
           /* The supervisor needs nonblocking fds for the pipes. */
           fcntl(fifo_fd[0], F_SETFL, O_NONBLOCK);
@@ -315,6 +318,10 @@ static void accept_popen_child(Process* unix_parent, const pending_popen_t *pend
     if (pipe2(up, flags & ~O_ACCMODE) < 0 || pipe2(down, flags & ~O_ACCMODE) < 0) {
       assert(0 && "pipe2() failed");
     }
+    if (epoll->is_added_fd(up[0])) {
+      up[0] = epoll->remap_to_not_added_fd(up[0]);
+    }
+
     bump_fd_age(up[0]);
     bump_fd_age(up[1]);
     bump_fd_age(down[0]);

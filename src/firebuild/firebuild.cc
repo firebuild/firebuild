@@ -176,6 +176,12 @@ static void accept_ic_conn(const struct epoll_event* event, void *arg) {
   if (fd < 0) {
     firebuild::fb_perror("accept");
   } else {
+    if (firebuild::epoll->is_added_fd(fd)) {
+      /* This happens very rarely. Just when the file descriptor has been closed by the other end,
+       * the epoll loop did not process this event yet, but the file descriptor got reused for the
+       * new connection. */
+      fd = firebuild::epoll->remap_to_not_added_fd(fd);
+    }
     firebuild::bump_fd_age(fd);
     auto conn_ctx = new firebuild::ConnectionContext(fd);
     fcntl(fd, F_SETFL, O_NONBLOCK);
