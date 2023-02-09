@@ -153,7 +153,11 @@ void Pipe::pipe_fd0_write_cb(const struct epoll_event* event, void *arg) {
   ProcessDebugSuppressor debug_suppressor(pipe->creator());
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
-  (void) event;  /* unused */
+  if (!(event->events & EPOLLOUT)) {
+    /* Clean up pipe. */
+    pipe->finish();
+    return;
+  }
   switch (pipe->send_buf()) {
     case FB_PIPE_WOULDBLOCK: {
       /* waiting to be able to send more data on fd0 */
@@ -288,6 +292,10 @@ void Pipe::pipe_fd1_read_cb(const struct epoll_event* event, void *arg) {
   ProcessDebugSuppressor debug_suppressor(pipe->creator());
   TRACKX(FB_DEBUG_PIPE, 1, 1, Pipe, pipe, "fd=%s", D_FD(Epoll::event_fd(event)));
 
+  if (!(event->events & EPOLLIN)) {
+    pipe->close_one_fd1(Epoll::event_fd(event));
+    return;
+  }
   auto result = pipe->forward(Epoll::event_fd(event), false);
   switch (result) {
     case FB_PIPE_WOULDBLOCK: {
