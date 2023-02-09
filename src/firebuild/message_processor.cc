@@ -1210,6 +1210,13 @@ void MessageProcessor::ic_conn_readcb(const struct epoll_event* event, void *ctx
   const msg_header * header;
   ProcessDebugSuppressor debug_suppressor(proc);
 
+  if (!(event->events & EPOLLIN)) {
+    FB_DEBUG(FB_DEBUG_COMM, "socket " +
+             d_fd(Epoll::event_fd(event)) +
+             " hung up (" + d(proc) + ")");
+    delete conn_ctx;
+    return;
+  }
   int read_ret = buf.read(Epoll::event_fd(event), -1);
   if (read_ret < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {

@@ -62,7 +62,7 @@ class Epoll {
          * the callback to act on it and free the user data. */
         close(fd);
         if (fd_contexts_[fd].callback_user_data) {
-          struct epoll_event fake_event;
+          struct epoll_event fake_event {EPOLLHUP, {}};
           set_event_fd(&fake_event, fd);
           (*fd_contexts_[fd].callback)(&fake_event, fd_contexts_[fd].callback_user_data);
         }
