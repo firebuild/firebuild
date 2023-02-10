@@ -355,6 +355,9 @@ def glibc_ge(major, minor):
 def not_glibc_ge(major, minor):
   return "#if !FB_GLIBC_PREREQ({}, {})".format(major, minor)
 
+def apple_ge(major, minor):
+  return '#if (defined __APPLE__) && (__MAC_OS_X_VERSION_MIN_REQUIRED >= {}{}00)'.format(str(major).zfill(2), str(minor).zfill(2))
+
 # Initialize the output files with their headers.
 # Also truncate them before we'll reopen them plenty of times for appending.
 for gen in set(libc_outputs + syscall_outputs):
@@ -1807,6 +1810,11 @@ generate("int", "__xmknodat", "int ver, int dirfd, const char *path, mode_t mode
 generate("int", ["mknod", "SYS_mknod"], "const char *path, mode_t mode, dev_t dev",
          tpl="once")
 generate("int", ["mknodat", "SYS_mknodat"], "int dirfd, const char *path, mode_t mode, dev_t dev",
+         platforms=['linux'],
+         tpl="once")
+generate("int", ["mknodat", "SYS_mknodat"], "int dirfd, const char *path, mode_t mode, dev_t dev",
+         platforms=['darwin'],
+         ifdef_guard=apple_ge(13, 0),
          tpl="once")
 
 # Disable shortcutting on mkfifo
