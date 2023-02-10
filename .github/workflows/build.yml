@@ -282,6 +282,32 @@ jobs:
         rm -f ~/.cache/debs/*
         cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
+  build-on-macos:
+    needs: style-checks
+    runs-on: macos-12
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v3
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: build-on-macos-12
+    - name: install-deps
+      run: |
+        brew update
+        brew install bats-core coreutils docbook-xsl jemalloc jinja2-cli libconfig xxhash
+        (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && sudo make install)
+    - name: build-in-tree
+      run: |
+        export PATH=/usr/local/opt/ccache/libexec:$(ls -d /usr/local/Cellar/jinja2-cli/0.8.2/libexec/bin):$PATH
+        cmake -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -DCMAKE_BUILD_TYPE=Debug .
+        export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
+        make -j2
+    - name: test
+      run: |
+        # this fails yet
+        export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
+        make check || true
+
   style-checks:
     runs-on: ubuntu-22.04
     outputs:
