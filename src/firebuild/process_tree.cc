@@ -24,6 +24,8 @@
 #include "common/platform.h"
 #include "firebuild/debug.h"
 
+extern bool generate_report;
+
 namespace firebuild {
 
 /* singleton */
@@ -120,4 +122,17 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
   insert_process(root_);
 }
 
+void ProcessTree::GcProcesses() {
+  while (!proc_gc_queue_.empty()) {
+    ExecedProcess* proc = proc_gc_queue_.front();
+    proc->inherited_files().clear();
+    if (!generate_report) {
+      proc->file_usages().clear();
+      proc->args().clear();
+      proc->env_vars().clear();
+      proc->libs().clear();
+    }
+    proc_gc_queue_.pop();
+  }
+}
 }  /* namespace firebuild */
