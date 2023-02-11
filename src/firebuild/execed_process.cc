@@ -29,6 +29,7 @@
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/process_debug_suppressor.h"
+#include "firebuild/process_tree.h"
 #include "firebuild/utils.h"
 
 extern bool generate_report;
@@ -223,14 +224,6 @@ void ExecedProcess::do_finalize() {
     execed_process_cacher->store(this);
   }
 
-  inherited_files_.clear();
-  if (!generate_report) {
-    file_usages_.clear();
-    args().clear();
-    env_vars().clear();
-    libs_.clear();
-  }
-
   /* Propagate resource usage. */
   if (parent_exec_point()) {
     parent_exec_point()->add_children_cpu_time_u(aggr_cpu_time_u());
@@ -243,6 +236,7 @@ void ExecedProcess::do_finalize() {
   for (const auto& pipe : created_pipes_) {
     pipe->finish();
   }
+  proc_tree->QueueExecProcForGC(this);
 }
 
 bool ExecedProcess::register_file_usage_update(const FileName *name,

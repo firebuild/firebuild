@@ -27,6 +27,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <queue>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -157,6 +158,9 @@ class ProcessTree {
     assert(!Proc2PendingPopen(proc));
     proc2pending_popen_[proc] = pending_popen;
   }
+  void QueueExecProcForGC(ExecedProcess* proc) {
+    proc_gc_queue_.push(proc);
+  }
   const fork_child_sock* Pid2ForkChildSock(const int pid) {
     auto it = ppid2fork_child_sock_.find(pid);
     if (it != ppid2fork_child_sock_.end()) {
@@ -223,6 +227,7 @@ class ProcessTree {
   void DropPendingPopen(Process *proc) {
     proc2pending_popen_.erase(proc);
   }
+  void GcProcesses();
   void AckParent(const int ppid) {
     const pending_parent_ack *ack = PPid2ParentAck(ppid);
     if (ack) {
@@ -266,6 +271,8 @@ class ProcessTree {
    *  Store this rarely used data here to decrease the size of Process objects.
    *  The key is the process that performs the popen() call. */
   tsl::hopscotch_map<Process *, pending_popen_t> proc2pending_popen_ = {};
+  /** Finalized ExecedProcesses to be garbage collected. */
+  std::queue<ExecedProcess*> proc_gc_queue_ = {};
   /**
    * Directory the first executed process starts in. This is presumably the top directory
    * of the project to be built. */

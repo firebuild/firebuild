@@ -457,6 +457,8 @@ int main(const int argc, char *argv[]) {
 
       /* Process the reported events, if any. */
       firebuild::epoll->process_all_events();
+
+      firebuild::proc_tree->GcProcesses();
     }
 
     /* Finish all top pipes */
