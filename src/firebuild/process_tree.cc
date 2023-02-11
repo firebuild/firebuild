@@ -123,14 +123,22 @@ void ProcessTree::insert_root(pid_t root_pid, int stdin_fd, int stdout_fd, int s
 }
 
 void ProcessTree::GcProcesses() {
+  bool have_orphan = root()->has_orphan_descendant();
   while (!proc_gc_queue_.empty()) {
     ExecedProcess* proc = proc_gc_queue_.front();
-    proc->inherited_files().clear();
     if (!generate_report) {
-      proc->file_usages().clear();
-      proc->args().clear();
-      proc->env_vars().clear();
-      proc->libs().clear();
+      // TODO(rbalint) delete subtrees not affected by orphans
+      if (proc->parent() && !have_orphan) {
+        proc->parent()->set_exec_child(nullptr);
+        delete_process_subtree(proc);
+      } else {
+        proc->file_usages().clear();
+        proc->args().clear();
+        proc->env_vars().clear();
+        proc->libs().clear();
+      }
+    } else {
+      proc->inherited_files().clear();
     }
     proc_gc_queue_.pop();
   }
