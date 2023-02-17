@@ -26,6 +26,10 @@ Files: debian/po/nl.po
 Copyright: 2023 Frans Spiesschaert <Frans.Spiesschaert@yucom.be>
 License: Expat
 
+Files: debian/po/pt_BR.po
+Copyright: 2023 Paulo Henrique de Lima Santana (phls) <phls@debian.org>
+License: Expat
+
 License: Firebuild-license
  All rights reserved.
  .
