@@ -307,7 +307,10 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
           /* If all file changes were performed by descendants then the generation updates should
            * always be incremented by one. Otherwise the file could have been changed outside of the
            * process's subtree wich makes the process not shortcutable. */
-          proc->disable_shortcutting_only_this("A parallel process modified the file");
+          proc->disable_shortcutting_only_this(
+              generate_report
+              ? deduplicated_string("A parallel process modified " + d(name)).c_str()
+              : "A parallel process modified the file");
           /* Still bubble up to the root because an ancestor may still be shortcutable and also
            * been updated with the parallel change. */
           if (!generate_report) {
@@ -392,6 +395,13 @@ bool ExecedProcess::shortcut(std::vector<int> *fds_appended_to) {
   }
 }
 
+const char* ExecedProcess::reason_with_fd(const char* reason, const int fd) const {
+  return deduplicated_string(std::string(reason) + " fd: " + d(fd)
+                             + ((get_fd(fd) && get_fd(fd)->filename())
+                                ? (std::string(", name: ") + get_fd(fd)->filename()->c_str())
+                                : "")).c_str();
+}
+
 void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
     ExecedProcess *stop,
     const char* reason,
@@ -435,8 +445,10 @@ void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
     const ExecedProcess *p,
     ExecedProcess *shortcutable_ancestor,
     bool shortcutable_ancestor_is_set) {
-  disable_shortcutting_bubble_up_to_excl(stop, reason, p, shortcutable_ancestor,
-                                         shortcutable_ancestor_is_set);
+  disable_shortcutting_bubble_up_to_excl(
+      stop,
+      generate_report ? reason_with_fd(reason, fd) : reason,
+      p, shortcutable_ancestor, shortcutable_ancestor_is_set);
   FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
 }
 void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
@@ -450,8 +462,7 @@ void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const int fd,
                                                    const ExecedProcess *p) {
   disable_shortcutting_bubble_up(
-      generate_report ? deduplicated_string(std::string(reason) + " fd: " + d(fd)).c_str()
-      : reason, p);
+      generate_report ? reason_with_fd(reason, fd) : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
 }
 

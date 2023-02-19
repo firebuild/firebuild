@@ -315,6 +315,7 @@ class ExecedProcess : public Process {
   ExecedProcess* closest_shortcut_point() {
     return can_shortcut() ? this : next_shortcutable_ancestor();
   }
+  const char* reason_with_fd(const char* reason, const int fd) const;
   /** Reason for this process can't be short-cut */
   const char* cant_shortcut_reason_ = nullptr;
   /** Process the event preventing short-cutting happened in */
