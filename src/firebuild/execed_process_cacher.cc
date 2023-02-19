@@ -39,6 +39,8 @@
 #include "firebuild/fbbstore.h"
 #include "firebuild/process_tree.h"
 
+extern bool generate_report;
+
 namespace firebuild {
 
 static const XXH64_hash_t kFingerprintVersion = 0;
@@ -655,7 +657,10 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         FB_DEBUG(FB_DEBUG_CACHING,
                  "A file (" + d(filename)+ ") changed since the process used it.");
         proc->disable_shortcutting_only_this(
-            "A file could not be stored because it changed since the process used it.");
+            generate_report
+            ? deduplicated_string("A file (" + d(filename)
+                                  + ") changed since the process used it.").c_str()
+            : "A file could not be stored because it changed since the process used it.");
         return;
       }
 
