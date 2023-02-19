@@ -52,7 +52,6 @@ static std::string escapeJsonString(const std::string& input) {
     switch (*iter) {
       case '\\': ss << "\\\\"; break;
       case '"': ss << "\\\""; break;
-      case '/': ss << "\\/"; break;
       case '\b': ss << "\\b"; break;
       case '\f': ss << "\\f"; break;
       case '\n': ss << "\\n"; break;
