@@ -1,3 +1,19 @@
+0.2.12 / 2023-02-23
+==================
+
+  * Handle system(NULL)
+  * Detect inherited file backed fds that are not not seeked to the end in the interceptor
+  * report: Don't break line inside a single environment variable
+  * interceptor: Wide scanf variants return EOF, too, not WEOF
+  * interceptor: Fix syscall template to honor rettype and ifdef_guard
+  * supervisor: Prevent adding an fd with epoll_ctl() twice to avoid errors and crashes
+  * supervisor: Deduplicate dynamically allocated reasons of not shortcutting
+  * report: Include more verbose reasons for not not shortcutting
+  * report: Don't escape "/" in JSON strings
+  * report: Escape used files to not break the JSON format
+  * Dutch translation of debconf messages
+  * Spanish translation of the debconf template
+  * Brazilian Portuguese debconf templates translation
 
 0.2.11 / 2023-01-21
 ==================

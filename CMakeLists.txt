@@ -6,7 +6,7 @@ include(CMakeOptions.txt)
 
 if (NOT DEFINED FIREBUILD_VERSION)
   # Set in tagged commits only
-  #set(FIREBUILD_VERSION "0.2.11")
+  set(FIREBUILD_VERSION "0.2.12")
 endif()
 
 if (NOT DEFINED FIREBUILD_VERSION)
