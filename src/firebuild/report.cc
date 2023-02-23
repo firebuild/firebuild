@@ -68,6 +68,10 @@ static const char* full_relative_path_or_basename(const char *name) {
   return name_last_slash && path_is_absolute(name) ? name_last_slash + 1 : name;
 }
 
+static void fprintf_escaped_file(FILE* stream, const file_file_usage& ffu) {
+  fprintf(stream, "\"%s\",", escapeJsonString(ffu.file->to_string()).c_str());
+}
+
 static void export2js(const ExecedProcess* proc, const unsigned int level,
                       FILE* stream, unsigned int * nodeid) {
   // TODO(rbalint): escape all strings properly
@@ -134,7 +138,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   for (auto& ffu : ordered_file_usages) {
     bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (!isreg_with_hash && ffu.usage->written()) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
+      fprintf_escaped_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -143,7 +147,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   for (auto& ffu : ordered_file_usages) {
     bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (isreg_with_hash && ffu.usage->written()) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
+      fprintf_escaped_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -152,7 +156,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   for (auto& ffu : ordered_file_usages) {
     bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (isreg_with_hash && !ffu.usage->written()) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
+      fprintf_escaped_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -160,7 +164,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& ffu : ordered_file_usages) {
     if (ffu.usage->initial_type() == NOTEXIST) {
-      fprintf(stream, "\"%s\",", ffu.file->c_str());
+      fprintf_escaped_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
