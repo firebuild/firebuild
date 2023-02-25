@@ -84,7 +84,9 @@ Firebuild's interception works by preloading libfirebuild.so to the intercepted 
 
 ## Installation
 
-Binaries for supported Ubuntu releases can be downloaded from the [official PPA](https://launchpad.net/~firebuild/+archive/ubuntu/stable):
+Firebuild is available in [Debian](https://tracker.debian.org/pkg/firebuild), [Ubuntu](https://launchpad.net/ubuntu/+source/firebuild), and other Debian derivatives.
+
+Back-ported packages for supported Ubuntu releases can be downloaded from the [official PPA](https://launchpad.net/~firebuild/+archive/ubuntu/stable):
 
     sudo add-apt-repository ppa:firebuild/stable
     sudo apt install firebuild
