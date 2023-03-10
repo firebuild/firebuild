@@ -2048,6 +2048,15 @@ generate("mode_t", ["umask", "SYS_umask"], "mode_t mask",
          send_msg_on_error=False)
 # Note: getumask is gone since glibc 2.24
 
+# Pretend that seccomp() is not implemented.
+# This allows interception of a few commands that otherwise would use seccomp sandboxing, such as man
+# and friends.
+generate("int", "SYS_seccomp", "unsigned int operation, unsigned int flags, void *args",
+         msg_skip_fields=["operation", "flags", "args"],
+         msg="seccomp",
+         call_orig_lines=["(void)operation; (void)flags; (void)args;",
+                          "errno = EINVAL; ret =  -1;"])
+
 # FIXME {get,set,p}rlimit
 
 # User and group stuff

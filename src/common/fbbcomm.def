@@ -561,6 +561,11 @@
       (REQUIRED, "int", "ret"),
     ]),
 
+    ("seccomp", [
+      # always EINVAL at the moment, since the original call is not called
+      (REQUIRED, "int", "error_no"),
+    ]),
+
     ("exec", [
       # file to execute
       (OPTIONAL, STRING, "file"),
