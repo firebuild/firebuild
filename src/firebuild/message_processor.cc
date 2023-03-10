@@ -1176,6 +1176,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       /* Ignore gethostname. With a local cache it should not make a difference, while
        * in a shared cache the intention is to use cached results from other machines. */
       break;
+    case FBBCOMM_TAG_seccomp:
+      /* Ignore seccomp(). The interposer always returns EINVAL error to keep interception
+       * working. This breaks sandboxing, but builds can run arbitrary commands anyway. */
+      break;
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:
