@@ -322,6 +322,8 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
         quirks |= FB_QUIRK_LTO_WRAPPER;
       } else if (quirk == "ignore-time-queries") {
         quirks |= FB_QUIRK_IGNORE_TIME_QUERIES;
+      } else if (quirk == "ignore-statfs") {
+        quirks |= FB_QUIRK_IGNORE_STATFS;
       } else if (quirk == "guess-file-params") {
         quirks |= FB_QUIRK_GUESS_FILE_PARAMS;
       } else {

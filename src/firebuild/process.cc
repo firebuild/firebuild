@@ -36,6 +36,7 @@
 #include "common/firebuild_common.h"
 #include "common/platform.h"
 #include "firebuild/pipe_recorder.h"
+#include "firebuild/config.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/execed_process_env.h"
@@ -503,9 +504,13 @@ int Process::handle_statfs(const char * const a_name, const size_t length,
 
   if (a_name == nullptr) {
     /* Operating on an opened fd, i.e. fstatfs(). */
-    exec_point()->disable_shortcutting_bubble_up(
-        "fstatfs() family operating on fds is not supported");
-    return -1;
+    if (quirks & FB_QUIRK_IGNORE_STATFS) {
+      return 0;
+    } else {
+      exec_point()->disable_shortcutting_bubble_up(
+          "fstatfs() family operating on fds is not supported");
+      return -1;
+    }
   }
   /* Operating on a file reached by its name, made absolute by the interceptor. */
 #ifdef FB_EXTRA_DEBUG
@@ -517,7 +522,7 @@ int Process::handle_statfs(const char * const a_name, const size_t length,
     if (!exec_point()->register_file_usage_update(name, update)) {
       exec_point()->disable_shortcutting_bubble_up("Could not register failed statfs()", *name);
     }
-  } else {
+  } else if (!(quirks & FB_QUIRK_IGNORE_STATFS)) {
     // TODO(rbalint) add more supported cases
     exec_point()->disable_shortcutting_bubble_up(
         "Successful statfs() calls are not supported.");

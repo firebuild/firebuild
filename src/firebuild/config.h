@@ -60,6 +60,7 @@ extern int quirks;
 #define FB_QUIRK_LTO_WRAPPER         0x02
 #define FB_QUIRK_GUESS_FILE_PARAMS   0x04
 #define FB_QUIRK_IGNORE_TIME_QUERIES 0x08
+#define FB_QUIRK_IGNORE_STATFS       0x10
 
 void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
                  const std::list<std::string>& config_strings);
