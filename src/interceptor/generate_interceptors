@@ -26,6 +26,14 @@ if len(sys.argv) != 2:
   exit(1)
 outdir = sys.argv[1]
 
+if sys.platform.startswith('linux'):
+  target = "linux"
+elif sys.platform.startswith('darwin'):
+  target = "darwin"
+else:
+  print("Unsupported platform: {}".format(platform.system()))
+  exit(1)
+
 libc_outputs = ['decl.h', 'def.c', 'impl.c', 'list.txt', 'reset.c']
 syscall_outputs = ['decl.h', 'def.c', 'impl_syscalls.c.inc', 'reset.c']
 env = Environment(loader=FileSystemLoader('.'),
@@ -260,6 +268,8 @@ def generate(rettype, funcs, sig, **dict):
   else:
     dict['tpl'] = 'tpl_' + dict['tpl'] + '.c'
   template = env.get_template(dict['tpl'])
+
+  dict['target'] = target
 
   if 'msg' not in dict:
     dict['msg'] = funcs[0] if dict['tpl'] != 'tpl_once.c' else 'gen_call'
