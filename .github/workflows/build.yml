@@ -32,7 +32,7 @@ jobs:
         key: build-on-ubuntu-lts
     - name: install-deps
       run: |
-        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen valgrind lcov
+        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen lcov
     - name: build-out-of-tree
       run: |
         export PATH=/usr/lib/ccache:$PATH
@@ -52,7 +52,6 @@ jobs:
     - name: test
       run: |
         make check
-        test/close_fds_exec make valgrind-check
     - name: coverage
       # tests don't run with out of tree builds at the moment
       run: |
@@ -61,6 +60,41 @@ jobs:
         cmake -DCOVERAGE=1 .
         make -j2 check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 73" | bc) = 1 ]
+    - name: save-cached-debs
+      run: |
+        rm -f ~/.cache/debs/*
+        cp /var/cache/apt/archives/*deb ~/.cache/debs/
+
+  test-with-valgrind:
+    needs: style-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/debs
+        key: test-with-valgrind-debs-${{ needs.style-checks.outputs.week }}
+    # TODO: This and saving the debs can be dropped and and the debs can be saved directly like in docker
+    # when https://github.com/actions/cache/issues/324 gets fixed
+    - name: restore-cached-debs
+      run: |
+        [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
+    - uses: hendrikmuhs/ccache-action@v1
+      with:
+        key: test-with-valgrind
+    - name: install-deps
+      run: |
+        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS valgrind
+    - name: build-in-tree
+      run: |
+        export PATH=/usr/lib/ccache:$PATH
+        cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
+        make -j2
+    - name: test
+      run: |
+        make -j3 close_fds_exec
+        test/close_fds_exec make valgrind-check
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
