@@ -9,10 +9,11 @@ add_custom_command(
   COMMENT "Generating fbbtest files")
 
 add_custom_target(fbbtest_gen_files ALL DEPENDS fbbtest.cc fbbtest.h fbbtest_decode.c)
+add_custom_target(check-bins)
 
 function(add_test_binary TEST_BINARY)
   add_executable("${TEST_BINARY}" EXCLUDE_FROM_ALL "${TEST_BINARY}.c")
-  add_dependencies(check "${TEST_BINARY}")
+  add_dependencies(check-bins "${TEST_BINARY}")
 endfunction()
 
 foreach(TESTFILE integration.bats test_parallel_make.Makefile test_symbols)
@@ -69,7 +70,7 @@ add_custom_target(check-deps)
 add_dependencies(check-deps fbb_test)
 add_dependencies(check-deps firebuild)
 add_dependencies(check-deps firebuild-bin)
-add_dependencies(check check-deps)
-add_dependencies(valgrind-check check-deps)
+add_dependencies(check check-deps check-bins)
+add_dependencies(valgrind-check check-deps check-bins)
 
 add_test(test-symbols ./test_symbols ${CMAKE_BINARY_DIR})
