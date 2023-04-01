@@ -27,7 +27,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
+    - uses: firebuild/firebuild-action@v3
       with:
         key: build-on-ubuntu-lts
     - name: install-deps
@@ -35,29 +35,27 @@ jobs:
         sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen lcov
     - name: build-out-of-tree
       run: |
-        export PATH=/usr/lib/ccache:$PATH
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        make -j2
+        firebuild cmake -DCMAKE_BUILD_TYPE=Release ..
+        firebuild make -j2
     - name: doc
       run: |
         cd build
-        doxygen
+        firebuild doxygen
     - name: build-in-tree
       run: |
-        export PATH=/usr/lib/ccache:$PATH
-        cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
-        make -j2
+        firebuild cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
+        firebuild make -j2 all check-bins
     - name: test
       run: |
         make check
     - name: coverage
       # tests don't run with out of tree builds at the moment
       run: |
-        export PATH=/usr/lib/ccache:$PATH
         git clean -dxf
-        cmake -DCOVERAGE=1 .
+        firebuild cmake -DCOVERAGE=1 .
+        firebuild make all check-bins
         make -j2 check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 73" | bc) = 1 ]
     - name: save-cached-debs
@@ -80,7 +78,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
+    - uses: firebuild/firebuild-action@v3
       with:
         key: test-with-valgrind
     - name: install-deps
@@ -88,12 +86,11 @@ jobs:
         sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS valgrind
     - name: build-in-tree
       run: |
-        export PATH=/usr/lib/ccache:$PATH
-        cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
-        make -j2
+        firebuild cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
+        firebuild make -j2 all check-bins
     - name: test
       run: |
-        make -j3 close_fds_exec
+        firebuild make -j3 close_fds_exec
         test/close_fds_exec make valgrind-check
     - name: save-cached-debs
       run: |
@@ -119,7 +116,7 @@ jobs:
       with:
         path: /var/cache/apt/archives/*deb
         key: build-on-ubuntu-docker-debs-${{ needs.style-checks.outputs.week }}
-    - uses: hendrikmuhs/ccache-action@v1.2
+    - uses: firebuild/firebuild-action@v3
       with:
         key: build-on-ubuntu-docker
     - name: install-deps
@@ -135,13 +132,12 @@ jobs:
         fetch-depth: 0
     - name: build-out-of-tree
       run: |
-        export PATH=/usr/lib/ccache:$PATH
         # avoid git error about repository ownership
         git config --global --add safe.directory $PWD
         mkdir build
         cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
-        make -j2
+        firebuild cmake -DCMAKE_BUILD_TYPE=Release ..
+        firebuild make -j2
         # Version should be set in the source before tagging a release,
         # then the version should be unset right in the next commit.
         BUILT_VERSION=$(src/firebuild/firebuild --version | head -n1 | cut -d" "  -f2)
@@ -149,8 +145,8 @@ jobs:
         dpkg --compare-versions $BUILT_VERSION ge $GIT_VERSION
     - name: build-in-tree
       run: |
-        export PATH=/usr/lib/ccache:$PATH
-        cmake -DCMAKE_BUILD_TYPE=Debug .
+        firebuild cmake -DCMAKE_BUILD_TYPE=Debug .
+        firebuild make -j2 all check-bins
         make -j2 check
 
   clang-build:
@@ -166,7 +162,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
+    - uses: firebuild/firebuild-action@v3
       with:
         key: clang-build
     - name: install-deps
@@ -174,9 +170,8 @@ jobs:
         sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS $TEST_DEPS valgrind
     - name: build
       run: |
-        export PATH=/usr/lib/ccache:$PATH
         env CC=clang CXX=clang++ LD=ld.lld cmake .
-        make -j2
+        firebuild make -j2 all check-bins
     - name: test
       run: |
         make check
@@ -186,8 +181,8 @@ jobs:
     - name: scan-build
       run: |
         # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
-        env CCACHE_DISABLE=1 scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
-        env CCACHE_DISABLE=1 scan-build-12 --status-bugs make -j2
+        scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
+        scan-build-12 --status-bugs make -j2
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
@@ -206,7 +201,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
+    - uses: firebuild/firebuild-action@v3
       with:
         key: rebuild-self
     - name: install-deps
@@ -214,7 +209,6 @@ jobs:
         sudo eatmydata apt-get -y install $BUILD_DEPS
     - name: rebuild self
       run: |
-        export PATH=/usr/lib/ccache:$PATH
         tools/rebuild-self build
         # rebuild again, to test shortcutting
         cd build-first-build/test
@@ -247,7 +241,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
+    - uses: firebuild/firebuild-action@v3
       with:
         key: build-other-projects
     - name: install-deps
@@ -260,10 +254,9 @@ jobs:
         sudo eatmydata apt-get build-dep vte2.91
     - name: build-in-tree
       run: |
-        export PATH=/usr/lib/ccache:$PATH
-        cmake -DWITH_JEMALLOC=OFF -DSANITIZE=ON .
+        firebuild cmake -DWITH_JEMALLOC=OFF -DSANITIZE=ON .
+        firebuild make -j2 all check-bins
         make -j2 check
-        export PATH=${PATH#*ccache:}
     - name: build-vte
       run: |
         apt-get source vte2.91
@@ -294,7 +287,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: hendrikmuhs/ccache-action@v1
+    - uses: firebuild/firebuild-action@v3
       with:
         key: build-deb-${{ matrix.os }}
     - name: install-deps
@@ -304,12 +297,12 @@ jobs:
         sudo eatmydata apt-get build-dep .
     - name: deb
       run: |
-        export PATH=/usr/lib/ccache:$PATH
         # skip dh_buildinfo step
         printf '\noverride_dh_buildinfo:\n' >> debian/rules
-        dpkg-buildpackage -j2 -us -uc
+        # don't intercept bats and ldd to avoid breaking firebuild's own tests
+        firebuild  -o 'processes.dont_intercept += "bats"' -o 'processes.dont_intercept += "ldd"' dpkg-buildpackage -j2 -us -uc
         echo debconf firebuild/license-accepted select true | sudo debconf-set-selections
-        sudo apt-get install ../*.deb
+        sudo apt-get install -y --allow-downgrades ../*.deb
         firebuild -- ls
     - name: save-cached-debs
       run: |
