@@ -121,6 +121,15 @@ class Hash {
   }
 
  private:
+  /**
+   * Set the hash from the given opened file descriptor with read operations.
+   * The file seek position (read/write offset) is irrelevant.
+   *
+   * @param fd The file descriptor
+   * @param size expected file size, updated if the size is smaller
+   * @return Whether succeeded
+   */
+  bool set_from_fd_pread(int fd, off_t* const size);
   static const unsigned int hash_size_ = sizeof(XXH128_hash_t);
   XXH128_hash_t hash_;
 };

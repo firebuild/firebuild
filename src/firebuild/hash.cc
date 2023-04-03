@@ -37,6 +37,8 @@
 
 namespace firebuild  {
 
+static const off_t kHashingBufSize = 4096;
+
 void Hash::set_from_data(const void *data, ssize_t size) {
   TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "");
 
@@ -44,6 +46,73 @@ void Hash::set_from_data(const void *data, ssize_t size) {
    * "Streaming functions [...] is slower than single-call functions, due to state management."
    * Let's take the faster path. */
   hash_ = XXH3_128bits(data, size);
+}
+
+static ssize_t pread_checked_eof(int fd, char* buf, const off_t count, const off_t offset) {
+  ssize_t read_bytes = TEMP_FAILURE_RETRY(pread(fd, buf, count, offset));
+  if (read_bytes < 0) {
+    return -1;
+  } else if (read_bytes < count &&
+             TEMP_FAILURE_RETRY(
+                 pread(fd, buf + read_bytes, count - read_bytes, offset + read_bytes)) != 0) {
+    FB_DEBUG(FB_DEBUG_HASH,
+             "Cannot compute hash of regular file: pread could not read the whole file");
+    return -1;
+  } else {
+    return read_bytes;
+  }
+}
+
+bool Hash::set_from_fd_pread(int fd, off_t* const size) {
+  TRACKX(FB_DEBUG_HASH, 0, 1, Hash, this, "fd=%d, size=%" PRIoff, fd, *size);
+  char buf[kHashingBufSize];
+  if (*size <= kHashingBufSize) {
+    ssize_t read_bytes = pread_checked_eof(fd, buf, *size, 0);
+    if (read_bytes == -1) {
+      FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of regular file: pread failed");
+      return false;
+    } else {
+      if (read_bytes != *size) {
+        *size = read_bytes;
+      }
+      set_from_data(buf, *size);
+      return true;
+    }
+  } else {
+    /* File does not fit in the buffer, needs multiple reads. */
+#ifdef XXH_INLINE_ALL
+    XXH3_state_t state_struct;
+    XXH3_state_t* state = &state_struct;
+#else
+    XXH3_state_t* state = XXH3_createState();
+#endif
+    if (XXH3_128bits_reset(state) == XXH_ERROR) {
+      abort();
+    }
+
+    off_t pos = 0;
+    while (pos < *size) {
+      const off_t to_read = std::min(kHashingBufSize, *size - pos);
+      ssize_t read_bytes = pread_checked_eof(fd, buf, to_read, pos);
+      if (read_bytes == -1 || (XXH3_128bits_update(state, buf, read_bytes) == XXH_ERROR)) {
+        FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of regular file: pread failed");
+#ifndef XXH_INLINE_ALL
+        XXH3_freeState(state);
+#endif
+        return false;
+      }
+      pos += read_bytes;
+      if (read_bytes < to_read) {
+        *size = pos;
+      }
+    }
+    hash_ = XXH3_128bits_digest(state);
+#ifndef XXH_INLINE_ALL
+    XXH3_freeState(state);
+#endif
+  }
+
+  return true;
 }
 
 bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, off_t *size_out) {
@@ -57,30 +126,36 @@ bool Hash::set_from_fd(int fd, const struct stat64 *stat_ptr, bool *is_dir_out, 
   const struct stat64 *st = stat_ptr ? stat_ptr : &st_local;
 
   if (S_ISREG(st->st_mode)) {
+    off_t size = st->st_size;
     /* Compute the hash of a regular file. */
     if (is_dir_out != NULL) {
       *is_dir_out = false;
     }
     if (size_out != NULL) {
-      *size_out = st->st_size;
+      *size_out = size;
     }
 
-    void *map_addr;
-    if (st->st_size > 0) {
-      map_addr = mmap(NULL, st->st_size, PROT_READ, MAP_SHARED, fd, 0);
-      if (map_addr == MAP_FAILED) {
-        FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of regular file: mmap failed");
-        return false;
-      }
+    if (size < 0) {
+        FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of file with negative size");
+      return false;
+    } else if (size == 0) {
+      set_from_data(nullptr, 0);
+      return true;
     } else {
-      /* Zero length files cannot be mmapped. */
-      map_addr = NULL;
-    }
-
-    set_from_data(map_addr, st->st_size);
-
-    if (st->st_size > 0) {
-      munmap(map_addr, st->st_size);
+      /* st->st_size > 0 */
+      void *map_addr;
+      map_addr = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+      if (map_addr == MAP_FAILED) {
+        if (errno == ENODEV) {
+          return set_from_fd_pread(fd, size_out ? size_out : &size);
+        } else {
+          FB_DEBUG(FB_DEBUG_HASH, "Cannot compute hash of regular file: mmap failed");
+          return false;
+        }
+      } else {
+      }
+      set_from_data(map_addr, size);
+      munmap(map_addr, size);
     }
     return true;
 
