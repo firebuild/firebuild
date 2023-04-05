@@ -97,11 +97,14 @@ jobs:
         rm -f ~/.cache/debs/*
         cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
-  # build on latest stable Ubuntu available in a docker image, which may not be an lts
-  build-on-ubuntu-docker:
+  # build on various Debian derivative releases in docker
+  build-in-docker:
+    strategy:
+      matrix:
+        container: ["ubuntu:rolling", "ubuntu:devel", "i386/debian"]
     needs: style-checks
     runs-on: ubuntu-latest
-    container: ubuntu:jammy
+    container: ${{ matrix.container }}
     timeout-minutes: 15
     steps:
     - name: disable-apt-docker-clean
@@ -110,15 +113,8 @@ jobs:
         rm -f /etc/apt/apt.conf.d/docker-clean
     - name: apt update
       run: |
-        sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list
+        sed -i 's|/archive.ubuntu.com|/azure.archive.ubuntu.com|' /etc/apt/sources.list || true
         apt-get -qq update
-    - uses: actions/cache@v3
-      with:
-        path: /var/cache/apt/archives/*deb
-        key: build-on-ubuntu-docker-debs-${{ needs.style-checks.outputs.week }}
-    - uses: firebuild/firebuild-action@v3
-      with:
-        key: build-on-ubuntu-docker
     - name: install-deps
       run: |
         # configure tzdata in advance to prevent hanging at the prompt
@@ -127,7 +123,8 @@ jobs:
         echo $TZ > /etc/timezone
         apt-get install -y eatmydata
         eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc git
-    - uses: actions/checkout@v3
+    # use checkout@v1 that works in i386 containers without node
+    - uses: actions/checkout@v1
       with:
         fetch-depth: 0
     - name: build-out-of-tree
@@ -136,8 +133,8 @@ jobs:
         git config --global --add safe.directory $PWD
         mkdir build
         cd build
-        firebuild cmake -DCMAKE_BUILD_TYPE=Release ..
-        firebuild make -j2
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        make -j2
         # Version should be set in the source before tagging a release,
         # then the version should be unset right in the next commit.
         BUILT_VERSION=$(src/firebuild/firebuild --version | head -n1 | cut -d" "  -f2)
@@ -145,8 +142,8 @@ jobs:
         dpkg --compare-versions $BUILT_VERSION ge $GIT_VERSION
     - name: build-in-tree
       run: |
-        firebuild cmake -DCMAKE_BUILD_TYPE=Debug .
-        firebuild make -j2 all check-bins
+        cmake -DCMAKE_BUILD_TYPE=Debug .
+        make -j2 all check-bins
         make -j2 check
 
   clang-build:
