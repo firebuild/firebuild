@@ -615,9 +615,20 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     return;
   }
 
+  // Parent may just be sh -c <this command>, detect that
+  const bool parent_may_be_just_sh_c_this =
+      (proc->parent_exec_point() && proc->parent_exec_point()->can_shortcut()
+       && proc->parent_exec_point()->args().size() == 3
+       && proc->parent_exec_point()->args()[1] == "-c"
+       && shells->contains(proc->parent_exec_point()->args()[0]));
+
   // TODO(rbalint) narrow down the cases when all args are checked
   const std::vector<std::string>& args = proc->args();
+  std::string joined_cmdline = "";
   for (const auto& arg : args) {
+    if (parent_may_be_just_sh_c_this) {
+      joined_cmdline += (joined_cmdline == "") ? arg : (" " + arg);
+    }
     if (arg == "-emit-pch") {
       bool fno_pch_timestamp_found = false;
       for (const auto& arg_inner_loop : args) {
@@ -633,6 +644,11 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
       }
       break;
     }
+  }
+
+  if (parent_may_be_just_sh_c_this && joined_cmdline == proc->parent_exec_point()->args()[2]) {
+    proc->disable_shortcutting_only_this("Shortcut parent sh -c ... instead");
+    return;
   }
 
   /* Go through the files the process opened for reading and/or writing.

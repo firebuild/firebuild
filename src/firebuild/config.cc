@@ -53,6 +53,7 @@ ExeMatcher* shortcut_allow_list_matcher = nullptr;
 ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
+tsl::hopscotch_set<std::string>* shells = nullptr;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
@@ -311,6 +312,12 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   init_matcher(&dont_shortcut_matcher, cfg->getRoot()["processes"]["dont_shortcut"]);
   init_matcher(&dont_intercept_matcher, cfg->getRoot()["processes"]["dont_intercept"]);
   init_matcher(&skip_cache_matcher, cfg->getRoot()["processes"]["skip_cache"]);
+
+  shells = new tsl::hopscotch_set<std::string>();
+  libconfig::Setting& shells_cfg = cfg->getRoot()["processes"]["shells"];
+  for (int i = 0; i < shells_cfg.getLength(); i++) {
+    shells->emplace(shells_cfg[i]);
+  }
 
   if (cfg->exists("quirks")) {
     const libconfig::Setting& items = cfg->getRoot()["quirks"];
