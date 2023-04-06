@@ -167,7 +167,7 @@ jobs:
         key: clang-build
     - name: install-deps
       run: |
-        sudo eatmydata apt-get -y install clang-tools-12 $BUILD_DEPS $TEST_DEPS valgrind
+        sudo eatmydata apt-get -y install clang-tools $BUILD_DEPS $TEST_DEPS valgrind
     - name: build
       run: |
         env CC=clang CXX=clang++ LD=ld.lld cmake .
@@ -181,8 +181,8 @@ jobs:
     - name: scan-build
       run: |
         # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
-        scan-build-12 cmake -DENABLE_XXH_INLINE_ALL=OFF .
-        scan-build-12 --status-bugs make -j2
+        scan-build cmake -DENABLE_XXH_INLINE_ALL=OFF .
+        scan-build --status-bugs make -j2
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
