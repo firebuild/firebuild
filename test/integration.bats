@@ -11,6 +11,12 @@ setup() {
   echo "$result" | grep -q "in case of failure"
 }
 
+@test "empty-config" {
+  result=$(./run-firebuild -c empty-config.conf -- ls integration.bats)
+    assert_streq "$result" "integration.bats"
+    assert_streq "$(strip_stderr stderr)" ""
+}
+
 @test "bash -c ls" {
   for i in 1 2; do
     result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"'  -- bash -c "ls integration.bats")

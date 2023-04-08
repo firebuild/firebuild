@@ -208,9 +208,13 @@ ExecedProcessCacher::ExecedProcessCacher(bool no_store,
     no_store_(no_store), no_fetch_(no_fetch),
     envs_skip_(), ignore_locations_hash_(), fingerprints_(), fingerprint_msgs_(),
     cache_dir_(cache_dir) {
-  const libconfig::Setting& envs_skip = cfg->getRoot()["env_vars"]["fingerprint_skip"];
-  for (int i = 0; i < envs_skip.getLength(); i++) {
-    envs_skip_.insert(envs_skip[i].c_str());
+  try {
+    const libconfig::Setting& envs_skip = cfg->getRoot()["env_vars"]["fingerprint_skip"];
+    for (int i = 0; i < envs_skip.getLength(); i++) {
+      envs_skip_.insert(envs_skip[i].c_str());
+    }
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
 #ifdef XXH_INLINE_ALL
   XXH3_state_t state_struct;
