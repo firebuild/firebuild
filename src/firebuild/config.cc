@@ -158,18 +158,23 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
 
   if (append) {
     /* Append scalar value to an existing array. */
-    libconfig::Setting& array = cfg->lookup(name);
-    libconfig::Setting& adding = array.add(type);
-    /* Unfortunately there's no operator= to assign from another Setting. */
-    switch (type) {
-      case libconfig::Setting::TypeString: {
-        std::string x_str(x.c_str());
-        adding = x_str.c_str();
-        break;
+    try {
+      libconfig::Setting& array = cfg->lookup(name);
+      libconfig::Setting& adding = array.add(type);
+      /* Unfortunately there's no operator= to assign from another Setting. */
+      switch (type) {
+        case libconfig::Setting::TypeString: {
+          std::string x_str(x.c_str());
+          adding = x_str.c_str();
+          break;
+        }
+        default:
+          std::cerr << "This type is not supported" << std::endl;
+          exit(EXIT_FAILURE);
       }
-      default:
-        std::cerr << "This type is not supported" << std::endl;
-        exit(EXIT_FAILURE);
+    } catch(libconfig::SettingNotFoundException&) {
+      std::cerr << "Setting not found: " << name << std::endl;
+      exit(EXIT_FAILURE);
     }
   } else if (remove) {
     /* Remove all occurrences of a scalar value from an existing array. */
@@ -242,19 +247,31 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
   delete mini_config;
 }
 
-static void init_locations(cstring_view_array* locations, const libconfig::Setting& items) {
+static void init_locations(cstring_view_array* locations, const libconfig::Config *cfg,
+                           const char* locations_setting) {
   cstring_view_array_init(locations);
-  for (int i = 0; i < items.getLength(); i++) {
-    cstring_view_array_append(locations, strdup(items[i].c_str()));
+  try {
+    const libconfig::Setting& items = cfg->getRoot()[locations_setting];
+    for (int i = 0; i < items.getLength(); i++) {
+      cstring_view_array_append(locations, strdup(items[i].c_str()));
+    }
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
   cstring_view_array_sort(locations);
 }
 
-static void init_matcher(ExeMatcher **matcher, const libconfig::Setting& items) {
+static void init_matcher(ExeMatcher **matcher, const libconfig::Config *cfg,
+                         const char* matcher_setting) {
   assert(!*matcher);
   *matcher = new ExeMatcher();
-  for (int i = 0; i < items.getLength(); i++) {
-    (*matcher)->add(items[i].c_str());
+  try {
+    const libconfig::Setting& items = cfg->getRoot()["processes"][matcher_setting];
+    for (int i = 0; i < items.getLength(); i++) {
+      (*matcher)->add(items[i].c_str());
+    }
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
 }
 
@@ -301,22 +318,26 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   }
 
   assert(FileName::isDbEmpty());
-  init_locations(&ignore_locations, cfg->getRoot()["ignore_locations"]);
-  init_locations(&system_locations, cfg->getRoot()["system_locations"]);
+  init_locations(&ignore_locations, cfg, "ignore_locations");
+  init_locations(&system_locations, cfg, "system_locations");
 
-  init_matcher(&shortcut_allow_list_matcher, cfg->getRoot()["processes"]["shortcut_allow_list"]);
+  init_matcher(&shortcut_allow_list_matcher, cfg, "shortcut_allow_list");
   if (shortcut_allow_list_matcher->empty()) {
     delete(shortcut_allow_list_matcher);
     shortcut_allow_list_matcher = nullptr;
   }
-  init_matcher(&dont_shortcut_matcher, cfg->getRoot()["processes"]["dont_shortcut"]);
-  init_matcher(&dont_intercept_matcher, cfg->getRoot()["processes"]["dont_intercept"]);
-  init_matcher(&skip_cache_matcher, cfg->getRoot()["processes"]["skip_cache"]);
+  init_matcher(&dont_shortcut_matcher, cfg, "dont_shortcut");
+  init_matcher(&dont_intercept_matcher, cfg, "dont_intercept");
+  init_matcher(&skip_cache_matcher, cfg, "skip_cache");
 
   shells = new tsl::hopscotch_set<std::string>();
-  libconfig::Setting& shells_cfg = cfg->getRoot()["processes"]["shells"];
-  for (int i = 0; i < shells_cfg.getLength(); i++) {
-    shells->emplace(shells_cfg[i]);
+  try {
+    libconfig::Setting& shells_cfg = cfg->getRoot()["processes"]["shells"];
+    for (int i = 0; i < shells_cfg.getLength(); i++) {
+      shells->emplace(shells_cfg[i]);
+    }
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
 
   if (cfg->exists("quirks")) {
@@ -346,11 +367,16 @@ static void export_sorted_locations(libconfig::Config *cfg, const char* configur
                                     const std::string env_var_name,
                                     std::map<std::string, std::string>* env) {
   const libconfig::Setting& root = cfg->getRoot();
-  const libconfig::Setting& locations_setting = root[configuration_name];
   std::vector<std::string> locations;
-  for (int i = 0; i < locations_setting.getLength(); i++) {
-    locations.emplace_back(locations_setting[i].c_str());
+  try {
+    const libconfig::Setting& locations_setting = root[configuration_name];
+    for (int i = 0; i < locations_setting.getLength(); i++) {
+      locations.emplace_back(locations_setting[i].c_str());
+    }
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
+
   if (locations.size() > 0) {
     std::sort(locations.begin(), locations.end());
     std::string locations_appended;
@@ -370,35 +396,43 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
                          bool insert_trace_markers) {
   const libconfig::Setting& root = cfg->getRoot();
 
-  FB_DEBUG(FB_DEBUG_PROC, "Passing through environment variables:");
-
-  const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
   std::map<std::string, std::string> env;
-  for (int i = 0; i < pass_through.getLength(); i++) {
-    std::string pass_through_env(pass_through[i].c_str());
-    char * got_env = getenv(pass_through_env.c_str());
-    if (got_env != NULL) {
-      env[pass_through_env] = std::string(got_env);
-      FB_DEBUG(FB_DEBUG_PROC, " " + std::string(pass_through_env) + "="
-               + env[pass_through_env]);
+  FB_DEBUG(FB_DEBUG_PROC, "Passing through environment variables:");
+  try {
+    const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
+    for (int i = 0; i < pass_through.getLength(); i++) {
+      std::string pass_through_env(pass_through[i].c_str());
+      char * got_env = getenv(pass_through_env.c_str());
+      if (got_env != NULL) {
+        env[pass_through_env] = std::string(got_env);
+        FB_DEBUG(FB_DEBUG_PROC, " " + std::string(pass_through_env) + "="
+                 + env[pass_through_env]);
+      }
     }
+    FB_DEBUG(FB_DEBUG_PROC, "");
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
-  FB_DEBUG(FB_DEBUG_PROC, "");
 
   FB_DEBUG(FB_DEBUG_PROC, "Setting preset environment variables:");
-  const libconfig::Setting& preset = root["env_vars"]["preset"];
-  for (int i = 0; i < preset.getLength(); i++) {
-    std::string str(preset[i].c_str());
-    size_t eq_pos = str.find('=');
-    if (eq_pos == std::string::npos) {
-      fb_error("Invalid present environment variable: " + str);
-      abort();
-    } else {
-      const std::string var_name = str.substr(0, eq_pos);
-      env[var_name] = str.substr(eq_pos + 1);
-      FB_DEBUG(FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
+  try {
+    const libconfig::Setting& preset = root["env_vars"]["preset"];
+    for (int i = 0; i < preset.getLength(); i++) {
+      std::string str(preset[i].c_str());
+      size_t eq_pos = str.find('=');
+      if (eq_pos == std::string::npos) {
+        fb_error("Invalid present environment variable: " + str);
+        abort();
+      } else {
+        const std::string var_name = str.substr(0, eq_pos);
+        env[var_name] = str.substr(eq_pos + 1);
+        FB_DEBUG(FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
+      }
     }
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
   }
+
 
   export_sorted_locations(cfg, "system_locations", "FB_SYSTEM_LOCATIONS", &env);
   export_sorted_locations(cfg, "ignore_locations", "FB_IGNORE_LOCATIONS", &env);

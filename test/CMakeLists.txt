@@ -16,7 +16,7 @@ function(add_test_binary TEST_BINARY)
   add_dependencies(check-bins "${TEST_BINARY}")
 endfunction()
 
-foreach(TESTFILE integration.bats test_parallel_make.Makefile test_symbols)
+foreach(TESTFILE empty-config.conf integration.bats test_parallel_make.Makefile test_symbols)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${TESTFILE}" "${CMAKE_CURRENT_BINARY_DIR}/${TESTFILE}" COPYONLY)
 endforeach()
 
