@@ -47,7 +47,7 @@ namespace firebuild {
 libconfig::Config * cfg = nullptr;
 
 cstring_view_array ignore_locations {nullptr, 0, 0};
-cstring_view_array system_locations {nullptr, 0, 0};
+cstring_view_array read_only_locations {nullptr, 0, 0};
 
 ExeMatcher* shortcut_allow_list_matcher = nullptr;
 ExeMatcher* dont_shortcut_matcher = nullptr;
@@ -319,7 +319,17 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
 
   assert(FileName::isDbEmpty());
   init_locations(&ignore_locations, cfg, "ignore_locations");
-  init_locations(&system_locations, cfg, "system_locations");
+  init_locations(&read_only_locations, cfg, "read_only_locations");
+  /* The read_only_locations setting used to be called system_locations. */
+  try {
+    const libconfig::Setting& items = cfg->getRoot()["system_locations."];
+    for (int i = 0; i < items.getLength(); i++) {
+      cstring_view_array_append(&read_only_locations, strdup(items[i].c_str()));
+    }
+    cstring_view_array_sort(&read_only_locations);
+  } catch(libconfig::SettingNotFoundException&) {
+    /* Configuration setting may be missing. This is OK. */
+  }
 
   init_matcher(&shortcut_allow_list_matcher, cfg, "shortcut_allow_list");
   if (shortcut_allow_list_matcher->empty()) {
@@ -434,7 +444,7 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
   }
 
 
-  export_sorted_locations(cfg, "system_locations", "FB_SYSTEM_LOCATIONS", &env);
+  export_sorted_locations(cfg, "read_only_locations", "FB_READ_ONLY_LOCATIONS", &env);
   export_sorted_locations(cfg, "ignore_locations", "FB_IGNORE_LOCATIONS", &env);
 
   const char *ld_preload_value = getenv(LD_PRELOAD);

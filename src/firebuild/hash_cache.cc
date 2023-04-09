@@ -34,12 +34,12 @@ static bool update_statinfo(const FileName* path, int fd, const struct stat64 *s
   TRACKX(FB_DEBUG_HASH, 1, 1, HashCacheEntry, entry,
          "path=%s, fd=%d, stat=%s", D(path), fd, D(stat_ptr));
 
-  if (path->is_in_system_location() && entry->info.type() != DONTKNOW) {
+  if (path->is_in_read_only_location() && entry->info.type() != DONTKNOW) {
     /* Assume that for system locations the statinfo never changes. */
     return true;
   }
 
-  if (!path->is_in_system_location()) {
+  if (!path->is_in_read_only_location()) {
     /* For system locations, as per the previous condition, we're updating a brand new record, i.e.
      * type=DONTKNOW. For non-system locations, we're updating a brand new record or an old ISREG or
      * ISDIR type, there's no negative caching for non-system locations so the old type cannot be
@@ -167,7 +167,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo(const FileName* path, i
       db_.erase(path);
       return &notexist_;
     }
-    if (!path->is_in_system_location() && entry.info.type() == NOTEXIST) {
+    if (!path->is_in_read_only_location() && entry.info.type() == NOTEXIST) {
       /* For non-system locations don't store negative entries. */
       db_.erase(path);
       return &notexist_;
@@ -178,7 +178,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo(const FileName* path, i
     if (!update_statinfo(path, fd, stat_ptr, &new_entry)) {
       return &notexist_;
     }
-    if (!path->is_in_system_location() && new_entry.info.type() == NOTEXIST) {
+    if (!path->is_in_read_only_location() && new_entry.info.type() == NOTEXIST) {
       /* For non-system locations don't store negative entries. */
       return &notexist_;
     }
@@ -206,7 +206,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
       db_.erase(path);
       return &notexist_;
     }
-    if (!path->is_in_system_location() && entry.info.type() == NOTEXIST) {
+    if (!path->is_in_read_only_location() && entry.info.type() == NOTEXIST) {
       /* For non-system locations don't store negative entries. */
       db_.erase(path);
       return &notexist_;
@@ -217,7 +217,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
     if (!update_hash(path, fd, stat_ptr, &new_entry, store, skip_statinfo_update)) {
       return &notexist_;
     }
-    if (!path->is_in_system_location() && new_entry.info.type() == NOTEXIST) {
+    if (!path->is_in_read_only_location() && new_entry.info.type() == NOTEXIST) {
       /* For non-system locations don't store negative entries. */
       return &notexist_;
     }
@@ -231,7 +231,7 @@ bool HashCache::get_statinfo(const FileName* path, bool *is_dir, ssize_t *size) 
 
   if (path->is_in_ignore_location()) {
     return false;
-  } else if (path->is_in_system_location()) {
+  } else if (path->is_in_read_only_location()) {
     /* For system files go through our cache, as if we were interested in the hash too. */
     const HashCacheEntry *entry = get_entry_with_statinfo(path, -1, nullptr);
     if (entry->info.type() == NOTEXIST) {
