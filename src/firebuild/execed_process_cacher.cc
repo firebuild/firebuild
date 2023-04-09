@@ -682,7 +682,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
       const auto filename = pair.first;
       const FileUsage* fu = pair.second;
 
-      if (filename->is_in_system_location() == (i == 0)) {
+      if (filename->is_in_read_only_location() == (i == 0)) {
         continue;
       }
 
@@ -1557,7 +1557,7 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
     const auto path {FileName::Get(file->get_path(), file->get_path_len())};
     const FileInfo query {file_to_file_info(file)};
-    if (query.type() == ISREG && path->is_in_system_location() &&
+    if (query.type() == ISREG && path->is_in_read_only_location() &&
         !hash_cache->file_info_matches(path, query) &&
         hash_cache->file_info_matches(path, FileInfo(EXIST))) {
       FB_DEBUG(FB_DEBUG_CACHING, "Cache entry expects a system file that has changed: " + d(path));

@@ -398,7 +398,7 @@ generate("int", ["creat", "creat64", "SYS_creat"], "const char *pathname, mode_t
 # Intercept fopen
 def open_ack_condition(msg):
   return "success " \
-    "&& !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &system_locations) " \
+    "&& !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &read_only_locations) " \
     "&& !is_path_at_locations(fbbcomm_builder_" + msg + "_get_pathname(&ic_msg), fbbcomm_builder_" + msg + "_get_pathname_len(&ic_msg), &ignore_locations)"
 
 # Note: confusingly open()'s and fopen()'s manual uses the word "mode" for something completely different.

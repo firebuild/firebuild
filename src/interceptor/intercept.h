@@ -238,7 +238,7 @@ extern char env_ld_library_path[IC_PATH_BUFSIZE];
 extern bool insert_trace_markers;
 
 /** System and ignore locations to not ask ACK for when opening them. */
-extern cstring_view_array system_locations;
+extern cstring_view_array read_only_locations;
 extern cstring_view_array ignore_locations;
 
 /** Insert debug message */
