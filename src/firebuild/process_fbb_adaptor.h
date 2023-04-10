@@ -60,16 +60,14 @@ class ProcessFBBAdaptor {
   }
 
   static int handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn, int ack_num) {
-    if (!msg->get_error() && msg->has_absolute_filename()) {
-      return proc->handle_open(AT_FDCWD,
-                               msg->get_absolute_filename(), msg->get_absolute_filename_len(),
-                               O_RDONLY, 0, -1, 0, fd_conn, ack_num, false, false);
-    } else {
-      std::string filename = msg->has_absolute_filename() ? msg->get_absolute_filename() : "NULL";
-      proc->exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ", filename);
-      return 0;
-    }
+    return proc->handle_dlopen(
+        msg->has_absolute_filename() ? msg->get_absolute_filename() : nullptr,
+        msg->has_absolute_filename() ? msg->get_absolute_filename_len() : 0,
+        msg->has_filename() ? msg->get_filename() : nullptr,
+        msg->has_filename() ? msg->get_filename_len() : 0,
+        msg->get_error(), fd_conn, ack_num);
   }
+
   static int handle(Process *proc, const FBBCOMM_Serialized_close *msg) {
     const int error = msg->get_error_no_with_fallback(0);
     return proc->handle_close(msg->get_fd(), error);

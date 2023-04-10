@@ -276,6 +276,21 @@ class Process {
                      int fd_conn = -1, int ack_num = 0, bool pre_open_sent = false);
 
   /**
+   * Handle dlopen() in the monitored process
+   * @param absolute_filename absolute file name
+   * @param absolute_filename_len length of absolute_filename
+   * @param looked_up_filename file name passed to dlopen()
+   * @param looked_up_filename_len length of looked_up_filename
+   * @param error true when dlopen failed to open the file
+   * @param fd_conn fd to send ACK on when needed
+   * @param ack_num ACK number to send or 0 if sending ACK is not needed
+   */
+  int handle_dlopen(const char * const absolute_filename,
+                    const size_t absolute_filename_len,
+                    const char * const looked_up_filename,
+                    const size_t looked_up_filename_len,
+                    const bool error, int fd_conn, int ack_num);
+  /**
    * Handle file closure in the monitored process
    * @param fd file descriptor to close
    * @param error error code of close()
