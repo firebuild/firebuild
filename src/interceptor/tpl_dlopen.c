@@ -20,10 +20,16 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (absolute_filename != NULL) BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", absolute_filename);",
+{% set msg_add_fields = ["if (absolute_filename == NULL && filename && strrchr(filename, '/')) {",
+                         "  /* This is a relative or absolute name which will be made absolute in the next step. */",
+                         "  absolute_filename = filename;",
+                         "}",
+                         "if (absolute_filename != NULL) BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", absolute_filename);",
                          "fbbcomm_builder_dlopen_set_error(&ic_msg, !success);"] %}
 
 ### block before
+  /* TODO(rbalint) Save all loaded images before the dlopen() to collect also loaded shared
+   * library dependencies. */
   thread_libc_nesting_depth++;
 ### endblock before
 
