@@ -236,7 +236,7 @@ bool BlobCache::store_file(const FileName *path,
       return false;
     }
   } else {
-    execed_process_cacher->update_cached_bytes(size);
+    execed_process_cacher->update_cached_bytes(dst_st.st_size);
   }
   free(tmpfile);
 
@@ -310,12 +310,14 @@ bool BlobCache::move_store_file(const std::string &path,
     std::string path_debug = std::string(path_dst) + kDebugPostfix;
     std::string txt(pretty_timestamp() + "  Moved from " + path + "\n");
     int debugfd = open(path_debug.c_str(), O_CREAT|O_WRONLY|O_APPEND, 0600);
-    if (write(debugfd, txt.c_str(), txt.size()) < 0) {
+    ssize_t written = write(debugfd, txt.c_str(), txt.size());
+    if (written < 0) {
       fb_perror("BlobCache::move_store_file");
       assert(0);
       close(debugfd);
       return false;
     }
+    execed_process_cacher->update_cached_bytes(written);
     close(debugfd);
   }
 
