@@ -1723,11 +1723,16 @@ off_t ExecedProcessCacher::get_stored_bytes_from_cache() const {
   off_t cached_bytes = 0;
   if ((f = fopen(size_file.c_str(), "r"))) {
     if (fscanf(f, "%" SCNoff "\n", &cached_bytes) != 1) {
-      fb_error("Invalid size file format in " + size_file);
+      fb_error("Invalid size file format in " + size_file + ", fixing it.");
+      fclose(f);
+      return fix_stored_bytes();
     }
     fclose(f);
   }
-  assert_cmp(cached_bytes, >=, 0);
+  if (cached_bytes < 0) {
+    fb_error("Invalid size in " + size_file + ", fixing it.");
+    cached_bytes = fix_stored_bytes();
+  }
   return cached_bytes;
 }
 
@@ -1737,13 +1742,26 @@ void ExecedProcessCacher::read_stored_cached_bytes() {
 
 void ExecedProcessCacher::update_stored_bytes() {
   // FIXME(rbalint) There is a slight chance for two parallel builds updating the size at the
-  // same time making them inaccurate
+  // same time making the file content inaccurate.
   const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
   const off_t new_size = this_runs_cached_bytes_ + stored_cached_bytes_;
   if (file_overwrite_printf(size_file, "%ld\n", new_size) < 0) {
     fb_error("writing cache size file failed");
     exit(EXIT_FAILURE);
   }
+}
+
+off_t ExecedProcessCacher::fix_stored_bytes() const {
+  // FIXME(rbalint) There is a slight chance for two parallel builds updating the size at the
+  // same time making the file content inaccurate.
+  const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
+  off_t starting_cached_bytes =  obj_cache->gc_collect_total_objects_size()
+      + blob_cache->gc_collect_total_blobs_size() - this_runs_cached_bytes_;
+  if (file_overwrite_printf(size_file, "%ld\n", starting_cached_bytes) < 0) {
+    fb_error("writing cache size file failed");
+    exit(EXIT_FAILURE);
+  }
+  return starting_cached_bytes;
 }
 
 bool ExecedProcessCacher::is_gc_needed() const {
