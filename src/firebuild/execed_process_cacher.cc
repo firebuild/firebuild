@@ -974,6 +974,19 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg);
 }
 
+void ExecedProcessCacher::update_cached_bytes(off_t bytes) {
+  this_runs_cached_bytes_ += bytes;
+#ifdef FB_EXTRA_DEBUG
+  off_t total = obj_cache->gc_collect_total_objects_size()
+      + blob_cache->gc_collect_total_blobs_size();
+  off_t stored = get_stored_bytes_from_cache();
+  FB_DEBUG(FB_DEBUG_CACHING, " Cache-size real: " + d(total)
+           + " calculated: " + d(stored + this_runs_cached_bytes_)
+           + " stored: " + d(stored));
+  assert_cmp(total, ==, stored + this_runs_cached_bytes_);
+#endif
+}
+
 /**
  * Create a FileInfo object based on an FBB's File entry.
  */

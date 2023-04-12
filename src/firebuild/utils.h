@@ -68,6 +68,9 @@ unsigned char fixed_dirent_type(const struct dirent* dirent, DIR* dir,
  */
 off_t file_size(DIR* dir, const char* name);
 
+/** Returns total size of all regular files in the directory recursively. */
+off_t recursive_total_file_size(const std::string& path);
+
 /** Overwrite file with the passed printf formatted string */
 int file_overwrite_printf(const std::string& path, const char* format, ...);
 
