@@ -411,6 +411,10 @@ ObjCache::gc_collect_sorted_obj_timestamp_sizes() {
   return obj_timestamp_sizes;
 }
 
+off_t ObjCache::gc_collect_total_objects_size() {
+  return recursive_total_file_size(base_dir_);
+}
+
 void ObjCache::gc_obj_cache_dir(const std::string& path,
                                 tsl::hopscotch_set<AsciiHash>* referenced_blobs,
                                 off_t* cache_bytes, off_t* debug_bytes,

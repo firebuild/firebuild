@@ -106,6 +106,8 @@ class ObjCache {
           off_t* debug_bytes, off_t* unexpected_file_bytes);
   /* Returns {object path, timestamp, size} ordered by decreasing timestamp. */
   std::vector<obj_timestamp_size_t> gc_collect_sorted_obj_timestamp_sizes();
+  /** Returns total size of all stored objects including debug and invalid entries. */
+  off_t gc_collect_total_objects_size();
 
  private:
   /**

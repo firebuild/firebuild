@@ -129,6 +129,8 @@ class BlobCache {
    */
   static void delete_entries(const std::string& path, const std::vector<std::string>& entries,
                              const std::string& debug_postfix, off_t* debug_bytes);
+  /** Returns total size of all stored blob files including debug and invalid entries. */
+  off_t gc_collect_total_blobs_size();
 
  private:
   /**

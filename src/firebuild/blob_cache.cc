@@ -403,6 +403,10 @@ void BlobCache::delete_entries(const std::string& path,
   }
 }
 
+off_t BlobCache::gc_collect_total_blobs_size() {
+  return recursive_total_file_size(base_dir_);
+}
+
 void BlobCache::gc_blob_cache_dir(const std::string& path,
                                   const tsl::hopscotch_set<AsciiHash>& referenced_blobs,
                                   off_t* cache_bytes, off_t* debug_bytes,

@@ -145,6 +145,42 @@ off_t file_size(DIR* dir, const char* name) {
   }
 }
 
+off_t recursive_total_file_size(const std::string& path) {
+  DIR * dir = opendir(path.c_str());
+  if (dir == NULL) {
+    return 0;
+  }
+
+  /* Visit dirs recursively and collect all the file sizes. */
+  off_t total = 0;
+  struct dirent *dirent;
+  while ((dirent = readdir(dir)) != NULL) {
+    const char* name = dirent->d_name;
+    if (name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'))) {
+      continue;
+    }
+    switch (fixed_dirent_type(dirent, dir, path)) {
+      case DT_DIR: {
+        total += recursive_total_file_size(path + "/" + name);
+        break;
+      }
+      case DT_REG: {
+        struct stat st;
+        if (fstatat(dirfd(dir), name, &st, 0) == 0) {
+          total += st.st_size;
+        }
+        break;
+      }
+      default:
+        /* Just ignore the non-regulat file. */
+        break;
+    }
+  }
+  closedir(dir);
+  return total;
+}
+
+
 int file_overwrite_printf(const std::string& path, const char* format, ...) {
   int ret;
   FILE* f;

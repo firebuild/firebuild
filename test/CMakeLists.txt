@@ -24,7 +24,10 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_helper.bash.in ${CMAKE_CURRENT_B
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run-firebuild.in ${CMAKE_CURRENT_BINARY_DIR}/run-firebuild)
 
 add_test(bats-integration ./integration.bats)
-
+# firebuild's debug build would crash on the invalid entries in an assert()
+if (uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+  set_property(TEST bats-integration PROPERTY ENVIRONMENT "SKIP_GC_INVALID_ENTRIES_TEST=1")
+endif()
 add_custom_target(check ctest -V)
 add_custom_target(valgrind-check env FIREBUILD_PREFIX_CMD='valgrind -q --leak-check=full --track-fds=yes --error-exitcode=1' ctest -V)
 

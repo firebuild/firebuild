@@ -92,7 +92,7 @@ class ExecedProcessCacher {
   /** Store number of bytes cached to cachedir/size file. */
   void update_stored_bytes();
   /** Register cache size change occurred in the current run. */
-  void update_cached_bytes(off_t bytes) {this_runs_cached_bytes_ += bytes;}
+  void update_cached_bytes(off_t bytes);
   /* A garbage collection run is needed, e.g. because the cache is too big. */
   bool is_gc_needed() const;
   void gc();
