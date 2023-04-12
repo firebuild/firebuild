@@ -386,9 +386,7 @@ void BlobCache::delete_entries(const std::string& path,
     }
     if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
       const std::string absolute_debug_entry = absolute_entry + debug_postfix;
-      if (fstatat(AT_FDCWD, absolute_debug_entry.c_str(), &st, AT_SYMLINK_NOFOLLOW) != 0) {
-        fb_perror(absolute_debug_entry.c_str());
-      } else {
+      if (fstatat(AT_FDCWD, absolute_debug_entry.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0) {
         /* All debugging entries were kept in the previous round.
          * Delete the ones related to entries to be deleted. */
         if (unlink(absolute_debug_entry.c_str()) == 0) {
