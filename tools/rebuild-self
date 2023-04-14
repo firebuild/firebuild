@@ -14,7 +14,6 @@ cd ${build_dir}-first-build
 cmake ..
 make all
 cd test
-export PATH="${PATH/ccache/ccache-DISABLED/}"
 mkdir ../../$build_dir
 ./run-firebuild -- env -C ../../$build_dir cmake ..
 ./run-firebuild -- make -C ../../$build_dir clean
