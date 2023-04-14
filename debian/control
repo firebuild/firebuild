@@ -33,7 +33,7 @@ Depends: ${shlibs:Depends},
 Pre-Depends: debconf | debconf-2.0
 Suggests: graphviz,
           node-d3
-Description: Automatic build accelerator
+Description: Automatic build accelerator cache
  It works by caching the outputs of executed commands and replaying the
  results when the same commands are executed with the same parameters
  within the same environment.
@@ -43,13 +43,17 @@ Description: Automatic build accelerator
  commands to cache and replay from the cache are determined
  automatically based on firebuild's configuration and each command's
  and its children's observed behavior.
+ .
+ Firebuild supports caching compilation results of C, C++, Fortran, Java,
+ Rust, Scala and other compilers and outputs of scripts written in Bash,
+ Perl, Python and other interpreted languages.
 
 Package: libfirebuild0
 Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Pre-Depends: debconf | debconf-2.0
-Description: Automatic build accelerator - shared library
+Description: Automatic build accelerator cache - shared library
  It works by caching the outputs of executed commands and replaying the
  results when the same commands are executed with the same parameters
  within the same environment.
@@ -59,6 +63,10 @@ Description: Automatic build accelerator - shared library
  commands to cache and replay from the cache are determined
  automatically based on firebuild's configuration and each command's
  and its children's observed behavior.
+ .
+ Firebuild supports caching compilation results of C, C++, Fortran, Java,
+ Rust, Scala and other compilers and outputs of scripts written in Bash,
+ Perl, Python and other interpreted languages.
  .
  This package provides the shared library preloaded by the intercepted
  processes.
