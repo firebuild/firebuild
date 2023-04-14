@@ -41,6 +41,7 @@ extern ExeMatcher* dont_shortcut_matcher;
 extern ExeMatcher* dont_intercept_matcher;
 extern ExeMatcher* skip_cache_matcher;
 extern tsl::hopscotch_set<std::string>* shells;
+extern bool ccache_disabled;
 
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 extern int64_t min_cpu_time_u;
