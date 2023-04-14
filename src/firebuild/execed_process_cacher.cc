@@ -619,12 +619,22 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     return;
   }
 
-  // Parent may just be sh -c <this command>, detect that
-  const bool parent_may_be_just_sh_c_this =
-      (proc->parent_exec_point() && proc->parent_exec_point()->can_shortcut()
-       && proc->parent_exec_point()->args().size() == 3
-       && proc->parent_exec_point()->args()[1] == "-c"
-       && shells->contains(proc->parent_exec_point()->args()[0]));
+  bool parent_may_be_just_sh_c_this = false;
+  const ExecedProcess* const parent_exec_point = proc->parent_exec_point();
+  if (parent_exec_point) {
+    if (ccache_disabled
+        && parent_exec_point->executable()->without_dirs() == "ccache"
+        && parent_exec_point->can_shortcut()) {
+      proc->disable_shortcutting_only_this("Shortcut parent ccache ... instead");
+      return;
+    }
+
+    // Parent may just be sh -c <this command>, detect that
+    parent_may_be_just_sh_c_this = (parent_exec_point->can_shortcut()
+                                    && parent_exec_point->args().size() == 3
+                                    && parent_exec_point->args()[1] == "-c"
+                                    && shells->contains(parent_exec_point->args()[0]));
+  }
 
   // TODO(rbalint) narrow down the cases when all args are checked
   const std::vector<std::string>& args = proc->args();
@@ -650,7 +660,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     }
   }
 
-  if (parent_may_be_just_sh_c_this && joined_cmdline == proc->parent_exec_point()->args()[2]) {
+  if (parent_may_be_just_sh_c_this && joined_cmdline == parent_exec_point->args()[2]) {
     proc->disable_shortcutting_only_this("Shortcut parent sh -c ... instead");
     return;
   }

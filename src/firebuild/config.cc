@@ -54,6 +54,7 @@ ExeMatcher* dont_shortcut_matcher = nullptr;
 ExeMatcher* dont_intercept_matcher = nullptr;
 ExeMatcher* skip_cache_matcher = nullptr;
 tsl::hopscotch_set<std::string>* shells = nullptr;
+bool ccache_disabled = false;
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
@@ -436,6 +437,9 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
       } else {
         const std::string var_name = str.substr(0, eq_pos);
         env[var_name] = str.substr(eq_pos + 1);
+        if (str == "CCACHE_DISABLE=1") {
+          ccache_disabled = true;
+        }
         FB_DEBUG(FB_DEBUG_PROC, " " + var_name + "=" + env[var_name]);
       }
     }
