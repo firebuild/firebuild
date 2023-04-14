@@ -719,8 +719,9 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           in_path_notexist.push_back({filename->c_str(), filename->length()});
           break;
         case ISDIR:
-          if (fu->initial_state().hash_known() && quirks & FB_QUIRK_IGNORE_TMP_LISTING
-              && filename == tmpdir) {
+          if (fu->initial_state().hash_known()
+              && ((quirks & FB_QUIRK_IGNORE_TMP_LISTING && filename == tmpdir)
+                  || (proc->args()[0] == "rustc" && filename->without_dirs() == "deps"))) {
             FileInfo no_hash_initial_state(fu->initial_state());
             no_hash_initial_state.set_hash(nullptr);
             add_file(&in_path, filename, no_hash_initial_state);
