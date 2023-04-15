@@ -2158,6 +2158,7 @@ skip("prctl", "SYS_prctl")
 skip("getpid", "SYS_getpid", "getppid", "SYS_getppid", "gettid", "SYS_gettid")
 skip("getpgrp", "SYS_getpgrp", "getpgid", "__getpgid", "SYS_getpgid", "setpgrp", "SYS_setpgrp", "setpgid", "SYS_setpgid")
 skip("getsid", "SYS_getsid", "setsid", "SYS_setsid")
+skip("SYS_capget")
 generate("int", ["pidfd_open", "SYS_pidfd_open"], "pid_t pid, unsigned int flags",
          platforms=['linux'],
          tpl="once")
