@@ -25,7 +25,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run-firebuild.in ${CMAKE_CURRENT_BINA
 
 add_test(bats-integration ./integration.bats)
 # firebuild's debug build would crash on the invalid entries in an assert()
-if (uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+if (uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG" OR CMAKE_C_FLAGS MATCHES "-DFB_EXTRA_DEBUG")
   set_property(TEST bats-integration PROPERTY ENVIRONMENT "SKIP_GC_INVALID_ENTRIES_TEST=1")
 endif()
 add_custom_target(check ctest -V)
