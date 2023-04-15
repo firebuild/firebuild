@@ -2058,7 +2058,7 @@ skip("timer_create", "SYS_timer_create", "timer_delete", "SYS_timer_delete", "ti
 skip("timer_settime", "SYS_timer_settime", "SYS_timer_settime_time64", "timer_gettime", "SYS_timer_gettime", "SYS_timer_gettime_time64")
 
 # Getting high entropy randomness should disable shortcutting
-generate("ssize_t", "getrandom", "void* buf, size_t buflen, unsigned int flags",
+generate("ssize_t", ["getrandom", "SYS_getrandom"], "void* buf, size_t buflen, unsigned int flags",
          platforms=['linux'],
          msg_skip_fields = ["buf", "buflen"])
 generate("int", "getentropy", "void* buffer, size_t length",
