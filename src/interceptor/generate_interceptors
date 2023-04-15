@@ -1609,10 +1609,15 @@ generate("int", ["lutimes", "__lutimes64"], "const char *pathname, const struct 
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
                          "fbbcomm_builder_utime_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
-generate("int", ["utimensat", "SYS_utimensat", "__utimensat64"], "int dirfd, const char *pathname, const struct timespec times[2], int flags",
+generate("int", ["utimensat", "__utimensat64"], "int dirfd, const char *pathname, const struct timespec times[2], int flags",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
+generate("int", "SYS_utimensat", "int dirfd, const char *pathname, const struct timespec times[2], int flags",
+         msg="utime",
+         msg_skip_fields=["pathname", "times"],
+         msg_add_fields=["if (pathname) BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
 generate("int", ["futimesat", "SYS_futimesat", "__futimesat64"], "int dirfd, const char *pathname, const struct timeval times[2]",
          platforms=['linux'],
