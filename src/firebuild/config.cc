@@ -374,32 +374,38 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   }
 }
 
+static void export_sorted(const libconfig::Setting& setting,
+                          const std::string env_var_name,
+                          std::map<std::string, std::string>* env) {
+  std::vector<std::string> entries;
+  for (int i = 0; i < setting.getLength(); i++) {
+    entries.emplace_back(setting[i].c_str());
+  }
+
+  if (entries.size() > 0) {
+    std::sort(entries.begin(), entries.end());
+    std::string entries_appended;
+    for (auto entry : entries) {
+      if (entries_appended.length() == 0) {
+        entries_appended.append(entry);
+      } else {
+        entries_appended.append(":" + entry);
+      }
+    }
+    (*env)[env_var_name] = std::string(entries_appended);
+    FB_DEBUG(FB_DEBUG_PROC, " " + env_var_name + "=" + (*env)[env_var_name]);
+  }
+}
+
 static void export_sorted_locations(libconfig::Config *cfg, const char* configuration_name,
                                     const std::string env_var_name,
                                     std::map<std::string, std::string>* env) {
   const libconfig::Setting& root = cfg->getRoot();
-  std::vector<std::string> locations;
   try {
     const libconfig::Setting& locations_setting = root[configuration_name];
-    for (int i = 0; i < locations_setting.getLength(); i++) {
-      locations.emplace_back(locations_setting[i].c_str());
-    }
+    export_sorted(locations_setting, env_var_name, env);
   } catch(libconfig::SettingNotFoundException&) {
     /* Configuration setting may be missing. This is OK. */
-  }
-
-  if (locations.size() > 0) {
-    std::sort(locations.begin(), locations.end());
-    std::string locations_appended;
-    for (auto loc : locations) {
-      if (locations_appended.length() == 0) {
-        locations_appended.append(loc);
-      } else {
-        locations_appended.append(":" + loc);
-      }
-    }
-    (*env)[env_var_name] = std::string(locations_appended);
-    FB_DEBUG(FB_DEBUG_PROC, " " + env_var_name + "=" + (*env)[env_var_name]);
   }
 }
 
