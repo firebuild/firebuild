@@ -602,6 +602,23 @@ static bool tmp_file_or_on_tmp_path(const FileUsage* fu, const FileName* filenam
   }
 }
 
+static bool rustc_deps_dir(const ExecedProcess* const proc, const FileName* const filename) {
+  const std::vector<std::string> &args = proc->args();
+  if (args[0] == "rustc") {
+    for (const std::string& arg : args) {
+      if (arg.starts_with("dependency=")) {
+        const std::string dependency_dir(arg.substr(strlen("dependency=")));
+        /* Assumes that the dependency dir is already absolute. */
+        if (dependency_dir == filename->to_string()) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+
 void ExecedProcessCacher::store(ExecedProcess *proc) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
@@ -721,7 +738,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         case ISDIR:
           if (fu->initial_state().hash_known()
               && ((quirks & FB_QUIRK_IGNORE_TMP_LISTING && filename == tmpdir)
-                  || (proc->args()[0] == "rustc" && filename->without_dirs() == "deps"))) {
+                  || rustc_deps_dir(proc, filename))) {
             FileInfo no_hash_initial_state(fu->initial_state());
             no_hash_initial_state.set_hash(nullptr);
             add_file(&in_path, filename, no_hash_initial_state);
