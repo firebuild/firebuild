@@ -111,8 +111,9 @@ static void construct_cached_file_name(const std::string &base,
 
 bool ObjCache::store(const Hash &key,
                      const FBBSTORE_Builder * const entry,
+                     off_t stored_blob_bytes,
                      const FBBFP_Serialized * const debug_key) {
-  TRACK(FB_DEBUG_CACHING, "key=%s", D(key));
+  TRACK(FB_DEBUG_CACHING, "key=%s, stored_blob_bytes=%" PRIoff, D(key), stored_blob_bytes);
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
     FB_DEBUG(FB_DEBUG_CACHING, "ObjCache: storing entry, key " + d(key));
@@ -155,6 +156,14 @@ bool ObjCache::store(const Hash &key,
   // FIXME Is it faster to ftruncate() the file to the desired size, then mmap,
   // then serialize to the mapped memory, then ftruncate() again to the actual size?
   size_t len = entry->measure();
+  if (stored_blob_bytes + len > max_entry_size) {
+    FB_DEBUG(FB_DEBUG_CACHING,
+             "Could not store entry in cache because it would exceed max_entry_size");
+    free(tmpfile);
+    close(fd_dst);
+    return false;
+  }
+
   char *entry_serial = reinterpret_cast<char *>(malloc(len));
   entry->serialize(entry_serial);
   fb_write(fd_dst, entry_serial, len);

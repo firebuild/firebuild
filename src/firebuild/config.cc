@@ -59,6 +59,7 @@ bool ccache_disabled = false;
 int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
 int64_t max_cache_size = 0;
+uint64_t max_entry_size = 0;
 int quirks = 0;
 
 /**
@@ -315,6 +316,18 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
         /* Fix up negative numbers. */
         max_cache_size = 0;
       }
+    }
+  }
+
+  if (cfg->exists("max_entry_size")) {
+    libconfig::Setting& max_entry_size_cfg = cfg->getRoot()["max_entry_size"];
+    if (max_entry_size_cfg.isNumber()) {
+      double max_entry_size_mb = max_entry_size_cfg;
+      if (max_entry_size_mb < 0) {
+        /* Fix up negative numbers. */
+        max_entry_size_mb = 0;
+      }
+      max_entry_size = max_entry_size_mb * 1000000;
     }
   }
 

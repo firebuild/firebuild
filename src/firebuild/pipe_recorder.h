@@ -169,7 +169,7 @@ class PipeRecorder {
    * Set the recorder to abandoned state.
    * Returns false in case of failure.
    */
-  bool store(bool *is_empty_out, Hash *key_out);
+  bool store(bool *is_empty_out, Hash *key_out, off_t* stored_bytes);
   /** Close the backing fd, drop the data that was written so far. Set to deactivated state. */
   void deactivate();
   /** Close the backing fd, drop the data that was written so far. Set to abandoned state. */

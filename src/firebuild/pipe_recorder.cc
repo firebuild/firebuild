@@ -127,7 +127,7 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
   assert_cmp(offset_, >, 0);
 }
 
-bool PipeRecorder::store(bool *is_empty_out, Hash *key_out) {
+bool PipeRecorder::store(bool *is_empty_out, Hash *key_out, off_t* stored_bytes) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "");
 
   assert(!deactivated_);
@@ -140,6 +140,7 @@ bool PipeRecorder::store(bool *is_empty_out, Hash *key_out) {
     ret = blob_cache->move_store_file(filename_, fd_, offset_, key_out);
     /* Note: move_store_file() closed the fd_. */
     fd_ = -1;
+    *stored_bytes = ret ? offset_ : 0;
   } else {
     /* No data was seen at all. */
     *is_empty_out = true;

@@ -339,6 +339,16 @@ setup() {
   done
 }
 
+@test "max entry size" {
+  result=$(./run-firebuild -d caching -o 'processes.skip_cache -= "dd"' dd if=/dev/zero of=foo bs=1MB count=251)
+  assert_streq "$result" ""
+  assert_streq "$(strip_stderr stderr | grep max_entry)" "FIREBUILD: Could not store blob in cache because it would exceed max_entry_size"
+  result=$(./run-firebuild -d caching -o 'processes.skip_cache -= "dd"' -o 'max_entry_size = 0.0042' dd if=/dev/zero of=foo bs=4k count=1)
+  assert_streq "$result" ""
+  assert_streq "$(strip_stderr stderr | grep max_entry)" "FIREBUILD: Could not store entry in cache because it would exceed max_entry_size"
+  rm -f foo
+}
+
 @test "gc" {
   rm -f foo
   result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')

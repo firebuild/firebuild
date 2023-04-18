@@ -760,6 +760,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     in_path_notexist_non_system_count = in_path_notexist.size();
   }
 
+  uint64_t stored_blob_bytes = 0;
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;
@@ -788,7 +789,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           /* TODO don't store and don't record if it was read with the same hash. */
           int fd = open(filename->c_str(), O_RDONLY);
           if (fd >= 0) {
-            if (!hash_cache->store_and_get_hash(filename, 0, &new_hash, fd, &st)) {
+            off_t stored_bytes = 0;
+            if (!hash_cache->store_and_get_hash(filename, 0, &new_hash, &stored_bytes, fd, &st)) {
               /* unexpected error, now what? */
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
@@ -800,6 +802,11 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
             close(fd);
             new_file_info.set_size(st.st_size);
             new_file_info.set_hash(new_hash);
+            if ((stored_blob_bytes += stored_bytes) > max_entry_size) {
+              FB_DEBUG(FB_DEBUG_CACHING,
+                       "Could not store blob in cache because it would exceed max_entry_size");
+              return;
+            }
           } else {
             fb_perror("open");
             new_file_info.set_type(NOTEXIST);
@@ -874,7 +881,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         if (recorder) {
           bool is_empty;
           Hash hash;
-          if (!recorder->store(&is_empty, &hash)) {
+          off_t stored_bytes = 0;
+          if (!recorder->store(&is_empty, &hash, &stored_bytes)) {
             // FIXME handle error
             FB_DEBUG(FB_DEBUG_CACHING,
                      "Could not store pipe traffic in cache, not writing shortcut info");
@@ -882,6 +890,12 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
                 "Could not store pipe traffic in cache, not writing shortcut info");
             return;
           }
+          if ((stored_blob_bytes += stored_bytes) > max_entry_size) {
+            FB_DEBUG(FB_DEBUG_CACHING,
+                     "Could not store blob in cache because it would exceed max_entry_size");
+            return;
+          }
+
           if (!is_empty) {
             /* Note: pipes with no traffic are just simply not mentioned here in the "outputs" section.
              * They were taken into account when computing the process's fingerprint. */
@@ -926,6 +940,11 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
                 "Could not store file fragment in cache, not writing shortcut info");
             return;
           } else {
+            if ((stored_blob_bytes += st.st_size - inherited_file.start_offset) > max_entry_size) {
+              FB_DEBUG(FB_DEBUG_CACHING,
+                       "Could not store blob in cache because it would exceed max_entry_size");
+              return;
+            }
             FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
             new_append.set_fd(fd);
             new_append.set_hash(hash.get());
@@ -999,7 +1018,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
 
   /* Store in the cache everything about this process. */
   const Hash fingerprint = fingerprints_[proc];
-  obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), debug_msg);
+  obj_cache->store(fingerprint, reinterpret_cast<FBBSTORE_Builder *>(&pio), stored_blob_bytes,
+                   debug_msg);
 }
 
 void ExecedProcessCacher::update_cached_bytes(off_t bytes) {

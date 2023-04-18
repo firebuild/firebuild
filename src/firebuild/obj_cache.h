@@ -69,11 +69,13 @@ class ObjCache {
    *
    * @param key The key
    * @param entry The entry to serialize and store
+   * @param stored_blob_bytes Total size of blobs referenced by this obj
    * @param debug_key Optionally the key as pb for debugging purposes
    * @return Whether succeeded
    */
   bool store(const Hash &key,
              const FBBSTORE_Builder * const entry,
+             off_t stored_blob_bytes,
              const FBBFP_Serialized * const debug_key);
   /**
    * Retrieve an entry from the obj-cache.
