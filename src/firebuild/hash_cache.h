@@ -98,15 +98,16 @@ class HashCache {
   /**
    * Return the hash of a regular file. Also store this file in the blob cache.
    *
-   * @param path         file's path
-   * @param max_writers  maximum allowed number of writers to this file
-   * @param[out] hash    hash to retrive/calculate
-   * @param fd           if >= 0 then read the file from there
-   * @param stat_ptr     optionally the file's parameters already stat()'ed
-   * @return             false if not a regular file or directory
+   * @param path              file's path
+   * @param max_writers       maximum allowed number of writers to this file
+   * @param[out] hash         hash to retrive/calculate
+   * @param[out] stored_bytes bytes stored to the blob cache
+   * @param fd                if >= 0 then read the file from there
+   * @param stat_ptr          optionally the file's parameters already stat()'ed
+   * @return                  false if not a regular file or directory
    */
-  bool store_and_get_hash(const FileName* path, int max_writers, Hash *hash, int fd,
-                          const struct stat64 *stat_ptr);
+  bool store_and_get_hash(const FileName* path, int max_writers, Hash *hash, off_t* stored_bytes,
+                          int fd, const struct stat64 *stat_ptr);
 
   /**
    * Check if the given FileInfo query matches the file system.
@@ -155,12 +156,13 @@ class HashCache {
    * @param fd                    if >= 0 then read the file from there
    * @param stat_ptr              optionally the file's parameters already stat()'ed
    * @param store                 whether to store the file in the blob cache
+   * @param[out] stored_bytes     bytes stored to the blob cache
    * @param skip_statinfo_update  assume that the stat info is up-to-date
    * @return                      the requested information about the file
    */
   const HashCacheEntry* get_entry_with_statinfo_and_hash(const FileName* path, int max_writers,
                                                          int fd, const struct stat64 *stat_ptr,
-                                                         bool store,
+                                                         bool store, off_t* stored_bytes,
                                                          bool skip_statinfo_update = false);
 
   /**

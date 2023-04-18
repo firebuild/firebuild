@@ -91,7 +91,8 @@ static bool update_statinfo(const FileName* path, int fd, const struct stat64 *s
 
 /* Update the hash, maybe assuming that the statinfo is up-to-date. */
 static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_ptr,
-                        HashCacheEntry *entry, bool store, bool skip_statinfo_update) {
+                        HashCacheEntry *entry, bool store, off_t* stored_bytes,
+                        bool skip_statinfo_update) {
   TRACKX(FB_DEBUG_HASH, 1, 1, HashCacheEntry, entry,
          "path=%s, fd=%d, stat=%s, store=%s, skip_statinfo_update=%s",
          D(path), fd, D(stat_ptr), D(store), D(skip_statinfo_update));
@@ -125,12 +126,17 @@ static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_
       // FIXME if hash_known_() then we could verify that it didn't change
       entry->info.set_hash(&hash);
       entry->is_stored = true;
+      *stored_bytes = entry->info.size();
     }
     return ret;
   } else {
     if (entry->info.hash_known()) {
       /* If the hash is known then it's up-to-date because otherwise update_statinfo() would have
        * cleared it. */
+      if (store) {
+        /* The entry would be stored if it was not already in the cache. */
+        *stored_bytes = entry->info.size();
+      }
       return true;
     }
     /* We don't store the file in the blob cache, so just compute the hash directly.
@@ -152,6 +158,10 @@ static bool update_hash(const FileName* path, int fd, const struct stat64 *stat_
     // FIXME verify that is_dir matches entry->info.type()
     if (ret) {
       entry->info.set_hash(hash);
+      if (store) {
+        /* The entry would be stored if it was not already in the cache. */
+        *stored_bytes = entry->info.size();
+      }
     }
     return ret;
   }
@@ -191,6 +201,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
                                                                   int max_writers, int fd,
                                                                   const struct stat64 *stat_ptr,
                                                                   bool store,
+                                                                  off_t* stored_bytes,
                                                                   bool skip_statinfo_update) {
   TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s, store=%s, skip_update=%s",
       D(path), max_writers, fd, D(stat_ptr), D(store), D(skip_statinfo_update));
@@ -202,7 +213,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
 
   if (db_.count(path) > 0) {
     HashCacheEntry& entry = db_[path];
-    if (!update_hash(path, fd, stat_ptr, &entry, store, skip_statinfo_update)) {
+    if (!update_hash(path, fd, stat_ptr, &entry, store, stored_bytes, skip_statinfo_update)) {
       db_.erase(path);
       return &notexist_;
     }
@@ -214,7 +225,7 @@ const HashCacheEntry* HashCache::get_entry_with_statinfo_and_hash(const FileName
     return &entry;
   } else {
     struct HashCacheEntry new_entry {FileInfo(DONTKNOW)};
-    if (!update_hash(path, fd, stat_ptr, &new_entry, store, skip_statinfo_update)) {
+    if (!update_hash(path, fd, stat_ptr, &new_entry, store, stored_bytes, skip_statinfo_update)) {
       return &notexist_;
     }
     if (!path->is_in_read_only_location() && new_entry.info.type() == NOTEXIST) {
@@ -272,7 +283,7 @@ bool HashCache::get_hash(const FileName* path, int max_writers, Hash *hash, bool
     return false;
   }
   const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, max_writers, fd, stat_ptr,
-                                                                 false);
+                                                                 false, nullptr);
   if (entry->info.type() == NOTEXIST || entry->info.type() == DONTKNOW) {
     return false;
   }
@@ -287,7 +298,7 @@ bool HashCache::get_hash(const FileName* path, int max_writers, Hash *hash, bool
 }
 
 bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *hash,
-                                   int fd, const struct stat64 *stat_ptr) {
+                                   off_t* stored_bytes, int fd, const struct stat64 *stat_ptr) {
   TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s",
       D(path), max_writers, fd, D(stat_ptr));
 
@@ -295,7 +306,7 @@ bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *
     return false;
   }
   const HashCacheEntry *entry = get_entry_with_statinfo_and_hash(path, max_writers, fd, stat_ptr,
-                                                                 true);
+                                                                 true, stored_bytes);
   if (!entry) {
     return false;
   }
@@ -369,7 +380,7 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
    * information, because it's expensive to compute it so we defer it as long as possible. But if
    * the entry already contains it then save some time by not looking it up in the cache again. */
   if (!entry->info.hash_known()) {
-    entry = get_entry_with_statinfo_and_hash(path, 0, -1, nullptr, false,
+    entry = get_entry_with_statinfo_and_hash(path, 0, -1, nullptr, false, nullptr,
                                              true /* don't stat again */);
 
     if ((entry->info.type() != ISREG && entry->info.type() != ISDIR)
