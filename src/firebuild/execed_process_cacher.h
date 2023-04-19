@@ -69,7 +69,7 @@ class ExecedProcessCacher {
    * Returns a new object, to be deleted by the caller, if exactly one
    * match was found.
    */
-  const FBBSTORE_Serialized_process_inputs_outputs *find_shortcut(const ExecedProcess *proc,
+  const FBBSTORE_Serialized_process_inputs_outputs *find_shortcut(ExecedProcess *proc,
                                                                   uint8_t **inouts_buf,
                                                                   size_t *inouts_buf_len,
                                                                   Subkey* subkey_out);

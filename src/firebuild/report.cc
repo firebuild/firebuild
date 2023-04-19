@@ -89,6 +89,10 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   if (proc->was_shortcut()) {
     fprintf(stream, "%s was_shortcut: true,\n", indent);
   }
+  if (proc->shortcut_result()) {
+    fprintf(stream, "%s sc_result: \"%s\",\n",
+            indent, escapeJsonString(proc->shortcut_result()).c_str());
+  }
   if (!proc->can_shortcut()) {
     fprintf(stream, "%s cant_sc_reason: \"%s\",\n",
             indent, escapeJsonString(proc->cant_shortcut_reason()).c_str());
