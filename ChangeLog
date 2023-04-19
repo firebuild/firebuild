@@ -1,3 +1,47 @@
+0.8.0 / 2023-04-19
+==================
+  * portability: Fixes to build on Mac OS X (interception is not functional yet)
+  * readme: Mention packages in the Arch Linux (AUR), Debian and Ubuntu archives
+  * interceptor: Intercept seccomp() calls and always return with EINVAL error
+    Fixes intercepting and caching man commands
+  * supervisor: Add default quirk to ignore successful statfs() and fstatfs() calls
+    Fixes shortcutting Doxygen
+  * tests: Fix building all binaries for valgrind-check target
+  * ci: Split running tests with valgrind to a separate job
+  * supervisor: Fall back to pread() when mmap() fails when hashing a file
+    Fixes shortcutting Java and javadoc again after their behavior changes
+  * ci: Use firebuild to speed up firebuild builds on Linux
+  * ci: Use latest Clang and scan-build versions
+  * supervisor: Cache "sh" again by default and
+  * supervisor: Skip caching command when parent sh -c "<command>" can be cached
+  * supervisor: Ignore missing configuration settings instead of crashing
+  * supervisor: Rename system_locations configuration entry to read_only_locations
+  * interceptor: Make relative or absolute unsuccessfully dlopen()-ed paths absolute
+  * supervisor: Treat unsuccessfully dlopen()-ed files using absolute filename as missing
+    Fixes shortcutting Intel Fortran Compiler (ifort).
+  * supervisor: Fix saved bytes accounting
+  * supervisor: Verify stored bytes accounting in Debug builds
+  * supervisor: Fix invalid stored cache size
+  * supervisor: Don't report missing possible debug files when debugging cache during GC
+  * ci: Add CodeQL analysis
+  * supervisor: Intercept ccache, but set it to run the original compiler
+    This allows relying on firebuild's caching by default even when ccache
+    is installed.
+  * supervisor: Shortcut only ccache and not child gcc/g++/etc. command
+  * tests: Don't disable ccache in test helper scripts
+    Ccache is now disabled within firebuild by default.
+  * Ignore communication with GNU Make's and Cargo's jobserver
+    This lets shortcutting processes that read tokens from the jobserver.
+  * interceptor: Ignore getcap syscall
+    It is used by Python and Node
+  * supervisor: Don't store hash of dependency directory listing for rustc
+    This allows shortcutting Rust + Cargo builds
+  * interceptor: Report getrandom syscalls
+  * interceptor: utimensat syscall accepts NULL pathname
+  * supervisor: Allow configuring maximal cache entry size with default of 250MB
+  * report: Include why shortcutting attempts failed
+  * debian: Update short and long package description
+
 0.2.12 / 2023-02-23
 ==================
 
