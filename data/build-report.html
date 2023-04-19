@@ -305,7 +305,7 @@
           document.getElementById('detailed_env').innerHTML = print_string_array(d.env, '<br/>');
           document.getElementById('detailed_libs').innerHTML = print_string_array(d.libs, '<br/>');
           document.getElementById('cant_shortcut').innerHTML = d.cant_sc_reason ? d.cant_sc_reason + ((d.cant_sc_fb_pid)?' in a <a href="#" onclick="jump_details(' + d.cant_sc_fb_pid + ');">child process</a>':"") : "none";
-          document.getElementById('shortcut').innerHTML = d.was_shortcut ? "true" : "false";
+          document.getElementById('shortcut').innerHTML = d.was_shortcut ? "yes" : (d.sc_result ? ("failed, " + d.sc_result) : "not attempted");
           document.getElementById('detailed_fcreated').innerHTML = print_string_array(d.fcreated, '<br/>');
           document.getElementById('detailed_fmodified').innerHTML = print_string_array(d.fmodified, '<br/>');
           document.getElementById('detailed_fread').innerHTML = print_string_array(d.fread, '<br/>');

@@ -1081,7 +1081,7 @@ static const FBBSTORE_Serialized_file* find_input_file(const FBBSTORE_Serialized
  * and the outputs are likely applicable.
  */
 static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *candidate_inouts,
-                           const char* const subkey) {
+                           const char* const subkey, ExecedProcess* proc) {
   TRACK(FB_DEBUG_PROC, "subkey=%s", D(subkey));
 
   const FBBSTORE_Serialized *inputs_fbb = candidate_inouts->get_inputs();
@@ -1097,6 +1097,11 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
     const FileInfo query = file_to_file_info(file);
     if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " mismatches e.g. at " + d(path));
+      /* Store only the first mismatch. */
+      if (generate_report && !proc->shortcut_result()) {
+        proc->set_shortcut_result(deduplicated_string(
+            d(subkey) + " mismatches e.g. at " + d(path)).c_str());
+      }
       return false;
     }
   }
@@ -1106,6 +1111,12 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
                                     inputs->get_path_notexist_len_at(i));
     const FileInfo query(NOTEXIST);
     if (!hash_cache->file_info_matches(path, query)) {
+      /* Store only the first mismatch. */
+      if (generate_report && !proc->shortcut_result()) {
+        proc->set_shortcut_result(deduplicated_string(
+            d(subkey) + + " mismatches e.g. at " + d(path)
+            +  ": path expected to be missing, existing object is found").c_str());
+      }
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   " + d(subkey)
                + " mismatches e.g. at " + d(path)
@@ -1131,6 +1142,10 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
           /* The file has already been checked to be not writable and will be replaced while
            * applying the shortcut. */
         } else {
+          if (generate_report && !proc->shortcut_result()) {
+            proc->set_shortcut_result(deduplicated_string(
+                std::string("file to be written is not writable: ") + file->get_path()).c_str());
+          }
           return false;
         }
       }
@@ -1140,7 +1155,7 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
 }
 
 const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_shortcut(
-    const ExecedProcess *proc,
+    ExecedProcess *proc,
     uint8_t **inouts_buf,
     size_t *inouts_buf_len,
     Subkey* subkey_out) {
@@ -1156,6 +1171,9 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
   const std::vector<Subkey> subkeys = obj_cache->list_subkeys(fingerprint);
   if (subkeys.empty()) {
+    if (generate_report) {
+      proc->set_shortcut_result(deduplicated_string("no candidate found").c_str());
+    }
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
   }
   for (const Subkey& subkey : subkeys) {
@@ -1168,6 +1186,10 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     }
     if (!obj_cache->retrieve(fingerprint, subkey.c_str(),
                              &candidate_inouts_buf, &candidate_inouts_buf_len)) {
+      if (generate_report) {
+        proc->set_shortcut_result(deduplicated_string(
+            "could not retrieve " + d(subkey) + " from objcache").c_str());
+      }
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   Cannot retrieve " + d(subkey) + " from objcache, ignoring");
       continue;
@@ -1177,7 +1199,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     auto candidate_inouts =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs_outputs *>(candidate_inouts_fbb);
 
-    if (pio_matches_fs(candidate_inouts, subkey.c_str())) {
+    if (pio_matches_fs(candidate_inouts, subkey.c_str(), proc)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " matches the file system");
 #ifdef FB_EXTRA_DEBUG
       count++;
@@ -1561,6 +1583,8 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
       if (inouts->has_cpu_time_ms()) {
         proc->add_shortcut_cpu_time_ms(inouts->get_cpu_time_ms());
       }
+    } else if (generate_report) {
+      proc->set_shortcut_result("applying shortcut failed");
     }
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;

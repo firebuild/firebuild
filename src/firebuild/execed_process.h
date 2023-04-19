@@ -193,6 +193,12 @@ class ExecedProcess : public Process {
   /** Process the event preventing short-cutting happened in */
   const Process* cant_shortcut_proc() const {return cant_shortcut_proc_;}
 
+  /** Result of the shortcut attempt if the process can be shotcut. */
+  void set_shortcut_result(const char* result) {shortcut_result_ = result;}
+
+  /** Result of the shortcut attempt if the process can be shotcut. */
+  const char* shortcut_result() const {return shortcut_result_;}
+
   /** Find and apply shortcut */
   bool shortcut(std::vector<int> *fds_appended_to);
 
@@ -333,6 +339,8 @@ class ExecedProcess : public Process {
   const char* reason_with_fd(const char* reason, const int fd) const;
   /** Reason for this process can't be short-cut */
   const char* cant_shortcut_reason_ = nullptr;
+  /** Reason for this process can't be short-cut */
+  const char* shortcut_result_ = nullptr;
   /** Process the event preventing short-cutting happened in */
   const Process *cant_shortcut_proc_ = NULL;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
