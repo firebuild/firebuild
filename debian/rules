@@ -35,3 +35,6 @@ override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
 	make -C obj-* check
 endif
+
+override_dh_installchangelogs:
+	dh_installchangelogs -k ChangeLog
