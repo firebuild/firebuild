@@ -84,7 +84,10 @@ Firebuild's interception works by preloading libfirebuild.so to the intercepted 
 
 ## Installation
 
-Firebuild is available in [Debian](https://tracker.debian.org/pkg/firebuild), [Ubuntu](https://launchpad.net/ubuntu/+source/firebuild), and other Debian derivatives.
+Firebuild is available in [Arch Linux (AUR)](https://aur.archlinux.org/packages/firebuild),
+[Debian](https://tracker.debian.org/pkg/firebuild),
+[Ubuntu](https://launchpad.net/ubuntu/+source/firebuild),
+and other Debian derivatives.
 
 Back-ported packages for supported Ubuntu releases can be downloaded from the [official PPA](https://launchpad.net/~firebuild/+archive/ubuntu/stable):
 
