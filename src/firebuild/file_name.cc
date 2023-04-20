@@ -65,16 +65,22 @@ void FileName::open_for_writing(Process* proc) const {
       /* A different process opened the file for writing. */
       ExecedProcess* common_ancestor =
           proc->exec_point()->common_exec_ancestor(pair.second->exec_point());
+      const ExecedProcess* other_proc = pair.second->exec_point();
       if (common_ancestor != proc->exec_point()) {
         proc->exec_point()->disable_shortcutting_bubble_up_to_excl(
-            common_ancestor,
-            "Opened a file for writing which is already opened for writing by a different process");
+            common_ancestor, deduplicated_string(
+                "Opened " + this->to_string()
+                + " for writing which file is already opened for writing by ["
+                + d(other_proc->pid()) + "] \"" +  other_proc->exec_point()->args_to_short_string()
+                + "\"").c_str());
       }
       if (common_ancestor != pair.second->exec_point()) {
         pair.second->exec_point()->disable_shortcutting_bubble_up_to_excl(
-            common_ancestor,
-            "An other process opened a file for writing which is already opened for writing by "
-            "this process");
+            common_ancestor, deduplicated_string(
+                "An other process opened " + this->to_string()
+                + " for writing which file is already opened for writing by ["
+                + d(other_proc->pid()) + "] \"" +  other_proc->exec_point()->args_to_short_string()
+                + "\"").c_str());
       }
     }
   } else {
