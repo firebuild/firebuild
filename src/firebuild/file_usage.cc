@@ -52,7 +52,7 @@ const FileUsage* FileUsage::Get(const FileUsage& candidate) {
   }
 }
 
-const FileUsage* FileUsage::merge(const FileUsageUpdate& update) const {
+const FileUsage* FileUsage::merge(const FileUsageUpdate& update, const bool propagated) const {
   FileUsage tmp = *this;
 
   /* Make sure the merged FileUsage is debug-printed upon leaving this method. */
@@ -214,6 +214,11 @@ const FileUsage* FileUsage::merge(const FileUsageUpdate& update) const {
       tmp.tmp_file_ = true;
       changed = true;
     }
+  }
+
+  if (propagated_ != propagated) {
+    tmp.propagated_ = propagated;
+    changed = true;
   }
 
   if (!changed) {

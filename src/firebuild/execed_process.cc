@@ -263,10 +263,12 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
     return true;
   }
 
+  bool propagated = false;
   ExecedProcess *proc = this;
   if (!proc->can_shortcut_ && !generate_report) {
     /* Register at the first shortcutable ancestor instead. */
     proc = proc->next_shortcutable_ancestor();
+    propagated = true;
   }
   if (!proc) {
     return true;
@@ -313,11 +315,8 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
               : "A parallel process modified the file");
           /* Still bubble up to the root because an ancestor may still be shortcutable and also
            * been updated with the parallel change. */
-          if (!generate_report) {
-            proc = proc->next_shortcutable_ancestor();
-          } else {
-            proc = proc->parent_exec_point();
-          }
+          propagated = true;
+          proc = proc->next_shortcutable_ancestor();
           if (proc) {
             /* There is no merged file usage, it can't be carried in this loop. Recurse instead. */
             return proc->register_file_usage_update(name, update);
@@ -329,7 +328,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
       }
       /* Note: This can update "update" if some value is computed now and cached there. In that
        * case, in the next iteration of the loop "update" will already contain this value. */
-      fu_new = fu->merge(update);
+      fu_new = fu->merge(update, propagated);
       if (!fu_new) {
         if (FB_DEBUGGING(FB_DEBUG_FS) || generate_report) {
           std::string reason("Could not merge " + d(name) + " file usage " + d(fu) + " with "
@@ -352,11 +351,8 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
       proc->file_usages_[name] = fu_new;
     }
 
-    if (!generate_report) {
-      proc = proc->next_shortcutable_ancestor();
-    } else {
-      proc = proc->parent_exec_point();
-    }
+    propagated = true;
+    proc = proc->next_shortcutable_ancestor();
   }
   return true;
 }

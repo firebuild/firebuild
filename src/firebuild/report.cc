@@ -134,7 +134,9 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   /* sort files before printing */
   std::vector<file_file_usage> ordered_file_usages;
   for (auto& pair : proc->file_usages()) {
-    ordered_file_usages.push_back({pair.first, pair.second});
+    if (!pair.second->propagated()) {
+      ordered_file_usages.push_back({pair.first, pair.second});
+    }
   }
   std::sort(ordered_file_usages.begin(), ordered_file_usages.end(), file_file_usage_cmp);
 

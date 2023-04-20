@@ -52,6 +52,7 @@ class FileUsage {
   bool written() const {return written_;}
   bool mode_changed() const {return mode_changed_;}
   bool tmp_file() const {return tmp_file_;}
+  bool propagated() const {return propagated_;}
   file_generation_t generation() const {return generation_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
@@ -91,7 +92,7 @@ class FileUsage {
    *
    * @return pointer to the merge result, or nullptr in case of an error
    */
-  const FileUsage* merge(const FileUsageUpdate& update) const;
+  const FileUsage* merge(const FileUsageUpdate& update, const bool propagated) const;
 
   /* Member debugging method. Not to be called directly, call the global d(obj_or_ptr) instead.
    * level is the nesting level of objects calling each other's d(), bigger means less info to print.
@@ -102,9 +103,10 @@ class FileUsage {
   explicit FileUsage(FileType type = DONTKNOW) : initial_state_(type) {}
 
   FileUsage(const FileName* filename, const FileInfo *initial_state, bool written,
-            bool mode_changed, bool tmp_file, int unknown_err):
+            bool mode_changed, bool tmp_file, bool propagated, int unknown_err):
       initial_state_(*initial_state), written_(written), mode_changed_(mode_changed),
-      tmp_file_(tmp_file), generation_(filename->generation()), unknown_err_(unknown_err) {}
+      tmp_file_(tmp_file), propagated_(propagated), generation_(filename->generation()),
+      unknown_err_(unknown_err) {}
 
   /* Things that describe the filesystem when the process started up */
   FileInfo initial_state_;
@@ -124,6 +126,7 @@ class FileUsage {
   /** Created as a temporary file with mktemp() and friends or inferred to be a temporary file
    *  by the supervisor. */
   bool tmp_file_ {false};
+  bool propagated_ {true};
 
   /** Generation of the file the process last seen (either by reading or writing to the file). */
   file_generation_t generation_ {0};
