@@ -1410,7 +1410,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   /* Bubble up all the file operations we're about to perform. */
-  if (proc->parent_exec_point()) {
+  ExecedProcess* registration_point = generate_report ? proc : proc->parent_exec_point();
+  if (registration_point) {
     const FBBSTORE_Serialized_process_inputs *inputs =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>
         (inouts->get_inputs());
@@ -1419,12 +1420,12 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(inputs->get_path_at(i));
       const auto path = FileName::Get(file->get_path(), file->get_path_len());
       FileInfo info = file_to_file_info(file);
-      proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, info));
+      registration_point->register_file_usage_update(path, FileUsageUpdate(path, info));
     }
     for (i = 0; i < inputs->get_path_notexist_count(); i++) {
       const auto path = FileName::Get(inputs->get_path_notexist_at(i),
                                       inputs->get_path_notexist_len_at(i));
-      proc->parent_exec_point()->register_file_usage_update(path, FileUsageUpdate(path, NOTEXIST));
+      registration_point->register_file_usage_update(path, FileUsageUpdate(path, NOTEXIST));
     }
   }
 
@@ -1472,9 +1473,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       // FIXME warn on them, even when we store them.
       chmod(path->c_str(), file->get_mode() & 0777);
     }
-    if (proc->parent_exec_point()) {
+    if (registration_point) {
       FileUsageUpdate update = file_to_file_usage_update(path, file);
-      proc->parent_exec_point()->register_file_usage_update(path, update);
+      registration_point->register_file_usage_update(path, update);
     }
   }
 
