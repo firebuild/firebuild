@@ -16,7 +16,7 @@ endif
 VER_GLIBC := $(shell dpkg -s libc6 | grep ^Version: | cut -f2 -d' ' | cut -f1 -d '-')
 
 %:
-	dh $@
+	dh $@ --with bash-completion
 
 ifneq (,$(filter $(distrelease),bionic))
 # Bionic's jemalloc does not ship pkgconfig files needed to detect it.

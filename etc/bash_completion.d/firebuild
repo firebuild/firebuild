@@ -1,0 +1,94 @@
+# firebuild(1) completion
+
+# TODO(rbalint) complete the intercepted command's arguments, too
+
+_firebuild_completion() {
+    local cur prev opts debug_flags
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    if [ "$prev" = "=" ]; then
+        prev="${COMP_WORDS[COMP_CWORD-2]}"
+    fi
+
+    # Firebuild options
+    opts="
+        -c --config-file
+        -C --directory
+        -d --debug-flags
+        -D --debug-filter
+        -g --gc
+        -r --generate-report
+        -h --help
+        -o --option
+        -q --quiet
+        -s --show-stats
+        -z --zero-stats
+        -i --insert-trace-markers
+        --version
+    "
+
+    debug_flags="$($1 -d help 2>&1 | grep -v 'available debug flags')"
+
+    # Check if we are after "--", meaning the wrapped command should be completed
+    local double_dash_index
+    double_dash_index=$(printf "%s\n" "${COMP_WORDS[@]}" | grep -n -- '^--$' | cut -d: -f1)
+    if [[ -n "$double_dash_index" && $COMP_CWORD -gt $((double_dash_index - 1)) ]]; then
+        # Complete with system commands
+        COMPREPLY=( $(compgen -c -- "$cur") )
+        return 0
+    fi
+
+    case "${prev}" in
+        -c|--config-file)
+            # File completion for --config-file
+            compopt -o filenames
+            COMPREPLY=( $(compgen -f -- "$cur") )
+            return 0
+            ;;
+        -C|--directory)
+            # Directory completion for --directory
+            COMPREPLY=( $(compgen -d -- "$cur") )
+            return 0
+            ;;
+        -d|--debug-flags)
+            # Example debug flags; expand as needed
+            COMPREPLY=( $(compgen -W "$debug_flags" -- "$cur") )
+            return 0
+            ;;
+        -D|--debug-filter)
+            # Example debug filters; expand as needed
+            local debug_filters="make gcc clang cmake"
+            COMPREPLY=( $(compgen -W "$debug_filters" -- "$cur") )
+            return 0
+            ;;
+        -r|--generate-report)
+            # File completion for report filename
+            compopt -o filenames
+            COMPREPLY=( $(compgen -f -- "$cur") )
+            return 0
+            ;;
+        -o|--option)
+            # Example configuration options
+            local config_options="key=val key=[] key+=val key-=val"
+            COMPREPLY=( $(compgen -W "$config_options" -- "$cur") )
+            return 0
+            ;;
+    esac
+
+    case "$cur" in
+        -*)
+            # Default completion for Firebuild options
+            COMPREPLY=( $(compgen -W "$opts" -- "$cur") )
+            return 0
+            ;;
+        *)
+            # Complete with system commands
+            COMPREPLY=( $(compgen -c -- "$cur") )
+            return 0
+            ;;
+    esac
+}
+
+# Register the completion function for the firebuild command
+complete -F _firebuild_completion firebuild

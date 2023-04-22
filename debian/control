@@ -2,7 +2,8 @@ Source: firebuild
 Section: non-free/devel
 Priority: optional
 Maintainer: Balint Reczey <balint@balintreczey.hu>
-Build-Depends: bats,
+Build-Depends: bash-completion,
+               bats,
                bc,
                clang,
                cmake (>= 3.13),
