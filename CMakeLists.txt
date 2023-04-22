@@ -139,5 +139,10 @@ add_custom_target(style-check
 configure_file("${CMAKE_SOURCE_DIR}/etc/firebuild.conf" "${CMAKE_BINARY_DIR}/etc/firebuild.conf" COPYONLY)
 
 install(FILES "${CMAKE_BINARY_DIR}/etc/firebuild.conf" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}")
+if (APPLE)
+  install(FILES "${CMAKE_SOURCE_DIR}/etc/bash_completion.d/firebuild" DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}/bash_completion.d")
+else()
+  install(FILES "${CMAKE_SOURCE_DIR}/etc/bash_completion.d/firebuild" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/bash-completion/completions")
+endif()
 install(FILES data/build-report.html DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/firebuild")
 install(FILES data/firebuild-logo.svg DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/firebuild")
