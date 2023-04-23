@@ -42,6 +42,11 @@ namespace firebuild {
 tsl::hopscotch_map<std::string, cmd_prof> cmd_profs {};
 
 /**
+ * Index of each used file in the JavaScript files[] array.
+ */
+tsl::hopscotch_map<const FileName*, int> used_files_index_map {};
+
+/**
  * Escape std::string for JavaScript
  * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
  * TODO: use JSONCpp instead to handle all cases
@@ -68,8 +73,8 @@ static const char* full_relative_path_or_basename(const char *name) {
   return name_last_slash && path_is_absolute(name) ? name_last_slash + 1 : name;
 }
 
-static void fprintf_escaped_file(FILE* stream, const file_file_usage& ffu) {
-  fprintf(stream, "\"%s\",", escapeJsonString(ffu.file->to_string()).c_str());
+static void fprintf_ffu_file(FILE* stream, const file_file_usage& ffu) {
+  fprintf(stream, "files[%d],", used_files_index_map[ffu.file]);
 }
 
 static void export2js(const ExecedProcess* proc, const unsigned int level,
@@ -144,7 +149,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   for (auto& ffu : ordered_file_usages) {
     bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (!isreg_with_hash && ffu.usage->written()) {
-      fprintf_escaped_file(stream, ffu);
+      fprintf_ffu_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -153,7 +158,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   for (auto& ffu : ordered_file_usages) {
     bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (isreg_with_hash && ffu.usage->written()) {
-      fprintf_escaped_file(stream, ffu);
+      fprintf_ffu_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -162,7 +167,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   for (auto& ffu : ordered_file_usages) {
     bool isreg_with_hash = ffu.usage->initial_type() == ISREG && ffu.usage->initial_hash_known();
     if (isreg_with_hash && !ffu.usage->written()) {
-      fprintf_escaped_file(stream, ffu);
+      fprintf_ffu_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -170,7 +175,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   fprintf(stream, "%s fnotf: [", indent);
   for (auto& ffu : ordered_file_usages) {
     if (ffu.usage->initial_type() == NOTEXIST) {
-      fprintf_escaped_file(stream, ffu);
+      fprintf_ffu_file(stream, ffu);
     }
   }
   fprintf(stream, "],\n");
@@ -225,6 +230,34 @@ static void export2js(ProcessTree* proc_tree, FILE * stream) {
     // TODO(rbalint) provide nicer report on this error
     fprintf(stream, "{name: \"<unknown>\", id: 0, aggr_time_u: 0, children: []};");
   }
+}
+
+static void collect_used_files(const Process &p,
+                               tsl::hopscotch_set<const FileName*> *used_files) {
+  if (p.exec_child() != NULL) {
+    ExecedProcess *exec_child = static_cast<ExecedProcess*>(p.exec_child());
+    for (const auto& pair : exec_child->file_usages()) {
+      if (!pair.second->propagated()) { /* Save time by not processing propagated ones. */
+        used_files->insert(pair.first);
+      }
+    }
+    collect_used_files(*exec_child, used_files);
+  }
+  for (auto& fork_child : p.fork_children()) {
+    collect_used_files(*fork_child, used_files);
+  }
+}
+
+void fprint_collected_files(FILE* stream,
+                            const tsl::hopscotch_set<const FileName*>& used_files_set) {
+  int index = 0;
+  fprintf(stream, "files = [\n");
+  for (const FileName* filename : used_files_set) {
+    fprintf(stream, "  \"%s\", // files[%d]\n",
+            escapeJsonString(filename->to_string()).c_str(), index);
+    used_files_index_map.insert({filename, index++});
+  }
+  fprintf(stream, "];\n");
 }
 
 static void profile_collect_cmds(const Process &p,
@@ -469,6 +502,9 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
       }
     } else if (strstr(line, tree_filename) != NULL) {
       fprintf(dst_file, "<script type=\"text/javascript\">\n");
+      tsl::hopscotch_set<const FileName*> used_files_set;
+      collect_used_files(*proc_tree->root(), &used_files_set);
+      fprint_collected_files(dst_file, used_files_set);
       export2js(proc_tree, dst_file);
       fprintf(dst_file, "    </script>\n");
     } else if (strstr(line, svg_filename) != NULL) {
