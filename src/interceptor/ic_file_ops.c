@@ -196,3 +196,33 @@ void copy_notify_on_read_write_state(const int to_fd, const int from_fd) {
     ic_fd_states[to_fd] = ic_fd_states[from_fd];
   }
 }
+
+void set_notify_on_read_state(const int fd, const bool is_pread) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
+    ic_fd_states[fd].notify_on_read = false;
+    if (is_pread) {
+      ic_fd_states[fd].notify_on_pread = false;
+    }
+  }
+}
+
+void set_notify_on_write_state(const int fd, const bool is_pwrite) {
+  if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
+    ic_fd_states[fd].notify_on_write = false;
+    if (is_pwrite) {
+      ic_fd_states[fd].notify_on_pwrite = false;
+    }
+  }
+}
+
+bool notify_on_read(const int fd, const bool is_pread) {
+  return (fd < 0 || fd >= IC_FD_STATES_SIZE
+          || (is_pread == false && ic_fd_states[fd].notify_on_read == true)
+          || (is_pread == true && ic_fd_states[fd].notify_on_pread == true));
+}
+
+bool notify_on_write(const int fd, const bool is_pwrite) {
+  return (fd < 0 || fd >= IC_FD_STATES_SIZE
+          || (is_pwrite == false && ic_fd_states[fd].notify_on_write == true)
+          || (is_pwrite == true && ic_fd_states[fd].notify_on_pwrite == true));
+}

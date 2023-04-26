@@ -48,21 +48,14 @@
   bool is_pwrite = {{ is_pwrite }};
 
   {# Acquire the lock if sending a message #}
-  if (fd < 0 || fd >= IC_FD_STATES_SIZE ||
-      (is_pwrite == false && ic_fd_states[fd].notify_on_write == true) ||
-      (is_pwrite == true && ic_fd_states[fd].notify_on_pwrite == true)) {
+  if (notify_on_write(fd, is_pwrite)) {
     /* Need to notify the supervisor */
 
     {{ grab_lock_if_needed('true') | indent(2) }}
 
     {{ super() | indent(2) }}
 
-    if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
-      ic_fd_states[fd].notify_on_write = false;
-      if (is_pwrite) {
-        ic_fd_states[fd].notify_on_pwrite = false;
-      }
-    }
+    set_notify_on_write_state(fd, is_pwrite);
 
     {{ release_lock_if_needed() | indent(2) }}
   }

@@ -47,21 +47,14 @@
   bool is_pread = {{ is_pread }};
 
   {# Acquire the lock if sending a message #}
-  if (fd < 0 || fd >= IC_FD_STATES_SIZE ||
-      (is_pread == false && ic_fd_states[fd].notify_on_read == true) ||
-      (is_pread == true && ic_fd_states[fd].notify_on_pread == true)) {
+  if (notify_on_read(fd, is_pread)) {
     /* Need to notify the supervisor */
 
     {{ grab_lock_if_needed('true') | indent(2) }}
 
     {{ super() | indent(2) }}
 
-    if (fd >= 0 && fd < IC_FD_STATES_SIZE) {
-      ic_fd_states[fd].notify_on_read = false;
-      if (is_pread) {
-        ic_fd_states[fd].notify_on_pread = false;
-      }
-    }
+    set_notify_on_read_state(fd, is_pread);
 
     {{ release_lock_if_needed() | indent(2) }}
   }
