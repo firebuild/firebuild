@@ -175,6 +175,8 @@
     ("gen_call", [
       # function name
       (REQUIRED, STRING, "call"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
     ]),
 
     # Firebuild error
@@ -447,6 +449,8 @@
     ]),
 
     ("clock_gettime", [
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
     ]),
 
     ("utime", [
