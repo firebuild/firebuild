@@ -34,6 +34,10 @@ void clear_notify_on_read_write_state(const int fd);
 void set_notify_on_read_write_state(const int fd);
 void set_all_notify_on_read_write_states();
 void copy_notify_on_read_write_state(const int to_fd, const int from_fd);
+void set_notify_on_read_state(const int fd, const bool is_pread);
+void set_notify_on_write_state(const int fd, const bool is_pwrite);
+bool notify_on_read(const int fd, const bool is_pread);
+bool notify_on_write(const int fd, const bool is_pwrite);
 
 /* Same as fileno(), but with safe NULL pointer handling. */
 static inline int safe_fileno(FILE *stream) {
