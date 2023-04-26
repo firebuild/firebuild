@@ -52,6 +52,16 @@ bool ic_called_{{ func }};
     fbbcomm_builder_{{ msg }}_set_call(&ic_msg, "{{ func }}");
 ###   endif
 
+###   if send_msg_on_error
+    /* Send errno on failure */
+###     if not msg_skip_fields or 'error_no' not in msg_skip_fields
+###       if not no_saved_errno
+    if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, saved_errno);
+###       else
+    if (!success) fbbcomm_builder_{{ msg }}_set_error_no(&ic_msg, errno);
+###       endif
+###     endif
+###   endif
 ###   if ack
     /* Send and wait for ack */
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
