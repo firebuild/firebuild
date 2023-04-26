@@ -152,9 +152,10 @@ setup() {
     assert_streq "$(strip_stderr stderr)" ""
 
     # test sendfile and friends
-    result=$(./run-firebuild -- ./test_sendfile)
+    result=$(./run-firebuild -- bash -c './test_sendfile < integration.bats > foo')
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
+    rm -f foo
 
     # The process can find a directory missing then can create a file in it due to the directory
     # having been created by an other parallel process
