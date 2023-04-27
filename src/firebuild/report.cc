@@ -46,6 +46,30 @@ tsl::hopscotch_map<std::string, cmd_prof> cmd_profs {};
  */
 tsl::hopscotch_map<const FileName*, int> used_files_index_map {};
 
+
+struct string_vector_ptr_hash {
+  size_t operator()(const std::vector<std::string>* v) const {
+    std::hash<std::string> hasher;
+    std::size_t seed = 0;
+    for (auto const & s : *v) {
+      seed ^= hasher(s) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    return seed;
+  }
+};
+
+struct string_vector_ptr_eq {
+  bool operator() (const std::vector<std::string>* a, const std::vector<std::string>* b) const {
+    return *a == *b;
+  }
+};
+
+/**
+ * Index of each used environment in the JavaScript envs[] array.
+ */
+tsl::hopscotch_map<const std::vector<std::string>*, int, struct string_vector_ptr_hash,
+                   struct string_vector_ptr_eq> used_envs_index_map {};
+
 /**
  * Escape std::string for JavaScript
  * from http://stackoverflow.com/questions/7724448/simple-json-string-escape-for-c
@@ -112,11 +136,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
   }
   fprintf(stream, "],\n");
 
-  fprintf(stream, "%s env: [", indent);
-  for (auto& env : proc->env_vars()) {
-    fprintf(stream, "\"%s\",", escapeJsonString(env).c_str());
-  }
-  fprintf(stream, "],\n");
+  fprintf(stream, "%s env: envs[%d],\n", indent, used_envs_index_map[&proc->env_vars()]);
 
   fprintf(stream, "%s libs: [", indent);
   for (auto& lib : proc->libs()) {
@@ -232,8 +252,11 @@ static void export2js(ProcessTree* proc_tree, FILE * stream) {
   }
 }
 
-static void collect_used_files(const Process &p,
-                               tsl::hopscotch_set<const FileName*> *used_files) {
+static void collect_used_files_and_envs(const Process &p,
+                                        tsl::hopscotch_set<const FileName*> *used_files,
+                                        tsl::hopscotch_set<const std::vector<std::string>*,
+                                        string_vector_ptr_hash,
+                                        string_vector_ptr_eq> *envs) {
   if (p.exec_child() != NULL) {
     ExecedProcess *exec_child = static_cast<ExecedProcess*>(p.exec_child());
     for (const auto& pair : exec_child->file_usages()) {
@@ -241,10 +264,11 @@ static void collect_used_files(const Process &p,
         used_files->insert(pair.first);
       }
     }
-    collect_used_files(*exec_child, used_files);
+    envs->insert(&exec_child->env_vars());
+    collect_used_files_and_envs(*exec_child, used_files, envs);
   }
   for (auto& fork_child : p.fork_children()) {
-    collect_used_files(*fork_child, used_files);
+    collect_used_files_and_envs(*fork_child, used_files, envs);
   }
 }
 
@@ -256,6 +280,22 @@ void fprint_collected_files(FILE* stream,
     fprintf(stream, "  \"%s\", // files[%d]\n",
             escapeJsonString(filename->to_string()).c_str(), index);
     used_files_index_map.insert({filename, index++});
+  }
+  fprintf(stream, "];\n");
+}
+
+void fprint_collected_envs(
+    FILE* stream, const tsl::hopscotch_set<const std::vector<std::string>*, string_vector_ptr_hash,
+    string_vector_ptr_eq>& used_envs_set) {
+  int index = 0;
+  fprintf(stream, "envs = [\n");
+  for (const std::vector<std::string>* env : used_envs_set) {
+    fprintf(stream, "  [");
+    for (const std::string& env_var : *env) {
+      fprintf(stream, "\"%s\",", escapeJsonString(env_var).c_str());
+    }
+    fprintf(stream, "], // envs[%d]\n", index);
+    used_envs_index_map.insert({env, index++});
   }
   fprintf(stream, "];\n");
 }
@@ -503,8 +543,11 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
     } else if (strstr(line, tree_filename) != NULL) {
       fprintf(dst_file, "<script type=\"text/javascript\">\n");
       tsl::hopscotch_set<const FileName*> used_files_set;
-      collect_used_files(*proc_tree->root(), &used_files_set);
+      tsl::hopscotch_set<const std::vector<std::string>*, string_vector_ptr_hash,
+                         string_vector_ptr_eq> used_envs_set;
+      collect_used_files_and_envs(*proc_tree->root(), &used_files_set, &used_envs_set);
       fprint_collected_files(dst_file, used_files_set);
+      fprint_collected_envs(dst_file, used_envs_set);
       export2js(proc_tree, dst_file);
       fprintf(dst_file, "    </script>\n");
     } else if (strstr(line, svg_filename) != NULL) {
