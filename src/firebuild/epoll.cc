@@ -32,6 +32,7 @@
 #include <vector>
 
 #include "common/firebuild_common.h"
+#include "firebuild/debug.h"
 #include "firebuild/utils.h"
 
 namespace firebuild {
@@ -100,6 +101,7 @@ void Epoll::add_fd(int fd, uint32_t events,
   assert(fd_contexts_[fd].callback == nullptr);
   fd_contexts_[fd].callback = callback;
   fd_contexts_[fd].callback_user_data = callback_user_data;
+  fds_++;
 #ifdef __APPLE__
   timespec ts = {0, 0};
   struct kevent ke = {static_cast<uintptr_t>(fd),
@@ -127,6 +129,8 @@ void Epoll::del_fd(int fd) {
   ensure_room_fd(fd);
   assert(fd_contexts_[fd].callback != nullptr);
   fd_contexts_[fd].callback = nullptr;
+  assert_cmp(fds_, >, 0);
+  fds_--;
 #ifdef __APPLE__
   timespec ts = {0, 0};
   struct kevent ke = {static_cast<uintptr_t>(fd),

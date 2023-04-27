@@ -96,6 +96,9 @@ class Epoll {
    *  (according to our own bookkeeping) and removes it. */
   void del_fd(int fd);
 
+  /** Number of added and not removed fds. */
+  size_t fds() const {return fds_;}
+
   /** Thin wrapper around epoll_ctl(). Checks if fd is already added to epollfd
    *  (according to our own bookkeeping) and if so then removes it. */
   void maybe_del_fd(int fd);
@@ -195,6 +198,9 @@ class Epoll {
 
   /* Our main epoll fd. */
   int main_fd_ = -1;
+
+  /* Number of added fds not removed yet. */
+  size_t fds_ = 0;
 
   /* For each fd, tells its current role in epollfd. The entry is "active" (part of epoll's set)
    * if and only if its callback is non-null. */
