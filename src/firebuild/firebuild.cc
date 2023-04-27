@@ -445,7 +445,8 @@ int main(const int argc, char *argv[]) {
     firebuild::epoll->add_fd(sigchild_selfpipe[0], EPOLLIN, firebuild::sigchild_cb, NULL);
 
     /* Main loop for processing interceptor messages */
-    while (listener >= 0) {
+    /* Runs until the only remaining epoll-monitored fd is the sigchild_selfpipe fd. */
+    while (firebuild::epoll->fds() > 1) {
       /* This is where the process spends its idle time: waiting for an event over a fd, or a
        * sigchild.
        *
