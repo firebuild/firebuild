@@ -543,7 +543,12 @@ int main(const int argc, char *argv[]) {
   unlink(fb_conn_string);
   rmdir(fb_tmp_dir);
 
+#ifdef FB_EXTRA_DEBUG
+  (void)running_under_valgrind;
+  {
+#else
   if (running_under_valgrind()) {
+#endif
     /* keep Valgrind happy */
     {
       char* env_str;
