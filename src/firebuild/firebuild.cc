@@ -495,29 +495,33 @@ int main(const int argc, char *argv[]) {
       timeradd(&ru_myslf.ru_stime, &ru_chldr.ru_stime, &ru_total.ru_stime);
 
       fprintf(stderr, "\nResource usages, in seconds:\n"
-                      "real           %5ld.%03ld\n"
+              "real           %5ld.%03ld\n"
 #ifdef __APPLE__
-                      "user firebuild %5ld.%03d\n"
-                      "user children  %5ld.%03d\n"
-                      "user total     %5ld.%03d\n"
-                      "sys  firebuild %5ld.%03d\n"
-                      "sys  children  %5ld.%03d\n"
-                      "sys  total     %5ld.%03d\n",
+              "user firebuild %5ld.%03d\n"
+              "user children  %5ld.%03d\n"
+              "user total     %5ld.%03d\n"
+              "sys  firebuild %5ld.%03d\n"
+              "sys  children  %5ld.%03d\n"
+              "sys  total     %5ld.%03d\n"
 #else
-                      "user firebuild %5ld.%03ld\n"
-                      "user children  %5ld.%03ld\n"
-                      "user total     %5ld.%03ld\n"
-                      "sys  firebuild %5ld.%03ld\n"
-                      "sys  children  %5ld.%03ld\n"
-                      "sys  total     %5ld.%03ld\n",
+              "user firebuild %5ld.%03ld\n"
+              "user children  %5ld.%03ld\n"
+              "user total     %5ld.%03ld\n"
+              "sys  firebuild %5ld.%03ld\n"
+              "sys  children  %5ld.%03ld\n"
+              "sys  total     %5ld.%03ld\n"
 #endif
-                      diff_time.tv_sec, diff_time.tv_nsec / (1000 * 1000),
-                      ru_myslf.ru_utime.tv_sec, ru_myslf.ru_utime.tv_usec / 1000,
-                      ru_chldr.ru_utime.tv_sec, ru_chldr.ru_utime.tv_usec / 1000,
-                      ru_total.ru_utime.tv_sec, ru_total.ru_utime.tv_usec / 1000,
-                      ru_myslf.ru_stime.tv_sec, ru_myslf.ru_stime.tv_usec / 1000,
-                      ru_chldr.ru_stime.tv_sec, ru_chldr.ru_stime.tv_usec / 1000,
-                      ru_total.ru_stime.tv_sec, ru_total.ru_stime.tv_usec / 1000);
+              "\n"
+              "firebuild's memory usage in MiB:\n"
+              "max. res. set  %9.03f\n",
+              diff_time.tv_sec, diff_time.tv_nsec / (1000 * 1000),
+              ru_myslf.ru_utime.tv_sec, ru_myslf.ru_utime.tv_usec / 1000,
+              ru_chldr.ru_utime.tv_sec, ru_chldr.ru_utime.tv_usec / 1000,
+              ru_total.ru_utime.tv_sec, ru_total.ru_utime.tv_usec / 1000,
+              ru_myslf.ru_stime.tv_sec, ru_myslf.ru_stime.tv_usec / 1000,
+              ru_chldr.ru_stime.tv_sec, ru_chldr.ru_stime.tv_usec / 1000,
+              ru_total.ru_stime.tv_sec, ru_total.ru_stime.tv_usec / 1000,
+              static_cast<double>(ru_myslf.ru_maxrss) / 1024);
     }
 
     if (firebuild::execed_process_cacher->is_gc_needed()) {
