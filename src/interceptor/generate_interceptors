@@ -1863,7 +1863,7 @@ generate("pid_t", ["vfork", "SYS_vfork", "__vfork"], "",
          tpl="_fork")
 # NOTE: Mapping to fork() breaks the ABI since the fork handlers were not supposed to run
 #       OTOH the fork handlers notify the supervisor about the call.
-generate("pid_t", ["vfork", "SYS_vfork"], "",
+generate("pid_t", ["vfork", "SYS_vfork", "__vfork"], "",
          ifdef_guard=not_glibc_ge(2, 34),
          tpl="fork")
 
