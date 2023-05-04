@@ -37,7 +37,7 @@
   insert_end_marker("{{ func }}");
 
   /* Notify the supervisor by calling handle_exit() */
-  handle_exit({{ names_str }});
+  handle_exit();
 
   /* Perform the call */
   {{ call_ic_orig_func }}({{ names_str }});
