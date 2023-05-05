@@ -65,8 +65,6 @@ size_t fb_conn_string_len = 0;
 
 int fb_sv_conn = -1;
 
-int (*ic_pthread_sigmask)(int, const sigset_t *, sigset_t *);
-
 bool ic_called_syscall[IC_CALLED_SYSCALL_SIZE] = {0};
 
 /** Control for running the initialization exactly once */
@@ -185,6 +183,30 @@ void thread_raise_delayed_signals() {
       raise(signum);
     }
   }
+}
+
+int ic_pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset) {
+  /* pthread_sigmask() is only available if we're linked against libpthread.
+   * Otherwise use the single-threaded sigprocmask(). */
+#if defined(__APPLE__) || FB_GLIBC_PREREQ(2, 34)
+  return pthread_sigmask(how, set, oldset);
+#else
+  static int (*ic_orig_pthread_sigmask)(int, const sigset_t *, sigset_t *);
+  static bool tried_dlsym = false;
+
+  if (ic_orig_pthread_sigmask) {
+    return ic_orig_pthread_sigmask(how, set, oldset);
+  } else {
+    if (!tried_dlsym) {
+      ic_orig_pthread_sigmask = dlsym(RTLD_NEXT, "pthread_sigmask");
+      tried_dlsym = true;
+      /* Try again with possibly resolved symbol. */
+      return ic_pthread_sigmask(how, set, oldset);
+    } else {
+      return sigprocmask(how, set, oldset);
+    }
+  }
+#endif
 }
 
 void grab_global_lock(bool *i_locked, const char * const function_name) {
@@ -1266,17 +1288,6 @@ static void fb_ic_init() {
       fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
     }
   }
-
-  /* pthread_sigmask() is only available if we're linked against libpthread.
-   * Otherwise use the single-threaded sigprocmask(). */
-#ifdef __APPLE__
-  ic_pthread_sigmask = pthread_sigmask;
-#else
-  ic_pthread_sigmask = dlsym(RTLD_NEXT, "pthread_sigmask");
-  if (!ic_pthread_sigmask) {
-    ic_pthread_sigmask = &sigprocmask;
-  }
-#endif
 
   insert_debug_msg("initialization-end");
   thread_intercept_on = NULL;
