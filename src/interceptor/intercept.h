@@ -174,7 +174,9 @@ extern int fb_sv_conn;
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 int ic_pthread_sigmask(int, const sigset_t *, sigset_t *);
 
-/** Fast check for whether interceptor init has been run */
+/** Fast check for whether interceptor init has been started. */
+extern bool ic_init_started;
+/** Fast check for whether interceptor init has finished. */
 extern bool ic_init_done;
 
 extern bool intercepting_enabled;
@@ -438,7 +440,7 @@ void atfork_parent_handler(void);
  */
 void atfork_child_handler(void);
 
-extern void fb_ic_load();
+extern void fb_ic_init();
 extern void handle_exit();
 /**
  * A wrapper in front of the start_routine of a pthread_create(), inserting a useful trace marker.

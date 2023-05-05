@@ -266,7 +266,7 @@ case {{ func }}: {
   int saved_errno = errno;
 ###     endif
 
-  if (!ic_init_done) fb_ic_load();
+  if (!ic_init_done) fb_ic_init();
 
 #ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {

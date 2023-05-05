@@ -45,7 +45,7 @@
     default: {
       /* Warm up */
       int saved_errno = errno;
-      if (!skip_interception && !ic_init_done) fb_ic_load();
+      if (!skip_interception && !ic_init_started) fb_ic_init();
       /* use a copy, in case another thread modifies it */
       bool i_am_intercepting = !skip_interception && intercepting_enabled;
       (void)i_am_intercepting;  /* sometimes it's unused, silence warning */

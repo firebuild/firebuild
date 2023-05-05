@@ -49,7 +49,7 @@
 #define VDSO_NAME "linux-vdso.so.1"
 #endif
 
-static void fb_ic_load_constructor(int argc, char **argv) __attribute__((constructor));
+static void fb_ic_init_constructor(int argc, char **argv) __attribute__((constructor));
 static void fb_ic_cleanup() __attribute__((destructor));
 
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
@@ -67,9 +67,7 @@ int fb_sv_conn = -1;
 
 bool ic_called_syscall[IC_CALLED_SYSCALL_SIZE] = {0};
 
-/** Control for running the initialization exactly once */
-pthread_once_t ic_init_control = PTHREAD_ONCE_INIT;
-
+bool ic_init_started = false;
 bool ic_init_done = false;
 
 /** System locations to not ask ACK for when opening them, as set in the environment variable. */
@@ -891,7 +889,7 @@ void fb_init_supervisor_conn() {
 /**
  * Detect main()'s argc and argv with heuristics.
  *
- * The reliable and portable initialization happens in fb_ic_load_constructor(), but in case
+ * The reliable and portable initialization happens in fb_ic_init_constructor(), but in case
  * an intercepted function is called before the constructor of this shared library, argc
  * and argv still needs to be reported to the supervisor in the first message.
  * The heuristics below works for most programs, but not for mpicc. Luckily when intercepting
@@ -918,9 +916,19 @@ static void init_argc_argv() {
 }
 
 /**
- * Initialize interceptor's data structures and sync with supervisor
+ * Initialize interceptor's data structures and sync with supervisor.
+ *
+ * Collect information about process the earliest possible, right
+ * when interceptor library loads or when the first interceped call happens
  */
-static void fb_ic_init() {
+void fb_ic_init() {
+  /* Run only once, at startup. */
+  if (ic_init_started) {
+    /* Should not be called recursively. */
+    assert(ic_init_done);
+    return;
+  }
+  ic_init_started = true;
   get_ic_orig_getrusage()(RUSAGE_SELF, &initial_rusage);
 
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
@@ -1294,29 +1302,11 @@ static void fb_ic_init() {
   ic_init_done = true;
 }
 
-/**
- * Collect information about process the earliest possible, right
- * when interceptor library loads or when the first interceped call happens
- */
-void fb_ic_load() {
-  if (!ic_init_done) {
-    int (*orig_pthread_once)(pthread_once_t *, void (*)(void)) = dlsym(RTLD_NEXT, "pthread_once");
-    if (orig_pthread_once) {
-      /* Symbol found means that we are linked to libpthread. Use its method to guarantee that we
-       * initialize exactly once. */
-      (*orig_pthread_once)(&ic_init_control, fb_ic_init);
-    } else  {
-      /* Symbol not found means that we are not linked to libpthread, i.e. we're single threaded. */
-      fb_ic_init();
-    }
-  }
-}
-
-static void fb_ic_load_constructor(int argc, char **argv) {
-  if (!ic_init_done) {
+static void fb_ic_init_constructor(int argc, char **argv) {
+  if (!ic_init_started) {
     ic_argc = argc;
     ic_argv = argv;
-    fb_ic_load();
+    fb_ic_init();
   }
 }
 
