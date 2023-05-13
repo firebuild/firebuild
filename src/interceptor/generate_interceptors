@@ -2181,8 +2181,13 @@ generate("mode_t", ["umask", "SYS_umask"], "mode_t mask",
 generate("int", "SYS_seccomp", "unsigned int operation, unsigned int flags, void *args",
          msg_skip_fields=["operation", "flags", "args"],
          msg="seccomp",
-         call_orig_lines=["(void)operation; (void)flags; (void)args;",
-                          "errno = EINVAL; ret =  -1;"])
+         call_orig_lines=["if (i_am_intercepting) {",
+                          "  (void)operation; (void)flags; (void)args;",
+                          "  errno = EINVAL; ret =  -1;"
+                          "} else {",
+                          "  ret = ic_orig_SYS_seccomp(operation, flags, args);",
+                          "}",
+                          ])
 
 # FIXME {get,set,p}rlimit
 
