@@ -81,6 +81,7 @@ void FileName::open_for_writing(Process* proc) const {
                 + " for writing which file is already opened for writing by ["
                 + d(other_proc->pid()) + "] \"" +  other_proc->exec_point()->args_to_short_string()
                 + "\"").c_str());
+        pair.second = common_ancestor;
       }
     }
   } else {
