@@ -748,7 +748,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
                 /* Pretend that the parent opened the file for writing and not the fork child.
                  * This is not accurate, but the fork child does not exist yet. A parallel
                  * process opening the file for writing would disable shortcutting the same way. */
-                file_name->open_for_writing(proc);
+                file_name->open_for_writing(proc->exec_point());
               }
             }
             break;

@@ -65,13 +65,7 @@ class Pipe;
  */
 class FileOFD {
  public:
-  FileOFD(fd_type type, const FileName *filename, int flags, Process *opened_by)
-      : id_(id_counter_++), type_(type), filename_(filename), flags_(flags & ~FILE_CREATION_FLAGS),
-        opened_by_(opened_by) {
-    if (filename_ && is_write(flags_)) {
-      filename_->open_for_writing(opened_by_);
-    }
-  }
+  FileOFD(fd_type type, const FileName *filename, int flags, Process *opened_by);
   ~FileOFD() {
     if (filename_ && is_write(flags_)) {
       filename_->close_for_writing();

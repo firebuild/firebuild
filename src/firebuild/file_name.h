@@ -34,7 +34,7 @@
 
 namespace firebuild {
 
-class Process;
+class ExecedProcess;
 
 typedef uint32_t file_generation_t;
 
@@ -71,7 +71,7 @@ class FileName {
       return 0;
     }
   }
-  void open_for_writing(Process* proc) const;
+  void open_for_writing(ExecedProcess* proc) const;
   void close_for_writing() const;
   file_generation_t generation() const {
     auto it = generation_db_->find(this);
@@ -130,7 +130,7 @@ class FileName {
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
   /** Number of FileOFDs open for writing referencing this file. */
-  static tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* write_ofds_db_;
+  static tsl::hopscotch_map<const FileName*, std::pair<int, ExecedProcess*>>* write_ofds_db_;
   /**
    * A generation of the file is when it is kept open by a set of writers.
    * Whenever all writers close the file and thus the refcount in write_ofds_db_ decreases to zero
