@@ -31,7 +31,7 @@ namespace firebuild {
 
 std::unordered_set<FileName, FileNameHasher>* FileName::db_;
 tsl::hopscotch_map<const FileName*, XXH128_hash_t>* FileName::hash_db_;
-tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>* FileName::write_ofds_db_;
+tsl::hopscotch_map<const FileName*, std::pair<int, ExecedProcess*>>* FileName::write_ofds_db_;
 tsl::hopscotch_map<const FileName*, file_generation_t>* FileName::generation_db_;
 
 const FileName* FileName::default_tmpdir;
@@ -39,7 +39,7 @@ const FileName* FileName::default_tmpdir;
 FileName::DbInitializer::DbInitializer() {
   db_ = new std::unordered_set<FileName, FileNameHasher>();
   hash_db_ = new tsl::hopscotch_map<const FileName*, XXH128_hash_t>();
-  write_ofds_db_ = new tsl::hopscotch_map<const FileName*, std::pair<int, Process*>>();
+  write_ofds_db_ = new tsl::hopscotch_map<const FileName*, std::pair<int, ExecedProcess*>>();
   generation_db_ = new tsl::hopscotch_map<const FileName*, file_generation_t>();
 }
 
@@ -49,7 +49,7 @@ bool FileName::isDbEmpty() {
 
 FileName::DbInitializer FileName::db_initializer_;
 
-void FileName::open_for_writing(Process* proc) const {
+void FileName::open_for_writing(ExecedProcess* proc) const {
   TRACKX(FB_DEBUG_FS, 1, 0, FileName, this, "proc=%s", D(proc));
   if (is_in_ignore_location()) {
     /* Ignored locations can be ignored here, too. */
@@ -61,25 +61,25 @@ void FileName::open_for_writing(Process* proc) const {
     auto& pair = it.value();
     assert(pair.first > 0);
     pair.first++;
-    if (proc != pair.second && proc->exec_point() != pair.second->exec_point()) {
+    if (proc != pair.second) {
       /* A different process opened the file for writing. */
       ExecedProcess* common_ancestor =
-          proc->exec_point()->common_exec_ancestor(pair.second->exec_point());
-      const ExecedProcess* other_proc = pair.second->exec_point();
-      if (common_ancestor != proc->exec_point()) {
-        proc->exec_point()->disable_shortcutting_bubble_up_to_excl(
+          proc->common_exec_ancestor(pair.second);
+      const ExecedProcess* other_proc = pair.second;
+      if (common_ancestor != proc) {
+        proc->disable_shortcutting_bubble_up_to_excl(
             common_ancestor, deduplicated_string(
                 "Opened " + this->to_string()
                 + " for writing which file is already opened for writing by ["
-                + d(other_proc->pid()) + "] \"" +  other_proc->exec_point()->args_to_short_string()
+                + d(other_proc->pid()) + "] \"" +  other_proc->args_to_short_string()
                 + "\"").c_str());
       }
-      if (common_ancestor != pair.second->exec_point()) {
-        pair.second->exec_point()->disable_shortcutting_bubble_up_to_excl(
+      if (common_ancestor != pair.second) {
+        pair.second->disable_shortcutting_bubble_up_to_excl(
             common_ancestor, deduplicated_string(
                 "An other process opened " + this->to_string()
                 + " for writing which file is already opened for writing by ["
-                + d(other_proc->pid()) + "] \"" +  other_proc->exec_point()->args_to_short_string()
+                + d(other_proc->pid()) + "] \"" +  other_proc->args_to_short_string()
                 + "\"").c_str());
         pair.second = common_ancestor;
       }
@@ -91,7 +91,7 @@ void FileName::open_for_writing(Process* proc) const {
       assert(it2->second < UINT32_MAX);
       it2.value()++;
       /* Bubble up the generation change */
-      proc->exec_point()->register_file_usage_update(this, FileUsageUpdate(this));
+      proc->register_file_usage_update(this, FileUsageUpdate(this));
     } else {
       generation_db_->insert({this, 1});
     }

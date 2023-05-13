@@ -20,11 +20,20 @@
 
 #include <string>
 
+#include "firebuild/execed_process.h"
 #include "firebuild/pipe.h"
 
 namespace firebuild {
 
 int FileOFD::id_counter_ = 0;
+
+FileOFD::FileOFD(fd_type type, const FileName *filename, int flags, Process *opened_by)
+    : id_(id_counter_++), type_(type), filename_(filename), flags_(flags & ~FILE_CREATION_FLAGS),
+      opened_by_(opened_by) {
+  if (filename_ && is_write(flags_)) {
+    filename_->open_for_writing(opened_by_->exec_point());
+  }
+}
 
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
