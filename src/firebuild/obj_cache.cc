@@ -467,9 +467,11 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
           } else if ((debug_postfix = strstr(name, kDebugPostfix))) {
             /* Files for debugging cache entries.*/
             if (FB_DEBUGGING(FB_DEBUG_CACHE)) {
-              char* related_name = reinterpret_cast<char*>(alloca(debug_postfix - name + 1));
-              memcpy(related_name, name, debug_postfix - name);
-              related_name[debug_postfix - name] = '\0';
+              const size_t name_len = debug_postfix - name;
+              assert_cmp(name_len, <, FB_PATH_BUFSIZE);
+              char related_name[FB_PATH_BUFSIZE];
+              memcpy(related_name, name, name_len);
+              related_name[name_len] = '\0';
               struct stat st;
               if (fstatat(dirfd(dir), related_name, &st, 0) == 0) {
                 /* Keeping debugging file that has related object. If the object gets removed
