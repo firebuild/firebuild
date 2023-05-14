@@ -60,7 +60,7 @@ pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
 
-char fb_conn_string[IC_PATH_BUFSIZE] = {'\0'};
+char fb_conn_string[FB_PATH_BUFSIZE] = {'\0'};
 size_t fb_conn_string_len = 0;
 
 int fb_sv_conn = -1;
@@ -91,7 +91,7 @@ STATIC_CSTRING_VIEW_ARRAY(jobserver_users, 8);
 
 bool intercepting_enabled = true;
 
-char ic_cwd[IC_PATH_BUFSIZE] = {0};
+char ic_cwd[FB_PATH_BUFSIZE] = {0};
 size_t ic_cwd_len = 0;
 
 /** Program's argc and argv. */
@@ -234,7 +234,7 @@ void release_global_lock() {
 /** debugging flags */
 int32_t debug_flags = 0;
 
-char env_ld_library_path[IC_PATH_BUFSIZE] = {0};
+char env_ld_library_path[FB_PATH_BUFSIZE] = {0};
 
 bool insert_trace_markers = false;
 
@@ -594,7 +594,7 @@ static void collect_shared_libs(cstring_view_array* libs, char *canonized_libs) 
       assert(!is_cstring_view_array_full(libs));
       cstring_view_array_append_noalloc(libs, (/* not const */ char *)image_name);
     } else {
-      char *canonical_name = &canonized_libs[i * IC_PATH_BUFSIZE];
+      char *canonical_name = &canonized_libs[i * FB_PATH_BUFSIZE];
       memcpy(canonical_name, image_name, len + 1);
       make_canonical(canonical_name, len);
       assert(!is_cstring_view_array_full(libs));
@@ -633,7 +633,7 @@ typedef struct shared_libs_cb_data_ {
   int collectable_entries;
   /** Number of entries that are not in canonical form, thus need to be made canonical. */
   int not_canonical_entries;
-  /** Buffert to store canonized library names. Size is canonized_libs_size * IC_PATH_BUFSIZE. */
+  /** Buffert to store canonized library names. Size is canonized_libs_size * FB_PATH_BUFSIZE. */
   char *canonized_libs;
   /** Number of canonized names canonized_libs can store. */
   int canonized_libs_size;
@@ -664,7 +664,7 @@ static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *da
     if (cb_data->canonized_libs_count < cb_data->canonized_libs_size) {
       /* The there is enough space for the new canonized entry. */
       char * canonical_name =
-          &cb_data->canonized_libs[cb_data->canonized_libs_count++ * IC_PATH_BUFSIZE];
+          &cb_data->canonized_libs[cb_data->canonized_libs_count++ * FB_PATH_BUFSIZE];
       memcpy(canonical_name, name, len + 1);
       make_canonical(canonical_name, len);
       if (!is_cstring_view_array_full(array)) {
@@ -1018,7 +1018,7 @@ static void fb_ic_init() {
   /* get full executable path
    * see http://stackoverflow.com/questions/1023306/finding-current-executables-path-without-proc-self-exe
    * and readlink(2) */
-  char linkname[IC_PATH_BUFSIZE];
+  char linkname[FB_PATH_BUFSIZE];
 #ifdef __APPLE__
   uint32_t r = sizeof(linkname);
   if (_NSGetExecutablePath(linkname, &r) == 0) {
@@ -1036,9 +1036,9 @@ static void fb_ic_init() {
     }
   }
 #else
-  ssize_t r = get_ic_orig_readlink()("/proc/self/exe", linkname, IC_PATH_BUFSIZE - 1);
+  ssize_t r = get_ic_orig_readlink()("/proc/self/exe", linkname, FB_PATH_BUFSIZE - 1);
 #endif
-  if (r > 0 && r < IC_PATH_BUFSIZE) {
+  if (r > 0 && r < FB_PATH_BUFSIZE) {
     linkname[r] = '\0';
     fbbcomm_builder_scproc_query_set_executable_with_length(&ic_msg, linkname, r);
   }
@@ -1065,19 +1065,19 @@ static void fb_ic_init() {
   const int image_count = _dyld_image_count();
   cstring_view *libs_ptrs = alloca((image_count + 1) * sizeof(cstring_view));
   cstring_view_array libs = {libs_ptrs, 0, image_count + 1};
-  char *canonized_libs = alloca(image_count * IC_PATH_BUFSIZE);
+  char *canonized_libs = alloca(image_count * FB_PATH_BUFSIZE);
   collect_shared_libs(&libs, canonized_libs);
 #else
   STATIC_CSTRING_VIEW_ARRAY(libs, 64);
   int canonized_libs_size = 8;
-  char *canonized_libs = alloca(canonized_libs_size * IC_PATH_BUFSIZE);
+  char *canonized_libs = alloca(canonized_libs_size * FB_PATH_BUFSIZE);
   shared_libs_cb_data_t cb_data = {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
   dl_iterate_phdr(shared_libs_cb, &cb_data);
   if (cb_data.collectable_entries > cb_data.array->len) {
     if (cb_data.not_canonical_entries > canonized_libs_size) {
       /* canonized_libs was not big enough. */
       canonized_libs_size = cb_data.not_canonical_entries;
-      canonized_libs = alloca(canonized_libs_size * IC_PATH_BUFSIZE);
+      canonized_libs = alloca(canonized_libs_size * FB_PATH_BUFSIZE);
     }
     /* The initially allocated space was not enough to collect all shared libs, trying again. */
     if (cb_data.collectable_entries > cb_data.array->size_alloc - 1) {

@@ -115,11 +115,8 @@ extern struct rusage initial_rusage;
 /** Global lock for preventing parallel system and popen calls */
 extern pthread_mutex_t ic_system_popen_lock;
 
-/** buffer size for getcwd */
-#define IC_PATH_BUFSIZE 4096
-
 /** Current working directory as reported to the supervisor */
-extern char ic_cwd[IC_PATH_BUFSIZE];
+extern char ic_cwd[FB_PATH_BUFSIZE];
 extern size_t ic_cwd_len;
 
 /** Reset globally maintained information about intercepted functions */
@@ -166,7 +163,7 @@ void pre_clone_disable_interception(const int flags, bool *i_locked);
 int clone_trampoline(void *arg);
 
 /** Connection string to supervisor */
-extern char fb_conn_string[IC_PATH_BUFSIZE];
+extern char fb_conn_string[FB_PATH_BUFSIZE];
 
 /** Connection string length */
 extern size_t fb_conn_string_len;
@@ -232,7 +229,7 @@ extern voidp_array *psfa_find(const posix_spawn_file_actions_t *p);
 extern voidp_set popened_streams;
 
 /** Initial LD_LIBRARY_PATH so that we can fix it up if needed */
-extern char env_ld_library_path[IC_PATH_BUFSIZE];
+extern char env_ld_library_path[FB_PATH_BUFSIZE];
 
 /** Insert marker open()-s for strace, ltrace, etc. */
 extern bool insert_trace_markers;
@@ -272,7 +269,7 @@ size_t make_canonical(char *path, size_t original_length);
 
 #ifdef FB_EXTRA_DEBUG
 static inline bool ic_cwd_ok() {
-  char buf[IC_PATH_BUFSIZE];
+  char buf[FB_PATH_BUFSIZE];
   /* getcwd() is not intercepted */
   char * getcwd_ret = getcwd(buf, sizeof(buf));
   assert(getcwd_ret);
