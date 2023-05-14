@@ -1226,13 +1226,13 @@ generate("int", ["chdir", "SYS_chdir"], "const char *pathname",
          # Don't make pathname absolute, since the macro would calculate it after calling chdir
          msg_add_fields=["BUILDER_SET_CANONICAL(chdir, pathname);",
                          "if (success) {",
-                         "  char* getcwd_ret = get_ic_orig_getcwd()(ic_cwd, IC_PATH_BUFSIZE);",
+                         "  char* getcwd_ret = get_ic_orig_getcwd()(ic_cwd, FB_PATH_BUFSIZE);",
                          "  (void) getcwd_ret;",
                          "  ic_cwd_len = strlen(ic_cwd);",
                          "}"])
 generate("int", ["fchdir", "SYS_fchdir"], "int fd",
          after_lines=["if (success) {",
-                      "  char* getcwd_ret = get_ic_orig_getcwd()(ic_cwd, IC_PATH_BUFSIZE);",
+                      "  char* getcwd_ret = get_ic_orig_getcwd()(ic_cwd, FB_PATH_BUFSIZE);",
                       "  (void) getcwd_ret;",
                       "  ic_cwd_len = strlen(ic_cwd);",
                       "}"])

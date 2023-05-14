@@ -32,6 +32,9 @@
 extern "C" {
 #endif
 
+/** Buffer size for paths. */
+#define FB_PATH_BUFSIZE 4096
+
 /* This structure's size needs to be a multiple of 8 bytes, so that reads from the serialized FBB
  * message, which follows this structure in memory, are properly aligned. */
 typedef struct msg_header_ {
