@@ -89,14 +89,14 @@ int main() {
   }
 
   /* test inherited fds*/
-  off_t offset = 0;
-  if (copy_file_range(0, NULL, 1, &offset, 10, 0) == -1) {
+  loff_t long_offset = 0;
+  if (copy_file_range(0, NULL, 1, &long_offset, 10, 0) == -1) {
     perror("copy_file_range" LOC);
     close(fd1);
     close(fd2);
     exit(1);
   }
-  if (copy_file_range(0, &offset, 1, NULL, 10, 0) == -1) {
+  if (copy_file_range(0, &long_offset, 1, NULL, 10, 0) == -1) {
     perror("copy_file_range" LOC);
     close(fd1);
     close(fd2);
@@ -109,6 +109,7 @@ int main() {
     exit(1);
   }
 
+  off_t offset = 0;
   if (sendfile(1, 0, &offset, 10) == -1) {
     perror("sendfile" LOC);
     close(fd1);
