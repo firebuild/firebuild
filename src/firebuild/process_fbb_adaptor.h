@@ -212,7 +212,7 @@ class ProcessFBBAdaptor {
   }
 
   static int handle(Process *proc, const FBBCOMM_Serialized_inherited_fd_offset *msg) {
-    proc->handle_seek_in_inherited(msg->get_fd(), msg->get_offset());
+    proc->handle_inherited_fd_offset(msg->get_fd(), msg->get_offset());
     return 0;
   }
 
