@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <cinttypes>
 #include <utility>
 
 #include "common/firebuild_common.h"
@@ -1390,7 +1391,7 @@ void Process::handle_seek_in_inherited(const int fd, const bool modify_offset) {
 }
 
 void Process::handle_inherited_fd_offset(const int fd, const int64_t offset) {
-  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, offset==%" PRIoff, fd, offset);
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, offset==%" PRId64, fd, offset);
   FileFD *file_fd = exec_point()->get_fd(fd);
   if (!file_fd) {
     exec_point()->disable_shortcutting_bubble_up(
