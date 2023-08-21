@@ -1519,6 +1519,22 @@ const FileName* Process::get_absolute(const int dirfd, const char * const name,
   }
 }
 
+static bool argv_match_from_offset(const std::vector<std::string>& actual,
+                                   const int actual_offset,
+                                   const std::vector<std::string>& expected,
+                                   const int expected_offset) {
+  /* For the remaining parameters exact match is needed. */
+  if (actual.size() - actual_offset != expected.size() - expected_offset) {
+    return false;
+  }
+  for (unsigned int i = expected_offset; i < expected.size(); i++) {
+    if (actual[actual_offset + i - expected_offset] != expected[expected_offset]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static bool argv_matches_expectation(const std::vector<std::string>& actual,
                                      const std::vector<std::string>& expected) {
   /* When launching ["foo", "arg1"], the new process might be something like
@@ -1531,48 +1547,51 @@ static bool argv_matches_expectation(const std::vector<std::string>& actual,
    * A single interpreter might only add one additional command line parameter, but there can be
    * a chain of interpreters, so allow for arbitrarily many prepended parameters.
    */
-  if (actual.size() < expected.size()) {
-    return false;
-  }
 
   if (actual.size() == expected.size()) {
     /* If the length is the same, exact match is required. */
     return actual == expected;
   }
 
-  /* If the length grew, check the expected arg0. */
-  int offset = actual.size() - expected.size();
-  if (expected[0].find('/') != std::string::npos) {
-    /* If it contained a slash, exact match is needed. */
-    if (actual[offset] != expected[0]) {
-      return false;
+  if (actual.size() > expected.size()) {
+    /* If the length grew, check the expected arg0. */
+    int offset = actual.size() - expected.size();
+    if (expected[0].find('/') != std::string::npos) {
+      /* If it contained a slash, exact match is needed. */
+      if (actual[offset] != expected[0]) {
+        return false;
+      }
+    } else {
+      /* If it didn't contain a slash, it needed to get prefixed with some path. */
+      int expected_arg0_len = expected[0].length();
+      int actual_arg0_len = actual[offset].length();
+      /* Needs to be at least 1 longer. */
+      if (actual_arg0_len <= expected_arg0_len) {
+        return false;
+      }
+      /* See if the preceding character is a '/'. */
+      if (actual[offset][actual_arg0_len - expected_arg0_len - 1] != '/') {
+        return false;
+      }
+      /* See if the stuff after the '/' is the same. */
+      if (actual[offset].compare(actual_arg0_len - expected_arg0_len,
+                                 expected_arg0_len, expected[0]) != 0) {
+        return false;
+      }
     }
-  } else {
-    /* If it didn't contain a slash, it needed to get prefixed with some path. */
-    int expected_arg0_len = expected[0].length();
-    int actual_arg0_len = actual[offset].length();
-    /* Needs to be at least 1 longer. */
-    if (actual_arg0_len <= expected_arg0_len) {
-      return false;
-    }
-    /* See if the preceding character is a '/'. */
-    if (actual[offset][actual_arg0_len - expected_arg0_len - 1] != '/') {
-      return false;
-    }
-    /* See if the stuff after the '/' is the same. */
-    if (actual[offset].compare(actual_arg0_len - expected_arg0_len,
-                               expected_arg0_len, expected[0]) != 0) {
-      return false;
-    }
-  }
 
-  /* For the remaining parameters exact match is needed. */
-  for (unsigned int i = 1; i < expected.size(); i++) {
-    if (actual[offset + i] != expected[i]) {
-      return false;
+    return argv_match_from_offset(actual, offset + 1, expected, 1);
+  } else {
+    /* Actual argv is shorter than expected. */
+#if !FB_GLIBC_PREREQ (2, 38)
+    /* Older libc-s does not pass "--" between "sh -c" and system() and popen() argument. */
+    if (expected.size() > 2 && expected[2] == "--" && actual.size() > 2 && actual[2] != "--" &&
+        expected[0] == "sh" && expected[1] == "-c" && actual[0] == "sh" && actual[1] == "-c") {
+      return argv_match_from_offset(actual, 3, expected, 4);
     }
+#endif
+    return false;
   }
-  return true;
 }
 
 std::vector<std::shared_ptr<FileFD>>*
