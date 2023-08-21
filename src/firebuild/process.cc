@@ -1653,12 +1653,12 @@ Process::pop_expected_child_fds(const std::vector<std::string>& argv,
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "failed=%s", D(failed));
 
   if (expected_child_) {
-    if ((expected_child_->launch_type() == LAUNCH_TYPE_SYSTEM
-         && expected_child_->argv().size() == 0)
+    const LaunchType child_launch_type = expected_child_->launch_type();
+    if ((child_launch_type == LAUNCH_TYPE_SYSTEM && expected_child_->argv().size() == 0)
         || (argv_matches_expectation(argv, expected_child_->argv()))) {
       auto fds = expected_child_->pop_fds();
       if (launch_type_p)
-          *launch_type_p = expected_child_->launch_type();
+          *launch_type_p = child_launch_type;
       if (type_flags_p)
           *type_flags_p = expected_child_->type_flags();
       delete(expected_child_);
