@@ -648,8 +648,12 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
 
     // Parent may just be sh -c <this command>, detect that
     parent_may_be_just_sh_c_this = (parent_exec_point->can_shortcut()
-                                    && parent_exec_point->args().size() == 3
-                                    && parent_exec_point->args()[1] == "-c"
+                                    && ((parent_exec_point->args().size() == 4
+                                         && parent_exec_point->args()[1] == "-c"
+                                         && parent_exec_point->args()[2] == "--")
+                                        || (parent_exec_point->args().size() == 3
+                                            && parent_exec_point->args()[1] == "-c")
+                                        )
                                     && shells->contains(parent_exec_point->args()[0]));
   }
 

@@ -617,7 +617,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     case FBBCOMM_TAG_system: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_system *>(fbbcomm_buf);
       assert_null(proc->system_child());
-      /* system(cmd) launches a child of argv = ["sh", "-c", cmd] */
+      /* system(cmd) launches a child of argv = ["sh", "-c", "--", cmd], with "--" being optional */
       auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false), LAUNCH_TYPE_SYSTEM);
       if (ic_msg->has_cmd()) {
         expected_child->set_sh_c_command(ic_msg->get_cmd());
@@ -658,7 +658,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
 
       int type_flags = ic_msg->get_type_flags();
       auto fds = proc->pass_on_fds(false);
-      /* popen(cmd) launches a child of argv = ["sh", "-c", cmd] */
+      /* popen(cmd) launches a child of argv = ["sh", "-c", "--", cmd], with "--" being optional */
       auto expected_child = new ExecedProcessEnv(fds, LAUNCH_TYPE_POPEN);
       // FIXME what if !has_cmd() ?
       expected_child->set_sh_c_command(ic_msg->get_cmd());
@@ -693,7 +693,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_popen_failed *>(fbbcomm_buf);
       // FIXME what if !has_cmd() ?
       delete(proc->pop_expected_child_fds(
-          std::vector<std::string>({"sh", "-c", ic_msg->get_cmd()}),
+          std::vector<std::string>({"sh", "-c", "--", ic_msg->get_cmd()}),
           nullptr, nullptr, true));
       break;
     }

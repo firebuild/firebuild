@@ -30,6 +30,7 @@ ExecedProcessEnv::ExecedProcessEnv(std::vector<std::shared_ptr<FileFD>>* fds,
 void ExecedProcessEnv::set_sh_c_command(const std::string &cmd) {
   argv_.push_back("sh");
   argv_.push_back("-c");
+  argv_.push_back("--");
   argv_.push_back(cmd);
 }
 
