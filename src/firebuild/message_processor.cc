@@ -403,10 +403,10 @@ static void accept_fork_child(Process* parent, int parent_fd, int parent_ack,
 
 /**
  * Process message coming from interceptor
- * @param fb_conn file desctiptor of the connection
+ * @param fb_conn file descriptor of the connection
  */
 static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_id,
-                          int fd_conn, Process** new_proc) {
+                                 int fd_conn, Process** new_proc) {
   TRACK(FB_DEBUG_PROC, "fd_conn=%s, ack_id=%d", D_FD(fd_conn), ack_id);
 
   int tag = fbbcomm_buf->get_tag();
