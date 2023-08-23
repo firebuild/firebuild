@@ -1,3 +1,7 @@
 Tests: recompile-bash
 Depends: bash, bc, debconf, time
 Restrictions: needs-root, allow-stderr
+
+Tests: build-time-tests-with-installed-firebuild
+Depends: @builddeps@
+Restrictions: needs-root, allow-stderr
