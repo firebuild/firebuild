@@ -13,6 +13,8 @@ export DEB_CXXFLAGS_MAINT_STRIP = -ffat-lto-objects
 export DEB_LDLAGS_MAINT_STRIP = -ffat-lto-objects
 endif
 
+VER_GLIBC := $(shell dpkg -s libc6 | grep ^Version: | cut -f2 -d' ' | cut -f1 -d '-')
+
 %:
 	dh $@
 
@@ -35,6 +37,9 @@ override_dh_auto_test:
 ifeq ($(filter nocheck,$(DEB_BUILD_OPTIONS)),)
 	make -C obj-* check
 endif
+
+override_dh_gencontrol:
+	dh_gencontrol -- '-Vglibc:Depends=libc6 (>= '$(VER_GLIBC)')'
 
 override_dh_installchangelogs:
 	dh_installchangelogs -k ChangeLog
