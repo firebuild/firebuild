@@ -29,6 +29,7 @@ Package: firebuild
 Architecture: any
 Depends: ${shlibs:Depends},
          ${misc:Depends},
+         ${glibc:Depends},
          libfirebuild0 (= ${binary:Version})
 Pre-Depends: debconf | debconf-2.0
 Suggests: graphviz,
@@ -51,7 +52,9 @@ Description: Automatic build accelerator cache
 Package: libfirebuild0
 Architecture: any
 Multi-Arch: same
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         ${glibc:Depends}
 Pre-Depends: debconf | debconf-2.0
 Description: Automatic build accelerator cache - shared library
  It works by caching the outputs of executed commands and replaying the
