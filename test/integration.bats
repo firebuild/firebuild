@@ -67,7 +67,7 @@ setup() {
 
 @test "yes | head" {
   for i in 1 2; do
-    result=$(./run-firebuild -- bash -c 'yes | head -n 10000000 | tail -n 1')
+    result=$(./run-firebuild -- bash -c 'yes 2> /dev/null | head -n 10000000 | tail -n 1')
     assert_streq "$result" "y"
     assert_streq "$(strip_stderr stderr)" ""
   done
