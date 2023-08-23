@@ -1,0 +1,11 @@
+#!/bin/sh
+
+set -e
+
+echo debconf firebuild/license-accepted select true | debconf-set-selections
+apt-get -yqq install firebuild
+firebuild --version
+
+cmake .
+make check-bins
+env -C test/ TEST_INSTALLED_FIREBUILD=1 bats integration.bats
