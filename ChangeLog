@@ -1,3 +1,17 @@
+==================
+0.8.2 / 2023-08-24
+==================
+  * Fix the build 32 bit architectures
+  * supervisor: Handle inherited fd offset properly
+  * ci: Upgrade docker job to run multiple releases on Ubuntu and add Debian
+  * test: Fix building and testing test_cmd_clone only on Linux
+  * tests: Suppress yes: standard output: Broken pipe error
+  * tests: Allow running tests on installed firebuild
+  * debian/tests: Add autopkgtest running build time tests on installed firebuild
+  * supervisor: Support GLibc 2.38 passing "--" right after "sh -c"
+  * debian: Depend on at least the glibc version firebuild is built with
+
+==================
 0.8.1 / 2023-08-15
 ==================
   * artwork: Fix the circle in the logo to be really round
