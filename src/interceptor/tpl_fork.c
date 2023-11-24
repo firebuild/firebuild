@@ -28,7 +28,7 @@
   sigfillset(&set_block_all);
   ic_pthread_sigmask(SIG_SETMASK, &set_block_all, &set_orig);
 
-  thread_libc_nesting_depth++;
+  FB_THREAD_LOCAL(libc_nesting_depth)++;
 ### endblock before
 
 ### block call_orig
@@ -40,7 +40,7 @@
 ### endblock call_orig
 
 ### block after
-  thread_libc_nesting_depth--;
+  FB_THREAD_LOCAL(libc_nesting_depth)--;
 
   if (!success) {
     /* Error */

@@ -1642,16 +1642,16 @@ generate("int", ["futimens", "__futimens64"], "int fd, const struct timespec tim
 # in send_msg_condition we have to skip the default exception on EINTR and EFAULT.
 generate("void *", "dlopen", "const char *filename, int flag",
          tpl="dlopen",
-         before_lines=["thread_intercept_on = NULL;"],
-         after_lines=["thread_intercept_on = \"dlopen\";"],
+         before_lines=["FB_THREAD_LOCAL(intercept_on) = NULL;"],
+         after_lines=["FB_THREAD_LOCAL(intercept_on) = \"dlopen\";"],
          send_msg_condition="true",
          msg_skip_fields=["error_no"])
 generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
          platforms=['linux'],
          tpl="dlopen",
          msg="dlopen",
-         before_lines=["thread_intercept_on = NULL;"],
-         after_lines=["thread_intercept_on = \"dlmopen\";"],
+         before_lines=["FB_THREAD_LOCAL(intercept_on) = NULL;"],
+         after_lines=["FB_THREAD_LOCAL(intercept_on) = \"dlmopen\";"],
          send_msg_condition="true",
          msg_skip_fields=["lmid", "error_no"])
 
@@ -2048,6 +2048,18 @@ generate("int", ["sigaction", "SYS_sigaction", "__sigaction"], "int signum, cons
 # futex() doesn't have a glibc wrapper, pthread_mutex_[un]lock() maps into syscall(SYS_futex, ...).
 # Don't need to notify the supervisor about these, stay out of the way as much as possible.
 generate("long", "SYS_futex", "uint32_t *uaddr, int futex_op, uint32_t val, const struct timespec *timeout, uint32_t *uaddr2, uint32_t val3",
+         tpl="marker_only")
+
+# OS X's dyld sets up thread local variables after initializing shared libraries
+# causing crashes when the variables are accessed too early.
+# Luckily dyld's RuntimeState::setUpTLVs() calls pthread_key_create right before setting up
+# thread local variables and the only reason for intercepting pthread_key_create is waiting for that
+# and marking thread locals usable.
+generate("int", "pthread_key_create", "pthread_key_t *key, void (*destr_function) (void *)",
+         platforms=['darwin'],
+         before_lines=["#if !defined(FB_ALWAYS_USE_THREAD_LOCAL)",
+                       "thread_locals_usable = true;",
+                       "#endif"],
          tpl="marker_only")
 
 # Skip the getcwd family: The initial working directory is part of the fingerprint

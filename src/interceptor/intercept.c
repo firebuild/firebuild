@@ -96,16 +96,23 @@ static char **ic_argv;
 
 int ic_pid;
 
-__thread const char *thread_intercept_on = NULL;
-__thread sig_atomic_t thread_signal_danger_zone_depth = 0;
-__thread bool thread_has_global_lock = false;
-__thread sig_atomic_t thread_signal_handler_running_depth = 0;
-__thread sig_atomic_t thread_libc_nesting_depth = 0;
-__thread uint64_t thread_delayed_signals_bitmap = 0;
+__thread thread_data fb_thread_data = {NULL, 0, 0, 0, 0, false};
+#if !defined(FB_ALWAYS_USE_THREAD_LOCAL)
+thread_data fb_global_thread_data = {NULL, 0, 0, 0, 0, false};
+bool thread_locals_usable = false;
+/* Optimization is disabled because when the function is optimized it tries to resolve
+ * the address of fb_thread_data, which causes _tlv_bootstrap aborting until
+ * the dyld binds the resolver function.
+ * See: https://stackoverflow.com/questions/72955200/how-does-macos-dyld-prepare-the-thread-local */
+thread_data* get_thread_data() __attribute__((optnone)) {
+  return thread_locals_usable ? &fb_thread_data : &fb_global_thread_data;
+}
+#endif
+
 #ifdef __APPLE__
 /* OS X does not support RT signals https://flylib.com/books/en/3.126.1.110/1/ ,
  * but we can handle 64 signals safely. */
-#define SIGRTMAX ((int)sizeof(thread_delayed_signals_bitmap) * 8)
+#define SIGRTMAX ((int)sizeof(fb_global_thread_data.delayed_signals_bitmap) * 8)
 #endif
 
 void (*orig_signal_handlers[IC_WRAP_SIGRTMAX])(void) = {NULL};
@@ -123,14 +130,14 @@ bool signal_is_wrappable(int signum) {
 void wrapper_signal_handler_1arg(int signum) {
   char debug_msg[256];
 
-  if (thread_signal_danger_zone_depth > 0) {
+  if (FB_THREAD_LOCAL(signal_danger_zone_depth) > 0) {
     snprintf(debug_msg, sizeof(debug_msg), "signal %d arrived in danger zone, delaying\n", signum);
     insert_debug_msg(debug_msg);
-    thread_delayed_signals_bitmap |= (1LLU << (signum - 1));
+    FB_THREAD_LOCAL(delayed_signals_bitmap) |= (1LLU << (signum - 1));
     return;
   }
 
-  thread_signal_handler_running_depth++;
+  FB_THREAD_LOCAL(signal_handler_running_depth)++;
 
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-begin %d\n", signum);
   insert_debug_msg(debug_msg);
@@ -140,21 +147,21 @@ void wrapper_signal_handler_1arg(int signum) {
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-end %d\n", signum);
   insert_debug_msg(debug_msg);
 
-  thread_signal_handler_running_depth--;
+  FB_THREAD_LOCAL(signal_handler_running_depth)--;
 }
 
 void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   char debug_msg[256];
 
-  if (thread_signal_danger_zone_depth > 0) {
+  if (FB_THREAD_LOCAL(signal_danger_zone_depth) > 0) {
     snprintf(debug_msg, sizeof(debug_msg), "signal %d arrived in danger zone, delaying\n", signum);
     insert_debug_msg(debug_msg);
-    thread_delayed_signals_bitmap |= (1LLU << (signum - 1));
+    FB_THREAD_LOCAL(delayed_signals_bitmap) |= (1LLU << (signum - 1));
     // FIXME(egmont) stash "info"
     return;
   }
 
-  thread_signal_handler_running_depth++;
+  FB_THREAD_LOCAL(signal_handler_running_depth)++;
 
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-begin %d\n", signum);
   insert_debug_msg(debug_msg);
@@ -167,17 +174,17 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-end %d\n", signum);
   insert_debug_msg(debug_msg);
 
-  thread_signal_handler_running_depth--;
+  FB_THREAD_LOCAL(signal_handler_running_depth)--;
 }
 
 void thread_raise_delayed_signals() {
   /* Execute the delayed signals, by re-raising them. */
   char debug_msg[256];
   for (int signum = 1; signum <= IC_WRAP_SIGRTMAX; signum++) {
-    if (thread_delayed_signals_bitmap & (1LLU << (signum - 1))) {
+    if (FB_THREAD_LOCAL(delayed_signals_bitmap) & (1LLU << (signum - 1))) {
       snprintf(debug_msg, sizeof(debug_msg), "raising delayed signal %d\n", signum);
       insert_debug_msg(debug_msg);
-      thread_delayed_signals_bitmap &= ~(1LLU << (signum - 1));
+      FB_THREAD_LOCAL(delayed_signals_bitmap) &= ~(1LLU << (signum - 1));
       raise(signum);
     }
   }
@@ -211,44 +218,45 @@ void grab_global_lock(bool *i_locked, const char * const function_name) {
   thread_signal_danger_zone_enter();
 
   /* Some internal integrity assertions */
-  if ((thread_has_global_lock) != (thread_intercept_on != NULL)) {
+  if (FB_THREAD_LOCAL(has_global_lock) != (FB_THREAD_LOCAL(intercept_on) != NULL)) {
     char debug_buf[256];
     snprintf(debug_buf, sizeof(debug_buf),
-             "Internal error while intercepting %s: thread_has_global_lock (%s) and "
-             "thread_intercept_on (%s) must go hand in hand",
-             function_name, thread_has_global_lock ? "true" : "false", thread_intercept_on);
+             "Internal error while intercepting %s: has_global_lock (%s) and "
+             "intercept_on (%s) must go hand in hand",
+             function_name, FB_THREAD_LOCAL(has_global_lock) ? "true" : "false",
+             FB_THREAD_LOCAL(intercept_on));
     insert_debug_msg(debug_buf);
-    assert(0 && "Internal error: thread_has_global_lock and "
-           "thread_intercept_on must go hand in hand");
+    assert(0 && "Internal error: has_global_lock and intercept_on must go hand in hand");
   }
-  if (thread_signal_handler_running_depth == 0 && thread_libc_nesting_depth == 0
-      && thread_intercept_on != NULL) {
+  if (FB_THREAD_LOCAL(signal_handler_running_depth) == 0
+      && FB_THREAD_LOCAL(libc_nesting_depth) == 0
+      && FB_THREAD_LOCAL(intercept_on) != NULL) {
     char debug_buf[256];
     snprintf(debug_buf, sizeof(debug_buf),
              "Internal error while intercepting %s: already intercepting %s "
              "(and no signal or atfork handler running in this thread)",
-             function_name, thread_intercept_on);
+             function_name, FB_THREAD_LOCAL(intercept_on));
     insert_debug_msg(debug_buf);
     assert(0 && "Internal error: nested interceptors (no signal handler running)");
   }
 
-  if (!thread_has_global_lock) {
+  if (!FB_THREAD_LOCAL(has_global_lock)) {
     pthread_mutex_lock(&ic_global_lock);
-    thread_has_global_lock = true;
-    thread_intercept_on = function_name;
+    FB_THREAD_LOCAL(has_global_lock) = true;
+    FB_THREAD_LOCAL(intercept_on) = function_name;
     *i_locked = true;
   }
   thread_signal_danger_zone_leave();
-  assert(thread_signal_danger_zone_depth == 0);
+  assert(FB_THREAD_LOCAL(signal_danger_zone_depth) == 0);
 }
 
 void release_global_lock() {
   thread_signal_danger_zone_enter();
   pthread_mutex_unlock(&ic_global_lock);
-  thread_has_global_lock = false;
-  thread_intercept_on = NULL;
+  FB_THREAD_LOCAL(has_global_lock) = false;
+  FB_THREAD_LOCAL(intercept_on) = NULL;
   thread_signal_danger_zone_leave();
-  assert(thread_signal_danger_zone_depth == 0);
+  assert(FB_THREAD_LOCAL(signal_danger_zone_depth) == 0);
 }
 
 /** debugging flags */
@@ -767,10 +775,10 @@ void handle_exit() {
   if (intercepting_enabled) {
     bool i_locked = false;
     thread_signal_danger_zone_enter();
-    if (!thread_has_global_lock) {
+    if (!FB_THREAD_LOCAL(has_global_lock)) {
       pthread_mutex_lock(&ic_global_lock);
-      thread_has_global_lock = true;
-      thread_intercept_on = "handle_exit";
+      FB_THREAD_LOCAL(has_global_lock) = true;
+      FB_THREAD_LOCAL(intercept_on) = "handle_exit";
       i_locked = true;
     }
     thread_signal_danger_zone_leave();
@@ -792,8 +800,8 @@ void handle_exit() {
     if (i_locked) {
       thread_signal_danger_zone_enter();
       pthread_mutex_unlock(&ic_global_lock);
-      thread_has_global_lock = false;
-      thread_intercept_on = NULL;
+      FB_THREAD_LOCAL(has_global_lock) = false;
+      FB_THREAD_LOCAL(intercept_on) = NULL;
       thread_signal_danger_zone_leave();
     }
   }
@@ -952,8 +960,8 @@ void fb_ic_init() {
 
   reset_interceptors();
 
-  assert(thread_intercept_on == NULL);
-  thread_intercept_on = "init";
+  assert(FB_THREAD_LOCAL(intercept_on) == NULL);
+  FB_THREAD_LOCAL(intercept_on) = "init";
   insert_debug_msg("initialization-begin");
 
   set_all_notify_on_read_write_states();
@@ -1298,7 +1306,7 @@ void fb_ic_init() {
   }
 
   insert_debug_msg("initialization-end");
-  thread_intercept_on = NULL;
+  FB_THREAD_LOCAL(intercept_on) = NULL;
   ic_init_done = true;
 }
 

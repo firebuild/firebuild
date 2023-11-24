@@ -328,34 +328,49 @@ static inline bool ic_cwd_ok() {
 #define BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(msg, dirfd, field)   \
   BUILDER_SET_CANONICAL2(msg, field, (dirfd == AT_FDCWD));
 
-/** The method name the current thread is intercepting, or NULL. In case of nested interceptions
- *  (which can happen with signal handlers), it contains the outermost intercepted method. The value
- *  is used for internal assertions and debugging messages only, not for actual business logic. */
-extern __thread const char *thread_intercept_on;
+typedef struct {
+  /** The method name the current thread is intercepting, or NULL. In case of nested interceptions
+   *  (which can happen with signal handlers), it contains the outermost intercepted method. The
+   *  value is used for internal assertions and debugging messages only, not for actual business
+   *  logic. */
+  const char * intercept_on;
 
-/** Whether the current thread is in "signal danger zone" where we don't like if a signal handler
- *  kicks in, because our data structures are inconsistent. Blocking/unblocking signals would be too
- *  slow for us (a pair of pthread_sigmask() kernel syscalls). So we just detect this scenario from
- *  the wrapped signal handler. It's a counter, similar to a recursive lock. */
-extern __thread sig_atomic_t thread_signal_danger_zone_depth;
+  /** Whether the current thread is in "signal danger zone" where we don't like if a signal handler
+   *  kicks in, because our data structures are inconsistent. Blocking/unblocking signals would be
+   *  too slow for us (a pair of pthread_sigmask() kernel syscalls). So we just detect this scenario
+   *  from the wrapped signal handler. It's a counter, similar to a recursive lock. */
+  sig_atomic_t signal_danger_zone_depth;
 
-/** Only if thread_signal_danger_zone_depth == 0: tells whether the current thread holds
- *  ic_global_lock. Querying the lock itself would not be async-signal-safe (and there aren't direct
- *  methods for querying either), hence this accompanying value.
- *  If thread_signal_danger_zone_depth > 0, the contents are undefined and must not be relied on. */
-extern __thread bool thread_has_global_lock;
+  /** Counting the depth of nested signal handlers running in the current thread. */
+  sig_atomic_t signal_handler_running_depth;
 
-/** Counting the depth of nested signal handlers running in the current thread. */
-extern __thread sig_atomic_t thread_signal_handler_running_depth;
+  /** Counting the nested depth of libc calls that might call other libc methods externally.
+   *  Currently fork() (atfork handlers) and dlopen() (constructor method) increment this level.
+   *  exit(), err(), error() etc. might also be ported to this infrastructure one day. */
+  sig_atomic_t libc_nesting_depth;
 
-/** Counting the nested depth of libc calls that might call other libc methods externally.
- *  Currently fork() (atfork handlers) and dlopen() (constructor method) increment this level.
- *  exit(), err(), error() etc. might also be ported to this infrastructure one day. */
-extern __thread sig_atomic_t thread_libc_nesting_depth;
+  /** Bitmap of signals that we're delaying. Multiplicity is irrelevant. Since signals are counted
+   *  from 1 to 64 (on Linux x86), it's bit number (signum-1) that corresponds to signal signum. */
+  uint64_t delayed_signals_bitmap;
 
-/** Bitmap of signals that we're delaying. Multiplicity is irrelevant. Since signals are counted
- *  from 1 to 64 (on Linux x86), it's bit number (signum-1) that corresponds to signal signum. */
-extern __thread uint64_t thread_delayed_signals_bitmap;
+  /** Only if FB_THREAD_LOCAL(signal_danger_zone_depth) == 0: tells whether the current thread
+   *  holds ic_global_lock. Querying the lock itself would not be async-signal-safe (and there
+   *  aren't direct methods for querying either), hence this accompanying value.
+   *  If FB_THREAD_LOCAL(signal_danger_zone_depth) > 0, the contents are undefined and must not
+   *  be relied on. */
+  bool has_global_lock;
+} thread_data;
+
+extern __thread thread_data fb_thread_data;
+#ifdef __linux__
+#define FB_ALWAYS_USE_THREAD_LOCAL 1
+#define FB_THREAD_LOCAL(name) (fb_thread_data.name)
+#else
+extern thread_data* get_thread_data();
+#define FB_THREAD_LOCAL(name) (get_thread_data()->name)
+#/* Dyld finished setting up __thread variables. */
+extern bool thread_locals_usable;
+#endif
 
 /** Array of the original signal handlers.
  *  The items are actually either void (*)(int) a.k.a. sighandler_t,
@@ -393,7 +408,9 @@ void thread_raise_delayed_signals();
  *  The signal is later re-raised from thread_signal_danger_zone_leave().
  *  There can be multiple levels nested.
  *  Inline so that it's as fast as possible. */
-static inline void thread_signal_danger_zone_enter() { thread_signal_danger_zone_depth++; }
+static inline void thread_signal_danger_zone_enter() {
+  FB_THREAD_LOCAL(signal_danger_zone_depth)++;
+}
 
 /** Leave one level of "signal danger zone".
  *  See thread_signal_danger_zone_enter() for how we delay signals.
@@ -408,14 +425,15 @@ static inline void thread_signal_danger_zone_leave() {
    *
    * (The other possible order of code lines, i.e. raise the delayed signals first, then leave the
    * danger zone, would suffer from a race condition if a signal kicks in between these steps.) */
-  thread_signal_danger_zone_depth--;
+  FB_THREAD_LOCAL(signal_danger_zone_depth)--;
 
   /* If this wasn't the outermost danger zone, there's nothing more to do, just return.
    * Also, obviously nothing to do if there's no delayed signal.
    *
-   * Otherwise, re-raise them. (Note that in this case thread_delayed_signals_bitmap is stable now,
+   * Otherwise, re-raise them. (Note that in this case delayed_signals_bitmap is stable now,
    * a randomly arriving signal cannot surprisingly modify it.) */
-  if (thread_delayed_signals_bitmap != 0 && thread_signal_danger_zone_depth == 0) {
+  if (FB_THREAD_LOCAL(delayed_signals_bitmap) != 0
+      && FB_THREAD_LOCAL(signal_danger_zone_depth) == 0) {
     /* The rarely executed heavy stuff is factored out to a separate method to reduce code size. */
     thread_raise_delayed_signals();
   }

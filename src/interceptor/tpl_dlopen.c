@@ -30,11 +30,11 @@
 ### block before
   /* TODO(rbalint) Save all loaded images before the dlopen() to collect also loaded shared
    * library dependencies. */
-  thread_libc_nesting_depth++;
+  FB_THREAD_LOCAL(libc_nesting_depth)++;
 ### endblock before
 
 ### block after
-  thread_libc_nesting_depth--;
+  FB_THREAD_LOCAL(libc_nesting_depth)--;
 
   const char *absolute_filename = NULL;
   if (success) {
