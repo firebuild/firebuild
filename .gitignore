@@ -16,7 +16,6 @@ Makefile
 build/
 cmake_install.cmake
 doc/html/
-*_generated.h
 fbb.c
 fbb.h
 gcov/
