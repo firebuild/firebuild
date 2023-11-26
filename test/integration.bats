@@ -206,6 +206,14 @@ setup() {
   done
 }
 
+@test "pthreads interception" {
+  for i in 1 2; do
+    result=$(./run-firebuild -i -- ./test_pthreads)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
 @test "err()" {
   stderr_expected=$'test_err: warn1: No such file or directory\ntest_err: warn2: Permission denied\ntest_err: err1: No such file or directory\natexit_handler'
 
