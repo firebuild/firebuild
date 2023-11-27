@@ -533,6 +533,19 @@
       (REQUIRED, "bool", "error"),
     ]),
 
+    ("shm_open", [
+      # file path
+      (OPTIONAL, STRING, "name"),
+      # flags, decoding is left for Firebuild supervisor
+      (REQUIRED, "int", "oflag", "fbbcomm_debug_open_flags"),
+      # mode if (flags & O_CREAT), decoding is left for Firebuild supervisor
+      (OPTIONAL, "mode_t", "mode"),
+      # return value, the file descriptor if != -1
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("memfd_create", [
       # name
       (REQUIRED, STRING, "name"),
