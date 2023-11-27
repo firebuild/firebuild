@@ -383,6 +383,17 @@ class Process {
   int handle_fchmodat(const int fd, const char * const name, const size_t name_len,
                       const mode_t mode, const int flags, const int error = 0);
 
+  /**
+   * Handle shm_open() in the monitored process
+   * @param name of the shared memory object
+   * @param oflag oflag of shm_open()
+   * @param mode mode (create permissions) of shm_open()
+   * @param fd the return value, or -1 if shared memory object was shm_open()-ed successfully
+   * @param error error code of shm_open()
+   */
+  int handle_shm_open(const char * const name, const int oflag,
+                      const mode_t mode, const int fd, const int error);
+
 #ifdef __linux__
   /**
    * Handle memfd_create in the monitored process

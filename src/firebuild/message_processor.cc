@@ -1092,6 +1092,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       PFBBA_HANDLE(proc, fchmodat, fbbcomm_buf);
       break;
     }
+    case FBBCOMM_TAG_shm_open: {
+      PFBBA_HANDLE(proc, shm_open, fbbcomm_buf);
+      break;
+    }
 #ifdef __linux__
     case FBBCOMM_TAG_memfd_create: {
       PFBBA_HANDLE(proc, memfd_create, fbbcomm_buf);

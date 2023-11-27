@@ -763,6 +763,37 @@ int Process::handle_fchmodat(const int fd, const char * const ar_name, const siz
   return 0;
 }
 
+int Process::handle_shm_open(const char * const name, const int oflag,
+                             const mode_t mode, const int fd, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s, oflag=%d, mode=%d, fd=%d, error=%d",
+         name, oflag, mode, fd, error);
+  (void)name;
+  (void)oflag;
+  (void)mode;
+
+  if (fd == -1) {
+    switch (error) {
+      case ENAMETOOLONG:
+        /* This does not affect ability to shortcut*/
+        return 0;
+      default:
+        break;
+    }
+#ifdef __APPLE__
+  } else {
+    if (strcmp("com.apple.featureflags.shm", name) == 0) {
+      /* Register opened fd and don't disable shortcutting. */
+      // TODO(rbalint) check contents of com.apple.featureflags.shm and possibly
+      // include parts in the fingerprint
+      add_filefd(fd, std::make_shared<FileFD>(fd, oflag | O_CLOEXEC, FD_SPECIAL, this));
+      return 0;
+    }
+#endif
+  }
+  exec_point()->disable_shortcutting_bubble_up("shm_open() is not supported");
+  return 0;
+}
+
 #ifdef __linux__
 int Process::handle_memfd_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);

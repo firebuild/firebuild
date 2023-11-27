@@ -439,7 +439,7 @@ generate("FILE *", "fdopen", "int fd, const char *mode",
          after_lines=["assert(!voidp_set_contains(&popened_streams, ret));"])
 
 generate("int", "shm_open", "const char *name, int oflag, " + ("mode_t mode" if target == 'linux' else "..."),
-         msg="gen_call",
+         send_ret_on_success=True,
          tpl="shm_open")
 generate("int", "shm_unlink", "const char *name",
          tpl="once")

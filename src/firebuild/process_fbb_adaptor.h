@@ -136,6 +136,13 @@ class ProcessFBBAdaptor {
                                  mode, flags, error);
   }
 
+  static int handle(Process *proc, const FBBCOMM_Serialized_shm_open *msg) {
+    int error = msg->get_error_no_with_fallback(0);
+    int ret = msg->get_ret_with_fallback(-1);
+    return proc->handle_shm_open(msg->get_name(), msg->get_oflag(),
+                                 msg->get_mode_with_fallback(0), ret, error);
+  }
+
 #ifdef __linux__
   static int handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
     return proc->handle_memfd_create(msg->get_flags(), msg->get_ret());
