@@ -21,6 +21,7 @@
 ### extends "tpl.c"
 
 {% set msg_add_fields = ["if (has_int_arg) fbbcomm_builder_" + msg + "_set_arg(&ic_msg, int_arg);",
+                         "if (has_string_arg) fbbcomm_builder_" + msg + "_set_string_arg(&ic_msg, string_arg);",
                          "if (send_ret) fbbcomm_builder_" + msg + "_set_ret(&ic_msg, ret);"] %}
 {% set send_msg_condition = "to_send" %}
 
@@ -30,6 +31,8 @@
   bool send_ret = false;
   bool has_int_arg = false;
   int int_arg = -1;
+  bool has_string_arg = false;
+  char* string_arg = NULL;
 
   switch (cmd) {
     /* Commands the supervisor doesn't need to know about. */
@@ -95,7 +98,26 @@
       va_end(ap_int);
       break;
     }
-
+#ifdef F_GETPATH
+    case F_GETPATH: {
+      to_send = true;
+      has_string_arg = true;
+      /* Start another vararg business that doesn't conflict with the one in call_orig, see #178. */
+      va_list ap_string;
+###   if not syscall
+      /* Find 'arg' of an fcntl(fd, cmd, arg) */
+      va_start(ap_string, cmd);
+###   else
+      /* Find 'arg' of a syscall(SYS_fcntl, fd, cmd, arg) */
+      va_start(ap_string, number);
+      va_arg(ap_string, int);  /* skip over fd */
+      va_arg(ap_string, int);  /* skip over cmd */
+###   endif
+      string_arg = va_arg(ap_string, char*);
+      va_end(ap_string);
+      break;
+    }
+#endif
     /* Commands that don't take an arg (or the arg doesn't matter to
      * the supervisor), but the supervisor needs to know about. This
      * includes all the unrecognized commands. Let's spell out the
