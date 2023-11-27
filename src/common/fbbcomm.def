@@ -197,6 +197,8 @@
       (OPTIONAL, "int", "cmd", "fbbcomm_debug_fcntl_cmd"),
       # arg, if present
       (OPTIONAL, "int", "arg", "fbbcomm_debug_fcntl_arg_or_ret"),
+      # string argument, if present
+      (OPTIONAL, STRING, "string_arg"),
       # return value, depends on cmd
       (OPTIONAL, "int", "ret", "fbbcomm_debug_fcntl_arg_or_ret"),
       # error no., when ret = -1

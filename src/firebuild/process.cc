@@ -1268,6 +1268,25 @@ int Process::handle_fcntl(const int fd, const int cmd, const int arg,
         (*fds_)[fd]->set_cloexec(arg & FD_CLOEXEC);
       }
       return 0;
+#ifdef F_GETPATH
+    case F_GETPATH:
+      if (error == 0) {
+        FileFD *file_fd = get_fd(fd);
+        if (!file_fd) {
+          exec_point()->disable_shortcutting_bubble_up(
+              "Process successfully fcntl'ed on fd which is known to be closed, "
+              "which means interception missed at least one open()", fd);
+          return -1;
+        } else {
+          /* F_GETPATH was successful. It is OK, since the process can be shortcut only
+           * with the process opening the file descriptor already. */
+          return 0;
+        }
+      } else {
+        /* F_GETPATH on an fd failed, this does not affect shortcutting. */
+        return 0;
+      }
+#endif
     default:
       exec_point()->disable_shortcutting_bubble_up("Process executed unsupported fcntl ", d(cmd));
       return 0;

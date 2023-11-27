@@ -228,6 +228,9 @@ void debug_fcntl_cmd(FILE *f, int cmd) {
 #ifdef F_SET_FILE_RW_HINT
   DEBUG_VALUE_VALUE(f, cmd, F_SET_FILE_RW_HINT)
 #endif
+#ifdef F_GETPATH
+  DEBUG_VALUE_VALUE(f, cmd, F_GETPATH)
+#endif
   DEBUG_VALUE_END_DEC(f, cmd)
 }
 
