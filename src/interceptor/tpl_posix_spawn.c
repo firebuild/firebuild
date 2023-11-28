@@ -21,7 +21,7 @@
 ### extends "tpl.c"
 
 ### block before
-  {
+  if (i_am_intercepting) {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
     FBBCOMM_Builder_posix_spawn ic_msg;
@@ -62,7 +62,7 @@
 ### endblock call_orig
 
 ### block send_msg
-  {
+  if (i_am_intercepting) {
     /* Notify the supervisor after the call */
     if (success) {
       FBBCOMM_Builder_posix_spawn_parent ic_msg;

@@ -159,7 +159,7 @@ _{{ func }}
 ###   macro grab_lock_if_needed(grab_condition)
   /* Grabbing the global lock (unless it's already ours, e.g. we're in a signal handler) */
   bool i_locked = false;  /* "i" as in "me, myself and I" */
-  if ({{ grab_condition }}) {
+  if (i_am_intercepting && ({{ grab_condition }})) {
     grab_global_lock(&i_locked, "{{ func }}");
   }
   /* Global lock grabbed */
@@ -233,7 +233,14 @@ case {{ func }}: {
 
   /* Maybe don't intercept? */
 ###     block intercept
-  bool i_am_intercepting = intercepting_enabled;  /* use a copy, in case another thread modifies it */
+  /* use a copy, in case another thread modifies it */
+###       if target == "darwin"
+  /* On Darwin the libc calls out to intercepted functions, thus intercept only
+   * the first libc entry point. */
+  bool i_am_intercepting = intercepting_enabled && !FB_THREAD_LOCAL(intercept_on);
+###       else
+  bool i_am_intercepting = intercepting_enabled;
+###       endif
   (void)i_am_intercepting;  /* sometimes it's unused, silence warning */
 ###     endblock intercept
 
@@ -266,7 +273,7 @@ case {{ func }}: {
   int saved_errno = errno;
 ###     endif
 
-  if (!ic_init_done) fb_ic_init();
+  if (i_am_intercepting && !ic_init_done) fb_ic_init();
 
 #ifdef FB_EXTRA_DEBUG
   if (insert_trace_markers) {
