@@ -42,18 +42,18 @@ setup() {
 
 @test "bash exec chain" {
   for i in 1 2; do
-    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -- bash -c "exec bash -c exec\\ bash\\ -c\\ ls\\\\\ integration.bats")
-    assert_streq "$result" "integration.bats"
+    result=$(./run-firebuild -o 'processes.skip_cache -= "head"' -- bash -c "exec bash -c exec\\ bash\\ -c\\ head\\\\\ -n1\\\\\ integration.bats")
+    assert_streq "$result" "#!/usr/bin/env bats"
     assert_streq "$(strip_stderr stderr)" ""
   done
 }
 
 @test "dash bash exec chain with allow-list" {
   for i in 1 2; do
-    result=$(./run-firebuild -d cache -o 'processes.dont_shortcut -= "ls"' -o 'processes.shortcut_allow_list += "bash"' -- dash -c "exec bash -c exec\\ bash\\ -c\\ ls\\\\\ integration.bats")
-    assert_streq "$result" "integration.bats"
+    result=$(./run-firebuild -d cache -o 'processes.skip_cache -= "head"' -o 'processes.shortcut_allow_list += "bash"' -- dash -c "exec bash -c exec\\ bash\\ -c\\ head\\\\\ -n1\\\\\ integration.bats")
+    assert_streq "$result" "#!/usr/bin/env bats"
     assert_streq "$(strip_stderr stderr)" ""
-    assert_streq "$(grep -h 'original_executed_path' test_cache_dir/objs/*/*/*/%_directory_debug.json | sed 's|/.*/||' | uniq -c)" '      2     "original_executed_path": "bash",'
+    assert_streq "$(grep -h 'original_executed_path' test_cache_dir/objs/*/*/*/%_directory_debug.json | sed 's|/.*/||' | uniq -c | sed 's/  */ /g')" ' 2 "original_executed_path": "bash",'
   done
 }
 
@@ -443,10 +443,10 @@ setup() {
 @test "stats" {
   # Populate the cache
   result=$(./run-firebuild -z -- bash -c 'ls integration.bats')
-  result=$(./run-firebuild -o 'processes.dont_shortcut = []' -- bash -c 'ls integration.bats')
+  result=$(./run-firebuild -o 'processes.skip_cache = []' -- bash -c 'head -n1 integration.bats')
   # Use stats for current run
-  result=$(./run-firebuild -s bash -c 'ls integration.bats' | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
-  assert_streq "$result" "$(printf 'integration.bats\n\nStatistics of current run:\n Hits: 1 / 1 (100.00 %%)\n Misses: 0\n Uncacheable: 0\n GC runs: 0\nNewly cached: N kB\nSaved CPU time: N ms\n')"
+  result=$(./run-firebuild -s bash -c 'head -n1 integration.bats' | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
+  assert_streq "$result" "$(printf '#!/usr/bin/env bats\n\nStatistics of current run:\n Hits: 1 / 1 (100.00 %%)\n Misses: 0\n Uncacheable: 0\n GC runs: 0\nNewly cached: N kB\nSaved CPU time: N ms\n')"
   # use --show-stats together with --gc ...
   result=$(./run-firebuild --gc --show-stats | sed 's/  */ /g;s/seconds/ms/;s/[0-9-][0-9\.]* ms/N ms/;s/[0-9-][0-9\.]* kB/N kB/')
   assert_streq "$result" "$(printf 'Statistics of stored cache:\n Hits: 1 / 4 (25.00 %%)\n Misses: 3\n Uncacheable: 1\n GC runs: 1\nCache size: N kB\nSaved CPU time: N ms\n')"
