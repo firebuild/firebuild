@@ -28,6 +28,9 @@
 #include "firebuild/config.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/forked_process.h"
+#ifdef __APPLE__
+#include "firebuild/hash_cache.h"
+#endif
 #include "firebuild/process_debug_suppressor.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/utils.h"
@@ -121,8 +124,13 @@ void ExecedProcess::initialize() {
         FileUsageUpdate::get_from_open_params(executable(), O_RDONLY, 0, 0, false);
     parent_exec_point()->register_file_usage_update(executable(), exe_update);
     for (const auto& lib : libs_) {
+#ifdef __APPLE__
+      const int error = hash_cache->get_statinfo(lib, nullptr, nullptr) ? 0 : ENOENT;
+#else
+      const int error = 0;
+#endif
       FileUsageUpdate lib_update =
-          FileUsageUpdate::get_from_open_params(lib, O_RDONLY, 0, 0, false);
+          FileUsageUpdate::get_from_open_params(lib, O_RDONLY, 0, error, false);
       parent_exec_point()->register_file_usage_update(lib, lib_update);
     }
   }
