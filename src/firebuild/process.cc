@@ -781,9 +781,10 @@ int Process::handle_shm_open(const char * const name, const int oflag,
     }
 #ifdef __APPLE__
   } else {
-    if (strcmp("com.apple.featureflags.shm", name) == 0) {
+    if (strcmp("com.apple.featureflags.shm", name) == 0
+        ||strcmp("apple.shm.notification_center", name) == 0) {
       /* Register opened fd and don't disable shortcutting. */
-      // TODO(rbalint) check contents of com.apple.featureflags.shm and possibly
+      // TODO(rbalint) check contents of the shared memory and possibly
       // include parts in the fingerprint
       add_filefd(fd, std::make_shared<FileFD>(fd, oflag | O_CLOEXEC, FD_SPECIAL, this));
       return 0;
