@@ -621,13 +621,24 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false), LAUNCH_TYPE_SYSTEM);
       if (ic_msg->has_cmd()) {
         expected_child->set_sh_c_command(ic_msg->get_cmd());
+#ifdef __APPLE__
+      } else {
+        /* OS X's system(NULL) just checks /bin/sh instead of running it. */
+        break;
+#endif
       }
       proc->set_expected_child(expected_child);
       break;
     }
     case FBBCOMM_TAG_system_ret: {
-      assert(proc->system_child());
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_system_ret *>(fbbcomm_buf);
+#ifdef __APPLE__
+      /* OS X's system(NULL) just checks /bin/sh instead of running it. */
+      if (!ic_msg->has_cmd()) {
+        break;
+      }
+#endif
+      assert(proc->system_child());
       /* system() implicitly waits for the child to finish. */
       int ret = ic_msg->get_ret();
       if (ret == -1 || !WIFEXITED(ret)) {
