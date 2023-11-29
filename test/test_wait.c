@@ -103,7 +103,7 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
-  if (posix_spawn(&pid, "/bin/touch",
+  if (posix_spawn(&pid, "/usr/bin/touch",
                   NULL, NULL,
                   (char *const[]){ "touch", "test_wait_wait.txt", NULL },
                   environ) != 0) {
@@ -128,7 +128,7 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
-  if (posix_spawn(&pid, "/bin/touch",
+  if (posix_spawn(&pid, "/usr/bin/touch",
                   NULL, NULL,
                   (char *const[]){ "touch", "test_wait_waitpid.txt", NULL },
                   environ) != 0) {
@@ -153,7 +153,7 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
-  if (posix_spawn(&pid, "/bin/touch",
+  if (posix_spawn(&pid, "/usr/bin/touch",
                   NULL, NULL,
                   (char *const[]){ "touch", "test_wait_wait3.txt", NULL },
                   environ) != 0) {
@@ -178,7 +178,7 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
-  if (posix_spawn(&pid, "/bin/touch",
+  if (posix_spawn(&pid, "/usr/bin/touch",
                   NULL, NULL,
                   (char *const[]){ "touch", "test_wait_wait4.txt", NULL },
                   environ) != 0) {
@@ -203,7 +203,7 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
-  if (posix_spawn(&pid, "/bin/touch",
+  if (posix_spawn(&pid, "/usr/bin/touch",
                   NULL, NULL,
                   (char *const[]){"touch", "test_wait_waitid.txt", NULL},
                   environ) != 0) {
