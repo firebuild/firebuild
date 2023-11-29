@@ -205,7 +205,7 @@ void Pipe::close_one_fd1(int fd) {
     ffd2fd1_ends.erase(file_fd);
   }
   conn2fd1_ends.erase(it);
-  epoll->maybe_del_fd(fd);
+  epoll->maybe_del_fd(fd, EPOLLIN);
   close(fd);
   delete(fd1_end);
   if (conn2fd1_ends.size() == 0) {
@@ -265,7 +265,7 @@ void Pipe::finish() {
   /* clean up all events */
   for (auto it : conn2fd1_ends) {
     FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd1: " + d_fd(it.first));
-    epoll->maybe_del_fd(it.first);
+    epoll->maybe_del_fd(it.first, EPOLLIN);
     close(it.first);
     delete it.second;
   }
@@ -278,7 +278,7 @@ void Pipe::finish() {
   } while (!buffer_empty() && send_ret == FB_PIPE_SUCCESS);
 
   FB_DEBUG(FB_DEBUG_PIPE, "closing pipe fd0: " + d_fd(fd0_conn));
-  epoll->maybe_del_fd(fd0_conn);
+  epoll->maybe_del_fd(fd0_conn, EPOLLOUT);
   close(fd0_conn);
   fd0_conn = -1;
 
@@ -331,7 +331,7 @@ void Pipe::set_send_only_mode(const bool mode) {
              std::string(mode ? "en" : "dis") + "abling send only mode on " + d(this));
     if (mode) {
       for (auto it : conn2fd1_ends) {
-        epoll->del_fd(it.first);
+        epoll->del_fd(it.first, EPOLLIN);
       }
       /* should try again writing when fd0 becomes writable */
       if (epoll->is_added_fd(fd0_conn)) {
@@ -356,7 +356,7 @@ void Pipe::set_send_only_mode(const bool mode) {
         epoll->add_fd(new_conn, EPOLLIN, Pipe::pipe_fd1_read_cb, this);
       }
       /* Should not be woken up by fd0 staying writable until data arrives. */
-      epoll->del_fd(fd0_conn);
+      epoll->del_fd(fd0_conn, EPOLLOUT);
     }
     send_only_mode_ = mode;
   } else {

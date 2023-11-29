@@ -125,17 +125,16 @@ void Epoll::add_fd(int fd, uint32_t events,
 #endif
 }
 
-void Epoll::del_fd(int fd) {
+void Epoll::del_fd(int fd, uint32_t events) {
   ensure_room_fd(fd);
   assert(fd_contexts_[fd].callback != nullptr);
   fd_contexts_[fd].callback = nullptr;
   assert_cmp(fds_, >, 0);
   fds_--;
 #ifdef __APPLE__
-  timespec ts = {0, 0};
-  struct kevent ke = {static_cast<uintptr_t>(fd),
-    EV_DELETE, EV_ADD | KEVENT_FLAG_IMMEDIATE | EV_RECEIPT, 0, reinterpret_cast<intptr_t>(nullptr),
-    &ts};
+  assert(events == EPOLLIN || events == EPOLLOUT);
+  struct kevent ke;
+  EV_SET(&ke, fd, events == EPOLLIN ? EVFILT_READ : EVFILT_WRITE, EV_DELETE, 0, 0, NULL);
   int kevent_ret = kevent(main_fd_, &ke, 1, nullptr, 0, nullptr);
   /* With closing the fd the monitored events are automatically cleared. */
   if (kevent_ret == -1 && errno != EINVAL) {
@@ -143,6 +142,7 @@ void Epoll::del_fd(int fd) {
     abort();
   }
 #else
+  (void)events;
   epoll_ctl(main_fd_, EPOLL_CTL_DEL, fd, NULL);
 #endif
 
@@ -162,11 +162,11 @@ void Epoll::del_fd(int fd) {
   }
 }
 
-void Epoll::maybe_del_fd(int fd) {
+void Epoll::maybe_del_fd(int fd, uint32_t events) {
   /* Note: if fd is not added to the epoll set then there's no way it could be present anywhere in
    * events_. So in that case it's okay to skip the tricky loop of del_fd(), too. */
   if (is_added_fd(fd)) {
-    del_fd(fd);
+    del_fd(fd, events);
   }
 }
 
