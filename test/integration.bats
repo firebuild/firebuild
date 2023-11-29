@@ -378,7 +378,12 @@ setup() {
     cp test_cache_dir/objs/?/??/*/??????????? test_cache_dir/objs/many-entries/12345678${i}+
   done
   # update cache size
-  new_cache_size=$((cat test_cache_dir/size | tr '\n' ' ' ; printf '+ 30 *' ; (du --apparent-size -b test_cache_dir/objs/?/??/*/??????????? | cut -f1) ) | bc)
+  if [ "$(uname)" = "Linux" ]; then
+    du="du --apparent-size -b"
+  else
+    du="stat -f %z"
+  fi
+  new_cache_size=$((cat test_cache_dir/size | tr '\n' ' ' ; printf '+ 30 *' ; ($du test_cache_dir/objs/?/??/*/??????????? | cut -f1) ) | bc)
   echo $new_cache_size > test_cache_dir/size
 
   result=$(./run-firebuild -o 'shortcut_tries = 18' -d cache --gc)
