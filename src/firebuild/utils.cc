@@ -27,11 +27,11 @@
 #include <sys/syscall.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <tsl/hopscotch_set.h>
 #include <unistd.h>
 
 #include <string>
 #include <cstdlib>
+#include <unordered_set>
 #include <vector>
 
 #include "./fbbcomm.h"
@@ -39,7 +39,7 @@
 #include "common/platform.h"
 #include "firebuild/debug.h"
 
-tsl::hopscotch_set<std::string>* deduplicated_strings = nullptr;
+std::unordered_set<std::string>* deduplicated_strings = nullptr;
 
 ssize_t fb_write(int fd, const void *buf, size_t count) {
   FB_READ_WRITE(write, fd, buf, count);
@@ -325,7 +325,7 @@ int fb_renameat2(int olddirfd, const char *oldpath,
 
 const std::string& deduplicated_string(std::string str) {
   if (!deduplicated_strings) {
-    deduplicated_strings = new tsl::hopscotch_set<std::string>();
+    deduplicated_strings = new std::unordered_set<std::string>();
   }
   return *deduplicated_strings->insert(str).first;
 }
