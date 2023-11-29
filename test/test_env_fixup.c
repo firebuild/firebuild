@@ -23,12 +23,11 @@ extern char **environ;
 #include <unistd.h>
 
 int main() {
-  char *myenv[] = {
-    "AAA=aaa",
-    "LD_PRELOAD=  LIBXXX.SO  libfirebuild.so  LIBYYY.SO  ",
-    NULL
-  };
-  environ = myenv;
+#ifdef __APPLE__
+  unsetenv("DYLD_INSERT_LIBRARIES");
+#else
+  putenv("LD_PRELOAD=  LIBXXX.SO  libfirebuild.so  LIBYYY.SO  ");
+#endif
   setenv("BBB", "bbb", 0);
 
   return system("printenv");
