@@ -261,6 +261,7 @@ setup() {
 }
 
 @test "popen() a statically linked binary and a normal one" {
+  [ -x ./test_static ] || skip
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
   for i in 1 2; do
