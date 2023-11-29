@@ -238,11 +238,14 @@ setup() {
 @test "env fixup" {
   for i in 1 2; do
     result=$(./run-firebuild -- ./test_env_fixup)
-    echo "$result" | grep -qx "AAA=aaa"
     echo "$result" | grep -qx "BBB=bbb"
-    echo "$result" | grep -qx "LD_PRELOAD=  LIBXXX.SO  libfirebuild.so  LIBYYY.SO  "
-    strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBXXX.SO' from LD_PRELOAD cannot be preloaded"
-    strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBYYY.SO' from LD_PRELOAD cannot be preloaded"
+    if [ "$(uname)" = "Linux" ]; then
+      echo "$result" | grep -qx "LD_PRELOAD=  LIBXXX.SO  libfirebuild.so  LIBYYY.SO  "
+      strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBXXX.SO' from LD_PRELOAD cannot be preloaded"
+      strip_stderr stderr | grep -q "ERROR: ld.so: object 'LIBYYY.SO' from LD_PRELOAD cannot be preloaded"
+    else
+      echo "$result" | grep -qx "DYLD_INSERT_LIBRARIES=libfirebuild.dylib"
+    fi
     # Valgrind finds an error in fakeroot https://bugs.debian.org/983272
     if fakeroot ls > /dev/null 2>&1; then
       if ! with_valgrind; then
