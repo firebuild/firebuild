@@ -92,7 +92,7 @@ void sigchild_cb(const struct epoll_event* event, void *arg) {
     /* All children exited. Stop listening on the socket, and set listener to -1 to tell the main
      * epoll loop to quit. */
     if (listener > 0) {
-      epoll->del_fd(listener);
+      epoll->del_fd(listener, EPOLLIN);
       close(listener);
       listener = -1;
     }

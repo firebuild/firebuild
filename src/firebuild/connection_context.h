@@ -56,7 +56,7 @@ class ConnectionContext {
       proc->finish();
     }
     assert(conn_ >= 0);
-    epoll->maybe_del_fd(conn_);
+    epoll->maybe_del_fd(conn_, EPOLLIN);
     close(conn_);
     conn_ = -1;
   }

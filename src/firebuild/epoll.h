@@ -94,14 +94,14 @@ class Epoll {
 
   /** Thin wrapper around epoll_ctl(). Makes sure that the fd is already added to epollfd
    *  (according to our own bookkeeping) and removes it. */
-  void del_fd(int fd);
+  void del_fd(int fd, uint32_t events);
 
   /** Number of added and not removed fds. */
   size_t fds() const {return fds_;}
 
   /** Thin wrapper around epoll_ctl(). Checks if fd is already added to epollfd
    *  (according to our own bookkeeping) and if so then removes it. */
-  void maybe_del_fd(int fd);
+  void maybe_del_fd(int fd, uint32_t events);
 
   /** Add a one-shot timer, return its id */
   int add_timer(int ms,
@@ -169,7 +169,7 @@ class Epoll {
        * For the rest, call the appropriate callback. */
       if (fd >= 0) {
         assert(fd_contexts_[fd].callback != nullptr);
-        (*fd_contexts_[fd].callback)(&events_[event_current_],
+       (*fd_contexts_[fd].callback)(&events_[event_current_],
                                      fd_contexts_[fd].callback_user_data);
       }
     }
