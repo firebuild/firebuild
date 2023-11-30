@@ -52,7 +52,12 @@ int main() {
 #else
   /* sendfile() will fail, but that still excercises most of the code. */
   // TODO(rbalint) create socket and test with that
-  fd1 = 0;
+  fd1 = open("/dev/null", O_WRONLY);
+  if (fd1 == -1) {
+    perror("open" LOC);
+    exit(1);
+  }
+
 #endif
   fd2 = open("integration.bats", O_RDWR);
   if (fd2 == -1) {
@@ -63,10 +68,10 @@ int main() {
 
 #ifdef __APPLE__
   off_t len = 10;
-  if (sendfile(fd2, fd1, 0, &len, NULL, 0) == -1) {
+  sendfile(fd2, fd1, 0, &len, NULL, 0);
+  syscall(SYS_sendfile, fd1, fd2, NULL, 10);
 #else
   if (sendfile(fd1, fd2, NULL, 10) == -1) {
-#endif
     perror("sendfile" LOC);
     close(fd1);
     close(fd2);
@@ -79,6 +84,7 @@ int main() {
     close(fd2);
     exit(1);
   }
+#endif
 
 #ifndef __APPLE__
   if (copy_file_range(fd2, NULL, fd1, NULL, 10, 0) == -1) {
