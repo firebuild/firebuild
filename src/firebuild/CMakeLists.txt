@@ -18,7 +18,12 @@ endif()
 find_package(tsl-hopscotch-map REQUIRED)
 
 if (SANITIZE)
-  set(SANITIZE_SUPERVISOR_LINK_OPTIONS -static-libasan -fsanitize=address -fsanitize=undefined)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # older GCCs needs the -static-libasan parameter to avoid ASan complaining with fakeroot
+    set(SANITIZE_SUPERVISOR_LINK_OPTIONS -static-libasan -fsanitize=address -fsanitize=undefined)
+  else()
+    set(SANITIZE_SUPERVISOR_LINK_OPTIONS -fsanitize=address -fsanitize=undefined)
+  endif()
 endif()
 
 add_custom_command(
