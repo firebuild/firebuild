@@ -390,7 +390,7 @@ setup() {
   result=$(./run-firebuild -o 'shortcut_tries = 18' -d cache --gc)
   assert_streq "$result" ""
   if [ "$SKIP_GC_INVALID_ENTRIES_TEST" != 1 ]; then
-    assert_streq "$(grep 'invalid_.*_name' stderr | wc -l)" "2"
+    assert_streq "$(grep 'invalid_.*_name' stderr | wc -l | sed 's/ *//g')" "2"
     assert_streq "$(strip_stderr stderr | grep -v 'invalid_.*_name' | grep -v 'type is unexpected')" "FIREBUILD ERROR: There are 8 bytes in the cache stored in files with unexpected name."
   fi
   # debug files are kept with "-d cache"
@@ -402,12 +402,12 @@ setup() {
   # empty dirs were removed from blobs/, the one in objs/ is kept due to %_directory_debug.json
   result=$(find test_cache_dir/blobs -name 'to_be_removed')
   assert_streq "$result" ""
-  assert_streq "$(ls test_cache_dir/objs/many-entries/ | wc -l)" "18"
+  assert_streq "$(ls test_cache_dir/objs/many-entries/ | wc -l | sed 's/ *//g')" "18"
 
   result=$( ./run-firebuild --gc)
   assert_streq "$result" ""
   if [ "$SKIP_GC_INVALID_ENTRIES_TEST" != 1 ]; then
-    assert_streq "$(grep 'invalid_.*_name' stderr | wc -l)" "2"
+    assert_streq "$(grep 'invalid_.*_name' stderr | wc -l | sed 's/ *//g')" "2"
   fi
   assert_streq "$(strip_stderr stderr | grep -v 'invalid_.*_name' | grep -v ' unexpected')" ""
   # debug files are deleted without "-d cache"
