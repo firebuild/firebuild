@@ -369,9 +369,9 @@ setup() {
   if [ "$SKIP_GC_INVALID_ENTRIES_TEST" != 1 ]; then
     echo foo > test_cache_dir/blobs/invalid_blob_name
     echo bar > test_cache_dir/objs/invalid_obj_name
+    ln -s invalid_blob_name test_cache_dir/blobs/unexpected_symlink
+    ln -s invalid_obj_name test_cache_dir/objs/unexpected_symlink
   fi
-  ln -s invalid_blob_name test_cache_dir/blobs/unexpected_symlink
-  ln -s invalid_obj_name test_cache_dir/objs/unexpected_symlink
   mkdir test_cache_dir/blobs/to_be_removed test_cache_dir/objs/to_be_removed
   touch test_cache_dir/objs/to_be_removed/%_directory_debug.json
   mkdir test_cache_dir/objs/many-entries
