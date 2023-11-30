@@ -230,8 +230,12 @@ case {{ func }}: {
 ###     if rettype != 'void'
   {{ rettype }} ret;
 ###     endif
+
+  /* Maybe don't intercept? */
+###     block intercept
   bool i_am_intercepting = intercepting_enabled;  /* use a copy, in case another thread modifies it */
   (void)i_am_intercepting;  /* sometimes it's unused, silence warning */
+###     endblock intercept
 
   /* Guard the communication channel */
 ###     block guard_connection_fd
@@ -256,10 +260,6 @@ case {{ func }}: {
 ###         endfor
 ###       endif
 ###     endif
-
-  /* Maybe don't intercept? */
-###     block no_intercept
-###     endblock no_intercept
 
   /* Warm up */
 ###     if not no_saved_errno
