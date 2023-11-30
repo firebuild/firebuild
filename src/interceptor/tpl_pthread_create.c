@@ -24,10 +24,10 @@
 {% set msg = None %}
 {% set global_lock = False %}
 
-### block no_intercept
-  i_am_intercepting = false;
+### block intercept
+  bool i_am_intercepting = false;
   (void)i_am_intercepting;
-### endblock no_intercept
+### endblock intercept
 
 ### block call_orig
   /* Need to pass two pointers using one. Allocate room on the heap,

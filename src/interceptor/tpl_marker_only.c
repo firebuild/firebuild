@@ -24,6 +24,6 @@
 {% set msg = None %}
 {% set global_lock = 'never' %}
 
-### block no_intercept
-  i_am_intercepting = false;
-### endblock no_intercept
+### block intercept
+  bool i_am_intercepting = false;
+### endblock intercept
