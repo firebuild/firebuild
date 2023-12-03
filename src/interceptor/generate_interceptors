@@ -1962,6 +1962,7 @@ generate("pid_t", ["waitpid", "SYS_waitpid", "__waitpid"], "pid_t pid, int *wsta
                          "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
 generate("pid_t", ["wait3", "__wait3_time64"], "int *wstatus, int options, struct rusage *rusage",
+         platforms=["linux"],  # OS X Libc calls wait4 which is also intercepted
          global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
