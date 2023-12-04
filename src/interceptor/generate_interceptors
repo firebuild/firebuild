@@ -366,7 +366,7 @@ for gen in set(libc_outputs + syscall_outputs):
 
 
 # Intercept vararg open() and friends
-generate("int", ["open", "open64", "__open64", "SYS_open", "__open"], "const char *pathname, int flags, ...",
+generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel", "__open64_nocancel"], "const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"])
 generate("int", ["openat", "openat64", "SYS_openat"], "int dirfd, const char *pathname, int flags, ...",
@@ -508,7 +508,7 @@ generate("int", "SYS_signalfd4", "int fd, const sigset_t *mask, size_t sizemask,
 
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.
-generate("int", ["close", "SYS_close", "__close"], "int fd",
+generate("int", ["close", "SYS_close", "__close", "__close_nocancel"], "int fd",
          before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
@@ -616,7 +616,7 @@ for func_guard in [("SYS_renameat2", None), ("renameat2", glibc_ge(2, 28))]:
 
 # Intercept operations that read from a file descriptor.
 # FIXME also intercept mmap with PROT_READ
-generate("ssize_t", ["read", "SYS_read", "__read"], "int fd, void *buf, size_t count",
+generate("ssize_t", ["read", "SYS_read", "__read", "__read_nocancel"], "int fd, void *buf, size_t count",
          tpl="read",
          msg_skip_fields=["buf", "count"])
 generate("ssize_t", "__read_chk", "int fd, void *buf, size_t count, size_t fortify_size",
@@ -637,7 +637,7 @@ generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, off_t offse
          tpl="read",
          is_pread="true",
          msg_skip_fields=["buf", "count", "offset", "fortify_size"])
-generate("ssize_t", ["pread64", "__pread64", "SYS_pread64"], "int fd, void *buf, size_t count, off64_t offset",
+generate("ssize_t", ["pread64", "__pread64", "__pread64_nocancel", "SYS_pread64"], "int fd, void *buf, size_t count, off64_t offset",
          platforms=['linux'],
          tpl="read",
          is_pread="true",
@@ -868,7 +868,7 @@ generate("int", ["recvmmsg", "SYS_recvmmsg", "__recvmmsg64"], "int fd, struct mm
 
 # Intercept operations that write to a file descriptor.
 # FIXME also intercept mmap with PROT_WRITE
-generate("ssize_t", ["write", "SYS_write", "__write"], "int fd, const void *buf, size_t count",
+generate("ssize_t", ["write", "SYS_write", "__write", "__write_nocancel"], "int fd, const void *buf, size_t count",
          tpl="write",
          msg_skip_fields=["buf", "count"])
 generate("ssize_t", "writev", "int fd, const struct iovec *iov, int iovcnt",
