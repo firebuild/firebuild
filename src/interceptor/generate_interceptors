@@ -322,7 +322,7 @@ def generate(rettype, funcs, sig, **dict):
       if target == 'darwin' and (func.endswith("_unlocked") or func.endswith("_chk") \
                                  or func.endswith("64") or func.endswith("64v2") \
                                  or func.startswith("__")):
-        return
+        continue
     for gen in outputs:
       rendered = template.render(gen=gen, rettype=rettype, func=func, syscall=syscall,
                                  call_ic_orig_func=call_ic_orig_func, **dict)
