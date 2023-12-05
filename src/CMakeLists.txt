@@ -19,7 +19,9 @@ add_custom_target(fbbcomm_gen_files ALL DEPENDS fbbcomm.c fbbcomm.cc fbbcomm.h f
 
 add_library(common_objs OBJECT common/firebuild_common.c common/debug_sysflags.c)
 add_library(fbbcomm_c OBJECT fbbcomm.c)
+add_dependencies(fbbcomm_c fbbcomm_gen_files)
 add_library(fbbcomm_cc OBJECT fbbcomm.cc)
+add_dependencies(fbbcomm_cc fbbcomm_gen_files)
 
 add_subdirectory(interceptor)
 add_subdirectory(firebuild)
