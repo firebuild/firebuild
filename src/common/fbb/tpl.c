@@ -96,7 +96,8 @@ static void {{ ns }}_serialized_debug_indent(FILE *f, const {{ NS }}_Serialized 
 /*
  * {{ variant|capitalize }} - Debug a '{{ msg }}' message
  */
-static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }}_{{ variant|capitalize }}_{{ msg }} *msg, int indent) {
+static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }}_{{ variant|capitalize }} *variant, int indent) {
+  const {{ NS }}_{{ variant|capitalize }}_{{ msg }} *msg = (const {{ NS }}_{{ variant|capitalize }}_{{ msg }}*)variant;
   const char *sep;
   const int indent_step = 4;
   indent += indent_step;
@@ -173,8 +174,9 @@ static void {{ ns }}_{{ variant }}_{{ msg }}_debug_indent(FILE *f, const {{ NS }
  * Has to be kept in sync (wrt. paddings and such) with {{ ns }}_builder_{{ msg }}_serialize()
  * to make sure that they return the same length.
  */
-static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} *msgbldr) {
+static fbb_size_t {{ ns }}_builder_{{ msg }}_measure(const {{ NS }}_Builder *bldr) {
   /* The base structure */
+  const {{ NS }}_Builder_{{ msg }} *msgbldr = ({{ NS }}_Builder_{{ msg }}*)bldr;
   fbb_size_t len = sizeof({{ NS }}_Serialized_{{ msg }});
 
 ###   if jinjans.has_relptr
@@ -245,7 +247,8 @@ static fbb_size_t {{ ns }}_builder_{{ msg }}_measure({{ NS }}_Builder_{{ msg }} 
  * Has to be kept in sync (wrt. paddings and such) with {{ ns }}_builder_{{ msg }}_measure()
  * to make sure that they return the same length.
  */
-static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder_{{ msg }} *msgbldr, char *dst) {
+static fbb_size_t {{ ns }}_builder_{{ msg }}_serialize(const {{ NS }}_Builder *bldr, char *dst) {
+  const {{ NS }}_Builder_{{ msg }} *msgbldr = ({{ NS }}_Builder_{{ msg }}*)bldr;
 #ifdef FB_EXTRA_DEBUG
   /* Verify that the required fields were set */
 ###   for (quant, type, var, dbgfn) in fields
