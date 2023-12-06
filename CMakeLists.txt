@@ -61,6 +61,11 @@ endforeach()
 
 if (NOT APPLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Weffc++")
+else()
+  # Those warnings are raised when assigning values where 32 bits
+  # are way more than enough.
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-shorten-64-to-32")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-shorten-64-to-32")
 endif()
 
 # dynamic library handling
