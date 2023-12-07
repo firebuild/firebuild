@@ -16,7 +16,7 @@ function(add_test_binary TEST_BINARY)
   add_dependencies(check-bins "${TEST_BINARY}")
 endfunction()
 
-foreach(TESTFILE empty-config.conf integration.bats test_parallel_make.Makefile test_symbols)
+foreach(TESTFILE empty-config.conf integration.bats print_tbd_lib_arch_exports test_parallel_make.Makefile test_symbols)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${TESTFILE}" "${CMAKE_CURRENT_BINARY_DIR}/${TESTFILE}" COPYONLY)
 endforeach()
 
@@ -78,4 +78,8 @@ add_dependencies(check-deps firebuild-bin)
 add_dependencies(check check-deps check-bins)
 add_dependencies(valgrind-check check-deps check-bins)
 
-add_test(test-symbols ./test_symbols ${CMAKE_BINARY_DIR})
+if(APPLE)
+  add_test(test-symbols env CMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT} ./test_symbols ${CMAKE_BINARY_DIR})
+else()
+  add_test(test-symbols ./test_symbols ${CMAKE_BINARY_DIR})
+endif()

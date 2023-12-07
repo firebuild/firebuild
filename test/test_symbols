@@ -28,8 +28,23 @@ binary_dir="$1"
 
 status=0
 
+platform=$(uname)
+case "$platform" in
+    "Linux")
+        libfirebuild="$binary_dir/src/interceptor/libfirebuild.so"
+        ;;
+    "Darwin")
+        libfirebuild="$binary_dir/src/interceptor/libfirebuild.dylib"
+        ;;
+esac
+
 # Additional allowed public symbols that are not auto-generated into gen_list.txt.
 additional_allowed_symbols=""
+
+known_missing_Darwin_64bit="_fstat64
+_fstatat64
+_lstat64
+_stat64"
 
 function check_function_class () {
     local fix=$1
@@ -47,7 +62,7 @@ function check_function_class () {
 
     # Get the list of libc symbols that we don't override, but override the
     # counterpart with the prefix/postfix
-    local missing=$(for chk in $(< libc-${class}-symbols.txt); do
+    local missing=`for chk in $(< libc-${class}-symbols.txt); do
                         case $kind in
                             "prefix")
                                 base="${chk#__}"
@@ -63,13 +78,15 @@ function check_function_class () {
                                 fi
                                 ;;
                         esac
-                    done)
+                    done`
 
     # Report the non-overridden symbols
-    if [ -z "$missing" ]; then
+    known_missing_varname="known_missing_${platform}_${class}"
+    if [ -z "$missing" -o "(" "${!known_missing_varname}" = "$missing" ")" ]; then
         echo "All expected ${class} methods overridden"
     else
-        echo "${class@u} methods not overridden:"
+        echo "${!known_missing_varname}"
+        echo "${class} methods not overridden:"
         echo "$missing" | sed 's/^\(.*\)$/  \1/'
         status=1
     fi
@@ -78,7 +95,8 @@ function check_function_class () {
 # Extract and sort the public symbols of our library,
 # filtering out the ones added by gcov (__gcov* and mangle_path)
 # and ones appearing with old toolchains(__bss_start, _edata, etc.)
-nm -D "$binary_dir/src/interceptor/libfirebuild.so" | \
+nm --extern-only "$libfirebuild" | \
+  sed 's/_interposing//' | \
   grep -v ' [Uvw] ' | \
   cut -d' ' -f3- | \
   grep -v '^__gcov_' | \
@@ -136,13 +154,27 @@ shm_open
 shm_unlink
 "
 # TODO(rbalint) provide properly versioned symbols in libfirebuild
-libs=$(LD_PRELOAD=libpthread.so.0 ldd "$binary_dir/src/interceptor/libfirebuild.so" | grep -E 'lib(c|dl|pthread).so' | cut -d' ' -f3)
-(nm -D $libs | \
-     grep ' [TWi] ' | \
-     cut -d' ' -f3- ; \
-     echo "$known_extra") | \
-  sed 's/\(.*\)@@\(.*\)/\1@@\2\n\1/' | \
-  LC_ALL=C sort > libc-symbols.txt
+
+case "$platform" in
+    "Linux")
+        libs=$(LD_PRELOAD=libpthread.so.0 ldd $libfirebuild | grep -E 'lib(c|dl|pthread).so' | cut -d' ' -f3)
+        (nm -D $libs | \
+             grep ' [TWi] ' | \
+             cut -d' ' -f3- ; \
+         echo "$known_extra") | \
+            sed 's/\(.*\)@@\(.*\)/\1@@\2\n\1/' | \
+            LC_ALL=C sort > libc-symbols.txt
+        ;;
+    "Darwin")
+        lib=$(otool -L $libfirebuild | awk '/\/usr\/lib/ {print $1}')
+        rm -f libc-symbols.txt
+        (for arch in arm64 arm64e x86_64; do
+             for exported_lib in "libdyld" "libsystem_c" "libsystem_info" "libsystem_kernel" "libsystem_pthread" "libsystem_blocks"; do
+                 "$binary_dir/test/print_tbd_lib_arch_exports" "${CMAKE_OSX_SYSROOT}/${lib%.dylib}.tbd" "/usr/lib/system/${exported_lib}.dylib" ${arch}-macos
+             done
+        done) | LC_ALL=C sort | uniq > libc-symbols.txt
+        ;;
+esac
 
 # Get the list of extra ones
 extra=$(LC_ALL=C comm -23 public-symbols.txt libc-symbols.txt)
