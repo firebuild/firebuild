@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+
+# Copyright (c) 2023 Firebuild Inc.
+# All rights reserved.
+# Free for personal use and commercial trial.
+# Non-trial commercial use requires licenses available from https://firebuild.com.
+# Modification and redistribution are permitted, but commercial use of
+# derivative works is subject to the same requirements of this license
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+# Parse mac tbd and print exported symbols for a library and an architecture
+
+import re
+import sys
+
+list_pattern=r'[^:^[^ ^,^\]^\']+'
+
+
+def parse_tapi_tbd(text):
+    entries = re.split(r'--- !tapi-tbd', text)[1:]
+    result = {}
+
+    for entry in entries:
+        lines = entry.strip().split('\n')
+        entry_data = {'tbd-version': None,
+                      'targets': [],
+                      'install-name': None,
+                      'current-version': None,
+                      'reexported-libraries': {},
+                      'parent-umbrella': {},
+                      'exports': {}}
+        key = None  # remember top level key
+        subkey = None
+        targets = None
+        for line in lines:
+            if line.startswith("targets:"):
+                key, value = map(str.strip, line.split(':', 1))
+                entry_data[key].extend(re.findall(list_pattern, value))
+                subkey = None
+            elif line.startswith("install-name:") \
+                 or line.startswith("current-version:") \
+                 or line.startswith("tbd-version:"):
+                key, value = map(str.strip, line.split(':', 1))
+                entry_data[key] = re.sub(r'\'', "", value)
+                subkey = None
+            elif line == "reexported-libraries:" \
+                 or line == "parent-umbrella:" \
+                 or line == "reexports:" \
+                 or line == "exports:":
+                key, _value = map(str.strip, line.split(':', 1))
+                entry_data[key] = {}
+                for target in entry_data['targets']:
+                    entry_data[key][target] = []
+            elif line.startswith("    umbrella:"):
+                subkey, value = map(str.strip, line.split(':', 1))
+                entry_data[key][subkey] = value
+            elif line.startswith("  - targets:"):
+                subkey, value = map(str.strip, line.split(':', 1))
+                subkey = subkey.replace("-", " ").strip()
+                targets = re.findall(list_pattern, value)
+            elif line.startswith("    libraries:") \
+                 or line.startswith("    symbols:"):
+                subkey, value = map(str.strip, line.split(':', 1))
+                subkey = subkey.replace("-", " ").strip()
+                for target in targets:
+                    entry_data[key][target].extend(re.findall(list_pattern, value))
+            else:
+                if subkey is None:
+                    entry_data[key].extend(re.findall(list_pattern, line))
+                elif subkey == 'targets':
+                    targets.extend(re.findall(list_pattern, line))
+                elif subkey in ('symbols', 'libraries'):
+                    for target in targets:
+                         entry_data[key][target].extend(re.findall(list_pattern, line))
+        result[entry_data['install-name']] = entry_data
+
+    return result
+
+if len(sys.argv) != 4:
+    print("Usage:")
+    print(" {} <.tbd> <library> <architecture>".format(sys.argv[0]))
+    sys.exit(1)
+
+with open(sys.argv[1], "r") as f:
+    tbd = parse_tapi_tbd(f.read())
+    for symbol in tbd[sys.argv[2]]['exports'][sys.argv[3]]:
+        print(symbol)
+
