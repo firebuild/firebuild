@@ -74,6 +74,7 @@
 ###     if not syscall
 ###       if target == "darwin"
 #define get_ic_orig_{{ func }}() {{ func }}
+extern {{ rettype }} {{ func }}({{ sig_str }});
 ###       else
 extern {{ rettype }} (*get_ic_orig_{{ func }}(void)) ({{ sig_str }});
 ###       endif

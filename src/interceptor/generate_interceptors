@@ -282,7 +282,15 @@ def generate(rettype, funcs, sig, **dict):
   dict['target'] = target
 
   if 'msg' not in dict:
-    dict['msg'] = funcs[0] if dict['tpl'] != 'tpl_once.c' else 'gen_call'
+    candidate = funcs[0]
+    if dict['tpl'] == 'tpl_once.c':
+      candidate = 'gen_call'
+    if candidate.startswith("__"):
+      candidate = candidate.lstrip("_")
+    for suffix in ("_nocancel", "64"):
+      if candidate.endswith(suffix):
+        candidate = candidate[:-len(suffix)]
+    dict['msg'] = candidate
 
   if 'success' not in dict:
     if rettype == 'void':
@@ -320,8 +328,7 @@ def generate(rettype, funcs, sig, **dict):
         else:
           dict['ifdef_guard'] = dict['ifdef_guard'] + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
       if target == 'darwin' and (func.endswith("_unlocked") or func.endswith("_chk") \
-                                 or func.endswith("64") or func.endswith("64v2") \
-                                 or func.startswith("__")):
+                                 or func.endswith("64") or func.endswith("64v2")):
         continue
     for gen in outputs:
       rendered = template.render(gen=gen, rettype=rettype, func=func, syscall=syscall,
@@ -366,7 +373,11 @@ for gen in set(libc_outputs + syscall_outputs):
 
 
 # Intercept vararg open() and friends
-generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel", "__open64_nocancel"], "const char *pathname, int flags, ...",
+generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel"], "const char *pathname, int flags, ...",
+         tpl="open",
+         msg_skip_fields=["pathname"])
+generate("int", ["__open64_nocancel"], "const char *pathname, int flags, ...",
+         platforms=["linux"],
          tpl="open",
          msg_skip_fields=["pathname"])
 generate("int", ["openat", "openat64", "SYS_openat"], "int dirfd, const char *pathname, int flags, ...",
@@ -377,10 +388,12 @@ generate("int", ["openat", "openat64", "SYS_openat"], "int dirfd, const char *pa
 
 # Intercept open_2 variants
 generate("int", ["__open_2", "__open64_2"], "const char *pathname, int flags",
+         platforms=["linux"],
          tpl="open",
          msg_skip_fields=["pathname"],
          msg="open")
 generate("int", ["__openat_2", "__openat64_2"], "int dirfd, const char *pathname, int flags",
+         platforms=["linux"],
          tpl="open",
          msg_skip_fields=["pathname"],
          msg="open")
@@ -508,7 +521,10 @@ generate("int", "SYS_signalfd4", "int fd, const sigset_t *mask, size_t sizemask,
 
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.
-generate("int", ["close", "SYS_close", "__close", "__close_nocancel"], "int fd",
+generate("int", ["close", "SYS_close", "__close_nocancel"], "int fd",
+         before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
+generate("int", ["__close"], "int fd",
+         platforms=['linux'],
          before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
@@ -616,7 +632,11 @@ for func_guard in [("SYS_renameat2", None), ("renameat2", glibc_ge(2, 28))]:
 
 # Intercept operations that read from a file descriptor.
 # FIXME also intercept mmap with PROT_READ
-generate("ssize_t", ["read", "SYS_read", "__read", "__read_nocancel"], "int fd, void *buf, size_t count",
+generate("ssize_t", ["read", "SYS_read", "__read_nocancel"], "int fd, void *buf, size_t count",
+         tpl="read",
+         msg_skip_fields=["buf", "count"])
+generate("ssize_t", ["__read"], "int fd, void *buf, size_t count",
+         platforms=["linux"],
          tpl="read",
          msg_skip_fields=["buf", "count"])
 generate("ssize_t", "__read_chk", "int fd, void *buf, size_t count, size_t fortify_size",
@@ -767,7 +787,15 @@ generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
          send_msg_condition="fd != -1",
          msg_skip_fields=["lineptr", "n", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
-generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
+generate("FB_SSIZE_T", ["getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
+         tpl="read",
+         success="ret != EOF || !ferror(stream)",
+         before_lines=["int fd = safe_fileno(stream);"],
+         send_msg_condition="fd != -1",
+         msg_skip_fields=["lineptr", "n", "delim", "stream"],
+         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
+generate("FB_SSIZE_T", ["__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
+         platforms=["linux"],
          tpl="read",
          success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -776,6 +804,7 @@ generate("FB_SSIZE_T", ["getdelim", "__getdelim"], "char **lineptr, size_t *n, i
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 # glibc magic, see #343
 generate("int", ["__uflow", "__underflow"], "FILE *stream",
+         platforms=["linux"],
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
@@ -783,6 +812,7 @@ generate("int", ["__uflow", "__underflow"], "FILE *stream",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", ["__wuflow", "__wunderflow"], "FILE *stream",
+         platforms=["linux"],
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
@@ -824,7 +854,12 @@ for i in ['', '__isoc99_']:
         else:
           sig_str += "..."
           call_orig_lines = ["ret = get_ic_orig_" + i + "v" + f + w + "scanf()(" + names_str + "ap);"]
+        if i == '__isoc99_':
+          platforms=['linux']
+        else:
+          platforms=['linux','darwin']
         generate("int", func, sig_str,
+                 platforms=platforms,
                  tpl="read",
                  success=success,
                  before_lines=before_lines,
@@ -833,6 +868,7 @@ for i in ['', '__isoc99_']:
                  msg_add_fields=msg_add_fields)
         if func == "vfscanf":
           generate("int", "__" + func, sig_str,
+                   platforms=["linux"],
                    tpl="read",
                    success=success,
                    before_lines=before_lines,
@@ -845,7 +881,11 @@ for i in ['', '__isoc99_']:
     for w in ['', 'w']:
       skip(i + v + "s" + w + "scanf")
 
-generate("ssize_t", ["recv", "SYS_recv", "__recv"], "int fd, void *buf, size_t len, int flags",
+generate("ssize_t", ["recv", "SYS_recv"], "int fd, void *buf, size_t len, int flags",
+         tpl="read",
+         msg_skip_fields=["buf", "len", "flags"])
+generate("ssize_t", ["__recv"], "int fd, void *buf, size_t len, int flags",
+         platforms=['linux'],
          tpl="read",
          msg_skip_fields=["buf", "len", "flags"])
 generate("ssize_t", "__recv_chk", "int fd, void *buf, size_t len, size_t fortify_size, int flags",
@@ -868,7 +908,11 @@ generate("int", ["recvmmsg", "SYS_recvmmsg", "__recvmmsg64"], "int fd, struct mm
 
 # Intercept operations that write to a file descriptor.
 # FIXME also intercept mmap with PROT_WRITE
-generate("ssize_t", ["write", "SYS_write", "__write", "__write_nocancel"], "int fd, const void *buf, size_t count",
+generate("ssize_t", ["write", "SYS_write", "__write_nocancel"], "int fd, const void *buf, size_t count",
+         tpl="write",
+         msg_skip_fields=["buf", "count"])
+generate("ssize_t", ["__write"], "int fd, const void *buf, size_t count",
+         platforms=['linux'],
          tpl="write",
          msg_skip_fields=["buf", "count"])
 generate("ssize_t", "writev", "int fd, const struct iovec *iov, int iovcnt",
@@ -971,6 +1015,7 @@ generate("int", "puts", "const char *s",
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 # glibc magic, see #343
 generate("int", "__overflow", "FILE *stream, int ch",
+         platforms=["linux"],
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
@@ -978,6 +1023,7 @@ generate("int", "__overflow", "FILE *stream, int ch",
          msg_skip_fields=["stream", "ch"],
          msg_add_fields=["fbbcomm_builder_write_to_inherited_set_fd(&ic_msg, fd);"])
 generate("wint_t", "__woverflow", "FILE *stream, wint_t ch",
+         platforms=["linux"],
          tpl="write",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
@@ -1110,6 +1156,7 @@ for func_guard in [(["send", "SYS_send"], None),
                    ("__send", "#if !defined __aarch64__")]:
   (func, ifdef_guard) = func_guard
   generate("ssize_t", func, "int fd, const void *buf, size_t len, int flags",
+           platforms=(["linux"] if func == "__send" else ["darwin", "linux"]),
            ifdef_guard=ifdef_guard,
            tpl="write",
            msg_skip_fields=["buf", "len", "flags"])
@@ -1321,6 +1368,7 @@ generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *pathname, char *
 # FIXME SYS_oldstat, SYS_oldlstat, SYS_oldfstat, SYS_osf_*stat*
 # mysterious hacks prior to glibc 2.33
 generate("int", "__xstat", "int ver, const char *pathname, struct stat *stat_buf",
+         platforms=["linux"],
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1338,6 +1386,7 @@ generate("int", "__xstat64", "int ver, const char *pathname, struct stat64 *stat
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__lxstat", "int ver, const char *pathname, struct stat *stat_buf",
+         platforms=['linux'],
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1357,6 +1406,7 @@ generate("int", "__lxstat64", "int ver, const char *pathname, struct stat64 *sta
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
+         platforms=['linux'],
          msg="fstatat",
          msg_skip_fields=["ver", "stat_buf"],
          msg_add_fields=["if (success) {",
@@ -1372,6 +1422,7 @@ generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 generate("int", "__fxstatat", "int ver, int fd, const char *pathname, struct stat *stat_buf, int flags",
+         platforms=['linux'],
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
@@ -1561,7 +1612,11 @@ generate("int", "SYS_ioctl", "int fd, unsigned int cmd, ...",
 generate("int", ["dup", "SYS_dup"], "int oldfd",
          after_lines=["if (i_am_intercepting && success) copy_notify_on_read_write_state(ret, oldfd);"],
          send_ret_on_success=True)
-generate("int", ["dup2", "SYS_dup2", "__dup2"], "int oldfd, int newfd",
+generate("int", ["dup2", "SYS_dup2"], "int oldfd, int newfd",
+         tpl="dup2",
+         msg="dup3")
+generate("int", "__dup2", "int oldfd, int newfd",
+         platforms=['linux'],
          tpl="dup2",
          msg="dup3")
 generate("int", ["dup3", "SYS_dup3"], "int oldfd, int newfd, int flags",
@@ -1783,7 +1838,11 @@ generate("FILE *", ["tmpfile", "tmpfile64"], "",
          tpl="once")
 # "Never use these functions"
 # FIXME Supporting them would require supervisor work, or two messages (exclusive open, then close)
-generate("char *", ["mktemp", "tmpnam", "__mktemp"], "char *tmplt",
+generate("char *", ["mktemp", "tmpnam"], "char *tmplt",
+         tpl="once",
+         diagnostic_ignored = ["-Warray-parameter="])
+generate("char *", ["__mktemp"], "char *tmplt",
+         platforms=['linux'],
          tpl="once",
          diagnostic_ignored = ["-Warray-parameter="])
 generate("char *", "tmpnam_r", "char *tmplt",
@@ -1808,8 +1867,10 @@ skip("getdents", "SYS_getdents", "getdents64", "SYS_getdents64", "getdirentries"
 # Disable shortcutting on mknod
 # mysterious hacks prior to glibc 2.33 (also note the pointer "dev_t *")
 generate("int", "__xmknod", "int ver, const char *path, mode_t mode, dev_t *dev",
+         platforms=["linux"],
          tpl="once")
 generate("int", "__xmknodat", "int ver, int dirfd, const char *path, mode_t mode, dev_t *dev",
+         platforms=["linux"],
          tpl="once")
 # cleaned up beginning with glibc 2.33
 generate("int", ["mknod", "SYS_mknod"], "const char *path, mode_t mode, dev_t dev",
@@ -1853,9 +1914,12 @@ generate("void", "SYS_exit_group", "int status",
          tpl="_exit")
 
 # Intercept fork() and variants
-generate("pid_t", ["fork", "SYS_fork", "__fork"], "",
+generate("pid_t", ["fork", "SYS_fork"], "",
          tpl="fork")
-generate("pid_t", ["_Fork"], "",
+# _Fork is glibc specific
+# TODO(rbalint) __fork is not intercepted on OS X because fork() also calls it and intercepting
+# only __fork hangs "debugging with trace markers and report generation" test
+generate("pid_t", ["__fork", "_Fork"], "",
          platforms=['linux'],
          tpl="_fork")
 generate("pid_t", ["vfork", "SYS_vfork", "__vfork"], "",
@@ -1938,7 +2002,7 @@ generate("int", "pthread_create", "pthread_t *thread, const pthread_attr_t *attr
 # Need to wait for the supervisor to ACK that it has processed what the child had done
 # Lock only for the communication, see #338
 # FIXME SYS_osf_old_wait, SYS_osf_wait4, SYS_osf_waitid
-generate("pid_t", ["wait", "__wait"], "int *wstatus",
+generate("pid_t", ["wait"], "int *wstatus",
          success="ret > 0",
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
@@ -1949,7 +2013,32 @@ generate("pid_t", ["wait", "__wait"], "int *wstatus",
          msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
                          "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
-generate("pid_t", ["waitpid", "SYS_waitpid", "__waitpid"], "pid_t pid, int *wstatus, int options",
+generate("pid_t", ["__wait"], "int *wstatus",
+         platforms=['linux'],
+         success="ret > 0",
+         before_lines=["int wstatus_fallback;",
+                       "if (!wstatus) wstatus = &wstatus_fallback;"],
+         global_lock='after',
+         send_msg_on_error=False,
+         msg="wait",
+         msg_skip_fields=["wstatus"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
+                         "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
+         ack_condition="true")
+generate("pid_t", ["waitpid", "SYS_waitpid"], "pid_t pid, int *wstatus, int options",
+         global_lock='after',
+         before_lines=["int wstatus_fallback;",
+                       "if (!wstatus) wstatus = &wstatus_fallback;"],
+         success="ret > 0",
+         send_msg_on_error=False,
+         send_msg_condition="success && !WIFSTOPPED(*wstatus) && !WIFCONTINUED(*wstatus)",
+         msg="wait",
+         msg_skip_fields=["pid", "wstatus", "options"],
+         msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
+                         "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
+         ack_condition="true")
+generate("pid_t", ["__waitpid"], "pid_t pid, int *wstatus, int options",
+         platforms=['linux'],
          global_lock='after',
          before_lines=["int wstatus_fallback;",
                        "if (!wstatus) wstatus = &wstatus_fallback;"],
@@ -2043,7 +2132,11 @@ generate("sighandler_t", ["signal", "sigset"], "int signum, " + ("sighandler_t" 
 generate("long int", ["SYS_signal"], "int signum, sighandler_t handler",
          tpl="signal",
          success="1")
-generate("int", ["sigaction", "SYS_sigaction", "__sigaction"], "int signum, const struct sigaction *act, struct sigaction *oldact",
+generate("int", ["sigaction", "SYS_sigaction"], "int signum, const struct sigaction *act, struct sigaction *oldact",
+         tpl="signal")
+# TODO(rbalint) intercepting __sigaction breaks "parallel make" test on OS X
+generate("int", ["__sigaction"], "int signum, const struct sigaction *act, struct sigaction *oldact",
+         platforms=['linux'],
          tpl="signal")
 
 # futex() doesn't have a glibc wrapper, pthread_mutex_[un]lock() maps into syscall(SYS_futex, ...).
@@ -2134,7 +2227,11 @@ generate("int", "SYS_gettimeofday", "struct timeval *tv, void *tz",
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_clock_gettime64
-generate("int", ["clock_gettime", "SYS_clock_gettime64", "SYS_clock_gettime", "__clock_gettime", "__clock_gettime64"], "clockid_t clk_id, struct timespec *tp",
+generate("int", ["clock_gettime", "SYS_clock_gettime64", "SYS_clock_gettime", "__clock_gettime64"], "clockid_t clk_id, struct timespec *tp",
+         msg="clock_gettime",
+         tpl="once")
+generate("int", "__clock_gettime", "clockid_t clk_id, struct timespec *tp",
+         platforms=['linux'],
          msg="clock_gettime",
          tpl="once")
 # FIXME SYS_osf_ntp_gettime
@@ -2274,12 +2371,19 @@ generate("int", ["setdomainname", "SYS_setdomainname"], "const char *name, " + (
 generate("int" if target == 'linux' else "void", "sethostid", "long hostid",
          tpl="once")
 
-generate("int", ["socket", "SYS_socket", "__socket"], "int domain, int type, int protocol",
+generate("int", ["socket", "SYS_socket"], "int domain, int type, int protocol",
+         after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
+         send_ret_on_success=True)
+generate("int", ["__socket"], "int domain, int type, int protocol",
+         platforms=["linux"],
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          send_ret_on_success=True)
 generate("int", ["connect", "SYS_connect", "__connect"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          tpl="once")
 generate("int", ["bind", "SYS_bind"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
+         tpl="once")
+generate("int", ["__bind"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
+         platforms=["darwin"],
          tpl="once")
 generate("int", ["listen", "SYS_listen"], "int sockfd, int backlog",
          tpl="once")
@@ -2306,7 +2410,10 @@ generate("long", "fpathconf", "int fd, int name",
 
 # Intercept sysconf
 # FIXME Sometimes a retval == -1 does not denote error. Same for pathconf.
-generate("long", ["sysconf", "__sysconf"], "int name",
+generate("long", ["__sysconf"], "int name",
+         platforms=["linux"],
+         send_ret_on_success=True)
+generate("long", ["sysconf"], "int name",
          send_ret_on_success=True)
 
 # Intercept syscall
