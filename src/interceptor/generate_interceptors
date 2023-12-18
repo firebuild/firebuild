@@ -526,6 +526,10 @@ generate("int", ["close", "SYS_close", "__close_nocancel"], "int fd",
 generate("int", ["__close"], "int fd",
          platforms=['linux'],
          before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
+generate("int", ["close$NOCANCEL"], "int fd",
+         platforms=['darwin'],
+         msg="close",
+         before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
                        "if (i_am_intercepting) set_notify_on_read_write_state(fd);",
