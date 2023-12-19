@@ -319,7 +319,7 @@ jobs:
       run: |
         brew update
         # brew often fails due to existing files, hence the --overwrite parameter
-        brew install --overwrite bats-core coreutils docbook-xsl jemalloc jinja2-cli libconfig xxhash
+        env HOMEBREW_NO_AUTO_UPDATE=1 brew install --overwrite bats-core coreutils docbook-xsl jemalloc jinja2-cli libconfig xxhash
         (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && sudo make install)
     - name: build-in-tree
       run: |
