@@ -323,6 +323,9 @@ def generate(rettype, funcs, sig, **dict):
       syscall = False
       outputs = libc_outputs
       call_ic_orig_func = "get_ic_orig_" + func + "()"
+      if target == "darwin" and func in {"__fstat", "__fstatat", "__lstat", "__stat"}:
+         if 'ifdef_guard' not in fun_dict or fun_dict['ifdef_guard'] is None:
+           fun_dict['ifdef_guard'] = "#if defined(__aarch64__)"
       if func.endswith("_time64") or func in time64_functions:
         if 'ifdef_guard' not in fun_dict or fun_dict['ifdef_guard'] is None:
           fun_dict['ifdef_guard'] = glibc_ge(2, 34) + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
@@ -381,7 +384,7 @@ generate("int", ["__open64_nocancel"], "const char *pathname, int flags, ...",
          platforms=["linux"],
          tpl="open",
          msg_skip_fields=["pathname"])
-generate("int", ["openat", "openat64", "SYS_openat"], "int dirfd, const char *pathname, int flags, ...",
+generate("int", ["openat", "openat64", "SYS_openat"] + (["__openat"] if target is "darwin" else []), "int dirfd, const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"],
          msg="open")
@@ -452,7 +455,7 @@ generate("FILE *", "fdopen", "int fd, const char *mode",
          msg=None,
          after_lines=["assert(!voidp_set_contains(&popened_streams, ret));"])
 
-generate("int", "shm_open", "const char *name, int oflag, " + ("mode_t mode" if target == 'linux' else "..."),
+generate("int", ["shm_open"] + (["__shm_open"] if target is "darwin" else []), "const char *name, int oflag, " + ("mode_t mode" if target == 'linux' else "..."),
          send_ret_on_success=True,
          tpl="shm_open")
 generate("int", "shm_unlink", "const char *name",
@@ -583,25 +586,25 @@ generate("int", ["mkdirat", "SYS_mkdirat"], "int dirfd, const char *pathname, mo
          msg="mkdir")
 
 # Intercept the remove, rmdir, unlink families
-generate("int", ["unlink", "remove", "SYS_unlink"], "const char *pathname",
+generate("int", ["unlink", "remove", "SYS_unlink"] + (["__unlink"] if target == "darwin" else []), "const char *pathname",
          before_lines=["bool pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(unlink, pathname);",
                          "fbbcomm_builder_unlink_set_pre_open_sent(&ic_msg, pre_open_sent);"])
-generate("int", ["unlinkat", "SYS_unlinkat"], "int dirfd, const char *pathname, int flags",
+generate("int", ["unlinkat", "SYS_unlinkat"] + (["__unlinkat"] if target == "darwin" else []), "int dirfd, const char *pathname, int flags",
          before_lines=["bool pre_open_sent = i_am_intercepting && maybe_send_pre_open(dirfd, pathname, O_WRONLY | O_TRUNC);"],
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(unlink, dirfd, pathname);",
                          "fbbcomm_builder_unlink_set_pre_open_sent(&ic_msg, pre_open_sent);"],
          msg="unlink")
-generate("int", ["rmdir", "SYS_rmdir"], "const char *pathname",
+generate("int", ["rmdir", "SYS_rmdir"] + (["__rmdir"] if target == "darwin" else []), "const char *pathname",
          before_lines=["bool pre_open_sent = i_am_intercepting && maybe_send_pre_open(AT_FDCWD, pathname, O_WRONLY | O_TRUNC);"],
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(rmdir, pathname);",
                          "fbbcomm_builder_rmdir_set_pre_open_sent(&ic_msg, pre_open_sent);"])
 
 # Intercept the rename family
-generate("int", ["rename", "SYS_rename"], "const char *oldpath, const char *newpath",
+generate("int", ["rename", "SYS_rename"] + (["__rename"] if target == "darwin" else []), "const char *oldpath, const char *newpath",
          before_lines=["if (i_am_intercepting) {",
                        "  send_pre_open_without_ack_request(AT_FDCWD, oldpath);",
                        "  send_pre_open(AT_FDCWD, newpath);",
@@ -610,7 +613,7 @@ generate("int", ["rename", "SYS_rename"], "const char *oldpath, const char *newp
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(rename, oldpath);",
                          "BUILDER_SET_ABSOLUTE_CANONICAL(rename, newpath);"],
          ack_condition="true")
-generate("int", ["renameat", "SYS_renameat"], "int olddirfd, const char *oldpath, int newdirfd, const char *newpath",
+generate("int", ["renameat", "SYS_renameat"] + (["__renameat"] if target == "darwin" else []), "int olddirfd, const char *oldpath, int newdirfd, const char *newpath",
          before_lines=["if (i_am_intercepting) {",
                        "  send_pre_open_without_ack_request(olddirfd, oldpath);",
                        "  send_pre_open(newdirfd, newpath);",
@@ -707,7 +710,7 @@ generate("ssize_t", "preadv64v2", "int fd, const struct iovec *iov, int iovcnt, 
          tpl="read",
          is_pread="offset != -1",
          msg_skip_fields=["iov", "iovcnt", "offset", "flags"])
-generate("size_t", ["fread", "fread_unlocked"], "void *ptr, size_t size, size_t nmemb, FILE *stream",
+generate("size_t", ["fread", "fread_unlocked"] + (["__fread"] if target == "darwin" else []), "void *ptr, size_t size, size_t nmemb, FILE *stream",
          tpl="read",
          before_lines=["int fd = safe_fileno(stream);"],
          send_msg_condition="fd != -1",
@@ -728,7 +731,7 @@ generate("int", ["fgetc", "fgetc_unlocked", "getc", "getc_unlocked", "getw"], "F
          send_msg_condition="fd != -1",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
-generate("wint_t", ["fgetwc", "fgetwc_unlocked", "getwc", "getwc_unlocked"], "FILE *stream",
+generate("wint_t", ["fgetwc", "fgetwc_unlocked", "getwc", "getwc_unlocked"] + (["__fgetwc"] if target == "darwin" else []), "FILE *stream",
          tpl="read",
          success="ret != WEOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -896,13 +899,13 @@ generate("ssize_t", ["__recv"], "int fd, void *buf, size_t len, int flags",
 generate("ssize_t", "__recv_chk", "int fd, void *buf, size_t len, size_t fortify_size, int flags",
          tpl="read",
          msg_skip_fields=["buf", "len", "fortify_size", "flags"])
-generate("ssize_t", ["recvfrom", "SYS_recvfrom"], "int fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen",
+generate("ssize_t", ["recvfrom", "SYS_recvfrom"] + (["__recvfrom"] if target == "darwin" else []), "int fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, socklen_t *addrlen",
          tpl="read",
          msg_skip_fields=["buf", "len", "flags", "src_addr", "addrlen"])
 generate("ssize_t", "__recvfrom_chk", "int fd, void *buf, size_t len, size_t fortify_size, int flags, struct sockaddr *src_addr, socklen_t *addrlen",
          tpl="read",
          msg_skip_fields=["buf", "len", "fortify_size", "flags", "src_addr", "addrlen"])
-generate("ssize_t", ["recvmsg", "SYS_recvmsg", "__recvmsg64"], "int fd, struct msghdr *msg, int flags",
+generate("ssize_t", ["recvmsg", "SYS_recvmsg", "__recvmsg64"] + (["__recvmsg"] if target == "darwin" else []), "int fd, struct msghdr *msg, int flags",
          tpl="recvmsg",
          msg_skip_fields=["msg", "flags"])
 # FIXME add SYS_recvmmsg_time64
@@ -1165,10 +1168,10 @@ for func_guard in [(["send", "SYS_send"], None),
            ifdef_guard=ifdef_guard,
            tpl="write",
            msg_skip_fields=["buf", "len", "flags"])
-generate("ssize_t", ["sendto", "SYS_sendto"], "int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen",
+generate("ssize_t", ["sendto", "SYS_sendto"] + (["__sendto"] if target == "darwin" else []), "int fd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen",
          tpl="write",
          msg_skip_fields=["buf", "len", "flags", "dest_addr", "addrlen"])
-generate("ssize_t", ["sendmsg", "SYS_sendmsg", "__sendmsg64"], "int fd, const struct msghdr *msg, int flags",
+generate("ssize_t", ["sendmsg", "SYS_sendmsg", "__sendmsg64"] + (["__sendmsg"] if target == "darwin" else []), "int fd, const struct msghdr *msg, int flags",
          tpl="write",
          msg_skip_fields=["msg", "flags"])
 generate("int", ["sendmmsg", "SYS_sendmmsg", "__sendmmsg", "__sendmmsg64"], "int fd, struct mmsghdr *msgvec, unsigned int vlen, int flags",
@@ -1290,7 +1293,7 @@ generate("int", ["fchdir", "SYS_fchdir"], "int fd",
                       "}"])
 
 # Intercept the chmod family
-generate("int", ["chmod", "SYS_chmod"], "const char *pathname, mode_t mode",
+generate("int", ["chmod", "SYS_chmod"] + (["__chmod"] if target == "darwin" else []), "const char *pathname, mode_t mode",
          msg="fchmodat",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchmodat, pathname);"])
@@ -1309,7 +1312,7 @@ generate("int", "SYS_fchmodat", "int fd, const char *pathname, mode_t mode",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fchmodat, fd, pathname);",
                          "fbbcomm_builder_fchmodat_set_flags(&ic_msg, 0);"])
-generate("int", ["fchmod", "SYS_fchmod"], "int fd, mode_t mode",
+generate("int", ["fchmod", "SYS_fchmod"] + (["__fchmod"] if target == "darwin" else []), "int fd, mode_t mode",
          msg="fchmodat")
 
 # Intercept the chown family
@@ -1318,7 +1321,7 @@ generate("int", ["chown", "SYS_chown"], "const char *pathname, uid_t owner, gid_
          msg="fchownat",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchownat, pathname);"])
-generate("int", ["lchown", "SYS_lchown"], "const char *pathname, uid_t owner, gid_t group",
+generate("int", ["lchown", "SYS_lchown"] + (["__lchown"] if target == "darwin" else []), "const char *pathname, uid_t owner, gid_t group",
          msg="fchownat",
          msg_skip_fields=["pathname"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fchownat, pathname);",
@@ -1445,7 +1448,7 @@ generate("int", "__fxstatat64", "int ver, int fd, const char *pathname, struct s
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
 # cleaned up beginning with glibc 2.33
-generate("int", "stat", "const char *pathname, struct stat *stat_buf",
+generate("int", ["stat"] + (["__stat"] if target == "darwin" else []), "const char *pathname, struct stat *stat_buf",
          msg="fstatat",
          msg_skip_fields=["pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1461,7 +1464,7 @@ generate("int", ["stat64", "SYS_stat64", "__stat64_time64"], "const char *pathna
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", "lstat", "const char *pathname, struct stat *stat_buf",
+generate("int", ["lstat"] + (["__lstat"] if target == "darwin" else []), "const char *pathname, struct stat *stat_buf",
          msg="fstatat",
          msg_skip_fields=["pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1479,7 +1482,7 @@ generate("int", ["lstat64", "SYS_lstat64", "__lstat64_time64"], "const char *pat
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                          "}"])
-generate("int", ["fstat", "SYS_newfstat"], "int fd, struct stat *stat_buf",
+generate("int", ["fstat", "SYS_newfstat"] + (["__fstat"] if target == "darwin" else []), "int fd, struct stat *stat_buf",
          msg="fstatat",
          msg_skip_fields=["stat_buf"],
          msg_add_fields=["if (success) {",
@@ -1497,7 +1500,7 @@ for func_guard in [(["fstat64", "SYS_fstat64", "__fstat64_time64"], None),
                            "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                            "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
                            "}"])
-generate("int", ["fstatat", "SYS_newfstatat"], "int fd, const char *pathname, struct stat *stat_buf, int flags",
+generate("int", ["fstatat", "SYS_newfstatat"] + (["__fstatat"] if target == "darwin" else []), "int fd, const char *pathname, struct stat *stat_buf, int flags",
          msg="fstatat",
          msg_skip_fields=["pathname", "stat_buf"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
@@ -1597,15 +1600,20 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
 
 # Intercept fcntl and fcntl64
 # The return value is selectively set from tpl_fcntl.c for certain commands.
-for func_guard in [(["fcntl", "SYS_fcntl64", "SYS_fcntl", "__fcntl", "__fcntl_time64"], None), ("fcntl64", glibc_ge(2, 28))]:
+for func_guard in [(["fcntl", "SYS_fcntl64", "SYS_fcntl", "__fcntl", "__fcntl_time64"], None),
+                   ("fcntl64", glibc_ge(2, 28))]:
   (func, ifdef_guard) = func_guard
   generate("int", func, "int fd, int cmd, ...",
            ifdef_guard=ifdef_guard,
            msg="fcntl",
            tpl="fcntl")
+generate("int", ["__fcntl_nocancel", "fcntl$NOCANCEL"], "int fd, int cmd, ...",
+         platforms=['darwin'],
+         msg="fcntl",
+         tpl="fcntl")
 
 # Intercept ioctl - cmd is long in glibc, int in the Linux kernel
-generate("int", ["ioctl", "__ioctl_time64"], "int fd, unsigned long cmd, ...",
+generate("int", ["ioctl", "__ioctl_time64"] + (["__ioctl"] if target == "darwin" else []), "int fd, unsigned long cmd, ...",
          tpl="ioctl",
          send_ret_on_success=True)
 generate("int", "SYS_ioctl", "int fd, unsigned int cmd, ...",
@@ -1903,7 +1911,7 @@ generate("int", "mkfifoat", "int dirfd, const char *pathname, mode_t mode",
 # - quick_exit() calls the at_quick_exit() handlers, which, similarly to the atexit() handlers,
 #   do not receive the exit status. So notify the supervisor before calling this method, just like
 #   for _exit().
-generate("void", ["exit"], "int status",
+generate("void", ["exit"] + (["__exit"] if target == "darwin" else []), "int status",
          tpl="exit",
          no_saved_errno=True)
 generate("void", ["_exit", "_Exit", "SYS_exit"], "int status",
@@ -1954,7 +1962,7 @@ generate("int", "pclose", "FILE *stream",
          ack_condition="true")
 
 # Intercept the posix_spawn family
-generate("int", "posix_spawn", "pid_t *pid, const char *file, " +
+generate("int", ["posix_spawn"] + (["__posix_spawn"] if target == "darwin" else []), "pid_t *pid, const char *file, " +
                                "const posix_spawn_file_actions_t *file_actions, " +
                                "const posix_spawnattr_t *attrp, " +
                                "char *const argv[], char *const envp[]",
@@ -2068,6 +2076,7 @@ generate("pid_t", ["wait3", "__wait3_time64"], "int *wstatus, int options, struc
          msg_add_fields=["fbbcomm_builder_wait_set_pid(&ic_msg, ret);",
                          "fbbcomm_builder_wait_set_wstatus(&ic_msg, *wstatus);"],
          ack_condition="true")
+# __wait4 hangs the tests on MacOS
 generate("pid_t", ["wait4", "SYS_wait4", "__wait4_time64"], "pid_t pid, int *wstatus, int options, struct rusage *rusage",
          global_lock='after',
          before_lines=["int wstatus_fallback;",
@@ -2116,7 +2125,7 @@ generate("int", "execle", "const char *file, const char *arg, ...",
          tpl="exec")
 generate("int", ["execv", "execvp"], "const char *file, char *const argv[]",
          tpl="exec")
-generate("int", ["execve", "SYS_execve"], "const char *file, char *const argv[], char *const envp[]",
+generate("int", ["execve", "SYS_execve"] + (["__execve"] if target == "darwin" else []), "const char *file, char *const argv[], char *const envp[]",
          tpl="exec")
 generate("int", "execvpe", "const char *file, char *const argv[], char *const envp[]",
          platforms=['linux'],
@@ -2249,7 +2258,7 @@ generate("int", ["ntp_gettime", "ntp_gettimex", "__ntp_gettime64", "__ntp_gettim
 generate("int", "stime", "const time_t *t",
          platforms=['linux'],
          tpl="once")
-generate("int", ["settimeofday", "SYS_settimeofday", "__settimeofday64"], "const struct timeval *tv, const struct timezone *tz",
+generate("int", ["settimeofday", "SYS_settimeofday", "__settimeofday64"] + (["__settimeofday"] if target == "darwin" else []), "const struct timeval *tv, const struct timezone *tz",
          tpl="once")
 # FIXME SYS_clock_settime64
 generate("int", ["clock_settime", "SYS_clock_settime64", "SYS_clock_settime", "__clock_settime64"], "clockid_t clk_id, const struct timespec *tp",
@@ -2316,9 +2325,9 @@ generate("int", ["setuid", "SYS_setuid", "seteuid"], "uid_t uid",
          tpl="once")
 generate("int", ["setgid", "SYS_setgid", "setegid"], "gid_t gid",
          tpl="once")
-generate("int", ["setreuid", "SYS_setreuid"], "uid_t uid, uid_t euid",
+generate("int", ["setreuid", "SYS_setreuid"] + (["__setreuid"] if target == "darwin" else []), "uid_t uid, uid_t euid",
          tpl="once")
-generate("int", ["setregid", "SYS_setregid"], "gid_t gid, gid_t egid",
+generate("int", ["setregid", "SYS_setregid"] + (["__setregid"] if target == "darwin" else []), "gid_t gid, gid_t egid",
          tpl="once")
 generate("int", ["setresuid", "SYS_setresuid"], "uid_t uid, uid_t euid, uid_t suid",
          platforms=['linux'],
@@ -2338,7 +2347,7 @@ skip("getusershell", "endusershell", "setusershell")
 skip("ttyname", "ttyname_r", "ttyslot", "isatty", "vhangup", "SYS_vhangup", "getpass")
 skip("tcgetpgrp", "tcsetpgrp", "getlogin", "getlogin_r"," __getlogin_r_chk")
 skip("ctermid", "cuserid")
-generate("int", "setlogin", "const char *name",
+generate("int", ["setlogin"] + (["__setlogin"] if target == "darwin" else []), "const char *name",
          tpl="once")
 
 # Revoke - glibc function exists, no manpage. Does it work?
@@ -2390,9 +2399,9 @@ generate("int", ["bind", "SYS_bind"], "int sockfd, const struct sockaddr *addr, 
 generate("int", ["__bind"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          platforms=["darwin"],
          tpl="once")
-generate("int", ["listen", "SYS_listen"], "int sockfd, int backlog",
+generate("int", ["listen", "SYS_listen"] + (["__listen"] if target == "darwin" else []), "int sockfd, int backlog",
          tpl="once")
-generate("int", ["socketpair", "SYS_socketpair"], "int domain, int type, int protocol, int sv[2]",
+generate("int", ["socketpair", "SYS_socketpair"] + (["__socketpair"] if target == "darwin" else []), "int domain, int type, int protocol, int sv[2]",
          after_lines=["if (i_am_intercepting && success) {",
                       "  clear_notify_on_read_write_state(sv[0]);",
                       "  clear_notify_on_read_write_state(sv[1]);",
@@ -2423,7 +2432,13 @@ generate("long", ["sysconf"], "int name",
 
 # Intercept syscall
 # FIXME What does syscall(SYS_syscall, ...) do? :)
-generate("long" if target == 'linux' else "int", "syscall", ("long" if target == 'linux' else "int") + " number, ...",
+generate("long", "syscall", "long number, ...",
+         platforms=["linux"],
+         tpl="syscall",
+         send_ret_on_success=True,
+         ack_condition="true")
+generate("int", ["syscall", "__syscall", "__mac_syscall"], "int number, ...",
+         platforms=["darwin"],
          tpl="syscall",
          send_ret_on_success=True,
          ack_condition="true")

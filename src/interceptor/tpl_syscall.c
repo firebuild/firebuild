@@ -63,7 +63,7 @@
       /* Notify the supervisor */
       bool i_locked = false;  /* "i" as in "me, myself and I" */
       if (!skip_interception
-          && (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_{{ func }}[number])) {
+          && (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_syscall[number])) {
         /* Grabbing the global lock (unless it's already ours, e.g. we're in a signal handler) */
         if (i_am_intercepting) {
           grab_global_lock(&i_locked, "{{ func }}");
@@ -89,9 +89,9 @@
       {{ rettype }} ret = get_ic_orig_{{ func }}()(number, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
       if (!skip_interception) {
         saved_errno = errno;
-        if (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_{{ func }}[number]) {
+        if (number < 0 || number >= IC_CALLED_SYSCALL_SIZE || !ic_called_syscall[number]) {
           if (number >= 0 && number < IC_CALLED_SYSCALL_SIZE) {
-            ic_called_{{ func }}[number] = true;
+            ic_called_syscall[number] = true;
           }
           FBBCOMM_Builder_gen_call ic_msg;
           fbbcomm_builder_gen_call_init(&ic_msg);
