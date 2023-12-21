@@ -32,9 +32,11 @@ platform=$(uname)
 case "$platform" in
     "Linux")
         libfirebuild="$binary_dir/src/interceptor/libfirebuild.so"
+        nm_params=""
         ;;
     "Darwin")
         libfirebuild="$binary_dir/src/interceptor/libfirebuild.dylib"
+        nm_params="-arch all"
         ;;
 esac
 
@@ -45,6 +47,10 @@ known_missing_Darwin_64bit="_fstat64
 _fstatat64
 _lstat64
 _stat64"
+
+known_missing_Darwin_underscore="___fork
+___sigaction
+___wait4"
 
 function check_function_class () {
     local fix=$1
@@ -95,7 +101,8 @@ function check_function_class () {
 # Extract and sort the public symbols of our library,
 # filtering out the ones added by gcov (__gcov* and mangle_path)
 # and ones appearing with old toolchains(__bss_start, _edata, etc.)
-nm --extern-only "$libfirebuild" | \
+nm --extern-only $nm_params "$libfirebuild" | \
+  grep -v 'architecture ...' | \
   sed 's/_interposing//' | \
   grep -v ' [Uvw] ' | \
   cut -d' ' -f3- | \
