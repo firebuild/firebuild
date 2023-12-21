@@ -309,6 +309,7 @@ def generate(rettype, funcs, sig, **dict):
         exit(1)
 
   for func in funcs:
+    fun_dict = dict.copy()
     if func in generated and func not in ["gettimeofday", "__gettimeofday", "vfork", "SYS_vfork", "__vfork"]:
       print("generate_interceptors: Error: Already generated '" + func + "'", file=sys.stderr)
       exit(1)
@@ -323,16 +324,16 @@ def generate(rettype, funcs, sig, **dict):
       outputs = libc_outputs
       call_ic_orig_func = "get_ic_orig_" + func + "()"
       if func.endswith("_time64") or func in time64_functions:
-        if 'ifdef_guard' not in dict or dict['ifdef_guard'] is None:
-          dict['ifdef_guard'] = glibc_ge(2, 34) + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
+        if 'ifdef_guard' not in fun_dict or fun_dict['ifdef_guard'] is None:
+          fun_dict['ifdef_guard'] = glibc_ge(2, 34) + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
         else:
-          dict['ifdef_guard'] = dict['ifdef_guard'] + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
+          fun_dict['ifdef_guard'] = fun_dict['ifdef_guard'] + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
       if target == 'darwin' and (func.endswith("_unlocked") or func.endswith("_chk") \
                                  or func.endswith("64") or func.endswith("64v2")):
         continue
     for gen in outputs:
       rendered = template.render(gen=gen, rettype=rettype, func=func, syscall=syscall,
-                                 call_ic_orig_func=call_ic_orig_func, **dict)
+                                 call_ic_orig_func=call_ic_orig_func, **fun_dict)
       if rendered:
         with open(outdir + "/gen_" + gen + tmpsuffix, "a") as f:
           f.write(rendered)
