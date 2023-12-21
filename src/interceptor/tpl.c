@@ -208,9 +208,11 @@ _{{ func }}
 case {{ func }}: {
 #define IC_SYSCALL_{{ func }}_IS_INTERCEPTED
 /* The 64 bit variant has to be defined earlier. */
+###       if not func.endswith("64")
 #if defined {{ func }}64 && !defined IC_SYSCALL_{{ func }}64_IS_INTERCEPTED
 #error "Missing {{ func }}64 interception"
 #endif
+###       endif
   va_list ap_args;
   va_start(ap_args, number);
 ###       for arg in args
