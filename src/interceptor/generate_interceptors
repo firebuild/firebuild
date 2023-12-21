@@ -377,14 +377,10 @@ for gen in set(libc_outputs + syscall_outputs):
 
 
 # Intercept vararg open() and friends
-generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel"], "const char *pathname, int flags, ...",
+generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel"] + (["__open64_nocancel"] if target == "linux" else []), "const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"])
-generate("int", ["__open64_nocancel"], "const char *pathname, int flags, ...",
-         platforms=["linux"],
-         tpl="open",
-         msg_skip_fields=["pathname"])
-generate("int", ["openat", "openat64", "SYS_openat"] + (["__openat"] if target is "darwin" else []), "int dirfd, const char *pathname, int flags, ...",
+generate("int", ["openat", "openat64", "SYS_openat"] + (["__openat"] if target == "darwin" else []), "int dirfd, const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"],
          msg="open")
@@ -455,7 +451,7 @@ generate("FILE *", "fdopen", "int fd, const char *mode",
          msg=None,
          after_lines=["assert(!voidp_set_contains(&popened_streams, ret));"])
 
-generate("int", ["shm_open"] + (["__shm_open"] if target is "darwin" else []), "const char *name, int oflag, " + ("mode_t mode" if target == 'linux' else "..."),
+generate("int", ["shm_open"] + (["__shm_open"] if target == "darwin" else []), "const char *name, int oflag, " + ("mode_t mode" if target == 'linux' else "..."),
          send_ret_on_success=True,
          tpl="shm_open")
 generate("int", "shm_unlink", "const char *name",
@@ -525,14 +521,7 @@ generate("int", "SYS_signalfd4", "int fd, const sigset_t *mask, size_t sizemask,
 
 # Intercept close and fclose
 # Don't call the actual method on the supervisor connection fd.
-generate("int", ["close", "SYS_close", "__close_nocancel"], "int fd",
-         before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
-generate("int", ["__close"], "int fd",
-         platforms=['linux'],
-         before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
-generate("int", ["close$NOCANCEL"], "int fd",
-         platforms=['darwin'],
-         msg="close",
+generate("int", ["close", "SYS_close", "__close_nocancel"] + (["close$NOCANCEL"] if target == "darwin" else ["__close"]), "int fd",
          before_lines=["if (i_am_intercepting) set_notify_on_read_write_state(fd);"])
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
@@ -640,11 +629,7 @@ for func_guard in [("SYS_renameat2", None), ("renameat2", glibc_ge(2, 28))]:
 
 # Intercept operations that read from a file descriptor.
 # FIXME also intercept mmap with PROT_READ
-generate("ssize_t", ["read", "SYS_read", "__read_nocancel"], "int fd, void *buf, size_t count",
-         tpl="read",
-         msg_skip_fields=["buf", "count"])
-generate("ssize_t", ["__read"], "int fd, void *buf, size_t count",
-         platforms=["linux"],
+generate("ssize_t", ["read", "SYS_read", "__read_nocancel"] + (["__read"] if target == "linux" else []), "int fd, void *buf, size_t count",
          tpl="read",
          msg_skip_fields=["buf", "count"])
 generate("ssize_t", "__read_chk", "int fd, void *buf, size_t count, size_t fortify_size",
@@ -795,15 +780,7 @@ generate("FB_SSIZE_T", "getline", "char **lineptr, size_t *n, FILE *stream",
          send_msg_condition="fd != -1",
          msg_skip_fields=["lineptr", "n", "stream"],
          msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
-generate("FB_SSIZE_T", ["getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
-         tpl="read",
-         success="ret != EOF || !ferror(stream)",
-         before_lines=["int fd = safe_fileno(stream);"],
-         send_msg_condition="fd != -1",
-         msg_skip_fields=["lineptr", "n", "delim", "stream"],
-         msg_add_fields=["fbbcomm_builder_read_from_inherited_set_fd(&ic_msg, fd);"])
-generate("FB_SSIZE_T", ["__getdelim"], "char **lineptr, size_t *n, int delim, FILE *stream",
-         platforms=["linux"],
+generate("FB_SSIZE_T", ["getdelim"]+ (["__getdelim"] if target == "linux" else []), "char **lineptr, size_t *n, int delim, FILE *stream",
          tpl="read",
          success="ret != EOF || !ferror(stream)",
          before_lines=["int fd = safe_fileno(stream);"],
@@ -2385,19 +2362,12 @@ generate("int", ["setdomainname", "SYS_setdomainname"], "const char *name, " + (
 generate("int" if target == 'linux' else "void", "sethostid", "long hostid",
          tpl="once")
 
-generate("int", ["socket", "SYS_socket"], "int domain, int type, int protocol",
-         after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
-         send_ret_on_success=True)
-generate("int", ["__socket"], "int domain, int type, int protocol",
-         platforms=["linux"],
+generate("int", ["socket", "SYS_socket"]+ (["__socket"] if target == "linux" else []), "int domain, int type, int protocol",
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          send_ret_on_success=True)
 generate("int", ["connect", "SYS_connect", "__connect"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          tpl="once")
-generate("int", ["bind", "SYS_bind"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
-         tpl="once")
-generate("int", ["__bind"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
-         platforms=["darwin"],
+generate("int", ["bind", "SYS_bind"] + (["__bind"] if target == "darwin" else []), "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          tpl="once")
 generate("int", ["listen", "SYS_listen"] + (["__listen"] if target == "darwin" else []), "int sockfd, int backlog",
          tpl="once")
