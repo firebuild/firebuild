@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cinttypes>
 #include <utility>
 
@@ -227,9 +228,9 @@ int Process::handle_open(const int dirfd, const char * const ar_name, const size
       /* open(..., O_TMPFILE) does not really open a file, but creates an unnamed temporary file in
        * the specified directory. Treat it like it was a memory backed file and later register the
        * directory's usage. */
-      add_filefd(fd, std::make_shared<FileFD>(fd, flags, FD_SPECIAL, this));
+      add_filefd(fd, std::make_shared<FileFD>(flags, FD_SPECIAL, this));
     } else {
-      add_filefd(fd, std::make_shared<FileFD>(name, fd, flags, this));
+      add_filefd(fd, std::make_shared<FileFD>(name, flags, this));
     }
   }
 
@@ -320,14 +321,14 @@ int Process::handle_force_close(const int fd) {
   return 0;
 }
 
-void Process::handle_close(FileFD * file_fd) {
+void Process::handle_close(FileFD * file_fd, const int fd) {
   auto pipe = file_fd->pipe().get();
   if (pipe) {
     /* There may be data pending, drain it and register closure. */
     pipe->handle_close(file_fd);
     file_fd->set_pipe(nullptr);
   }
-  (*fds_)[file_fd->fd()].reset();
+  (*fds_)[fd].reset();
 }
 
 int Process::handle_close(const int fd, const int error) {
@@ -359,7 +360,7 @@ int Process::handle_close(const int fd, const int error) {
         return -1;
       }
     } else {
-      handle_close(file_fd);
+      handle_close(file_fd, fd);
       return 0;
     }
   }
@@ -379,18 +380,18 @@ int Process::handle_close_range(const unsigned int first, const unsigned int las
   (void)flags;  /* might be unused */
 
   if (!error) {
-    for (auto& file_fd : *fds_) {
+    unsigned int fds_size = fds_->size();
+    const int range_max = std::min(last, fds_size - 1);
+    for (int fd = first; fd <= range_max; fd++) {
+      FileFD* file_fd = (*fds_)[fd].get();
       if (!file_fd) {
         continue;
       }
-      unsigned int fd = static_cast<unsigned int>(file_fd->fd());
-      if (fd >= first && fd <= last) {
-        if (flags & CLOSE_RANGE_CLOEXEC) {
-          /* Don't close, just set the cloexec bit. */
-          file_fd->set_cloexec(true);
-        } else {
-          handle_close(file_fd.get());
-        }
+      if (flags & CLOSE_RANGE_CLOEXEC) {
+        /* Don't close, just set the cloexec bit. */
+        file_fd->set_cloexec(true);
+      } else {
+        handle_close(fd);
       }
     }
   }
@@ -786,7 +787,7 @@ int Process::handle_shm_open(const char * const name, const int oflag,
       /* Register opened fd and don't disable shortcutting. */
       // TODO(rbalint) check contents of the shared memory and possibly
       // include parts in the fingerprint
-      add_filefd(fd, std::make_shared<FileFD>(fd, oflag | O_CLOEXEC, FD_SPECIAL, this));
+      add_filefd(fd, std::make_shared<FileFD>(oflag | O_CLOEXEC, FD_SPECIAL, this));
       return 0;
     }
 #endif
@@ -798,14 +799,14 @@ int Process::handle_shm_open(const char * const name, const int oflag,
 #ifdef __linux__
 int Process::handle_memfd_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & MFD_CLOEXEC) ? O_CLOEXEC : 0,
+  add_filefd(fd, std::make_shared<FileFD>((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0,
                                           FD_SPECIAL, this));
   return 0;
 }
 
 int Process::handle_timerfd_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & TFD_CLOEXEC) ? O_CLOEXEC : 0,
+  add_filefd(fd, std::make_shared<FileFD>((flags & TFD_CLOEXEC) ? O_CLOEXEC : 0,
                                           FD_SPECIAL, this));
   return 0;
 }
@@ -813,7 +814,7 @@ int Process::handle_timerfd_create(const int flags, const int fd) {
 #ifdef __linux__
 int Process::handle_epoll_create(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EPOLL_CLOEXEC) ? O_CLOEXEC : 0,
+  add_filefd(fd, std::make_shared<FileFD>((flags & EPOLL_CLOEXEC) ? O_CLOEXEC : 0,
                                           FD_SPECIAL, this));
   return 0;
 }
@@ -821,7 +822,7 @@ int Process::handle_epoll_create(const int flags, const int fd) {
 
 int Process::handle_eventfd(const int flags, const int fd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "flags=%d, fd=%d", flags, fd);
-  add_filefd(fd, std::make_shared<FileFD>(fd, (flags & EFD_CLOEXEC) ? O_CLOEXEC : 0,
+  add_filefd(fd, std::make_shared<FileFD>((flags & EFD_CLOEXEC) ? O_CLOEXEC : 0,
                                           FD_SPECIAL, this));
   return 0;
 }
@@ -829,7 +830,7 @@ int Process::handle_eventfd(const int flags, const int fd) {
 int Process::handle_signalfd(const int oldfd, const int flags, const int newfd) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "oldfd=%d, flags=%d newfd=%d", oldfd, flags, newfd);
   if (oldfd == -1) {
-    add_filefd(newfd, std::make_shared<FileFD>(newfd, (flags & SFD_CLOEXEC) ? O_CLOEXEC : 0,
+    add_filefd(newfd, std::make_shared<FileFD>((flags & SFD_CLOEXEC) ? O_CLOEXEC : 0,
                                                FD_SPECIAL, this));
   } else {
     /* Reusing old fd, nothing to do.*/
@@ -967,9 +968,9 @@ void Process::handle_pipe_fds(const int fd0, const int fd1) {
     auto pipe = (new Pipe(pending_pipe->fd0, this))->shared_ptr();
 #endif
     add_filefd(fd0, std::make_shared<FileFD>(
-        fd0, (pending_pipe->flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this, false));
+        (pending_pipe->flags & ~O_ACCMODE) | O_RDONLY, pipe->fd0_shared_ptr(), this, false));
 
-    auto ffd1 = std::make_shared<FileFD>(fd1, (pending_pipe->flags & ~O_ACCMODE) | O_WRONLY,
+    auto ffd1 = std::make_shared<FileFD>((pending_pipe->flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
                                          this, false);
     add_filefd(fd1, ffd1);
@@ -1010,7 +1011,7 @@ void Process::handle_socket(const int domain, const int type, const int protocol
         | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0)
 #endif
       | 0;
-    add_filefd(ret, std::make_shared<FileFD>(ret, flags, FD_SPECIAL, this));
+    add_filefd(ret, std::make_shared<FileFD>(flags, FD_SPECIAL, this));
 #if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
     switch (type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK)) {
 #elif defined(SOCK_CLOEXEC)
@@ -1077,7 +1078,7 @@ void Process::handle_socketpair(const int domain, const int type, const int prot
           | ((type & SOCK_NONBLOCK) ? O_NONBLOCK : 0)
 #endif
         | 0;
-      add_filefd(fd, std::make_shared<FileFD>(fd, flags, FD_SPECIAL, this));
+      add_filefd(fd, std::make_shared<FileFD>(flags, FD_SPECIAL, this));
     }
   } else {
     /* This is ulikely to happen and may not be deterministic .*/
@@ -1120,7 +1121,7 @@ int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
 
   handle_force_close(newfd);
 
-  add_filefd(newfd, std::make_shared<FileFD>(newfd, (*fds_)[oldfd], flags & O_CLOEXEC));
+  add_filefd(newfd, std::make_shared<FileFD>((*fds_)[oldfd], flags & O_CLOEXEC));
   return 0;
 }
 
@@ -1343,7 +1344,7 @@ void Process::handle_read_from_inherited(const int fd, const bool is_pread) {
         " missed at least one open()", fd);
     return;
   } else if (file_fd->type() == FD_PIPE_IN
-             && file_fd->pipe() && file_fd->fd() == exec_point()->jobserver_fd_r()) {
+             && file_fd->pipe() && fd == exec_point()->jobserver_fd_r()) {
     // TODO(rbalint) add further check that the process chain did not reopen the fd breaking the
     // connection to the jobserver
     /* It is OK to read from the jobserver. It should not affect the build results. */
@@ -1377,7 +1378,7 @@ void Process::handle_write_to_inherited(const int fd, const bool is_pwrite) {
         " missed at least one open()", fd);
     return;
   } else if (file_fd->type() == FD_PIPE_OUT
-             && file_fd->pipe() && file_fd->fd() == exec_point()->jobserver_fd_w()) {
+             && file_fd->pipe() && fd == exec_point()->jobserver_fd_w()) {
     // TODO(rbalint) add further check that the process chain did not reopen the fd breaking the
     // connection to the jobserver
     /* It is OK to write to the jobserver, but jobserver communication should not be cached. */
@@ -1469,7 +1470,7 @@ void Process::handle_recvmsg_scm_rights(const bool cloexec, const std::vector<in
         "Process successfully received fd via SCM_RIGHTS which is known to be open, which means"
         " interception missed at least one close()", fd);
     } else {
-      add_filefd(fd, std::make_shared<FileFD>(fd, cloexec ? O_CLOEXEC : 0, FD_SCM_RIGHTS, this));
+      add_filefd(fd, std::make_shared<FileFD>(cloexec ? O_CLOEXEC : 0, FD_SCM_RIGHTS, this));
     }
   }
 

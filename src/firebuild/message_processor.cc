@@ -174,12 +174,12 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
            * point to a new FileOFD. */
           auto fds = proc->fds();
           int fd = inherited_file.fds[0];
-          auto file_fd = std::make_shared<FileFD>(fd, file_fd_old->flags(), pipe,
+          auto file_fd = std::make_shared<FileFD>(file_fd_old->flags(), pipe,
                                                   file_fd_old->opened_by());
           (*fds)[fd] = file_fd;
           for (size_t i = 1; i < inherited_file.fds.size(); i++) {
             fd = inherited_file.fds[i];
-            auto file_fd_dup = std::make_shared<FileFD>(fd, file_fd, false);
+            auto file_fd_dup = std::make_shared<FileFD>(file_fd, false);
             (*fds)[fd] = file_fd_dup;
           }
 
@@ -301,8 +301,7 @@ static void accept_popen_child(Process* unix_parent, const pending_popen_t *pend
 #endif
 
     /* The reading side of this pipe is in the popening (parent) process. */
-    auto ffd0 = std::make_shared<FileFD>(pending_popen->fd /* client fd */,
-                                         (flags & ~O_ACCMODE) | O_RDONLY,
+    auto ffd0 = std::make_shared<FileFD>((flags & ~O_ACCMODE) | O_RDONLY,
                                          pipe->fd0_shared_ptr(),
                                          unix_parent /* creator */,
                                          true /* close_on_popen */);
@@ -310,8 +309,7 @@ static void accept_popen_child(Process* unix_parent, const pending_popen_t *pend
 
     /* The writing side of this pipe is in the forked and the execed processes.
      * We're lazy and we don't register it for the forked process, no one cares. */
-    auto ffd1 = std::make_shared<FileFD>(STDOUT_FILENO /* client fd */,
-                                         (flags & ~O_ACCMODE) | O_WRONLY,
+    auto ffd1 = std::make_shared<FileFD>((flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
                                          unix_parent /* creator */,
                                          false /* close_on_popen */);
@@ -354,16 +352,14 @@ static void accept_popen_child(Process* unix_parent, const pending_popen_t *pend
 
     /* The reading side of this pipe is in the forked and the execed processes.
      * We're lazy and we don't register it for the forked process, no one cares. */
-    auto ffd0 = std::make_shared<FileFD>(STDIN_FILENO /* client fd */,
-                                         (flags & ~O_ACCMODE) | O_RDONLY,
+    auto ffd0 = std::make_shared<FileFD>((flags & ~O_ACCMODE) | O_RDONLY,
                                          pipe->fd0_shared_ptr(),
                                          unix_parent /* creator */,
                                          false /* close_on_popen */);
     proc->add_filefd(STDIN_FILENO /* client fd */, ffd0);
 
     /* The (so far only) writing side of this pipe is in the popening (parent) process. */
-    auto ffd1 = std::make_shared<FileFD>(pending_popen->fd /* client fd */,
-                                         (flags & ~O_ACCMODE) | O_WRONLY,
+    auto ffd1 = std::make_shared<FileFD>((flags & ~O_ACCMODE) | O_WRONLY,
                                          pipe->fd1_shared_ptr(),
                                          unix_parent /* creator */,
                                          true /* close_on_popen */);
@@ -511,9 +507,11 @@ static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t
          *  POSIX states popen shall ensure that any streams from previous popen()
          *  calls that remain open in the parent process should be closed in the new
          *  child process. [...] */
-        for (auto& file_fd : *parent->fds()) {
+        int fds_size = parent->fds()->size();
+        for (int fd = 0; fd < fds_size; fd++) {
+          const FileFD* file_fd = parent->get_fd(fd);
           if (file_fd && file_fd->close_on_popen()) {
-            parent->handle_close(file_fd->fd());
+            parent->handle_close(fd);
           }
         }
       }

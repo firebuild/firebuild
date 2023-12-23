@@ -191,7 +191,7 @@ class Process {
     for (int i = fds_->size() - 1; i >= 0; i--) {
       FileFD* file_fd = get_fd(i);
       if (file_fd) {
-        handle_close(file_fd);
+        handle_close(file_fd, i);
       }
     }
   }
@@ -300,8 +300,9 @@ class Process {
   /**
    * Handle file closure in the monitored process
    * @param file_fd FileFD* to close
+   * @param fd file descriptor to close
    */
-  void handle_close(FileFD * file_fd);
+  void handle_close(FileFD * file_fd, const int fd);
 
   /**
    * Handle file closure in the monitored process when we don't know

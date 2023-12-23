@@ -70,7 +70,7 @@ std::string d(const FileOFD *fofd, const int level) {
   }
 }
 std::string d(const FileFD& ffd, const int level) {
-  std::string ret = "{FileFD fd=" + d(ffd.fd()) + " " + d(ffd.ofd(), level);
+  std::string ret = "{FileFD ofd=" + d(ffd.ofd(), level);
   if (ffd.pipe()) {
     ret += " " + d(ffd.pipe().get(), level + 1);
     ret += " close_on_popen=" + d(ffd.close_on_popen());
