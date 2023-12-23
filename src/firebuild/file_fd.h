@@ -21,7 +21,6 @@
 
 #include <fcntl.h>
 
-#include <cassert>
 #include <memory>
 #include <string>
 
@@ -109,42 +108,35 @@ class FileOFD {
 class FileFD {
  public:
   /** Constructor for fds of a certain type. */
-  FileFD(int fd, int flags, fd_type type, Process *opened_by)
-      : fd_(fd), ofd_(std::make_shared<FileOFD>(type, nullptr, flags, opened_by)),
+  FileFD(int flags, fd_type type, Process *opened_by)
+      : ofd_(std::make_shared<FileOFD>(type, nullptr, flags, opened_by)),
         pipe_(), cloexec_(flags & O_CLOEXEC) {
-    assert(fd >= 0);
   }
   /** Constructor for fds backed by a pipe including ones created by popen(). */
-  FileFD(int fd, int flags, std::shared_ptr<Pipe> pipe, Process *opened_by,
+  FileFD(int flags, std::shared_ptr<Pipe> pipe, Process *opened_by,
          bool close_on_popen = false)
-      : fd_(fd),
-        ofd_(std::make_shared<FileOFD>(is_write(flags) ? FD_PIPE_OUT : FD_PIPE_IN,
+      : ofd_(std::make_shared<FileOFD>(is_write(flags) ? FD_PIPE_OUT : FD_PIPE_IN,
                                        nullptr, flags, opened_by)),
         pipe_(pipe), cloexec_(flags & O_CLOEXEC), close_on_popen_(close_on_popen) {
-    assert(fd >= 0);
   }
   /** Constructor for fds created from other fds through dup() or exec() */
-  FileFD(int fd, std::shared_ptr<FileFD> ffd_src, bool cloexec)
-      : fd_(fd), ofd_(ffd_src->ofd_), pipe_(ffd_src->pipe_), cloexec_(cloexec) {
-    assert(fd >= 0);
+  FileFD(std::shared_ptr<FileFD> ffd_src, bool cloexec)
+      : ofd_(ffd_src->ofd_), pipe_(ffd_src->pipe_), cloexec_(cloexec) {
     if (pipe_) {
       pipe_->handle_dup(ffd_src.get(), this);
     }
   }
   /** Constructor for fds obtained through opening files. */
-  FileFD(const FileName* filename, int fd, int flags, Process *opened_by)
-      : fd_(fd),
-        ofd_(std::make_shared<FileOFD>(filename->is_in_ignore_location() ? FD_IGNORED : FD_FILE,
+  FileFD(const FileName* filename, int flags, Process *opened_by)
+      : ofd_(std::make_shared<FileOFD>(filename->is_in_ignore_location() ? FD_IGNORED : FD_FILE,
                                        filename, flags, opened_by)),
         pipe_(), cloexec_(flags & O_CLOEXEC) {
-    assert(fd >= 0);
   }
   FileFD(const FileFD& other)
-      : fd_(other.fd_), ofd_(other.ofd_), pipe_(other.pipe_), cloexec_(other.cloexec_),
+      : ofd_(other.ofd_), pipe_(other.pipe_), cloexec_(other.cloexec_),
         close_on_popen_(other.close_on_popen_) {
   }
   FileFD& operator= (const FileFD& other) {
-    fd_ = other.fd_;
     ofd_ = other.ofd_;
     pipe_ = other.pipe_;
     cloexec_ = other.cloexec_;
@@ -153,7 +145,6 @@ class FileFD {
   }
 
   /* Getters/setters, some are just convenience proxies to ofd_'s corresponding method. */
-  int fd() const {return fd_;}
   std::shared_ptr<FileOFD> ofd() const {return ofd_;}
   fd_type type() const {return ofd_->type();}
   const FileName* filename() const {return ofd_->filename();}
@@ -182,7 +173,6 @@ class FileFD {
   }
 
  private:
-  int fd_;
   std::shared_ptr<FileOFD> ofd_;
   /** If it's a pipe, i.e. type is FD_PIPE_[IN|OUT]. Except for the toplevel stdin where type is
    ** FD_PIPE_IN but pipe_ is NULL. */

@@ -1493,16 +1493,17 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   /* See what the process originally wrote to its inherited files (pipes or regular files).
    * Replay these. */
   for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
-    auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
+    auto serialized_append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
-    FileFD *ffd = proc->get_fd(append_to_fd->get_fd());
+    const int append_to_fd = serialized_append_to_fd->get_fd();
+    FileFD *ffd = proc->get_fd(append_to_fd);
     assert(ffd);
 
     if (ffd->type() == FD_PIPE_OUT) {
       Pipe *pipe = ffd->pipe().get();
       assert(pipe);
 
-      Hash hash(append_to_fd->get_hash());
+      Hash hash(serialized_append_to_fd->get_hash());
       int fd = blob_fds[next_blob_fd_idx++];
       struct stat64 st;
       if (fstat64(fd, &st) < 0) {
@@ -1523,18 +1524,18 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│   Fetching file fragment from blobs cache: "
                + d(ffd->filename()));
-      Hash hash(append_to_fd->get_hash());
+      Hash hash(serialized_append_to_fd->get_hash());
       blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], ffd->filename(), true);
 
       /* Tell the interceptor to seek forward in this fd. */
-      fds_appended_to->push_back(ffd->fd());
+      fds_appended_to->push_back(append_to_fd);
     } else {
       assert(0 && "wrong file_fd type");
     }
 
     /* Bubble up the event that we wrote to this inherited fd. Currently this doesn't do anything,
      * but it might change in the future. */
-    proc->handle_write_to_inherited(ffd->fd(), false);
+    proc->handle_write_to_inherited(append_to_fd, false);
   }
 
   /* Set the exit code, propagate upwards. */

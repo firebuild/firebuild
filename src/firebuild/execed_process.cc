@@ -142,14 +142,16 @@ void ExecedProcess::initialize() {
    * The outer list (according to the lowest fd) and the inner lists are all sorted. */
   std::vector<inherited_file_t> inherited_files;
   /* This iterates over the fds in increasing order. */
-  for (auto file_fd : *fds()) {
+  int fds_size = fds()->size();
+  for (int fd = 0; fd < fds_size; fd++) {
+    const FileFD* file_fd = get_fd(fd);
     if (!file_fd) {
       continue;
     }
     bool found = false;
     for (inherited_file_t& inherited_file : inherited_files) {
       if (get_fd(inherited_file.fds[0])->fdcmp(*file_fd) == 0) {
-        inherited_file.fds.push_back(file_fd->fd());
+        inherited_file.fds.push_back(fd);
         found = true;
         break;
       }
@@ -158,7 +160,7 @@ void ExecedProcess::initialize() {
       inherited_file_t inherited_file;
       inherited_file.type = file_fd->type();
       assert(inherited_file.type != FD_UNINITIALIZED);
-      inherited_file.fds.push_back(file_fd->fd());
+      inherited_file.fds.push_back(fd);
       inherited_file.filename = file_fd->filename();
       inherited_file.flags = file_fd->flags();
       inherited_files.push_back(inherited_file);
