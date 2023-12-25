@@ -161,7 +161,8 @@ static inline std::string d(const std::vector<T>& arr, const int level = 0) {
   bool first_val = true;
   unsigned int repeats = 1;
   const T* prev_val;
-  for (const T& val : arr) {
+  for (size_t i = 0; i < arr.size(); i++) {
+    const T& val = arr[i];
     if (!first_val) {
       if (*prev_val == val) {
         repeats += 1;
@@ -175,7 +176,7 @@ static inline std::string d(const std::vector<T>& arr, const int level = 0) {
         }
       }
     }
-    res += d(val, level);
+    res += std::to_string(i) + ": " + d(val, level);
     prev_val = &val;
     first_val = false;
   }
