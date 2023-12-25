@@ -147,12 +147,12 @@ void fb_fbbcomm_check_ack(int fd, uint16_t ack_num);
  *  The caller has to take care of thread locking. */
 void fb_fbbcomm_send_msg_and_check_ack(const void /*FBBCOMM_Builder*/ *ic_msg, int fd);
 
+void send_pre_open(int dirfd, const char* pathname);
+void send_pre_open_without_ack_request(int dirfd, const char* pathname);
 /**
  * Send pre_open message to supervisor if it is needed.
  * @return if message has been sent
  */
-void send_pre_open(int dirfd, const char* pathname);
-void send_pre_open_without_ack_request(int dirfd, const char* pathname);
 bool maybe_send_pre_open(int dirfd, const char* pathname, int flags);
 
 /** Send message and disable interception before clone() */
