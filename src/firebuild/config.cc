@@ -38,7 +38,7 @@
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
 
-#define GLOBAL_CONFIG "/etc/firebuild.conf"
+#define GLOBAL_CONFIG SYSCONFDIR"/firebuild.conf"
 #define USER_CONFIG ".firebuild.conf"
 #define XDG_CONFIG "firebuild/firebuild.conf"
 
@@ -67,7 +67,7 @@ int quirks = 0;
  *
  * If custom_cfg_file is non-NULL, use that.
  * Otherwise try ./firebuild.conf, ~/.firebuild.conf, $XDG_CONFIG_HOME/firebuild/firebuild.conf,
- * /etc/firebuild.conf in that order.
+ * SYSCONFDIR/firebuild.conf in that order.
  */
 static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) {
   std::vector<std::string> cfg_files;
