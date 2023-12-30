@@ -240,7 +240,9 @@ case {{ func }}: {
 ###       if target == "darwin"
   /* On Darwin the libc calls out to intercepted functions, thus intercept only
    * the first libc entry point. */
-  bool i_am_intercepting = intercepting_enabled && !FB_THREAD_LOCAL(intercept_on);
+  bool i_am_intercepting = intercepting_enabled
+                           && (!FB_THREAD_LOCAL(intercept_on)
+                               || FB_THREAD_LOCAL(interception_recursion_depth) > 0);
 ###       else
   bool i_am_intercepting = intercepting_enabled;
 ###       endif

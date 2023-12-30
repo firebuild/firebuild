@@ -331,9 +331,8 @@ jobs:
         make -j2
     - name: test
       run: |
-        # this fails yet
         export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
-        make check || true
+        make check
 
   style-checks:
     runs-on: ubuntu-22.04
