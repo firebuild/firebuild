@@ -325,7 +325,7 @@ jobs:
         (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && sudo make install)
     - name: build-in-tree
       run: |
-        export PATH=/usr/local/opt/ccache/libexec:$(ls -d /usr/local/Cellar/jinja2-cli/0.8.2/libexec/bin):$PATH
+        export PATH=/usr/local/opt/ccache/libexec:$(ls -d /usr/local/Cellar/jinja2-cli/*/libexec/bin):$PATH
         cmake -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -DCMAKE_BUILD_TYPE=Debug .
         export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         make -j2
