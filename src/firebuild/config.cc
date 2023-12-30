@@ -90,6 +90,7 @@ static void parse_cfg_file(libconfig::Config *cfg, const char *custom_cfg_file) 
   for (size_t i = 0; i < cfg_files.size(); i++) {
     try {
       cfg->readFile(cfg_files[i].c_str());
+      break;
     }
     catch (const libconfig::FileIOException &fioex) {
       if (i == cfg_files.size() - 1) {
