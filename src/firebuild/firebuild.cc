@@ -77,7 +77,7 @@ static void usage() {
          "   -c --config-file=FILE     Use FILE as configuration file.\n"
          "                             If not specified, load .firebuild.conf, ~/.firebuild.conf,\n"
          "                             $XDG_CONFIG_HOME/firebuild/firebuild.conf or\n"
-         "                             /etc/firebuild.conf in that order.\n"
+         "                             " SYSCONFDIR "/firebuild.conf in that order.\n"
          "   -C --directory=DIR        change directory before running the command\n"
          "   -d --debug-flags=list     comma separated list of debug flags,\n"
          "                             \"-d help\" to get a list.\n"
