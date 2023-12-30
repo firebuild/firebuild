@@ -341,13 +341,11 @@ typedef struct {
    *  from the wrapped signal handler. It's a counter, similar to a recursive lock. */
   sig_atomic_t signal_danger_zone_depth;
 
-  /** Counting the depth of nested signal handlers running in the current thread. */
-  sig_atomic_t signal_handler_running_depth;
-
-  /** Counting the nested depth of libc calls that might call other libc methods externally.
+  /** Counting the nested depth of signal handlers and libc calls that might call other libc methods
+   *  externally.
    *  Currently fork() (atfork handlers) and dlopen() (constructor method) increment this level.
    *  exit(), err(), error() etc. might also be ported to this infrastructure one day. */
-  sig_atomic_t libc_nesting_depth;
+  sig_atomic_t interception_recursion_depth;
 
   /** Bitmap of signals that we're delaying. Multiplicity is irrelevant. Since signals are counted
    *  from 1 to 64 (on Linux x86), it's bit number (signum-1) that corresponds to signal signum. */

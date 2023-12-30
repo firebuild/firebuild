@@ -96,9 +96,9 @@ static char **ic_argv;
 
 int ic_pid;
 
-__thread thread_data fb_thread_data = {NULL, 0, 0, 0, 0, false};
+__thread thread_data fb_thread_data = {NULL, 0, 0, 0, false};
 #if !defined(FB_ALWAYS_USE_THREAD_LOCAL)
-thread_data fb_global_thread_data = {NULL, 0, 0, 0, 0, false};
+thread_data fb_global_thread_data = {NULL, 0, 0, 0, false};
 bool thread_locals_usable = false;
 /* Optimization is disabled because when the function is optimized it tries to resolve
  * the address of fb_thread_data, which causes _tlv_bootstrap aborting until
@@ -137,7 +137,7 @@ void wrapper_signal_handler_1arg(int signum) {
     return;
   }
 
-  FB_THREAD_LOCAL(signal_handler_running_depth)++;
+  FB_THREAD_LOCAL(interception_recursion_depth)++;
 
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-begin %d\n", signum);
   insert_debug_msg(debug_msg);
@@ -147,7 +147,7 @@ void wrapper_signal_handler_1arg(int signum) {
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-1arg-end %d\n", signum);
   insert_debug_msg(debug_msg);
 
-  FB_THREAD_LOCAL(signal_handler_running_depth)--;
+  FB_THREAD_LOCAL(interception_recursion_depth)--;
 }
 
 void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
@@ -161,7 +161,7 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
     return;
   }
 
-  FB_THREAD_LOCAL(signal_handler_running_depth)++;
+  FB_THREAD_LOCAL(interception_recursion_depth)++;
 
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-begin %d\n", signum);
   insert_debug_msg(debug_msg);
@@ -174,7 +174,7 @@ void wrapper_signal_handler_3arg(int signum, siginfo_t *info, void *ucontext) {
   snprintf(debug_msg, sizeof(debug_msg), "signal-handler-3arg-end %d\n", signum);
   insert_debug_msg(debug_msg);
 
-  FB_THREAD_LOCAL(signal_handler_running_depth)--;
+  FB_THREAD_LOCAL(interception_recursion_depth)--;
 }
 
 void thread_raise_delayed_signals() {
@@ -228,8 +228,7 @@ void grab_global_lock(bool *i_locked, const char * const function_name) {
     insert_debug_msg(debug_buf);
     assert(0 && "Internal error: has_global_lock and intercept_on must go hand in hand");
   }
-  if (FB_THREAD_LOCAL(signal_handler_running_depth) == 0
-      && FB_THREAD_LOCAL(libc_nesting_depth) == 0
+  if (FB_THREAD_LOCAL(interception_recursion_depth) == 0
       && FB_THREAD_LOCAL(intercept_on) != NULL) {
     char debug_buf[256];
     snprintf(debug_buf, sizeof(debug_buf),
