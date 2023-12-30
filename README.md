@@ -98,6 +98,8 @@ If you would like to use `firebuild` in your GitHub pipeline there is a [GitHub 
 
 ## Building from source
 
+### On Linux
+
 For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0 or Valgrind earlier than 3.17.0):
 
     sudo apt-add-repository ppa:firebuild/build-deps
@@ -110,3 +112,17 @@ Install the build dependencies:
 Build:
 
     cmake . && make
+
+### On Mac
+
+Install the build dependencies:
+
+    brew install bats-core coreutils docbook-xsl jemalloc jinja2-cli libconfig xxhash
+    (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && sudo make install)
+
+Build:
+
+    export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
+    export PATH=$(ls -d /opt/homebrew/Cellar/jinja2-cli/*/libexec/bin):$PATH
+    cmake -DCMAKE_CXX_FLAGS="-I/opt/homebrew/include -I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/lib" .
+    make
