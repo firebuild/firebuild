@@ -901,5 +901,13 @@
       (OPTIONAL, STRING, "pathname"),
       (OPTIONAL, "int", "error_no"),
     ]),
+
+    ("mac_syscall", [
+      (REQUIRED, STRING, "policy"),
+      (REQUIRED, "int", "call"),
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
   ]
 }

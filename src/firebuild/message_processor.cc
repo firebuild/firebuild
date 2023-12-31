@@ -1206,6 +1206,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       /* Ignore seccomp(). The interposer always returns EINVAL error to keep interception
        * working. This breaks sandboxing, but builds can run arbitrary commands anyway. */
       break;
+    case FBBCOMM_TAG_mac_syscall:
+      /* Ignore __mac_syscall(). Having the tag defined allows easier debugging with -d comm. */
+      // TODO(rbalint) check if any __mac_syscall() invocation could impact builds
+      break;
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:
