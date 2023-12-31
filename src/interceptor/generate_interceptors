@@ -2407,11 +2407,17 @@ generate("long", "syscall", "long number, ...",
          tpl="syscall",
          send_ret_on_success=True,
          ack_condition="true")
-generate("int", ["syscall", "__syscall", "__mac_syscall"], "int number, ...",
+generate("int", ["syscall", "__syscall"], "int number, ...",
          platforms=["darwin"],
          tpl="syscall",
          send_ret_on_success=True,
          ack_condition="true")
+
+generate("int", ["__mac_syscall", "SYS___mac_syscall"], "char* policy, int call, user_addr_t arg",
+         platforms=["darwin"],
+         msg="mac_syscall",
+         msg_skip_fields=["arg"],
+         send_ret_on_success=True)
 
 # FIXME This is temporary only, until intercepting confstr is implemented:
 #generate("size_t", "confstr", "int name, char *buf, size_t len")
