@@ -117,8 +117,7 @@ Build:
 
 Install the build dependencies:
 
-    brew install bats-core coreutils docbook-xsl jemalloc jinja2-cli libconfig xxhash
-    (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && sudo make install)
+    brew install bats-core coreutils docbook-xsl hopscotch-map jemalloc jinja2-cli libconfig xxhash
 
 Build:
 

@@ -318,11 +318,10 @@ jobs:
     - name: install-deps
       run: |
         brew update
-        BREW_BUILD_DEPS="bats-core coreutils docbook-xsl jemalloc jinja2-cli libconfig xxhash"
+        BREW_BUILD_DEPS="bats-core coreutils docbook-xsl hopscotch-map jemalloc jinja2-cli libconfig xxhash"
         export HOMEBREW_NO_AUTO_UPDATE=1
         # brew often fails due to existing files, hence the --overwrite parameter and the retry
         brew install --overwrite $BREW_BUILD_DEPS || (for v in 3.11 3.12; do brew link --overwrite python@${v} ; done; brew install --overwrite $BREW_BUILD_DEPS)
-        (cd .. && git clone https://github.com/Tessil/hopscotch-map.git && cd hopscotch-map/ && cmake . && sudo make install)
     - name: build-in-tree
       run: |
         export PATH=/usr/local/opt/ccache/libexec:$(ls -d /usr/local/Cellar/jinja2-cli/*/libexec/bin):$PATH
