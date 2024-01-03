@@ -140,6 +140,15 @@ int main() {
   }
   closedir(d);
 
+#ifdef __APPLE__
+  d = __opendir2("./", 0);
+  if (d == NULL) {
+    perror("__opendir2" LOC);
+    exit(1);
+  }
+  closedir(d);
+#endif
+
   if (mkdir("test_directory", 0700) == -1) {
     perror("mkdir" LOC);
     exit(1);
