@@ -404,6 +404,7 @@ int Process::handle_dlopen(const char * const absolute_filename,
                            const char * const looked_up_filename,
                            const size_t looked_up_filename_len,
                            const bool error, int fd_conn, int ack_num) {
+  int ret = 0;
   if (absolute_filename) {
     /* When failing to dlopen() a file assume it is not present.
      * This is a safe assumption for shortcutting purposes, since the cache entry
@@ -418,14 +419,17 @@ int Process::handle_dlopen(const char * const absolute_filename,
      * search path entries as described in dlopen(3). */
     (void)looked_up_filename_len;
     exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ", looked_up_filename);
-    return -1;
+    ret = -1;
   } else {
     if (error) {
       exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() the main program");
-      return -1;
+      ret = -1;
     }
   }
-  return 0;
+  if (ack_num != 0) {
+    ack_msg(fd_conn, ack_num);
+  }
+  return ret;
 }
 
 int Process::handle_truncate(const char * const ar_name, const size_t ar_len,
