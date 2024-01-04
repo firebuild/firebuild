@@ -149,6 +149,13 @@ int main() {
   closedir(d);
 #endif
 
+  struct dirent **namelist;
+  if (scandir("./", &namelist, NULL, NULL) == -1) {
+    perror("scandir" LOC);
+    exit(1);
+  }
+  free(namelist);
+
   if (mkdir("test_directory", 0700) == -1) {
     perror("mkdir" LOC);
     exit(1);

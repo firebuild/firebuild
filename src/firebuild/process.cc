@@ -432,6 +432,50 @@ int Process::handle_dlopen(const char * const absolute_filename,
   return ret;
 }
 
+int Process::handle_scandirat(const int dirfd, const char * const ar_name, const size_t ar_len,
+                              const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
+         "dirfd=%d, ar_name=%s, error=%d", dirfd, D(ar_name), error);
+
+  if (error) {
+    if (error == ENOENT) {
+      /* scandirat() failed, because the directory doesn't exist. */
+      const FileName* name = get_absolute(dirfd, ar_name, ar_len);
+      if (!name) {
+        exec_point()->disable_shortcutting_bubble_up(
+            "Invalid dirfd or filename passed to scandirat()");
+        return -1;
+      }
+      FileUsageUpdate update(name, NOTEXIST);
+      if (!exec_point()->register_file_usage_update(name, update)) {
+        exec_point()->disable_shortcutting_bubble_up("Could not register scandirat() on", *name);
+        return -1;
+      }
+      return 0;
+    } else {
+      /* scandirat() failed, but we don't know why. */
+      exec_point()->disable_shortcutting_bubble_up("scandirat() failed");
+      return -1;
+    }
+  }
+
+  const FileName* name = get_absolute(dirfd, ar_name, ar_len);
+  if (!name) {
+    exec_point()->disable_shortcutting_bubble_up(
+        "Invalid dirfd or filename passed to scandirat()");
+    return -1;
+  }
+
+  FileUsageUpdate update =
+       FileUsageUpdate::get_from_open_params(name, O_RDONLY | O_DIRECTORY, 0, error, false);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register scandirat() on", *name);
+    return -1;
+  }
+
+  return 0;
+}
+
 int Process::handle_truncate(const char * const ar_name, const size_t ar_len,
                              const off_t length, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,

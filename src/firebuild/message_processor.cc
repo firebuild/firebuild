@@ -1013,6 +1013,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       PFBBA_HANDLE(proc, close_range, fbbcomm_buf);
       break;
     }
+    case FBBCOMM_TAG_scandirat: {
+      PFBBA_HANDLE(proc, scandirat, fbbcomm_buf);
+      break;
+    }
     case FBBCOMM_TAG_truncate: {
       PFBBA_HANDLE(proc, truncate, fbbcomm_buf);
       break;

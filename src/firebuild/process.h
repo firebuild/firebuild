@@ -327,6 +327,12 @@ class Process {
                          const int flags, const int error = 0);
 
   /**
+   * Handle scandirat() in the monitored process.
+   */
+  int handle_scandirat(const int dirfd, const char * const ar_name, const size_t ar_name_len,
+                       const int error);
+
+  /**
    * Handle truncate() in the monitored process..
    */
   int handle_truncate(const char * const ar_name, const size_t ar_len,

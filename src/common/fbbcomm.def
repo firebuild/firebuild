@@ -256,6 +256,15 @@
       (REQUIRED, "bool", "pre_open_sent"),
     ]),
 
+    ("scandirat", [
+      # dir file descriptor for scandirat()
+      (OPTIONAL, "int", "dirfd"),
+      # file path
+      (OPTIONAL, STRING, "dirp"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("chdir", [
       # directory path
       (OPTIONAL, STRING, "pathname"),
