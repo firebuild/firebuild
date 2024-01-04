@@ -574,7 +574,22 @@ generate("int", "closedir", "DIR *dirp",
          msg="close",
          msg_skip_fields=["dirp"],
          msg_add_fields=["fbbcomm_builder_close_set_fd(&ic_msg, fd);"])
-# FIXME implement scandir(at)(64)
+
+generate("int", "scandir", "const char *dirp, struct dirent ***namelist, int (*filter)(const struct dirent *), int (*compar)(const struct dirent **, const struct dirent **)",
+         msg="scandirat",
+         msg_skip_fields=["dirp", "namelist", "filter", "compar"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(scandirat, dirp);"])
+generate("int", "scandir64", "const char *dirp, struct dirent64 ***namelist, int (*filter)(const struct dirent64 *), int (*compar)(const struct dirent64 **, const struct dirent64 **)",
+         msg="scandirat",
+         msg_skip_fields=["dirp", "namelist", "filter", "compar"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(scandirat, dirp);"])
+generate("int", "scandirat", "int dirfd, const char *dirp, struct dirent ***namelist, int (*filter)(const struct dirent *), int (*compar)(const struct dirent **, const struct dirent **)",
+         platforms=['linux'],
+         msg_skip_fields=["dirp", "namelist", "filter", "compar"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(scandirat, dirfd, dirp);"])
+generate("int", "scandirat64", "int dirfd, const char *dirp, struct dirent64 ***namelist, int (*filter)(const struct dirent64 *), int (*compar)(const struct dirent64 **, const struct dirent64 **)",
+         msg_skip_fields=["dirp", "namelist", "filter", "compar"],
+         msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(scandirat, dirfd, dirp);"])
 
 generate("int", ["mkdir", "SYS_mkdir"], "const char *pathname, mode_t mode",
          msg_skip_fields=["pathname"],

@@ -81,6 +81,15 @@ class ProcessFBBAdaptor {
     const int error = msg->get_error_no_with_fallback(0);
     return proc->handle_close_range(msg->get_first(), msg->get_last(), msg->get_flags(), error);
   }
+
+  static int handle(Process *proc, const FBBCOMM_Serialized_scandirat *msg) {
+    const int error = msg->get_error_no_with_fallback(0);
+    return proc->handle_scandirat(msg->get_dirfd_with_fallback(AT_FDCWD),
+                                  msg->has_dirp() ? msg->get_dirp() : nullptr,
+                                  msg->has_dirp() ? msg->get_dirp_len() : 0,
+                                  error);
+  }
+
   static int handle(Process *proc, const FBBCOMM_Serialized_truncate *msg) {
     const int error = msg->get_error_no_with_fallback(0);
     return proc->handle_truncate(msg->get_pathname(), msg->get_pathname_len(),
