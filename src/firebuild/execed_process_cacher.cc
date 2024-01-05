@@ -980,7 +980,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
    * locations. */
   struct {
     bool operator()(const FBBSTORE_Builder_file& a, const FBBSTORE_Builder_file& b) const {
-      return strcmp(a.get_path(), b.get_path()) < 0;
+      return memcmp(a.get_path(), b.get_path(),
+                    std::min(a.get_path_len(), b.get_path_len()) + 1) < 0;
     }
   } file_less;
   /* Sort non-system and system paths separately to not regress in shortcutting performance. */
@@ -991,7 +992,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
 
   struct {
     bool operator()(const cstring_view& a, const cstring_view& b) const {
-      return strcmp(a.c_str, b.c_str) < 0;
+      return memcmp(a.c_str, b.c_str, std::min(a.length, b.length) + 1) < 0;
     }
   } cstring_view_less;
   /* Sort non-system and system paths separately to not regress in shortcutting performance. */
