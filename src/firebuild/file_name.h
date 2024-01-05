@@ -22,6 +22,7 @@
 #include <tsl/hopscotch_map.h>
 #include <xxhash.h>
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <unordered_set>
@@ -166,7 +167,7 @@ struct FileNameHasher {
 /** Helper struct for std::sort */
 struct FileNameLess {
   bool operator()(const FileName* f1, const FileName* f2) const {
-    return strcmp(f1->c_str(), f2->c_str()) < 0;
+    return memcmp(f1->c_str(), f2->c_str(), std::min(f1->length(), f2->length()) + 1) < 0;
   }
 };
 

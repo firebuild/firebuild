@@ -20,6 +20,7 @@
 
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <string>
 #include <unordered_set>
 
@@ -229,7 +230,8 @@ const FileUsage* FileUsage::merge(const FileUsageUpdate& update, const bool prop
 }
 
 bool file_file_usage_cmp(const file_file_usage& lhs, const file_file_usage& rhs) {
-  return strcmp(lhs.file->c_str(), rhs.file->c_str()) < 0;
+  return memcmp(lhs.file->c_str(), rhs.file->c_str(),
+                std::min(lhs.file->length(), rhs.file->length()) + 1) < 0;
 }
 
 std::string FileUsage::d_internal(const int level) const {
