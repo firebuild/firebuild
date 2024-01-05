@@ -33,6 +33,7 @@
 #include <time.h>
 #include <fcntl.h>
 
+#include <iostream>
 #include <list>
 #include <string>
 #include <stdexcept>
@@ -63,6 +64,7 @@ namespace {
 static char *fb_tmp_dir;
 static char *fb_conn_string;
 
+static bool stats_saved = false;
 static bool insert_trace_markers = false;
 static const char *report_file = "firebuild-build-report.html";
 
@@ -192,6 +194,15 @@ static void accept_ic_conn(const struct epoll_event* event, void *arg) {
     fcntl(fd, F_SETFL, O_NONBLOCK);
     firebuild::epoll->add_fd(fd, EPOLLIN, firebuild::MessageProcessor::ic_conn_readcb, conn_ctx);
   }
+}
+
+static void sigterm_handler(int signum) {
+  if (!stats_saved) {
+    firebuild::execed_process_cacher->read_update_save_stats_and_bytes();
+    stats_saved = true;
+  }
+  std::cerr << "FIREBUILD: Received signal " + std::to_string(signum) + ", exiting." << std::endl;
+  exit(EXIT_FAILURE);
 }
 
 static bool running_under_valgrind() {
@@ -385,6 +396,12 @@ int main(const int argc, char *argv[]) {
   sa.sa_handler = sigchild_handler;
   sa.sa_flags = SA_RESTART;
   sigaction(SIGCHLD, &sa, NULL);
+  sa.sa_handler = sigterm_handler;
+  sa.sa_flags = 0;
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGQUIT, &sa, NULL);
+  sigaction(SIGSEGV, &sa, NULL);
+  sigaction(SIGTERM, &sa, NULL);
 
   /* Configure epoll */
   firebuild::epoll = new firebuild::Epoll();
@@ -534,10 +551,10 @@ int main(const int argc, char *argv[]) {
       fprintf(stdout, "\n");
       firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_CURRENT);
     }
-    firebuild::execed_process_cacher->read_stored_cached_bytes();
-    firebuild::execed_process_cacher->update_stored_bytes();
-    firebuild::execed_process_cacher->update_stored_stats();
-
+    if (!stats_saved) {
+      firebuild::execed_process_cacher->read_update_save_stats_and_bytes();
+      stats_saved = true;
+    }
     /* show process tree if needed */
     if (generate_report) {
       const std::string datadir(getenv("FIREBUILD_DATA_DIR") ? getenv("FIREBUILD_DATA_DIR")

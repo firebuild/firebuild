@@ -91,6 +91,12 @@ class ExecedProcessCacher {
   void read_stored_cached_bytes();
   /** Store number of bytes cached to cachedir/size file. */
   void update_stored_bytes();
+  /** Read, update with current run, then save cached bytes and stats. */
+  void read_update_save_stats_and_bytes() {
+    read_stored_cached_bytes();
+    update_stored_bytes();
+    update_stored_stats();
+  }
   /**
    * Fix number of bytes cached in cachedir/size file and return fixed value.
    */
