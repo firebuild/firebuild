@@ -1712,16 +1712,12 @@ generate("int", ["futimens", "__futimens64"], "int fd, const struct timespec tim
 # in send_msg_condition we have to skip the default exception on EINTR and EFAULT.
 generate("void *", "dlopen", "const char *filename, int flag",
          tpl="dlopen",
-         before_lines=["FB_THREAD_LOCAL(intercept_on) = NULL;"],
-         after_lines=["FB_THREAD_LOCAL(intercept_on) = \"dlopen\";"],
          send_msg_condition="true",
          msg_skip_fields=["error_no"])
 generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
          platforms=['linux'],
          tpl="dlopen",
          msg="dlopen",
-         before_lines=["FB_THREAD_LOCAL(intercept_on) = NULL;"],
-         after_lines=["FB_THREAD_LOCAL(intercept_on) = \"dlmopen\";"],
          send_msg_condition="true",
          msg_skip_fields=["lmid", "error_no"])
 

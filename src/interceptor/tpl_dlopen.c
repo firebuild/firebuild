@@ -30,11 +30,16 @@
 ### block before
   /* TODO(rbalint) Save all loaded images before the dlopen() to collect also loaded shared
    * library dependencies. */
-  FB_THREAD_LOCAL(interception_recursion_depth)++;
+  /* Release lock to allow intercepting shared library constructors. */
+  if (i_locked) {
+    release_global_lock();
+  }
 ### endblock before
 
 ### block after
-  FB_THREAD_LOCAL(interception_recursion_depth)--;
+    if (i_am_intercepting) {
+      grab_global_lock(&i_locked, "{{ func }}");
+    }
 
   const char *absolute_filename = NULL;
   if (success) {
