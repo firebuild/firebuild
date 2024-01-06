@@ -713,12 +713,12 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
 
   /* Construct in_path_* in 2 passes. First collect the non-system paths and then the system paths,
    * for better performance. */
-  for (int i = 0; i < 2; i++) {
+  for (int pass = 0; pass < 2; pass++) {
     for (const auto& pair : proc->file_usages()) {
       const auto filename = pair.first;
       const FileUsage* fu = pair.second;
 
-      if (filename->is_in_read_only_location() == (i == 0)) {
+      if (filename->is_in_read_only_location() == (pass == 0)) {
         continue;
       }
 
@@ -765,8 +765,10 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           break;
       }
     }
-    in_path_non_system_count = in_path.size();
-    in_path_notexist_non_system_count = in_path_notexist.size();
+    if (pass == 0) {
+      in_path_non_system_count = in_path.size();
+      in_path_notexist_non_system_count = in_path_notexist.size();
+    }
   }
 
   uint64_t stored_blob_bytes = 0;
