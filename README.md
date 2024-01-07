@@ -132,4 +132,4 @@ Build:
 
 Install:
 
-    sudo --preserve-env=XML_CATALOG_FILES make install
+    sudo make install

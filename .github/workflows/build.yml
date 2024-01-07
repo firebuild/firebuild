@@ -330,7 +330,6 @@ jobs:
         make -j2
     - name: test
       run: |
-        export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         make check
 
   style-checks:
