@@ -624,7 +624,7 @@ class Process {
 
  private:
   Process *parent_;
-  process_state state_ :2;
+  process_state state_ :2 = FB_PROC_RUNNING;
   int fb_pid_;       ///< internal Firebuild id for the process
   int pid_;          ///< UNIX pid
   int ppid_;         ///< UNIX ppid
@@ -657,7 +657,7 @@ class Process {
   bool posix_spawn_pending_ {false};
   /** Debugging is suppressed for this process. */
   bool debug_suppressed_;
-  ExecedProcess * exec_child_;
+  ExecedProcess * exec_child_ = nullptr;
   const FileName* get_fd_filename(int fd) const;
   bool any_child_not_finalized();
   DISALLOW_COPY_AND_ASSIGN(Process);

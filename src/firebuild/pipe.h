@@ -254,11 +254,11 @@ class Pipe {
   /* Unique Pipe ID, for debugging */
   int id_;
   /** Switch send only mode */
-  bool send_only_mode_:1;
-  bool fd0_shared_ptr_generated_:1;
-  bool fd1_shared_ptr_generated_:1;
+  bool send_only_mode_:1 = false;
+  bool fd0_shared_ptr_generated_:1 = false;
+  bool fd1_shared_ptr_generated_:1 = false;
   /** Number of times the fd1 timeout callback visited the pipe. */
-  unsigned int fd1_timeout_round_:3;
+  unsigned int fd1_timeout_round_:3 = 0;
   LinearBuffer buf_;
   int fd1_timeout_id_ = -1;
   /**

@@ -110,7 +110,7 @@ class FileName {
  private:
   FileName(const char * const name, size_t length, bool copy_name)
       : name_(copy_name ? reinterpret_cast<const char *>(malloc(length + 1)) : name),
-        length_(length), in_ignore_location_(false), in_read_only_location_(false) {
+        length_(length) {
     if (copy_name) {
       memcpy(const_cast<char*>(name_), name, length);
       const_cast<char*>(name_)[length] = '\0';
@@ -126,8 +126,8 @@ class FileName {
 
   const char * const name_;
   const uint32_t length_;
-  const bool in_ignore_location_;
-  const bool in_read_only_location_;
+  const bool in_ignore_location_ = false;
+  const bool in_read_only_location_ = false;
   static std::unordered_set<FileName, FileNameHasher>* db_;
   static tsl::hopscotch_map<const FileName*, XXH128_hash_t>* hash_db_;
   /** Number of FileOFDs open for writing referencing this file. */
