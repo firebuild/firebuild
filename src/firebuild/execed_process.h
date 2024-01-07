@@ -257,8 +257,8 @@ class ExecedProcess : public Process {
   virtual std::string d_internal(const int level = 0) const;
 
  private:
-  bool can_shortcut_:1;
-  bool was_shortcut_:1;
+  bool can_shortcut_:1 = true;
+  bool was_shortcut_:1 = false;
   int16_t jobserver_fd_r_ = -1;
   int16_t jobserver_fd_w_ = -1;
   /** If points to this (self), the process can be shortcut.

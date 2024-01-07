@@ -98,10 +98,9 @@ void Pipe::fd1_timeout_cb(void *arg) {
 
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_conn(fd0_conn),
-      conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), send_only_mode_(false),
-      fd0_shared_ptr_generated_(false), fd1_shared_ptr_generated_(false),
-      fd1_timeout_round_(0), buf_(), fd0_ptrs_held_self_ptr_(nullptr),
-      fd1_ptrs_held_self_ptr_(nullptr), shared_self_ptr_(this), creator_(creator) {
+      conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), buf_(),
+      fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr), shared_self_ptr_(this),
+      creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%s, creator=%s", D_FD(fd0_conn), D(creator));
 }
 

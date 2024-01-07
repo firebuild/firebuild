@@ -37,8 +37,7 @@ namespace firebuild {
 class LinearBuffer {
  public:
   LinearBuffer()
-      : size_(8 * 1024), buffer_(reinterpret_cast<char *>(malloc(size_))), data_start_offset_(0),
-        length_(0) {}
+      : buffer_(reinterpret_cast<char *>(malloc(size_))) {}
   ~LinearBuffer() {free(buffer_);}
   const char * data() const {
     return &buffer_[data_start_offset_];
@@ -120,10 +119,10 @@ class LinearBuffer {
   }
 
  private:
-  size_t size_;
+  size_t size_ = 8 * 1024;
   char * buffer_;
-  size_t data_start_offset_;
-  size_t length_;
+  size_t data_start_offset_ = 0;
+  size_t length_ = 0;
   void ensure_space(ssize_t howmuch) {
     TRACK(FB_DEBUG_COMM, "howmuch=%" PRIssize, howmuch);
 
