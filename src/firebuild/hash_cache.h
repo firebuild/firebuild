@@ -65,7 +65,7 @@ struct HashCacheEntry {
  */
 class HashCache {
  public:
-  HashCache() {}
+  HashCache() : db_(4096) {}
   ~HashCache();
   /**
    * Get some stat information (currently the file type and size) from the cache. This method

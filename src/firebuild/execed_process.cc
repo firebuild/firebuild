@@ -350,6 +350,12 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
       /* Update the previous value. */
       it.value() = fu_new;
     } else {
+      /* Preallocate larger space on first insert.
+       * If there is a registered file usage there will be probably way more and rehashing is
+       * expensive. */
+      if (proc->file_usages_.size() == 0) {
+        proc->file_usages_.reserve(256);
+      }
       /* Insert a new value. */
       proc->file_usages_[name] = fu_new;
     }
