@@ -46,6 +46,11 @@ if (SANITIZE)
   set_source_files_properties(test_file_ops.c PROPERTIES COMPILE_DEFINITIONS "SKIP_TEST_NULL_NONNULL_PARAMS=1")
 endif()
 add_test_binary(test_file_ops)
+target_link_libraries(test_file_ops "-ldl")
+add_library(test_dlopen_lib SHARED
+  EXCLUDE_FROM_ALL
+  test_dlopen_lib.c)
+add_dependencies(check-bins test_dlopen_lib)
 add_test_binary(test_file_ops_2)
 add_test_binary(test_file_ops_3)
 add_test_binary(test_random)

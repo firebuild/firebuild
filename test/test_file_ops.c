@@ -18,6 +18,7 @@
 
 #define _GNU_SOURCE
 #include <dirent.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -266,6 +267,20 @@ int main() {
   }
 
   if (system(NULL) == 0) {
+    exit(1);
+  }
+
+#ifdef __APPLE__
+#define SO_EXTENSION "dylib"
+#else
+#define SO_EXTENSION "so"
+#endif
+  if (dlopen("./libtest_dlopen_lib." SO_EXTENSION, RTLD_NOW) == NULL) {
+    perror("dlopen" LOC);
+    exit(1);
+  }
+  if (dlopen("./libtest_dlopen_notexists_lib." SO_EXTENSION, RTLD_NOW) != NULL) {
+    perror("dlopen" LOC);
     exit(1);
   }
 
