@@ -20,16 +20,22 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["if (absolute_filename == NULL && filename && strrchr(filename, '/')) {",
-                         "  /* This is a relative or absolute name which will be made absolute in the next step. */",
-                         "  absolute_filename = filename;",
-                         "}",
-                         "if (absolute_filename != NULL) BUILDER_SET_ABSOLUTE_CANONICAL(" + msg + ", absolute_filename);",
+{% set msg_add_fields = ["fbbcomm_builder_dlopen_set_libs_with_count(&ic_msg, (const char * const *)new_libs, new_libs_count);",
                          "fbbcomm_builder_dlopen_set_error(&ic_msg, !success);"] %}
 
 ### block before
-  /* TODO(rbalint) Save all loaded images before the dlopen() to collect also loaded shared
-   * library dependencies. */
+  /* Iterate through all images currently in memory */
+###   if target == "darwin"
+  const int image_count_before = _dyld_image_count();
+  const char ** images_before = alloca(image_count_before * sizeof(char*));
+  collect_loaded_image_names(images_before, image_count_before);
+###  else
+  int image_count_before = 0;
+  dl_iterate_phdr(count_shared_libs_cb, &image_count_before);
+  const char ** images_before = alloca(image_count_before * sizeof(char*));
+  shared_libs_as_char_array_cb_data_t cb_data_before = {images_before, 0, image_count_before};
+  dl_iterate_phdr(shared_libs_as_char_array_cb, &cb_data_before);
+###  endif
   /* Release lock to allow intercepting shared library constructors. */
   if (i_locked) {
     release_global_lock();
@@ -37,42 +43,35 @@
 ### endblock before
 
 ### block after
-    if (i_am_intercepting) {
-      grab_global_lock(&i_locked, "{{ func }}");
-    }
-
-  const char *absolute_filename = NULL;
-  if (success) {
+  if (i_am_intercepting) {
+    grab_global_lock(&i_locked, "{{ func }}");
+  }
 ###   if target == "darwin"
-    /* From https://github.com/JuliaLang/julia/blob/0027ed143e90d0f965694de7ea8c692d75ffa1a5/src/sys.c#L572-L583 .
-     * MIT licensed originally.
-     */
-    /* Iterate through all images currently in memory */
-    int32_t i;
-    for (i = _dyld_image_count() - 1; i > 1 ; i--) {
-      /* dlopen() each image, check handle */
-      const char *image_name = _dyld_get_image_name(i);
-      void *probe_handle = get_ic_orig_dlopen()(image_name, RTLD_LAZY | RTLD_NOLOAD);
-      /* If the handle is the same as what was passed in (modulo mode bits), return this image name */
-      dlclose(probe_handle);
-      if (((intptr_t)ret & (-4)) == ((intptr_t)probe_handle & (-4))) {
-        absolute_filename = image_name;
-        break;
-      }
-    }
+  const int image_count_after = _dyld_image_count();
+  const char ** images_after = alloca(image_count_after * sizeof(char*));
+  collect_loaded_image_names(images_after, image_count_after);
 ###   else
-    struct link_map *map;
-    if (dlinfo(ret, RTLD_DI_LINKMAP, &map) == 0) {
-      /* Note: contrary to the dlinfo(3) manual page, this is not necessarily absolute. See #657.
-       * We'll resolve to absolute when setting the FBB field. */
-      absolute_filename = map->l_name;
-    } else {
-      /* As per #920, dlinfo() returning an error _might_ cause problems later on in the intercepted
-       * app, should it call dlerror(). A call to dlerror() would return a non-NULL string
-       * describing dlinfo()'s failure, rather than NULL describing dlopen()'s success. But why
-       * would any app invoke dlerror() after a successful dlopen()? Let's hope that in practice no
-       * application does this. */
-    }
+  int image_count_after = 0;
+  dl_iterate_phdr(count_shared_libs_cb, &image_count_after);
+  const char ** images_after = alloca(image_count_after * sizeof(char*));
+  shared_libs_as_char_array_cb_data_t cb_data_after = {images_after, 0, image_count_after};
+  dl_iterate_phdr(shared_libs_as_char_array_cb, &cb_data_after);
 ###   endif
+  size_t new_libs_count = 0;
+  /* Allocate space for the worst case, i.e. all the loaded shared libs are new, which is highly
+   * unlikely. */
+  const char ** new_libs = alloca(image_count_after * sizeof(char*));
+  newly_loaded_images(images_before, image_count_before, images_after, image_count_after,
+                      new_libs, &new_libs_count);
+  size_t i;
+  for (i = 0; i < new_libs_count; i++) {
+    const int orig_len = strlen(new_libs[i]);
+    if (!is_canonical(new_libs[i], orig_len)) {
+        /* Don't use strdupa(), because it does not exist on macOS. */
+      char* new_lib = alloca(orig_len + 1);
+      memcpy(new_lib, new_libs[i], orig_len + 1);
+      make_canonical(new_lib, orig_len + 1);
+      new_libs[i] = new_lib;
+    }
   }
 ### endblock after

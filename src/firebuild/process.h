@@ -248,7 +248,7 @@ class Process {
    * @param ar_len length of ar_name
    * @param flags flags of open()
    * @param mode mode (create permissions) of open()
-   * @param fd the return value, or -1 if file was dlopen()ed successfully
+   * @param fd the return value, or -1 if file was open()ed successfully
    * @param error error code of open()
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
@@ -277,16 +277,14 @@ class Process {
 
   /**
    * Handle dlopen() in the monitored process
-   * @param absolute_filename absolute file name
-   * @param absolute_filename_len length of absolute_filename
+   * @param absolute_filenames absolute file names of loaded shared libraries
    * @param looked_up_filename file name passed to dlopen()
    * @param looked_up_filename_len length of looked_up_filename
    * @param error true when dlopen failed to open the file
    * @param fd_conn fd to send ACK on when needed
    * @param ack_num ACK number to send or 0 if sending ACK is not needed
    */
-  int handle_dlopen(const char * const absolute_filename,
-                    const size_t absolute_filename_len,
+  int handle_dlopen(const std::vector<std::string>& absolute_filenames,
                     const char * const looked_up_filename,
                     const size_t looked_up_filename_len,
                     const bool error, int fd_conn, int ack_num);
