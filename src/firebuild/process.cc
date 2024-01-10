@@ -399,20 +399,22 @@ int Process::handle_close_range(const unsigned int first, const unsigned int las
 }
 
 
-int Process::handle_dlopen(const char * const absolute_filename,
-                           const size_t absolute_filename_len,
+int Process::handle_dlopen(const std::vector<std::string>& libs,
                            const char * const looked_up_filename,
                            const size_t looked_up_filename_len,
                            const bool error, int fd_conn, int ack_num) {
   int ret = 0;
-  if (absolute_filename) {
+  if (libs.size() > 0) {
     /* When failing to dlopen() a file assume it is not present.
      * This is a safe assumption for shortcutting purposes, since the cache entry
      * will require the the file to be missing to shortcut the process and if the file
      * is missing dlopen() would have failed for sure.
      */
-    return handle_open(AT_FDCWD, absolute_filename, absolute_filename_len,
-                             O_RDONLY, 0, -1, error ? ENOENT : 0, fd_conn, ack_num, false, false);
+    for (const std::string& absolute_filename : libs) {
+      handle_open(AT_FDCWD, absolute_filename.c_str(), absolute_filename.size(),
+                  O_RDONLY, 0, -1, error ? ENOENT : 0, fd_conn, ack_num, false, false);
+    }
+    return 0;
   } else if (looked_up_filename) {
     /* Failed dlopen() could not find the file on the search path.*/
     /* TODO(rbalint) allow shortcutting the process and mark the file as missing on all the

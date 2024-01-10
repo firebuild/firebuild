@@ -535,8 +535,8 @@
       (OPTIONAL, STRING, "filename"),
       # flag, decoding is left for Firebuild supervisor
       (OPTIONAL, "int", "flag"),
-      # absolute filename where (if) the library was found
-      (OPTIONAL, STRING, "absolute_filename"),
+      # absolute or relative filenames where (if) the libraries were found
+      (ARRAY, STRING, "libs"),
       # dlopen() does not set errno. Also, as per #920, we cannot get
       # the error string in a simple way without altering the
       # intercepted process's behavior and without nasty hacks. So let's

@@ -61,8 +61,7 @@ class ProcessFBBAdaptor {
 
   static int handle(Process *proc, const FBBCOMM_Serialized_dlopen *msg, int fd_conn, int ack_num) {
     return proc->handle_dlopen(
-        msg->has_absolute_filename() ? msg->get_absolute_filename() : nullptr,
-        msg->has_absolute_filename() ? msg->get_absolute_filename_len() : 0,
+        msg->get_libs_as_vector(),
         msg->has_filename() ? msg->get_filename() : nullptr,
         msg->has_filename() ? msg->get_filename_len() : 0,
         msg->get_error(), fd_conn, ack_num);

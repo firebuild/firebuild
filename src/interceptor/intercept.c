@@ -611,10 +611,37 @@ static void store_entries(const char* env_var, cstring_view_array *entries,
   }
 }
 
+void newly_loaded_images(const char ** const images_before, const size_t image_count_before,
+                         const char * const * images_after, size_t image_count_after,
+                         const char ** new_images, size_t *new_images_count) {
+  size_t first_differing_idx = 0;
+  for (first_differing_idx = 0; first_differing_idx < image_count_before; first_differing_idx++) {
+    if (strcmp(images_before[first_differing_idx], images_after[first_differing_idx]) !=  0) {
+      break;
+    }
+  }
+  qsort(images_before, image_count_before, sizeof(char*),
+        (int (*)(const void *, const void *))strcmp);
+  *new_images_count = 0;
+  for (size_t i = first_differing_idx; i < image_count_after; i++) {
+    if (!bsearch(&images_after[i], images_before, image_count_before, sizeof(char*),
+                 (int (*)(const void *, const void *))strcmp)) {
+      new_images[(*new_images_count)++] = images_after[i];
+    }
+  }
+}
+
 #ifdef __APPLE__
-static void collect_shared_libs(cstring_view_array* libs, char *canonized_libs) {
+void collect_loaded_image_names(const char ** images, int image_count) {
+  for (int i = 0; i < image_count; i++) {
+    images[i] = _dyld_get_image_name(i);
+  }
+}
+
+static void collect_canonized_shared_libs(cstring_view_array* libs, char *canonized_libs,
+                                          int image_count) {
   /* Skip first image because it is the binary itself. */
-  for (int32_t i = _dyld_image_count() - 1; i > 1 ; i--) {
+  for (int32_t i = image_count - 1; i > 1 ; i--) {
     const char *image_name = _dyld_get_image_name(i);
     const size_t len = strlen(image_name);
     if (is_canonical(image_name, len)) {
@@ -650,10 +677,37 @@ static bool skip_shared_lib(const char *name, const size_t len) {
   return false;
 }
 
+int count_shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
+  (void) size;  /* unused */
+  int* count = (int*)data;
+
+  const char* name = info->dlpi_name;
+  const size_t len = strlen(name);
+  if (!skip_shared_lib(name, len)) {
+    (*count)++;
+  }
+  return 0;
+}
+
+int shared_libs_as_char_array_cb(struct dl_phdr_info *info, const size_t size, void *data) {
+  (void) size;  /* unused */
+  shared_libs_as_char_array_cb_data_t *cb_data =
+      (shared_libs_as_char_array_cb_data_t *)data;
+
+  const char* name = info->dlpi_name;
+  const size_t len = strlen(name);
+  if (!skip_shared_lib(name, len)) {
+    cb_data->array[cb_data->collected_entries] = name;
+    cb_data->collected_entries++;
+    assert(cb_data->collected_entries <= cb_data->collectable_entries);
+  }
+  return 0;
+}
+
 /**
- * State struct for shared_libs_cb()
+ * State struct for shared_libs_as_cstring_view_array_cb()
  */
-typedef struct shared_libs_cb_data_ {
+typedef struct shared_libs_as_cstring_view_array_cb_data_ {
   /** Array of collected shared library names. */
   cstring_view_array *array;
   /** Number of entries that could be collected to `array`. */
@@ -666,12 +720,14 @@ typedef struct shared_libs_cb_data_ {
   int canonized_libs_size;
   /** Number of canonized names stored in canonized_libs. */
   int canonized_libs_count;
-} shared_libs_cb_data_t;
+} shared_libs_as_cstring_view_array_cb_data_t;
 
 /** Add shared library's name to the file list */
-static int shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
+static int shared_libs_as_cstring_view_array_cb(struct dl_phdr_info *info, const size_t size,
+                                                void *data) {
   (void) size;  /* unused */
-  shared_libs_cb_data_t *cb_data = (shared_libs_cb_data_t *)data;
+  shared_libs_as_cstring_view_array_cb_data_t *cb_data =
+      (shared_libs_as_cstring_view_array_cb_data_t *)data;
   cstring_view_array *array = cb_data->array;
 
   const char* name = info->dlpi_name;
@@ -1103,13 +1159,14 @@ void fb_ic_init() {
   cstring_view *libs_ptrs = alloca((image_count + 1) * sizeof(cstring_view));
   cstring_view_array libs = {libs_ptrs, 0, image_count + 1};
   char *canonized_libs = alloca(image_count * FB_PATH_BUFSIZE);
-  collect_shared_libs(&libs, canonized_libs);
+  collect_canonized_shared_libs(&libs, canonized_libs, image_count);
 #else
   STATIC_CSTRING_VIEW_ARRAY(libs, 64);
   int canonized_libs_size = 8;
   char *canonized_libs = alloca(canonized_libs_size * FB_PATH_BUFSIZE);
-  shared_libs_cb_data_t cb_data = {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
-  dl_iterate_phdr(shared_libs_cb, &cb_data);
+  shared_libs_as_cstring_view_array_cb_data_t cb_data =
+      {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
+  dl_iterate_phdr(shared_libs_as_cstring_view_array_cb, &cb_data);
   if (cb_data.collectable_entries > cb_data.array->len) {
     if (cb_data.not_canonical_entries > canonized_libs_size) {
       /* canonized_libs was not big enough. */
@@ -1127,8 +1184,9 @@ void fb_ic_init() {
     }
     libs.len = 0;
 
-    shared_libs_cb_data_t cb_data2 = {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
-    dl_iterate_phdr(shared_libs_cb, &cb_data2);
+    shared_libs_as_cstring_view_array_cb_data_t cb_data2 =
+        {&libs, 0, 0, canonized_libs, canonized_libs_size, 0};
+    dl_iterate_phdr(shared_libs_as_cstring_view_array_cb, &cb_data2);
     assert(cb_data.collectable_entries == cb_data2.array->len);
   }
 #endif
