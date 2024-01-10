@@ -45,6 +45,7 @@
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/config.h"
 #include "firebuild/execed_process.h"
+#include "firebuild/hash_cache.h"
 #include "firebuild/forked_process.h"
 #include "firebuild/execed_process_env.h"
 #include "firebuild/process_tree.h"
@@ -410,9 +411,16 @@ int Process::handle_dlopen(const std::vector<std::string>& libs,
      * will require the the file to be missing to shortcut the process and if the file
      * is missing dlopen() would have failed for sure.
      */
-    for (const std::string& absolute_filename : libs) {
-      handle_open(AT_FDCWD, absolute_filename.c_str(), absolute_filename.size(),
-                  O_RDONLY, 0, -1, error ? ENOENT : 0, fd_conn, ack_num, false, false);
+    for (const std::string& ar_name : libs) {
+#ifdef __APPLE__
+      if (!hash_cache->get_statinfo(get_absolute(AT_FDCWD, ar_name.c_str(), ar_name.size()),
+                                    nullptr, nullptr)) {
+        /* Some libraries are not present as regular files on macOS, ignore those. */
+        continue;
+      }
+#endif
+      handle_open(AT_FDCWD, ar_name.c_str(), ar_name.size(),
+                  O_RDONLY, 0, -1, 0, fd_conn, ack_num, false, false);
     }
     return 0;
   } else if (looked_up_filename) {
