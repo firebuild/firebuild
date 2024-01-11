@@ -29,7 +29,9 @@
      * Request the supervisor to create an intercepted unnamed pipe for us. */
     FBBCOMM_Builder_pipe_request ic_msg1;
     fbbcomm_builder_pipe_request_init(&ic_msg1);
-    fbbcomm_builder_pipe_request_set_flags(&ic_msg1, flags);
+    if (flags != 0) {
+      fbbcomm_builder_pipe_request_set_flags(&ic_msg1, flags);
+    }
     fb_fbbcomm_send_msg(&ic_msg1, fb_sv_conn);
 
     /* Step 2/3. Receive the response from the supervisor, which carries
