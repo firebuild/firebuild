@@ -1550,6 +1550,20 @@ void psfa_addfchdir_np(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
+void psfa_addinherit_np(const posix_spawn_file_actions_t *p,
+                       int fd) {
+  voidp_array *obj = psfa_find(p);
+  assert(obj);
+
+  FBBCOMM_Builder_posix_spawn_file_action_inherit *fbbcomm_builder =
+      malloc(sizeof(FBBCOMM_Builder_posix_spawn_file_action_inherit));
+  fbbcomm_builder_posix_spawn_file_action_inherit_init(fbbcomm_builder);
+
+  fbbcomm_builder_posix_spawn_file_action_inherit_set_fd(fbbcomm_builder, fd);
+
+  voidp_array_append(obj, fbbcomm_builder);
+}
+
 voidp_array *psfa_find(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (psfas[i].p == p) {

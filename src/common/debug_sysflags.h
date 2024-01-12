@@ -33,6 +33,7 @@ extern "C" {
 
 void debug_open_flags(FILE *f, int flags);
 void debug_at_flags(FILE *f, int flags);
+void debug_psfa_attr_flags(FILE *f, int flags);
 void debug_fcntl_cmd(FILE *f, int cmd);
 void debug_fcntl_arg_or_ret(FILE *f, int cmd, int arg);
 void debug_error_no(FILE *f, int error_no);

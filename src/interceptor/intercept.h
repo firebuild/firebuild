@@ -223,6 +223,13 @@ extern void psfa_addchdir_np(const posix_spawn_file_actions_t *p, const char *pa
  * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_fchdir builder to our structures.
  */
 extern void psfa_addfchdir_np(const posix_spawn_file_actions_t *p, int fd);
+#if defined(__APPLE__)
+/**
+ * Additional bookkeeping to do after a successful posix_spawn_file_actions_inherit_np():
+ * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_inherit builder to our structures.
+ */
+extern void psfa_addinherit_np(const posix_spawn_file_actions_t *p, int fd);
+#endif
 /**
  * Find the voidp_array for a given posix_spawn_file_actions.
  */

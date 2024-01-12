@@ -19,11 +19,15 @@
 #include "firebuild/message_processor.h"
 
 #include <sys/random.h>
+#if defined (__APPLE__)
+#include <sys/spawn.h>
+#endif
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -740,6 +744,13 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       expected_child->set_argv(argv);
       proc->set_expected_child(expected_child);
       proc->set_posix_spawn_pending(true);
+#ifdef __APPLE__
+      const int attr_flags = ic_msg->get_attr_flags_with_fallback(0);
+      if (attr_flags & POSIX_SPAWN_SETEXEC) {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "posix_spawn() with POSIX_SPAWN_SETEXEC is not supported");
+      }
+#endif
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Pre-open the files to be written. */
       for (size_t i = 0; i < ic_msg->get_file_actions_count(); i++) {
@@ -778,6 +789,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
 
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Do the corresponding administration. */
+#ifdef __APPLE__
+      std::unordered_set<int> new_fds {};
+      const int attr_flags = ic_msg->get_attr_flags_with_fallback(0);
+#endif
       for (size_t i = 0; i < ic_msg->get_file_actions_count(); i++) {
         const FBBCOMM_Serialized *action = ic_msg->get_file_actions_at(i);
         switch (action->get_tag()) {
@@ -788,6 +803,11 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
             const char *pathname = action_open->get_pathname();
             const size_t pathname_len = action_open->get_pathname_len();
             int fd = action_open->get_fd();
+#ifdef __APPLE__
+            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+              new_fds.insert(fd);
+            }
+#endif
             int flags = action_open->get_flags();
             mode_t mode = action_open->get_mode();
             fork_child->handle_force_close(fd);
@@ -840,6 +860,11 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
             } else {
               fork_child->handle_dup3(oldfd, newfd, 0, 0);
             }
+#ifdef __APPLE__
+            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+              new_fds.insert(newfd);
+            }
+#endif
             break;
           }
           case FBBCOMM_TAG_posix_spawn_file_action_chdir: {
@@ -858,11 +883,33 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
             fork_child->handle_set_fwd(fd);
             break;
           }
+          case FBBCOMM_TAG_posix_spawn_file_action_inherit: {
+            /* A successful inherit. */
+            auto action_inherit =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_inherit *>(
+                    action);
+            int fd = action_inherit->get_fd();
+#ifdef __APPLE__
+            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+              new_fds.insert(fd);
+            }
+#endif
+            fork_child->handle_clear_cloexec(fd);
+            break;
+          }
           default:
             assert(false);
         }
       }
-
+#ifdef __APPLE__
+      if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+        for (size_t fd = 0; fd < fork_child->fds()->size(); fd++) {
+          if (!new_fds.contains(fd)) {
+            fork_child->handle_force_close(fd);
+          }
+        }
+      }
+#endif
       proc->set_posix_spawn_pending(false);
 
       auto posix_spawn_child_sock = proc_tree->Pid2PosixSpawnChildSock(proc->pid());
