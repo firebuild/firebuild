@@ -690,6 +690,10 @@ int shared_libs_as_char_array_cb(struct dl_phdr_info *info, const size_t size, v
   shared_libs_as_char_array_cb_data_t *cb_data =
       (shared_libs_as_char_array_cb_data_t *)data;
 
+  if (cb_data->skip_entries) {
+    cb_data->skip_entries--;
+    return 0;
+  }
   cb_data->array[cb_data->collected_entries] = info->dlpi_name;
   cb_data->collected_entries++;
   assert(cb_data->collected_entries <= cb_data->collectable_entries);
