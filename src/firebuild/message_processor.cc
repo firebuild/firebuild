@@ -1109,6 +1109,12 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       PFBBA_HANDLE(proc, shm_open, fbbcomm_buf);
       break;
     }
+#ifdef __APPLE__
+    case FBBCOMM_TAG_kqueue: {
+      PFBBA_HANDLE(proc, kqueue, fbbcomm_buf);
+      break;
+    }
+#endif
 #ifdef __linux__
     case FBBCOMM_TAG_memfd_create: {
       PFBBA_HANDLE(proc, memfd_create, fbbcomm_buf);

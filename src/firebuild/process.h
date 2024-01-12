@@ -399,6 +399,13 @@ class Process {
   int handle_shm_open(const char * const name, const int oflag,
                       const mode_t mode, const int fd, const int error);
 
+#ifdef __APPLE__
+  /**
+   * Handle kqueue() in the monitored process
+   */
+  int handle_kqueue(const int fd, const int error);
+#endif
+
 #ifdef __linux__
   /**
    * Handle memfd_create in the monitored process

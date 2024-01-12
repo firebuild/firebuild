@@ -592,6 +592,12 @@
       (REQUIRED, "int", "ret"),
     ]),
 
+    ("kqueue", [
+      (OPTIONAL, "int", "ret"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("seccomp", [
       # always EINVAL at the moment, since the original call is not called
       (REQUIRED, "int", "error_no"),

@@ -44,6 +44,9 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef __APPLE__
+#include <sys/event.h>
+#endif
 #include <sys/ioctl.h>
 #ifdef __APPLE__
 #include <sys/mman.h>
