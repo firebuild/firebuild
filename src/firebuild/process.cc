@@ -158,7 +158,11 @@ std::vector<std::shared_ptr<FileFD>>* Process::pass_on_fds(const bool execed) co
   for (int i = 0; i < fds_size; i++) {
     const FileFD* const raw_file_fd = (*fds_)[i].get();
     if (raw_file_fd != nullptr) {
-      if (!(execed && raw_file_fd->cloexec())) {
+      if (!(execed && raw_file_fd->cloexec())
+#ifdef __APPLE__
+          && !(!execed && raw_file_fd->close_on_fork())
+#endif
+          ) {
         /* The operations on the fds in the new process don't affect the fds in the parent,
          * thus create a copy of the parent's FileFD pointed to by a new shared pointer. */
         (*ret_fds)[i] = std::make_shared<FileFD>(*raw_file_fd);
@@ -860,6 +864,16 @@ int Process::handle_shm_open(const char * const name, const int oflag,
   exec_point()->disable_shortcutting_bubble_up("shm_open() is not supported");
   return 0;
 }
+
+#ifdef __APPLE__
+int Process::handle_kqueue(const int fd, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, error=%d", fd, error);
+  if (fd != -1) {
+    add_filefd(fd, std::make_shared<FileFD>(0, FD_SPECIAL, this))->set_close_on_fork(true);
+  }
+  return 0;
+}
+#endif
 
 #ifdef __linux__
 int Process::handle_memfd_create(const int flags, const int fd) {

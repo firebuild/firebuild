@@ -151,6 +151,13 @@ class ProcessFBBAdaptor {
                                  msg->get_mode_with_fallback(0), ret, error);
   }
 
+#ifdef __APPLE__
+  static int handle(Process *proc, const FBBCOMM_Serialized_kqueue *msg) {
+    return proc->handle_kqueue(msg->get_ret_with_fallback(-1),
+                               msg->get_error_no_with_fallback(0));
+  }
+#endif
+
 #ifdef __linux__
   static int handle(Process *proc, const FBBCOMM_Serialized_memfd_create *msg) {
     return proc->handle_memfd_create(msg->get_flags(), msg->get_ret());

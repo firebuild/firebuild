@@ -134,13 +134,14 @@ class FileFD {
   }
   FileFD(const FileFD& other)
       : ofd_(other.ofd_), pipe_(other.pipe_), cloexec_(other.cloexec_),
-        close_on_popen_(other.close_on_popen_) {
+        close_on_popen_(other.close_on_popen_), close_on_fork_(other.close_on_fork_) {
   }
   FileFD& operator= (const FileFD& other) {
     ofd_ = other.ofd_;
     pipe_ = other.pipe_;
     cloexec_ = other.cloexec_;
     close_on_popen_ = other.close_on_popen_;
+    close_on_fork_ = other.close_on_fork_;
     return *this;
   }
 
@@ -157,6 +158,10 @@ class FileFD {
   bool cloexec() const {return cloexec_;}
   bool close_on_popen() const {return close_on_popen_;}
   void set_close_on_popen(bool c) {close_on_popen_ = c;}
+#ifdef __APPLE__
+  bool close_on_fork() const {return close_on_fork_;}
+  void set_close_on_fork(bool c) {close_on_fork_ = c;}
+#endif
   void set_pipe(std::shared_ptr<Pipe> pipe) {
     if (pipe_) {
       pipe_->handle_close(this);
@@ -180,6 +185,7 @@ class FileFD {
   std::shared_ptr<Pipe> pipe_;
   bool cloexec_;
   bool close_on_popen_ {false};
+  bool close_on_fork_ {false};
 };
 
 /* Global debugging methods.

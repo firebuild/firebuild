@@ -1867,6 +1867,10 @@ generate("char *", "tmpnam_r", "char *tmplt",
 generate("char *", ["tempnam"], "const char *dir, const char *pfx",
          tpl="once")
 
+generate("int", ["kqueue"], "",
+         platforms=["darwin"],
+         send_ret_on_success=True)
+
 # Disable shortcutting on chroot
 generate("int", ["chroot", "SYS_chroot"], "const char *path",
          tpl="once")
