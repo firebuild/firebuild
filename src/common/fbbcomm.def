@@ -64,6 +64,15 @@
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for posix_spawn_file_actions spawnattr flags. */
+    static void fbbcomm_debug_psfa_attr_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_psfa_attr_flags(f, flags);
+      fprintf(f, "\\"");
+    }
+
     /* Debugger method for int fields that represent fcntl()'s F_* command. */
     static void fbbcomm_debug_fcntl_cmd(FILE *f, int cmd, bool is_serialized, const void *fbb) {
       (void)is_serialized;  /* unused */
@@ -720,8 +729,16 @@
       (REQUIRED, "int", "fd"),
     ]),
 
+    # This is not used as a toplevel message, but in the "file_actions" field of a
+    # "posix_spawn_parent" message, corresponding to an earlier posix_spawn_file_actions_addinherit_np() call.
+    ("posix_spawn_file_action_inherit", [
+      (REQUIRED, "int", "fd"),
+    ]),
+
     # posix_spawn[p](3)
     ("posix_spawn", [
+      # posix_spawnattr_t flags, if set
+      (OPTIONAL, "int", "attr_flags", "fbbcomm_debug_psfa_attr_flags"),
       # command
       (OPTIONAL, STRING, "file"),
       # only argv, sending argc would be redundant
@@ -736,6 +753,8 @@
     ]),
 
     ("posix_spawn_parent", [
+      # posix_spawnattr_t flags, if set
+      (OPTIONAL, "int", "attr_flags", "fbbcomm_debug_psfa_attr_flags"),
       # command args repeated, to let the supervisor remove it from expected_child
       (ARRAY, STRING, "arg"),
       # posix_spawn_file_actions_t, each action is an FBB message of one of

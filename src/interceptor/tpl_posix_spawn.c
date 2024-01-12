@@ -21,6 +21,11 @@
 ### extends "tpl.c"
 
 ### block before
+{# attr_flags could be forwarded to the supervisor on Linux, too, but #}
+{# they would not be used for anything by Firebuild, only on macOS.   #}
+###   if target == "darwin"
+  short attr_flags = 0;
+###   endif
   if (i_am_intercepting) {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
@@ -39,6 +44,19 @@
 ###   endif
     fbbcomm_builder_posix_spawn_set_arg(&ic_msg, (const char **) argv);
     fbbcomm_builder_posix_spawn_set_env(&ic_msg, (const char **) envp);
+###   if target == "darwin"
+    if (attrp) {
+      if (posix_spawnattr_getflags(attrp, &attr_flags) == 0) {
+        fbbcomm_builder_posix_spawn_set_attr_flags(&ic_msg, attr_flags);
+        if (attr_flags & POSIX_SPAWN_SETEXEC) {
+          // TODO(rbalint) support this Apple extension
+          // disable interception for now
+          intercepting_enabled = false;
+          env_purge(environ);
+        }
+      }
+    }
+###   endif
     fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
   }
 ### endblock before
@@ -74,6 +92,11 @@
         fbbcomm_builder_posix_spawn_parent_set_file_actions(&ic_msg, (const FBBCOMM_Builder **) (p->p));
       }
       fbbcomm_builder_posix_spawn_parent_set_pid(&ic_msg, *pid);
+###   if target == "darwin"
+      if (attr_flags != 0) {
+        fbbcomm_builder_posix_spawn_parent_set_attr_flags(&ic_msg, attr_flags);
+      }
+###   endif
       fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
     } else {
       /* Unlike at most other methods where we skip on EINTR or EFAULT, here we always have to send

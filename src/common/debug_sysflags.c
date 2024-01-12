@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sched.h>
+#include <spawn.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -168,7 +169,36 @@ void debug_at_flags(FILE *f, int flags) {
 }
 
 /**
- * Debug-print the 'cmd' parameter of an fcntl() call.
+ * Debug spawn‐flags attribute (set using posix_spawnattr_setflags(3)).
+ */
+void debug_psfa_attr_flags(FILE *f, int flags) {
+  DEBUG_BITMAP_START(f, flags)
+#ifdef POSIX_SPAWN_RESETIDS
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_RESETIDS)
+#endif
+#ifdef POSIX_SPAWN_SETPGROUP
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_SETPGROUP)
+#endif
+#ifdef POSIX_SPAWN_SETSIGDEF
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_SETSIGDEF)
+#endif
+#ifdef POSIX_SPAWN_SETSIGMASK
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_SETSIGMASK)
+#endif
+#ifdef POSIX_SPAWN_SETEXEC
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_SETEXEC)
+#endif
+#ifdef POSIX_SPAWN_START_SUSPENDED
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_START_SUSPENDED)
+#endif
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+  DEBUG_BITMAP_FLAG(f, flags, POSIX_SPAWN_CLOEXEC_DEFAULT)
+#endif
+  DEBUG_BITMAP_END_HEX(f, flags)
+}
+
+/**
+ * Debug-print the 'cmdd' parameter of an fcntl() call.
  */
 void debug_fcntl_cmd(FILE *f, int cmd) {
   DEBUG_VALUE_START(f, cmd)
