@@ -486,6 +486,8 @@ typedef struct shared_libs_as_char_array_cb_data_ {
   int collected_entries;
   /** Number of entries that could be collected to `array`. */
   int collectable_entries;
+  /** Skip the first N entries. */
+  int skip_entries;
 } shared_libs_as_char_array_cb_data_t;
 
 /** Collect loaded shared library names */

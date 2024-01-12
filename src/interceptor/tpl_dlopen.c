@@ -20,21 +20,22 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
-{% set msg_add_fields = ["fbbcomm_builder_dlopen_set_libs_with_count(&ic_msg, (const char * const *)new_libs, new_libs_count);",
+{% set msg_add_fields = ["assert(filename);",
+                         "if (strrchr(filename, '/')) {",
+                         "  BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(dlopen, AT_FDCWD, filename);",
+                         "} else {",
+                         "  fbbcomm_builder_dlopen_set_filename(&ic_msg, filename);",
+                         "}",
+                         "fbbcomm_builder_dlopen_set_libs_with_count(&ic_msg, (const char * const *)new_libs, new_libs_count);",
                          "fbbcomm_builder_dlopen_set_error(&ic_msg, !success);"] %}
 
 ### block before
-  /* Iterate through all images currently in memory */
+  /* Count already loaded shared libs. */
 ###   if target == "darwin"
-  const int image_count_before = _dyld_image_count();
-  const char ** images_before = alloca(image_count_before * sizeof(char*));
-  collect_loaded_image_names(images_before, image_count_before);
+  const int lib_count_before = _dyld_image_count();
 ###  else
-  int image_count_before = 0;
-  dl_iterate_phdr(count_shared_libs_cb, &image_count_before);
-  const char ** images_before = alloca(image_count_before * sizeof(char*));
-  shared_libs_as_char_array_cb_data_t cb_data_before = {images_before, 0, image_count_before};
-  dl_iterate_phdr(shared_libs_as_char_array_cb, &cb_data_before);
+  size_t lib_count_before = 0;
+  dl_iterate_phdr(count_shared_libs_cb, &lib_count_before);
 ###  endif
   /* Release lock to allow intercepting shared library constructors. */
   if (i_locked) {
@@ -46,30 +47,37 @@
   if (i_am_intercepting) {
     grab_global_lock(&i_locked, "{{ func }}");
   }
+  /* Count loaded shared libs after the call. */
 ###   if target == "darwin"
-  const int image_count_after = _dyld_image_count();
-  const char ** images_after = alloca(image_count_after * sizeof(char*));
-  collect_loaded_image_names(images_after, image_count_after);
+  const size_t lib_count_after = _dyld_image_count();
 ###   else
-  int image_count_after = 0;
-  dl_iterate_phdr(count_shared_libs_cb, &image_count_after);
-  const char ** images_after = alloca(image_count_after * sizeof(char*));
-  shared_libs_as_char_array_cb_data_t cb_data_after = {images_after, 0, image_count_after};
-  dl_iterate_phdr(shared_libs_as_char_array_cb, &cb_data_after);
+  size_t lib_count_after = 0;
+  dl_iterate_phdr(count_shared_libs_cb, &lib_count_after);
 ###   endif
+  /* Allocate enough space for all newly loaded libraries. */
+  const char ** new_libs = alloca((lib_count_after - lib_count_before) * sizeof(char*));
   size_t new_libs_count = 0;
-  /* Allocate space for the worst case, i.e. all the loaded shared libs are new, which is highly
-   * unlikely. */
-  const char ** new_libs = alloca(image_count_after * sizeof(char*));
-  newly_loaded_images(images_before, image_count_before, images_after, image_count_after,
-                      new_libs, &new_libs_count);
   size_t i;
+###   if target == "darwin"
+  for (i = lib_count_before; i < lib_count_after; i++) {
+    new_libs[new_libs_count] = _dyld_get_image_name(i);
+    new_libs_count++;
+  }
+###   else
+  shared_libs_as_char_array_cb_data_t cb_data_after =
+      {new_libs, 0, lib_count_after - lib_count_before, lib_count_before};
+  dl_iterate_phdr(shared_libs_as_char_array_cb, &cb_data_after);
+  /* A few libraries may have been skipped. */
+  new_libs_count = cb_data_after.collected_entries;
+###   endif
+  assert(new_libs_count == lib_count_after - lib_count_before);
   for (i = 0; i < new_libs_count; i++) {
-    const int orig_len = strlen(new_libs[i]);
-    if (!is_canonical(new_libs[i], orig_len)) {
-        /* Don't use strdupa(), because it does not exist on macOS. */
+    const char *new_lib_orig = new_libs[i];
+    const int orig_len = strlen(new_lib_orig);
+    if (!is_canonical(new_lib_orig, orig_len)) {
+      /* Don't use strdupa(), because it does not exist on macOS. */
       char* new_lib = alloca(orig_len + 1);
-      memcpy(new_lib, new_libs[i], orig_len + 1);
+      memcpy(new_lib, new_lib_orig, orig_len + 1);
       make_canonical(new_lib, orig_len + 1);
       new_libs[i] = new_lib;
     }

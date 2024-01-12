@@ -406,36 +406,42 @@ int Process::handle_dlopen(const std::vector<std::string>& libs,
                            const bool error, int fd_conn, int ack_num) {
   int ret = 0;
   if (libs.size() > 0) {
+    /* There are new loaded shared libraries, register them. */
+    for (const std::string& ar_name : libs) {
+      const FileName* name = get_absolute(AT_FDCWD, ar_name.c_str(), ar_name.size());
+#ifdef __APPLE__
+      if (!hash_cache->get_statinfo(name, nullptr, nullptr)) {
+        /* Some libraries are not present as regular files on macOS, ignore those. */
+        continue;
+      }
+#endif
+      FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, O_RDONLY, 0, 0, false);
+      if (!exec_point()->register_file_usage_update(name, update)) {
+        exec_point()->disable_shortcutting_bubble_up(
+            "Could not register loading the shared library", *name);
+      }
+    }
+  }
+  if (error) {
     /* When failing to dlopen() a file assume it is not present.
      * This is a safe assumption for shortcutting purposes, since the cache entry
      * will require the the file to be missing to shortcut the process and if the file
      * is missing dlopen() would have failed for sure.
      */
-    for (const std::string& ar_name : libs) {
-#ifdef __APPLE__
-      if (!hash_cache->get_statinfo(get_absolute(AT_FDCWD, ar_name.c_str(), ar_name.size()),
-                                    nullptr, nullptr)) {
-        /* Some libraries are not present as regular files on macOS, ignore those. */
-        continue;
-      }
-#endif
-      handle_open(AT_FDCWD, ar_name.c_str(), ar_name.size(),
-                  O_RDONLY, 0, -1, 0, fd_conn, ack_num, false, false);
-    }
-    return 0;
-  } else if (looked_up_filename) {
-    /* Failed dlopen() could not find the file on the search path.*/
-    /* TODO(rbalint) allow shortcutting the process and mark the file as missing on all the
-     * search path entries as described in dlopen(3). */
-    (void)looked_up_filename_len;
-    exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ", looked_up_filename);
-    ret = -1;
-  } else {
-    if (error) {
-      exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() the main program");
+    if (strchr(looked_up_filename, '/')) {
+      /* Failed to dlopen() a relative or absolute filename, register the file as missing. */
+      handle_open(AT_FDCWD, looked_up_filename, looked_up_filename_len,
+                  O_RDONLY, 0, -1, ENOENT, 0, 0, false, false);
+    } else {
+      /* Failed dlopen() could not find the file on the search path. */
+      /* TODO(rbalint) allow shortcutting the process and mark the file as missing on all the
+       * search path entries as described in dlopen(3). */
+      exec_point()->disable_shortcutting_bubble_up("Process failed to dlopen() ",
+                                                   looked_up_filename);
       ret = -1;
     }
   }
+  // TODO(rbalint) maybe move ACK-ing earlier, before the bubble-ups
   if (ack_num != 0) {
     ack_msg(fd_conn, ack_num);
   }
