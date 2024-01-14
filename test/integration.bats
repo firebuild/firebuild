@@ -77,9 +77,10 @@ setup() {
   for i in 1 2; do
     # clean up previous run
     make -s -f test_parallel_make.Makefile clean
-    result=$(./run-firebuild -o 'processes.jobserver_users += "make"' -- make -s -j8 -f test_parallel_make.Makefile)
+    result=$(./run-firebuild -d proc -o 'processes.jobserver_users += "make"' -- make -s -j8 -f test_parallel_make.Makefile)
     assert_streq "$result" "ok"
-    assert_streq "$(strip_stderr stderr)" ""
+    # TODO(rbalint) xcodebuild can't be shortcut yet
+    assert_streq "$(strip_stderr stderr | grep 'Command ' | grep -E -v '(set to be not shortcut|matches skip_cache|Shortcut parent .* instead)' | grep -E -v '(xcodebuild|Could not register unsupported file usage combination)')" ""
     result=$(./run-firebuild -s)
     assert_streq "$(strip_stderr stderr)" ""
   done

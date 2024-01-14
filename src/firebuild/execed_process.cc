@@ -361,7 +361,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
 }
 
 bool ExecedProcess::register_parent_directory(const FileName *name,
-                                              FileType type) {
+                                              FileType parent_type) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
 
   const FileName* const parent_dir = FileName::GetParentDir(name->c_str(), name->length());
@@ -373,7 +373,7 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
     return true;
   }
 
-  FileUsageUpdate update(parent_dir, type);
+  FileUsageUpdate update(parent_dir, parent_type);
   assert(update.parent_type() == DONTKNOW);
   return register_file_usage_update(parent_dir, update);
 }
