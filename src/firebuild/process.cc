@@ -1514,8 +1514,11 @@ void Process::handle_inherited_fd_offset(const int fd, const int64_t offset) {
         "Process reported offset for an intercepted seekable fd which is no known to be open", fd);
     return;
   }
-  exec_point()->disable_shortcutting_only_this(
-      "Inherited writable non-append fd not seeked to its end");
+  const int flags = file_fd->flags() & O_ACCMODE;
+  if (flags == O_WRONLY || flags == O_RDWR) {
+    exec_point()->disable_shortcutting_only_this(
+        "Inherited writable non-append fd not seeked to its end");
+  }
   for (inherited_file_t& inherited_file : exec_point()->inherited_files()) {
     if (inherited_file.fds[0] == fd) {
       inherited_file.start_offset = offset;
