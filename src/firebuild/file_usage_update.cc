@@ -271,11 +271,13 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(
           update.unknown_err_ = err;
         }
       } else if (err == ENOTDIR) {
-        /* Occurs when opening the "foo/baz/bar" path when "foo/baz" is not a directory,
+        /* Occurs when opening the "foo/baz/bar" path when "foo/baz/bar" is not a directory,
          * but for example a regular file. Or when "foo" is a regular file. We can't distinguish
-         * between those cases, but if "/foo/baz" is a regular file we can safely shortcut the
+         * between those cases, but if "/foo/baz/bar" is a regular file we can safely shortcut the
          * process, because the process could not tell the difference either. */
-        update.parent_type_ = ISREG;
+        // TODO(rbalint) figure out what's the reason for ENOENT and set update according to that.
+        update.set_initial_type(EXIST);
+        update.parent_type_ = ISDIR;
       } else if (err == EINVAL) {
         update.set_initial_type(DONTKNOW);
         if (tmp_file) {
@@ -299,7 +301,9 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(
         update.set_initial_type(NOTEXIST);
       } else if (err == ENOTDIR) {
         /* See the comment in the is_write() branch. */
-        update.parent_type_ = ISREG;
+        // TODO(rbalint) figure out what's the reason for ENOENT and set update according to that.
+        update.set_initial_type(EXIST);
+        update.parent_type_ = ISDIR;
       } else {
         /* We don't support other errors such as permission denied. */
         update.unknown_err_ = err;

@@ -164,7 +164,7 @@ class ExecedProcess : public Process {
    * Register that the parent (a.k.a. dirname) of the given path does (or does not) exist and is of
    * the given "type" (e.g. ISDIR, NOTEXIST), and bubbles it up to the root.
    */
-  bool register_parent_directory(const FileName *name, FileType type = ISDIR);
+  bool register_parent_directory(const FileName *name, FileType parent_type = ISDIR);
   void add_pipe(std::shared_ptr<Pipe> pipe) {created_pipes_.insert(pipe);}
   std::vector<inherited_file_t>& inherited_files() {return inherited_files_;}
   const std::vector<inherited_file_t>& inherited_files() const {return inherited_files_;}
