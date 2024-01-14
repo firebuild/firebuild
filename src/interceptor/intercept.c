@@ -678,14 +678,10 @@ static bool skip_shared_lib(const char *name, const size_t len) {
 }
 
 int count_shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
-  (void) size;  /* unused */
+  (void)info;  /* unused */
+  (void)size;  /* unused */
   int* count = (int*)data;
-
-  const char* name = info->dlpi_name;
-  const size_t len = strlen(name);
-  if (!skip_shared_lib(name, len)) {
-    (*count)++;
-  }
+  (*count)++;
   return 0;
 }
 
@@ -694,13 +690,9 @@ int shared_libs_as_char_array_cb(struct dl_phdr_info *info, const size_t size, v
   shared_libs_as_char_array_cb_data_t *cb_data =
       (shared_libs_as_char_array_cb_data_t *)data;
 
-  const char* name = info->dlpi_name;
-  const size_t len = strlen(name);
-  if (!skip_shared_lib(name, len)) {
-    cb_data->array[cb_data->collected_entries] = name;
-    cb_data->collected_entries++;
-    assert(cb_data->collected_entries <= cb_data->collectable_entries);
-  }
+  cb_data->array[cb_data->collected_entries] = info->dlpi_name;
+  cb_data->collected_entries++;
+  assert(cb_data->collected_entries <= cb_data->collectable_entries);
   return 0;
 }
 
