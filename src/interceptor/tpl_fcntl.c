@@ -66,6 +66,10 @@
     case F_GET_FILE_RW_HINT:
     case F_SET_FILE_RW_HINT:
 #endif
+#ifdef __APPLE__
+    case F_NOCACHE:
+    case F_GETPROTECTIONCLASS:
+#endif
       {
       break;
     }
