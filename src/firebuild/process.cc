@@ -648,6 +648,22 @@ int Process::handle_statfs(const char * const a_name, const size_t length,
   return 0;
 }
 
+int Process::handle_mktemp(const char * const a_name, const size_t length) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "a_name=%s", D(a_name));
+
+  /* Operating on a file reached by its name, made absolute by the interceptor. */
+#ifdef FB_EXTRA_DEBUG
+  assert(path_is_absolute(a_name));
+#endif
+  const FileName* name = FileName::Get(a_name, length);
+  /* The only thing the process knows about that file is that it does not exist. */
+  FileUsageUpdate update = FileUsageUpdate::get_from_open_params(name, O_RDWR, 0, ENOENT, true);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register mktemp()", *name);
+  }
+  return 0;
+}
+
 int Process::handle_faccessat(const int dirfd, const char * const ar_name, const size_t ar_name_len,
                               const int mode, const int flags, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,

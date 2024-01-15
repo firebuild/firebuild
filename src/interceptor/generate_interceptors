@@ -1853,16 +1853,17 @@ generate("FILE *", ["tmpfile", "tmpfile64"], "",
          tpl="once")
 # "Never use these functions"
 # FIXME Supporting them would require supervisor work, or two messages (exclusive open, then close)
-generate("char *", ["mktemp", "tmpnam"], "char *tmplt",
-         tpl="once",
+generate("char *", ["mktemp"]+ (["__mktemp"] if target == "linux" else []), "char *template",
+         success="template[0] != '\\0'",
+         msg_skip_fields=["template"],
+         send_msg_on_error=False,
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(mktemp, template);"],
          diagnostic_ignored = ["-Warray-parameter="])
-generate("char *", ["__mktemp"], "char *tmplt",
-         platforms=['linux'],
-         tpl="once",
-         diagnostic_ignored = ["-Warray-parameter="])
-generate("char *", "tmpnam_r", "char *tmplt",
-         platforms=['linux'],
-         tpl="once",
+generate("char *", ["tmpnam"] + (["tmpnam_r"] if target == "linux" else []), "char *template",
+         msg="mktemp",
+         msg_skip_fields=["template"],
+         send_msg_on_error=False,
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(mktemp, template);"],
          diagnostic_ignored = ["-Warray-parameter="])
 generate("char *", ["tempnam"], "const char *dir, const char *pfx",
          tpl="once")

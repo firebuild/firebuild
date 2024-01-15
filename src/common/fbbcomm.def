@@ -936,6 +936,10 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("mktemp", [
+      (REQUIRED, STRING, "template"),
+    ]),
+
     ("mac_syscall", [
       (REQUIRED, STRING, "policy"),
       (REQUIRED, "int", "call"),

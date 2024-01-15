@@ -305,6 +305,10 @@ class ProcessFBBAdaptor {
     }
   }
 
+  static int handle(Process *proc, const FBBCOMM_Serialized_mktemp *msg) {
+    return proc->handle_mktemp(msg->get_template(), msg->get_template_len());
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(ProcessFBBAdaptor);
 };
