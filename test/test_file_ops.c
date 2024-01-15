@@ -172,14 +172,21 @@ int main() {
   close(fd);
 #endif
 
-  char tmp_file[] = "tmpprefixXXXXXX";
-  fd = mkstemp(tmp_file);
+  char tmp_file1[] = "tmpprefixXXXXXX";
+  mktemp(tmp_file1);
+  if (tmp_file1[0] == '\0') {
+    perror("mktemp" LOC);
+    exit(1);
+  }
+
+  char tmp_file2[] = "tmpprefixXXXXXX";
+  fd = mkstemp(tmp_file2);
   if (fd == -1) {
     perror("mkstemp" LOC);
     exit(1);
   }
   close(fd);
-  unlink(tmp_file);
+  unlink(tmp_file2);
 
   char tmp_dir[] = "./prefixXXXXXX";
   char *mkdtemp_ret = mkdtemp(tmp_dir);

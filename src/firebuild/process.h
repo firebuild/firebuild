@@ -371,6 +371,13 @@ class Process {
                     const int error = 0);
 
   /**
+   * Handle mktemp in the monitored process
+   * @param name absolute file name
+   * @param name_len length of name
+   */
+  int handle_mktemp(const char * const name, const size_t name_len);
+
+  /**
    * Handle access, e[uid]access, faccessat in the monitored process
    */
   int handle_faccessat(const int dirfd, const char * const name, const size_t name_len,

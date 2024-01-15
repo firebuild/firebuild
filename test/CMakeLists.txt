@@ -46,6 +46,9 @@ if (SANITIZE)
   set_source_files_properties(test_file_ops.c PROPERTIES COMPILE_DEFINITIONS "SKIP_TEST_NULL_NONNULL_PARAMS=1")
 endif()
 add_test_binary(test_file_ops)
+if(APPLE)
+  set_source_files_properties(test_file_ops.c PROPERTIES COMPILE_FLAGS "-Wno-deprecated-declarations")
+endif()
 target_link_libraries(test_file_ops "-ldl")
 add_library(test_dlopen_lib SHARED
   EXCLUDE_FROM_ALL
