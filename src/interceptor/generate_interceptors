@@ -1712,7 +1712,7 @@ generate("int", ["futimens", "__futimens64"], "int fd, const struct timespec tim
 # in send_msg_condition we have to skip the default exception on EINTR and EFAULT.
 generate("void *", "dlopen", "const char *filename, int flag",
          tpl="dlopen",
-         send_msg_condition="filename",
+         send_msg_condition="filename && !(flag & RTLD_NOLOAD)",
          ack_condition="new_libs_count > 0",
          # msg_add_fields is set in the template
          msg_skip_fields=["filename", "error_no"])
@@ -1720,7 +1720,7 @@ generate("void *", "dlmopen", "Lmid_t lmid, const char *filename, int flag",
          platforms=['linux'],
          tpl="dlopen",
          msg="dlopen",
-         send_msg_condition="filename",
+         send_msg_condition="filename && !(flag & RTLD_NOLOAD)",
          ack_condition="new_libs_count > 0",
          # msg_add_fields is set in the template
          msg_skip_fields=["lmid", "filename", "error_no"])
