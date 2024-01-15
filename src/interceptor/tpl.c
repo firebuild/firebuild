@@ -329,7 +329,7 @@ case {{ func }}: {
 ###       if not no_saved_errno
   saved_errno = errno;
 ###       endif
-  success = {{ success }};
+  success = ({{ success }});
   (void)success;  /* sometimes it's unused, silence warning */
 
   /* Afterwork */
