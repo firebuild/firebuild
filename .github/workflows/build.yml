@@ -311,6 +311,9 @@ jobs:
     runs-on: macos-12
     timeout-minutes: 30
     steps:
+    - name: check if SIP is enabled on this runner
+      run: |
+        csrutil status | grep "System Integrity Protection status: disabled"
     - uses: actions/checkout@v3
     - uses: hendrikmuhs/ccache-action@v1
       with:
