@@ -847,7 +847,8 @@ int Process::handle_shm_open(const char * const name, const int oflag,
 #ifdef __APPLE__
   } else {
     if (strcmp("com.apple.featureflags.shm", name) == 0
-        ||strcmp("apple.shm.notification_center", name) == 0) {
+        || strcmp("apple.shm.notification_center", name) == 0
+        || strncmp("apple.cfprefs", name, strlen("apple.cfprefs")) == 0) {
       /* Register opened fd and don't disable shortcutting. */
       // TODO(rbalint) check contents of the shared memory and possibly
       // include parts in the fingerprint
