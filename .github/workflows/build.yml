@@ -322,6 +322,10 @@ jobs:
         export HOMEBREW_NO_AUTO_UPDATE=1
         # brew often fails due to existing files, hence the --overwrite parameter and the retry
         brew install --overwrite $BREW_BUILD_DEPS || (for v in 3.11 3.12; do brew link --overwrite python@${v} ; done; brew install --overwrite $BREW_BUILD_DEPS)
+    - name: configure vm
+      run: |
+        # library validation would prevent loading libfirebuild to some binaries
+        sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
     - name: build-in-tree
       run: |
         export PATH=/usr/local/opt/ccache/libexec:$(ls -d /usr/local/Cellar/jinja2-cli/*/libexec/bin):$PATH
