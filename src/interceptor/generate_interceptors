@@ -377,10 +377,10 @@ for gen in set(libc_outputs + syscall_outputs):
 
 
 # Intercept vararg open() and friends
-generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel"] + (["__open64_nocancel"] if target == "linux" else []), "const char *pathname, int flags, ...",
+generate("int", ["open", "open64", "__open64", "SYS_open", "__open", "__open_nocancel"] + (["__open64_nocancel"] if target == "linux" else ["open$NOCANCEL"]), "const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"])
-generate("int", ["openat", "openat64", "SYS_openat"] + (["__openat"] if target == "darwin" else []), "int dirfd, const char *pathname, int flags, ...",
+generate("int", ["openat", "openat64", "SYS_openat"] + (["__openat", "openat$NOCANCEL"] if target == "darwin" else []), "int dirfd, const char *pathname, int flags, ...",
          tpl="open",
          msg_skip_fields=["pathname"],
          msg="open")
