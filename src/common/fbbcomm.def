@@ -93,6 +93,15 @@
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for int fields that represent socket()'s domain. */
+    static void fbbcomm_debug_socket_domain(FILE *f, int domain, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_socket_domain(f, domain);
+      fprintf(f, "\\"");
+    }
+
     /* Debugger method for int fields that represent CLONE_* flags. */
     static void fbbcomm_debug_clone_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
       (void)is_serialized;  /* unused */
@@ -912,7 +921,7 @@
     ]),
 
     ("socket", [
-      (REQUIRED, "int", "domain"),
+      (REQUIRED, "int", "domain", "fbbcomm_debug_socket_domain"),
       (REQUIRED, "int", "type"),
       (REQUIRED, "int", "protocol"),
       # return value, the file descriptor if != -1

@@ -23,6 +23,7 @@
 #include <sched.h>
 #include <spawn.h>
 #include <stdio.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -286,6 +287,27 @@ void debug_fcntl_arg_or_ret(FILE *f, int cmd, int arg_or_ret) {
     default:
       fprintf(f, "%d", arg_or_ret);
   }
+}
+
+/**
+ * Debug-print socket()'s 'domain' parameter.
+ */
+void debug_socket_domain(FILE *f, int domain) {
+  DEBUG_VALUE_START(f, domain)
+  DEBUG_VALUE_VALUE(f, domain, AF_UNIX)
+  DEBUG_VALUE_VALUE(f, domain, AF_INET)
+  DEBUG_VALUE_VALUE(f, domain, AF_APPLETALK)
+  DEBUG_VALUE_VALUE(f, domain, AF_INET6)
+#ifdef AF_KEY
+  DEBUG_VALUE_VALUE(f, domain, AF_KEY)
+#endif
+#ifdef AF_NETLINK
+  DEBUG_VALUE_VALUE(f, domain, AF_NETLINK)
+#endif
+#ifdef AF_PACKET
+  DEBUG_VALUE_VALUE(f, domain, AF_PACKET)
+#endif
+  DEBUG_VALUE_END_DEC(f, domain)
 }
 
 /**
