@@ -611,33 +611,7 @@ static void store_entries(const char* env_var, cstring_view_array *entries,
   }
 }
 
-void newly_loaded_images(const char ** const images_before, const size_t image_count_before,
-                         const char * const * images_after, size_t image_count_after,
-                         const char ** new_images, size_t *new_images_count) {
-  size_t first_differing_idx = 0;
-  for (first_differing_idx = 0; first_differing_idx < image_count_before; first_differing_idx++) {
-    if (strcmp(images_before[first_differing_idx], images_after[first_differing_idx]) !=  0) {
-      break;
-    }
-  }
-  qsort(images_before, image_count_before, sizeof(char*),
-        (int (*)(const void *, const void *))strcmp);
-  *new_images_count = 0;
-  for (size_t i = first_differing_idx; i < image_count_after; i++) {
-    if (!bsearch(&images_after[i], images_before, image_count_before, sizeof(char*),
-                 (int (*)(const void *, const void *))strcmp)) {
-      new_images[(*new_images_count)++] = images_after[i];
-    }
-  }
-}
-
 #ifdef __APPLE__
-void collect_loaded_image_names(const char ** images, int image_count) {
-  for (int i = 0; i < image_count; i++) {
-    images[i] = _dyld_get_image_name(i);
-  }
-}
-
 static void collect_canonized_shared_libs(cstring_view_array* libs, char *canonized_libs,
                                           int image_count) {
   /* Skip first image because it is the binary itself. */
