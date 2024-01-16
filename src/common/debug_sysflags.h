@@ -36,6 +36,7 @@ void debug_at_flags(FILE *f, int flags);
 void debug_psfa_attr_flags(FILE *f, int flags);
 void debug_fcntl_cmd(FILE *f, int cmd);
 void debug_fcntl_arg_or_ret(FILE *f, int cmd, int arg);
+void debug_socket_domain(FILE *f, int domain);
 void debug_error_no(FILE *f, int error_no);
 void debug_signum(FILE *f, int signum);
 void debug_mode_t(FILE *f, mode_t mode);
