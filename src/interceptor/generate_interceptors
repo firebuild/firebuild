@@ -2400,7 +2400,7 @@ generate("int", ["socket", "SYS_socket"]+ (["__socket"] if target == "linux" els
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          send_ret_on_success=True)
 generate("int", ["connect", "SYS_connect", "__connect"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
-         tpl="once")
+         msg_skip_fields=["addr", "addrlen"])
 generate("int", ["bind", "SYS_bind"] + (["__bind"] if target == "darwin" else []), "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          tpl="once")
 generate("int", ["listen", "SYS_listen"] + (["__listen"] if target == "darwin" else []), "int sockfd, int backlog",

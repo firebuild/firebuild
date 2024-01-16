@@ -945,6 +945,11 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("connect", [
+      (REQUIRED, "int", "sockfd"),
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("mktemp", [
       (REQUIRED, STRING, "template"),
     ]),

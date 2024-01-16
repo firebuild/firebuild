@@ -296,6 +296,11 @@ class ProcessFBBAdaptor {
     return 0;
   }
 
+  static int handle(Process *proc, const FBBCOMM_Serialized_connect *msg) {
+    proc->handle_connect(msg->get_sockfd(), msg->get_error_no_with_fallback(0));
+    return 0;
+  }
+
   static int handle(Process *proc, const FBBCOMM_Serialized_statfs *msg) {
     if (msg->has_pathname()) {
       return proc->handle_statfs(msg->get_pathname(), msg->get_pathname_len(),
