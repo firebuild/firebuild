@@ -463,22 +463,7 @@ void atfork_parent_handler(void);
  */
 void atfork_child_handler(void);
 
-/**
- * Collects newly loaded images in pre-allocated new_images
- * Note that the function may sort the images_before array.
- */
-void newly_loaded_images(const char ** const images_before, const size_t images_before_count,
-                         const char * const * const images_after, const size_t images_after_count,
-                         const char ** new_images, size_t *new_images_count);
-
-#ifdef __APPLE__
-/**
- * Collect loaded shared library image names
- * @param[out] images pre-allocated image_count sized array for the names
- * @param[in]  image_count size of images
- */
-void collect_loaded_image_names(const char ** images, int image_count);
-#else
+#ifdef __linux__
 struct dl_phdr_info;
 /** Count loaded shared libraries */
 int count_shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data);
