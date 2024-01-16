@@ -1181,6 +1181,28 @@ void Process::handle_socketpair(const int domain, const int type, const int prot
   }
 }
 
+void Process::handle_connect(const int sockfd, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "sockfd=%d, error=%d",
+         sockfd, error);
+  if (!error) {
+    if (!get_fd(sockfd)) {
+      exec_point()->disable_shortcutting_bubble_up(
+          "Process connect()-ed over and fd that was not tracked as being open, "
+          "which means interception missed at least one socket()", sockfd);
+#ifdef __APPLE__
+    } else if (quirks & FB_QUIRK_LTO_WRAPPER && exec_point()->args().size() > 2
+               && exec_point()->args()[exec_point()->args().size() - 2] == "-find"
+               && exec_point()->args()[0].ends_with("xcodebuild")
+               && parent_exec_point()->executable()->without_dirs() == "gcc" ) {
+      FB_DEBUG(FB_DEBUG_PROC, "Allow shortcutting GCC-invoked xcodebuild (lto-wrapper quirk)");
+      /* Ignore connect() of xcodebuild when finding "gcc", for examle, the conection is only
+       * for logging. */
+#endif
+    }
+  }
+  exec_point()->disable_shortcutting_bubble_up("connect() is not supported");
+}
+
 int Process::handle_dup3(const int oldfd, const int newfd, const int flags,
                          const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "oldfd=%d, newfd=%d, flags=%d, error=%d",

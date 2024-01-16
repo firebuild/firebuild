@@ -491,6 +491,11 @@ class Process {
                          const int fd0, const int fd1, const int error);
 
   /**
+   * Handle connect() in the monitored process
+   */
+  void handle_connect(const int sockfd, const int error);
+
+  /**
    * Handle dup(), dup2() or dup3() in the monitored process
    * @param oldfd old fd
    * @param newfd new fd
