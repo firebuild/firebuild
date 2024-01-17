@@ -582,6 +582,160 @@ static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t
   }
 }
 
+static void posix_spawn_preopen_files(const FBBCOMM_Serialized_posix_spawn * const ic_msg,
+                                      Process* const proc) {
+  for (size_t i = 0; i < ic_msg->get_file_actions_count(); i++) {
+    const FBBCOMM_Serialized *action = ic_msg->get_file_actions_at(i);
+    switch (action->get_tag()) {
+      case FBBCOMM_TAG_posix_spawn_file_action_open: {
+        /* A successful open to a particular fd, silently closing the previous file if any. */
+        const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
+            reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
+        int flags = action_open->get_flags();
+        if (is_write(flags)) {
+          const FileName* file_name = proc->get_absolute(
+              AT_FDCWD, action_open->get_pathname(), action_open->get_pathname_len());
+          if (file_name) {
+            /* Pretend that the parent opened the file for writing and not the fork child.
+             * This is not accurate, but the fork child does not exist yet. A parallel
+             * process opening the file for writing would disable shortcutting the same way. */
+            file_name->open_for_writing(proc->exec_point());
+          }
+        }
+        break;
+      }
+      default:
+        /* Only opens are handled (as pre_opens). */
+        break;
+    }
+  }
+}
+
+template<class P>
+static void process_posix_spawn_file_actions(const P * const ic_msg, Process* const proc) {
+#ifdef __APPLE__
+      std::unordered_set<int> new_fds {};
+      const int attr_flags = ic_msg->get_attr_flags_with_fallback(0);
+#endif
+      for (size_t i = 0; i < ic_msg->get_file_actions_count(); i++) {
+        const FBBCOMM_Serialized *action = ic_msg->get_file_actions_at(i);
+        switch (action->get_tag()) {
+          case FBBCOMM_TAG_posix_spawn_file_action_open: {
+            /* A successful open to a particular fd, silently closing the previous file if any. */
+            auto action_open =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
+            const char *pathname = action_open->get_pathname();
+            const size_t pathname_len = action_open->get_pathname_len();
+            int fd = action_open->get_fd();
+#ifdef __APPLE__
+            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+              new_fds.insert(fd);
+            }
+#endif
+            int flags = action_open->get_flags();
+            mode_t mode = action_open->get_mode();
+            proc->handle_force_close(fd);
+            proc->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0, -1, 0,
+                                    false, false);
+            /* Revert the effect of "pre-opening" paths to be written in the posix_spawn message.*/
+            if (is_write(flags)) {
+              const FileName* file_name = proc->get_absolute(AT_FDCWD, pathname,
+                                                                              pathname_len);
+              if (file_name) {
+                file_name->close_for_writing();
+              }
+            }
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_close: {
+            /* A close attempt, maybe successful, maybe failed, we don't know. See glibc's
+             * sysdeps/unix/sysv/linux/spawni.c:
+             *   Signal errors only for file descriptors out of range.
+             * sysdeps/posix/spawni.c:
+             *   Only signal errors for file descriptors out of range.
+             * whereas signaling the error means to abort posix_spawn and thus not reach
+             * this code here. */
+            auto action_close =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_close *>(action);
+            int fd = action_close->get_fd();
+            proc->handle_force_close(fd);
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_closefrom: {
+            /* A successful closefrom. */
+            auto action_closefrom =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_closefrom *>
+                (action);
+            int lowfd = action_closefrom->get_lowfd();
+            proc->handle_closefrom(lowfd);
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_dup2: {
+            /* A successful dup2.
+             * Note that as per https://austingroupbugs.net/view.php?id=411 and glibc's
+             * implementation, oldfd==newfd clears the close-on-exec bit (here only,
+             * not in a real dup2()). */
+            auto action_dup2 =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_dup2 *>(action);
+            int oldfd = action_dup2->get_oldfd();
+            int newfd = action_dup2->get_newfd();
+            if (oldfd == newfd) {
+              proc->handle_clear_cloexec(oldfd);
+            } else {
+              proc->handle_dup3(oldfd, newfd, 0, 0);
+            }
+#ifdef __APPLE__
+            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+              new_fds.insert(newfd);
+            }
+#endif
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_chdir: {
+            /* A successful chdir. */
+            auto action_chdir =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_chdir *>(action);
+            const char *pathname = action_chdir->get_pathname();
+            proc->handle_set_wd(pathname);
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_fchdir: {
+            /* A successful fchdir. */
+            auto action_fchdir =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_fchdir *>(action);
+            int fd = action_fchdir->get_fd();
+            proc->handle_set_fwd(fd);
+            break;
+          }
+          case FBBCOMM_TAG_posix_spawn_file_action_inherit: {
+            /* A successful inherit. */
+            auto action_inherit =
+                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_inherit *>(
+                    action);
+            int fd = action_inherit->get_fd();
+#ifdef __APPLE__
+            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+              new_fds.insert(fd);
+            }
+#endif
+            proc->handle_clear_cloexec(fd);
+            break;
+          }
+          default:
+            assert(false);
+        }
+      }
+#ifdef __APPLE__
+      if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
+        for (size_t fd = 0; fd < proc->fds()->size(); fd++) {
+          if (!new_fds.contains(fd)) {
+            proc->handle_force_close(fd);
+          }
+        }
+      }
+#endif
+}
+
 static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
                         int fd_conn, Process* proc) {
   TRACKX(FB_DEBUG_COMM, 1, 1, Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
@@ -753,31 +907,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
 #endif
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Pre-open the files to be written. */
-      for (size_t i = 0; i < ic_msg->get_file_actions_count(); i++) {
-        const FBBCOMM_Serialized *action = ic_msg->get_file_actions_at(i);
-        switch (action->get_tag()) {
-          case FBBCOMM_TAG_posix_spawn_file_action_open: {
-            /* A successful open to a particular fd, silently closing the previous file if any. */
-            const FBBCOMM_Serialized_posix_spawn_file_action_open *action_open =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
-            int flags = action_open->get_flags();
-            if (is_write(flags)) {
-              const FileName* file_name = proc->get_absolute(
-                  AT_FDCWD, action_open->get_pathname(), action_open->get_pathname_len());
-              if (file_name) {
-                /* Pretend that the parent opened the file for writing and not the fork child.
-                 * This is not accurate, but the fork child does not exist yet. A parallel
-                 * process opening the file for writing would disable shortcutting the same way. */
-                file_name->open_for_writing(proc->exec_point());
-              }
-            }
-            break;
-          }
-          default:
-            /* Only opens are handled (as pre_opens). */
-            break;
-        }
-      }
+      posix_spawn_preopen_files(ic_msg, proc);
       break;
     }
     case FBBCOMM_TAG_posix_spawn_parent: {
@@ -789,127 +919,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
 
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Do the corresponding administration. */
-#ifdef __APPLE__
-      std::unordered_set<int> new_fds {};
-      const int attr_flags = ic_msg->get_attr_flags_with_fallback(0);
-#endif
-      for (size_t i = 0; i < ic_msg->get_file_actions_count(); i++) {
-        const FBBCOMM_Serialized *action = ic_msg->get_file_actions_at(i);
-        switch (action->get_tag()) {
-          case FBBCOMM_TAG_posix_spawn_file_action_open: {
-            /* A successful open to a particular fd, silently closing the previous file if any. */
-            auto action_open =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_open *>(action);
-            const char *pathname = action_open->get_pathname();
-            const size_t pathname_len = action_open->get_pathname_len();
-            int fd = action_open->get_fd();
-#ifdef __APPLE__
-            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
-              new_fds.insert(fd);
-            }
-#endif
-            int flags = action_open->get_flags();
-            mode_t mode = action_open->get_mode();
-            fork_child->handle_force_close(fd);
-            fork_child->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0, -1, 0,
-                                    false, false);
-            /* Revert the effect of "pre-opening" paths to be written in the posix_spawn message.*/
-            if (is_write(flags)) {
-              const FileName* file_name = fork_child->get_absolute(AT_FDCWD, pathname,
-                                                                              pathname_len);
-              if (file_name) {
-                file_name->close_for_writing();
-              }
-            }
-            break;
-          }
-          case FBBCOMM_TAG_posix_spawn_file_action_close: {
-            /* A close attempt, maybe successful, maybe failed, we don't know. See glibc's
-             * sysdeps/unix/sysv/linux/spawni.c:
-             *   Signal errors only for file descriptors out of range.
-             * sysdeps/posix/spawni.c:
-             *   Only signal errors for file descriptors out of range.
-             * whereas signaling the error means to abort posix_spawn and thus not reach
-             * this code here. */
-            auto action_close =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_close *>(action);
-            int fd = action_close->get_fd();
-            fork_child->handle_force_close(fd);
-            break;
-          }
-          case FBBCOMM_TAG_posix_spawn_file_action_closefrom: {
-            /* A successful closefrom. */
-            auto action_closefrom =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_closefrom *>
-                (action);
-            int lowfd = action_closefrom->get_lowfd();
-            fork_child->handle_closefrom(lowfd);
-            break;
-          }
-          case FBBCOMM_TAG_posix_spawn_file_action_dup2: {
-            /* A successful dup2.
-             * Note that as per https://austingroupbugs.net/view.php?id=411 and glibc's
-             * implementation, oldfd==newfd clears the close-on-exec bit (here only,
-             * not in a real dup2()). */
-            auto action_dup2 =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_dup2 *>(action);
-            int oldfd = action_dup2->get_oldfd();
-            int newfd = action_dup2->get_newfd();
-            if (oldfd == newfd) {
-              fork_child->handle_clear_cloexec(oldfd);
-            } else {
-              fork_child->handle_dup3(oldfd, newfd, 0, 0);
-            }
-#ifdef __APPLE__
-            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
-              new_fds.insert(newfd);
-            }
-#endif
-            break;
-          }
-          case FBBCOMM_TAG_posix_spawn_file_action_chdir: {
-            /* A successful chdir. */
-            auto action_chdir =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_chdir *>(action);
-            const char *pathname = action_chdir->get_pathname();
-            fork_child->handle_set_wd(pathname);
-            break;
-          }
-          case FBBCOMM_TAG_posix_spawn_file_action_fchdir: {
-            /* A successful fchdir. */
-            auto action_fchdir =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_fchdir *>(action);
-            int fd = action_fchdir->get_fd();
-            fork_child->handle_set_fwd(fd);
-            break;
-          }
-          case FBBCOMM_TAG_posix_spawn_file_action_inherit: {
-            /* A successful inherit. */
-            auto action_inherit =
-                reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_inherit *>(
-                    action);
-            int fd = action_inherit->get_fd();
-#ifdef __APPLE__
-            if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
-              new_fds.insert(fd);
-            }
-#endif
-            fork_child->handle_clear_cloexec(fd);
-            break;
-          }
-          default:
-            assert(false);
-        }
-      }
-#ifdef __APPLE__
-      if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
-        for (size_t fd = 0; fd < fork_child->fds()->size(); fd++) {
-          if (!new_fds.contains(fd)) {
-            fork_child->handle_force_close(fd);
-          }
-        }
-      }
-#endif
+      process_posix_spawn_file_actions<FBBCOMM_Serialized_posix_spawn_parent>(ic_msg, fork_child);
       proc->set_posix_spawn_pending(false);
 
       auto posix_spawn_child_sock = proc_tree->Pid2PosixSpawnChildSock(proc->pid());
