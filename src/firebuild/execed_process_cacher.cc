@@ -602,7 +602,7 @@ static bool tmp_file_or_on_tmp_path(const FileUsage* fu, const FileName* filenam
 
 static bool rustc_deps_dir(const ExecedProcess* const proc, const FileName* const filename) {
   const std::vector<std::string> &args = proc->args();
-  if (args[0] == "rustc") {
+  if (args[0].ends_with("rustc")) {
     for (const std::string& arg : args) {
       if (arg.starts_with("dependency=")) {
         const std::string dependency_dir(arg.substr(strlen("dependency=")));
