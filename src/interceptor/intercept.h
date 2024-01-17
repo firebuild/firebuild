@@ -65,6 +65,7 @@ extern psfa *psfas;
 extern int psfas_num;
 extern int psfas_alloc;
 
+struct rusage;
 /** This tells whether the supervisor needs to be notified on a read or write
  *  event. The supervisor needs to be notified only on the first of each kind,
  *  and only for file descriptors that were inherited by the process.
@@ -108,9 +109,6 @@ extern fd_state ic_fd_states[];
 /** Called unknown syscalls */
 #define IC_CALLED_SYSCALL_SIZE 1024
 extern bool ic_called_syscall[];
-
-/** Resource usage at the process' last exec() */
-extern struct rusage initial_rusage;
 
 /** Global lock for preventing parallel system and popen calls */
 extern pthread_mutex_t ic_system_popen_lock;
@@ -161,6 +159,9 @@ void pre_clone_disable_interception(const int flags, bool *i_locked);
 /** Function to call by the intercepted clone(), registering into the supervisor then
  calling the original clone() fn param. */
 int clone_trampoline(void *arg);
+
+/** Get CPU time used up since the previous exec() */
+void rusage_since_exec(struct rusage *ru);
 
 /** Connection string to supervisor */
 extern char fb_conn_string[FB_PATH_BUFSIZE];

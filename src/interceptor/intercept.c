@@ -54,6 +54,7 @@ static void fb_ic_cleanup() __attribute__((destructor));
 
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
+/** Resource usage at the process' last exec() */
 struct rusage initial_rusage;
 
 pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -442,6 +443,12 @@ void pre_clone_disable_interception(const int flags, bool *i_locked) {
     release_global_lock();
     *i_locked = false;
   }
+}
+
+void rusage_since_exec(struct rusage *ru) {
+  get_ic_orig_getrusage()(RUSAGE_SELF, ru);
+  timersub(&ru->ru_stime, &initial_rusage.ru_stime, &ru->ru_stime);
+  timersub(&ru->ru_utime, &initial_rusage.ru_utime, &ru->ru_utime);
 }
 
 int clone_trampoline(void *arg) {

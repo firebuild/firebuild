@@ -893,18 +893,21 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     }
     case FBBCOMM_TAG_posix_spawn: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_posix_spawn *>(fbbcomm_buf);
+#ifdef __APPLE__
+      const int attr_flags = ic_msg->get_attr_flags_with_fallback(0);
+      if (attr_flags & POSIX_SPAWN_SETEXEC) {
+        proc->update_rusage(ic_msg->get_utime_u(), ic_msg->get_stime_u());
+        // FIXME(rbalint) save parameters of pending exec()-ed process
+        process_posix_spawn_file_actions<FBBCOMM_Serialized_posix_spawn>(ic_msg, proc);
+        proc->set_exec_pending(true);
+        break;
+      }
+#endif
       auto expected_child = new ExecedProcessEnv(proc->pass_on_fds(false), LAUNCH_TYPE_POSIX_SPAWN);
       std::vector<std::string> argv = ic_msg->get_arg_as_vector();
       expected_child->set_argv(argv);
       proc->set_expected_child(expected_child);
       proc->set_posix_spawn_pending(true);
-#ifdef __APPLE__
-      const int attr_flags = ic_msg->get_attr_flags_with_fallback(0);
-      if (attr_flags & POSIX_SPAWN_SETEXEC) {
-        proc->exec_point()->disable_shortcutting_bubble_up(
-            "posix_spawn() with POSIX_SPAWN_SETEXEC is not supported");
-      }
-#endif
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Pre-open the files to be written. */
       posix_spawn_preopen_files(ic_msg, proc);
