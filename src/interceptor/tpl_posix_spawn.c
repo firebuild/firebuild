@@ -26,6 +26,15 @@
 ###   if target == "darwin"
   short attr_flags = 0;
 ###   endif
+  /* Fix up the environment */
+  void *env_fixed_up;
+  if (i_am_intercepting && env_needs_fixup((char **) envp)) {
+    int env_fixup_size = get_env_fixup_size((char **) envp);
+    env_fixed_up = alloca(env_fixup_size);
+    env_fixup((char **) envp, env_fixed_up);
+  } else {
+    env_fixed_up = (char **)envp;
+  }
   if (i_am_intercepting) {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
@@ -43,16 +52,18 @@
     fbbcomm_builder_posix_spawn_set_is_spawnp(&ic_msg, false);
 ###   endif
     fbbcomm_builder_posix_spawn_set_arg(&ic_msg, (const char **) argv);
-    fbbcomm_builder_posix_spawn_set_env(&ic_msg, (const char **) envp);
+    fbbcomm_builder_posix_spawn_set_env(&ic_msg, (const char **) env_fixed_up);
 ###   if target == "darwin"
     if (attrp) {
       if (posix_spawnattr_getflags(attrp, &attr_flags) == 0) {
         fbbcomm_builder_posix_spawn_set_attr_flags(&ic_msg, attr_flags);
         if (attr_flags & POSIX_SPAWN_SETEXEC) {
-          // TODO(rbalint) support this Apple extension
-          // disable interception for now
-          intercepting_enabled = false;
-          env_purge(environ);
+          struct rusage ru;
+          rusage_since_exec(&ru);
+          fbbcomm_builder_posix_spawn_set_utime_u(
+              &ic_msg, (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
+          fbbcomm_builder_posix_spawn_set_stime_u(
+              &ic_msg, (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
         }
       }
     }
@@ -62,15 +73,6 @@
 ### endblock before
 
 ### block call_orig
-  /* Fix up the environment */
-  void *env_fixed_up;
-  if (i_am_intercepting && env_needs_fixup((char **) envp)) {
-    int env_fixup_size = get_env_fixup_size((char **) envp);
-    env_fixed_up = alloca(env_fixup_size);
-    env_fixup((char **) envp, env_fixed_up);
-  } else {
-    env_fixed_up = (char **)envp;
-  }
   /* Fix up missing out parameter for internal use */
   pid_t tmp_pid;
   if (!pid) {

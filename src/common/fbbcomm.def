@@ -759,6 +759,10 @@
       (ARRAY, FBB, "file_actions"),
       # spawn or spawnp
       (REQUIRED, "bool", "is_spawnp"),
+      # user CPU time in microseconds since last exec() if POSIX_SPAWN_SETEXEC is set
+      (OPTIONAL, "int64_t", "utime_u"),
+      # system CPU time in microseconds since laste exec() if POSIX_SPAWN_SETEXEC is set
+      (OPTIONAL, "int64_t", "stime_u"),
     ]),
 
     ("posix_spawn_parent", [
