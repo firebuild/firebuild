@@ -884,7 +884,7 @@ int Process::handle_shm_open(const char * const name, const int oflag,
 #ifdef __APPLE__
 int Process::handle_kqueue(const int fd, const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "fd=%d, error=%d", fd, error);
-  if (fd != -1) {
+  if (!error) {
     add_filefd(fd, std::make_shared<FileFD>(0, FD_SPECIAL, this))->set_close_on_fork(true);
   }
   return 0;
