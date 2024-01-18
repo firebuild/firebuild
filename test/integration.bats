@@ -6,9 +6,12 @@ setup() {
   rm -rf test_cache_dir
 }
 
-@test "--help" {
+@test "--help, --version" {
   result=$(./run-firebuild --help)
   echo "$result" | grep -q "in case of failure"
+  result=$(./run-firebuild --version)
+  echo "$result" | grep -q "Firebuild Inc."
+  assert_streq "$(strip_stderr stderr)" ""
 }
 
 @test "empty-config" {
@@ -19,7 +22,7 @@ setup() {
 
 @test "bash -c ls" {
   for i in 1 2; do
-    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"'  -- bash -c "ls integration.bats")
+    result=$(./run-firebuild -D foo -o 'processes.dont_shortcut -= "ls"'  -- bash -c "ls integration.bats")
     assert_streq "$result" "integration.bats"
     assert_streq "$(strip_stderr stderr)" ""
   done
@@ -35,7 +38,9 @@ setup() {
 
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
-    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -r -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null")
+    # clean up before running the test
+    rm -rf test_directory/ foo-dir/
+    result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -C . --generate-report=firebuild-build-report.html -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null && ./test_file_ops")
     assert_streq "$result" "$(printf 'integration.bats\nFIREBUILD: Generated report: firebuild-build-report.html')"
   done
 }
