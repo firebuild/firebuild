@@ -707,20 +707,20 @@ static void process_posix_spawn_file_actions(const P * const ic_msg, Process* co
             proc->handle_set_fwd(fd);
             break;
           }
+#ifdef __APPLE__
           case FBBCOMM_TAG_posix_spawn_file_action_inherit: {
             /* A successful inherit. */
             auto action_inherit =
                 reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_file_action_inherit *>(
                     action);
             int fd = action_inherit->get_fd();
-#ifdef __APPLE__
             if (attr_flags & POSIX_SPAWN_CLOEXEC_DEFAULT) {
               new_fds.insert(fd);
             }
-#endif
             proc->handle_clear_cloexec(fd);
             break;
           }
+#endif
           default:
             assert(false);
         }
