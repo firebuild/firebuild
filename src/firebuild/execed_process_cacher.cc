@@ -556,7 +556,7 @@ static bool dir_created_or_could_exist(
       /* Directory is expected to exist. */
       return true;
     }
-    parent_dir = FileName::GetParentDir(parent_dir->c_str(), parent_dir->length());
+    parent_dir = parent_dir->parent_dir();
   }
   return true;
 }
