@@ -129,6 +129,38 @@ bool FileUsageUpdate::get_initial_hash(Hash *hash_ptr) const {
   }
 }
 
+void FileUsageUpdate::update_from_enotdir(const FileName * const filename) {
+  bool is_dir;
+
+  if (hash_cache->get_statinfo(filename, &is_dir, nullptr)) {
+    if (is_dir) {
+      set_initial_type(ISDIR);
+      /* This could not happen. */
+      unknown_err_ = ENOTDIR;
+    } else {
+      set_initial_type(ISREG);
+    }
+    parent_type_ = ISDIR;
+  } else {
+    /* filename is not a regular file or a directory, but open returned ENOTDIR.
+     * Let's take a look at the parent. */
+    if (hash_cache->get_statinfo(filename->parent_dir(), &is_dir, nullptr)) {
+      if (is_dir) {
+        parent_type_ = ISDIR;
+        /* Parent is a directory, but filename is not a directory nor a regular file.
+         * We don't know what happened. */
+        set_initial_type(ISDIR);
+        unknown_err_ = ENOTDIR;
+      } else {
+        /* Parent is a regular file, this explans the ENOTDIR error. */
+        parent_type_ = ISREG;
+        /* Set not existing filename's type to DONTKNOW to omit it from the process inputs. */
+        set_initial_type(DONTKNOW);
+      }
+    }
+  }
+}
+
 /**
  * Based on the parameters and return value of an open() or similar call, returns a FileUsageUpdate
  * object that reflects how our usage of this file changed.
@@ -271,13 +303,7 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(
           update.unknown_err_ = err;
         }
       } else if (err == ENOTDIR) {
-        /* Occurs when opening the "foo/baz/bar" path when "foo/baz/bar" is not a directory,
-         * but for example a regular file. Or when "foo" is a regular file. We can't distinguish
-         * between those cases, but if "/foo/baz/bar" is a regular file we can safely shortcut the
-         * process, because the process could not tell the difference either. */
-        // TODO(rbalint) figure out what's the reason for ENOENT and set update according to that.
-        update.set_initial_type(EXIST);
-        update.parent_type_ = ISDIR;
+        update.update_from_enotdir(filename);
       } else if (err == EINVAL) {
         update.set_initial_type(DONTKNOW);
         if (tmp_file) {
@@ -300,10 +326,7 @@ FileUsageUpdate FileUsageUpdate::get_from_open_params(
       if (err == ENOENT) {
         update.set_initial_type(NOTEXIST);
       } else if (err == ENOTDIR) {
-        /* See the comment in the is_write() branch. */
-        // TODO(rbalint) figure out what's the reason for ENOENT and set update according to that.
-        update.set_initial_type(EXIST);
-        update.parent_type_ = ISDIR;
+        update.update_from_enotdir(filename);
       } else {
         /* We don't support other errors such as permission denied. */
         update.unknown_err_ = err;
