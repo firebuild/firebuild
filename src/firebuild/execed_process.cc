@@ -364,7 +364,7 @@ bool ExecedProcess::register_parent_directory(const FileName *name,
                                               FileType parent_type) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "name=%s", D(name));
 
-  const FileName* const parent_dir = FileName::GetParentDir(name->c_str(), name->length());
+  const FileName* const parent_dir = name->parent_dir();
 
   if (!parent_dir) {
     return false;
