@@ -105,6 +105,14 @@ class FileUsageUpdate {
   mutable
       void (FileUsageUpdate::*hash_computer_)() const {nullptr};  /* NOLINT(readability/braces) */
 
+  /**
+   * ENOTDIR occurs when opening the "foo/baz/bar" path when "foo/baz" is not a directory,
+   * but for example a regular file. Or when "foo" is a regular file and is opened with the
+   * O_DIRECTORY flag set.
+   * Update the FileUsageUpdate according to the case.
+   */
+  void update_from_enotdir(const FileName * const filename);
+
   /* The file's contents were altered by the process, e.g. written to, or modified in any other way,
    * including removal of the file, or another file getting renamed to this one. */
   bool written_ {false};
