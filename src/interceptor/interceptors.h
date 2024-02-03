@@ -54,6 +54,7 @@
 #endif
 #include <sys/resource.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #ifdef __APPLE__
 #include <sys/shm.h>
 #endif

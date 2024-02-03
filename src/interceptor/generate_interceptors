@@ -2400,7 +2400,12 @@ generate("int", ["socket", "SYS_socket"]+ (["__socket"] if target == "linux" els
          after_lines=["if (i_am_intercepting && success) clear_notify_on_read_write_state(ret);"],
          send_ret_on_success=True)
 generate("int", ["connect", "SYS_connect", "__connect"], "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
-         msg_skip_fields=["addr", "addrlen"])
+         msg_skip_fields=["addr", "addrlen"],
+         msg_add_fields=["if (((struct sockaddr*)addr)->sa_family == AF_UNIX) {",
+                         "  const char * const sun_path = ((struct sockaddr_un*)addr)->sun_path;",
+                         "  fbbcomm_builder_connect_set_addr_with_length(&ic_msg, sun_path, strnlen(sun_path, sizeof(((struct sockaddr_un*)addr)->sun_path)));",
+                         "}"],
+         )
 generate("int", ["bind", "SYS_bind"] + (["__bind"] if target == "darwin" else []), "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
          tpl="once")
 generate("int", ["listen", "SYS_listen"] + (["__listen"] if target == "darwin" else []), "int sockfd, int backlog",
