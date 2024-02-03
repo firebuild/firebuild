@@ -951,6 +951,7 @@
 
     ("connect", [
       (REQUIRED, "int", "sockfd"),
+      (OPTIONAL, STRING, "addr"),
       (OPTIONAL, "int", "error_no"),
     ]),
 
