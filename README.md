@@ -121,7 +121,7 @@ Install:
 
 Install the build dependencies:
 
-    brew install bats-core coreutils docbook-xsl hopscotch-map jemalloc jinja2-cli libconfig xxhash
+    brew bundle
 
 Build:
 
