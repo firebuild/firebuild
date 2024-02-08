@@ -1969,17 +1969,16 @@ generate("int", "pclose", "FILE *stream",
          ack_condition="true")
 
 # Intercept the posix_spawn family
-generate("int", ["posix_spawn"] + (["__posix_spawn"] if target == "darwin" else []), "pid_t *pid, const char *file, " +
-                               "const posix_spawn_file_actions_t *file_actions, " +
-                               "const posix_spawnattr_t *attrp, " +
-                               "char *const argv[], char *const envp[]",
+posix_spawn_params =  "pid_t *pid, const char *file, " \
+  + "const posix_spawn_file_actions_t *file_actions, " \
+  + "const posix_spawnattr_t *attrp, " \
+  + "char *const argv[], char *const envp[]"
+generate("int", ["posix_spawn", "posix_spawnp"] + (["__posix_spawn"] if target == "darwin" else []), posix_spawn_params,
          tpl="posix_spawn",
          success="ret == 0")
-generate("int", "posix_spawnp", "pid_t *pid, const char *file, " +
-                                "const posix_spawn_file_actions_t *file_actions, " +
-                                "const posix_spawnattr_t *attrp, " +
-                                "char *const argv[], char *const envp[]",
+generate("int", ["pidfd_spawn", "pidfd_spawnp"], posix_spawn_params,
          tpl="posix_spawn",
+         ifdef_guard=glibc_ge(2, 39),
          success="ret == 0")
 
 generate("int", ["posix_spawn_file_actions_init", "posix_spawn_file_actions_destroy"], "posix_spawn_file_actions_t *file_actions",

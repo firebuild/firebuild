@@ -25,13 +25,23 @@
  * shortcut it the next time. */
 
 #include <fcntl.h>
+#if __linux__
+#include <features.h>
+#endif
 #include <spawn.h>
 #include <stdio.h>
 #include <stdlib.h>
+#if __has_include(<sys/pidfd.h>)
+#include <sys/pidfd.h>
+#endif
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#if !defined(__GLIBC_PREREQ)
+#define __GLIBC_PREREQ(a, b) 0
+#endif
 
 extern char **environ;
 
@@ -103,13 +113,20 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
+#if __GLIBC_PREREQ(2, 39)
+  if (pidfd_spawn(&pid, "/usr/bin/touch",
+#else
   if (posix_spawn(&pid, "/usr/bin/touch",
+#endif
                   NULL, NULL,
                   (char *const[]){ "touch", "test_wait_wait.txt", NULL },
                   environ) != 0) {
     perror("posix_spawn" LOC);
     exit(1);
   }
+#if __GLIBC_PREREQ(2, 39)
+  pid = pidfd_getpid(pid);
+#endif
   if (wait(NULL) != pid) {
     perror("wait" LOC);
     exit(1);
@@ -128,13 +145,20 @@ int main() {
     perror("close" LOC);
     exit(1);
   }
-  if (posix_spawn(&pid, "/usr/bin/touch",
+#if __GLIBC_PREREQ(2, 39)
+  if (pidfd_spawnp(&pid, "touch",
+#else
+  if (posix_spawnp(&pid, "touch",
+#endif
                   NULL, NULL,
                   (char *const[]){ "touch", "test_wait_waitpid.txt", NULL },
                   environ) != 0) {
     perror("posix_spawn" LOC);
     exit(1);
   }
+#if __GLIBC_PREREQ(2, 39)
+  pid = pidfd_getpid(pid);
+#endif
   if (waitpid(pid, NULL, 0) != pid) {
     perror("waitpid" LOC);
     exit(1);

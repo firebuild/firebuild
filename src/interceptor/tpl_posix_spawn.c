@@ -73,11 +73,13 @@
 ### endblock before
 
 ### block call_orig
+###   if func not in ['pidfd_spawn', 'pidfd_spawnp']
   /* Fix up missing out parameter for internal use */
   pid_t tmp_pid;
   if (!pid) {
     pid = &tmp_pid;
   }
+###   endif
   ret = get_ic_orig_{{ func }}()({{ names_str | replace("envp", "env_fixed_up")}});
 ### endblock call_orig
 
@@ -93,7 +95,11 @@
         assert(p);
         fbbcomm_builder_posix_spawn_parent_set_file_actions(&ic_msg, (const FBBCOMM_Builder **) (p->p));
       }
+###   if func in ['pidfd_spawn', 'pidfd_spawnp']
+      fbbcomm_builder_posix_spawn_parent_set_pid(&ic_msg, pidfd_getpid(*pid));
+###   else
       fbbcomm_builder_posix_spawn_parent_set_pid(&ic_msg, *pid);
+###   endif
 ###   if target == "darwin"
       if (attr_flags != 0) {
         fbbcomm_builder_posix_spawn_parent_set_attr_flags(&ic_msg, attr_flags);
