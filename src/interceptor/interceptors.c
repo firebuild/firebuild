@@ -23,6 +23,10 @@
 
 #include <errno.h>
 
+#if __has_include(<sys/pidfd.h>)
+#include <sys/pidfd.h>
+#endif
+
 #include "common/firebuild_common.h"
 #include "common/platform.h"
 #include "interceptor/env.h"
