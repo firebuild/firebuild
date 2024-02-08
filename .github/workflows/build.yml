@@ -297,8 +297,7 @@ jobs:
         # skip dh_buildinfo step
         printf '\noverride_dh_buildinfo:\n' >> debian/rules
         # don't intercept bats and ldd to avoid breaking firebuild's own tests
-        export DEB_BUILD_OPTIONS=noautodbgsym
-        firebuild  -o 'processes.dont_intercept += "bats"' -o 'processes.dont_intercept += "ldd"' dpkg-buildpackage -jauto -zfast --no-sign -b
+        firebuild  -o 'processes.dont_intercept += "bats"' -o 'processes.dont_intercept += "ldd"' env DEB_BUILD_OPTIONS=noautodbgsym dpkg-buildpackage -jauto -zfast --no-sign -b
         echo debconf firebuild/license-accepted select true | sudo debconf-set-selections
         sudo apt-get install -y --allow-downgrades ../*.deb
         firebuild -- ls
