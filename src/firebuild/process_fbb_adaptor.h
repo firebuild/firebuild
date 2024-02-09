@@ -299,6 +299,7 @@ class ProcessFBBAdaptor {
   static int handle(Process *proc, const FBBCOMM_Serialized_connect *msg) {
     proc->handle_connect(msg->get_sockfd(),
                          msg->get_addr(),
+                         msg->get_addr_len(),
                          msg->get_error_no_with_fallback(0));
     return 0;
   }
