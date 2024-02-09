@@ -1,0 +1,51 @@
+---
+format_version: '13'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: other
+workflows:
+  primary:
+    steps:
+    - activate-ssh-key@4:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@8:
+        is_always_run: true
+    - cache-pull@2: {}
+    - brew-install@0:
+        inputs:
+        - cache_enabled: 'yes'
+        - use_brewfile: 'yes'
+    - script@1:
+        inputs:
+        - content: |
+            #!/usr/bin/env bash
+            set -e
+            # make pipelines' return status equal the last command to exit with a non-zero status, or zero if all commands exit successfully
+            set -o pipefail
+            # debug log
+            set -x
+            NPROC="$(getconf _NPROCESSORS_ONLN)"
+            export PYTHONPATH=$(ls -d /opt/homebrew/lib/python*/site-packages | tail -n1)
+            sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
+            cmake -DCMAKE_BUILD_TYPE=Release -B build-make
+            make -C build-make -j$NPROC
+            make -C build-make -j$NPROC check
+            sudo make -C build-make install
+            # build self with Xcode
+            firebuild cmake -B build-xcode -G Xcode
+            cd build-xcode
+            firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild
+    - deploy-to-bitrise-io@2: {}
+    - cache-push@2: {}
+    envs:
+    - opts:
+        is_expand: false
+      XML_CATALOG_FILES: "/opt/homebrew/etc/xml/catalog"
+meta:
+  bitrise.io:
+    stack: osx-xcode-edge
+    machine_type_id: g2-m1.4core
+trigger_map:
+- push_branch: master
+  workflow: primary
+- pull_request_source_branch: "*"
+  workflow: primary
