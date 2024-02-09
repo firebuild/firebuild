@@ -493,7 +493,8 @@ class Process {
   /**
    * Handle connect() in the monitored process
    */
-  void handle_connect(const int sockfd, const char * const address, const int error);
+  void handle_connect(const int sockfd, const char * const address, const size_t address_len,
+                      const int error);
 
   /**
    * Handle dup(), dup2() or dup3() in the monitored process
