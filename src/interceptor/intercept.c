@@ -451,6 +451,11 @@ void rusage_since_exec(struct rusage *ru) {
   timersub(&ru->ru_utime, &initial_rusage.ru_utime, &ru->ru_utime);
 }
 
+void reset_rusage() {
+  timerclear(&initial_rusage.ru_stime);
+  timerclear(&initial_rusage.ru_utime);
+}
+
 int clone_trampoline(void *arg) {
   clone_trampoline_arg *trampoline_arg = (clone_trampoline_arg *)arg;
   thread_signal_danger_zone_leave();
@@ -751,8 +756,7 @@ void atfork_child_handler(void) {
   /* ic_pid still have parent process' pid */
   pid_t ppid = ic_pid;
   /* Reset, getrusage will report the correct self resource usage. */
-  timerclear(&initial_rusage.ru_stime);
-  timerclear(&initial_rusage.ru_utime);
+  reset_rusage();
   /* Reinitialize the lock, see #207.
    *
    * We don't know if the lock was previously held, we'd need to check
