@@ -163,6 +163,9 @@ int clone_trampoline(void *arg);
 /** Get CPU time used up since the previous exec() */
 void rusage_since_exec(struct rusage *ru);
 
+/** Reset rusage timers used for reporting rusage to the supervisor. */
+void reset_rusage();
+
 /** Connection string to supervisor */
 extern char fb_conn_string[FB_PATH_BUFSIZE];
 

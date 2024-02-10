@@ -60,6 +60,7 @@
         if (attr_flags & POSIX_SPAWN_SETEXEC) {
           struct rusage ru;
           rusage_since_exec(&ru);
+          reset_rusage();
           fbbcomm_builder_posix_spawn_set_utime_u(
               &ic_msg, (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
           fbbcomm_builder_posix_spawn_set_stime_u(

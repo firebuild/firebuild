@@ -110,6 +110,7 @@
     /* Get CPU time used up to this exec() */
     struct rusage ru;
     rusage_since_exec(&ru);
+    reset_rusage();
     fbbcomm_builder_exec_set_utime_u(&ic_msg,
         (int64_t)ru.ru_utime.tv_sec * 1000000 + (int64_t)ru.ru_utime.tv_usec);
     fbbcomm_builder_exec_set_stime_u(&ic_msg,
