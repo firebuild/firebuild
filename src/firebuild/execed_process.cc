@@ -31,11 +31,10 @@
 #ifdef __APPLE__
 #include "firebuild/hash_cache.h"
 #endif
+#include "firebuild/options.h"
 #include "firebuild/process_debug_suppressor.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/utils.h"
-
-extern bool generate_report;
 
 namespace firebuild {
 
@@ -268,7 +267,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
 
   bool propagated = false;
   ExecedProcess *proc = this;
-  if (!proc->can_shortcut_ && !generate_report) {
+  if (!proc->can_shortcut_ && !Options::generate_report()) {
     /* Register at the first shortcutable ancestor instead. */
     proc = proc->next_shortcutable_ancestor();
     propagated = true;
@@ -313,7 +312,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
            * always be incremented by one. Otherwise the file could have been changed outside of the
            * process's subtree wich makes the process not shortcutable. */
           proc->disable_shortcutting_only_this(
-              generate_report
+              Options::generate_report()
               ? deduplicated_string("A parallel process modified " + d(name)).c_str()
               : "A parallel process modified the file");
           /* Still bubble up to the root because an ancestor may still be shortcutable and also
@@ -333,7 +332,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
        * case, in the next iteration of the loop "update" will already contain this value. */
       fu_new = fu->merge(update, propagated);
       if (!fu_new) {
-        if (FB_DEBUGGING(FB_DEBUG_FS) || generate_report) {
+        if (FB_DEBUGGING(FB_DEBUG_FS) || Options::generate_report()) {
           std::string reason("Could not merge " + d(name) + " file usage " + d(fu) + " with "
                              + d(update));
           FB_DEBUG(FB_DEBUG_FS, reason);
@@ -446,7 +445,7 @@ void ExecedProcess::disable_shortcutting_bubble_up_to_excl(
     bool shortcutable_ancestor_is_set) {
   disable_shortcutting_bubble_up_to_excl(
       stop,
-      generate_report ? reason_with_fd(reason, fd) : reason,
+      Options::generate_report() ? reason_with_fd(reason, fd) : reason,
       p, shortcutable_ancestor, shortcutable_ancestor_is_set);
   FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
 }
@@ -461,7 +460,7 @@ void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const int fd,
                                                    const ExecedProcess *p) {
   disable_shortcutting_bubble_up(
-      generate_report ? reason_with_fd(reason, fd) : reason, p);
+      Options::generate_report() ? reason_with_fd(reason, fd) : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, "fd: " + d(fd));
 }
 
@@ -469,7 +468,8 @@ void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const FileName& file,
                                                    const ExecedProcess *p) {
   disable_shortcutting_bubble_up(
-      generate_report ? deduplicated_string(std::string(reason) + " file: " + d(file)).c_str()
+      Options::generate_report() ? deduplicated_string(std::string(reason) + " file: "
+                                                       + d(file)).c_str()
       : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, "file: " + d(file));
 }
@@ -478,7 +478,7 @@ void ExecedProcess::disable_shortcutting_bubble_up(const char* reason,
                                                    const std::string& str,
                                                    const ExecedProcess *p) {
   disable_shortcutting_bubble_up(
-      generate_report ? deduplicated_string(std::string(reason) + " " + d(str)).c_str()
+      Options::generate_report() ? deduplicated_string(std::string(reason) + " " + d(str)).c_str()
       : reason, p);
   FB_DEBUG(FB_DEBUG_PROC, d(str));
 }

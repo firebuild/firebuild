@@ -23,8 +23,7 @@
 
 #include "common/platform.h"
 #include "firebuild/debug.h"
-
-extern bool generate_report;
+#include "firebuild/options.h"
 
 namespace firebuild {
 
@@ -126,7 +125,7 @@ void ProcessTree::GcProcesses() {
   bool have_orphan = root()->has_orphan_descendant();
   while (!proc_gc_queue_.empty()) {
     ExecedProcess* proc = proc_gc_queue_.front();
-    if (!generate_report) {
+    if (!Options::generate_report()) {
       // TODO(rbalint) delete subtrees not affected by orphans
       if (proc->parent() && !have_orphan) {
         proc->parent()->set_exec_child(nullptr);

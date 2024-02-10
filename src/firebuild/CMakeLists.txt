@@ -7,7 +7,7 @@ set_source_files_properties(execed_process_cacher.cc PROPERTIES COMPILE_FLAGS "-
 set_source_files_properties(message_processor.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"' -Wno-cast-align")
 set_source_files_properties(config.cc PROPERTIES COMPILE_FLAGS "-DFB_INTERCEPTOR_FULL_LIBDIR=\\\"${CMAKE_INSTALL_FULL_LIBDIR}\\\"")
 
-set_source_files_properties(firebuild.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
+set_source_files_properties(options.cc PROPERTIES COMPILE_FLAGS "-DFIREBUILD_VERSION='\"${FIREBUILD_VERSION}\"'")
 
 find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -67,6 +67,7 @@ add_executable(firebuild-bin
   execed_process_env.cc
   forked_process.cc
   message_processor.cc
+  options.cc
   process_factory.cc
   process_tree.cc
   hash.cc
