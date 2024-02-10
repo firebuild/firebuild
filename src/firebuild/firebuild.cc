@@ -22,7 +22,6 @@
 #include <crt_externs.h>
 #endif
 #include <signal.h>
-#include <getopt.h>
 #ifdef __linux__
 #include <sys/prctl.h>
 #endif
@@ -45,13 +44,12 @@
 #include "firebuild/connection_context.h"
 #include "firebuild/epoll.h"
 #include "firebuild/file_name.h"
+#include "firebuild/options.h"
 #include "firebuild/message_processor.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/process.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/report.h"
-
-bool generate_report = false;
 
 int sigchild_selfpipe[2];
 
@@ -65,48 +63,9 @@ static char *fb_tmp_dir;
 static char *fb_conn_string;
 
 static bool stats_saved = false;
-static bool insert_trace_markers = false;
-static const char *report_file = "firebuild-build-report.html";
 
 /** only if debugging "time" */
 struct timespec start_time;
-
-static void usage() {
-  printf("Usage: firebuild [OPTIONS] <BUILD COMMAND>\n"
-         "Execute BUILD COMMAND with Firebuild instrumentation\n"
-         "\n"
-         "Mandatory arguments to long options are mandatory for short options too.\n"
-         "   -c --config-file=FILE     Use FILE as configuration file.\n"
-         "                             If not specified, load .firebuild.conf, ~/.firebuild.conf,\n"
-         "                             $XDG_CONFIG_HOME/firebuild/firebuild.conf or\n"
-         "                             " SYSCONFDIR "/firebuild.conf in that order.\n"
-         "   -C --directory=DIR        change directory before running the command\n"
-         "   -d --debug-flags=list     comma separated list of debug flags,\n"
-         "                             \"-d help\" to get a list.\n"
-         "   -D --debug-filter=list    comma separated list of commands to debug.\n"
-         "                             Debug messages related to processes which are not listed\n"
-         "                             are suppressed.\n"
-         "   -g --gc                   Garbage collect the cache.\n"
-         "                             Keeps debugging entries related to kept files when used\n"
-         "                             together with \"--debug cache\".\n"
-         "   -r --generate-report[=HTML] generate a report on the build command execution.\n"
-         "                             the report's filename can be specified \n"
-         "                             (firebuild-build-report.html by default). \n"
-         "   -h --help                 show this help\n"
-         "   -o --option=key=val       Add or replace a scalar in the config\n"
-         "   -o --option=key=[]        Clear an array in the config\n"
-         "   -o --option=key+=val      Append to an array of scalars in the config\n"
-         "   -o --option=key-=val      Remove from an array of scalars in the config\n"
-         "   -s --show-stats           Show cache hit statistics.\n"
-         "   -z --zero-stats           Zero cache hit statistics.\n"
-         "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
-         "                             to let users find unintercepted calls using\n"
-         "                             strace or ltrace. This works in debug builds only.\n"
-         "   --version              output version information and exit\n"
-         "Exit status:\n"
-         " exit status of the BUILD COMMAND\n"
-         " 1  in case of failure\n");
-}
 
 /**
  * Get the system temporary directory to use.
@@ -216,152 +175,34 @@ static bool running_under_valgrind() {
 
 
 int main(const int argc, char *argv[]) {
-  char *config_file = NULL;
-  char *directory = NULL;
-  std::list<std::string> config_strings = {};
-  int c;
-  bool gc = false, print_stats = false, reset_stats = false;
   /* init global data */
   firebuild::cfg = new libconfig::Config();
-
   /* parse options */
   setenv("POSIXLY_CORRECT", "1", true);
-  while (1) {
-    int option_index = 0;
-    static struct option long_options[] = {
-      {"config-file",          required_argument, 0, 'c' },
-      {"gc",                   no_argument,       0, 'g' },
-      {"directory",            required_argument, 0, 'C' },
-      {"debug-flags",          required_argument, 0, 'd' },
-      {"debug-filter",         required_argument, 0, 'D' },
-      {"generate-report",      optional_argument, 0, 'r' },
-      {"help",                 no_argument,       0, 'h' },
-      {"option",               required_argument, 0, 'o' },
-      {"show-stats",           no_argument,       0, 's' },
-      {"zero-stats",           no_argument,       0, 'z' },
-      {"insert-trace-markers", no_argument,       0, 'i' },
-      {"version",              no_argument,       0, 'v' },
-      {0,                                0,       0,  0  }
-    };
-
-    c = getopt_long(argc, argv, "c:C:d:D:r::o:ghisz",
-                    long_options, &option_index);
-    if (c == -1)
-      break;
-
-    switch (c) {
-    case 'c':
-      config_file = optarg;
-      break;
-
-    case 'C':
-      directory = optarg;
-      break;
-
-    case 'd':
-      /* Merge the values, so that multiple '-d' options are also allowed. */
-      firebuild::debug_flags |= firebuild::parse_debug_flags(optarg);
-      break;
-
-    case 'g':
-      gc = true;
-      break;
-
-    case 'D':
-      firebuild::init_debug_filter(optarg);
-      break;
-
-    case 'h':
-      usage();
-      exit(EXIT_SUCCESS);
-      /* break; */
-
-    case 'o':
-      if (optarg != NULL) {
-        config_strings.push_back(std::string(optarg));
-      } else {
-        usage();
-        exit(EXIT_FAILURE);
-      }
-      break;
-
-    case 'i':
-#ifdef FB_EXTRA_DEBUG
-      insert_trace_markers = true;
-#endif
-      break;
-
-    case 'r':
-      generate_report = true;
-      if (optarg != NULL) {
-        report_file = optarg;
-      }
-      break;
-
-    case 's':
-      print_stats = true;
-      break;
-
-    case 'v':
-      printf("Firebuild " FIREBUILD_VERSION "\n\n"
-             "Copyright (c) 2022 Firebuild Inc.\n"
-             "All rights reserved.\n"
-             "Free for personal use and commercial trial.\n"
-             "Non-trial commercial use requires licenses available from https://firebuild.com.\n"
-             "\n"
-             "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n"
-             "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n"
-             "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n"
-             "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n"
-             "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n"
-             "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n"
-             "SOFTWARE.\n");
-      exit(EXIT_SUCCESS);
-      break;
-
-    case 'z':
-      reset_stats = true;
-      break;
-
-    default:
-      usage();
-      exit(EXIT_FAILURE);
-    }
-  }
-
-  if (optind >= argc) {
-    if (!gc && !print_stats && !reset_stats) {
-      usage();
-      exit(EXIT_FAILURE);
-    }
-  } else {
-    if (gc) {
-      printf("The --gc (or -g) option can be used only without a BUILD COMMAND.");
-      exit(EXIT_FAILURE);
-    }
-  }
+  firebuild::Options::parse(argc, argv);
 
   if (FB_DEBUGGING(firebuild::FB_DEBUG_TIME)) {
     clock_gettime(CLOCK_MONOTONIC, &start_time);
   }
 
-  firebuild::read_config(firebuild::cfg, config_file, config_strings);
+  firebuild::read_config(firebuild::cfg, firebuild::Options::config_file(),
+                         firebuild::Options::config_strings());
 
   /* Initialize the cache */
   firebuild::ExecedProcessCacher::init(firebuild::cfg);
 
-  if (reset_stats) {
+  if (firebuild::Options::reset_stats()) {
     firebuild::execed_process_cacher->reset_stored_stats();
   }
-  if (optind >= argc) {
-    if (gc) {
+  if (!firebuild::Options::build_cmd()) {
+    if (firebuild::Options::do_gc()) {
       firebuild::execed_process_cacher->gc();
       firebuild::execed_process_cacher->update_stored_bytes();
       /* Store GC runs, too. */
       firebuild::execed_process_cacher->update_stored_stats();
     }
-    if (print_stats) {
-      if (!gc) {
+    if (firebuild::Options::print_stats()) {
+      if (!firebuild::Options::do_gc()) {
         firebuild::execed_process_cacher->add_stored_stats();
       }
       firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_STORED);
@@ -384,7 +225,7 @@ int main(const int argc, char *argv[]) {
 
   firebuild::FileName::default_tmpdir = firebuild::FileName::Get("/tmp", strlen("/tmp"));
   auto env_exec = firebuild::get_sanitized_env(firebuild::cfg, fb_conn_string,
-                                               insert_trace_markers);
+                                               firebuild::Options::insert_trace_markers());
 
   /* Set up sigchild handler */
   if (fb_pipe2(sigchild_selfpipe, O_CLOEXEC | O_NONBLOCK) != 0) {
@@ -417,32 +258,23 @@ int main(const int argc, char *argv[]) {
 
   /* run command and handle interceptor messages */
   if ((child_pid = fork()) == 0) {
-    int i;
     /* intercepted process */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstrict-overflow"
-    char* argv_exec[argc - optind + 1];
-#pragma GCC diagnostic pop
 
     /* we don't need that */
     close(listener);
 
-    /* create and execute build command */
-    for (i = 0; i < argc - optind ; i++) {
-      argv_exec[i] = argv[optind + i];
-    }
-    argv_exec[i] = NULL;
-
-    if (directory != NULL && chdir(directory) != 0) {
+    if (firebuild::Options::directory() && chdir(firebuild::Options::directory()) != 0) {
       firebuild::fb_perror("chdir");
       exit(EXIT_FAILURE);
     }
 
 #ifdef __APPLE__
     *_NSGetEnviron() = env_exec;
-    execvp(argv[optind], argv_exec);
+    execvp(firebuild::Options::build_cmd()[0],
+           const_cast<char* const*>(firebuild::Options::build_cmd()));
 #else
-    execvpe(argv[optind], argv_exec, env_exec);
+    execvpe(firebuild::Options::build_cmd()[0],
+            const_cast<char* const*>(firebuild::Options::build_cmd()), env_exec);
 #endif
     firebuild::fb_perror("Executing build command failed");
     exit(EXIT_FAILURE);
@@ -546,7 +378,7 @@ int main(const int argc, char *argv[]) {
     if (firebuild::execed_process_cacher->is_gc_needed()) {
       firebuild::execed_process_cacher->gc();
     }
-    if (print_stats) {
+    if (firebuild::Options::print_stats()) {
       /* Separate stats from other output. */
       fprintf(stdout, "\n");
       firebuild::execed_process_cacher->print_stats(firebuild::FB_SHOW_STATS_CURRENT);
@@ -556,10 +388,10 @@ int main(const int argc, char *argv[]) {
       stats_saved = true;
     }
     /* show process tree if needed */
-    if (generate_report) {
+    if (firebuild::Options::generate_report()) {
       const std::string datadir(getenv("FIREBUILD_DATA_DIR") ? getenv("FIREBUILD_DATA_DIR")
                                 : FIREBUILD_DATADIR);
-      firebuild::Report::write(report_file, datadir);
+      firebuild::Report::write(firebuild::Options::report_file(), datadir);
     }
   }
 

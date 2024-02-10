@@ -35,11 +35,10 @@
 #include "firebuild/forked_process.h"
 #include "firebuild/file_name.h"
 #include "firebuild/hash_cache.h"
+#include "firebuild/options.h"
 #include "firebuild/fbbfp.h"
 #include "firebuild/fbbstore.h"
 #include "firebuild/process_tree.h"
-
-extern bool generate_report;
 
 namespace firebuild {
 
@@ -720,7 +719,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         FB_DEBUG(FB_DEBUG_CACHING,
                  "A file (" + d(filename)+ ") changed since the process used it.");
         proc->disable_shortcutting_only_this(
-            generate_report
+            Options::generate_report()
             ? deduplicated_string("A file (" + d(filename)
                                   + ") changed since the process used it.").c_str()
             : "A file could not be stored because it changed since the process used it.");
@@ -1103,7 +1102,7 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
     if (!hash_cache->file_info_matches(path, query)) {
       FB_DEBUG(FB_DEBUG_SHORTCUT, "│   " + d(subkey) + " mismatches e.g. at " + d(path));
       /* Store only the first mismatch. */
-      if (generate_report && !proc->shortcut_result()) {
+      if (Options::generate_report() && !proc->shortcut_result()) {
         proc->set_shortcut_result(deduplicated_string(
             d(subkey) + " mismatches e.g. at " + d(path)).c_str());
       }
@@ -1117,7 +1116,7 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
     const FileInfo query(NOTEXIST);
     if (!hash_cache->file_info_matches(path, query)) {
       /* Store only the first mismatch. */
-      if (generate_report && !proc->shortcut_result()) {
+      if (Options::generate_report() && !proc->shortcut_result()) {
         proc->set_shortcut_result(deduplicated_string(
             d(subkey) + + " mismatches e.g. at " + d(path)
             +  ": path expected to be missing, existing object is found").c_str());
@@ -1147,7 +1146,7 @@ static bool pio_matches_fs(const FBBSTORE_Serialized_process_inputs_outputs *can
           /* The file has already been checked to be not writable and will be replaced while
            * applying the shortcut. */
         } else {
-          if (generate_report && !proc->shortcut_result()) {
+          if (Options::generate_report() && !proc->shortcut_result()) {
             proc->set_shortcut_result(deduplicated_string(
                 std::string("file to be written is not writable: ") + file->get_path()).c_str());
           }
@@ -1176,7 +1175,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   FB_DEBUG(FB_DEBUG_SHORTCUT, "│ Candidates:");
   const std::vector<Subkey> subkeys = obj_cache->list_subkeys(fingerprint);
   if (subkeys.empty()) {
-    if (generate_report) {
+    if (Options::generate_report()) {
       proc->set_shortcut_result(deduplicated_string("no candidate found").c_str());
     }
     FB_DEBUG(FB_DEBUG_SHORTCUT, "│   None found");
@@ -1191,7 +1190,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     }
     if (!obj_cache->retrieve(fingerprint, subkey.c_str(),
                              &candidate_inouts_buf, &candidate_inouts_buf_len)) {
-      if (generate_report) {
+      if (Options::generate_report()) {
         proc->set_shortcut_result(deduplicated_string(
             "could not retrieve " + d(subkey) + " from objcache").c_str());
       }
@@ -1415,7 +1414,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   /* Bubble up all the file operations we're about to perform. */
-  ExecedProcess* registration_point = generate_report ? proc : proc->parent_exec_point();
+  ExecedProcess* registration_point = Options::generate_report() ? proc : proc->parent_exec_point();
   if (registration_point) {
     const FBBSTORE_Serialized_process_inputs *inputs =
         reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>
@@ -1590,7 +1589,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
       if (inouts->has_cpu_time_ms()) {
         proc->add_shortcut_cpu_time_ms(inouts->get_cpu_time_ms());
       }
-    } else if (generate_report) {
+    } else if (Options::generate_report()) {
       proc->set_shortcut_result("applying shortcut failed");
     }
     /* Trigger cleanup of ProcessInputsOutputs. */
