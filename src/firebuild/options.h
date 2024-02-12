@@ -48,6 +48,9 @@ class Options {
   static const std::list<std::string>& config_strings() {
     return *config_strings_;
   }
+  static bool quiet() {
+    return quiet_;
+  }
   static bool generate_report() {
     return generate_report_;
   }
@@ -70,6 +73,7 @@ class Options {
   static const char* report_file_;
   static const char * const * build_cmd_;
   static std::list<std::string>* config_strings_;
+  static bool quiet_;
   static bool generate_report_;
   static bool insert_trace_markers_;
   static bool do_gc_;

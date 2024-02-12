@@ -28,6 +28,7 @@ char* Options::directory_ = nullptr;
 const char* Options::report_file_ = "firebuild-build-report.html";
 const char* const * Options::build_cmd_ = nullptr;
 std::list<std::string>* Options::config_strings_ = nullptr;
+bool Options::quiet_ = false;
 bool Options::generate_report_ = false;
 bool Options::insert_trace_markers_ = false;
 bool Options::do_gc_ = false;
@@ -60,6 +61,8 @@ void Options::usage() {
          "   -o --option=key=[]        Clear an array in the config\n"
          "   -o --option=key+=val      Append to an array of scalars in the config\n"
          "   -o --option=key-=val      Remove from an array of scalars in the config\n"
+         "   -q --quiet                Quiet; print error messages only from firebuild.\n"
+         "                             The BUILD COMMAND's messages are not affected.\n"
          "   -s --show-stats           Show cache hit statistics.\n"
          "   -z --zero-stats           Zero cache hit statistics.\n"
          "   -i --insert-trace-markers perform open(\"/FIREBUILD <debug_msg>\", 0) calls\n"
@@ -84,6 +87,7 @@ void Options::parse(const int argc, char *argv[]) {
       {"generate-report",      optional_argument, 0, 'r' },
       {"help",                 no_argument,       0, 'h' },
       {"option",               required_argument, 0, 'o' },
+      {"quiet",                no_argument,       0, 'q' },
       {"show-stats",           no_argument,       0, 's' },
       {"zero-stats",           no_argument,       0, 'z' },
       {"insert-trace-markers", no_argument,       0, 'i' },
@@ -91,7 +95,7 @@ void Options::parse(const int argc, char *argv[]) {
       {0,                                0,       0,  0  }
     };
 
-    int c = getopt_long(argc, argv, "c:C:d:D:r::o:ghisz",
+    int c = getopt_long(argc, argv, "c:C:d:D:r::o:qghisz",
                         long_options, &option_index);
     if (c == -1)
       break;
@@ -136,6 +140,10 @@ void Options::parse(const int argc, char *argv[]) {
 #ifdef FB_EXTRA_DEBUG
         insert_trace_markers_ = true;
 #endif
+        break;
+
+      case 'q':
+        quiet_ = true;
         break;
 
       case 'r':

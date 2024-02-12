@@ -177,6 +177,17 @@ SOFTWARE.
 	</listitem>
       </varlistentry>
       <varlistentry>
+   <term>
+     <option>-q</option>, <option>--quiet</option>
+   </term>
+   <listitem>
+     <para>
+            Quiet; print error messages only from firebuild. The
+            <replaceable>BUILD COMMAND</replaceable>'s messages are not affected.
+     </para>
+   </listitem>
+      </varlistentry>
+      <varlistentry>
 	<term>
 	  <option>-s</option>, <option>--show-stats</option>
 	</term>

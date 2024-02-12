@@ -25,6 +25,7 @@
 
 #include "common/debug_sysflags.h"
 #include "firebuild/exe_matcher.h"
+#include "firebuild/options.h"
 #include "firebuild/process.h"
 
 namespace firebuild {
@@ -35,6 +36,12 @@ int32_t debug_flags = 0;
 
 void fb_error(const std::string &msg) {
   fprintf(stderr, "FIREBUILD ERROR: %s\n", msg.c_str());
+}
+
+void fb_info(const std::string &msg) {
+  if (!Options::quiet()) {
+    fprintf(stdout, "FIREBUILD: %s\n", msg.c_str());
+  }
 }
 
 void fb_debug(const std::string &msg) {
