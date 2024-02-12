@@ -1,0 +1,101 @@
+# Translation of firebuild debconf template to Swedish
+# Copyright (C) 2024 Martin Bagge <brother@persilja.net>
+# This file is distributed under the same license as the firebuild package.
+#
+# Martin Bagge <brother@persilja.net>, 2024
+msgid ""
+msgstr ""
+"Project-Id-Version: firebuild\n"
+"Report-Msgid-Bugs-To: firebuild@packages.debian.org\n"
+"POT-Creation-Date: 2022-11-14 17:54+0100\n"
+"PO-Revision-Date: 2024-02-09 16:06+0100\n"
+"Last-Translator: Martin Bagge <brother@persilja.net>\n"
+"Language-Team: Swedish <debian-l10n-swedish@lists.debian.org>\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Do you accept the terms of the Firebuild license?"
+msgstr "Accepterar du villkoren i licensen för Firebuild?"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Firebuild users are required to acknowledge and accept the license. Please "
+"find it below. If you accept this license, the package installation will "
+"continue. If you refuse it, it will be interrupted."
+msgstr ""
+"Användare av Firebuild måste aktivt bekräfta licensvillkoren, se nedan. Om "
+"du accepterar dessa villkor kommer paketinstallationen att fortsätta. Om "
+"inte så kommer installationen att avbrytas."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Firebuild is free for personal use or commercial trial."
+msgstr ""
+"Firebuild får användas fritt för privat bruk eller som utvärdering i "
+"kommersiella sammanhang."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Non-trial commercial use requires licenses available from https://firebuild."
+"com."
+msgstr ""
+"Övrig användning i kommersiella sammanhang är inte tillåtet utan en licens "
+"från https://firebuild.com."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Modification and redistribution are permitted, but commercial use of "
+"derivative works is subject to the same requirements of this license."
+msgstr ""
+"Ändringar och vidareförmedling är tillåtet men kommersiell användning lyder "
+"fortsatt under samma villkor."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+"IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING "
+"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS "
+"IN THE SOFTWARE."
+msgstr ""
+"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+"IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING "
+"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS "
+"IN THE SOFTWARE."
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid "The license has been refused"
+msgstr "Licensvillkoren har avvisats"
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid ""
+"Please remove the firebuild packages or reinstall the firebuild package (e."
+"g. via apt-get install --reinstall firebuild) to get prompted to accept the "
+"license again."
+msgstr ""
+"Vänligen ta bort firebuild-paketen eller installera om firebuild-paketet "
+"(med hjälp av apt-get install --reinstall firebuild) för att återigen visa "
+"licensfrågan."
