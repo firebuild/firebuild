@@ -38,6 +38,10 @@ setup() {
 
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
+    result=$(./run-firebuild -r -q -- bash -c "echo ok")
+    assert_streq "$result" "ok"
+    assert_streq "$(strip_stderr stderr)" ""
+
     # clean up before running the test
     rm -rf test_directory/ foo-dir/
     result=$(./run-firebuild -o 'processes.dont_shortcut -= "ls"' -C . --generate-report=firebuild-build-report.html -d all -i -- bash -c "ls integration.bats; bash -c ls | tee dirlist > /dev/null && ./test_file_ops")
@@ -47,7 +51,7 @@ setup() {
 
 @test "bash exec chain" {
   for i in 1 2; do
-    result=$(./run-firebuild -o 'processes.skip_cache -= "head"' -- bash -c "exec bash -c exec\\ bash\\ -c\\ head\\\\\ -n1\\\\\ integration.bats")
+    result=$(./run-firebuild -q -o 'processes.skip_cache -= "head"' -- bash -c "exec bash -c exec\\ bash\\ -c\\ head\\\\\ -n1\\\\\ integration.bats")
     assert_streq "$result" "#!/usr/bin/env bats"
     assert_streq "$(strip_stderr stderr)" ""
   done

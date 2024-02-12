@@ -40,6 +40,9 @@ class Process;
 /** Print error message */
 void fb_error(const std::string &msg);
 
+/** Print informational message */
+void fb_info(const std::string &msg);
+
 /** Possible debug flags. Keep in sync with debug.cc! */
 enum {
   /* Firebuild's configuration */
