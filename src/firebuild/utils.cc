@@ -20,6 +20,12 @@
 
 #include <dirent.h>
 #include <errno.h>
+#ifdef __APPLE__
+#include <IOKit/IOKitLib.h>
+#include <IOKit/IOKitKeys.h>
+#include <CoreFoundation/CoreFoundation.h>
+#include <plist/plist++.h>
+#endif
 #include <stdio.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
@@ -38,6 +44,19 @@
 #include "common/firebuild_common.h"
 #include "common/platform.h"
 #include "firebuild/debug.h"
+
+#ifdef __APPLE__
+/* Interesting CSR configuration flags. */
+#define CSR_ALLOW_UNRESTRICTED_FS    (1 << 1)
+#define CSR_ALLOW_TASK_FOR_PID       (1 << 2)
+#ifdef __aarch64__
+#define CSR_ALLOW_UNRESTRICTED_NVRAM (1 << 6)
+#endif
+typedef uint32_t csr_config_t;
+extern "C" {
+extern int csr_check(csr_config_t);
+}
+#endif
 
 std::unordered_set<std::string>* deduplicated_strings = nullptr;
 
@@ -328,6 +347,62 @@ const std::string& deduplicated_string(std::string str) {
     deduplicated_strings = new std::unordered_set<std::string>();
   }
   return *deduplicated_strings->insert(str).first;
+}
+
+bool check_system_setup() {
+  bool system_ok = true;
+#ifdef __APPLE__
+  /* Check SIP. */
+  if (csr_check(CSR_ALLOW_UNRESTRICTED_FS
+#ifdef __aarch64__
+                | CSR_ALLOW_UNRESTRICTED_NVRAM
+#endif
+                | CSR_ALLOW_TASK_FOR_PID) != 0) {
+    fb_info("System Integrity Protection prevents intercepting the BUILD COMMAND.");
+    system_ok = false;
+  }
+
+  /* Check Library Validation. */
+  plist_t plist = nullptr, disable_library_validation = nullptr;
+  if (plist_read_from_file("/Library/Preferences/com.apple.security.libraryvalidation.plist",
+                           &plist, nullptr) != PLIST_ERR_SUCCESS
+      || !(disable_library_validation = plist_dict_get_item(plist, "DisableLibraryValidation"))
+      || !(plist_get_node_type(disable_library_validation) == PLIST_BOOLEAN)
+      || !plist_bool_val_is_true(disable_library_validation)) {
+    fb_info("Library Validation is enabled possibly preventing interception of Xcode and other "
+            "protected tools.");
+    system_ok = false;
+  }
+  if (plist) {
+    plist_free(plist);
+  }
+
+#ifdef __aarch64__
+  /* Check if nvram's boot-args contains -arm64e_preview_abi. */
+  io_registry_entry_t options = IORegistryEntryFromPath(kIOMainPortDefault,
+                                                        "IODeviceTree:/options");
+  if (options) {
+    CFTypeRef bootArgsRef = IORegistryEntryCreateCFProperty(options, CFSTR("boot-args"),
+                                                            kCFAllocatorDefault, 0);
+    if (bootArgsRef) {
+      CFStringRef bootArgs = (CFStringRef)bootArgsRef;
+      if (CFStringFind(bootArgs, CFSTR("-arm64e_preview_abi"),
+                       kCFCompareCaseInsensitive).location == kCFNotFound) {
+        fb_info("The system is not configured to use the arm64e_preview_abi, which is needed "
+                "for intercepting arm64e binaries.");
+        system_ok = false;
+      }
+      CFRelease(bootArgsRef);
+    }
+    IOObjectRelease(options);
+  }
+#endif
+
+  if (!system_ok) {
+    fb_info("Visit https://firebuild.com/setup-macos for guidelines for setting up your system.");
+  }
+#endif
+  return system_ok;
 }
 
 }  /* namespace firebuild */

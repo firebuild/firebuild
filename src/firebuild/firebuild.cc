@@ -50,6 +50,7 @@
 #include "firebuild/process.h"
 #include "firebuild/process_tree.h"
 #include "firebuild/report.h"
+#include "firebuild/utils.h"
 
 int sigchild_selfpipe[2];
 
@@ -255,6 +256,8 @@ int main(const int argc, char *argv[]) {
   /* Collect orphan children */
   prctl(PR_SET_CHILD_SUBREAPER, 1);
 #endif
+
+  firebuild::check_system_setup();
 
   /* run command and handle interceptor messages */
   if ((child_pid = fork()) == 0) {

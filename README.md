@@ -133,3 +133,5 @@ Build:
 Install:
 
     sudo make install
+
+Set up the system to allow intercepting builds: https://firebuild.com/setup-macos

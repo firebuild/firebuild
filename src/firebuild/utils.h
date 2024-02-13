@@ -119,5 +119,10 @@ int fb_renameat2(int olddirfd, const char *oldpath,
  */
 const std::string& deduplicated_string(std::string);
 
+/**
+ * Check if system configuration allows intercepting the build process.
+ */
+bool check_system_setup();
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_
