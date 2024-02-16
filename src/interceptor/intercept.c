@@ -1171,6 +1171,7 @@ void fb_ic_init() {
     assert(cb_data.collectable_entries == cb_data2.array->len);
   }
 #endif
+  cstring_view_array_sort(&libs);
   fbbcomm_builder_scproc_query_set_libs_cstring_views(&ic_msg, libs.p, libs.len);
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
