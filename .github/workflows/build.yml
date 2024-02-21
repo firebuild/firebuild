@@ -307,6 +307,9 @@ jobs:
         cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
   build-on-macos:
+    env:
+        HOMEBREW_NO_AUTO_UPDATE: 1
+        XML_CATALOG_FILES: /usr/local/etc/xml/catalog
     needs: style-checks
     runs-on: macos-12
     timeout-minutes: 30
@@ -321,7 +324,6 @@ jobs:
     - name: install-deps
       run: |
         brew update
-        export HOMEBREW_NO_AUTO_UPDATE=1
         # brew often fails due to existing files, hence the --overwrite parameter and the retry
         brew bundle -f || (for v in 3.11 3.12; do brew link --overwrite python@${v} ; done; brew bundle -f)
     - name: configure vm
@@ -332,7 +334,6 @@ jobs:
       run: |
         export PATH=/usr/local/opt/ccache/libexec:$(ls -d /usr/local/Cellar/jinja2-cli/*/libexec/bin):$PATH
         cmake -DCMAKE_CXX_FLAGS="-I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/lib" -DCMAKE_BUILD_TYPE=Debug .
-        export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         make -j2
     - name: test
       run: |
