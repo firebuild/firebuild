@@ -49,6 +49,23 @@
 #define VDSO_NAME "linux-vdso.so.1"
 #endif
 
+/** A poor man's (plain C) implementation of a hashmap:
+ *  posix_spawn_file_actions_t -> char**
+ *  implemented as a dense array with linear lookup.
+ *
+ *  Each file action is encoded as a simple string, e.g.
+ *  - open:  "o 10 0 0 /etc/hosts"
+ *  - close: "c 11"
+ *  - dup2:  "d 3 5"
+ */
+typedef struct {
+  posix_spawn_file_actions_t handle;
+  voidp_array actions;
+} psfa;
+psfa *psfas;
+int psfas_num;
+int psfas_alloc;
+
 static void fb_ic_init_constructor(int argc, char **argv) __attribute__((constructor));
 static void fb_ic_cleanup() __attribute__((destructor));
 
@@ -1389,6 +1406,17 @@ void fb_debug(const char* msg) {
 }
 
 
+void psfa_update_actions(const posix_spawn_file_actions_t* old_actions,
+                         const posix_spawn_file_actions_t* new_actions) {
+  if (memcmp(old_actions, new_actions, sizeof(posix_spawn_file_actions_t)) != 0) {
+    for (int i = 0; i < psfas_num; i++) {
+      if (memcmp(&(psfas[i].handle), old_actions, sizeof(posix_spawn_file_actions_t)) == 0) {
+        psfas[i].handle = *new_actions;
+      }
+    }
+  }
+}
+
 void psfa_init(const posix_spawn_file_actions_t *p) {
   // FIXME guard with mutex!
 
@@ -1405,7 +1433,7 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
     psfas = (psfa *) realloc(psfas, sizeof(psfa) * psfas_alloc);
   }
 
-  psfas[psfas_num].p = p;
+  psfas[psfas_num].handle =  *p;
   voidp_array_init(&psfas[psfas_num].actions);
   psfas_num++;
 }
@@ -1430,7 +1458,7 @@ void psfa_destroy(const posix_spawn_file_actions_t *p) {
   // FIXME guard with mutex!
 
   for (int i = 0; i < psfas_num; i++) {
-    if (psfas[i].p == p) {
+    if (memcmp(&psfas[i].handle, p, sizeof(posix_spawn_file_actions_t)) == 0) {
       voidp_array_deep_free(&psfas[i].actions, psfa_item_free);
       if (i < psfas_num - 1) {
         /* Keep the array dense by moving the last item to this slot. */
@@ -1551,7 +1579,7 @@ void psfa_addinherit_np(const posix_spawn_file_actions_t *p,
 
 voidp_array *psfa_find(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
-    if (psfas[i].p == p) {
+    if (memcmp(&psfas[i].handle, p, sizeof(posix_spawn_file_actions_t)) == 0) {
       return &psfas[i].actions;
     }
   }

@@ -20,6 +20,7 @@
 {# ------------------------------------------------------------------ #}
 ### extends "tpl.c"
 
+### set init_or_destroy = func in ["posix_spawn_file_actions_init", "posix_spawn_file_actions_destroy"]
 ### block guard_connection_fd
 {# Override the main template's corresponding block so that the       #}
 {# connection fd is _not_ guarded here. This is because matching the  #}
@@ -30,8 +31,17 @@
 {# preceding posix_spawn_file_action. See #875 for further details.   #}
 ### endblock
 
+### block before
+###   if not init_or_destroy
+    const posix_spawn_file_actions_t file_actions_orig = *file_actions;
+###   endif
+### endblock before
+
 ### block after
   if (success) {
+###   if not init_or_destroy
+    psfa_update_actions(&file_actions_orig, file_actions);
+###   endif
     {{ func | replace("posix_spawn_file_actions_", "psfa_") }} ({{ names_str }});
   }
 ### endblock after

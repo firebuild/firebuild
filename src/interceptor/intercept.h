@@ -48,23 +48,6 @@
 #include "common/firebuild_common.h"
 #include "./fbbcomm.h"
 
-/** A poor man's (plain C) implementation of a hashmap:
- *  posix_spawn_file_actions_t -> char**
- *  implemented as a dense array with linear lookup.
- *
- *  Each file action is encoded as a simple string, e.g.
- *  - open:  "o 10 0 0 /etc/hosts"
- *  - close: "c 11"
- *  - dup2:  "d 3 5"
- */
-typedef struct {
-  const posix_spawn_file_actions_t *p;
-  voidp_array actions;
-} psfa;
-extern psfa *psfas;
-extern int psfas_num;
-extern int psfas_alloc;
-
 struct rusage;
 /** This tells whether the supervisor needs to be notified on a read or write
  *  event. The supervisor needs to be notified only on the first of each kind,
@@ -196,6 +179,12 @@ extern void psfa_init(const posix_spawn_file_actions_t *p);
  * Do not shrink psfas.
  */
 extern void psfa_destroy(const posix_spawn_file_actions_t *p);
+/**
+ * Update our pool's entry if the pointer in posix_spawn_file_actions_t we use for identifying
+ * entries internally changed.
+ */
+void psfa_update_actions(const posix_spawn_file_actions_t* old_actions,
+                         const posix_spawn_file_actions_t* new_actions);
 /**
  * Additional bookkeeping to do after a successful posix_spawn_file_actions_addopen():
  * Append a corresponding FBBCOMM_Builder_posix_spawn_file_action_open builder to our structures.
