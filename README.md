@@ -126,8 +126,7 @@ Install the build dependencies:
 Build:
 
     export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
-    export PATH=$(ls -d /opt/homebrew/Cellar/jinja2-cli/*/libexec/bin):$PATH
-    cmake -DCMAKE_CXX_FLAGS="-I/opt/homebrew/include -I/usr/local/include" -DCMAKE_EXE_LINKER_FLAGS="-L/opt/homebrew/lib" .
+    cmake .
     make check
 
 Install:
