@@ -309,9 +309,12 @@ jobs:
   build-on-macos:
     env:
         HOMEBREW_NO_AUTO_UPDATE: 1
-        XML_CATALOG_FILES: /usr/local/etc/xml/catalog
+        XML_CATALOG_FILES: /opt/homebrew/etc/xml/catalog
+    strategy:
+      matrix:
+        os: [macos-12, macos-14]
     needs: style-checks
-    runs-on: macos-12
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
     - name: check if SIP is enabled on this runner
@@ -332,19 +335,33 @@ jobs:
         sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
     - name: build-out-of-tree
       run: |
-        export PATH=/usr/local/opt/ccache/libexec:$PATH
-        export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
+        if [ ${{ matrix.os }} = macos-14 ]; then
+          HOMEBREW_PREFIX=/opt/homebrew
+        else
+          HOMEBREW_PREFIX=/usr/local
+          export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
+        fi
+        export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
+        export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/lib/python*/site-packages | tail -n1)
         cmake -DCMAKE_BUILD_TYPE=Debug -B build-make
         make -C build-make -j$(getconf _NPROCESSORS_ONLN)
     - name: test
       run: |
-        make -C build-make check
+        # tests are failing on m1 due to missing arm64e ABI configuration: https://github.com/actions/runner-images/issues/9461
+        make -C build-make check || [ ${{ matrix.os }} = macos-14 ]
     - name: install firebuild
       run: |
         sudo make -C build-make install
     - name: build-with-xcode
       run: |
-        export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
+        if [ ${{ matrix.os }} = macos-14 ]; then
+          HOMEBREW_PREFIX=/opt/homebrew
+        else
+          HOMEBREW_PREFIX=/usr/local
+          export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
+        fi
+        export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
+        export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/lib/python*/site-packages | tail -n1)
         cmake -G Xcode -B build-xcode
         cd build-xcode
         xcodebuild
