@@ -38,7 +38,7 @@ jobs:
         mkdir build
         cd build
         firebuild cmake -DCMAKE_BUILD_TYPE=Release ..
-        firebuild make -j2
+        firebuild make -j$(getconf _NPROCESSORS_ONLN)
     - name: doc
       run: |
         cd build
@@ -46,7 +46,7 @@ jobs:
     - name: build-in-tree
       run: |
         firebuild cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
-        firebuild make -j2 all check-bins
+        firebuild make -j$(getconf _NPROCESSORS_ONLN) all check-bins
     - name: test
       run: |
         make check
@@ -56,7 +56,7 @@ jobs:
         git clean -dxf
         firebuild cmake -DCOVERAGE=1 -DCMAKE_BUILD_TYPE=Debug .
         firebuild make all check-bins
-        make -j2 check coverage-info
+        make -j$(getconf _NPROCESSORS_ONLN) check coverage-info
         [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 75" | bc) = 1 ]
     - name: save-cached-debs
       run: |
@@ -87,7 +87,7 @@ jobs:
     - name: build-in-tree
       run: |
         firebuild cmake -DWITH_JEMALLOC=OFF -DCMAKE_BUILD_TYPE=Debug .
-        firebuild make -j2 all check-bins
+        firebuild make -j$(getconf _NPROCESSORS_ONLN) all check-bins
     - name: test
       run: |
         firebuild make -j3 close_fds_exec
@@ -134,7 +134,7 @@ jobs:
         mkdir build
         cd build
         cmake -DCMAKE_BUILD_TYPE=Release ..
-        make -j2
+        make -j$(getconf _NPROCESSORS_ONLN)
         # Version should be set in the source before tagging a release,
         # then the version should be unset right in the next commit.
         BUILT_VERSION=$(src/firebuild/firebuild --version | head -n1 | cut -d" "  -f2)
@@ -143,8 +143,8 @@ jobs:
     - name: build-in-tree
       run: |
         cmake -DCMAKE_BUILD_TYPE=Debug .
-        make -j2 all check-bins
-        make -j2 check
+        make -j$(getconf _NPROCESSORS_ONLN) all check-bins
+        make -j$(getconf _NPROCESSORS_ONLN) check
 
   clang-build:
     needs: style-checks
@@ -168,7 +168,7 @@ jobs:
     - name: build
       run: |
         env CC=clang CXX=clang++ LD=ld.lld cmake .
-        firebuild make -j2 all check-bins
+        firebuild make -j$(getconf _NPROCESSORS_ONLN) all check-bins
     - name: test
       run: |
         make check
@@ -179,7 +179,7 @@ jobs:
       run: |
         # work around static analyzer report about emmintrin.h with XXH_INLINE_ALL
         scan-build cmake -DENABLE_XXH_INLINE_ALL=OFF .
-        scan-build --status-bugs make -j2
+        scan-build --status-bugs make -j$(getconf _NPROCESSORS_ONLN)
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
@@ -210,7 +210,7 @@ jobs:
         # rebuild again, to test shortcutting
         cd build-first-build/test
         ./run-firebuild make -C ../../build clean
-        time ./run-firebuild make -j2 -C ../../build all
+        time ./run-firebuild make -j$(getconf _NPROCESSORS_ONLN) -C ../../build all
         du -sh test_cache_dir
     - name: rebuild self with -j8
       run: |
@@ -252,8 +252,8 @@ jobs:
     - name: build-in-tree
       run: |
         firebuild cmake -DWITH_JEMALLOC=OFF -DSANITIZE=ON .
-        firebuild make -j2 all check-bins
-        make -j2 check
+        firebuild make -j$(getconf _NPROCESSORS_ONLN) all check-bins
+        make -j$(getconf _NPROCESSORS_ONLN) check
     - name: build-vte
       run: |
         apt-get source vte2.91
@@ -335,7 +335,7 @@ jobs:
         export PATH=/usr/local/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d /usr/local/lib/python*/site-packages | tail -n1)
         cmake -DCMAKE_BUILD_TYPE=Debug .
-        make -j2
+        make -j$(getconf _NPROCESSORS_ONLN)
     - name: test
       run: |
         make check
