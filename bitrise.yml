@@ -31,9 +31,12 @@ workflows:
             make -C build-make -j$NPROC check
             sudo make -C build-make install
             # build self with Xcode
-            firebuild cmake -B build-xcode -G Xcode
-            cd build-xcode
-            firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild
+            for i in 1 2; do
+              rm -rf build-xcode
+              time firebuild cmake -B build-xcode -G Xcode
+              (cd build-xcode &&
+               time firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild)
+            done
     - deploy-to-bitrise-io@2: {}
     - cache-push@2: {}
     envs:
