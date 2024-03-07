@@ -303,7 +303,18 @@ setup() {
   done
 }
 
-@test "posix_spawn() a statically linked binary" {
+@test "posix_spawn() a binary" {
+  for i in 1 2; do
+    result=$(./run-firebuild -r -q -- ./test_cmd_posix_spawn bash -c 'echo ok')
+    assert_streq "$result" "ok"
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+  result=$(./run-firebuild -s | grep Hits)
+  assert_streq "$result" "  Hits:             1 / 3 (33.33 %)"
+  assert_streq "$(strip_stderr stderr)" ""
+}
+
+@test "posix_spawn() a static binary" {
   [ -x ./test_static ] || skip
   ldd ./test_static 2>&1 | grep -Eq '(not a dynamic executable|statically linked)'
 
