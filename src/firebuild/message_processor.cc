@@ -636,15 +636,7 @@ static void process_posix_spawn_file_actions(const P * const ic_msg, Process* co
             mode_t mode = action_open->get_mode();
             proc->handle_force_close(fd);
             proc->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0, -1, 0,
-                                    false, false);
-            /* Revert the effect of "pre-opening" paths to be written in the posix_spawn message.*/
-            if (is_write(flags)) {
-              const FileName* file_name = proc->get_absolute(AT_FDCWD, pathname,
-                                                                              pathname_len);
-              if (file_name) {
-                file_name->close_for_writing();
-              }
-            }
+                              is_write(flags), false);
             break;
           }
           case FBBCOMM_TAG_posix_spawn_file_action_close: {
