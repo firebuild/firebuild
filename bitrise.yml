@@ -24,7 +24,7 @@ workflows:
             # debug log
             set -x
             NPROC="$(getconf _NPROCESSORS_ONLN)"
-            export PYTHONPATH=$(ls -d /opt/homebrew/lib/python*/site-packages | tail -n1)
+            export PYTHONPATH=$(ls -d /opt/homebrew/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
             sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
             cmake -DCMAKE_BUILD_TYPE=Release -B build-make
             make -C build-make -j$NPROC

@@ -127,6 +127,7 @@ Build:
 
     export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
     cmake .
+    export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
     make check
 
 Install:
