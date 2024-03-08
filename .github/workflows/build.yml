@@ -309,7 +309,6 @@ jobs:
   build-on-macos:
     env:
         HOMEBREW_NO_AUTO_UPDATE: 1
-        XML_CATALOG_FILES: /opt/homebrew/etc/xml/catalog
     strategy:
       matrix:
         os: [macos-12, macos-14]
@@ -335,12 +334,8 @@ jobs:
         sudo defaults write /Library/Preferences/com.apple.security.libraryvalidation.plist DisableLibraryValidation -bool true
     - name: build-out-of-tree
       run: |
-        if [ ${{ matrix.os }} = macos-14 ]; then
-          HOMEBREW_PREFIX=/opt/homebrew
-        else
-          HOMEBREW_PREFIX=/usr/local
-          export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
-        fi
+        HOMEBREW_PREFIX=$(ls -d /opt/homebrew /usr/local 2> /dev/null| head -n1)
+        export XML_CATALOG_FILES=${HOMEBREW_PREFIX}/etc/xml/catalog
         export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
         cmake -DCMAKE_BUILD_TYPE=Debug -B build-make
@@ -354,12 +349,8 @@ jobs:
         sudo make -C build-make install
     - name: build-with-xcode
       run: |
-        if [ ${{ matrix.os }} = macos-14 ]; then
-          HOMEBREW_PREFIX=/opt/homebrew
-        else
-          HOMEBREW_PREFIX=/usr/local
-          export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
-        fi
+        HOMEBREW_PREFIX=$(ls -d /opt/homebrew /usr/local 2> /dev/null| head -n1)
+        export XML_CATALOG_FILES=${HOMEBREW_PREFIX}/etc/xml/catalog
         export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
         export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
         cmake -G Xcode -B build-xcode

@@ -125,8 +125,9 @@ Install the build dependencies:
 
 Build:
 
-    export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
     cmake .
+    HOMEBREW_PREFIX=$(ls -d /opt/homebrew /usr/local 2> /dev/null| head -n1)
+    export XML_CATALOG_FILES=${HOMEBREW_PREFIX}/etc/xml/catalog
     export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
     make check
 
