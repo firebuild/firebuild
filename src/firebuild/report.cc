@@ -139,7 +139,7 @@ static void export2js(const ExecedProcess* proc, const unsigned int level,
 
   fprintf(stream, "%s libs: [", indent);
   for (auto& lib : proc->libs()) {
-    fprintf(stream, "\"%s\",", lib->c_str());
+    fprintf(stream, "files[%d],", used_files_index_map[lib]);
   }
   fprintf(stream, "],\n");
 
@@ -262,6 +262,9 @@ static void collect_used_files_and_envs(const Process &p,
       if (!pair.second->propagated()) { /* Save time by not processing propagated ones. */
         used_files->insert(pair.first);
       }
+    }
+    for (const FileName* lib : exec_child->libs()) {
+      used_files->insert(lib);
     }
     envs->insert(&exec_child->env_vars());
     collect_used_files_and_envs(*exec_child, used_files, envs);
