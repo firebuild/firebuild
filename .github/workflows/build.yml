@@ -342,7 +342,7 @@ jobs:
           export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         fi
         export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
-        export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/lib/python*/site-packages | tail -n1)
+        export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
         cmake -DCMAKE_BUILD_TYPE=Debug -B build-make
         make -C build-make -j$(getconf _NPROCESSORS_ONLN)
     - name: test
@@ -361,7 +361,7 @@ jobs:
           export XML_CATALOG_FILES=/usr/local/etc/xml/catalog
         fi
         export PATH=${HOMEBREW_PREFIX}/opt/ccache/libexec:$PATH
-        export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/lib/python*/site-packages | tail -n1)
+        export PYTHONPATH=$(ls -d ${HOMEBREW_PREFIX}/Cellar/jinja2-cli/*/libexec/lib/*/site-packages | tail -n1)
         cmake -G Xcode -B build-xcode
         cd build-xcode
         xcodebuild
