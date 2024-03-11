@@ -171,6 +171,11 @@ void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
           auto file_fd_old = proc->get_shared_fd(inherited_file.fds[0]);
           auto pipe = file_fd_old->pipe();
           assert(pipe);
+          if (pipe->finished()) {
+            /* Pipe may have been closed (or broken) before the supervisor started accepting
+             * the new child*/
+            continue;
+          }
 
           /* As per #689, reopening the pipes causes different behavior than without firebuild. With
            * firebuild, across an exec they no longer share the same "open file description" and thus
