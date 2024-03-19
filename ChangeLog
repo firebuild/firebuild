@@ -1,4 +1,154 @@
 ==================
+0.8.3 / 2024-07-21
+==================
+  * ci: Print error when build version is less than git version
+  * Drop references to *_generated.h
+  * ci: Make brew overwrite files by default
+  * firebuild: Use std::unordered_set for deduplicated strings
+  * build: Pass -static-libasan to GCC only
+  * FBB: Fix parameter type of some message-specific functions to match the way of calling them
+  * test: Test pthreads interception
+  * interceptor: Temporarily use global variables on non-Linux platforms
+  * Intercept shm_open()
+  * Support fcntl(fd, F_GETPATH, ...)
+  * interceptor: Refactor disabling interception
+  * interceptor: Intercept only the libc entry entry points on OS X
+  * supervior: Fix handling OS X SDK provided shared libraries
+  * tests: Use 'head' instead of 'ls' where shortcutting matters
+  * supervisor: Fix removing fds from kqueue on OS X
+  * tests: Fix environment fixup test on OS X
+  * tests: Fix du use on OS X in GC test
+  * tests: skip popen()-ing static binary when the static binary is not built
+  * tests: Fix max entry size test on OS X
+  * tests: Use /usr/bin/touch test_wait.c to make it work on OS X, too
+  * supervisor: Handle that system(NULL) does not start subprocess on OS X
+  * test: Fix testing sendfile() on OS X
+  * tests: Post-process output of wc -l to make gc test work on OS X, too
+  * tests: Don't create dangling symlinks in gc tests when invalid entries are not tested
+  * interceptor: Intercept wait4() instead of wait3() on OS X
+  * interceptor: Intercept *_nocancel glibc API function variants
+  * interceptor: Fix skipping some intercepted function variants on OS X
+  * build: Fix Xcode project generation from CMake files
+  * FBB: Ignore -Wshorten-64-to-32 warnings on OS X
+  * tests: Fix test_symbols script on OS X
+  * ci: Don't update brew packages in brew install automatically on macos
+  * ci: Retry brew install with workarounds on MacOS
+  * supervisor: Ignore shm_open("apple.shm.notification_center", ...) on OS X
+  * interceptor: Intercept many double underscore (__*) symbols on OS X
+  * interceptor: Intercept close$NOCANCEL on OS X
+  * interceptor: Fix adding wrong guard to some intercepted functions
+  * interceptor: Intercept missing __* functions on OS X
+  * interceptor: Refactor generate_interceptors to make it less repetitive
+  * interceptor: Don't check if *64 variant of already *64 syscalls are intercepted
+  * supervisor: Remove fd_ member from FileFD
+  * supervisor: Fix typo and indentation
+  * supervisor: Refactor pop_expected_child_fds a bit
+  * interceptor: Fix send_pre_open() documentation causing Doxygen error
+  * supervisor: Improve debugging output of vectors
+  * interceptor: Merge tracking interception depth of signal handlers and libc calls
+  * interceptor: Allow recursive interception of signal handlers and some libc calls on MacOS, too
+  * doc: Add build instructions for macOS
+  * supervisor: Stop at first found configuration file
+  * supervisor: Look for global config file at CMAKE_INSTALL_FULL_SYSCONFDIR
+  * Fix intercepting __mac_syscall()
+  * macos: Install hopscotch-map with Homebrew
+  * supervisor: Set DYLD_LIBRARY_PATH in firebuild if it is empty
+  * readme: Add installation from source instructions on Linux and Mac
+  * interceptor: Intercept __opendir2 on macOS
+  * supervisor: Always ACK in handle_dlopen()
+  * Intercept scandir() variants
+  * interceptor: Allow interception inside dlopen() and dlmopen()
+  * supervisor: Update cache size and stats on SIG{INT|QUIT|SEGV|TERM}
+  * supervisor: Use memcmp() instead of strcmp() where the string lengths are known
+  * supervisor: Fix splitting read-only and not read-only locations
+  * build: Don't rebuild firebuild.1 man page in every incremental build
+  * supervisor: Move member initializations to constants to member definitions
+  * test: Test dlopen()
+  * Handle when a single dlopen() loads multiple shared libraries
+  * supervisor: Ignore dlopen()-ed shared libs which are not present as files on macOS
+  * interceptor: Don't skip shared libraries when collecting the ones loaded by dlopen()
+  * Fix handling dlopen()
+  * supervisor: Fix handling seeked inherited fds
+  * ci: Disable library validation on macOS
+  * supervisor: Allow shm_open()-ing apple.cfprefs* shared memory
+  * Ignore operations on /dev/autofs_nowait
+  * supervisor: Fix skipping missing shared libraries on macOS in debug mode, too
+  * interceptor: Ignore fcntl()'s F_NOCACHE and F_GETPROTECTIONCLASS commands
+  * When open("foo/bar", O_DIRECTORY) returns -1 with ENOTDIR. assume foo/bar to be regular file
+  * ci: Fail the macOS test early if SIP is enabled on the runner
+  * Intercept kqueue() call on macOS
+  * Extend posix_spawn() interception
+  * interceptor: Drop unused code left over from simplifying dlopen() interception
+  * interceptor: Don't notify the supervisor about dlopen() when RTLD_NOLOAD is set
+  * interceptor: Intercept open$NOCANCEL and openat$NOCANCEL on macOS
+  * interceptor: Put success condition in parentheses for clarity
+  * Intercept mktemp()
+  * Debug-print socket()'s domain parameter nicely
+  * Ignore connect() in xcodebuild -find ... inside LTO linking
+  * supervisor: Factor out file action handling from posix_spawn() handling
+  * Handle posix_spawn() with POSIX_SPAWN_SETEXEC attribute on macOS
+  * supervisor: Detect rustc when it is executed with its full path, too
+  * test: Increase integration test coverage a bit
+  * supervisor: Fix unused parameter in handle_kqueue
+  * test: Test posix file actions handling
+  * supervisor: Add FileName::parent_dir()
+  * supervisor: Extend ENOTDIR handling to cover more possible cases
+  * Ignore connecting to "/var/run/syslog" UNIX socket on macOS.
+  * build: Declare Homebrew dependencies in Brewfile
+  * interceptor: Intercept GLibc 2.39's pidfd_spawn() and pidfd_spawnp()
+  * ci: Add missing graphviz formula to Brewfile
+  * ci: Build .debs faster
+  * ci: Don't build dbgsym packages along with .debs
+  * ci: Really don't build dbgsym packages along with .debs
+  * supervisor: Ignore connect()-ing to the sockets listed in ignore_locations
+  * interceptor: Reset rusage timers when reporting rusage to the supervisor
+  * supervisor: Factor out options handling to separate class
+  * supervisor: Add -q options to suppress info messages
+  * Swedish debconf template translation
+  * supervisor: Check on macOS that the system allows interception
+  * interceptor: Sort loaded shared libraries in scproc_query
+  * interceptor: Identify posix_spawn_file_actions_t handles by their full content
+  * ci: Set static macos specific enviroment variables for the whole job
+  * macos: Use python-jinja2 as brew dependency instead of jinja2-cli
+  * build: Configure include and library paths in CMake
+  * ci: Use all avaliable processors on GitHub runners
+  * ci: Add Bitrise CI configuration
+  * ci: Rebuild self from cache with Xcode on Bitrise
+  * ci: Build with xcodebuild, too, on macOS
+  * ci: Build and test the project on macOS 14, too
+  * build: Use jinja2-cli Homebrew formula instead of the just removed python-jinja
+  * ci: Detect HOMEBREW_PREFIX instead of mapping it to runner types
+  * supervisor: Move pre-opening handling from process_posix_spawn_file_actions() to handle_open()
+  * test: Test posix_spawn()-ing a dynamically linked binary, too
+  * report: Deduplicate used shared libs
+  * supervisor: Don't reopen inherited closed pipe
+  * debian: Switch order of autopkgtest tests
+  * supervisor: Ignore rustc's --out-dir directory's content
+  * interceptor: Fix use-after-free in readlink() interception
+  * supervisor: Fix unhandled case in ENOTDIR handling
+  * interceptor: Don't set flags to 0 in pipe_request message
+  * supervisor: Debug a few more fcntl() commands
+  * ci: Upgrade to use actions/checkout@v4 and actions/cache@v4
+  * ci: Switch to use firebuild/firebuild-action@v4
+  * interceptor: Intercept __send on arm64 Linux
+  * interceptor: Fix casting to the right passed size_t type in count_shared_libs_cb
+  * test: Fix running integration tests under different locales
+  * interceptor: Set exported symbol names with __asm__("<name>")
+  * supervisor: Fix building the supervisor with 64bit time and file offset on 32bit systems
+  * interceptor: Use 64bit time and file offset function variants via get_ic_orig_*()
+  * interceptor: Abort on time64-enabled systems when intercepting 32 bit symbol variants
+  * supervisor: Work around Clang ASan falsely detecting leaking config strings
+  * supervisor: Don't override SIGSEGV handler when dumping core is allowed
+  * supervisor: Don't close blob fd in advance, that would be closed later.
+  * supervisor: Refactor closing pre-opened blob fds when applying shortcuts
+  * interceptor: Don't intercept __send on arm64 Linux starting with glibc 2.34
+  * supervisor: Select passed through environment variables with regular expressions
+  * supervisor: Don't intercept sandbox-exec
+  * report: Break long lines in Chrome and other browsers with the same engine
+  * report: Set size for background darkening with CSS instead of with JavaScript
+  * report: Show darkened border around command details
+
+==================
 0.8.2 / 2023-08-24
 ==================
   * Fix the build 32 bit architectures
