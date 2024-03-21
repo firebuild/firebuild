@@ -129,7 +129,7 @@ bool FileUsageUpdate::get_initial_hash(Hash *hash_ptr) const {
   }
 }
 
-void FileUsageUpdate::update_from_enotdir(const FileName * const filename) {
+FileUsageUpdate* FileUsageUpdate::update_from_enotdir(const FileName * const filename) {
   bool is_dir;
 
   if (hash_cache->get_statinfo(filename, &is_dir, nullptr)) {
@@ -141,6 +141,7 @@ void FileUsageUpdate::update_from_enotdir(const FileName * const filename) {
       set_initial_type(ISREG);
     }
     parent_type_ = ISDIR;
+    return this;
   } else {
     /* filename is not a regular file or a directory, but open returned ENOTDIR.
      * Let's take a look at the parent. */
@@ -157,6 +158,13 @@ void FileUsageUpdate::update_from_enotdir(const FileName * const filename) {
         /* Set not existing filename's type to DONTKNOW to omit it from the process inputs. */
         set_initial_type(DONTKNOW);
       }
+      return this;
+    } else {
+      /* We could not stat parent, let's just register an error. */
+      // TODO(rbalint) maybe stat() parent directly
+      parent_type_ = DONTKNOW;
+      unknown_err_ = ENOTDIR;
+      return this;
     }
   }
 }
