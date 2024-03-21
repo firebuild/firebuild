@@ -111,7 +111,7 @@ class FileUsageUpdate {
    * O_DIRECTORY flag set.
    * Update the FileUsageUpdate according to the case.
    */
-  void update_from_enotdir(const FileName * const filename);
+  FileUsageUpdate* update_from_enotdir(const FileName * const filename);
 
   /* The file's contents were altered by the process, e.g. written to, or modified in any other way,
    * including removal of the file, or another file getting renamed to this one. */
