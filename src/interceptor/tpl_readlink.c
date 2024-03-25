@@ -28,7 +28,7 @@
     if (ret >= 0 && (size_t)labs(ret) <= bufsiz) {
       len = ret;
     }
-    char ret_target[len + 1];
+    char *ret_target = alloca(len + 1);
     if (len > 0) {
       memcpy(ret_target, buf, len);
       ret_target[len] = '\0';
