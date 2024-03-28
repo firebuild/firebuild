@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
       with:
         path: ~/.cache/debs
         key: build-on-ubuntu-lts-debs-${{ needs.style-checks.outputs.week }}
@@ -27,7 +27,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: build-on-ubuntu-lts
     - name: install-deps
@@ -68,8 +68,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
       with:
         path: ~/.cache/debs
         key: test-with-valgrind-debs-${{ needs.style-checks.outputs.week }}
@@ -78,7 +78,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: test-with-valgrind
     - name: install-deps
@@ -151,15 +151,15 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
       with:
         path: ~/.cache/debs
         key: clang-build-debs-${{ needs.style-checks.outputs.week }}
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: clang-build
     - name: install-deps
@@ -190,15 +190,15 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
       with:
         path: ~/.cache/debs
         key: rebuild-self-debs-${{ needs.style-checks.outputs.week }}
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: rebuild-self
     - name: install-deps
@@ -230,15 +230,15 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
       with:
         path: ~/.cache/debs
         key: build-other-projects-debs-${{ needs.style-checks.outputs.week }}
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: build-other-projects
     - name: install-deps
@@ -276,15 +276,15 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
+    - uses: actions/checkout@v4
+    - uses: actions/cache@v4
       with:
         path: ~/.cache/debs
         key: build-deb-debs-${{ matrix.os }}-${{ needs.style-checks.outputs.week }}
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: build-deb-${{ matrix.os }}
     - name: install-deps
@@ -319,7 +319,7 @@ jobs:
     - name: check if SIP is enabled on this runner
       run: |
         csrutil status | grep "System Integrity Protection status: disabled"
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: hendrikmuhs/ccache-action@v1
       with:
         key: build-on-macos-12
@@ -363,7 +363,7 @@ jobs:
       week: ${{ steps.week-of-year.outputs.week }} # map step output to job output
     timeout-minutes: 2
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: install-deps
       run: |
         # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
