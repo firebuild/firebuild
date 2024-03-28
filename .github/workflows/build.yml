@@ -27,7 +27,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: build-on-ubuntu-lts
     - name: install-deps
@@ -78,7 +78,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: test-with-valgrind
     - name: install-deps
@@ -159,7 +159,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: clang-build
     - name: install-deps
@@ -198,7 +198,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: rebuild-self
     - name: install-deps
@@ -238,7 +238,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: build-other-projects
     - name: install-deps
@@ -284,7 +284,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v3
+    - uses: firebuild/firebuild-action@v4
       with:
         key: build-deb-${{ matrix.os }}
     - name: install-deps
