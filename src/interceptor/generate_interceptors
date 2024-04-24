@@ -1163,7 +1163,7 @@ for v in ['', 'v']:
     skip(c1 + v + "asprintf" + c2)
 
 for func_guard in [(["send", "SYS_send"], None),
-                   ("__send", "#if !defined __aarch64__")]:
+                   ("__send", "#if !defined(__aarch64__) || !defined(__APPLE__)")]:
   (func, ifdef_guard) = func_guard
   generate("ssize_t", func, "int fd, const void *buf, size_t len, int flags",
            platforms=(["linux"] if func == "__send" else ["darwin", "linux"]),
