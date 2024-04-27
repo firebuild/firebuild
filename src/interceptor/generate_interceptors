@@ -72,6 +72,65 @@ time64_functions = set({
   "__utimes64"
 })
 
+remapped_time64_functions = set(
+  [x.replace("64","").replace("__","") for x in time64_functions] +
+  ["ioctl",
+   "fcntl",
+   "fcntl64",
+   "fstat64",
+   "fstatat64",
+   "lstat64",
+   "stat64",
+   "wait3",
+   "wait4"]
+)
+
+remapped_file64_functions = set({
+  "creat",
+  "fallocate",
+  "fcntl",
+  "fgetpos",
+  "fopen",
+  "freopen",
+  "fseeko",
+  "fsetpos",
+  "fstat",
+  "fstatat",
+  "fstatfs",
+  "fstatvfs",
+  "ftello",
+  "ftruncate",
+  "lockf",
+  "lseek",
+  "lstat",
+  "mkostemp",
+  "mkostemps",
+  "mkstemp",
+  "mkstemps",
+  "open",
+  "__open_2",
+  "openat",
+  "__openat_2",
+  "posix_fallocate",
+  "pread",
+  "preadv",
+  "preadv2",
+  "pwrite",
+  "pwritev",
+  "pwritev2",
+  "__recvmmsg",
+  "__recvmsg",
+  "scandir",
+  "scandirat",
+  "__sendmmsg",
+  "__sendmsg",
+  "stat",
+  "statfs",
+  "statvfs",
+  "tmpfile",
+  "truncate",
+})
+
 # Best effort to try to debug as many parameters as easily doable.
 def add_debug_to_dict(type, name, dict):
   debug_type_to_when_and_how = {
@@ -242,6 +301,17 @@ def add_signature_to_dict(rettype, sig, dict):
 
   return dict
 
+def extend_or_add_ifdef_guard(fun_dict, base_guard, extension):
+  if 'ifdef_guard' not in fun_dict or fun_dict['ifdef_guard'] is None:
+    fun_dict['ifdef_guard'] = base_guard + " && " + extension
+  else:
+    fun_dict['ifdef_guard'] = fun_dict['ifdef_guard'] + " && " + extension
+
+def extend_before_lines(fun_dict, extension):
+  if 'before_lines' not in fun_dict or fun_dict['before_lines'] is None:
+    fun_dict['before_lines'] = extension
+  else:
+    fun_dict['before_lines'] = fun_dict['before_lines'] + extension
 
 # Keep track of the functions we've already generated.
 generated={}
@@ -327,10 +397,15 @@ def generate(rettype, funcs, sig, **dict):
          if 'ifdef_guard' not in fun_dict or fun_dict['ifdef_guard'] is None:
            fun_dict['ifdef_guard'] = "#if defined(__aarch64__)"
       if func.endswith("_time64") or func in time64_functions:
-        if 'ifdef_guard' not in fun_dict or fun_dict['ifdef_guard'] is None:
-          fun_dict['ifdef_guard'] = glibc_ge(2, 34) + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
-        else:
-          fun_dict['ifdef_guard'] = fun_dict['ifdef_guard'] + " && (defined(__TIMESIZE) && __TIMESIZE == 32)"
+        extend_or_add_ifdef_guard(fun_dict, glibc_ge(2, 34), "defined(__TIMESIZE) &&  (__TIMESIZE == 32)")
+      if target == "linux" and func in remapped_time64_functions:
+        extend_before_lines(fun_dict, ["#if defined(_TIME_BITS) && (_TIME_BITS == 64)",
+                                       "  assert(0 && \"intercepting " + func + "() when 64bit time variant is the default is not supported.\");",
+                                       "#endif"])
+      if target == "linux" and func in remapped_file64_functions:
+        extend_before_lines(fun_dict, ["#if defined(_FILE_OFFSET_BITS) && (_FILE_OFFSET_BITS == 64)",
+                                       "  assert(0 && \"intercepting " + func + "() when 64bit offset variant is the default is not supported.\");",
+                                       "#endif"])
       if target == 'darwin' and (func.endswith("_unlocked") or func.endswith("_chk") \
                                  or func.endswith("64") or func.endswith("64v2")):
         continue
@@ -671,7 +746,7 @@ generate("ssize_t", "pread", "int fd, void *buf, size_t count, off_t offset",
          tpl="read",
          is_pread="true",
          msg_skip_fields=["buf", "count", "offset"])
-generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, off_t offset, size_t fortify_size",
+generate("ssize_t", "__pread_chk", "int fd, void *buf, size_t count, __off_t offset, size_t fortify_size",
          tpl="read",
          is_pread="true",
          msg_skip_fields=["buf", "count", "offset", "fortify_size"])
@@ -2239,7 +2314,12 @@ generate("int", ["gettimeofday", "__gettimeofday"], "struct timeval *tv, struct 
          msg="clock_gettime",
          tpl="once")
 generate("int", ["gettimeofday", "__gettimeofday"], "struct timeval *tv, void *tz",
-         ifdef_guard=glibc_ge(2, 31) + " || defined(__APPLE__)",
+         platforms=['darwin'],
+         msg="clock_gettime",
+         tpl="once")
+generate("int", ["gettimeofday", "__gettimeofday"], "struct timeval *tv, void *tz",
+         platforms=['linux'],
+         ifdef_guard=glibc_ge(2, 31),
          msg="clock_gettime",
          tpl="once")
 generate("int", "__gettimeofday64", "struct timeval *tv, void *tz",
