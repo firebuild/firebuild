@@ -683,7 +683,7 @@ static bool skip_shared_lib(const char *name, const size_t len) {
 int count_shared_libs_cb(struct dl_phdr_info *info, const size_t size, void *data) {
   (void)info;  /* unused */
   (void)size;  /* unused */
-  int* count = (int*)data;
+  size_t* count = (size_t*)data;
   (*count)++;
   return 0;
 }
