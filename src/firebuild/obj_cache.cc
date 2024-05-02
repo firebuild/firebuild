@@ -155,7 +155,7 @@ bool ObjCache::store(const Hash &key,
   // FIXME Is it faster if we alloca() for small sizes instead of malloc()?
   // FIXME Is it faster to ftruncate() the file to the desired size, then mmap,
   // then serialize to the mapped memory, then ftruncate() again to the actual size?
-  size_t len = entry->measure();
+  off_t len = entry->measure();
   if (stored_blob_bytes + len > max_entry_size) {
     FB_DEBUG(FB_DEBUG_CACHING,
              "Could not store entry in cache because it would exceed max_entry_size");

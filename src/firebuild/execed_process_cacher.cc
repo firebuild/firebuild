@@ -768,7 +768,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     }
   }
 
-  uint64_t stored_blob_bytes = 0;
+  off_t stored_blob_bytes = 0;
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;

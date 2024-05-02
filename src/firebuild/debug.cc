@@ -112,7 +112,7 @@ std::string pretty_timestamp() {
 #ifdef __APPLE__
   snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%06d %c%02d%02d",
 #else
-  snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%06ld %c%02d%02d",
+  snprintf(buf, sizeof(buf), "%d-%02d-%02d %02d:%02d:%02d.%06" PRItime " %c%02d%02d",
 #endif
       1900 + local.tm_year, 1 + local.tm_mon, local.tm_mday,
       local.tm_hour, local.tm_min, local.tm_sec, tv.tv_usec,

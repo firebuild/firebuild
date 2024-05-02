@@ -59,7 +59,7 @@ bool ccache_disabled = false;
 int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
 int64_t max_cache_size = 0;
-uint64_t max_entry_size = 0;
+off_t max_entry_size = 0;
 int quirks = 0;
 
 /**
