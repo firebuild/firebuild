@@ -106,7 +106,13 @@
 #ifndef NDEBUG
       received =
 #endif
-          TEMP_FAILURE_RETRY(get_ic_orig_recvmsg()(fb_sv_conn, &msgh, 0));
+          TEMP_FAILURE_RETRY(
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+              get_ic_orig___recvmsg64()(
+#else
+              get_ic_orig_recvmsg()(
+#endif
+                  fb_sv_conn, &msgh, 0));
       assert(received >= 0 && received == (ssize_t)sv_msg_hdr.msg_size);
       assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_popen_fd);
       assert(sv_msg_hdr.fd_count == 1);
@@ -133,7 +139,13 @@
             != ret_fileno) {
           assert(0 && "dup2() on the popened fd failed");
         }
-        if (TEMP_FAILURE_RETRY(get_ic_orig_fcntl()(ret_fileno, F_SETFD, type_flags & FD_CLOEXEC)) != 0) {
+        if (TEMP_FAILURE_RETRY(
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+                get_ic_orig___fcntl_time64()(
+#else
+                get_ic_orig_fcntl()(
+#endif
+                    ret_fileno, F_SETFD, type_flags & FD_CLOEXEC)) != 0) {
           assert(0 && "fcntl() on the popened fd failed");
         }
 ###   endif
