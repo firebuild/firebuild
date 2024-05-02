@@ -913,7 +913,13 @@ int fb_connect_supervisor() {
 #ifndef NDEBUG
   int fcntl_ret =
 #endif
-      TEMP_FAILURE_RETRY(get_ic_orig_fcntl()(conn, F_SETFD, FD_CLOEXEC));
+      TEMP_FAILURE_RETRY(
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+      get_ic_orig___fcntl_time64()(
+#else
+      get_ic_orig_fcntl()(
+#endif
+          conn, F_SETFD, FD_CLOEXEC));
   assert(fcntl_ret != -1);
 #endif
   assert(conn != -1);
@@ -1232,8 +1238,14 @@ void fb_ic_init() {
 #ifndef NDEBUG
   ret =
 #endif
-      TEMP_FAILURE_RETRY(get_ic_orig_recvmsg()(fb_sv_conn, &msgh, 0));
-  assert(ret >= 0 && ret == (ssize_t)header.msg_size);
+      TEMP_FAILURE_RETRY(
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+          get_ic_orig___recvmsg64()(
+#else
+          get_ic_orig_recvmsg()(
+#endif
+              fb_sv_conn, &msgh, 0));
+      assert(ret >= 0 && ret == (ssize_t)header.msg_size);
   assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
 
   FBBCOMM_Serialized_scproc_resp *sv_msg = (FBBCOMM_Serialized_scproc_resp *) sv_msg_generic;
@@ -1247,7 +1259,12 @@ void fb_ic_init() {
          i++) {
       int fd = fbbcomm_serialized_scproc_resp_get_fds_appended_to_at(sv_msg, i);
       insert_debug_msg("seeking forward in fd");
-      get_ic_orig_lseek()(fd, 0, SEEK_END);
+#ifdef __APPLE__
+      get_ic_orig_lseek()(
+#else
+      get_ic_orig_lseek64()(
+#endif
+          fd, 0, SEEK_END);
     }
 
     insert_debug_msg("exiting");
@@ -1320,12 +1337,22 @@ void fb_ic_init() {
        * Similarly, since the targets will be dups of each other, it's enough to set the flags once.
        * In fact, set them on the source fd just because it's simpler this way. */
       int flags =
-          get_ic_orig_fcntl()(fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, 0), F_GETFL);
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+          get_ic_orig___fcntl_time64()(
+#else
+          get_ic_orig_fcntl()(
+#endif
+              fbbcomm_serialized_scproc_resp_reopen_fd_get_fds_at(fds, 0), F_GETFL);
       assert(flags != -1);
 #ifndef NDEBUG
       int fcntl_ret =
 #endif
-          get_ic_orig_fcntl()(src_fd, F_SETFL, flags);
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+          get_ic_orig___fcntl_time64()(
+#else
+          get_ic_orig_fcntl()(
+#endif
+              src_fd, F_SETFL, flags);
       assert(fcntl_ret != -1);
 
       /* Dup2 the source fd to the desired places and then close the original. */
@@ -1348,10 +1375,11 @@ void fb_ic_init() {
     int64_t size = fbbcomm_serialized_scproc_resp_get_seekable_fds_size_at(sv_msg, i);
     insert_debug_msg("get offset of fd");
 #ifdef __APPLE__
-    off_t offset = get_ic_orig_lseek()(fd, 0, SEEK_CUR);
+    off_t offset = get_ic_orig_lseek()(
 #else
-    off64_t offset = get_ic_orig_lseek64()(fd, 0, SEEK_CUR);
+    off64_t offset = get_ic_orig_lseek64()(
 #endif
+        fd, 0, SEEK_CUR);
     if (offset != size) {
       FBBCOMM_Builder_inherited_fd_offset ic_msg;
       fbbcomm_builder_inherited_fd_offset_init(&ic_msg);

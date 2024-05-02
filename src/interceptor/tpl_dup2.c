@@ -44,7 +44,13 @@
       return -1;
     }
     /* The communication fd has the close-on-exec flag set, and dup() doesn't copy it. */
-    TEMP_FAILURE_RETRY(get_ic_orig_fcntl()(fb_sv_conn_new, F_SETFD, FD_CLOEXEC));
+    TEMP_FAILURE_RETRY(
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+        get_ic_orig___fcntl_time64()(
+#else
+        get_ic_orig_fcntl()(
+#endif
+            fb_sv_conn_new, F_SETFD, FD_CLOEXEC));
   }
 ### endblock
 
