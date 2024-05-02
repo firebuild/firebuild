@@ -59,7 +59,7 @@ extern int64_t max_cache_size;
 /**
  * Maximum size of a single cache entry including the referenced objs.
  */
-extern uint64_t max_entry_size;
+extern off_t max_entry_size;
 
 /** Enabled quirks represented as flags. See "quirks" in etc/firebuild.conf. */
 extern int quirks;
