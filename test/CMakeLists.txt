@@ -23,7 +23,7 @@ endforeach()
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/test_helper.bash.in ${CMAKE_CURRENT_BINARY_DIR}/test_helper.bash @ONLY)
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run-firebuild.in ${CMAKE_CURRENT_BINARY_DIR}/run-firebuild)
 
-add_test(bats-integration ./integration.bats)
+add_test(bats-integration env LC_ALL=C ./integration.bats)
 # firebuild's debug build would crash on the invalid entries in an assert()
 if (uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG" OR CMAKE_C_FLAGS MATCHES "-DFB_EXTRA_DEBUG")
   set_property(TEST bats-integration PROPERTY ENVIRONMENT "SKIP_GC_INVALID_ENTRIES_TEST=1")
