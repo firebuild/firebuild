@@ -192,16 +192,12 @@ _{{ func }}
 ###           endfor
 ###         endif
 
-/* Undefine potential macro */
-#ifdef {{ func }}
-#undef {{ func }}
-#endif
-
 ###       if target == "darwin"
 {{ rettype }} {{ func }} ({{ sig_str }});
 {{ rettype }} interposing_{{ func }} ({{ sig_str }}) {
 ###       else
-{{ rettype }} {{ func }} ({{ sig_str }}) {
+{{ rettype }} interposing_{{ func }} ({{ sig_str }}) __asm__("{{ func }}");
+{{ rettype }} interposing_{{ func }} ({{ sig_str }}) {
 ###       endif
 ###     else
 #ifdef {{ func }}  /* this is prone against typos in the syscall name, but handles older kernels */
