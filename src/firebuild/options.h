@@ -33,6 +33,7 @@ class Options {
  public:
   static void parse(const int argc, char *argv[]);
   static void usage();
+  static void free();
   static const char* config_file() {
     return config_file_;
   }

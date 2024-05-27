@@ -422,6 +422,9 @@ int main(const int argc, char *argv[]) {
     free(fb_tmp_dir);
     delete(firebuild::proc_tree);
     delete(firebuild::cfg);
+#if defined(__clang__) && defined(__SANITIZE_ADDRESS__)
+    firebuild::Options::free();
+#endif
     fclose(stdin);
     fclose(stdout);
     fclose(stderr);

@@ -201,4 +201,8 @@ void Options::parse(const int argc, char *argv[]) {
   }
 }
 
+void Options::free() {
+  delete(config_strings_);
+}
+
 }  /* namespace firebuild */
