@@ -242,8 +242,12 @@ int main(const int argc, char *argv[]) {
   sa.sa_flags = 0;
   sigaction(SIGINT, &sa, NULL);
   sigaction(SIGQUIT, &sa, NULL);
-  sigaction(SIGSEGV, &sa, NULL);
   sigaction(SIGTERM, &sa, NULL);
+  /* Don't override SIGSEGV handler when dumping core is enabled. */
+  struct rlimit rlim;
+  if ((getrlimit(RLIMIT_CORE, &rlim) == 0) && (rlim.rlim_cur == 0)) {
+    sigaction(SIGSEGV, &sa, NULL);
+  }
 
   /* Configure epoll */
   firebuild::epoll = new firebuild::Epoll();
