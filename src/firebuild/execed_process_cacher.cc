@@ -1363,24 +1363,6 @@ static void remove_files_and_dirs(
   }
 }
 
-static void close_all(std::vector<int>* fds) {
-  for (int fd : *fds) {
-    close(fd);
-  }
-}
-
-static bool add_blob_fd_from_hash(const XXH128_hash_t& fbb_hash, std::vector<int>* blob_fds) {
-  Hash hash(fbb_hash);
-  int fd;
-  if ((fd = blob_cache->get_fd_for_file(hash)) != -1) {
-    blob_fds->push_back(fd);
-  } else {
-    close_all(blob_fds);
-    return false;
-  }
-  return true;
-}
-
 /**
  * Applies the given shortcut.
  *
@@ -1393,7 +1375,24 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
   size_t i;
-  std::vector<int> blob_fds;
+  class BlobFds : public std::vector<int> {
+   public:
+    ~BlobFds() {
+      for (int fd : *this) {
+        close(fd);
+      }
+    }
+    bool add_from_hash(const XXH128_hash_t& fbb_hash) {
+      Hash hash(fbb_hash);
+      int fd;
+      if ((fd = blob_cache->get_fd_for_file(hash)) != -1) {
+        push_back(fd);
+        return true;
+      } else {
+        return false;
+      }
+    }
+  } blob_fds;
 
   const FBBSTORE_Serialized_process_outputs *outputs =
       reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>
@@ -1405,7 +1404,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     if (file->get_type() == ISREG) {
       assert(file->has_hash());
-      if (!add_blob_fd_from_hash(file->get_hash(), &blob_fds)) {
+      if (!blob_fds.add_from_hash(file->get_hash())) {
         return false;
       }
     }
@@ -1413,7 +1412,7 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
     auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
-    if (!add_blob_fd_from_hash(append_to_fd->get_hash(), &blob_fds)) {
+    if (!blob_fds.add_from_hash(append_to_fd->get_hash())) {
       return false;
     }
   }
@@ -1439,7 +1438,6 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   }
 
   if (!restore_dirs(proc, outputs)) {
-    close_all(&blob_fds);
     return false;
   }
 
@@ -1541,7 +1539,6 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   // TODO(egmont) what to do with resource usage?
   proc->fork_point()->set_exit_status(outputs->get_exit_status());
 
-  close_all(&blob_fds);
   return true;
 }
 
