@@ -1517,7 +1517,6 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
             pipe->proc2recorders[proc->parent_exec_point()];
         PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
       }
-      close(fd);
     } else if (ffd->type() == FD_FILE) {
       assert(ffd->filename());
 
