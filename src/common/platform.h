@@ -20,6 +20,10 @@
 #define COMMON_PLATFORM_H_
 
 #include <assert.h>
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #ifdef __linux__

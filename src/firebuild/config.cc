@@ -30,10 +30,12 @@
 #include <cstdio>
 #include <limits>
 #include <map>
+#include <regex>
 #include <stdexcept>
 #include <vector>
 
 #include "common/firebuild_common.h"
+#include "common/platform.h"
 #include "firebuild/debug.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
@@ -423,6 +425,40 @@ static void export_sorted_locations(libconfig::Config *cfg, const char* configur
   }
 }
 
+static void add_pass_through_regex_matched_env_vars(
+    std::map<std::string, std::string>* env,
+    const std::vector<std::string>& pass_through_env_regexps) {
+
+  if (pass_through_env_regexps.size() < 1) {
+    /* Not much to do. */
+    return;
+  }
+
+  /* Combine all regular expressions to one. */
+  std::string combined_regex_string("(^" + pass_through_env_regexps[0] + "$)");
+  for (size_t i = 1; i < pass_through_env_regexps.size(); i++) {
+    combined_regex_string += "|(^" + pass_through_env_regexps[i] + "$)";
+  }
+  std::regex combined_regex(combined_regex_string);
+
+  /* Match each set environment variable against the combined regex. */
+  char** env_var = environ;
+  while (*env_var != nullptr) {
+    const char* name_end_ptr = std::strchr(*env_var, '=');
+    if (name_end_ptr) {
+      std::string name(*env_var, name_end_ptr - *env_var);
+      if (std::regex_match(name, combined_regex)) {
+        /* Avoid adding an environment variable multiple times. */
+        if (env->find(name) == env->end()) {
+          (*env)[name] = std::string(name_end_ptr + 1);
+          FB_DEBUG(FB_DEBUG_PROC, " " + std::string(name) + "=" + (*env)[name]);
+        }
+      }
+    }
+    env_var++;
+  }
+}
+
 char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
                          bool insert_trace_markers) {
   const libconfig::Setting& root = cfg->getRoot();
@@ -431,14 +467,23 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
   FB_DEBUG(FB_DEBUG_PROC, "Passing through environment variables:");
   try {
     const libconfig::Setting& pass_through = root["env_vars"]["pass_through"];
+    std::vector<std::string> pass_through_env_regexps;
+    std::regex exact_env_var("^[a-zA-Z_0-9]+$");
     for (int i = 0; i < pass_through.getLength(); i++) {
       std::string pass_through_env(pass_through[i].c_str());
-      char * got_env = getenv(pass_through_env.c_str());
-      if (got_env != NULL) {
-        env[pass_through_env] = std::string(got_env);
-        FB_DEBUG(FB_DEBUG_PROC, " " + std::string(pass_through_env) + "="
-                 + env[pass_through_env]);
+      if (std::regex_match(pass_through_env, exact_env_var)) {
+        char * got_env = getenv(pass_through_env.c_str());
+        if (got_env != NULL) {
+          env[pass_through_env] = std::string(got_env);
+          FB_DEBUG(FB_DEBUG_PROC, " " + std::string(pass_through_env) + "="
+                   + env[pass_through_env]);
+        }
+      } else {
+        pass_through_env_regexps.push_back(pass_through_env);
       }
+    }
+    if (pass_through_env_regexps.size() > 0) {
+      add_pass_through_regex_matched_env_vars(&env, pass_through_env_regexps);
     }
     FB_DEBUG(FB_DEBUG_PROC, "");
   } catch(libconfig::SettingNotFoundException&) {
