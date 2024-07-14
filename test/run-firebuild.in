@@ -8,8 +8,7 @@ fi
 # run firebuild closing fd 3 which is opened by bats
 $FIREBUILD_PREFIX_CMD firebuild \
   -c @CMAKE_BINARY_DIR@/etc/firebuild.conf \
-  -o 'env_vars.pass_through += "GCOV_PREFIX"' \
-  -o 'env_vars.pass_through += "GCOV_PREFIX_STRIP"' \
+  -o 'env_vars.pass_through += "GCOV_PREFIX.*"' \
   -o "ignore_locations += \"$GCOV_PREFIX\"" \
   "$@" 2>stderr 3>&-
 

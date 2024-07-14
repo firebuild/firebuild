@@ -36,6 +36,23 @@ setup() {
   done
 }
 
+@test "regex env vars" {
+  for i in 1 2; do
+    result=$(! env FOO_BAR=1 ./run-firebuild -- bash -c "set" | grep FOO_BAR=1)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+    result=$(! env FOO_BAR=1 ./run-firebuild -o 'env_vars.pass_through += "FOO"' -- bash -c "set" | grep FOO_BAR=1)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+    result=$(! env FOO_BAR=1 ./run-firebuild -o 'env_vars.pass_through += "BAR"' -- bash -c "set" | grep FOO_BAR=1)
+    assert_streq "$result" ""
+    assert_streq "$(strip_stderr stderr)" ""
+    result=$(env FOO_BAR=1 ./run-firebuild -o 'env_vars.pass_through += "FOO.*BAR"' -- bash -c "set" | grep FOO_BAR=1)
+    assert_streq "$result" "FOO_BAR=1"
+    assert_streq "$(strip_stderr stderr)" ""
+  done
+}
+
 @test "debugging with trace markers and report generation" {
   for i in 1 2; do
     result=$(./run-firebuild -r -q -- bash -c "echo ok")
