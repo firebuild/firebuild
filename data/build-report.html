@@ -118,13 +118,18 @@
 
       #pop_up_div {
           position: absolute;
-          background: white;
           margin:0 auto;
+          margin-bottom: 20px;
           min-width: 400px;
+          max-width: calc(100vw - (100vw - 100%) - 40px);
           min-height: 400px;
+          z-index: 9002;
+      }
+
+      #pop_up_div_inner {
+          background: white;
           border: 1px solid #000;
           border-radius: 10px;
-          z-index: 9002;
           word-break: break-word;
       }
 
@@ -266,12 +271,8 @@
           return a.reduce(function(p, c) {return p + ((p == '')?'':' ') + print_string(c) + item_end}, '');
       }
 
-      function details(d) {
-          if (typeof window.innerWidth != 'undefined') {
-              viewportwidth = window.innerWidth;
-          } else {
-              viewportwidth = document.documentElement.clientWidth;
-          }
+        function details(d) {
+          viewportwidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
 
           blanket.style.display = 'block';
 
@@ -298,7 +299,7 @@
 
           var pop_up_div = document.getElementById('pop_up_div');
           pop_up_div.style.display = 'block';
-          pop_up_div.style.left = (document.body.scrollLeft + (viewportwidth - pop_up_div.offsetWidth) / 2) + 'px';
+          pop_up_div.style.left = Math.max(document.body.scrollLeft + (viewportwidth - pop_up_div.offsetWidth) / 2, 20) + 'px';
           pop_up_div.style.top = (document.body.scrollTop + 100) + 'px';
       }
 
@@ -488,90 +489,93 @@
 
     </script>
     <div id="pop_up_div" style="display:none;">
-      <div style="text-align:right; margin: 3px;margin-top: 1px;">
-        <a href="#" onclick="hide_details()" ><span class="Unicode" title="Close details">✖</span></a>
+      <div id="pop_up_div_inner">
+        <div style="text-align:right; margin: 3px;margin-top: 1px;">
+          <a href="#" onclick="hide_details()" ><span class="Unicode" title="Close details">✖</span></a>
+        </div>
+        <div style="text-align: center;">
+          <span id="detailed_name" style="font-weight:bold; font-size:large;"></span>
+        </div>
+        <div style="margin: 10px;">
+          <table>
+            <tr>
+              <td colspan="2"><span class="detail_name">Arguments:</span> <span id="detailed_args"/></td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Working dir.:</span> <span id="detailed_wd"/></td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Executable binary:</span> <span id="detailed_executable"> </span></td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Environment variables:</span><br/>
+                <span id="detailed_env"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Used shared libraries:</span><br/>
+                <span id="detailed_libs"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Event preventing short-cutting:</span>
+                <span id="cant_shortcut">none</span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Short-cut:</span>
+                <span id="shortcut">false</span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Files created:</span><br/>
+                <span id="detailed_fcreated"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Files modified:</span><br/>
+                <span id="detailed_fmodified"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Files read:</span><br/>
+                <span id="detailed_fread"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Files failed to open:</span><br/>
+                <span id="detailed_fnotf"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Used working directories:</span><br/>
+                <span id="detailed_wds"></span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2"><span class="detail_name">Failed to use working directories:</span><br/>
+                <span id="detailed_failed_wds"></span>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <span class="detail_name">User CPU time:</span> <span id="detailed_utime"> </span>
+              </td>
+              <td>
+                <span class="detail_name">System CPU time:</span> <span id="detailed_stime"> </span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="2">
+                <span class="detail_name">PID:</span> <span id="detailed_pid"> </span>
+                <span class="detail_name">parent's PID:</span> <span id="detailed_ppid"> </span>
+                <span class="detail_name">exit code:</span> <span id="detailed_exit_status"> </span>
+              </td>
+            </tr>
+          </table>
+        </div>
       </div>
-      <div style="text-align: center;">
-        <span id="detailed_name" style="font-weight:bold; font-size:large;"></span>
-      </div>
-      <div style="margin: 10px;">
-        <table>
-          <tr>
-            <td colspan="2"><span class="detail_name">Arguments:</span> <span id="detailed_args"/></td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Working dir.:</span> <span id="detailed_wd"/></td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Executable binary:</span> <span id="detailed_executable"> </span></td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Environment variables:</span><br/>
-              <span id="detailed_env"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Used shared libraries:</span><br/>
-              <span id="detailed_libs"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Event preventing short-cutting:</span>
-              <span id="cant_shortcut">none</span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Short-cut:</span>
-              <span id="shortcut">false</span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Files created:</span><br/>
-              <span id="detailed_fcreated"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Files modified:</span><br/>
-              <span id="detailed_fmodified"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Files read:</span><br/>
-              <span id="detailed_fread"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Files failed to open:</span><br/>
-              <span id="detailed_fnotf"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Used working directories:</span><br/>
-              <span id="detailed_wds"></span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2"><span class="detail_name">Failed to use working directories:</span><br/>
-              <span id="detailed_failed_wds"></span>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <span class="detail_name">User CPU time:</span> <span id="detailed_utime"> </span>
-            </td>
-            <td>
-              <span class="detail_name">System CPU time:</span> <span id="detailed_stime"> </span>
-            </td>
-          </tr>
-          <tr>
-            <td colspan="2">
-              <span class="detail_name">PID:</span> <span id="detailed_pid"> </span>
-              <span class="detail_name">parent's PID:</span> <span id="detailed_ppid"> </span>
-              <span class="detail_name">exit code:</span> <span id="detailed_exit_status"> </span>
-            </td>
-          </tr>
-        </table>
-      </div>
+      <div style="height: 20px;"></div>
     </div>
     <div id="blanket" style="display:none" onclick="hide_details()"></div>
   </body>
