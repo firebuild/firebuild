@@ -108,11 +108,12 @@
           background-color: #111;
           opacity: 0.65;
           *background: none;
-          position: absolute;
+          position: fixed;
           z-index: 9001;
           top: 0px;
           left: 0px;
-          width: 100%;
+          width: calc(100vw - (100vw - 100%));
+          height: 100%;
       }
 
       #pop_up_div {
@@ -266,37 +267,12 @@
       }
 
       function details(d) {
-          if (typeof window.innerHeight != 'undefined') {
-              viewportheight = window.innerHeight;
-          } else {
-              viewportheight = document.documentElement.clientHeight;
-          }
-          if ((viewportheight > document.body.parentNode.scrollHeight) && (viewportheight > document.body.parentNode.clientHeight)) {
-              blanket_height = viewportheight;
-          } else {
-              if (document.body.parentNode.clientHeight > document.body.parentNode.scrollHeight) {
-                  blanket_height = document.body.parentNode.clientHeight;
-              } else {
-                  blanket_height = document.body.parentNode.scrollHeight;
-              }
-          }
           if (typeof window.innerWidth != 'undefined') {
               viewportwidth = window.innerWidth;
           } else {
               viewportwidth = document.documentElement.clientWidth;
           }
-          if ((viewportwidth > document.body.parentNode.scrollWidth) && (viewportwidth > document.body.parentNode.clientWidth)) {
-              blanket_width = viewportwidth;
-          } else {
-              if (document.body.parentNode.clientWidth > document.body.parentNode.scrollWidth) {
-                  blanket_width = document.body.parentNode.clientWidth;
-              } else {
-                  blanket_width = document.body.parentNode.scrollWidth;
-              }
-          }
-          blanket = document.getElementById('blanket');
-          blanket.style.height = blanket_height + 'px';
-          blanket.style.width = blanket_width + 'px';
+
           blanket.style.display = 'block';
 
           /* every element needs to be updated, otherwise they would show the previous node's values */
