@@ -131,6 +131,49 @@ remapped_file64_functions = set({
   "truncate",
 })
 
+# Those functions are remapped to 64 bit variants, but interception is safe
+# because the affected passed and returned values are passed and returned as
+# references and the interception does not use or alter their value.
+safe_remapped_functions = set({
+  "adjtime",
+  "clock_adjtime",
+  "clock_gettime",
+  "clock_settime",
+  "creat",
+  "fcntl",
+  "fcntl64",
+  "fopen",
+  "freopen",
+  "fstatfs",
+  "fstatvfs",
+  "gettimeofday",
+  "ioctl",
+  "mkostemp",
+  "mkostemps",
+  "mkstemp",
+  "mkstemps",
+  "ntp_gettime",
+  "ntp_gettimex",
+  "open",
+  "__open_2",
+  "openat",
+  "__openat_2",
+  "recvmmsg",
+  "recvmsg",
+  "scandir",
+  "scandirat",
+  "__sendmmsg",
+  "sendmmsg",
+  "sendmsg",
+  "statfs",
+  "statvfs",
+  "time",
+  "tmpfile",
+  "utime",
+  "utimes",
+  "wait3",
+  "wait4"
+})
 # Best effort to try to debug as many parameters as easily doable.
 def add_debug_to_dict(type, name, dict):
   debug_type_to_when_and_how = {
@@ -398,11 +441,13 @@ def generate(rettype, funcs, sig, **dict):
            fun_dict['ifdef_guard'] = "#if defined(__aarch64__)"
       if func.endswith("_time64") or func in time64_functions:
         extend_or_add_ifdef_guard(fun_dict, glibc_ge(2, 34), "defined(__TIMESIZE) &&  (__TIMESIZE == 32)")
-      if target == "linux" and func in remapped_time64_functions:
+      if target == "linux" and func in remapped_time64_functions \
+         and func not in safe_remapped_functions:
         extend_before_lines(fun_dict, ["#if defined(_TIME_BITS) && (_TIME_BITS == 64)",
                                        "  assert(0 && \"intercepting " + func + "() when 64bit time variant is the default is not supported.\");",
                                        "#endif"])
-      if target == "linux" and func in remapped_file64_functions:
+      if target == "linux" and func in remapped_file64_functions \
+         and func not in safe_remapped_functions:
         extend_before_lines(fun_dict, ["#if defined(_FILE_OFFSET_BITS) && (_FILE_OFFSET_BITS == 64)",
                                        "  assert(0 && \"intercepting " + func + "() when 64bit offset variant is the default is not supported.\");",
                                        "#endif"])
