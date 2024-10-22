@@ -1,6 +1,5 @@
 #!/bin/bash
 if [ -z "$TEST_INSTALLED_FIREBUILD" ] ; then
-    export @CMAKE_TARGET_LD_LIBRARY_PATH@=@CMAKE_BINARY_DIR@/src/interceptor:$@CMAKE_TARGET_LD_LIBRARY_PATH@
     export FIREBUILD_DATA_DIR="@CMAKE_SOURCE_DIR@/data"
     export FIREBUILD_CMD=@CMAKE_BINARY_DIR@/src/firebuild/firebuild
     export LIBFIREBUILD=@CMAKE_BINARY_DIR@/src/interceptor/libfirebuild.so

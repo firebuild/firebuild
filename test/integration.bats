@@ -275,7 +275,7 @@ setup() {
     # Valgrind finds an error in fakeroot https://bugs.debian.org/983272
     if fakeroot ls > /dev/null 2>&1; then
       if ! with_valgrind; then
-        result=$(fakeroot ./run-firebuild -- id -u)
+        result=$(fakeroot ./run-firebuild -o 'env_vars.pass_through += "LD_LIBRARY_PATH" ' -- id -u)
         assert_streq "$result" "0"
         result=$(./run-firebuild -- fakeroot id -u)
         assert_streq "$result" "0"

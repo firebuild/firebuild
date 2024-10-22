@@ -64,16 +64,6 @@ static bool fb_socket_needs_fixup(char **env) {
   return current_value == NULL || strcmp(current_value, fb_conn_string) != 0;
 }
 
-static bool ld_library_path_needs_fixup(char **env) {
-  if (env_ld_library_path[0] == '\0') {
-    return false;
-  }
-  char *current_value = getenv_from(env, LD_LIBRARY_PATH);
-
-  // FIXME use more precise search (split both values at ':' or ';', and compare the components)
-  return current_value == NULL || strstr(current_value, env_ld_library_path) == NULL;
-}
-
 static bool ld_preload_needs_fixup(char **env) {
   char *current_value = getenv_from(env, LD_PRELOAD);
   if (current_value == NULL) {
@@ -97,7 +87,6 @@ bool env_needs_fixup(char **env) {
    * for correctness, just for improving performance a bit. */
   return (fb_insert_trace_markers_needs_fixup(env) ||
           fb_socket_needs_fixup(env) ||
-          ld_library_path_needs_fixup(env) ||
           ld_preload_needs_fixup(env));
 }
 
@@ -121,11 +110,6 @@ int get_env_fixup_size(char **env) {
 
   char *e = getenv_from(env, LD_PRELOAD);
   ret += strlen(LD_PRELOAD "=") + (e ? strlen(e) : 0) + 1 + libfirebuild_so_len + 1;
-
-  e = getenv_from(env, LD_LIBRARY_PATH);
-  ret += strlen(LD_LIBRARY_PATH "=") +
-      (e ? strlen(e) : 0) + 1 +
-      (env_ld_library_path[0] != '\0' ? strlen(env_ld_library_path) : 0) + 1;
 
   return ret;
 }
@@ -157,23 +141,6 @@ static int fixup_fb_socket(char *p) {
   insert_debug_msg("Fixing up FB_SOCKET in the environment");
   int offset;
   sprintf(p, "%s=%s%n", FB_SOCKET, fb_conn_string, &offset);  /* NOLINT */
-  return offset + 1;
-}
-
-/* Places the desired value of the LD_LIBRARY_PATH env var
- * (including the "LD_LIBRARY_PATH=" prefix) at @p.
- * The desired value depends on the @current_value.
- *
- * Returns the number of bytes placed (including the trailing NUL).
- */
-static int fixup_ld_library_path(const char *current_value, char *p) {
-  insert_debug_msg("Fixing up LD_LIBRARY_PATH in the environment");
-  int offset;
-  if (current_value == NULL) {
-    sprintf(p, "%s=%s%n", LD_LIBRARY_PATH, env_ld_library_path, &offset);  /* NOLINT */
-  } else {
-    sprintf(p, "%s=%s:%s%n", LD_LIBRARY_PATH, current_value, env_ld_library_path, &offset);  /* NOLINT */
-  }
   return offset + 1;
 }
 
@@ -218,7 +185,6 @@ void env_fixup(char **env, void *buf) {
 
   bool fb_insert_trace_markers_fixed_up = false;
   bool fb_socket_fixed_up = false;
-  bool ld_library_path_fixed_up = false;
   bool ld_preload_fixed_up = false;
 
 #ifdef FB_EXTRA_DEBUG
@@ -242,16 +208,6 @@ void env_fixup(char **env, void *buf) {
     fb_socket_fixed_up = true;
   }
 
-  /* Fix up LD_LIBRARY_PATH if needed */
-  if (ld_library_path_needs_fixup(env)) {
-    char *current_value = getenv_from(env, LD_LIBRARY_PATH);
-    int size = fixup_ld_library_path(current_value, buf2);
-    assert(size > 0);
-    *buf1++ = buf2;
-    buf2 += size;
-    ld_library_path_fixed_up = true;
-  }
-
   /* Fix up LD_PRELOAD if needed */
   if (ld_preload_needs_fixup(env)) {
     char *current_value = getenv_from(env, LD_PRELOAD);
@@ -269,7 +225,6 @@ void env_fixup(char **env, void *buf) {
   for (i = 0; env[i] != NULL; i++) {
     if ((fb_insert_trace_markers_fixed_up && begins_with(env[i], FB_INSERT_TRACE_MARKERS "=")) ||
         (fb_socket_fixed_up && begins_with(env[i], FB_SOCKET "=")) ||
-        (ld_library_path_fixed_up && begins_with(env[i], LD_LIBRARY_PATH "=")) ||
         (ld_preload_fixed_up && begins_with(env[i], LD_PRELOAD "="))) {
       continue;
     }
