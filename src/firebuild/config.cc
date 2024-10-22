@@ -20,6 +20,9 @@
 
 #include <string.h>
 #include <fcntl.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 #include <unistd.h>
 
 #include <algorithm>
@@ -459,6 +462,34 @@ static void add_pass_through_regex_matched_env_vars(
   }
 }
 
+static std::string libfirebuild_so() {
+  char self_path_buf[FB_PATH_BUFSIZE];
+#ifdef __APPLE__
+  uint32_t r = sizeof(self_path_buf);
+  if (_NSGetExecutablePath(self_path_buf, &r) == 0) {
+    r = strlen(self_path_buf);
+  } else {
+    return FB_INTERCEPTOR_FULL_LIBDIR "/" LIBFIREBUILD_SO;
+  }
+#else
+  ssize_t r = readlink("/proc/self/exe", self_path_buf, FB_PATH_BUFSIZE - 1);
+  if (r <= 0) {
+    return LIBFIREBUILD_SO;
+  }
+#endif
+  std::string self_path(self_path_buf, r);
+  if (self_path.ends_with("src/firebuild/firebuild")) {
+    self_path.resize(self_path.size() - strlen("firebuild/firebuild"));
+    return self_path + "interceptor/" + LIBFIREBUILD_SO;
+  } else {
+#ifdef __APPLE__
+    return FB_INTERCEPTOR_FULL_LIBDIR "/" LIBFIREBUILD_SO;
+#else
+    return LIBFIREBUILD_SO;
+#endif
+  }
+}
+
 char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
                          bool insert_trace_markers) {
   const libconfig::Setting& root = cfg->getRoot();
@@ -525,9 +556,9 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
 
   const char *ld_preload_value = getenv(LD_PRELOAD);
   if (ld_preload_value) {
-    env[LD_PRELOAD] = LIBFIREBUILD_SO ":" + std::string(ld_preload_value);
+    env[LD_PRELOAD] = libfirebuild_so() + ":" + std::string(ld_preload_value);
   } else {
-    env[LD_PRELOAD] = LIBFIREBUILD_SO;
+    env[LD_PRELOAD] = libfirebuild_so();
   }
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " " LD_PRELOAD "=" + env[LD_PRELOAD]);
 

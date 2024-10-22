@@ -83,6 +83,9 @@ size_t fb_conn_string_len = 0;
 
 int fb_sv_conn = -1;
 
+char libfirebuild_so[FB_PATH_BUFSIZE];
+size_t libfirebuild_so_len = 0;
+
 bool ic_called_syscall[IC_CALLED_SYSCALL_SIZE] = {0};
 
 bool ic_init_started = false;
@@ -997,6 +1000,25 @@ void fb_ic_init() {
   }
   ic_init_started = true;
   get_ic_orig_getrusage()(RUSAGE_SELF, &initial_rusage);
+
+  const char* ld_preload = getenv(LD_PRELOAD);
+  /* Find libfirebuild.so in the LD_PRELOAD-ed libs, potentially with full path. */
+  if (ld_preload) {
+    const char *needle = LIBFIREBUILD_SO;
+    const char *libfirebuild = strstr(ld_preload, needle);
+    assert(libfirebuild);
+    const char *libfirebuild_end = libfirebuild + strlen(needle);
+    /* Search back to the previous ":", " ", or to the beginning of the environment variable
+     *  value. */
+    while (libfirebuild > ld_preload && *(libfirebuild - 1) != ':' && *(libfirebuild - 1) != ' ') {
+      libfirebuild--;
+    }
+
+    libfirebuild_so_len = libfirebuild_end - libfirebuild;
+    assert(libfirebuild_so_len < sizeof(libfirebuild_so));
+    memcpy(libfirebuild_so, libfirebuild, libfirebuild_so_len);
+    libfirebuild_so[libfirebuild_so_len] = '\0';
+  }
 
   if (getenv("FB_INSERT_TRACE_MARKERS") != NULL) {
     insert_trace_markers = true;

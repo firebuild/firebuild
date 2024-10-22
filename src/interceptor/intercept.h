@@ -158,6 +158,12 @@ extern size_t fb_conn_string_len;
 /** Connection file descriptor to supervisor */
 extern int fb_sv_conn;
 
+/** Libfirebuild shared object path. May be absolute, or relative to the library search path. */
+extern char libfirebuild_so[FB_PATH_BUFSIZE];
+
+/** Connection string length */
+extern size_t libfirebuild_so_len;
+
 /** pthread_sigmask() if available (libpthread is loaded), otherwise sigprocmask() */
 int ic_pthread_sigmask(int, const sigset_t *, sigset_t *);
 

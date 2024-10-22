@@ -18,15 +18,23 @@
 
 extern char **environ;
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-int main() {
+int main(int argc, char* argv[]) {
+  /* First argument is libfirebuild to add to LD_PRELOAD. */
+  assert(argc == 2);
+  (void)argc;
 #ifdef __APPLE__
+  (void)argv;
   unsetenv("DYLD_INSERT_LIBRARIES");
 #else
-  putenv("LD_PRELOAD=  LIBXXX.SO  libfirebuild.so  LIBYYY.SO  ");
+  char modified_ld_preload[4096];
+  snprintf(modified_ld_preload, sizeof(modified_ld_preload),
+           "LD_PRELOAD=  LIBXXX.SO  %s  LIBYYY.SO", argv[1]);
+  putenv(modified_ld_preload);
 #endif
   setenv("BBB", "bbb", 0);
 
