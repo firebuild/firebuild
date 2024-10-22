@@ -567,12 +567,6 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
   FB_DEBUG(firebuild::FB_DEBUG_PROC, " DYLD_FORCE_FLAT_NAMESPACE=" +
            env["DYLD_FORCE_FLAT_NAMESPACE"]);
 
-  const char *ld_library_path_value = getenv(LD_LIBRARY_PATH);
-  if (!ld_library_path_value) {
-    env[LD_LIBRARY_PATH] = FB_INTERCEPTOR_FULL_LIBDIR;
-  }
-  FB_DEBUG(firebuild::FB_DEBUG_PROC, " " LD_LIBRARY_PATH "=" + env[LD_LIBRARY_PATH]);
-
 #endif
   env["FB_SOCKET"] = fb_conn_string;
   FB_DEBUG(FB_DEBUG_PROC, " FB_SOCKET=" + env["FB_SOCKET"]);

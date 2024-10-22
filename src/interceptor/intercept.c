@@ -282,8 +282,6 @@ void release_global_lock() {
 /** debugging flags */
 int32_t debug_flags = 0;
 
-char env_ld_library_path[FB_PATH_BUFSIZE] = {0};
-
 bool insert_trace_markers = false;
 
 /** Next ACK id*/
@@ -1058,12 +1056,6 @@ void fb_ic_init() {
   }
 
   /* init global variables */
-
-  /* Save a copy of LD_LIBRARY_PATH before someone might modify it. */
-  char *llp = getenv("LD_LIBRARY_PATH");
-  if (llp != NULL) {
-    strncpy(env_ld_library_path, llp, sizeof(env_ld_library_path) - 1);
-  }
 
   fb_init_supervisor_conn();
 
