@@ -531,11 +531,11 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
       int d3 = open((d3_datadir + "/" + d3_filename).c_str(), O_RDONLY);
       if (d3 == -1) {
         /* File is not available locally, use the online version. */
-        fprintf(dst_file, "<script type=\"text/javascript\" "
+        fprintf(dst_file, "    <script type=\"text/javascript\" "
                 "src=\"https://firebuild.com/d3.v5.min.js\"></script>\n");
         fflush(dst_file);
       } else {
-        fprintf(dst_file, "<script type=\"text/javascript\">\n");
+        fprintf(dst_file, "    <script type=\"text/javascript\">\n");
         fflush(dst_file);
         ret = sendfile_full(fileno(dst_file), d3);
         fsync(fileno(dst_file));
@@ -543,7 +543,7 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
         close(d3);
       }
     } else if (strstr(line, tree_filename) != NULL) {
-      fprintf(dst_file, "<script type=\"text/javascript\">\n");
+      fprintf(dst_file, "    <script type=\"text/javascript\">\n");
       tsl::hopscotch_set<const FileName*> used_files_set;
       tsl::hopscotch_set<const std::vector<std::string>*, string_vector_ptr_hash,
                          string_vector_ptr_eq> used_envs_set;
