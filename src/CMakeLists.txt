@@ -2,7 +2,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 
 set_source_files_properties(common/debug_sysflags.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
-set_source_files_properties(common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
+set_source_files_properties(common/contrib/heapsort.c common/firebuild_common.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
 set_source_files_properties(fbbcomm.c PROPERTIES COMPILE_FLAGS "-fPIC ${FAT_ARCH_C_FLAGS}")
 
 add_custom_command(
@@ -17,7 +17,11 @@ add_custom_command(
 
 add_custom_target(fbbcomm_gen_files ALL DEPENDS fbbcomm.c fbbcomm.cc fbbcomm.h fbbcomm_decode.c)
 
-add_library(common_objs OBJECT common/firebuild_common.c common/debug_sysflags.c)
+set(COMMON_OBJS_SOURCES common/firebuild_common.c common/debug_sysflags.c)
+#if(APPLE)
+  set(COMMON_OBJS_SOURCES common/contrib/heapsort.c ${COMMON_OBJS_SOURCES})
+#endif()
+add_library(common_objs OBJECT ${COMMON_OBJS_SOURCES})
 add_library(fbbcomm_c OBJECT fbbcomm.c)
 add_dependencies(fbbcomm_c fbbcomm_gen_files)
 add_library(fbbcomm_cc OBJECT fbbcomm.cc)

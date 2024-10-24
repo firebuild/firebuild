@@ -1098,7 +1098,12 @@ void fb_ic_init() {
     }
   }
   env_copy[env_copy_len] = NULL;
-  qsort(env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
+#ifdef __APPLE__
+    heapsort_alloca(
+#else
+    qsort(
+#endif
+        env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
   fbbcomm_builder_scproc_query_set_env_var(&ic_msg, (const char **) env_copy);
 
   const char* slash_pos = strrchr(ic_argv[0], '/');
