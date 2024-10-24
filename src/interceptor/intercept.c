@@ -595,14 +595,6 @@ int main() {
 
 #endif  /* unittests for canonicalize_path() */
 
-/** Compare pointers to char* like strcmp() for char* */
-static int cmpstringpp(const void *p1, const void *p2) {
-  /* The actual arguments to this function are "pointers to
-     pointers to char", but strcmp(3) arguments are "pointers
-     to char", hence the following cast plus dereference */
-  return strcmp(* (char * const *) p1, * (char * const *) p2);
-}
-
 /** Store from entries from environment variable. */
 static void store_entries(const char* env_var, cstring_view_array *entries,
                           char * entries_env_buf, size_t buffer_size) {

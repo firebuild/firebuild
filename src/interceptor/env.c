@@ -277,6 +277,7 @@ void env_fixup(char **env, void *buf) {
     *buf1++ = env[i];
   }
 
+  qsort(buf, buf1 - (char**)buf, sizeof(char**), cmpstringpp);
   *buf1 = NULL;
 }
 
