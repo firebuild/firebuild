@@ -129,9 +129,12 @@
  * the BSD quicksort does median selection so that the chance of finding
  * a data set that will trigger the worst case is nonexistent.  Heapsort's
  * only advantage over quicksort is that it requires little additional memory.
+ *
+ * This implementation uses alloca() instead of malloc() to run safely in
+ * interceptor's init on macOS.
  */
 int
-heapsort(void *vbase, size_t nmemb, size_t size,
+heapsort_alloca(void *vbase, size_t nmemb, size_t size,
     int (*compar)(const void *, const void *))
 {
 	size_t cnt, i, j, l;
@@ -146,7 +149,7 @@ heapsort(void *vbase, size_t nmemb, size_t size,
 		return (-1);
 	}
 
-	if ((k = malloc(size)) == NULL)
+	if ((k = alloca(size)) == NULL)
 		return (-1);
 
 	/*
@@ -169,6 +172,5 @@ heapsort(void *vbase, size_t nmemb, size_t size,
 		--nmemb;
 		SELECT(i, j, nmemb, t, p, size, k, cnt, tmp1, tmp2);
 	}
-	free(k);
 	return (0);
 }

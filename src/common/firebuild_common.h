@@ -231,4 +231,10 @@ ssize_t fb_writev(int fd, struct iovec *iov, int iovcnt);
     }                                                                   \
   }
 
+/**
+ * Heapsort implementation with alloca() instead of malloc().
+ */
+int heapsort_alloca(void *vbase, size_t nmemb, size_t size,
+                    int (*compar)(const void *, const void *));
+
 #endif  // COMMON_FIREBUILD_COMMON_H_
