@@ -469,14 +469,13 @@ static ssize_t sendfile_full(int out_fd, int in_fd) {
  * TODO(rbalint) error handling
  */
 void Report::write(const std::string &html_filename, const std::string &datadir) {
-  const char dot_filename[] = "firebuild-profile.dot";
-  const char svg_filename[] = "firebuild-profile.svg";
   // FIXME Use a search path, according to the locations in various popular distributions
   const std::string d3_datadir = "/usr/share/nodejs/d3/dist";
   const char d3_filename[] = "d3.min.js";
   const char tree_filename[] = "firebuild-process-tree.js";
+  const char viz_js_filename[] = "viz-standalone.js";
+  const char digraph_script[] = "id=\"digraph";
   const char html_orig_filename[] = "build-report.html";
-  const std::string dot_cmd = "dot";
 
   FILE* src_file = fopen((datadir + "/" + html_orig_filename).c_str(), "r");
   if (src_file == NULL) {
@@ -492,26 +491,6 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
   strncpy(html_filename_tmp, html_filename.c_str(), html_filename.size() + 1);
   std::string dir = dirname(html_filename_tmp);
   delete[] html_filename_tmp;
-
-  /* export profile */
-  {
-    FILE* dot = fopen((dir + "/" + dot_filename).c_str(), "w");
-    if (dot == NULL) {
-      fb_perror("fopen");
-      fb_error("Failed to open dot file for writing profile graph.");
-    }
-    export_profile2dot(dot);
-    fclose(dot);
-  }
-
-  auto system_cmd =
-      dot_cmd + " -Tsvg " + dir + "/" + dot_filename
-      + " | sed 's/viewBox=\\\"[^\\\"]*\\\" //' > " + dir + "/" + svg_filename;
-  if (system(system_cmd.c_str()) != 0) {
-    fb_perror("system");
-    fb_error("Failed to generate profile graph with the following command: "
-                        + system_cmd);
-  }
 
   FILE* dst_file = fopen(html_filename.c_str(), "w");
   int ret = dst_file == NULL ? -1 : 0;
@@ -542,6 +521,12 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
         fprintf(dst_file, "    </script>\n");
         close(d3);
       }
+    } else if (strstr(line, viz_js_filename) != NULL) {
+      // TODO(rbalint) check for local availability
+      /* File is not available locally, use the online version. */
+      fprintf(dst_file, "    <script type=\"text/javascript\" "
+              "src=\"https://firebuild.com/viz-standalone.js\" id=\"viz-js\"></script>\n");
+      fflush(dst_file);
     } else if (strstr(line, tree_filename) != NULL) {
       fprintf(dst_file, "    <script type=\"text/javascript\">\n");
       tsl::hopscotch_set<const FileName*> used_files_set;
@@ -552,12 +537,9 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
       fprint_collected_envs(dst_file, used_envs_set);
       export2js(proc_tree, dst_file);
       fprintf(dst_file, "    </script>\n");
-    } else if (strstr(line, svg_filename) != NULL) {
-      int svg = open((dir + "/" + svg_filename).c_str(), O_RDONLY);
-      fflush(dst_file);
-      ret = sendfile_full(fileno(dst_file), svg);
-      fsync(fileno(dst_file));
-      close(svg);
+    } else if (strstr(line, digraph_script) != NULL) {
+      fprintf(dst_file, "%s", line);
+      export_profile2dot(dst_file);
     } else {
       fprintf(dst_file, "%s", line);
     }
