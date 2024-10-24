@@ -5,6 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
     <title>Firebuild build report</title>
     <script type="text/javascript" src="d3.min.js"></script>
+    <script type="text/javascript" src="viz-standalone.js" id="viz-js"></script>
     <script type="text/javascript" src="firebuild-process-tree.js"></script>
     <style type="text/css">
 
@@ -159,10 +160,12 @@
   <body>
     <div id="body">
       <div id="proc-tree"></div>
-      <embed src="firebuild-profile.svg" type="image/svg+xml"/>
+      <div id="call-graph"></div>
     </div>
+    <script type="text/digraph" id="digraph">
+    </script>
     <script type="text/javascript">
-
+      // build the process tree
       var m = [30, 120, 30, 120],
           w = 200 - m[1] - m[3],
           h = 400 - m[0] - m[2],
@@ -487,6 +490,20 @@
           }
       }
 
+    </script>
+    <script type="text/javascript">
+    // generate the call graph
+    try {
+        Viz.instance().then(function(viz) {
+            digraph = document.getElementById("digraph").textContent;
+            var svg = viz.renderSVGElement(digraph);
+            document.getElementById("call-graph").appendChild(svg);
+        });
+    } catch (e) {
+        document.getElementById("call-graph").textContent =
+            "Error while generating the call graph, maybe failed to download "
+            + document.getElementById("viz-js").getAttribute("src") + "?";
+    }
     </script>
     <div id="pop_up_div" style="display:none;">
       <div id="pop_up_div_inner">

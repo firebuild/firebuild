@@ -10,7 +10,7 @@ on:
 
 env:
   BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
-  TEST_DEPS: bc bats clang node-d3 graphviz moreutils fakeroot
+  TEST_DEPS: bc bats clang node-d3 moreutils fakeroot
 jobs:
   build-on-ubuntu-lts:
     needs: style-checks
@@ -32,7 +32,7 @@ jobs:
         key: build-on-ubuntu-lts
     - name: install-deps
       run: |
-        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen lcov
+        sudo eatmydata apt-get -y install $BUILD_DEPS $TEST_DEPS doxygen graphviz lcov
     - name: build-out-of-tree
       run: |
         mkdir build

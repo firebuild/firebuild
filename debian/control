@@ -11,7 +11,6 @@ Build-Depends: bats,
                fakeroot <!nocheck>,
                gcc (>= 4:10) | gcc-10,
                g++ (>= 4:10) | g++-10,
-               graphviz,
                libconfig++-dev,
                libjemalloc-dev,
                libtsl-hopscotch-map-dev,
@@ -32,8 +31,7 @@ Depends: ${shlibs:Depends},
          ${glibc:Depends},
          libfirebuild0 (= ${binary:Version})
 Pre-Depends: debconf | debconf-2.0
-Suggests: graphviz,
-          node-d3
+Suggests: node-d3
 Description: Automatic build accelerator cache
  It works by caching the outputs of executed commands and replaying the
  results when the same commands are executed with the same parameters
