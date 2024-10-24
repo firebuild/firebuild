@@ -166,6 +166,14 @@ void voidp_set_erase(voidp_set *set, const void *p) {
   }
 }
 
+/** Compare pointers to char* like strcmp() for char* */
+int cmpstringpp(const void *p1, const void *p2) {
+  /* The actual arguments to this function are "pointers to
+     pointers to char", but strcmp(3) arguments are "pointers
+     to char", hence the following cast plus dereference */
+  return strcmp(* (char * const *) p1, * (char * const *) p2);
+}
+
 /**
  * Checks if a path semantically begins with one of the given sorted subpaths.
  *

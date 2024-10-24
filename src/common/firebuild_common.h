@@ -97,6 +97,9 @@ bool voidp_set_contains(const voidp_set *set, const void *p);
 void voidp_set_insert(voidp_set *set, const void *p);
 void voidp_set_erase(voidp_set *set, const void *p);
 
+/** Compare pointers to char* like strcmp() for char* */
+int cmpstringpp(const void *p1, const void *p2);
+
 bool is_path_at_locations(const char *path, const ssize_t len,
                           const cstring_view_array *prefix_array);
 
