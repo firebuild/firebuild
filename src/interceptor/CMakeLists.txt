@@ -76,10 +76,6 @@ if (NOT uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 endif()
 target_link_libraries(firebuild dl)
 
-#if(APPLE)
-#target_link_options(firebuild PUBLIC -Wno-strict-overflow ${SANITIZE_INTERCEPTOR_LINK_OPTIONS} -arch arm64 -arch arm64e -arch x86_64)
-#else()
 target_link_options(firebuild PUBLIC -Wno-strict-overflow ${SANITIZE_INTERCEPTOR_LINK_OPTIONS})
-#endif()
 
 install(TARGETS firebuild DESTINATION ${CMAKE_INSTALL_LIBDIR})
