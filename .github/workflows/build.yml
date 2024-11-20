@@ -311,7 +311,7 @@ jobs:
         HOMEBREW_NO_AUTO_UPDATE: 1
     strategy:
       matrix:
-        os: [macos-12, macos-14]
+        os: [macos-14]
     needs: style-checks
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
