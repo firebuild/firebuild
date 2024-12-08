@@ -866,6 +866,19 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
 }
 
 /**
+ * Find the last occurence of needle string in the haystack string using strrstr
+ */
+static char* last_strstr(const char* haystack, const char* needle) {
+  char* last = NULL;
+  char* found = strstr(haystack, needle);
+  while (found) {
+    last = found;
+    found = strstr(found + 1, needle);
+  }
+  return last;
+}
+
+/**
  * Parses and returns GNU Make jobserver fds if they are present in makeflags.
  * e.g. --jobserver-auth=R,W where ‘R’ and ‘W’ are non-negative integers representing fds
  *
@@ -880,10 +893,10 @@ static bool extract_jobserver_fds(const char* makeflags_env, int *fd_r, int *fd_
     return false;
   }
   const char *needle = "--jobserver-auth=";
-  const char *jobserver_option = strstr(makeflags, needle);
+  const char *jobserver_option = last_strstr(makeflags, needle);
   if (!jobserver_option) {
     needle = "--jobserver-fds=";
-    jobserver_option = strstr(makeflags, needle);
+    jobserver_option = last_strstr(makeflags, needle);
   }
   if (jobserver_option) {
     if (sscanf(jobserver_option + strlen(needle), "%d,%d", fd_r, fd_w) == 2) {
