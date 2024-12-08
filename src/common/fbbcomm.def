@@ -135,6 +135,8 @@
       # full path of the binary, it is expected to be in absolute and canonical form
       # fds (2: [<read fd>, <write fd>]) likely being used by GNU Make's jobserver
       (ARRAY, "int", "jobserver_fds"),
+      # jobserver fifo
+      (OPTIONAL, STRING, "jobserver_fifo"),
       # full path of the binary
       (OPTIONAL, STRING, "executable"),
       # original executed_path converted to canonical and absolute path

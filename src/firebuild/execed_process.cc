@@ -260,7 +260,7 @@ bool ExecedProcess::register_file_usage_update(const FileName *name,
   /* What the FileUsage became after the update, on the previous (descendant) level. */
   const FileUsage *fu_new = nullptr;
 
-  if (name->is_in_ignore_location()) {
+  if (name->is_in_ignore_location() || name == jobserver_fifo()) {
     FB_DEBUG(FB_DEBUG_FS, "Ignoring file usage: " + d(name));
     return true;
   }

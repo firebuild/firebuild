@@ -105,6 +105,8 @@ class ExecedProcess : public Process {
   }
   int jobserver_fd_r() const {return jobserver_fd_r_;}
   int jobserver_fd_w() const {return jobserver_fd_w_;}
+  void set_jobserver_fifo(const char *fifo) {jobserver_fifo_ = FileName::Get(fifo);}
+  const FileName* jobserver_fifo() const {return jobserver_fifo_;}
   bool been_waited_for() const;
   void set_been_waited_for();
   void add_utime_u(int64_t t) {utime_u_ += t;}
@@ -343,6 +345,8 @@ class ExecedProcess : public Process {
   const char* shortcut_result_ = nullptr;
   /** Process the event preventing short-cutting happened in */
   const Process *cant_shortcut_proc_ = NULL;
+  /** Make jobserver FIFO */
+  const FileName* jobserver_fifo_ = nullptr;
   DISALLOW_COPY_AND_ASSIGN(ExecedProcess);
 };
 
