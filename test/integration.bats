@@ -103,7 +103,7 @@ setup() {
   for i in 1 2; do
     # clean up previous run
     make -s -f test_parallel_make.Makefile clean
-    result=$(./run-firebuild -d proc -o 'processes.jobserver_users += "make"' -- make -s -j8 -f test_parallel_make.Makefile)
+    result=$(./run-firebuild -d proc -- make -s -j8 -f test_parallel_make.Makefile)
     assert_streq "$result" "ok"
     if [ "$(uname)" = "Darwin" ]; then
       # this fails when xcrun_db is not populated, see https://github.com/firebuild/firebuild/issues/1297
