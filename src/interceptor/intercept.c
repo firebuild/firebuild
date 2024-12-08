@@ -97,14 +97,8 @@ char read_only_locations_env_buf[4096];
 /** Ignore locations to not ask ACK for when opening them, as set in the environment variable. */
 char ignore_locations_env_buf[4096];
 
-/**
- * Jobserver users for which the jobserver fds have to be detected, as set in the environment
- * variable. */
-char jobserver_users_env_buf[4096];
-
 STATIC_CSTRING_VIEW_ARRAY(read_only_locations, 32);
 STATIC_CSTRING_VIEW_ARRAY(ignore_locations, 32);
-STATIC_CSTRING_VIEW_ARRAY(jobserver_users, 8);
 
 bool intercepting_enabled = true;
 
@@ -1038,8 +1032,6 @@ void fb_ic_init() {
                 sizeof(read_only_locations_env_buf));
   store_entries("FB_IGNORE_LOCATIONS", &ignore_locations, ignore_locations_env_buf,
                 sizeof(ignore_locations_env_buf));
-  store_entries("FB_JOBSERVER_USERS", &jobserver_users, jobserver_users_env_buf,
-                sizeof(jobserver_users_env_buf));
 
 #ifndef __mips__
   /* We use an uint64_t as bitmap for delayed signals. Make sure it's okay.
@@ -1115,11 +1107,9 @@ void fb_ic_init() {
     const char *fb_socket = "FB_SOCKET=";
     const char *fb_read_only_locations = "FB_READ_ONLY_LOCATIONS=";
     const char *fb_ignore_locations = "FB_IGNORE_LOCATIONS=";
-    const char *fb_jobserver_users = "FB_JOBSERVER_USERS=";
     if (strncmp(*cursor, fb_socket, strlen(fb_socket)) != 0 &&
         strncmp(*cursor, fb_read_only_locations, strlen(fb_read_only_locations)) != 0 &&
-        strncmp(*cursor, fb_ignore_locations, strlen(fb_ignore_locations)) != 0 &&
-        strncmp(*cursor, fb_jobserver_users, strlen(fb_jobserver_users)) != 0) {
+        strncmp(*cursor, fb_ignore_locations, strlen(fb_ignore_locations)) != 0) {
       env_copy[env_copy_len++] = *cursor;
     }
   }
@@ -1132,22 +1122,18 @@ void fb_ic_init() {
         env_copy, env_copy_len, sizeof(env_copy[0]), cmpstringpp);
   fbbcomm_builder_scproc_query_set_env_var(&ic_msg, (const char **) env_copy);
 
-  const char* slash_pos = strrchr(ic_argv[0], '/');
-  const char* cmd_name = slash_pos ? slash_pos + 1 : ic_argv[0];
   int jobserver_fds[] = {-1, -1};
   char jobserver_fifo[FB_PATH_BUFSIZE] = "";
-  if (is_in_sorted_cstring_view_array(cmd_name, strlen(cmd_name), &jobserver_users)) {
-    const char* const makeflags_envs[] = {"CARGO_MAKEFLAGS", "MAKEFLAGS"};
-    for (size_t i = 0; i < sizeof(makeflags_envs) / sizeof(makeflags_envs[0]); i++) {
-      if (extract_jobserver_params(makeflags_envs[i], &jobserver_fds[0], &jobserver_fds[1],
-                                   jobserver_fifo)) {
-        if (jobserver_fifo[0] != '\0') {
-          BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, jobserver_fifo);
-        } else {
-          fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
-        }
-        break;
+  const char* const makeflags_envs[] = {"CARGO_MAKEFLAGS", "MAKEFLAGS"};
+  for (size_t i = 0; i < sizeof(makeflags_envs) / sizeof(makeflags_envs[0]); i++) {
+    if (extract_jobserver_params(makeflags_envs[i], &jobserver_fds[0], &jobserver_fds[1],
+                                 jobserver_fifo)) {
+      if (jobserver_fifo[0] != '\0') {
+        BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, jobserver_fifo);
+      } else {
+        fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
       }
+      break;
     }
   }
 

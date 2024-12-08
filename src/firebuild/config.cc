@@ -547,13 +547,6 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
   export_sorted_locations(cfg, "read_only_locations", "FB_READ_ONLY_LOCATIONS", &env);
   export_sorted_locations(cfg, "ignore_locations", "FB_IGNORE_LOCATIONS", &env);
 
-  try {
-    const libconfig::Setting& locations_setting = root["processes"]["jobserver_users"];
-    export_sorted(locations_setting, "FB_JOBSERVER_USERS", &env);
-  } catch(libconfig::SettingNotFoundException&) {
-    /* Configuration setting may be missing. This is OK. */
-  }
-
   const char *ld_preload_value = getenv(LD_PRELOAD);
   if (ld_preload_value) {
     env[LD_PRELOAD] = libfirebuild_so() + ":" + std::string(ld_preload_value);
