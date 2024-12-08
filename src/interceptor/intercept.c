@@ -879,22 +879,30 @@ static char* last_strstr(const char* haystack, const char* needle) {
 }
 
 /**
- * Parses and returns GNU Make jobserver fds if they are present in makeflags.
- * e.g. --jobserver-auth=R,W where ‘R’ and ‘W’ are non-negative integers representing fds
+ * Parses and returns GNU Make jobserver fifo or fds if they are present in makeflags.
+ * e.g. --jobserver-auth=R,W where ‘R’ and ‘W’ are non-negative integers representing fds, or
+ * --jobserver-auth=fifo:/path/to/fifo.
+ * Note: Set fifo to "" before calling this function and check if it is not empty after the call
+ * first. If the return value is true, and fifo is empty, then the jobserver fds were set.
  *
  * @param[in] makeflags Make flags as set in environment's MAKEFLAGS
- * @param[out] fd_r R fd
- * @param[out] fd_w W fd
- * @return true, if jobserver fds were set and parsed
+ * @param[out] fd_r R fd, not touched when fifo is set
+ * @param[out] fd_w W fd, not touched when fifo is set
+ * @param[out] fifo path to the fifo, needs to be pre-allocated with at least FB_PATH_BUFSIZE
+ * @return true, if the jobserver fifo or fds were set and parsed
  */
-static bool extract_jobserver_fds(const char* makeflags_env, int *fd_r, int *fd_w) {
+static bool extract_jobserver_params(const char* makeflags_env, int *fd_r, int *fd_w, char *fifo) {
   const char *makeflags = getenv(makeflags_env);
   if (!makeflags) {
     return false;
   }
   const char *needle = "--jobserver-auth=";
   const char *jobserver_option = last_strstr(makeflags, needle);
-  if (!jobserver_option) {
+  if (jobserver_option) {
+    if (sscanf(jobserver_option + strlen(needle), "fifo:%s", fifo) == 1) {
+      return true;
+    }
+  } else {
     needle = "--jobserver-fds=";
     jobserver_option = last_strstr(makeflags, needle);
   }
@@ -905,7 +913,6 @@ static bool extract_jobserver_fds(const char* makeflags_env, int *fd_r, int *fd_
   }
   return false;
 }
-
 
 /**
  * Set up a supervisor connection
@@ -1128,11 +1135,19 @@ void fb_ic_init() {
   const char* slash_pos = strrchr(ic_argv[0], '/');
   const char* cmd_name = slash_pos ? slash_pos + 1 : ic_argv[0];
   int jobserver_fds[] = {-1, -1};
+  char jobserver_fifo[FB_PATH_BUFSIZE] = "";
   if (is_in_sorted_cstring_view_array(cmd_name, strlen(cmd_name), &jobserver_users)) {
-    if (extract_jobserver_fds("CARGO_MAKEFLAGS", &jobserver_fds[0], &jobserver_fds[1])) {
-      fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
-    } else if (extract_jobserver_fds("MAKEFLAGS", &jobserver_fds[0], &jobserver_fds[1])) {
-      fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
+    const char* const makeflags_envs[] = {"CARGO_MAKEFLAGS", "MAKEFLAGS"};
+    for (size_t i = 0; i < sizeof(makeflags_envs) / sizeof(makeflags_envs[0]); i++) {
+      if (extract_jobserver_params(makeflags_envs[i], &jobserver_fds[0], &jobserver_fds[1],
+                                   jobserver_fifo)) {
+        if (jobserver_fifo[0] != '\0') {
+          BUILDER_SET_ABSOLUTE_CANONICAL(scproc_query, jobserver_fifo);
+        } else {
+          fbbcomm_builder_scproc_query_set_jobserver_fds(&ic_msg, jobserver_fds, 2);
+        }
+        break;
+      }
     }
   }
 

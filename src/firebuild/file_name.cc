@@ -61,7 +61,7 @@ void FileName::open_for_writing(ExecedProcess* proc) const {
     auto& pair = it.value();
     assert(pair.first > 0);
     pair.first++;
-    if (proc != pair.second) {
+    if (proc != pair.second && this != proc->jobserver_fifo()) {
       /* A different process opened the file for writing. */
       ExecedProcess* common_ancestor =
           proc->common_exec_ancestor(pair.second);
