@@ -2129,6 +2129,11 @@ generate("int", "posix_spawn_file_actions_addinherit_np", "posix_spawn_file_acti
          platforms=['darwin'],
          tpl="posix_spawn_file_actions",
          success="ret == 0")
+generate("int", "posix_spawn_file_actions_addtcsetpgrp_np", "posix_spawn_file_actions_t *file_actions, int filedes",
+         platforms=['linux'],
+         ifdef_guard=glibc_ge(2, 35),
+         tpl="posix_spawn_file_actions",
+         success="ret == 0")
 
 # Insert a trace marker for clone and pthread_create
 generate("int", ["clone", "__clone"], "int (*fn)(void *), void *stack, int flags, void *arg, ...",

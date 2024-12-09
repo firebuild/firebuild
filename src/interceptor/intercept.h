@@ -229,6 +229,17 @@ extern void psfa_addfchdir_np(const posix_spawn_file_actions_t *p, int fd);
  */
 extern void psfa_addinherit_np(const posix_spawn_file_actions_t *p, int fd);
 #endif
+#ifdef __linux__
+#ifdef __GLIBC_PREREQ
+#if __GLIBC_PREREQ(2, 35)
+/**
+ * Just ignore posix_spawn_file_actions_addtcsetpgrp_np():
+ * Bookkeeping is done in the generated interceptor function.
+ */
+extern void psfa_addtcsetpgrp_np(const posix_spawn_file_actions_t *p, int fd);
+#endif
+#endif
+#endif
 /**
  * Find the voidp_array for a given posix_spawn_file_actions.
  */
