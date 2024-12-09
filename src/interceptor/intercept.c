@@ -1617,6 +1617,15 @@ void psfa_addinherit_np(const posix_spawn_file_actions_t *p,
   voidp_array_append(obj, fbbcomm_builder);
 }
 
+#if FB_GLIBC_PREREQ(2, 35)
+void psfa_addtcsetpgrp_np(const posix_spawn_file_actions_t *p,
+                       int fd) {
+  (void)p;
+  (void)fd;
+  /* Do nothing, this is not interesting from shortcutting POV. */
+}
+#endif
+
 voidp_array *psfa_find(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (memcmp(&psfas[i].handle, p, sizeof(posix_spawn_file_actions_t)) == 0) {
