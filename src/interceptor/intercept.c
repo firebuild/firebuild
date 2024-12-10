@@ -72,6 +72,8 @@ int psfas_alloc;
 static void fb_ic_init_constructor(int argc, char **argv) __attribute__((constructor));
 static void fb_ic_cleanup() __attribute__((destructor));
 
+void psfa_destroy_nolock(const posix_spawn_file_actions_t *p);
+
 fd_state ic_fd_states[IC_FD_STATES_SIZE];
 
 /** Resource usage at the process' last exec() */
@@ -80,6 +82,9 @@ struct rusage initial_rusage;
 pthread_mutex_t ic_system_popen_lock = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t ic_global_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/* Lock for serializing psfas array accesses(). */
+pthread_mutex_t ic_psfas_lock = PTHREAD_MUTEX_INITIALIZER;
 
 char fb_conn_string[FB_PATH_BUFSIZE] = {'\0'};
 size_t fb_conn_string_len = 0;
@@ -1466,12 +1471,15 @@ void fb_debug(const char* msg) {
 void psfa_update_actions(const posix_spawn_file_actions_t* old_actions,
                          const posix_spawn_file_actions_t* new_actions) {
   if (memcmp(old_actions, new_actions, sizeof(posix_spawn_file_actions_t)) != 0) {
+    pthread_mutex_lock(&ic_psfas_lock);
     for (int i = 0; i < psfas_num; i++) {
       if (memcmp(&(psfas[i].handle), old_actions, sizeof(posix_spawn_file_actions_t)) == 0) {
         psfas[i].handle = *new_actions;
+        pthread_mutex_unlock(&ic_psfas_lock);
         return;
       }
     }
+    pthread_mutex_unlock(&ic_psfas_lock);
     assert(0 && "old psfa should have been found");
   } else {
     assert(psfa_find(old_actions));
@@ -1479,7 +1487,7 @@ void psfa_update_actions(const posix_spawn_file_actions_t* old_actions,
 }
 
 void psfa_init(const posix_spawn_file_actions_t *p) {
-  // FIXME guard with mutex!
+  pthread_mutex_lock(&ic_psfas_lock);
 
   /* grow buffer if necessary */
   if (psfas_alloc == 0) {
@@ -1493,6 +1501,7 @@ void psfa_init(const posix_spawn_file_actions_t *p) {
   psfas[psfas_num].handle =  *p;
   voidp_array_init(&psfas[psfas_num].actions);
   psfas_num++;
+  pthread_mutex_unlock(&ic_psfas_lock);
 }
 
 static void psfa_item_free(void *p) {
@@ -1512,8 +1521,12 @@ static void psfa_item_free(void *p) {
 }
 
 void psfa_destroy(const posix_spawn_file_actions_t *p) {
-  // FIXME guard with mutex!
+  pthread_mutex_lock(&ic_psfas_lock);
+  psfa_destroy_nolock(p);
+  pthread_mutex_unlock(&ic_psfas_lock);
+}
 
+void psfa_destroy_nolock(const posix_spawn_file_actions_t *p) {
   for (int i = 0; i < psfas_num; i++) {
     if (memcmp(&psfas[i].handle, p, sizeof(posix_spawn_file_actions_t)) == 0) {
       voidp_array_deep_free(&psfas[i].actions, psfa_item_free);
@@ -1644,10 +1657,13 @@ void psfa_addtcsetpgrp_np(const posix_spawn_file_actions_t *p,
 #endif
 
 voidp_array *psfa_find(const posix_spawn_file_actions_t *p) {
+  pthread_mutex_lock(&ic_psfas_lock);
   for (int i = 0; i < psfas_num; i++) {
     if (memcmp(&psfas[i].handle, p, sizeof(posix_spawn_file_actions_t)) == 0) {
+      pthread_mutex_unlock(&ic_psfas_lock);
       return &psfas[i].actions;
     }
   }
+  pthread_mutex_unlock(&ic_psfas_lock);
   return NULL;
 }
