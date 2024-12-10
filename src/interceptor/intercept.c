@@ -49,9 +49,12 @@
 #define VDSO_NAME "linux-vdso.so.1"
 #endif
 
-/** A poor man's (plain C) implementation of a hashmap:
+/**
+ * A poor man's (plain C) implementation of a multimap:
  *  posix_spawn_file_actions_t -> char**
  *  implemented as a dense array with linear lookup.
+ *  Identical entries can be present in the array multiple times, which is not a problem.
+ *  This typically happens when initializing multiple entries without updating them in between.
  *
  *  Each file action is encoded as a simple string, e.g.
  *  - open:  "o 10 0 0 /etc/hosts"
@@ -1478,10 +1481,6 @@ void psfa_update_actions(const posix_spawn_file_actions_t* old_actions,
 void psfa_init(const posix_spawn_file_actions_t *p) {
   // FIXME guard with mutex!
 
-  /* This provides extra safety, in case a previous record belonging to this pointer wasn't cleaned
-   * up, and now the same pointer is getting reused for a brand new posix_spawn_file_actions. */
-  psfa_destroy(p);
-
   /* grow buffer if necessary */
   if (psfas_alloc == 0) {
     psfas_alloc = 4  /* whatever */;
@@ -1523,7 +1522,7 @@ void psfa_destroy(const posix_spawn_file_actions_t *p) {
         psfas[i] = psfas[psfas_num - 1];
       }
       psfas_num--;
-      /* There can't be more than 1 match. */
+      /* There can be more than 1 match, but we destroy only the first one. */
       break;
     }
   }
