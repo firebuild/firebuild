@@ -1466,8 +1466,12 @@ void psfa_update_actions(const posix_spawn_file_actions_t* old_actions,
     for (int i = 0; i < psfas_num; i++) {
       if (memcmp(&(psfas[i].handle), old_actions, sizeof(posix_spawn_file_actions_t)) == 0) {
         psfas[i].handle = *new_actions;
+        return;
       }
     }
+    assert(0 && "old psfa should have been found");
+  } else {
+    assert(psfa_find(old_actions));
   }
 }
 
