@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
   (void) argc;  /* unused */
 
   int i;
-  for (i = 3; i < 120; i++) {
+  for (i = 3; i < 200; i++) {
     close(i);
   }
   execvp(argv[1], &argv[1]);
