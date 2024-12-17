@@ -1,4 +1,32 @@
 ==================
+0.8.4 / 2024-12-17
+==================
+  * interceptor: Allow intercepting some orignal 64bit time and offset related remapped functions
+  * report: Fix indentation of generated script tags
+  * report: Use Viz.js for generating call graph in the browser
+  * bitrise: Save built firebuild as a build artifact
+  * bitrise: Switch to M2 runner, which is the default anyway
+  * contrib: Import heapsort.c from libbsd 0.12.1
+  * interceptor: Use custom heapsort() with alloca() instead of qsort() on macOS
+  * tests: Refactor running firebuild from the test directory
+  * Load libfirebuild from full path on macOS and when testing on Linux
+  * Don't pass through and fix up modified LD_LIBRARY_PATH and DYLD_LIBRARY_PATH
+  * interceptor: Sort environment variables if they were fixed up by the interceptor
+  * ci: Build the package on Ubuntu 24.04, too
+  * tests: Work around xcodebuild ... -find gcc preventing caching
+  * ci: Stop testing on macos-12 runners
+  * ci: Close fds up to 200 in close_fds_exec
+  * interceptor: Intercept posix_spawn_file_actions_addtcsetpgrp_np()
+  * interceptor: Use last --jobserver-fds / --jobserver-auth option
+  * Support GNU Make 4.4's --jobserver-auth=fifo:... jobserver style
+  * Consider all programs to be GNU Make jobserver users
+  * firebuild: Skip MAKEFLAGS, MFLAGS and CARGO_MAKEFLAGS from the fingerprint
+  * interceptor: Add assert()-s to psfa_update_actions and return the earliest possible
+  * interceptor: Allow tracking multiple identical posix_spawn_file_actions_t handles
+  * interceptor: Serialize psfas array accesses with a mutex
+  * interceptor: Drop obsolete, commented out CMakeList part
+
+==================
 0.8.3 / 2024-07-21
 ==================
   * ci: Print error when build version is less than git version
