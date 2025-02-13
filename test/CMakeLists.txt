@@ -29,7 +29,7 @@ if (uppercase_CMAKE_BUILD_TYPE STREQUAL "DEBUG" OR CMAKE_C_FLAGS MATCHES "-DFB_E
   set_property(TEST bats-integration PROPERTY ENVIRONMENT "SKIP_GC_INVALID_ENTRIES_TEST=1")
 endif()
 add_custom_target(check ctest -V)
-add_custom_target(valgrind-check env FIREBUILD_PREFIX_CMD='valgrind -q --leak-check=full --track-fds=yes --error-exitcode=1' ctest -V)
+add_custom_target(valgrind-check env FIREBUILD_PREFIX_CMD='${CMAKE_CURRENT_BINARY_DIR}/close_fds_exec valgrind -q --leak-check=full --track-fds=yes --error-exitcode=1' ctest -V)
 
 add_test_binary(test_cmd_fork_exec)
 add_test_binary(test_cmd_popen)
@@ -84,7 +84,7 @@ add_dependencies(check-deps fbb_test)
 add_dependencies(check-deps firebuild)
 add_dependencies(check-deps firebuild-bin)
 add_dependencies(check check-deps check-bins)
-add_dependencies(valgrind-check check-deps check-bins)
+add_dependencies(valgrind-check check-deps check-bins close_fds_exec)
 
 if(APPLE)
   add_test(test-symbols env CMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT} ./test_symbols ${CMAKE_BINARY_DIR})

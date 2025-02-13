@@ -92,8 +92,7 @@ jobs:
         firebuild make -j$(getconf _NPROCESSORS_ONLN) all check-bins
     - name: test
       run: |
-        firebuild make -j3 close_fds_exec
-        test/close_fds_exec make valgrind-check
+        make valgrind-check
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
@@ -175,7 +174,7 @@ jobs:
     - name: test
       run: |
         make check
-        test/close_fds_exec make valgrind-check
+        make valgrind-check
     - name: clean
       run: make clean
     - name: scan-build
