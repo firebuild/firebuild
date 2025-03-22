@@ -1,0 +1,101 @@
+# Catalan translation of firebuild's debconf messages
+# Copyright © 2025 Free Software Foundation, Inc.
+# This file is distributed under the same license as the firebuild package.
+# poc senderi <pocsenderi@protonmail.com>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: firebuild\n"
+"Report-Msgid-Bugs-To: firebuild@packages.debian.org\n"
+"POT-Creation-Date: 2022-11-14 17:54+0100\n"
+"PO-Revision-Date: 2025-03-04 22:16+0100\n"
+"Last-Translator: poc senderi <pocsenderi@protonmail.com>\n"
+"Language-Team: Catalan <debian-l10n-catalan@lists.debian.org>\n"
+"Language: ca\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.4.2\n"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Do you accept the terms of the Firebuild license?"
+msgstr "Accepteu els termes de la llicència del Firebuild?"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Firebuild users are required to acknowledge and accept the license. Please "
+"find it below. If you accept this license, the package installation will "
+"continue. If you refuse it, it will be interrupted."
+msgstr ""
+"Els usuaris del Firebuild han de reconèixer i acceptar la llicència. Vegeu-"
+"la a continuació. Si accepteu aquesta llicència, la instal·lació del paquet "
+"continuarà. Si la rebutgeu, la instal·lació s'interromprà."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Firebuild is free for personal use or commercial trial."
+msgstr ""
+"El Firebuild és gratuït per a ús personal o per a avaluació comercial."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Non-trial commercial use requires licenses available from https://firebuild."
+"com."
+msgstr ""
+"L'ús comercial no avaluatiu requereix llicències disponibles a «https://"
+"firebuild.com»."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Modification and redistribution are permitted, but commercial use of "
+"derivative works is subject to the same requirements of this license."
+msgstr ""
+"Es permeten la modificació i la redistribució, però l'ús comercial de les "
+"obres derivades està subjecta als mateixos requisits d'aquesta llicència."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS "
+"OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING "
+"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER "
+"DEALINGS IN THE SOFTWARE."
+msgstr ""
+"EL PROGRAMARI ES PROPORCIONA \"TAL QUAL\", SENSE GARANTIA DE CAP TIPUS, "
+"EXPRESSA O IMPLÍCITA, INCLOENT-HI PERÒ NO LIMITADA A LES GARANTIES DE "
+"COMERCIABILITAT, APTITUD PER A UN PROPÒSIT PARTICULAR I NO INFRACCIÓ. EN "
+"CAP CAS ELS AUTORS O TITULARS DELS DRETS D'AUTOR SERAN RESPONSABLES DE "
+"QUALSEVOL RECLAMACIÓ, DANY O ALTRA RESPONSABILITAT, JA SIGUI EN UNA ACCIÓ "
+"DE CONTRACTE, DE DELICTE O D'UNA ALTRA MANERA, DERIVADA, FORA O EN RELACIÓ "
+"AMB EL PROGRAMARI O L'ÚS O ALTRES OPERACIONS EN EL PROGRAMARI."
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid "The license has been refused"
+msgstr "S'ha rebutjat la llicència"
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid ""
+"Please remove the firebuild packages or reinstall the firebuild package (e."
+"g. via apt-get install --reinstall firebuild) to get prompted to accept the "
+"license again."
+msgstr ""
+"Suprimiu els paquets del Firebuild o torneu a instal·lar el paquet "
+"«firebuild» (p. ex. via «apt-get install --reinstall firebuild») per tal "
+"que se us demani que accepteu la llicència de nou."
