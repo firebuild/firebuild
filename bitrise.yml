@@ -10,7 +10,7 @@ workflows:
     - git-clone@8:
         is_always_run: true
     - cache-pull@2: {}
-    - brew-install@0:
+    - brew-install@1:
         inputs:
         - cache_enabled: 'yes'
         - use_brewfile: 'yes'
