@@ -20,7 +20,7 @@ Build-Depends: bash-completion,
                po-debconf,
                python3-jinja2,
                xsltproc
-Standards-Version: 4.6.2
+Standards-Version: 4.7.2
 Homepage: https://firebuild.com
 Rules-Requires-Root: no
 XS-Autobuild: yes
@@ -49,6 +49,7 @@ Description: Automatic build accelerator cache
  Perl, Python and other interpreted languages.
 
 Package: libfirebuild0
+Section: non-free/libs
 Architecture: any
 Multi-Arch: same
 Depends: ${shlibs:Depends},
