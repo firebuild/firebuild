@@ -98,7 +98,7 @@ void Pipe::fd1_timeout_cb(void *arg) {
 
 Pipe::Pipe(int fd0_conn, Process* creator)
     : fd0_conn(fd0_conn),
-      conn2fd1_ends(), ffd2fd1_ends(), proc2recorders(), id_(id_counter_++), buf_(),
+      conn2fd1_ends(4), ffd2fd1_ends(4), proc2recorders(4), id_(id_counter_++), buf_(),
       fd0_ptrs_held_self_ptr_(nullptr), fd1_ptrs_held_self_ptr_(nullptr), shared_self_ptr_(this),
       creator_(creator) {
   TRACKX(FB_DEBUG_PIPE, 0, 1, Pipe, this, "fd0_conn=%s, creator=%s", D_FD(fd0_conn), D(creator));
@@ -140,7 +140,8 @@ void Pipe::add_fd1_and_proc(int fd1_conn, FileFD* file_fd, ExecedProcess *proc,
     fd1_timeout_id_ = -1;
   }
 
-  auto fd1_end = new pipe_end({fd1_conn, {file_fd}, recorders});
+  auto fd1_end = new pipe_end({fd1_conn, tsl::hopscotch_set<FileFD*>(4), recorders});
+  fd1_end->file_fds.insert(file_fd);
   conn2fd1_ends[fd1_conn] = fd1_end;
   ffd2fd1_ends[file_fd] = fd1_end;
   if (!send_only_mode_) {
@@ -539,7 +540,7 @@ void Pipe::drain() {
     return;
   }
   bool restart_iteration;
-  tsl::hopscotch_set<int> visited_fds;
+  tsl::hopscotch_set<int> visited_fds(ffd2fd1_ends.size());
   do {
     restart_iteration = false;
     for (auto pair : ffd2fd1_ends) {
