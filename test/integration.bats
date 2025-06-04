@@ -170,11 +170,13 @@ setup() {
 @test "file operations" {
   for i in 1 2; do
     # clean up before running the test
-    rm -rf test_directory/ foo-dir/
+    rm -rf test_empty_1.txt test_empty_2.txt test_nonempty_1.txt test_nonempty_2.txt test_maybe_exists_1.txt test_directory/ test_exclusive.txt
     result=$(./run-firebuild -- ./test_file_ops)
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
 
+    # clean up before running ./test_file_ops again
+    rm -rf test_empty_1.txt test_empty_2.txt test_nonempty_1.txt test_nonempty_2.txt test_maybe_exists_1.txt test_directory/ test_exclusive.txt
     # Due to the "again" parameter the 1st level cannot be shortcut in
     # the first iteration, but the 2nd level (./test_file_ops_2) can,
     # it should fetch the cached entries stored in the previous run.
@@ -190,6 +192,7 @@ setup() {
 
     # The process can find a directory missing then can create a file in it due to the directory
     # having been created by an other parallel process
+    rm -rf foo-dir
     result=$(./run-firebuild bash -c "(bash -c 'sh -c \"echo -x > foo-dir/bar1\" 2> /dev/null; sleep 0.2; sh -c \"echo x > foo-dir/bar2\" 2> /dev/null') & (sleep 0.1; [ $i == 2 ] || mkdir foo-dir); wait")
     assert_streq "$result" ""
     assert_streq "$(strip_stderr stderr)" ""
