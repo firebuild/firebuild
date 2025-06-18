@@ -378,3 +378,41 @@ jobs:
     - name: week of year
       id: week-of-year
       run: echo "week=$(/bin/date -u "+%V")" >> $GITHUB_OUTPUT
+
+  build-on-rpm-based-distros:
+    needs: style-checks
+    runs-on: ubuntu-latest
+    container: almalinux:9
+    timeout-minutes: 20
+    steps:
+    - name: Install Git
+      run: |
+        dnf -y install git
+    - name: Checkout source
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Install build tools and dependencies
+      run: |
+        dnf -y install dnf-plugins-core epel-release
+        dnf -y groupinstall "Development Tools"
+        dnf config-manager --set-enabled crb
+        dnf builddep -y firebuild.spec
+        cd ~
+        git clone https://github.com/Tessil/hopscotch-map.git
+        cd hopscotch-map/
+        cmake .
+        make install
+    - name: Prepare sources for RPM build
+      run: |
+        mkdir -p ~/rpmbuild/SOURCES ~/rpmbuild/SPECS/
+        cp firebuild.spec ~/rpmbuild/SPECS/
+        git config --global --add safe.directory $PWD
+        # Create source tarball
+        git archive --format=tar.gz --prefix=firebuild-$(git describe --tags --abbrev=0 | sed 's/^v//')/ -o ~/rpmbuild/SOURCES/firebuild-$(git describe --tags --abbrev=0 | sed 's/^v//').tar.gz HEAD
+    - name: Build RPM
+      run: |
+        rpmbuild -ba ~/rpmbuild/SPECS/firebuild.spec
+    - name: List built RPMs
+      run: |
+        ls -lh ~/rpmbuild/RPMS/*/*.rpm ~/rpmbuild/SRPMS/*.rpm || true
