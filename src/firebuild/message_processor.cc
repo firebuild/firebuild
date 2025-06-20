@@ -1219,7 +1219,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       } else {
         ExecedProcess* next_exec_level;
         if (quirks & FB_QUIRK_LTO_WRAPPER && proc->exec_point()->args().size() > 0
-            && proc->exec_point()->args()[0] == "touch"
+            && (proc->exec_point()->args()[0] == "touch"
+                || (proc->exec_point()->executable()->without_dirs() == "coreutils"
+                    && proc->exec_point()->args().size() > 1
+                    && proc->exec_point()->args()[1] == "--coreutils-prog-shebang=touch"))
             && (next_exec_level = proc->parent_exec_point())  // sh
             && (next_exec_level = next_exec_level->parent_exec_point())  // make
             && (next_exec_level = next_exec_level->parent_exec_point())  // lto-wrapper
