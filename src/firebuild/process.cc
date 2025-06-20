@@ -1975,6 +1975,19 @@ void Process::maybe_finalize() {
   }
 }
 
+void Process::maybe_finalize_with_missed_static_exec_child() {
+  /* If the supervisor believes an exec is pending in a child process while the parent
+   * actually successfully waited for the child, it means that the child didn't sign in to
+   * the supervisor, presumably because it is statically linked. See #324 for details. */
+  exec_point()->disable_shortcutting_bubble_up(
+      "Process did not sign in to supervisor, perhaps statically linked or failed to link");
+  /* Need to also clear the exec_pending state for Process::any_child_not_finalized()
+   * and finalize this never-seen process. */
+  set_exec_pending(false);
+  reset_file_fd_pipe_refs();
+  maybe_finalize();
+}
+
 void Process::finish() {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "");
 

@@ -370,6 +370,13 @@ setup() {
     assert_streq "$result" "I am statically linked. end "
     assert_streq "$(strip_stderr stderr)" ""
   done
+
+  # test when the statically linked binary runs as an exec child
+  for i in 1 2; do
+    result=$(./run-firebuild -- ./test_cmd_system 'exec ./test_static 4' | tr '\n' ' ')
+    assert_streq "$result" "I am statically linked. end "
+    assert_streq "$(strip_stderr stderr)" ""
+  done
 }
 
 @test "pipe replaying" {
