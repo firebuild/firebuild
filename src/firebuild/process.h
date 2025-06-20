@@ -113,6 +113,11 @@ class Process {
    * as a subreaper it does not set the been_waited_for_ flag thus for those processes this function
    * never returns true. */
   virtual bool been_waited_for() const = 0;
+  /* If the supervisor believes an exec is pending in a child process while the parent
+   * actually successfully waited for the child, it means that the child didn't sign in to
+   * the supervisor, presumably because it is statically linked. See #324 for details.
+   * Call only when the process exited but still has a pending exec child. */
+  void maybe_finalize_with_missed_static_exec_child();
   virtual void set_been_waited_for() = 0;
   /**
    * The process is either finalized or is terminated, but in case it is just terminated it has

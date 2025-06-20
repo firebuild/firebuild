@@ -791,24 +791,25 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
         break;
       }
 #endif
-      assert(proc->system_child());
+      Process* child = proc->system_child();
+      assert(child);
       /* system() implicitly waits for the child to finish. */
       int ret = ic_msg->get_ret();
       if (ret == -1 || !WIFEXITED(ret)) {
-        proc->system_child()->exec_point()->disable_shortcutting_bubble_up_to_excl(
-            proc->system_child()->fork_point()->exec_point(),
+        child->exec_point()->disable_shortcutting_bubble_up_to_excl(
+            child->fork_point()->exec_point(),
             "Process started by system() exited abnormally or the exit status could not be"
             " collected");
       } else {
-        proc->system_child()->fork_point()->set_exit_status(WEXITSTATUS(ret));
+        child->fork_point()->set_exit_status(WEXITSTATUS(ret));
       }
-      proc->system_child()->set_been_waited_for();
-      if (!proc->system_child()->fork_point()->can_ack_parent_wait()) {
-        /* The process has actually quit (otherwise the interceptor
-         * couldn't send us the system_ret message), but the supervisor
-         * hasn't seen this event yet. Thus we have to slightly defer
-         * sending the ACK. */
-        proc->system_child()->set_on_finalized_ack(ack_num, fd_conn);
+      child->set_been_waited_for();
+      if (child->exec_pending()) {
+        child->maybe_finalize_with_missed_static_exec_child();
+        /* Ack it straight away. */
+      } else if (!child->fork_point()->can_ack_parent_wait()) {
+        /* We haven't seen the process quitting yet. Defer sending the ACK. */
+        child->set_on_finalized_ack(ack_num, fd_conn);
         proc->set_system_child(NULL);
         return;
       }
@@ -879,7 +880,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           child->fork_point()->set_exit_status(WEXITSTATUS(ret));
         }
         child->set_been_waited_for();
-        if (!child->fork_point()->can_ack_parent_wait()) {
+        if (child->exec_pending()) {
+          child->maybe_finalize_with_missed_static_exec_child();
+          /* Ack it straight away. */
+        } else if (!child->fork_point()->can_ack_parent_wait()) {
           /* We haven't seen the process quitting yet. Defer sending the ACK. */
           child->set_on_finalized_ack(ack_num, fd_conn);
           return;
@@ -1004,16 +1008,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
 
       child->set_been_waited_for();
       if (child->exec_pending()) {
-        /* If the supervisor believes an exec is pending in a child proces while the parent
-         * actually successfully waited for the child, it means that the child didn't sign in to
-         * the supervisor, presumably because it is statically linked. See #324 for details. */
-        child->exec_point()->disable_shortcutting_bubble_up(
-            "Process did not sign in to supervisor, perhaps statically linked or failed to link");
-        /* Need to also clear the exec_pending state for Process::any_child_not_finalized()
-         * and finalize this never-seen process. */
-        child->set_exec_pending(false);
-        child->reset_file_fd_pipe_refs();
-        child->maybe_finalize();
+        child->maybe_finalize_with_missed_static_exec_child();
         /* Ack it straight away. */
       } else if (!child->fork_point()->can_ack_parent_wait()) {
         /* We haven't seen the process quitting yet. Defer sending the ACK. */
