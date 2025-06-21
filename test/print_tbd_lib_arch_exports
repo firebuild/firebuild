@@ -39,7 +39,9 @@ def parse_tapi_tbd(text):
         key = None  # remember top level key
         subkey = None
         targets = None
+        lineno = -1
         for line in lines:
+            lineno += 1
             if line.startswith("targets:"):
                 key, value = map(str.strip, line.split(':', 1))
                 entry_data[key].extend(re.findall(list_pattern, value))
@@ -73,7 +75,12 @@ def parse_tapi_tbd(text):
                     entry_data[key][target].extend(re.findall(list_pattern, value))
             else:
                 if subkey is None:
-                    entry_data[key].extend(re.findall(list_pattern, line))
+                    try:
+                        entry_data[key].extend(re.findall(list_pattern, line))
+                    except Exception:
+                        print("Error parsing {}: {}".format(sys.argv[1], line), file=sys.stderr)
+                        print(open(sys.argv[1], "r").read(), file=sys.stderr)
+                        sys.exit(1)
                 elif subkey == 'targets':
                     targets.extend(re.findall(list_pattern, line))
                 elif subkey in ('symbols', 'libraries'):
