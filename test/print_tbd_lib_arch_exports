@@ -46,6 +46,7 @@ def parse_tapi_tbd(text):
                 subkey = None
             elif line.startswith("install-name:") \
                  or line.startswith("current-version:") \
+                 or line.startswith("compatibility-version:") \
                  or line.startswith("tbd-version:"):
                 key, value = map(str.strip, line.split(':', 1))
                 entry_data[key] = re.sub(r'\'', "", value)
@@ -73,7 +74,11 @@ def parse_tapi_tbd(text):
                     entry_data[key][target].extend(re.findall(list_pattern, value))
             else:
                 if subkey is None:
-                    entry_data[key].extend(re.findall(list_pattern, line))
+                    try:
+                        entry_data[key].extend(re.findall(list_pattern, line))
+                    except Exception as e:
+                        print("Error parsing line \"{}\" in {}: [{}] {}".format(line, sys.argv[1], type(e).__name__, str(e)), file=sys.stderr)
+                        sys.exit(1)
                 elif subkey == 'targets':
                     targets.extend(re.findall(list_pattern, line))
                 elif subkey in ('symbols', 'libraries'):
