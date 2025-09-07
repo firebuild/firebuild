@@ -509,10 +509,16 @@ int Process::handle_truncate(const char * const ar_name, const size_t ar_len,
   /* truncate() always sends pre_open. */
   name->close_for_writing();
 
-  // FIXME Will be a bit tricky to implement shortcutting, see #637.
-  (void)length;
-  (void)error;
-  exec_point()->disable_shortcutting_bubble_up("truncate() is not supported");
+  /* Truncate is basically open(..., O_WRONLY | length == 0 ? O_TRUNC : 0) && ftruncate(). */
+  FileUsageUpdate update =
+       FileUsageUpdate::get_from_open_params(name, O_WRONLY | (length == 0 ? O_TRUNC : 0), 0,
+                                             error, false);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register truncate() on", *name);
+    return -1;
+  }
+  /* ftruncate() doesn't change the file's existence or type, no need to register anything else. */
+
   return 0;
 }
 
