@@ -496,6 +496,12 @@ class Process {
                          const int fd0, const int fd1, const int error);
 
   /**
+   * Handle mkfifo() in the monitored process
+   */
+  int handle_mkfifo(const char * const pathname, const size_t pathname_len,
+                    const mode_t mode, const int error);
+
+  /**
    * Handle connect() in the monitored process
    */
   void handle_connect(const int sockfd, const char * const address, const size_t address_len,

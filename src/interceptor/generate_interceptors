@@ -2025,7 +2025,9 @@ generate("int", ["mknodat", "SYS_mknodat"], "int dirfd, const char *path, mode_t
 
 # Disable shortcutting on mkfifo
 generate("int", "mkfifo", "const char *pathname, mode_t mode",
-         tpl="once")
+         msg_skip_fields=["pathname"],
+         msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(mkfifo, pathname);"])
+
 generate("int", "mkfifoat", "int dirfd, const char *pathname, mode_t mode",
          platforms=['linux'],
          tpl="once")

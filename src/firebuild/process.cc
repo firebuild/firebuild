@@ -1187,6 +1187,36 @@ void Process::handle_socketpair(const int domain, const int type, const int prot
   }
 }
 
+int  Process::handle_mkfifo(const char * pathname, const size_t length,
+                            const mode_t mode, const int error) {
+  TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "pathname=%s, mode=%d, error=%d",
+         D(pathname), mode, error);
+
+  const FileName* name = get_absolute(AT_FDCWD, pathname, length);
+  if (!name) {
+    exec_point()->disable_shortcutting_bubble_up("Could not find file to create with mkfifo()");
+    return -1;
+  }
+
+  FileUsageUpdate update =
+      FileUsageUpdate::get_from_open_params(name, O_RDWR | O_CREAT | O_EXCL, mode, error, true);
+  if (!exec_point()->register_file_usage_update(name, update)) {
+    exec_point()->disable_shortcutting_bubble_up("Could not register mkfifo() on", *name);
+    return -1;
+  }
+
+  if (quirks & FB_QUIRK_LTO_WRAPPER && exec_point()->args().size() > 0
+      && exec_point()->args()[0] == "make"
+      && parent_exec_point()
+      && parent_exec_point()->executable()->without_dirs() == "lto-wrapper" ) {
+    FB_DEBUG(FB_DEBUG_PROC,
+             "Allow shortcutting mkfifo() in lto-wrapper's make (lto-wrapper quirk)");
+    return 0;
+  }
+  exec_point()->disable_shortcutting_bubble_up("mkfifo() is not supported");
+  return 0;
+}
+
 void Process::handle_connect(const int sockfd, const char * const address, const size_t address_len,
                              const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this, "sockfd=%d, address=%s, error=%d",

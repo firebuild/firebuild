@@ -946,6 +946,12 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("mkfifo", [
+      (REQUIRED, STRING, "pathname"),
+      (REQUIRED, "mode_t", "mode"),
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("statfs", [
       (OPTIONAL, STRING, "pathname"),
       (OPTIONAL, "int", "error_no"),

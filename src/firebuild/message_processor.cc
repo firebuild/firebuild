@@ -1259,6 +1259,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       PFBBA_HANDLE(proc, socketpair, fbbcomm_buf);
       break;
     }
+    case FBBCOMM_TAG_mkfifo: {
+      PFBBA_HANDLE(proc, mkfifo, fbbcomm_buf);
+      break;
+    }
     case FBBCOMM_TAG_connect: {
       PFBBA_HANDLE(proc, connect, fbbcomm_buf);
       break;
