@@ -71,40 +71,16 @@
        * the file descriptor as ancillary data (SCM_RIGHTS).
        * The real data we're expecting to arrive is the usual message header
        * followed by a serialized FBB "popen_fd" message. */
-      msg_header sv_msg_hdr;
-      uint64_t sv_msg_buf[8];  /* Should be large enough for the serialized "popen_fd" message. */
 
-      /* Read the header. */
-#ifndef NDEBUG
-      ssize_t received =
-#endif
-          fb_read(fb_sv_conn, &sv_msg_hdr, sizeof(sv_msg_hdr));
-      assert(received == sizeof(sv_msg_hdr));
-      assert(sv_msg_hdr.ack_id == 0);  // FIXME maybe send a real ack_id
-
-      /* Taken from cmsg(3). */
-      union {  /* Ancillary data buffer, wrapped in a union
-                  in order to ensure it is suitably aligned */
-        char buf[CMSG_SPACE(1 * sizeof(int))];
-        struct cmsghdr align;
-      } u = { 0 };
-
-      struct iovec iov = { 0 };
-      iov.iov_base = sv_msg_buf;
-      iov.iov_len = sv_msg_hdr.msg_size;
-
-      struct msghdr msgh = { 0 };
-      msgh.msg_iov = &iov;
-      msgh.msg_iovlen = 1;
-      msgh.msg_control = u.buf;
-      msgh.msg_controllen = sizeof(u.buf);
+      FBBCOMM_READ_MSG_HEADER_AND_ALLOC_BODY(fb_sv_conn, sv_msg_hdr, sv_msg_buf);
+      FBBCOMM_CREATE_RECVMSG_HEADER(msgh, sv_msg_hdr, sv_msg_buf, 1);
 
       /* Read the payload, with the attached fd as ancillary data.
        *
        * The supervisor places this in the socket as an atomic step when the queue is almost empty,
        * so we don't expect a short read. However, a signal interrupt might occur. */
 #ifndef NDEBUG
-      received =
+      ssize_t received =
 #endif
           TEMP_FAILURE_RETRY(
 #if defined(_TIME_BITS) && (_TIME_BITS == 64)

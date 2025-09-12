@@ -342,6 +342,54 @@ static inline bool ic_cwd_ok() {
 #define BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(msg, dirfd, field)   \
   BUILDER_SET_CANONICAL2(msg, field, (dirfd == AT_FDCWD));
 
+#define FBBCOMM_READ_MSG_HEADER_AND_ALLOC_BODY(conn, header, msg_body)  \
+  msg_header header;                                                    \
+  fb_read(conn, &header, sizeof(header));                               \
+  assert(header.msg_size > 0);                                          \
+  FBBCOMM_Serialized *msg_body = alloca(header.msg_size)
+
+#define FBBCOMM_CREATE_RECVMSG_HEADER_COMMON(recvmsg_hdr, sv_msg_hdr, sv_msg_buf, fd_cnt, \
+                                             ctrl_buf, ctrl_len)        \
+  struct iovec iov = { 0 };                                             \
+  iov.iov_base = sv_msg_buf;                                            \
+  iov.iov_len = sv_msg_hdr.msg_size;                                    \
+                                                                        \
+  struct msghdr recvmsg_hdr = { 0 };                                    \
+  recvmsg_hdr.msg_iov = &iov;                                           \
+  recvmsg_hdr.msg_iovlen = 1;                                           \
+  recvmsg_hdr.msg_control = ctrl_buf;                                   \
+  recvmsg_hdr.msg_controllen = ctrl_len
+
+#define FBBCOMM_CREATE_RECVMSG_HEADER(recvmsg_hdr, sv_msg_hdr, sv_msg_buf, fd_count) \
+  union {                                                               \
+    char buf[CMSG_SPACE(fd_count * sizeof(int))];                       \
+    struct cmsghdr align;                                               \
+  } u = {};                                                             \
+  FBBCOMM_CREATE_RECVMSG_HEADER_COMMON(recvmsg_hdr, sv_msg_hdr, sv_msg_buf, fd_count, u.buf, \
+                                       sizeof(u.buf))
+/** FBBCOMM_CREATE_RECVMSG_HEADER() variant, where fd_count is not known at compile time. */
+#define FBBCOMM_CREATE_RECVMSG_HEADER_VAR_FD_COUNT(recvmsg_hdr, sv_msg_hdr, sv_msg_buf, fd_count) \
+  void *anc_buf = NULL;                                                 \
+  size_t anc_buf_size = 0;                                              \
+  if (fd_count > 0) {                                                   \
+    anc_buf_size = CMSG_SPACE(fd_count * sizeof(int));                  \
+    anc_buf = alloca(anc_buf_size);                                     \
+  memset(anc_buf, 0, anc_buf_size);                                     \
+  }                                                                     \
+  FBBCOMM_CREATE_RECVMSG_HEADER_COMMON(recvmsg_hdr, sv_msg_hdr, sv_msg_buf, fd_count, anc_buf, \
+                                       anc_buf_size)
+
+#if defined(_TIME_BITS) && (_TIME_BITS == 64)
+#define IC_ORIG_RECVMSG get_ic_orig___recvmsg64()
+#else
+#define IC_ORIG_RECVMSG get_ic_orig_recvmsg()
+#endif
+
+#define FBBCOMM_RECVMSG(tag, sv_msg, sv_msg_buf, conn, recvmsg_hdr, flags) \
+  TEMP_FAILURE_RETRY(IC_ORIG_RECVMSG(fb_sv_conn, &recvmsg_hdr, flags)); \
+  assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_##tag); \
+  FBBCOMM_Serialized_##tag *sv_msg = (FBBCOMM_Serialized_##tag *) sv_msg_buf
+
 typedef struct {
   /** The method name the current thread is intercepting, or NULL. In case of nested interceptions
    *  (which can happen with signal handlers), it contains the outermost intercepted method. The

@@ -38,33 +38,8 @@
      * the file descriptors as ancillary data (SCM_RIGHTS).
      * The real data we're expecting to arrive is the usual message header
      * followed by a serialized FBB "pipe_created" message. */
-    msg_header sv_msg_hdr;
-    uint64_t sv_msg_buf[8];  /* Should be large enough for the serialized "pipe_created" message. */
-
-    /* Read the header. */
-#ifndef NDEBUG
-    ssize_t received =
-#endif
-        fb_read(fb_sv_conn, &sv_msg_hdr, sizeof(sv_msg_hdr));
-    assert(received == sizeof(sv_msg_hdr));
-    assert(sv_msg_hdr.ack_id == 0);  // FIXME maybe send a real ack_id
-
-    /* Taken from cmsg(3). */
-    union {  /* Ancillary data buffer, wrapped in a union
-                in order to ensure it is suitably aligned */
-      char buf[CMSG_SPACE(2 * sizeof(int))];
-      struct cmsghdr align;
-    } u = { 0 };
-
-    struct iovec iov = { 0 };
-    iov.iov_base = sv_msg_buf;
-    iov.iov_len = sv_msg_hdr.msg_size;
-
-    struct msghdr msgh = { 0 };
-    msgh.msg_iov = &iov;
-    msgh.msg_iovlen = 1;
-    msgh.msg_control = u.buf;
-    msgh.msg_controllen = sizeof(u.buf);
+    FBBCOMM_READ_MSG_HEADER_AND_ALLOC_BODY(fb_sv_conn, sv_msg_hdr, sv_msg_buf);
+    FBBCOMM_CREATE_RECVMSG_HEADER(msgh, sv_msg_hdr, sv_msg_buf, 2);
 
     /* Read the payload, with possibly two attached fds as ancillary data.
      *
@@ -78,22 +53,10 @@
  * missing, too. */
 #define MSG_CMSG_CLOEXEC 0
 ###   endif
-#ifndef NDEBUG
-    received =
-#endif
-        TEMP_FAILURE_RETRY(
-#if defined(_TIME_BITS) && (_TIME_BITS == 64)
-            get_ic_orig___recvmsg64()(
-#else
-            get_ic_orig_recvmsg()(
-#endif
-                fb_sv_conn, &msgh, (flags & O_CLOEXEC) ? MSG_CMSG_CLOEXEC : 0));
-    assert(received >= 0 && received == (ssize_t)sv_msg_hdr.msg_size);
-    assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_pipe_created);
-
+    FBBCOMM_RECVMSG(pipe_created, sv_msg, sv_msg_buf, fb_sv_conn, msgh,
+                    (flags & O_CLOEXEC) ? MSG_CMSG_CLOEXEC : 0);
     thread_signal_danger_zone_leave();
 
-    FBBCOMM_Serialized_pipe_created *sv_msg = (FBBCOMM_Serialized_pipe_created *) sv_msg_buf;
     if (fbbcomm_serialized_pipe_created_has_error_no(sv_msg)) {
       /* Supervisor reported an error. */
       assert(sv_msg_hdr.fd_count == 0);
