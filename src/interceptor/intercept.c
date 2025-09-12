@@ -1232,44 +1232,15 @@ void fb_ic_init() {
 
   fb_send_msg(fb_sv_conn, &ic_msg, 0);
 
-  /* Read the scproc_resp message header. */
-  msg_header header;
-#ifndef NDEBUG
-  ssize_t ret =
-#endif
-      fb_read(fb_sv_conn, &header, sizeof(header));
-  assert(ret == sizeof(header));
-  assert(header.msg_size > 0);
+  FBBCOMM_READ_MSG_HEADER_AND_ALLOC_BODY(fb_sv_conn, header, sv_msg_generic);
   uint16_t fd_count = header.fd_count;
-
-  /* Read the scproc_resp message body.
-   *
-   * This message may have file descriptors attached as ancillary data. */
-  FBBCOMM_Serialized *sv_msg_generic = alloca(header.msg_size);
-
-  void *anc_buf = NULL;
-  size_t anc_buf_size = 0;
-  if (fd_count > 0) {
-    anc_buf_size = CMSG_SPACE(fd_count * sizeof(int));
-    anc_buf = alloca(anc_buf_size);
-    memset(anc_buf, 0, anc_buf_size);
-  }
-
-  struct iovec iov = { 0 };
-  iov.iov_base = sv_msg_generic;
-  iov.iov_len = header.msg_size;
-
-  struct msghdr msgh = { 0 };
-  msgh.msg_iov = &iov;
-  msgh.msg_iovlen = 1;
-  msgh.msg_control = anc_buf;
-  msgh.msg_controllen = anc_buf_size;
+  FBBCOMM_CREATE_RECVMSG_HEADER_VAR_FD_COUNT(msgh, header, sv_msg_generic, fd_count);
 
   /* This is the first message arriving on the socket, and it's reasonably small.
    * We can safely expect that the header and the payload are fully available (no short read).
    * However, a signal interrupt might occur. */
 #ifndef NDEBUG
-  ret =
+  ssize_t ret =
 #endif
       TEMP_FAILURE_RETRY(
 #if defined(_TIME_BITS) && (_TIME_BITS == 64)
