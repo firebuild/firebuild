@@ -52,18 +52,20 @@ int main(int argc, char *argv[]) {
   /* This clone can be intercepted. */
   int ret = clone(child, stack_top, CLONE_VFORK|SIGCHLD, &argv[1]);
   if (ret == -1) {
-    errno = ret;
     perror("clone");
     return 1;
   }
-  /* This one disables interception. */
-  ret = clone(child, stack_top, CLONE_PTRACE|SIGCHLD, &argv[1]);
-  if (ret == -1) {
-    errno = ret;
-    perror("clone");
+  if (waitpid(ret, NULL, 0) < 0) {
+    perror("waitpid");
     return 1;
   }
 
+  /* This one disables interception. */
+  ret = clone(child, stack_top, CLONE_PTRACE|SIGCHLD, &argv[1]);
+  if (ret == -1) {
+    perror("clone");
+    return 1;
+  }
   if (waitpid(ret, NULL, 0) < 0) {
     perror("waitpid");
     return 1;
