@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - master
+  schedule:
+    - cron: '10 4 * * 1'
 
 env:
   BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
