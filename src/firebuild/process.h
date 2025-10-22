@@ -238,6 +238,9 @@ class Process {
    */
   const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length) const;
 
+  /** This is a qemu-user process. */
+  bool is_qemu() const;
+
   /**
    * Handle preparation for file opening in the monitored process
    * @param dirfd the dirfd of openat(), or AT_FDCWD
