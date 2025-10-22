@@ -451,6 +451,11 @@ static void proc_new_process_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t
       assert_cmp(parent->state(), !=, FB_PROC_FINALIZED);
       if (parent->state() == FB_PROC_TERMINATED) {
         fds = parent->pass_on_fds();
+      } else if (parent->is_qemu()) {
+        /* This is a very special case. The parent is not terminated yet, but emulated an exec()
+         * of a dynamically linked binary inside the process. */
+        fds = parent->pass_on_fds();
+        // TODO(rbalint) maybe terminate parent?
       } else {
         /* Queue the ExecedProcess until parent's connection is closed */
         fds = new std::vector<std::shared_ptr<FileFD>>();

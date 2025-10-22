@@ -188,6 +188,11 @@ void Process::AddPopenedProcess(int fd, ExecedProcess *proc) {
   fd2popen_child_[fd] = proc;
 }
 
+bool Process::is_qemu() const {
+  const ExecedProcess* exec_point_cached = exec_point();
+  return exec_point_cached && exec_point_cached->executable()->without_dirs().starts_with("qemu-");
+}
+
 int Process::handle_pre_open(const int dirfd, const char * const ar_name, const size_t ar_len) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "dirfd=%d, ar_name=%s", dirfd, D(ar_name));

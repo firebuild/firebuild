@@ -64,12 +64,25 @@ ExecedProcess::ExecedProcess(const int pid, const int ppid,
          pid, ppid, D(initial_wd), D(executable), umask, D(parent));
 
   if (parent) {
-    assert(parent->state() == FB_PROC_TERMINATED);
-    /* add as exec child of parent */
-    fork_point_ = parent->fork_point();
-    parent->set_exec_pending(false);
-    parent->reset_file_fd_pipe_refs();
-    parent->set_exec_child(this);
+    if (parent->state() != FB_PROC_TERMINATED) {
+      if (parent->is_qemu()) {
+        /* This is a very special case. The parent is not terminated yet, but emulated an exec()
+         * of a dynamically linked binary inside the process. */
+        fork_point_ = parent->fork_point();
+        /* set_exec_pending(false) is not called because the interceptor did not register the
+         * emulated exec(). */
+        parent->reset_file_fd_pipe_refs();
+        parent->set_exec_child(this);
+      } else {
+        assert(parent->state() == FB_PROC_TERMINATED);
+      }
+    } else {
+      /* add as exec child of parent */
+      fork_point_ = parent->fork_point();
+      parent->set_exec_pending(false);
+      parent->reset_file_fd_pipe_refs();
+      parent->set_exec_child(this);
+    }
   }
 }
 ExecedProcess* ExecedProcess::common_exec_ancestor(ExecedProcess* other) {
