@@ -38,6 +38,7 @@
 #include <stdexcept>
 #include <libconfig.h++>
 
+#include "common/config.h"
 #include "firebuild/debug.h"
 #include "firebuild/sigchild_callback.h"
 #include "firebuild/config.h"

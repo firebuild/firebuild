@@ -70,12 +70,10 @@ endif()
 
 # dynamic library handling
 if (APPLE)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLD_PRELOAD=\\\"DYLD_INSERT_LIBRARIES\\\"")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLD_PRELOAD=\\\"DYLD_INSERT_LIBRARIES\\\"")
+  set(LD_PRELOAD "DYLD_INSERT_LIBRARIES")
   set(LIBFIREBUILD_SO "libfirebuild.dylib")
 else()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DLD_PRELOAD=\\\"LD_PRELOAD\\\"")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLD_PRELOAD=\\\"LD_PRELOAD\\\"")
+  set(LD_PRELOAD "LD_PRELOAD")
   set(LIBFIREBUILD_SO "libfirebuild.so")
 endif()
 
@@ -101,7 +99,6 @@ if (SANITIZE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined")
 endif()
 
-add_definitions(-DFIREBUILD_DATADIR="${DATADIR}" -DLIBFIREBUILD_SO="${LIBFIREBUILD_SO}" -DSYSCONFDIR="${CMAKE_INSTALL_FULL_SYSCONFDIR}")
 if (ENABLE_XXH_INLINE_ALL)
   add_definitions(-DXXH_INLINE_ALL)
 endif()

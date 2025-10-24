@@ -31,6 +31,7 @@
 #include <utility>
 #include <vector>
 
+#include "common/config.h"
 #include "common/firebuild_common.h"
 #include "firebuild/config.h"
 #include "firebuild/debug.h"
