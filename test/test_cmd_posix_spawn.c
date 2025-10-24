@@ -58,9 +58,8 @@ int main(int argc, char *argv[]) {
   posix_spawn_file_actions_adddup2(&file_actions, 97, 98);
   posix_spawn_file_actions_adddup2(&file_actions, 1, 1);
   posix_spawn_file_actions_addclose(&file_actions, 97);
-#if __GLIBC_PREREQ(2, 29) || defined(__APPLE__)
+#if __GLIBC_PREREQ(2, 29)
   posix_spawn_file_actions_addchdir_np(&file_actions, ".");
-  /* This call fails on macOS when using an fd opened by the posix spawn file actions. */
   posix_spawn_file_actions_addfchdir_np(&file_actions,
 #ifdef __APPLE__
                                         open(".", O_RDONLY, 0));
