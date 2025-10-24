@@ -2120,11 +2120,13 @@ generate("int", "posix_spawn_file_actions_adddup2", "posix_spawn_file_actions_t 
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addchdir_np", "posix_spawn_file_actions_t *file_actions, const char *pathname",
-         ifdef_guard=glibc_ge(2, 29) + " || defined(__APPLE__)",
+         platforms=['linux'],
+         ifdef_guard=glibc_ge(2, 29),
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addfchdir_np", "posix_spawn_file_actions_t *file_actions, int fd",
-         ifdef_guard=glibc_ge(2, 29) + " || defined(__APPLE__)",
+         platforms=['linux'],
+         ifdef_guard=glibc_ge(2, 29),
          tpl="posix_spawn_file_actions",
          success="ret == 0")
 generate("int", "posix_spawn_file_actions_addinherit_np", "posix_spawn_file_actions_t *file_actions, int filedes",
