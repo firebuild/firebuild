@@ -37,6 +37,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "common/config.h"
 #include "common/firebuild_common.h"
 #include "common/platform.h"
 #include "firebuild/debug.h"

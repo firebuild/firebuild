@@ -29,3 +29,5 @@ add_dependencies(fbbcomm_cc fbbcomm_gen_files)
 
 add_subdirectory(interceptor)
 add_subdirectory(firebuild)
+
+configure_file(${CMAKE_SOURCE_DIR}/src/common/config.h.in ${CMAKE_BINARY_DIR}/src/common/config.h @ONLY)

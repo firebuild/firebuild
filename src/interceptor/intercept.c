@@ -36,6 +36,7 @@
 #include <sys/resource.h>
 #include <spawn.h>
 
+#include "common/config.h"
 #include "interceptor/env.h"
 #include "interceptor/ic_file_ops.h"
 #include "interceptor/interceptors.h"

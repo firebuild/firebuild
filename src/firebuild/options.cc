@@ -18,8 +18,10 @@
 
 #include <getopt.h>
 
-#include "firebuild/debug.h"
 #include "firebuild/options.h"
+
+#include "common/config.h"
+#include "firebuild/debug.h"
 
 namespace firebuild {
 
