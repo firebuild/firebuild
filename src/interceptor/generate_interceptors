@@ -387,16 +387,16 @@ def generate(rettype, funcs, sig, **dict):
       return
 
   if 'tpl' not in dict:
-    dict['tpl'] = 'tpl.c'
+    dict['tpl'] = 'tpl.c.jinja2'
   else:
-    dict['tpl'] = 'tpl_' + dict['tpl'] + '.c'
+    dict['tpl'] = 'tpl_' + dict['tpl'] + '.c.jinja2'
   template = env.get_template(dict['tpl'])
 
   dict['target'] = target
 
   if 'msg' not in dict:
     candidate = funcs[0]
-    if dict['tpl'] == 'tpl_once.c':
+    if dict['tpl'] == 'tpl_once.c.jinja2':
       candidate = 'gen_call'
     if candidate.startswith("__"):
       candidate = candidate.lstrip("_")
@@ -1721,7 +1721,7 @@ generate("int", "lockf64", "int fd, int cmd, off64_t len",
          msg="lockf")
 
 # Intercept fcntl and fcntl64
-# The return value is selectively set from tpl_fcntl.c for certain commands.
+# The return value is selectively set from tpl_fcntl.c.jinja2 for certain commands.
 for func_guard in [(["fcntl", "SYS_fcntl64", "SYS_fcntl", "__fcntl", "__fcntl_time64"], None),
                    ("fcntl64", glibc_ge(2, 28))]:
   (func, ifdef_guard) = func_guard
@@ -2082,7 +2082,7 @@ generate("FILE *", "popen", "const char *cmd, const char *type",
          tpl="popen")
 generate("int", "pclose", "FILE *stream",
          tpl="pclose",
-         # Maybe we pclose() an fopen()ed file, in that case send the "close" message (from tpl_pclose.c)
+         # Maybe we pclose() an fopen()ed file, in that case send the "close" message (from tpl_pclose.c.jinja2)
          # but don't send the "pclose" message. See #642 for more info.
          send_msg_condition="was_popened && (success || (errno != EINTR && errno != EFAULT))",
          msg_skip_fields=["stream"],

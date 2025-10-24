@@ -443,7 +443,7 @@ bool signal_is_wrappable(int);
 /** When a signal handler is installed using signal(), sigset(), or sigaction() without the
  *  SA_SIGINFO flag, this wrapper gets installed instead.
  *
- *  See tpl_signal.c for how this wrapper is installed instead of the actual handler.
+ *  See tpl_signal.c.jinja2 for how this wrapper is installed instead of the actual handler.
  *
  *  This wrapper makes sure that the actual signal handler is only executed straight away if the
  *  thread is not inside a "signal danger zone". Otherwise execution is deferred until the danger
