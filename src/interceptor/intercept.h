@@ -269,20 +269,6 @@ extern void insert_end_marker(const char*);
  */
 extern int ic_pid;
 
-/**
- * Make the filename canonical in place.
- *
- * String operation only, does not look at the actual file system.
- * Removes double slashes, trailing slashes (except if the entire path is "/")
- * and "." components.
- * Preserves ".." components, since they might point elsewhere if a symlink led to
- * its containing directory.
- * See #401 for further details and gotchas.
- *
- * Returns the length of the canonicalized path.
- */
-size_t make_canonical(char *path, size_t original_length);
-
 #ifdef FB_EXTRA_DEBUG
 static inline bool ic_cwd_ok() {
   char buf[FB_PATH_BUFSIZE];
@@ -389,6 +375,26 @@ static inline bool ic_cwd_ok() {
   TEMP_FAILURE_RETRY(IC_ORIG_RECVMSG(conn, &recvmsg_hdr, flags)); \
   assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_##tag); \
   FBBCOMM_Serialized_##tag *sv_msg = (FBBCOMM_Serialized_##tag *) sv_msg_buf
+
+#define FBBCOMM_ALLOC_AND_RECVMSG(tag_name, sv_msg, conn)          \
+  FBBCOMM_READ_MSG_HEADER_AND_ALLOC_BODY(conn, sv_msg_hdr, sv_msg_buf); \
+  FBBCOMM_CREATE_RECVMSG_HEADER(msgh, sv_msg_hdr, sv_msg_buf, 0);       \
+  FBBCOMM_RECVMSG(tag_name, sv_msg, sv_msg_buf, conn, msgh, 0)
+
+#define FBBCOMM_ALLOC_AND_REWRITE_ARGS(sv_msg, new_argv, argv)               \
+  unsigned int new_argc = fbbcomm_serialized_rewritten_args_get_arg_count(sv_msg); \
+  if (new_argc > 0) {                                                   \
+    unsigned int i;                                                     \
+    /* Rebuild argv on the stack */                                     \
+    new_argv = alloca(sizeof(char *) * (new_argc + 1));                 \
+    for (i = 0; i < new_argc; i++) {                                    \
+      new_argv[i] = (char *) fbbcomm_serialized_rewritten_args_get_arg_at(sv_msg, i); \
+    }                                                                   \
+    new_argv[new_argc] = NULL;                                          \
+  } else {                                                              \
+    /* No change */                                                     \
+    new_argv = (char **)argv;                                           \
+  }
 
 typedef struct {
   /** The method name the current thread is intercepting, or NULL. In case of nested interceptions

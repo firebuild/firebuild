@@ -116,6 +116,20 @@ bool is_path_at_locations(const char *path, const ssize_t len,
  */
 bool is_canonical(const char * const path, const size_t length);
 
+/**
+ * Make the filename canonical in place.
+ *
+ * String operation only, does not look at the actual file system.
+ * Removes double slashes, trailing slashes (except if the entire path is "/")
+ * and "." components.
+ * Preserves ".." components, since they might point elsewhere if a symlink led to
+ * its containing directory.
+ * See #401 for further details and gotchas.
+ *
+ * Returns the length of the canonicalized path.
+ */
+size_t make_canonical(char *path, size_t original_length);
+
 static inline bool is_rdonly(int flags) { return ((flags & O_ACCMODE) == O_RDONLY); }
 static inline bool is_wronly(int flags) { return ((flags & O_ACCMODE) == O_WRONLY); }
 static inline bool is_rdwr(int flags)   { return ((flags & O_ACCMODE) == O_RDWR); }

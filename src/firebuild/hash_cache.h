@@ -118,6 +118,11 @@ class HashCache {
    */
   bool file_info_matches(const FileName *path, const FileInfo& query);
 
+  /** Resolve a command on the PATH */
+  const FileName* resolve_command(const char* cmd, size_t cmd_len,
+                                  const char* path, size_t path_len, const FileName* cwd);
+
+
  private:
   tsl::hopscotch_map<const FileName*, HashCacheEntry> db_ = {};
 

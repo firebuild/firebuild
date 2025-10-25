@@ -635,13 +635,22 @@
       # envp[]
       (ARRAY, STRING, "env"),
       # true, in case of execvp()/execvpe()
-      (OPTIONAL, "bool", "with_p"),
+      (REQUIRED, "bool", "with_p"),
       # PATH, or confstr(_CS_PATH) if PATH is not set
       (OPTIONAL, STRING, "path"),
       # user CPU time in microseconds since last exec()
       (REQUIRED, "int64_t", "utime_u"),
       # system CPU time in microseconds since laste exec()
       (REQUIRED, "int64_t", "stime_u"),
+    ]),
+
+    # To be sent from the supervisor when the interceptor has to rewrite
+    # the arguments to be executed.
+    ("rewritten_args", [
+      # argv[]
+      (ARRAY, STRING, "arg"),
+      # file to execute in case of fexecve() and friends
+      (OPTIONAL, STRING, "path")
     ]),
 
     ("exec_failed", [
@@ -759,8 +768,8 @@
       # posix_spawn_file_actions_t, each action is an FBB message of one of
       # posix_spawn_file_action_*
       (ARRAY, FBB, "file_actions"),
-      # spawn or spawnp
-      (REQUIRED, "bool", "is_spawnp"),
+      # true, in case of spawnp()
+      (REQUIRED, "bool", "with_p"),
       # user CPU time in microseconds since last exec() if POSIX_SPAWN_SETEXEC is set
       (OPTIONAL, "int64_t", "utime_u"),
       # system CPU time in microseconds since laste exec() if POSIX_SPAWN_SETEXEC is set

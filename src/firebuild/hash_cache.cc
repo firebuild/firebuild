@@ -393,6 +393,79 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
   return entry->info.hash() == query.hash();
 }
 
+const FileName* HashCache::resolve_command(const char* cmd, size_t cmd_len,
+                                          const char* path, size_t path_len, const FileName* wd) {
+  TRACK(FB_DEBUG_PROC, "cmd=%s, path=%s", D(cmd), D(path));
+
+  size_t candidate_buf_size = path_len + 1 + cmd_len + 1;
+  char* candidate_buf = static_cast<char*>(alloca(candidate_buf_size));
+  size_t candidate_len = 0;
+  assert(!path_is_absolute(cmd));
+  if (cmd_len == 0 || !path) {
+    /* Not a command to resolve on PATH or PATH is null. */
+    return nullptr;
+  }
+
+  const char *cursor = path;
+  while (true) {
+    const char *colon = strchr(cursor, ':');
+    if (colon == nullptr) {
+      candidate_len = path_len - (cursor - path);
+    } else {
+      candidate_len = colon - cursor;
+    }
+    memcpy(candidate_buf, cursor, candidate_len);
+    candidate_buf[candidate_len] = '\0';
+    // TODO(rbalint) this is not very efficient, consider caching canonical paths
+    // luckily this is not called that often
+    if (!is_canonical(candidate_buf, candidate_len)) {
+      size_t new_len = make_canonical(candidate_buf, candidate_len);
+      candidate_len = new_len;
+    }
+    candidate_buf[candidate_len] = '/';
+    memcpy(candidate_buf + candidate_len + 1, cmd, cmd_len);
+    candidate_buf[candidate_len + 1 + cmd_len] = '\0';
+    candidate_len += 1 + cmd_len;
+
+    if (!path_is_absolute(candidate_buf)) {
+      /* Make it absolute based on the working directory. */
+      if (!wd) {
+        /* Cannot resolve relative path without a working directory. */
+        if (colon == nullptr) {
+          break;
+        } else {
+          cursor = colon + 1;
+          continue;
+        }
+      }
+      const size_t wd_len = wd->length();
+      const size_t new_candidate_len = wd_len + 1 + candidate_len;
+      if (new_candidate_len + 1 > candidate_buf_size) {
+        char* candidate_buf2 = static_cast<char*>(alloca(new_candidate_len + 1));
+        memcpy(candidate_buf2, candidate_buf, candidate_len + 1);
+        candidate_buf = candidate_buf2;
+        /* candidate_buf_size is not valid anymore, but not used either. */
+      }
+      memmove(candidate_buf + wd_len + 1, candidate_buf, candidate_len + 1);
+      memcpy(candidate_buf, wd->c_str(), wd_len);
+      candidate_buf[wd_len] = '/';
+      candidate_len += wd_len + 1;
+    }
+    const FileName* candidate = FileName::Get(candidate_buf, candidate_len);
+    bool is_directory = false;
+    if (this->get_statinfo(candidate, &is_directory, nullptr)) {
+      if (!is_directory) {
+        return candidate;
+      }
+    }
+    if (colon == nullptr) {
+      break;
+    }
+    cursor = colon + 1;
+  }
+  return nullptr;
+}
+
 const HashCacheEntry HashCache::notexist_ {FileInfo(NOTEXIST)};
 const HashCacheEntry HashCache::dontknow_ {FileInfo(DONTKNOW)};
 
