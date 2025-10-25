@@ -386,7 +386,7 @@ static inline bool ic_cwd_ok() {
 #endif
 
 #define FBBCOMM_RECVMSG(tag, sv_msg, sv_msg_buf, conn, recvmsg_hdr, flags) \
-  TEMP_FAILURE_RETRY(IC_ORIG_RECVMSG(fb_sv_conn, &recvmsg_hdr, flags)); \
+  TEMP_FAILURE_RETRY(IC_ORIG_RECVMSG(conn, &recvmsg_hdr, flags)); \
   assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_##tag); \
   FBBCOMM_Serialized_##tag *sv_msg = (FBBCOMM_Serialized_##tag *) sv_msg_buf
 
