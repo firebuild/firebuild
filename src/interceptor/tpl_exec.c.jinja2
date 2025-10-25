@@ -64,12 +64,18 @@
     env_fixed_up = (void *) envp;
   }
 
+  char **new_argv;
+  const char *new_file;
   if (i_am_intercepting) {
     /* Notify the supervisor before the call */
     FBBCOMM_Builder_exec ic_msg;
     fbbcomm_builder_exec_init(&ic_msg);
 ###   if not f
+###    if p
     fbbcomm_builder_exec_set_file(&ic_msg, file);
+###    else
+    BUILDER_SET_CANONICAL(exec, file);
+###    endif
 ###   else
     /* Set for fexec*() */
     fbbcomm_builder_exec_set_fd(&ic_msg, fd);
@@ -99,6 +105,8 @@
       get_ic_orig_confstr()(_CS_PATH, path_confstr, confstr_buf_len);
       fbbcomm_builder_exec_set_path(&ic_msg, path_confstr);
     }
+###   else
+    fbbcomm_builder_exec_set_with_p(&ic_msg, false);
 ###   endif
 
     /* Command line arguments */
@@ -116,7 +124,31 @@
     fbbcomm_builder_exec_set_stime_u(&ic_msg,
         (int64_t)ru.ru_stime.tv_sec * 1000000 + (int64_t)ru.ru_stime.tv_usec);
 
-    fb_fbbcomm_send_msg_and_check_ack(&ic_msg, fb_sv_conn);
+    fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
+    FBBCOMM_ALLOC_AND_RECVMSG(rewritten_args, sv_msg, fb_sv_conn);
+    FBBCOMM_ALLOC_AND_REWRITE_ARGS(sv_msg, new_argv, argv);
+    if (fbbcomm_serialized_rewritten_args_has_path(sv_msg)) {
+      /* For fexecve(), the supervisor may suggest a path to use for
+       * resolving the fd to an executable file. */
+      new_file = fbbcomm_serialized_rewritten_args_get_path(sv_msg);
+###   if f
+      /* Open the new_file to get a file descriptor copying the original fd's flags */
+      int fd_cloexec_flag = get_ic_orig_fcntl()(fd, F_GETFD);
+      assert(fd_cloexec_flag != -1);
+      int new_fd = get_ic_orig_openat()(AT_FDCWD, new_file, O_RDONLY, 0);
+      assert(new_fd != -1);
+      get_ic_orig_dup2()(new_fd, fd);
+      get_ic_orig_fcntl()(fd, F_SETFD, fd_cloexec_flag);
+###   else
+    } else {
+      new_file = file;
+###   endif
+    }
+  } else {
+    new_argv = (char **)argv;
+###   if not f
+    new_file = file;
+###   endif
   }
 
   /* Perform the call. */
@@ -139,7 +171,7 @@
   char **env_saved = environ;
   environ = env_fixed_up;
 ###   endif
-  ret = {{ call_ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}file{% endif %}, argv{% if not ic_orig_func == "ic_orig_execvp" %}, env_fixed_up{% endif %}{% if at %}, flags{% endif %});
+  ret = {{ call_ic_orig_func }}({% if at %}dirfd, {% endif %}{% if f %}fd{% else %}new_file{% endif %}, new_argv{% if not ic_orig_func == "ic_orig_execvp" %}, env_fixed_up{% endif %}{% if at %}, flags{% endif %});
 ###   if ic_orig_func == "ic_orig_execvp"
  environ = env_saved;
 ###   endif

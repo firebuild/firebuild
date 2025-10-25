@@ -33,14 +33,17 @@
 
 #include "common/config.h"
 #include "common/firebuild_common.h"
+#include "firebuild/command_rewriter.h"
 #include "firebuild/config.h"
 #include "firebuild/debug.h"
 #include "firebuild/connection_context.h"
+#include "firebuild/env.h"
 #include "firebuild/epoll.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_cacher.h"
+#include "firebuild/hash_cache.h"
 #include "firebuild/pipe.h"
 #include "firebuild/pipe_recorder.h"
 #include "firebuild/process.h"
@@ -61,6 +64,21 @@ static void reject_exec_child(int fd_conn) {
     sv_msg.set_shortcut(false);
 
     send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
+}
+
+static void send_maybe_rewritten_cmd(int fd_conn, const FileName* executable,
+                                     std::vector<std::string>* args) {
+  FBBCOMM_Builder_rewritten_args sv_msg;
+  bool rewritten_executable = false;
+  bool rewritten_args = false;
+  CommandRewriter::maybe_rewrite(&executable, args, &rewritten_executable, &rewritten_args);
+  if (rewritten_executable) {
+    sv_msg.set_path(executable->c_str());
+  }
+  if (rewritten_args) {
+    sv_msg.set_arg(*args);
+  }
+  send_fbb(fd_conn, 0, reinterpret_cast<FBBCOMM_Builder *>(&sv_msg));
 }
 
 void MessageProcessor::accept_exec_child(ExecedProcess* proc, int fd_conn,
@@ -734,6 +752,33 @@ static void process_posix_spawn_file_actions(const P * const ic_msg, Process* co
 #endif
 }
 
+template<typename T>
+static const FileName* resolve_command_from_msg(const T* ic_msg, const char* command,
+                                                size_t command_len, Process* proc) {
+  if (ic_msg->get_with_p()) {
+    if (strchr(command, '/')) {
+      /* Resolve relative to current dir. */
+      if (is_canonical(command, command_len)) {
+        return proc->get_absolute(AT_FDCWD, command, command_len);
+      } else {
+        char* canonical_command = static_cast<char*>(alloca(command_len + 1));
+        memcpy(canonical_command, command, command_len + 1);
+        size_t canonical_len = make_canonical(canonical_command, command_len);
+        return proc->get_absolute(AT_FDCWD, canonical_command, canonical_len);
+      }
+    } else {
+      std::vector<std::string> env = ic_msg->get_env_as_vector();
+      size_t path_len = 0;
+      const char* path = Env::get_var(env, "PATH", &path_len);
+      return hash_cache->resolve_command(command, command_len, path, path_len,
+                                         proc->wd());
+    }
+  } else {
+    return proc->get_absolute(AT_FDCWD, command, command_len);
+  }
+}
+
+
 static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
                         int fd_conn, Process* proc) {
   TRACKX(FB_DEBUG_COMM, 1, 1, Process, proc, "fd_conn=%s, tag=%s, ack_num=%d",
@@ -913,7 +958,12 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       /* The actual forked process might perform some file operations according to
        * posix_spawn()'s file_actions. Pre-open the files to be written. */
       posix_spawn_preopen_files(ic_msg, proc);
-      break;
+
+      const FileName* executable = resolve_command_from_msg(ic_msg, ic_msg->get_file(),
+                                                            ic_msg->get_file_len(), proc);
+      std::vector<std::string> args = ic_msg->get_arg_as_vector();
+      send_maybe_rewritten_cmd(fd_conn, executable, &args);
+      return;
     }
     case FBBCOMM_TAG_posix_spawn_parent: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_posix_spawn_parent *>(fbbcomm_buf);
@@ -1033,7 +1083,23 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       proc->update_rusage(ic_msg->get_utime_u(), ic_msg->get_stime_u());
       // FIXME(rbalint) save exec parameters
       proc->set_exec_pending(true);
-      break;
+      const FileName* executable = nullptr;
+      if (ic_msg->has_fd()) {
+        int fd = ic_msg->get_fd();
+        if (fd != -1) {
+          const FileFD* file_fd = proc->get_fd(fd);
+          if (file_fd) {
+            executable = file_fd->filename();
+          }
+        }
+        assert(executable);
+      } else {
+        executable = resolve_command_from_msg(ic_msg, ic_msg->get_file(), ic_msg->get_file_len(),
+                                              proc);
+      }
+      std::vector<std::string> args = ic_msg->get_arg_as_vector();
+      send_maybe_rewritten_cmd(fd_conn, executable, &args);
+      return;
     }
     case FBBCOMM_TAG_pre_open: {
       PFBBA_HANDLE(proc, pre_open, fbbcomm_buf);
