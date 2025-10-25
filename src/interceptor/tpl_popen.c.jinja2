@@ -79,19 +79,8 @@
        *
        * The supervisor places this in the socket as an atomic step when the queue is almost empty,
        * so we don't expect a short read. However, a signal interrupt might occur. */
-#ifndef NDEBUG
-      ssize_t received =
-#endif
-          TEMP_FAILURE_RETRY(
-#if defined(_TIME_BITS) && (_TIME_BITS == 64)
-              get_ic_orig___recvmsg64()(
-#else
-              get_ic_orig_recvmsg()(
-#endif
-                  fb_sv_conn, &msgh, 0));
-      assert(received >= 0 && received == (ssize_t)sv_msg_hdr.msg_size);
-      assert(fbbcomm_serialized_get_tag((FBBCOMM_Serialized *) sv_msg_buf) == FBBCOMM_TAG_popen_fd);
-      assert(sv_msg_hdr.fd_count == 1);
+      FBBCOMM_RECVMSG(popen_fd, sv_msg, sv_msg_buf, fb_sv_conn, msgh, 0);
+      (void)sv_msg;
 
       thread_signal_danger_zone_leave();
 

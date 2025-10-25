@@ -1240,20 +1240,8 @@ void fb_ic_init() {
   /* This is the first message arriving on the socket, and it's reasonably small.
    * We can safely expect that the header and the payload are fully available (no short read).
    * However, a signal interrupt might occur. */
-#ifndef NDEBUG
-  ssize_t ret =
-#endif
-      TEMP_FAILURE_RETRY(
-#if defined(_TIME_BITS) && (_TIME_BITS == 64)
-          get_ic_orig___recvmsg64()(
-#else
-          get_ic_orig_recvmsg()(
-#endif
-              fb_sv_conn, &msgh, 0));
-      assert(ret >= 0 && ret == (ssize_t)header.msg_size);
-  assert(fbbcomm_serialized_get_tag(sv_msg_generic) == FBBCOMM_TAG_scproc_resp);
+  FBBCOMM_RECVMSG(scproc_resp, sv_msg, sv_msg_generic, fb_sv_conn, msgh, 0);
 
-  FBBCOMM_Serialized_scproc_resp *sv_msg = (FBBCOMM_Serialized_scproc_resp *) sv_msg_generic;
   debug_flags = fbbcomm_serialized_scproc_resp_get_debug_flags_with_fallback(sv_msg, 0);
 
   /* we may return immediately if supervisor decides that way */
