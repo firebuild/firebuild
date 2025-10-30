@@ -43,6 +43,7 @@
 #include "firebuild/debug.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
+#include "firebuild/hash_cache.h"
 
 #define GLOBAL_CONFIG SYSCONFDIR"/firebuild.conf"
 #define USER_CONFIG ".firebuild.conf"
@@ -67,6 +68,10 @@ int shortcut_tries = 0;
 int64_t max_cache_size = 0;
 off_t max_entry_size = 0;
 int quirks = 0;
+
+#ifndef __APPLE__
+const FileName* qemu_user = nullptr;
+#endif
 
 /**
  * Parse configuration file
@@ -339,6 +344,14 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
   }
 
   assert(FileName::isDbEmpty());
+
+#ifndef __APPLE__
+  if (cfg->exists("qemu_user")) {
+    libconfig::Setting& qemu_user_cfg = cfg->getRoot()["qemu_user"];
+    qemu_user = FileName::Get(qemu_user_cfg.c_str());
+  }
+#endif
+
   init_locations(&ignore_locations, cfg, "ignore_locations");
   init_locations(&read_only_locations, cfg, "read_only_locations");
   /* The read_only_locations setting used to be called system_locations. */
@@ -590,4 +603,58 @@ char** get_sanitized_env(libconfig::Config *cfg, const char *fb_conn_string,
   return ret_env;
 }
 
+#ifndef __APPLE__
+void detect_qemu_user(const char* path) {
+  assert(hash_cache);
+
+  for (const char* candidate : {"qemu-user-interposable", "qemu-" C_COMPILER_TARGET_ARCH}) {
+    qemu_user = hash_cache->resolve_command(
+        candidate, strlen(candidate), path, strlen(path), nullptr);
+    /* Check if qemu-user binary is dynamically linked as required for intercepting. */
+    if (qemu_user) {
+      bool is_static = false;
+      if (hash_cache->get_is_static(qemu_user, &is_static)) {
+        if (is_static) {
+          fb_error("The qemu-user binary (" + qemu_user->to_string() + ") is statically linked. "
+                  "Firebuild requires a dynamically linked qemu-user binary for interception.");
+          qemu_user = nullptr;
+        }
+      } else {
+        fb_error("Could not stat the qemu-user binary (" + qemu_user->to_string() + ").");
+        qemu_user = nullptr;
+      }
+      /* Check if it supports -libc-syscalls options */
+      if (qemu_user) {
+        std::string qemu_libc_syscalls_check_cmd =
+            qemu_user->to_string() + " -libc-syscalls --version 2>&1";
+        FILE* pipe = popen(qemu_libc_syscalls_check_cmd.c_str(), "r");
+        if (!pipe) {
+          fb_error("Could not run the qemu-user binary (" + qemu_user->to_string() + ").");
+          qemu_user = nullptr;
+        } else {
+          char buffer[1024];
+          std::string result = "";
+          while (fgets(buffer, sizeof(buffer), pipe) != NULL) {
+            result += buffer;
+          }
+          int ret_code = pclose(pipe);
+          if (ret_code != 0 || result.find("-libc-syscalls") != std::string::npos) {
+            fb_error("The qemu-user binary (" + qemu_user->to_string()
+                    + ") does not support the -libc-syscalls option required for interception.");
+            qemu_user = nullptr;
+          }
+        }
+      }
+    }
+    if (qemu_user) {
+      break;
+    }
+  }
+
+  if (FB_DEBUGGING(FB_DEBUG_CONFIG)) {
+    std::cerr << "Using qemu-user binary: "
+              << (qemu_user ? qemu_user->c_str() : "not found") << std::endl;
+  }
+}
+#endif
 }  /* namespace firebuild */

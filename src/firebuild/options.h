@@ -46,6 +46,8 @@ class Options {
   static const char* const * build_cmd() {
     return build_cmd_;
   }
+  static void prepend_to_build_cmd(const char* cmd);
+
   static const std::list<std::string>& config_strings() {
     return *config_strings_;
   }
@@ -72,7 +74,8 @@ class Options {
   static char* config_file_;
   static char* directory_;
   static const char* report_file_;
-  static const char * const * build_cmd_;
+  static const char** build_cmd_;
+  static bool build_cmd_owned_;
   static std::list<std::string>* config_strings_;
   static bool quiet_;
   static bool generate_report_;

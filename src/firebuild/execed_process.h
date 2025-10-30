@@ -250,6 +250,9 @@ class ExecedProcess : public Process {
   bool was_shortcut() const {return was_shortcut_;}
   void set_was_shortcut(bool value) {was_shortcut_ = value;}
 
+  void set_qemu_user_used(bool value) {qemu_user_used_ = value;}
+  bool qemu_user_used() const {return qemu_user_used_;}
+
   /** For debugging, a short imprecise reminder of the command line. Omits the path to the
    * executable, and strips off the middle. Does not escape or quote. */
   std::string args_to_short_string() const;
@@ -261,6 +264,7 @@ class ExecedProcess : public Process {
  private:
   bool can_shortcut_:1 = true;
   bool was_shortcut_:1 = false;
+  bool qemu_user_used_:1 = false;
   int16_t jobserver_fd_r_ = -1;
   int16_t jobserver_fd_w_ = -1;
   /** If points to this (self), the process can be shortcut.

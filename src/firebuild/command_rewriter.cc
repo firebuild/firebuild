@@ -24,6 +24,7 @@
 
 #include "firebuild/config.h"
 #include "firebuild/file_name.h"
+#include "firebuild/hash_cache.h"
 #include "firebuild/process.h"
 
 namespace firebuild {
@@ -50,8 +51,18 @@ void CommandRewriter::maybe_rewrite(
       return;
     }
   }
+#ifndef __APPLE__
+  bool is_static = false;
+  if (qemu_user && hash_cache && hash_cache->get_is_static(*executable, &is_static) && is_static) {
+    *executable = qemu_user;
+    *rewritten_executable = true;
+    args->insert(args->begin(), {(*executable)->to_string(), QEMU_LIBC_SYSCALLS_OPTION});
+    *rewritten_args = true;
+  }
+#else
   (void)executable;
   (void)rewritten_executable;
+#endif
 }
 
 }  // namespace firebuild

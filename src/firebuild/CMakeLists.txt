@@ -18,6 +18,8 @@ if (APPLE)
   pkg_check_modules(PLIST REQUIRED libplist-2.0>=2.3.0)
   find_library(IOKit IOKit)
   find_library(CoreFoundation CoreFoundation)
+else()
+  pkg_check_modules(libelf REQUIRED libelf)
 endif()
 if (SANITIZE)
   if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -90,7 +92,7 @@ add_executable(firebuild-bin
   fbbstore.cc
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_cc>)
-target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LDFLAGS} ${XXHASH_LDFLAGS} ${PLIST_LINK_LIBRARIES} ${IOKit} ${CoreFoundation})
+target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LDFLAGS} ${XXHASH_LDFLAGS} ${libelf_LIBRARIES} ${PLIST_LINK_LIBRARIES} ${IOKit} ${CoreFoundation})
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow ${SANITIZE_SUPERVISOR_LINK_OPTIONS})
 set_target_properties(firebuild-bin PROPERTIES OUTPUT_NAME firebuild)
 # GCC 9's LTO implementation seem to have a bug we hit, but did not fully triage yet

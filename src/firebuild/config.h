@@ -43,6 +43,14 @@ extern ExeMatcher* skip_cache_matcher;
 extern tsl::hopscotch_set<std::string>* shells;
 extern bool ccache_disabled;
 
+#ifndef __APPLE__
+/** QEMU user binary path for intercepting static binaries */
+extern const FileName* qemu_user;
+
+/** QEMU option to always use the libc syscall interface */
+#define QEMU_LIBC_SYSCALLS_OPTION "-libc-syscalls"
+#endif
+
 /** Store results of processes consuming more CPU time (system + user) in microseconds than this. */
 extern int64_t min_cpu_time_u;
 
@@ -80,6 +88,11 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
  */
 char** get_sanitized_env(libconfig::Config *cfg, const char* fb_conn_string,
                          bool insert_trace_markers);
+
+#ifndef __APPLE__
+/** Detect qemu-user binary if not set in the configuration. */
+void detect_qemu_user(const char* path);
+#endif
 
 }  /* namespace firebuild */
 #endif  // FIREBUILD_CONFIG_H_

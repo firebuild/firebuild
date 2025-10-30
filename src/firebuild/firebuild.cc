@@ -45,6 +45,7 @@
 #include "firebuild/connection_context.h"
 #include "firebuild/epoll.h"
 #include "firebuild/file_name.h"
+#include "firebuild/hash_cache.h"
 #include "firebuild/options.h"
 #include "firebuild/message_processor.h"
 #include "firebuild/execed_process_cacher.h"
@@ -212,6 +213,10 @@ int main(const int argc, char *argv[]) {
     exit(0);
   }
 
+#ifndef __APPLE__
+  firebuild::detect_qemu_user(getenv("PATH"));
+#endif
+
   {
     char *pattern;
     if (asprintf(&pattern, "%s/firebuild.XXXXXX", get_tmpdir()) < 0) {
@@ -281,6 +286,42 @@ int main(const int argc, char *argv[]) {
     execvp(firebuild::Options::build_cmd()[0],
            const_cast<char* const*>(firebuild::Options::build_cmd()));
 #else
+    /* Resolve command if needed */
+    size_t build_cmd_len = strlen(firebuild::Options::build_cmd()[0]);
+    const firebuild::FileName* executable = nullptr;
+    if (strchr(firebuild::Options::build_cmd()[0], '/') == NULL) {
+      /** Get PATH from the sanitized environment. */
+      char* exec_path = nullptr;
+      for (char **envp = env_exec; *envp != nullptr; ++envp) {
+        if (strncmp(*envp, "PATH=", 5) == 0) {
+          exec_path = *envp + 5;
+          break;
+        }
+      }
+      assert(exec_path);
+
+      /* Resolve command using PATH */
+      executable = firebuild::hash_cache->resolve_command(
+          firebuild::Options::build_cmd()[0], build_cmd_len, exec_path, strlen(exec_path),
+          firebuild::FileName::Get(std::filesystem::current_path()));
+      if (executable == nullptr) {
+        std::cerr << "FIREBUILD ERROR: Could not find executable '"
+                  << firebuild::Options::build_cmd()[0] << "' in PATH '" << exec_path << "'\n";
+        exit(EXIT_FAILURE);
+      }
+    } else {
+      executable = firebuild::FileName::GetCanonicalized(
+          firebuild::Options::build_cmd()[0], build_cmd_len,
+          firebuild::FileName::Get(std::filesystem::current_path()));
+    }
+#ifndef __APPLE__
+    bool is_static = false;
+    if (firebuild::hash_cache && firebuild::hash_cache->get_is_static(executable, &is_static)
+        && is_static && firebuild::qemu_user) {
+      firebuild::Options::prepend_to_build_cmd(firebuild::qemu_user->c_str());
+    }
+#endif
+
     execvpe(firebuild::Options::build_cmd()[0],
             const_cast<char* const*>(firebuild::Options::build_cmd()), env_exec);
 #endif
