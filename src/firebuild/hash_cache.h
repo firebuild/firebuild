@@ -38,6 +38,8 @@ struct HashCacheEntry {
   struct timespec mtime {};
   ino_t inode {};  /* skip device, it's unlikely to change */
   bool is_stored {};  /* it's known to be present in the blob cache because we stored it earlier */
+  bool is_static {}; /* it's a static binary detected to be run via qemu-user */
+  bool is_static_checked {}; /* whether we checked if it's a static binary */
 };
 
 /**
@@ -122,6 +124,10 @@ class HashCache {
   const FileName* resolve_command(const char* cmd, size_t cmd_len,
                                   const char* path, size_t path_len, const FileName* cwd);
 
+#ifndef __APPLE__
+  /** Check if the file is static */
+  bool get_is_static(const FileName* path, bool *is_static);
+#endif
 
  private:
   tsl::hopscotch_map<const FileName*, HashCacheEntry> db_ = {};

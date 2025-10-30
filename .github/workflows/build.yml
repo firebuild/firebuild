@@ -11,7 +11,7 @@ on:
     - cron: '10 4 * * 1'
 
 env:
-  BUILD_DEPS: cmake libconfig++-dev libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
+  BUILD_DEPS: cmake libconfig++-dev libelf-dev libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev pkg-config python3-jinja2
   TEST_DEPS: bc bats clang node-d3 moreutils fakeroot
 jobs:
   build-on-ubuntu-lts:
@@ -298,6 +298,10 @@ jobs:
       run: |
         sudo apt update
         sudo apt-get build-dep .
+    - name: install-patched-qemu
+      run: |
+        sudo add-apt-repository ppa:firebuild/qemu-backports
+        sudo apt-get install -y qemu-user-interposable
     - name: deb
       run: |
         # skip dh_buildinfo step

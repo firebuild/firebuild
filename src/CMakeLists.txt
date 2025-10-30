@@ -30,4 +30,8 @@ add_dependencies(fbbcomm_cc fbbcomm_gen_files)
 add_subdirectory(interceptor)
 add_subdirectory(firebuild)
 
+execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpmachine
+                OUTPUT_VARIABLE C_COMPILER_TARGET_ARCH
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REGEX REPLACE "-.*" "" C_COMPILER_TARGET_ARCH ${C_COMPILER_TARGET_ARCH})
 configure_file(${CMAKE_SOURCE_DIR}/src/common/config.h.in ${CMAKE_BINARY_DIR}/src/common/config.h @ONLY)

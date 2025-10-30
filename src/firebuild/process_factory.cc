@@ -20,7 +20,9 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "firebuild/config.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
 
@@ -50,11 +52,30 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   for (size_t i = 0; i < libs_count; i++) {
     libs[i] = (FileName::Get(msg->get_libs_at(i), msg->get_libs_len_at(i)));
   }
+
+  std::vector<std::string> args = msg->get_arg_as_vector();
+  const FileName* wd = FileName::Get(msg->get_cwd());
+
+#ifndef __APPLE__
+  bool qemu_user_used = false;
+  if (qemu_user && qemu_user == executable && args.size() >= 3
+      && (args[1] == QEMU_LIBC_SYSCALLS_OPTION)) {
+    args.erase(args.begin(), args.begin() + 2);
+    // The process is being run under qemu-user with the -libc-syscalls option
+    // Remove the option from the args list for accurate logging
+    executable = FileName::GetCanonicalized(args[0].c_str(), args[0].size(), wd);
+    qemu_user_used = true;
+    FB_DEBUG(FB_DEBUG_PROC,
+             "Detected qemu-user -libc-syscalls for static binary, "
+             "rewriting executable to " + d(executable));
+  }
+#endif
+
   auto e = new ExecedProcess(msg->get_pid(),
                              msg->get_ppid(),
-                             FileName::Get(msg->get_cwd()),
+                             wd,
                              executable, executed_path, original_executed_path,
-                             msg->get_arg_as_vector(),
+                             args,
                              msg->get_env_var_as_vector(),
                              std::move(libs),
                              msg->get_umask(),
@@ -72,6 +93,10 @@ ProcessFactory::getExecedProcess(const FBBCOMM_Serialized_scproc_query *const ms
   FB_DEBUG(FB_DEBUG_PROC, "- env = " + d(e->env_vars()));
   FB_DEBUG(FB_DEBUG_PROC, "- lib = " + d(msg->get_libs_as_vector()));
   FB_DEBUG(FB_DEBUG_PROC, "- umask = " + d(e->umask()));
+
+#ifndef __APPLE__
+  e->set_qemu_user_used(qemu_user_used);
+#endif
 
   if (msg->has_jobserver_fifo()) {
     e->set_jobserver_fifo(msg->get_jobserver_fifo());

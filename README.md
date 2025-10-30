@@ -94,6 +94,11 @@ Back-ported packages for supported Ubuntu releases can be downloaded from the [o
     sudo add-apt-repository ppa:firebuild/stable
     sudo apt install firebuild
 
+To intercept static binaries Firebuild requires a Qemu version that supports the -libc-syscalls option. Prebuilt qemu-user packages are available from [our PPA](https://launchpad.net/~firebuild/+archive/ubuntu/qemu-backports):
+
+    sudo apt-add-repository ppa:firebuild/qemu-backports
+    sudo apt install qemu-user
+
 If you would like to use `firebuild` in your GitHub pipeline there is a [GitHub Action](https://github.com/marketplace/actions/firebuild-for-github-actions) to do just that.
 
 ## Building from source
@@ -107,7 +112,12 @@ For Ubuntu earlier than 21.04 (xxhash earlier than 0.8.0 or Valgrind earlier tha
 Install the build dependencies:
 
     sudo apt update
-    sudo apt install clang cmake bats bc libconfig++-dev node-d3 libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev moreutils python3-jinja2 fakeroot
+    sudo apt install clang cmake bats bc libconfig++-dev libelf-dev node-d3 libxxhash-dev libjemalloc-dev libtsl-hopscotch-map-dev moreutils python3-jinja2 fakeroot
+
+If you have qemu-user installed you also need a version that supports the -libc-syscalls option:
+
+    sudo apt-add-repository ppa:firebuild/qemu-backports
+    sudo apt install qemu-user
 
 Build:
 

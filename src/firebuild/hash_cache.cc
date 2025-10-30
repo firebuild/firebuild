@@ -22,6 +22,7 @@
 #include "firebuild/blob_cache.h"
 #include "firebuild/file_info.h"
 #include "firebuild/file_name.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -76,6 +77,8 @@ static bool update_statinfo(const FileName* path, int fd, const struct stat64 *s
   entry->mtime = st->st_mtim;
   entry->inode = st->st_ino;
   entry->is_stored = false;
+  entry->is_static = false;
+  entry->is_static_checked = false;
   if (S_ISREG(st->st_mode)) {
     entry->info.set_type(ISREG);
     entry->info.set_mode_bits(st->st_mode & 07777, 07777 /* we know all the mode bits */);
@@ -296,6 +299,30 @@ bool HashCache::get_hash(const FileName* path, int max_writers, Hash *hash, bool
   *hash = entry->info.hash();
   return true;
 }
+
+#ifndef __APPLE__
+bool HashCache::get_is_static(const FileName* path, bool *is_static) {
+  TRACK(FB_DEBUG_HASH, "path=%s",
+      D(path));
+
+  if (!path || path->is_in_ignore_location()) {
+    return false;
+  }
+  const HashCacheEntry *entry = get_entry_with_statinfo(path, -1, nullptr);
+  if (entry->info.type() == NOTEXIST || entry->info.type() == DONTKNOW) {
+    return false;
+  }
+
+  if (!entry->is_static_checked) {
+    bool static_linked = is_statically_linked(path->c_str());
+    const_cast<HashCacheEntry*>(entry)->is_static = static_linked;
+    const_cast<HashCacheEntry*>(entry)->is_static_checked = true;
+  }
+
+  *is_static = entry->is_static;
+  return true;
+}
+#endif
 
 bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *hash,
                                    off_t* stored_bytes, int fd, const struct stat64 *stat_ptr) {

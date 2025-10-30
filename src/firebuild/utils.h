@@ -79,6 +79,10 @@ int file_overwrite_printf(const std::string& path, const char* format, ...);
  */
 void bump_limits();
 
+#ifndef __APPLE__
+/** Check if a binary is statically linked */
+bool is_statically_linked(const char *filename);
+#endif
 namespace firebuild {
 
 /**
