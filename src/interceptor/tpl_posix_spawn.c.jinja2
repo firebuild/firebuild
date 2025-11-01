@@ -36,6 +36,7 @@
     env_fixed_up = (char **)envp;
   }
   char ** new_argv;
+  const char *new_file;
   if (i_am_intercepting) {
     pthread_mutex_lock(&ic_system_popen_lock);
     /* Notify the supervisor before the call */
@@ -80,8 +81,14 @@
     fb_fbbcomm_send_msg(&ic_msg, fb_sv_conn);
     FBBCOMM_ALLOC_AND_RECVMSG(rewritten_args, sv_msg, fb_sv_conn);
     FBBCOMM_ALLOC_AND_REWRITE_ARGS(sv_msg, new_argv, argv);
+    if (fbbcomm_serialized_rewritten_args_has_path(sv_msg)) {
+      new_file = fbbcomm_serialized_rewritten_args_get_path(sv_msg);
+    } else {
+      new_file = file;
+    }
   } else {
     new_argv = (char **)argv;
+    new_file = file;
   }
 ### endblock before
 
@@ -93,7 +100,7 @@
     pid = &tmp_pid;
   }
 ###   endif
-  ret = get_ic_orig_{{ func }}()({{ names_str | replace("envp", "env_fixed_up") | replace("argv", "new_argv") }});
+  ret = get_ic_orig_{{ func }}()({{ names_str | replace("envp", "env_fixed_up") | replace("argv", "new_argv") | replace("file,", "new_file,")}});
 ### endblock call_orig
 
 ### block send_msg
