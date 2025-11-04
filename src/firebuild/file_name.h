@@ -89,6 +89,8 @@ class FileName {
   static const FileName* Get(const std::string& name) {
     return Get(name.c_str(), name.size());
   }
+  static const FileName* GetCanonicalized(const char * name, size_t length,
+                                          const FileName* wd);
   /**
    * Return parent dir or nullptr for "/"
    */

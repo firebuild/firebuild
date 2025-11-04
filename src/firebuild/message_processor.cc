@@ -763,14 +763,7 @@ static const FileName* resolve_command_from_msg(const T* ic_msg, const char* com
   if (ic_msg->get_with_p()) {
     if (strchr(command, '/')) {
       /* Resolve relative to current dir. */
-      if (is_canonical(command, command_len)) {
-        return proc->get_absolute(AT_FDCWD, command, command_len);
-      } else {
-        char* canonical_command = static_cast<char*>(alloca(command_len + 1));
-        memcpy(canonical_command, command, command_len + 1);
-        size_t canonical_len = make_canonical(canonical_command, command_len);
-        return proc->get_absolute(AT_FDCWD, canonical_command, canonical_len);
-      }
+      return FileName::GetCanonicalized(command, command_len, proc->wd());
     } else {
       std::vector<std::string> env = ic_msg->get_env_as_vector();
       size_t path_len = 0;

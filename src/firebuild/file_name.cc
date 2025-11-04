@@ -143,6 +143,30 @@ bool FileName::is_at_locations(const cstring_view_array* locations) const {
   return is_path_at_locations(this->name_, this->length_, locations);
 }
 
+const FileName* FileName::GetCanonicalized(const char * name, size_t length,
+                                           const FileName* wd) {
+  assert(wd);
+  char* canonicalized_name = const_cast<char*>(name);
+  size_t canonical_len = length;
+  if (!is_canonical(name, length)) {
+    canonicalized_name = static_cast<char*>(alloca(length + 1));
+    memcpy(canonicalized_name, name, length + 1);
+    canonical_len = make_canonical(canonicalized_name, length);
+  }
+  if (path_is_absolute(canonicalized_name)) {
+    return Get(canonicalized_name, canonical_len);
+  } else {
+    char* buf = reinterpret_cast<char*>(alloca(wd->length() + 1 + canonical_len + 1));
+    memcpy(buf, wd->c_str(), wd->length());
+    size_t offset = wd->length();
+    if (wd->c_str()[wd->length() - 1] != '/') {
+      buf[offset++] = '/';
+    }
+    memcpy(buf + offset, canonicalized_name, canonical_len + 1);
+    return Get(buf, offset + canonical_len);
+  }
+}
+
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
