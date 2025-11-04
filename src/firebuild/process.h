@@ -232,9 +232,12 @@ class Process {
   }
 
   /**
-   * Return the resolved and canonicalized absolute pathname, based on the given dirfd directory
+   * Return the resolved absolute pathname, based on the given dirfd directory
    * (possibly AT_FDCWD for the current directory). Return nullptr if the path is relative and
    * dirfd is invalid.
+   * @param dirfd directory file descriptor
+   * @param name relative or absolute file name, must be canonical
+   * @param length length of name, or -1 for strlen(name)
    */
   const FileName* get_absolute(const int dirfd, const char * const name, ssize_t length) const;
 
