@@ -42,6 +42,7 @@ void debug_signum(FILE *f, int signum);
 void debug_mode_t(FILE *f, mode_t mode);
 void debug_wstatus(FILE *f, int wstatus);
 void debug_clone_flags(FILE *f, int flags);
+void debug_rlimit_resource(FILE *f, int resource);
 
 #ifdef __cplusplus
 }  /* extern "C" */

@@ -1359,6 +1359,16 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       /* Ignore __mac_syscall(). Having the tag defined allows easier debugging with -d comm. */
       // TODO(rbalint) check if any __mac_syscall() invocation could impact builds
       break;
+    case FBBCOMM_TAG_rlimit: {
+      auto msg = reinterpret_cast<const FBBCOMM_Serialized_rlimit *>(fbbcomm_buf);
+      if (msg->has_error_no()) {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Changing resource limits failed");
+      } else {
+        /* Ignore success */
+      }
+      break;
+    }
     case FBBCOMM_TAG_fb_debug:
     case FBBCOMM_TAG_fb_error:
     case FBBCOMM_TAG_fchownat:

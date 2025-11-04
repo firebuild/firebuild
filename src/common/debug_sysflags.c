@@ -23,6 +23,7 @@
 #include <sched.h>
 #include <spawn.h>
 #include <stdio.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -817,6 +818,43 @@ void debug_clone_flags(FILE *f, int flags) {
   DEBUG_BITMAP_END_HEX(f, flags & ~0xff);
   fprintf(f, "|");
   debug_signum(f, flags & 0xff);
+}
+
+void debug_rlimit_resource(FILE *f, int resource) {
+  DEBUG_VALUE_START(f, resource);
+#ifndef __APPLE__
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_AS);
+#endif
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_CORE);
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_CPU);
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_DATA);
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_FSIZE);
+#ifdef RLIMIT_LOCKS
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_LOCKS);
+#endif
+#ifdef RLIMIT_MEMLOCK
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_MEMLOCK);
+#endif
+#ifdef RLIMIT_MSGQUEUE
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_MSGQUEUE);
+#endif
+#ifdef RLIMIT_NICE
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_NICE);
+#endif
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_NOFILE);
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_NPROC);
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_RSS);
+#ifdef RLIMIT_RTPRIO
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_RTPRIO);
+#endif
+#ifdef RLIMIT_RTTIME
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_RTTIME);
+#endif
+#ifdef RLIMIT_SIGPENDING
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_SIGPENDING);
+#endif
+  DEBUG_VALUE_VALUE(f, resource, RLIMIT_STACK);
+  DEBUG_VALUE_END_DEC(f, resource);
 }
 
 #ifdef __cplusplus

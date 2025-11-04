@@ -2457,7 +2457,22 @@ generate("int", "SYS_seccomp", "unsigned int operation, unsigned int flags, void
                           "}",
                           ])
 
-# FIXME {get,set,p}rlimit
+generate("int", ["getrlimit", "__getrlimit", "getrlimit64", "SYS_getrlimit"], "int resource, struct rlimit *rlim",
+         msg="rlimit",
+         msg_skip_fields=["rlim"],
+         msg_add_fields=["fbbcomm_builder_rlimit_set_get(&ic_msg, true);",
+                          "fbbcomm_builder_rlimit_set_set(&ic_msg, false);"])
+generate("int", ["setrlimit", "setrlimit64", "SYS_setrlimit"] + ["__setrlimit"] if target == "darwin" else [], "int resource, const struct rlimit *rlim",
+         msg="rlimit",
+         msg_skip_fields=["rlim"],
+         msg_add_fields=["fbbcomm_builder_rlimit_set_get(&ic_msg, false);",
+                          "fbbcomm_builder_rlimit_set_set(&ic_msg, true);"])
+generate("int", ["prlimit", "prlimit64", "SYS_prlimit64"], "pid_t pid, int resource, const struct rlimit64 *new_limit, struct rlimit64 *old_limit",
+         platforms=['linux'],
+         msg="rlimit",
+         msg_skip_fields=["new_limit", "old_limit"],
+         msg_add_fields=["fbbcomm_builder_rlimit_set_get(&ic_msg, old_limit != NULL);",
+                          "fbbcomm_builder_rlimit_set_set(&ic_msg, new_limit != NULL);"])
 
 # User and group stuff
 # FIXME shall we notify the supervisor?

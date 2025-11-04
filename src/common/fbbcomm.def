@@ -111,6 +111,14 @@
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for int fields that represent RLIMIT_* values */
+    static void fbbcomm_debug_rlimit_resource(FILE *f, int resource, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_rlimit_resource(f, resource);
+      fprintf(f, "\\"");
+    }
   """,
 
   "extra_h": """
@@ -983,5 +991,16 @@
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
+
+    # Message for getrlimit(), setrlimit() and prlimit().
+    # prlimit() can get and set limits at the same time.
+    ("rlimit", [
+      (REQUIRED, "int", "resource", "fbbcomm_debug_rlimit_resource"),
+      (REQUIRED, "bool", "get"),
+      (REQUIRED, "bool", "set"),
+      # error no., when ret = -1
+      (OPTIONAL, "int", "error_no"),
+      (OPTIONAL, "int", "pid"),
+    ])
   ]
 }
