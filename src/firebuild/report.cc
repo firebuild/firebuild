@@ -493,7 +493,13 @@ void Report::write(const std::string &html_filename, const std::string &datadir)
   delete[] html_filename_tmp;
 
   FILE* dst_file = fopen(html_filename.c_str(), "w");
-  int ret = dst_file == NULL ? -1 : 0;
+  if (dst_file == NULL) {
+    fb_perror("fopen");
+    fb_error("Opening file " + html_filename + " failed.");
+    fb_error("Can not write build report.");
+    return;
+  }
+  int ret = 0;
   while ((ret != -1)) {
     char* line = NULL;
     size_t zero = 0;
