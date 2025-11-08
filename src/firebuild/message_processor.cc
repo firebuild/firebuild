@@ -1396,7 +1396,7 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       const int error = msg->get_error_no_with_fallback(0);
       proc->exec_point()->disable_shortcutting_bubble_up(
           deduplicated_string(
-              std::string(error == 0 ? "" : "failed") + msg->get_call() + " is not supported"
+              std::string(error == 0 ? "" : "failed ") + msg->get_call() + " is not supported"
               + (error == 0 ? "" : " (error: " + d(error) + ")")).c_str());
       break;
     }
