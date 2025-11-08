@@ -20,6 +20,7 @@ fbb.c
 fbb.h
 gcov/
 gcovhtml/
+src/common/config.h
 src/fbbcomm.cc
 src/firebuild/fbbfp.cc
 src/firebuild/fbbstore.cc
