@@ -1339,6 +1339,14 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       PFBBA_HANDLE(proc, connect, fbbcomm_buf);
       break;
     }
+    case FBBCOMM_TAG_bind: {
+      auto msg = reinterpret_cast<const FBBCOMM_Serialized_bind *>(fbbcomm_buf);
+      if (!msg->has_error_no()) {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Successfully binding network sockets is not supported");
+      }
+      break;
+    }
     case FBBCOMM_TAG_statfs:
       ProcessFBBAdaptor::handle(
            proc, reinterpret_cast<const FBBCOMM_Serialized_statfs *>(fbbcomm_buf));

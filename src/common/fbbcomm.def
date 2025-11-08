@@ -980,6 +980,13 @@
       (OPTIONAL, "int", "error_no"),
     ]),
 
+    ("bind", [
+      (REQUIRED, "int", "sockfd"),
+      (REQUIRED, "int", "sa_family", "fbbcomm_debug_socket_domain"),
+      (OPTIONAL, STRING, "sa_data"),
+      (OPTIONAL, "int", "error_no"),
+    ]),
+
     ("mktemp", [
       (REQUIRED, STRING, "template"),
     ]),

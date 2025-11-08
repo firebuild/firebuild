@@ -2555,7 +2555,13 @@ generate("int", ["connect", "SYS_connect", "__connect"], "int sockfd, const stru
                          "}"],
          )
 generate("int", ["bind", "SYS_bind"] + (["__bind"] if target == "darwin" else []), "int sockfd, const struct sockaddr *addr, socklen_t addrlen",
-         tpl="once")
+         msg_skip_fields=["addr", "addrlen"],
+         msg_add_fields=["fbbcomm_builder_bind_set_sa_family(&ic_msg, addr->sa_family);",
+                         "if (((struct sockaddr*)addr)->sa_family == AF_UNIX) {",
+                         "  const char * const sun_path = ((struct sockaddr_un*)addr)->sun_path;",
+                         "  fbbcomm_builder_bind_set_sa_data_with_length(&ic_msg, sun_path, strnlen(sun_path, sizeof(((struct sockaddr_un*)addr)->sun_path)));",
+                         "}"])
+
 generate("int", ["listen", "SYS_listen"] + (["__listen"] if target == "darwin" else []), "int sockfd, int backlog",
          tpl="once")
 generate("int", ["socketpair", "SYS_socketpair"] + (["__socketpair"] if target == "darwin" else []), "int domain, int type, int protocol, int sv[2]",
