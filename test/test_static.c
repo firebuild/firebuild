@@ -22,11 +22,24 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
+
+#define TOSTR(x) TOSTR2(x)
+#define TOSTR2(x) #x
+#define LOC "[" __FILE__ ":" TOSTR(__LINE__) "]"
 
 int main(int argc, char *argv[]) {
   puts("I am statically linked.");
   fflush(stdout);
+
+  /* Test a vDSO call - that typically doesn't require kernel context switch */
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+    perror("clock_gettime" LOC);
+    exit(1);
+  }
+
   if (argc > 1) {
     int recurse_level = 0;
     sscanf(argv[1], "%d", &recurse_level);
