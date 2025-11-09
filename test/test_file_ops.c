@@ -94,6 +94,22 @@ int main() {
   close(fd);
 #endif
 
+  if (stat("/usr", &st_buf) != 0) {
+    fprintf(stderr, "stat(\"/usr\", ...) failed, does it exist?\n");
+    exit(1);
+  }
+
+  /* Try this only as a regular user. */
+  if (geteuid() != 0 && stat("/usr/foo", &st_buf) != 0) {
+    if (mkdir("/usr/foo", 0777) == 0) {
+      /* Somehow creating the dir succeeded, clean it up quickly. */
+      if (rmdir("/usr/foo") != 0) {
+        fprintf(stderr, "could not clean up unexpectedly created /usr/foo\n");
+        exit(1);
+      }
+    }
+  }
+
   fd = creat("test_empty_2.txt", 0600);
   if (fd == -1) {
     perror("open" LOC);

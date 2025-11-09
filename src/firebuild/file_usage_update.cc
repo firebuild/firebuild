@@ -356,36 +356,52 @@ FileUsageUpdate FileUsageUpdate::get_from_mkdir_params(const FileName *filename,
 
   FileUsageUpdate update(filename);
 
-  if (!err) {
-    update.set_initial_type(NOTEXIST);
-    update.parent_type_ = ISDIR;
-    update.written_ = true;
-    update.mode_changed_ = true;
-    update.tmp_file_ = tmp_dir;
-  } else {
-    if (err == EEXIST) {
+  switch (err) {
+    case 0:
+      update.set_initial_type(NOTEXIST);
+      update.parent_type_ = ISDIR;
+      update.written_ = true;
+      update.mode_changed_ = true;
+      update.tmp_file_ = tmp_dir;
+      break;
+
+    case EEXIST:
       /* The directory already exists. It may not be a directory, but in that case process inputs
        * will not match either. */
       update.set_initial_type(ISDIR);
-    } else if (err == ENOENT) {
+      break;
+
+    case ENOENT:
       /* A directory component in pathname does not exist or is a dangling symbolic link */
       // FIXME(rbalint) handle the dangling symlink case, too
       update.set_initial_type(NOTEXIST);
       update.parent_type_ = NOTEXIST;
-    } else if (err == EINVAL) {
+      break;
+
+    case EINVAL:
       update.set_initial_type(DONTKNOW);
       if (tmp_dir) {
         /* Template was invalid, and is unmodified. We know nothing about that path. */
-        update.set_initial_type(DONTKNOW);
         update.tmp_file_ = tmp_dir;
-        /* This error is actually known and handled, but it is safer to just prevent merging
-         * this update by still setting unknown_err_ because the path is not used */
       }
+      /* This error is actually known and handled, but it is safer to just prevent merging
+       * this update by still setting unknown_err_ because the path is not used */
       update.unknown_err_ = err;
-    } else {
-      /* We don't support other errors such as permission denied. */
+      break;
+    case EACCES:
+      if (filename->is_in_read_only_location()) {
+        /* Trying to create a directory in a read-only location. We know that the directory
+         * doesn't exist, but we can't create it. */
+        update.set_initial_type(NOTEXIST);
+      } else {
+        update.set_initial_type(DONTKNOW);
+        update.unknown_err_ = err;
+      }
+      break;
+    default:
+      /* We don't support other errors, yet. */
       update.unknown_err_ = err;
-    }
+      break;
   }
 
   return update;
