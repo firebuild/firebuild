@@ -38,6 +38,7 @@ class ExeMatcher {
   bool match(const ExecedProcess* const proc) const;
   bool match(const FileName* exe_file, const FileName* executed_file,
              const std::string& arg0) const;
+  bool match(const std::string& exe) const;
   bool empty() const {return base_names_.empty() && full_names_.empty();}
   void add(const std::string name) {
     if (name.find('/') == std::string::npos) {
@@ -48,7 +49,6 @@ class ExeMatcher {
   }
 
  private:
-  bool match(const std::string& exe) const;
   tsl::hopscotch_set<std::string> base_names_;
   tsl::hopscotch_set<std::string> full_names_;
 };

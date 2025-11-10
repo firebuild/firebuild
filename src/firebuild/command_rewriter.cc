@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "firebuild/config.h"
 #include "firebuild/file_name.h"
 #include "firebuild/process.h"
 
@@ -32,11 +33,25 @@ void CommandRewriter::maybe_rewrite(
     std::vector<std::string>* args,
     bool* rewritten_executable,
     bool* rewritten_args) {
-  // TODO(rbalint): implement actual rewriting logic here
+  if (args->size() > 0
+     && (args->at(0) == "sphinx-build" || args->at(0).ends_with("/sphinx-build"))
+     && !dont_shortcut_matcher->match(args->at(0))) {
+    /* None of the args is "-E" */
+    bool has_E = false;
+    for (const std::string& arg : *args) {
+      if (arg == "-E") {
+        has_E = true;
+        break;
+      }
+    }
+    if (!has_E) {
+      args->insert(args->begin() + 1, "-E");
+      *rewritten_args = true;
+      return;
+    }
+  }
   (void)executable;
-  (void)args;
   (void)rewritten_executable;
-  (void)rewritten_args;
 }
 
 }  // namespace firebuild
