@@ -666,21 +666,6 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
     if (parent_may_be_just_sh_c_this) {
       joined_cmdline += (joined_cmdline == "") ? arg : (" " + arg);
     }
-    if (arg == "-emit-pch") {
-      bool fno_pch_timestamp_found = false;
-      for (const auto& arg_inner_loop : args) {
-        if (arg_inner_loop == "-fno-pch-timestamp") {
-          fno_pch_timestamp_found = true;
-          break;
-        }
-      }
-      if (!fno_pch_timestamp_found) {
-        proc->disable_shortcutting_bubble_up(
-            "Clang's -emit-pch without -Xclang -fno-pch-timestamp prevents shortcutting");
-        return;
-      }
-      break;
-    }
   }
 
   if (parent_may_be_just_sh_c_this && joined_cmdline == parent_exec_point->args()[2]) {

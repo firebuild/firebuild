@@ -442,4 +442,14 @@ bool check_system_setup() {
   return system_ok;
 }
 
+std::string base_name(const char* path) {
+  assert(path);
+  const char* last_slash = strrchr(path, '/');
+  if (last_slash) {
+    return std::string(last_slash + 1);
+  } else {
+    return std::string(path);
+  }
+}
+
 }  /* namespace firebuild */

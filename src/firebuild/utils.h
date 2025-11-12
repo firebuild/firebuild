@@ -128,5 +128,8 @@ const std::string& deduplicated_string(std::string);
  */
 bool check_system_setup();
 
+/** Return the filename part of a path (after the last '/') */
+std::string base_name(const char* path);
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_

@@ -24,8 +24,10 @@
 #include <vector>
 
 #include "firebuild/file_name.h"
-#include "firebuild/execed_process.h"
+
 #include "common/firebuild_common.h"
+#include "firebuild/execed_process.h"
+#include "firebuild/utils.h"
 
 namespace firebuild {
 
@@ -137,6 +139,10 @@ const FileName* FileName::GetParentDir(const char * const name, ssize_t length) 
     parent_name[slash_pos] = '\0';
     return Get(parent_name, slash_pos);
   }
+}
+
+std::string FileName::without_dirs() const {
+  return base_name(name_);
 }
 
 bool FileName::is_at_locations(const cstring_view_array* locations) const {
