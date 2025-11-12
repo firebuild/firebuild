@@ -67,6 +67,7 @@ int64_t min_cpu_time_u = 0;
 int shortcut_tries = 0;
 int64_t max_cache_size = 0;
 off_t max_entry_size = 0;
+off_t max_inline_blob_size = 4096;  /* Default 4KB */
 int quirks = 0;
 
 #ifndef __APPLE__
@@ -340,6 +341,18 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
         max_entry_size_mb = 0;
       }
       max_entry_size = max_entry_size_mb * 1000000;
+    }
+  }
+
+  if (cfg->exists("max_inline_blob_size")) {
+    libconfig::Setting& max_inline_blob_size_cfg = cfg->getRoot()["max_inline_blob_size"];
+    if (max_inline_blob_size_cfg.isNumber()) {
+      double max_inline_blob_size_kb = max_inline_blob_size_cfg;
+      if (max_inline_blob_size_kb < 0) {
+        /* Fix up negative numbers. */
+        max_inline_blob_size_kb = 0;
+      }
+      max_inline_blob_size = max_inline_blob_size_kb * 1024;
     }
   }
 

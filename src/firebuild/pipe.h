@@ -249,6 +249,10 @@ class Pipe {
    * Add the contents of the given file to the Pipe's buffer. This is used when shortcutting a
    * process, the cached data is injected into the Pipe. */
   void add_data_from_fd(int fd, size_t len);
+  /**
+   * Add the given data to the Pipe's buffer. This is used when shortcutting a process, the cached
+   * data is injected into the Pipe. */
+  void add_data_from_buffer(const char* data, size_t len);
 
  private:
   /* Unique Pipe ID, for debugging */

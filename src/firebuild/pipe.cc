@@ -590,6 +590,17 @@ void Pipe::add_data_from_fd(int fd, size_t len) {
   }
 }
 
+void Pipe::add_data_from_buffer(const char* data, size_t len) {
+  if (len > 0) {
+    buf_.add(data, len);
+    /* Pipe might represent one of the top process's files inherited for writing, which might even
+     * be a regular file (e.g. in case of "firebuild command args > outfile"). We can't directly
+     * call set_send_only_mode() on that. So instead call send_buf(), it'll automatically take care
+     * of it. */
+    send_buf();
+  }
+}
+
 /* Global debugging methods.
  * level is the nesting level of objects calling each other's d(), bigger means less info to print.
  * See #431 for design and rationale. */
