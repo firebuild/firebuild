@@ -524,19 +524,26 @@ setup() {
 @test "clang pch" {
   # this test is very slow under valgrind
   ! with_valgrind || skip
-  for no_pch_param in "" "-fno-pch-timestamp"; do
-    for i in 1 2; do
-      rm -f test_pch.h.pch test_pch.*.s
-      result=$(./run-firebuild -- clang -cc1 ${no_pch_param} $TEST_SOURCE_DIR/test_pch.h -emit-pch -o test_pch.h.pch)
-      assert_streq "$result" ""
-      assert_streq "$(strip_stderr stderr)" ""
-      # not reproducible to check test_pch.h.pch's embedded timestamp again
-      result=$(./run-firebuild -- clang -cc1 -include-pch test_pch.h.pch $TEST_SOURCE_DIR/test_pch.c -o test_pch.$i.s)
-      assert_streq "$result" ""
-      assert_streq "$(strip_stderr stderr)" ""
-      sleep 0.01
-      touch test_pch.h
-      rm -f test_pch.h.pch test_pch.*.s
+  for cc1_param in "" "-cc1"; do
+    if [ -z "${cc1_param}" ]; then
+      xclang_param="-Xclang"
+    else
+      xclang_param=""
+    fi
+    for no_pch_param in "" "${xclang_param} -fno-pch-timestamp"; do
+      for i in 1 2; do
+        rm -f test_pch.h.pch test_pch.*.s
+        result=$(./run-firebuild -- clang ${cc1_param} ${no_pch_param} $TEST_SOURCE_DIR/test_pch.h ${xclang_param} -emit-pch -o test_pch.h.pch)
+        assert_streq "$result" ""
+        assert_streq "$(strip_stderr stderr)" ""
+        # not reproducible to check test_pch.h.pch's embedded timestamp again
+        result=$(./run-firebuild -- clang ${cc1_param} -include-pch test_pch.h.pch $TEST_SOURCE_DIR/test_pch.c -o test_pch.$i.s)
+        assert_streq "$result" ""
+        assert_streq "$(strip_stderr stderr)" ""
+        sleep 0.01
+        touch test_pch.h
+        rm -f test_pch.h.pch test_pch.*.s
+      done
     done
   done
 }

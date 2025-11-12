@@ -34,11 +34,6 @@ shortcutting of particular commands.
 Firebuild can also generate a report about the whole build process with `firebuild -r <build command>`
 that helps finding the slowest parts of the build and also helps finding what could not be shortcut.
 
-#### Clang PCH's embedded timestamps prevents shortcutting
-
-Clang embeds timestamps in precompiled headers (PCHs) by default on Linux in the PCH generation
-steps (`-emit-pch`). To let Firebuild cache PCHs use `-Xclang -fno-pch-timestamp` with `clang`.
-
 ## How it compares to other build accelerators?
 
 ### Ccache, sccache and other compiler wrappers
