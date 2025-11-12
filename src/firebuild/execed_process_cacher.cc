@@ -890,7 +890,9 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           bool is_empty;
           Hash hash;
           off_t stored_bytes = 0;
-          if (!recorder->store(&is_empty, &hash, &stored_bytes)) {
+          char *inline_data = NULL;
+          size_t inline_data_len = 0;
+          if (!recorder->store(&is_empty, &hash, &stored_bytes, &inline_data, &inline_data_len)) {
             // FIXME handle error
             FB_DEBUG(FB_DEBUG_CACHING,
                      "Could not store pipe traffic in cache, not writing shortcut info");
@@ -909,7 +911,13 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
              * They were taken into account when computing the process's fingerprint. */
             FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
             new_append.set_fd(fd);
-            new_append.set_hash(hash.get());
+            if (inline_data) {
+              /* Store inline data in the cache entry */
+              FB_DEBUG(FB_DEBUG_CACHING, "Storing inline data: len=" + d(inline_data_len));
+              new_append.set_inline_data(inline_data, inline_data_len);
+            } else {
+              new_append.set_hash(hash.get());
+            }
           }
         }
       } else if (inherited_file.type == FD_FILE) {
@@ -1404,7 +1412,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     if (file->get_type() == ISREG) {
       assert(file->has_hash());
-      if (!blob_fds.add_from_hash(file->get_hash())) {
+      /* Skip inline data - it doesn't need blob fd */
+      if ((file->get_inline_data_count() == 0) && !blob_fds.add_from_hash(file->get_hash())) {
         return false;
       }
     }
@@ -1412,7 +1421,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   for (i = 0; i < outputs->get_append_to_fd_count(); i++) {
     auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
-    if (!blob_fds.add_from_hash(append_to_fd->get_hash())) {
+    /* Skip inline data - it doesn't need blob fd */
+    if ((append_to_fd->get_inline_data_count() == 0)
+        && !blob_fds.add_from_hash(append_to_fd->get_hash())) {
       return false;
     }
   }
@@ -1501,28 +1512,63 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
       Pipe *pipe = ffd->pipe().get();
       assert(pipe);
 
-      Hash hash(serialized_append_to_fd->get_hash());
-      int fd = blob_fds[next_blob_fd_idx++];
-      struct stat64 st;
-      if (fstat64(fd, &st) < 0) {
-        assert(0 && "fstat");
-      }
-      pipe->add_data_from_fd(fd, st.st_size);
+      /* Check if data is inlined */
+      fbb_size_t inline_data_len = serialized_append_to_fd->get_inline_data_count();
 
-      if (proc->parent()) {
-        /* Bubble up the replayed pipe data. */
-        std::vector<std::shared_ptr<PipeRecorder>>& recorders =
-            pipe->proc2recorders[proc->parent_exec_point()];
-        PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
+      if (inline_data_len > 0) {
+        const char *inline_data = serialized_append_to_fd->get_inline_data();
+        pipe->add_data_from_buffer(inline_data, inline_data_len);
+        /* Also bubble up the replayed pipe data. */
+        if (proc->parent()) {
+          /* Bubble up the replayed pipe data from inline buffer. */
+          std::vector<std::shared_ptr<PipeRecorder>>& recorders =
+              pipe->proc2recorders[proc->parent_exec_point()];
+          PipeRecorder::record_data_from_buffer(&recorders, inline_data, inline_data_len);
+        }
+      } else {
+        /* Data is in blob cache, use fd */
+        int fd = blob_fds[next_blob_fd_idx++];
+        struct stat64 st;
+        if (fstat64(fd, &st) < 0) {
+          assert(0 && "fstat");
+        }
+        pipe->add_data_from_fd(fd, st.st_size);
+
+        if (proc->parent()) {
+          /* Bubble up the replayed pipe data. */
+          std::vector<std::shared_ptr<PipeRecorder>>& recorders =
+              pipe->proc2recorders[proc->parent_exec_point()];
+          PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
+        }
       }
     } else if (ffd->type() == FD_FILE) {
       assert(ffd->filename());
 
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   Fetching file fragment from blobs cache: "
-               + d(ffd->filename()));
-      Hash hash(serialized_append_to_fd->get_hash());
-      blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], ffd->filename(), true);
+      /* Check if data is inlined */
+      fbb_size_t inline_data_len = serialized_append_to_fd->get_inline_data_count();
+
+      if (inline_data_len > 0) {
+        const char *inline_data = serialized_append_to_fd->get_inline_data();
+        /* Write inline data to file */
+        FB_DEBUG(FB_DEBUG_SHORTCUT,
+                 "│   Writing inline data to file: "
+                 + d(ffd->filename()));
+        int fd = open(ffd->filename()->c_str(), O_WRONLY | O_APPEND | O_CREAT, 0644);
+        if (fd >= 0) {
+          fb_write(fd, inline_data, inline_data_len);
+          close(fd);
+        } else {
+          fb_perror("open for inline data write");
+          assert(0);
+        }
+      } else {
+        /* Data is in blob cache */
+        FB_DEBUG(FB_DEBUG_SHORTCUT,
+                 "│   Fetching file fragment from blobs cache: "
+                 + d(ffd->filename()));
+        Hash hash(serialized_append_to_fd->get_hash());
+        blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], ffd->filename(), true);
+      }
 
       /* Tell the interceptor to seek forward in this fd. */
       fds_appended_to->push_back(append_to_fd);
@@ -1670,7 +1716,8 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
   for (size_t i = 0; i < outputs->get_append_to_fd_count(); i++) {
     auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
-    if (!blob_present(Hash(append_to_fd->get_hash()), referenced_blobs)) {
+    if ((append_to_fd->get_inline_data_count() == 0)
+        && !blob_present(Hash(append_to_fd->get_hash()), referenced_blobs)) {
       return false;
     }
   }

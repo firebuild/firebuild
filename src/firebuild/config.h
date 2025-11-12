@@ -69,6 +69,12 @@ extern int64_t max_cache_size;
  */
 extern off_t max_entry_size;
 
+/**
+ * Maximum size of a blob to inline in the object cache.
+ * Blobs smaller than this are stored directly in the object cache entry.
+ */
+extern off_t max_inline_blob_size;
+
 /** Enabled quirks represented as flags. See "quirks" in etc/firebuild.conf. */
 extern int quirks;
 #define FB_QUIRK_IGNORE_TMP_LISTING  0x01

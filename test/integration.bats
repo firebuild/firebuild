@@ -380,7 +380,7 @@ setup() {
 }
 
 @test "pipe replaying" {
-  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -o 'min_cpu_time = -1.0' -- echo foo)
+  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -o 'max_inline_blob_size = 0' -o 'min_cpu_time = -1.0' -- echo foo)
   assert_streq "$result" "foo"
   assert_streq "$(strip_stderr stderr)" ""
 

@@ -105,6 +105,16 @@ class LinearBuffer {
       return received1 + received2;
     }
   }
+
+  /** Add data to the end of the buffer. */
+  void add(const char* data, size_t len) {
+    TRACK(FB_DEBUG_COMM, "len=%" PRIsize, len);
+
+    ensure_space(len);
+    memcpy(&buffer_[data_start_offset_ + length_], data, len);
+    length_ += len;
+  }
+
   /** Discard howmuch bytes from the beginning of the data. */
   void discard(const size_t howmuch) {
     TRACK(FB_DEBUG_COMM, "howmuch=%" PRIsize, howmuch);

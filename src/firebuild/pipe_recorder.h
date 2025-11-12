@@ -161,15 +161,20 @@ class Pipe;
 class PipeRecorder {
  public:
   explicit PipeRecorder(const ExecedProcess *for_proc);
-  ~PipeRecorder() { if (!abandoned_) abandon(); }
+  ~PipeRecorder() {
+    if (!abandoned_) abandon();
+    free(mem_buffer_);
+  }
 
   /**
    * If there was traffic, store it in the cache and return is_empty_out=false, key_out=[the_hash].
    * If there was no traffic, set is_empty_out=true, key_out is undefined.
+   * If the data is small enough (<=max_inline_blob_size), it is returned in inline_data_out.
    * Set the recorder to abandoned state.
    * Returns false in case of failure.
    */
-  bool store(bool *is_empty_out, Hash *key_out, off_t* stored_bytes);
+  bool store(bool *is_empty_out, Hash *key_out, off_t* stored_bytes,
+             char **inline_data_out, size_t *inline_data_len_out);
   /** Close the backing fd, drop the data that was written so far. Set to deactivated state. */
   void deactivate();
   /** Close the backing fd, drop the data that was written so far. Set to abandoned state. */
@@ -264,6 +269,13 @@ class PipeRecorder {
   int fd_ {-1};
   /* The amount of data written so far. */
   loff_t offset_ {0};
+
+  /* In-memory buffer for small blobs (when size <= max_inline_blob_size) */
+  char *mem_buffer_ = NULL;
+  /* Size of allocated memory buffer */
+  size_t mem_buffer_capacity_ {0};
+  /* Whether we're buffering data in memory (true until size exceeds threshold) */
+  bool use_memory_buffer_ {true};
 
   /* A deactivated PipeRecorder has thrown away all the data it has ever received, and won't record
    * any new data. However, it might still receive data "to record", which will silently be dropped.

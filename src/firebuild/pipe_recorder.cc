@@ -21,12 +21,15 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <cassert>
 
 #include "common/firebuild_common.h"
 #include "common/platform.h"
+#include "firebuild/config.h"
+#include "firebuild/debug.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/hash.h"
 #include "firebuild/pipe.h"
@@ -62,8 +65,50 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
   assert(!abandoned_);
   assert_cmp(len, >, 0);
 
+  /* Check if we should use memory buffer for small data */
+  if (use_memory_buffer_ && (offset_ + len) <= max_inline_blob_size) {
+    /* Allocate or grow the memory buffer as needed */
+    if (mem_buffer_capacity_ < static_cast<size_t>(offset_ + len)) {
+      size_t new_capacity = offset_ + len;
+      char *new_buffer = static_cast<char*>(realloc(mem_buffer_, new_capacity));
+      if (!new_buffer) {
+        fb_perror("realloc");
+        /* Fall back to file-based storage */
+        use_memory_buffer_ = false;
+        if (mem_buffer_) {
+          free(mem_buffer_);
+          mem_buffer_ = NULL;
+          mem_buffer_capacity_ = 0;
+        }
+      } else {
+        mem_buffer_ = new_buffer;
+        mem_buffer_capacity_ = new_capacity;
+      }
+    }
+
+    if (use_memory_buffer_) {
+      /* Copy data to memory buffer */
+      memcpy(mem_buffer_ + offset_, buf, len);
+      offset_ += len;
+      assert_cmp(offset_, >, 0);
+      return;
+    }
+    /* If realloc failed, fall through to file-based storage */
+  } else if (use_memory_buffer_) {
+    /* Data exceeds threshold, switch to file-based storage */
+    use_memory_buffer_ = false;
+  }
+
+  /* File-based storage */
   if (fd_ < 0) {
     open_backing_file();
+    /* If we have buffered data, write it to the file first */
+    if (mem_buffer_ && offset_ > 0) {
+      fb_write(fd_, mem_buffer_, offset_);
+      free(mem_buffer_);
+      mem_buffer_ = NULL;
+      mem_buffer_capacity_ = 0;
+    }
   }
 
 #ifndef NDEBUG
@@ -83,8 +128,52 @@ void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
   assert(!abandoned_);
   assert_cmp(len, >, 0);
 
+  /* For pipes, we can't easily buffer in memory, so switch to file-based storage */
+  if (use_memory_buffer_ && (offset_ + len) > max_inline_blob_size) {
+    use_memory_buffer_ = false;
+  }
+
+  if (use_memory_buffer_ && (offset_ + len) <= max_inline_blob_size) {
+    /* Allocate or grow the memory buffer */
+    if (mem_buffer_capacity_ < static_cast<size_t>(offset_ + len)) {
+      size_t new_capacity = offset_ + len;
+      char *new_buffer = static_cast<char*>(realloc(mem_buffer_, new_capacity));
+      if (!new_buffer) {
+        fb_perror("realloc");
+        use_memory_buffer_ = false;
+        if (mem_buffer_) {
+          free(mem_buffer_);
+          mem_buffer_ = NULL;
+          mem_buffer_capacity_ = 0;
+        }
+      } else {
+        mem_buffer_ = new_buffer;
+        mem_buffer_capacity_ = new_capacity;
+      }
+    }
+
+    if (use_memory_buffer_) {
+      /* Read from pipe into memory buffer */
+      ssize_t read_bytes = read(pipe_fd, mem_buffer_ + offset_, len);
+      if (read_bytes != len) {
+        fb_perror("read from pipe");
+        assert(0);
+      }
+      offset_ += len;
+      assert_cmp(offset_, >, 0);
+      return;
+    }
+  }
+
   if (fd_ < 0) {
     open_backing_file();
+    /* If we have buffered data, write it to the file first */
+    if (mem_buffer_ && offset_ > 0) {
+      fb_write(fd_, mem_buffer_, offset_);
+      free(mem_buffer_);
+      mem_buffer_ = NULL;
+      mem_buffer_capacity_ = 0;
+    }
   }
 
   /* Writing to a regular file. Also the caller must make sure by a preceding tee(2) call that
@@ -112,8 +201,52 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
   assert(!abandoned_);
   assert_cmp(len, >, 0);
 
+  /* For regular files, switch to file-based storage if exceeds threshold */
+  if (use_memory_buffer_ && (offset_ + len) > max_inline_blob_size) {
+    use_memory_buffer_ = false;
+  }
+
+  if (use_memory_buffer_ && (offset_ + len) <= max_inline_blob_size) {
+    /* Allocate or grow the memory buffer */
+    if (mem_buffer_capacity_ < static_cast<size_t>(offset_ + len)) {
+      size_t new_capacity = offset_ + len;
+      char *new_buffer = static_cast<char*>(realloc(mem_buffer_, new_capacity));
+      if (!new_buffer) {
+        fb_perror("realloc");
+        use_memory_buffer_ = false;
+        if (mem_buffer_) {
+          free(mem_buffer_);
+          mem_buffer_ = NULL;
+          mem_buffer_capacity_ = 0;
+        }
+      } else {
+        mem_buffer_ = new_buffer;
+        mem_buffer_capacity_ = new_capacity;
+      }
+    }
+
+    if (use_memory_buffer_) {
+      /* Read from file into memory buffer */
+      ssize_t read_bytes = pread(fd_in, mem_buffer_ + offset_, len, off_in);
+      if (read_bytes != len) {
+        fb_perror("pread from file");
+        assert(0);
+      }
+      offset_ += len;
+      assert_cmp(offset_, >, 0);
+      return;
+    }
+  }
+
   if (fd_ < 0) {
     open_backing_file();
+    /* If we have buffered data, write it to the file first */
+    if (mem_buffer_ && offset_ > 0) {
+      fb_write(fd_, mem_buffer_, offset_);
+      free(mem_buffer_);
+      mem_buffer_ = NULL;
+      mem_buffer_capacity_ = 0;
+    }
   }
 
   ssize_t saved = fb_copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
@@ -127,15 +260,29 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
   assert_cmp(offset_, >, 0);
 }
 
-bool PipeRecorder::store(bool *is_empty_out, Hash *key_out, off_t* stored_bytes) {
+bool PipeRecorder::store(bool *is_empty_out, Hash *key_out, off_t* stored_bytes,
+                         char **inline_data_out, size_t *inline_data_len_out) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "");
 
   assert(!deactivated_);
   assert(!abandoned_);
 
+  *inline_data_out = NULL;
+  *inline_data_len_out = 0;
+
   bool ret;
-  if (fd_ >= 0) {
-    /* Some data was seen. Place it in the blob cache, get its hash. */
+  if (use_memory_buffer_ && offset_ > 0) {
+    /* Data is in memory buffer - compute hash and return inline data */
+    FB_DEBUG(FB_DEBUG_CACHING, "PipeRecorder: returning inline data, len=" + d(offset_));
+    *is_empty_out = false;
+    /* Key_out is not set. */
+    /* Keep the buffer until recorder is deleted. */
+    *inline_data_out = mem_buffer_;
+    *inline_data_len_out = offset_;
+    ret = true;
+  } else if (fd_ >= 0) {
+    /* Some data was seen and written to file. Place it in the blob cache, get its hash. */
+    FB_DEBUG(FB_DEBUG_CACHING, "PipeRecorder: storing to blob cache, offset=" + d(offset_));
     *is_empty_out = false;
     ret = blob_cache->move_store_file(filename_, fd_, offset_, key_out);
     /* Note: move_store_file() closed the fd_. */
@@ -164,6 +311,11 @@ void PipeRecorder::abandon() {
   }
   free(filename_);
   filename_ = NULL;
+  if (mem_buffer_) {
+    free(mem_buffer_);
+    mem_buffer_ = NULL;
+    mem_buffer_capacity_ = 0;
+  }
   abandoned_ = true;
 }
 
@@ -179,6 +331,11 @@ void PipeRecorder::deactivate() {
   }
   free(filename_);
   filename_ = NULL;
+  if (mem_buffer_) {
+    free(mem_buffer_);
+    mem_buffer_ = NULL;
+    mem_buffer_capacity_ = 0;
+  }
   deactivated_ = true;
 }
 
@@ -227,11 +384,18 @@ void PipeRecorder::record_data_from_unix_pipe(std::vector<std::shared_ptr<PipeRe
   }
 
   size_t first_active = i++;
+  loff_t first_active_offset = (*recorders)[first_active]->offset_;
+  char* first_active_mem_buffer = (*recorders)[first_active]->mem_buffer_;
+  int first_active_fd = (*recorders)[first_active]->fd_;
   /* The remaining active recorders copy from the first one's backing file. */
   for (; i < recorders->size(); i++) {
     if (!(*recorders)[i]->deactivated_) {
-      (*recorders)[i]->add_data_from_regular_fd((*recorders)[first_active]->fd_,
-                                                (*recorders)[first_active]->offset_ - len, len);
+      if ((*recorders)[first_active]->use_memory_buffer_) {
+        (*recorders)[i]->add_data_from_buffer(first_active_mem_buffer + first_active_offset - len ,
+                                              len);
+      } else {
+        (*recorders)[i]->add_data_from_regular_fd(first_active_fd, first_active_offset - len, len);
+      }
     }
   }
 }
