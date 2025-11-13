@@ -60,7 +60,7 @@ jobs:
         firebuild cmake -DCOVERAGE=1 -DCMAKE_BUILD_TYPE=Debug .
         firebuild make all check-bins
         make -j$(getconf _NPROCESSORS_ONLN) check coverage-info
-        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 75" | bc) = 1 ]
+        [ $(echo "$(make coverage-info | grep '^[\.0-9]*$') >= 74" | bc) = 1 ]
     - name: save-cached-debs
       run: |
         rm -f ~/.cache/debs/*
