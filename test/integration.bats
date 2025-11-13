@@ -416,7 +416,7 @@ setup() {
 
 @test "gc" {
   rm -f foo
-  result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')
+  result=$(./run-firebuild -d cache -o 'max_inline_blob_size = 0' -- bash -c 'echo foo > foo')
   assert_streq "$result" ""
   if [ "$SKIP_GC_INVALID_ENTRIES_TEST" != 1 ]; then
     echo foo > test_cache_dir/blobs/invalid_blob_name
