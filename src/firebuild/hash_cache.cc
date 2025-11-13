@@ -20,6 +20,7 @@
 
 #include "firebuild/debug.h"
 #include "firebuild/blob_cache.h"
+#include "firebuild/config.h"
 #include "firebuild/file_info.h"
 #include "firebuild/file_name.h"
 #include "firebuild/utils.h"
@@ -325,9 +326,17 @@ bool HashCache::get_is_static(const FileName* path, bool *is_static) {
 #endif
 
 bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *hash,
-                                   off_t* stored_bytes, int fd, const struct stat64 *stat_ptr) {
+                                   off_t* stored_bytes, int fd, const struct stat64 *stat_ptr,
+                                   char **inline_data, size_t *inline_data_len) {
   TRACK(FB_DEBUG_HASH, "path=%s, max_writers=%d, fd=%d, stat=%s",
       D(path), max_writers, fd, D(stat_ptr));
+
+  if (inline_data) {
+    *inline_data = nullptr;
+  }
+  if (inline_data_len) {
+    *inline_data_len = 0;
+  }
 
   if (path->is_in_ignore_location()) {
     return false;
@@ -338,6 +347,52 @@ bool HashCache::store_and_get_hash(const FileName* path, int max_writers, Hash *
     return false;
   }
   *hash = entry->info.hash();
+
+  /* If the file is small enough and caller requested inline data, read it into memory */
+  if (inline_data && inline_data_len && entry->info.type() == ISREG
+      && entry->info.size() > 0 && entry->info.size() <= max_inline_blob_size) {
+    char *buffer = static_cast<char*>(malloc(entry->info.size()));
+    if (buffer) {
+      int read_fd = fd;
+      bool need_close = false;
+      if (read_fd < 0) {
+        read_fd = open(path->c_str(), O_RDONLY);
+        need_close = true;
+      }
+      if (read_fd >= 0) {
+        off_t current_pos = -1;
+        if (fd >= 0) {
+          /* Save and restore file position if using provided fd */
+          current_pos = lseek(read_fd, 0, SEEK_CUR);
+          lseek(read_fd, 0, SEEK_SET);
+        }
+        ssize_t total_read = 0;
+        while (total_read < entry->info.size()) {
+          ssize_t n = read(read_fd, buffer + total_read, entry->info.size() - total_read);
+          if (n <= 0) {
+            break;
+          }
+          total_read += n;
+        }
+        if (total_read == entry->info.size()) {
+          *inline_data = buffer;
+          *inline_data_len = entry->info.size();
+          FB_DEBUG(FB_DEBUG_CACHING, "Inlined file data: " + d(path) + " size=" + d(total_read));
+        } else {
+          free(buffer);
+        }
+        if (current_pos >= 0) {
+          lseek(read_fd, current_pos, SEEK_SET);
+        }
+        if (need_close) {
+          close(read_fd);
+        }
+      } else {
+        free(buffer);
+      }
+    }
+  }
+
   return true;
 }
 

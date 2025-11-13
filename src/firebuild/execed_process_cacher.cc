@@ -42,6 +42,25 @@
 
 namespace firebuild {
 
+/* RAII helper to automatically free inline data on scope exit */
+class InlineDataMapCleaner {
+ public:
+  explicit InlineDataMapCleaner(tsl::hopscotch_map<const FileName*, std::pair<char*, size_t>>* map)
+      : map_(map) {}
+  ~InlineDataMapCleaner() {
+    if (map_) {
+      for (auto& entry : *map_) {
+        free(entry.second.first);
+      }
+    }
+  }
+  /* Prevent copying */
+  InlineDataMapCleaner(const InlineDataMapCleaner&) = delete;
+  InlineDataMapCleaner& operator=(const InlineDataMapCleaner&) = delete;
+ private:
+  tsl::hopscotch_map<const FileName*, std::pair<char*, size_t>>* map_;
+};
+
 static const XXH64_hash_t kFingerprintVersion = 0;
 static const unsigned int kCacheFormatVersion = 1;
 static const char kCacheStatsFile[] = "stats";
@@ -503,19 +522,25 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     const FileInfo& fi) {
+                     const FileInfo& fi, const char* inline_data = nullptr,
+                     size_t inline_data_len = 0) {
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   new_file.set_path_with_length(file_name->c_str(), file_name->length());
   new_file.set_type(fi.type());
   if (fi.size_known()) {
     new_file.set_size(fi.size());
   }
-  if (fi.hash_known()) {
+  /* If inline data is provided, omit the hash in the serialized entry to save space.
+   * For non-inlined files, keep storing the hash so they can be restored from the blob cache. */
+  if (!inline_data && fi.hash_known()) {
     new_file.set_hash(fi.hash().get());
   }
   if (fi.mode_mask() != 0) {
     new_file.set_mode(fi.mode());
     new_file.set_mode_mask(fi.mode_mask());
+  }
+  if (inline_data && inline_data_len > 0) {
+    new_file.set_inline_data(inline_data, inline_data_len);
   }
 }
 
@@ -769,6 +794,10 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
   }
 
   off_t stored_blob_bytes = 0;
+  /* Map to store inline data temporarily for files */
+  tsl::hopscotch_map<const FileName*, std::pair<char*, size_t>> inline_data_map;
+  InlineDataMapCleaner inline_data_cleaner(&inline_data_map);
+
   for (const auto& pair : proc->file_usages()) {
     const auto filename = pair.first;
     const FileUsage* fu = pair.second;
@@ -798,11 +827,17 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           int fd = open(filename->c_str(), O_RDONLY);
           if (fd >= 0) {
             off_t stored_bytes = 0;
-            if (!hash_cache->store_and_get_hash(filename, 0, &new_hash, &stored_bytes, fd, &st)) {
+            char *inline_data = nullptr;
+            size_t inline_data_len = 0;
+            if (!hash_cache->store_and_get_hash(filename, 0, &new_hash, &stored_bytes, fd, &st,
+                                               &inline_data, &inline_data_len)) {
               /* unexpected error, now what? */
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache, not writing shortcut info");
               close(fd);
+              if (inline_data) {
+                free(inline_data);
+              }
               proc->disable_shortcutting_only_this(
                   "Could not store blob in cache, not writing shortcut info");
               return;
@@ -810,6 +845,10 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
             close(fd);
             new_file_info.set_size(st.st_size);
             new_file_info.set_hash(new_hash);
+            /* Store inline data temporarily for later use in add_file */
+            if (inline_data && inline_data_len > 0) {
+              inline_data_map[filename] = {inline_data, inline_data_len};
+            }
             if ((stored_blob_bytes += stored_bytes) > max_entry_size) {
               FB_DEBUG(FB_DEBUG_CACHING,
                        "Could not store blob in cache because it would exceed max_entry_size");
@@ -849,7 +888,14 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           proc->disable_shortcutting_only_this("Process created a temporary file");
           return;
         }
-        add_file(&out_path_isreg, filename, new_file_info);
+        {
+          auto it = inline_data_map.find(filename);
+          if (it != inline_data_map.end()) {
+            add_file(&out_path_isreg, filename, new_file_info, it->second.first, it->second.second);
+          } else {
+            add_file(&out_path_isreg, filename, new_file_info);
+          }
+        }
         break;
       case ISDIR:
         // FIXME skip adding if the new state is the same as the old one
@@ -1411,7 +1457,6 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   for (i = 0; i < outputs->get_path_isreg_count(); i++) {
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     if (file->get_type() == ISREG) {
-      assert(file->has_hash());
       /* Skip inline data - it doesn't need blob fd */
       if ((file->get_inline_data_count() == 0) && !blob_fds.add_from_hash(file->get_hash())) {
         return false;
@@ -1457,39 +1502,69 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
     if (file->get_type() == ISREG) {
-      FB_DEBUG(FB_DEBUG_SHORTCUT,
-               "│   Fetching file from blobs cache: "
-               + d(path));
-      assert(file->has_hash());
-      Hash hash(file->get_hash());
-      if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false)) {
-        /* The file may not be writable but it may be expected and already checked. */
-        const FBBSTORE_Serialized_file* input_file =
-            find_input_file(
-                reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(inouts->get_inputs()),
-                path);
-        if (errno == EACCES && input_file && (file_to_file_info(file).mode_mask() & 0200)) {
-          /* The file has already been checked to be not writable and should be completely replaced
-           * from the cache. Let's remove it and try again. */
-          if (unlink(path->c_str()) == -1) {
-            fb_perror("Failed removing file to be replaced from cache");
+      /* Check if data is inlined */
+      fbb_size_t inline_data_len = file->get_inline_data_count();
+      if (inline_data_len > 0) {
+        FB_DEBUG(FB_DEBUG_SHORTCUT,
+                 "│   Restoring file from inline data: "
+                 + d(path) + " size=" + d(inline_data_len));
+        const char *inline_data = file->get_inline_data();
+
+        /* Write inline data to file */
+        int fd = open(path->c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) {
+          FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Could not open file for writing: " + d(path));
+          return false;
+        }
+        ssize_t written = 0;
+        while (std::cmp_less(written, inline_data_len)) {
+          ssize_t n = write(fd, inline_data + written, inline_data_len - written);
+          if (n <= 0) {
+            close(fd);
+            FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Could not write inline data to file: " + d(path));
+            return false;
+          }
+          written += n;
+        }
+        close(fd);
+
+        /* Set mode if specified */
+        if (file->has_mode()) {
+          chmod(path->c_str(), file->get_mode());
+        }
+      } else {
+        FB_DEBUG(FB_DEBUG_SHORTCUT,
+                 "│   Fetching file from blobs cache: "
+                 + d(path));
+        if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false)) {
+          /* The file may not be writable but it may be expected and already checked. */
+          const FBBSTORE_Serialized_file* input_file =
+              find_input_file(
+                  reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(
+                      inouts->get_inputs()), path);
+          if (errno == EACCES && input_file && (file_to_file_info(file).mode_mask() & 0200)) {
+            /* The file has already been checked to be not writable and should be completely replaced
+             * from the cache. Let's remove it and try again. */
+            if (unlink(path->c_str()) == -1) {
+              fb_perror("Failed removing file to be replaced from cache");
+              assert(0);
+            }
+            /* Try retrieving the same file again. */
+            if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false)) {
+              fb_perror("Failed creating file from cache");
+              assert(0);
+            }
+          } else {
+            fb_perror("Failed opening file to be recreated from cache");
             assert(0);
           }
-          /* Try retrieving the same file again. */
-          if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false)) {
-            fb_perror("Failed creating file from cache");
-            assert(0);
-          }
-        } else {
-          fb_perror("Failed opening file to be recreated from cache");
-          assert(0);
+        }
+        if (file->has_mode()) {
+          /* Refuse to apply setuid, setgid, sticky bit. */
+          // FIXME warn on them, even when we store them.
+          chmod(path->c_str(), file->get_mode() & 0777);
         }
       }
-    }
-    if (file->has_mode()) {
-      /* Refuse to apply setuid, setgid, sticky bit. */
-      // FIXME warn on them, even when we store them.
-      chmod(path->c_str(), file->get_mode() & 0777);
     }
     if (registration_point) {
       FileUsageUpdate update = file_to_file_usage_update(path, file);
@@ -1707,7 +1782,7 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
       reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>(inouts->get_outputs());
   for (size_t i = 0; i < outputs->get_path_isreg_count(); i++) {
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
-    if (file->get_type() == ISREG && file->has_hash()) {
+    if (file->get_type() == ISREG && file->get_inline_data_count() == 0 && file->has_hash()) {
       if (!blob_present(Hash(file->get_hash()), referenced_blobs)) {
         return false;
       }

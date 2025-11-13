@@ -106,10 +106,13 @@ class HashCache {
    * @param[out] stored_bytes bytes stored to the blob cache
    * @param fd                if >= 0 then read the file from there
    * @param stat_ptr          optionally the file's parameters already stat()'ed
+   * @param[out] inline_data  if file is small enough, pointer to inline data (caller must free)
+   * @param[out] inline_data_len length of inline data if returned
    * @return                  false if not a regular file or directory
    */
   bool store_and_get_hash(const FileName* path, int max_writers, Hash *hash, off_t* stored_bytes,
-                          int fd, const struct stat64 *stat_ptr);
+                          int fd, const struct stat64 *stat_ptr,
+                          char **inline_data = nullptr, size_t *inline_data_len = nullptr);
 
   /**
    * Check if the given FileInfo query matches the file system.
