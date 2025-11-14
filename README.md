@@ -71,9 +71,29 @@ recompile-bash       PASS
 ```
 You can even accelerate a single command without any build system: `firebuild <command>`.
 
+### Cache compression
+
+Firebuild can compress cache entries using zstd compression. This can be controlled with the `compress_cache` setting in the configuration file. Compression is disabled by default for maximal performance.
+
+The compression level can be adjusted using the `compression_level` setting (values 1-22). Level 1 provides fast compression suitable for build caches, while higher levels provide better compression at the cost of speed.
+
+```conf
+compress_cache = false
+compression_level = 1  // Fast compression (default)
+```
+
+Enabling compression may be beneficial when:
+- Disk space is a concern
+- Disk speed is a concern and retrieving compressed files from the cache is faster
+- The underlying filesystem does not compress files
+- The cache is not compressed externally (e.g., in CI pipelines the entire cache directory is compressed as a single archive)
+
+Compression setting only affects the creation of files in the cache. Previously compressed cache
+entries can still be used, when `compress_cache` is set to false.
+
 ### Firebuild shortcomings
 
-Firebuild does not support [compressing cache entries](https://github.com/firebuild/firebuild/issues/1087), nor [remote caches](https://github.com/firebuild/firebuild/issues/19) yet.
+Firebuild does not support [remote caches](https://github.com/firebuild/firebuild/issues/19) yet.
 
 ## Installation
 

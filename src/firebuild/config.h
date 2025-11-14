@@ -75,6 +75,16 @@ extern off_t max_entry_size;
  */
 extern off_t max_inline_blob_size;
 
+/**
+ * Whether to compress cache objects and blobs.
+ */
+extern bool compress_cache;
+
+/**
+ * Compression level for zstd compression (1-22).
+ */
+extern int compression_level;
+
 /** Enabled quirks represented as flags. See "quirks" in etc/firebuild.conf. */
 extern int quirks;
 #define FB_QUIRK_IGNORE_TMP_LISTING  0x01

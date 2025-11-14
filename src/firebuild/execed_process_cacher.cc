@@ -523,7 +523,7 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     const FileInfo& fi, const FileUsage* fu = nullptr,
+                     const FileInfo& fi, bool output_file, const FileUsage* fu = nullptr,
                      const char* inline_data = nullptr, size_t inline_data_len = 0) {
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   new_file.set_path_with_length(file_name->c_str(), file_name->length());
@@ -532,9 +532,14 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
     new_file.set_size(fi.size());
   }
   /* If inline data is provided, omit the hash in the serialized entry to save space.
-   * For non-inlined files, keep storing the hash so they can be restored from the blob cache. */
+   * For non-inlined files, keep storing the hash so they can be restored from the blob cache.
+   * Use compressed_hash when compression is enabled so retrieval knows to decompress. */
   if (!inline_data && fi.hash_known()) {
-    new_file.set_hash(fi.hash().get());
+    if (output_file && compress_cache) {
+      new_file.set_compressed_hash(fi.hash().get());
+    } else {
+      new_file.set_hash(fi.hash().get());
+    }
   }
   if (fi.mode_mask() != 0) {
     new_file.set_mode(fi.mode());
@@ -544,7 +549,7 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
     new_file.set_inline_data(inline_data, inline_data_len);
   }
   /* Only store timestamp_source if the file still exists (wasn't deleted/temporary) */
-  if (fu && fu->timestamp_source() && fi.type() != NOTEXIST) {
+  if (output_file && fu && fu->timestamp_source() && fi.type() != NOTEXIST) {
     const FileName* ts_src = fu->timestamp_source();
     new_file.set_timestamp_source_with_length(ts_src->c_str(), ts_src->length());
   }
@@ -763,7 +768,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
                   || rustc_ignored_dir(proc, filename))) {
             FileInfo no_hash_initial_state(fu->initial_state());
             no_hash_initial_state.set_hash(nullptr);
-            add_file(&in_path, filename, no_hash_initial_state);
+            add_file(&in_path, filename, no_hash_initial_state, false);
             break;
           }
           [[fallthrough]];
@@ -774,7 +779,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
                      + d(filename) + ", which is a temporary file");
             return;
           }
-          add_file(&in_path, filename, fu->initial_state());
+          add_file(&in_path, filename, fu->initial_state(), false);
           break;
       }
     }
@@ -882,10 +887,10 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         {
           auto it = inline_data_map.find(filename);
           if (it != inline_data_map.end()) {
-            add_file(&out_path_isreg, filename, new_file_info, fu,
+            add_file(&out_path_isreg, filename, new_file_info, true, fu,
                      it->second.first, it->second.second);
           } else {
-            add_file(&out_path_isreg, filename, new_file_info, fu);
+            add_file(&out_path_isreg, filename, new_file_info, true, fu);
           }
         }
         break;
@@ -897,7 +902,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           proc->disable_shortcutting_only_this("Process created a temporary dir");
           return;
         }
-        add_file(&out_path_isdir, filename, new_file_info, fu);
+        add_file(&out_path_isdir, filename, new_file_info, true, fu);
         out_path_isdir_filename_ptrs.insert(filename);
         break;
       case NOTEXIST:
@@ -953,6 +958,8 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
               /* Store inline data in the cache entry */
               FB_DEBUG(FB_DEBUG_CACHING, "Storing inline data: len=" + d(inline_data_len));
               new_append.set_inline_data(inline_data, inline_data_len);
+            } else if (compress_cache) {
+              new_append.set_compressed_hash(hash.get());
             } else {
               new_append.set_hash(hash.get());
             }
@@ -1001,7 +1008,11 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
             }
             FBBSTORE_Builder_append_to_fd& new_append = out_append_to_fd.emplace_back();
             new_append.set_fd(fd);
-            new_append.set_hash(hash.get());
+            if (compress_cache) {
+              new_append.set_compressed_hash(hash.get());
+            } else {
+              new_append.set_hash(hash.get());
+            }
           }
         }
       }
@@ -1213,6 +1224,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     ExecedProcess *proc,
     uint8_t **inouts_buf,
     size_t *inouts_buf_len,
+    bool *munmap_entry,
     Subkey* subkey_out) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
@@ -1234,13 +1246,15 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
   for (const Subkey& subkey : subkeys) {
     uint8_t *candidate_inouts_buf;
     size_t candidate_inouts_buf_len;
+    bool candidate_munmap_entry = false;
     if (shortcut_attempts++ > shortcut_tries) {
       FB_DEBUG(FB_DEBUG_SHORTCUT,
                "│  Maximum shortcutting attempts (" + d(shortcut_tries) + ") exceeded, giving up");
       break;
     }
     if (!obj_cache->retrieve(fingerprint, subkey.c_str(),
-                             &candidate_inouts_buf, &candidate_inouts_buf_len)) {
+                             &candidate_inouts_buf, &candidate_inouts_buf_len, nullptr,
+                             &candidate_munmap_entry)) {
       if (Options::generate_report()) {
         proc->set_shortcut_result(deduplicated_string(
             "could not retrieve " + d(subkey) + " from objcache").c_str());
@@ -1262,6 +1276,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
 #endif
         *inouts_buf = candidate_inouts_buf;
         *inouts_buf_len = candidate_inouts_buf_len;
+        *munmap_entry = candidate_munmap_entry;
         *subkey_out = subkey;
         inouts = candidate_inouts;
 #ifdef FB_EXTRA_DEBUG
@@ -1271,7 +1286,8 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       if (count == 2) {
         FB_DEBUG(FB_DEBUG_SHORTCUT,
                  "│   More than 1 matching candidates found, still using the first one");
-        ObjCache::unmap_entry(candidate_inouts_buf, candidate_inouts_buf_len);
+        ObjCache::free_entry(candidate_inouts_buf, candidate_inouts_buf_len,
+                             candidate_munmap_entry);
         break;
       }
 #else
@@ -1284,7 +1300,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       break;
 #endif
     } else {
-      ObjCache::unmap_entry(candidate_inouts_buf, candidate_inouts_buf_len);
+      ObjCache::free_entry(candidate_inouts_buf, candidate_inouts_buf_len, candidate_munmap_entry);
     }
   }
   /* The retval is currently the same as the memory address to unmap (i.e. *inouts_buf).
@@ -1450,7 +1466,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     if (file->get_type() == ISREG) {
       /* Skip inline data - it doesn't need blob fd */
-      if ((file->get_inline_data_count() == 0) && !blob_fds.add_from_hash(file->get_hash())) {
+      if ((file->get_inline_data_count() == 0)
+          && !blob_fds.add_from_hash((file->has_compressed_hash() ? file->get_compressed_hash()
+                                      : file->get_hash()))) {
         return false;
       }
     }
@@ -1460,7 +1478,9 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
         (outputs->get_append_to_fd_at(i));
     /* Skip inline data - it doesn't need blob fd */
     if ((append_to_fd->get_inline_data_count() == 0)
-        && !blob_fds.add_from_hash(append_to_fd->get_hash())) {
+        && !blob_fds.add_from_hash(append_to_fd->has_compressed_hash()
+                                   ? append_to_fd->get_compressed_hash()
+                                   : append_to_fd->get_hash())) {
       return false;
     }
   }
@@ -1525,7 +1545,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
             FB_DEBUG(FB_DEBUG_SHORTCUT,
                      "│   Fetching file from blobs cache: "
                      + d(path));
-            if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false)) {
+            if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false,
+                                           file->has_compressed_hash())) {
               /* The file may not be writable but it may be expected and already checked. */
               const FBBSTORE_Serialized_file* input_file =
                   find_input_file(
@@ -1539,7 +1560,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
                   assert(0);
                 }
                 /* Try retrieving the same file again. */
-                if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false)) {
+                if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false,
+                                               file->has_compressed_hash())) {
                   fb_perror("Failed creating file from cache");
                   assert(0);
                 }
@@ -1628,13 +1650,37 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
         if (fstat64(fd, &st) < 0) {
           assert(0 && "fstat");
         }
-        pipe->add_data_from_fd(fd, st.st_size);
+        if (serialized_append_to_fd->has_compressed_hash()) {
+          /* Compressed data in blob cache.
+           * Mmap the blob, decompress it, then add to pipe from the buffer */
+          uint8_t* mapped =
+              static_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0));
+          if (mapped == MAP_FAILED) {
+            fb_perror("mmap compressed blob for pipe");
+            assert(0);
+          }
+          size_t decompressed_size = 0;
+          uint8_t* decompressed = decompress_zstd(
+              mapped, st.st_size, &decompressed_size);
+          munmap(mapped, st.st_size);
+          if (!decompressed) {
+            FB_DEBUG(FB_DEBUG_SHORTCUT,
+                     "│   Could not decompress pipe fragment from cache");
+            assert(0);
+          }
+          pipe->add_data_from_buffer(reinterpret_cast<const char*>(decompressed),
+                                     decompressed_size);
+          free(decompressed);
+        } else {
+          /* Regular data in blob cache */
+          pipe->add_data_from_fd(fd, st.st_size);
 
-        if (proc->parent()) {
-          /* Bubble up the replayed pipe data. */
-          std::vector<std::shared_ptr<PipeRecorder>>& recorders =
-              pipe->proc2recorders[proc->parent_exec_point()];
-          PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
+          if (proc->parent()) {
+            /* Bubble up the replayed pipe data. */
+            std::vector<std::shared_ptr<PipeRecorder>>& recorders =
+                pipe->proc2recorders[proc->parent_exec_point()];
+            PipeRecorder::record_data_from_regular_fd(&recorders, fd, st.st_size);
+          }
         }
       }
     } else if (ffd->type() == FD_FILE) {
@@ -1662,8 +1708,8 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
         FB_DEBUG(FB_DEBUG_SHORTCUT,
                  "│   Fetching file fragment from blobs cache: "
                  + d(ffd->filename()));
-        Hash hash(serialized_append_to_fd->get_hash());
-        blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], ffd->filename(), true);
+        blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], ffd->filename(), true,
+                                  serialized_append_to_fd->has_compressed_hash());
       }
 
       /* Tell the interceptor to seek forward in this fd. */
@@ -1716,8 +1762,9 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
   }
 
   Subkey subkey;
+  bool munmap_entry = false;
   if (proc->can_shortcut()) {
-    inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len, &subkey);
+    inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len, &munmap_entry, &subkey);
   }
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, inouts ? "│ Shortcutting:" : "│ Not shortcutting.");
@@ -1737,7 +1784,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     }
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;
-    ObjCache::unmap_entry(inouts_buf, inouts_buf_len);
+    ObjCache::free_entry(inouts_buf, inouts_buf_len, munmap_entry);
   }
   FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
 
@@ -1803,8 +1850,10 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
       reinterpret_cast<const FBBSTORE_Serialized_process_outputs *>(inouts->get_outputs());
   for (size_t i = 0; i < outputs->get_path_isreg_count(); i++) {
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
-    if (file->get_type() == ISREG && file->get_inline_data_count() == 0 && file->has_hash()) {
-      if (!blob_present(Hash(file->get_hash()), referenced_blobs)) {
+    if (file->get_type() == ISREG && file->get_inline_data_count() == 0
+        && (file->has_hash() || file->has_compressed_hash())) {
+      if (!blob_present(Hash(file->has_compressed_hash()
+                             ? file->get_compressed_hash() : file->get_hash()), referenced_blobs)) {
         return false;
       }
     }
@@ -1813,7 +1862,9 @@ bool ExecedProcessCacher::is_entry_usable(uint8_t* entry_buf,
     auto append_to_fd = reinterpret_cast<const FBBSTORE_Serialized_append_to_fd *>
         (outputs->get_append_to_fd_at(i));
     if ((append_to_fd->get_inline_data_count() == 0)
-        && !blob_present(Hash(append_to_fd->get_hash()), referenced_blobs)) {
+        && !blob_present(Hash(append_to_fd->has_compressed_hash()
+                              ? append_to_fd->get_compressed_hash()
+                              : append_to_fd->get_hash()), referenced_blobs)) {
       return false;
     }
   }

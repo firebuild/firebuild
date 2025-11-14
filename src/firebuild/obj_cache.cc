@@ -56,6 +56,8 @@ ObjCache::ObjCache(const std::string &base_dir) : base_dir_(base_dir) {
 static size_t kObjCachePathLength =
     1 + 1 + 1 + 2 + 1 + Hash::kAsciiLength + 1 + Subkey::kAsciiLength;
 
+static const uint8_t kZstdMagicHeader[] = {0x28, 0xb5, 0x2f, 0xfd};
+static constexpr size_t kZstdMagicHeaderSize = sizeof(kZstdMagicHeader);
 /*
  * Constructs the directory name where the cached files are to be
  * stored, or read from. Optionally creates the necessary subdirectories
@@ -169,7 +171,27 @@ bool ObjCache::store(const Hash &key,
   memcpy(entry_serial, kMagicHeader, kMagicHeaderSize);
 
   entry->serialize(entry_serial + kMagicHeaderSize);
-  fb_write(fd_dst, entry_serial, len + kMagicHeaderSize);
+
+  off_t final_size;
+  if (compress_cache) {
+    /* Compress the serialized entry */
+    size_t compressed_size = 0;
+    char *compressed_data = compress_zstd(entry_serial, len + kMagicHeaderSize, &compressed_size,
+                                          compression_level);
+    if (!compressed_data) {
+      free(entry_serial);
+      close(fd_dst);
+      free(tmpfile);
+      return false;
+    }
+
+    fb_write(fd_dst, compressed_data, compressed_size);
+    final_size = compressed_size;
+    free(compressed_data);
+  } else {
+    final_size = len + kMagicHeaderSize;
+    fb_write(fd_dst, entry_serial, final_size);
+  }
   close(fd_dst);
 
   /* Create randomized object file */
@@ -208,7 +230,7 @@ bool ObjCache::store(const Hash &key,
       return false;
     }
   } else {
-    execed_process_cacher->update_cached_bytes(len + kMagicHeaderSize);
+    execed_process_cacher->update_cached_bytes(final_size);
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -237,7 +259,9 @@ bool ObjCache::store(const Hash &key,
 bool ObjCache::retrieve(const Hash &key,
                         const char* const subkey,
                         uint8_t ** entry,
-                        size_t * entry_len) {
+                        size_t * entry_len,
+                        size_t * compressed_len,
+                        bool* munmap_entry) {
   TRACK(FB_DEBUG_CACHING, "key=%s, subkey=%s", D(key), D(subkey));
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -247,11 +271,13 @@ bool ObjCache::retrieve(const Hash &key,
 
   char* path = reinterpret_cast<char*>(alloca(base_dir_.length() + kObjCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, subkey, false, path);
-  return retrieve(path, entry, entry_len);
+  return retrieve(path, entry, entry_len, compressed_len, munmap_entry);
 }
 
-bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) {
+bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len,
+                        size_t * compressed_len, bool* munmap_entry) {
   TRACK(FB_DEBUG_CACHING, "path=%s", D(path));
+  assert(munmap_entry);
   int fd = open(path, O_RDONLY);
   if (fd == -1) {
     fb_perror("open");
@@ -272,6 +298,7 @@ bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) 
     return false;
   }
 
+  bool compressed_obj;
   uint8_t *p = NULL;
   if (st.st_size > static_cast<off_t>(kMagicHeaderSize)) {
     /* Zero bytes can't be mmapped, we're fine with p == NULL then.
@@ -283,32 +310,57 @@ bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) 
       close(fd);
       return false;
     }
+    close(fd);
     /* Verify magic header */
-    if (memcmp(p, kMagicHeader, 4) != 0) {
+    if (memcmp(p, kMagicHeader, 4) == 0) {
+      compressed_obj = false;
+    } else if (memcmp(p, kZstdMagicHeader, kZstdMagicHeaderSize) == 0) {
+      compressed_obj = true;
+    } else {
       fb_error("Invalid magic header in cache entry: " + std::string(path));
       munmap(p, st.st_size);
-      close(fd);
       return false;
     }
   } else {
     fb_error("Cache entry too small (expected at least " + std::to_string(kMagicHeaderSize) +
              " bytes): " + std::string(path));
     assert(st.st_size <= static_cast<off_t>(kMagicHeaderSize));
-    close(fd);
     return false;
   }
-  close(fd);
 
-  /* Return pointer offset by header size, and length excluding header */
-  *entry_len = st.st_size - kMagicHeaderSize;
-  *entry = p + kMagicHeaderSize;
+  if (compressed_obj) {
+    /* Get decompressed size */
+    size_t decompressed_size = 0;
+    uint8_t* decompressed_data = decompress_zstd(p, st.st_size, &decompressed_size);
+    munmap(p, st.st_size);  /* Unmap the compressed data now that we're done with it */
+    if (decompressed_data) {
+      *entry_len = decompressed_size - kMagicHeaderSize;
+      if (compressed_len) {
+        *compressed_len = st.st_size;
+      }
+      *entry = decompressed_data + kMagicHeaderSize;
+      *munmap_entry = false;
+    } else {
+      return false;
+    }
+  } else {
+    /* use the already mmap()-ed the uncompressed data */
+    *entry_len = st.st_size - kMagicHeaderSize;
+    *entry = p + kMagicHeaderSize;
+    *munmap_entry = true;
+  }
+
   return true;
 }
 
-void ObjCache::unmap_entry(uint8_t *entry, size_t entry_len) {
-  /* The entry pointer is offset by kMagicHeaderSize from the mmap base,
-   * so we need to adjust both the pointer and length for munmap. */
-  munmap(entry - kMagicHeaderSize, entry_len + kMagicHeaderSize);
+void ObjCache::free_entry(uint8_t *entry, size_t entry_len, bool munmap_entry) {
+  /* The entry pointer is offset by kMagicHeaderSize from the base,
+   * so we need to adjust the pointer and the size. */
+  if (munmap_entry) {
+    munmap(entry - kMagicHeaderSize, entry_len + kMagicHeaderSize);
+  } else {
+    free(entry - kMagicHeaderSize);
+  }
 }
 
 void ObjCache::mark_as_used(const Hash &key,
@@ -544,17 +596,21 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
         }
         continue;
       }
-      if (retrieve((path + "/" + entry.c_str()).c_str(), &entry_buf, &entry_len)) {
+      bool munmap_entry = false;
+      size_t compressed_len = 0;
+      if (retrieve((path + "/" + entry.c_str()).c_str(), &entry_buf, &entry_len, &compressed_len,
+                   &munmap_entry)) {
         if (execed_process_cacher->is_entry_usable(entry_buf, referenced_blobs)) {
           /* The entry is usable and the referenced blobs were collected.  */
-          unmap_entry(entry_buf, entry_len);
+          free_entry(entry_buf, entry_len, munmap_entry);
           usable_entries++;
-          *cache_bytes += entry_len + kMagicHeaderSize;
+          *cache_bytes += (compressed_len == 0) ? (entry_len + kMagicHeaderSize) : compressed_len;
         } else {
           /* This entry is not usable, remove it. */
-          unmap_entry(entry_buf, entry_len);
+          free_entry(entry_buf, entry_len, munmap_entry);
           if (unlinkat(dirfd(dir), entry.c_str(), 0) == 0) {
-            execed_process_cacher->update_cached_bytes(-(entry_len + kMagicHeaderSize));
+            execed_process_cacher->update_cached_bytes(-(
+                (compressed_len == 0) ? (entry_len + kMagicHeaderSize) : compressed_len));
           } else {
             fb_perror("unlinkat");
           }

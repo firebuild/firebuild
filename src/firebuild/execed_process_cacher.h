@@ -72,6 +72,7 @@ class ExecedProcessCacher {
   const FBBSTORE_Serialized_process_inputs_outputs *find_shortcut(ExecedProcess *proc,
                                                                   uint8_t **inouts_buf,
                                                                   size_t *inouts_buf_len,
+                                                                  bool *munmap_entry,
                                                                   Subkey* subkey_out);
   bool apply_shortcut(ExecedProcess *proc,
                       const FBBSTORE_Serialized_process_inputs_outputs *inouts,

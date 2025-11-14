@@ -64,7 +64,7 @@
       # TODO add alternate hash values generated after preprocessing the file
       # with programs keeping the semantic content (e.g. removing white spaces)
       #(OPTIONAL, "XXH128_hash_t",       "alt_hash"),
-
+      (OPTIONAL, "XXH128_hash_t",        "compressed_hash"),
       # last modification time - FIXME in what unit?
       #(OPTIONAL, "long",                "mtime"),
       # the known bits of the mode, if any
@@ -92,6 +92,7 @@
       (REQUIRED, "int",           "fd"),
       # Checksum (binary) of the written data, if the data is not inlined
       (OPTIONAL, "XXH128_hash_t", "hash"),
+      (OPTIONAL, "XXH128_hash_t", "compressed_hash"),
       # Inline data for small blobs (if size <= max_inline_blob_size)
       # When this is present, the data is stored directly here instead of in blob cache
       (ARRAY, "char",          "inline_data"),

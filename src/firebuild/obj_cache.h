@@ -84,24 +84,32 @@ class ObjCache {
    * @param subkey The subkey
    * @param[out] entry mmap()-ed cache entry. It is the caller's responsibility to munmap() it later.
    * @param[out] entry_len entry's length in bytes
+   * @param[out] compressed_len entry's file size in bytes if it is compressed on disk
+   * @param[out] munmap_entry whether the entry must be freed using munmap()
    * @return Whether succeeded
    */
   bool retrieve(const Hash &key,
                 const char * const subkey,
                 uint8_t ** entry,
-                size_t * entry_len);
+                size_t * entry_len,
+                size_t * compressed_len,
+                bool* munmap_entry);
   bool retrieve(const char* path,
                 uint8_t ** entry,
-                size_t * entry_len);
+                size_t * entry_len,
+                size_t * compressed_len,
+                bool* munmap_entry);
   /**
-   * Unmap an entry previously retrieved from the obj-cache.
-   * This must be used instead of directly calling munmap() because the entry
-   * pointer is offset from the actual mmap() base address.
+   * Free or munmap an entry previously retrieved from the obj-cache that was allocated
+   * using malloc() or mmap().
+   * This must be used instead of directly calling free() because the entry
+   * pointer is offset from the actual malloc() base address.
    *
    * @param entry The entry pointer returned by retrieve()
    * @param entry_len The entry length returned by retrieve()
+   * @param munmap_entry Whether the entry must be freed using munmap()
    */
-  static void unmap_entry(uint8_t *entry, size_t entry_len);
+  static void free_entry(uint8_t *entry, size_t entry_len, bool munmap_entry);
   void mark_as_used(const Hash &key, const char * const subkey);
   std::vector<Subkey> list_subkeys(const Hash &key);
   /**
