@@ -20,8 +20,6 @@ Build-Depends: bash-completion,
                moreutils,
                po-debconf,
                python3-jinja2,
-# needs patched qemu-user packages
-#              qemu-user-interposable,
                xsltproc
 Standards-Version: 4.7.2
 Homepage: https://firebuild.com
@@ -35,8 +33,9 @@ Depends: ${shlibs:Depends},
          ${glibc:Depends},
          libfirebuild0 (= ${binary:Version})
 Pre-Depends: debconf | debconf-2.0
-Recommends: qemu-user
-Suggests: node-d3
+# needs patched qemu-user packages
+Suggests: node-d3,
+          qemu-user-interposable
 Description: Automatic build accelerator cache
  It works by caching the outputs of executed commands and replaying the
  results when the same commands are executed with the same parameters
