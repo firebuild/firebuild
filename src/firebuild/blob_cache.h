@@ -95,11 +95,13 @@ class BlobCache {
    * @param blob_fd opened file descriptor of the blob to be used
    * @param path_dst Where to place the file
    * @param append Whether to use append mode
+   * @param decompress Whether to decompress the blob during retrieval
    * @return Whether succeeded
    */
   bool retrieve_file(int blob_fd,
                      const FileName *path_dst,
-                     bool append);
+                     bool append,
+                     bool decompress);
   /**
    * Get a read-only fd for a given entry in the cache.
    *

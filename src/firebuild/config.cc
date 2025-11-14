@@ -68,6 +68,8 @@ int shortcut_tries = 0;
 int64_t max_cache_size = 0;
 off_t max_entry_size = 0;
 off_t max_inline_blob_size = 4096;  /* Default 4KB */
+bool compress_cache = false;  /* Default: compression disabled */
+int compression_level = 1;  /* Default: level 1 */
 int quirks = 0;
 
 #ifndef __APPLE__
@@ -253,6 +255,11 @@ static void modify_config(libconfig::Config *cfg, const std::string& str) {
         adding = x_int;
         break;
       }
+      case libconfig::Setting::TypeBoolean: {
+        bool x_bool = x;
+        adding = x_bool;
+        break;
+      }
       default:
         std::cerr << "This type is not supported" << std::endl;
         exit(EXIT_FAILURE);
@@ -353,6 +360,25 @@ void read_config(libconfig::Config *cfg, const char *custom_cfg_file,
         max_inline_blob_size_kb = 0;
       }
       max_inline_blob_size = max_inline_blob_size_kb * 1024;
+    }
+  }
+
+  if (cfg->exists("compress_cache")) {
+    libconfig::Setting& compress_cache_cfg = cfg->getRoot()["compress_cache"];
+    if (compress_cache_cfg.getType() == libconfig::Setting::TypeBoolean) {
+      compress_cache = compress_cache_cfg;
+    }
+  }
+
+  if (cfg->exists("compression_level")) {
+    libconfig::Setting& compression_level_cfg = cfg->getRoot()["compression_level"];
+    if (compression_level_cfg.isNumber()) {
+      int level = compression_level_cfg;
+      if (level < 1 || level > 22) {
+        std::cerr << "compression_level must be between 1 and 22, using default (1)" << std::endl;
+      } else {
+        compression_level = level;
+      }
     }
   }
 

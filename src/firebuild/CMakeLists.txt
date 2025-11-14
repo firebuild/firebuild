@@ -10,6 +10,7 @@ find_package(LibConfig REQUIRED)
 find_package(PkgConfig REQUIRED)
 # xxh128's algorithm changed and became officially supported in 0.8.0
 pkg_check_modules(XXHASH REQUIRED libxxhash>=0.8.0)
+pkg_check_modules(ZSTD REQUIRED libzstd)
 if (WITH_JEMALLOC)
   pkg_check_modules(JEMALLOC jemalloc)
 endif()
@@ -92,7 +93,7 @@ add_executable(firebuild-bin
   fbbstore.cc
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_cc>)
-target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LDFLAGS} ${XXHASH_LDFLAGS} ${libelf_LIBRARIES} ${PLIST_LINK_LIBRARIES} ${IOKit} ${CoreFoundation})
+target_link_libraries(firebuild-bin ${LIBCONFIGPP_LIBRARY} ${JEMALLOC_LDFLAGS} ${XXHASH_LDFLAGS} ${ZSTD_LDFLAGS} ${libelf_LIBRARIES} ${PLIST_LINK_LIBRARIES} ${IOKit} ${CoreFoundation})
 target_link_options(firebuild-bin PUBLIC -Wno-array-bounds -Wno-strict-overflow ${SANITIZE_SUPERVISOR_LINK_OPTIONS})
 set_target_properties(firebuild-bin PROPERTIES OUTPUT_NAME firebuild)
 # GCC 9's LTO implementation seem to have a bug we hit, but did not fully triage yet

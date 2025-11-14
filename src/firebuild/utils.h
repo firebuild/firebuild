@@ -131,5 +131,28 @@ bool check_system_setup();
 /** Return the filename part of a path (after the last '/') */
 std::string base_name(const char* path);
 
+/**
+ * Decompress Zstd-compressed data from a buffer into a malloc()-allocated output buffer.
+ *
+ * @param compressed_data pointer to the compressed input data
+ * @param compressed_size size of the compressed input in bytes
+ * @param[out] decompressed_size_out receives the actual decompressed size
+ * @return pointer to malloc()-ed buffer containing decompressed data, or NULL on error.
+ *         Caller must free() the returned pointer.
+ */
+uint8_t* decompress_zstd(const uint8_t* compressed_data, size_t compressed_size,
+                         size_t* decompressed_size_out);
+
+char* compress_zstd(const char* uncompressed_data, size_t uncompressed_size,
+                    size_t* compressed_size_out, int compression_level);
+
+/*
+ * Compress data from fd_src to fd_dst using zstd compression.
+ * Returns true on success, false on failure.
+ */
+bool compress_file(int fd_src, int fd_dst, loff_t size_src, int compression_level);
+
+bool decompress_file(int fd_src, int fd_dst);
+
 }  /* namespace firebuild */
 #endif  // FIREBUILD_UTILS_H_

@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <zstd.h>
 
 #include <string>
 #include <cstdlib>
@@ -450,6 +451,277 @@ std::string base_name(const char* path) {
   } else {
     return std::string(path);
   }
+}
+
+uint8_t* decompress_zstd(const uint8_t* compressed_data, size_t compressed_size,
+                         size_t* decompressed_size_out) {
+  assert(compressed_data);
+  assert(decompressed_size_out);
+
+  /* Get decompressed size */
+  unsigned long long decompressed_size =  /* NOLINT(runtime/int) */
+      ZSTD_getFrameContentSize(compressed_data, compressed_size);
+  if (decompressed_size == ZSTD_CONTENTSIZE_ERROR) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to get decompressed size");
+    return NULL;
+  }
+
+  if (decompressed_size == ZSTD_CONTENTSIZE_UNKNOWN) {
+    /* Content size unknown, use streaming decompression with growing buffer */
+    FB_DEBUG(FB_DEBUG_CACHING, "Decompressed size unknown, using streaming decompression");
+
+    ZSTD_DCtx* dctx = ZSTD_createDCtx();
+    if (!dctx) {
+      FB_DEBUG(FB_DEBUG_CACHING, "Failed to create zstd decompression context");
+      return NULL;
+    }
+
+    const size_t kOutBufferSize = ZSTD_DStreamOutSize();
+    size_t output_capacity = kOutBufferSize;
+    uint8_t* output_buffer = reinterpret_cast<uint8_t*>(malloc(output_capacity));
+    if (!output_buffer) {
+      fb_perror("malloc for streaming decompression");
+      ZSTD_freeDCtx(dctx);
+      return NULL;
+    }
+
+    ZSTD_inBuffer input = { compressed_data, compressed_size, 0 };
+    size_t total_output = 0;
+
+    while (input.pos < input.size) {
+      /* Ensure we have space in output buffer */
+      if (total_output + kOutBufferSize > output_capacity) {
+        size_t new_capacity = output_capacity * 2;
+        uint8_t* new_buffer = reinterpret_cast<uint8_t*>(realloc(output_buffer, new_capacity));
+        if (!new_buffer) {
+          fb_perror("realloc for streaming decompression");
+          free(output_buffer);
+          ZSTD_freeDCtx(dctx);
+          return NULL;
+        }
+        output_buffer = new_buffer;
+        output_capacity = new_capacity;
+      }
+
+      ZSTD_outBuffer output = { output_buffer + total_output, output_capacity - total_output, 0 };
+      size_t ret = ZSTD_decompressStream(dctx, &output, &input);
+
+      if (ZSTD_isError(ret)) {
+        FB_DEBUG(FB_DEBUG_CACHING, "Zstd streaming decompression error: " +
+                 std::string(ZSTD_getErrorName(ret)));
+        free(output_buffer);
+        ZSTD_freeDCtx(dctx);
+        return NULL;
+      }
+
+      total_output += output.pos;
+    }
+
+    ZSTD_freeDCtx(dctx);
+    *decompressed_size_out = total_output;
+    return output_buffer;
+  }
+
+  /* Allocate output buffer for known size */
+  uint8_t* decompressed_data = reinterpret_cast<uint8_t*>(malloc(decompressed_size));
+  if (!decompressed_data) {
+    fb_perror("malloc for decompression");
+    return NULL;
+  }
+
+  /* Decompress */
+  size_t actual_decompressed_size = ZSTD_decompress(decompressed_data, decompressed_size,
+                                                    compressed_data, compressed_size);
+  if (ZSTD_isError(actual_decompressed_size)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Zstd decompression error: " +
+             std::string(ZSTD_getErrorName(actual_decompressed_size)));
+    free(decompressed_data);
+    return NULL;
+  }
+
+  *decompressed_size_out = actual_decompressed_size;
+  return decompressed_data;
+}
+
+
+bool compress_file(int fd_src, int fd_dst, loff_t size_src __attribute__((unused)),
+                   int compression_level) {
+  const size_t kBufferSize = ZSTD_CStreamInSize();
+  const size_t kOutBufferSize = ZSTD_CStreamOutSize();
+
+  ZSTD_CCtx* cctx = ZSTD_createCCtx();
+  if (!cctx) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to create zstd compression context");
+    return false;
+  }
+
+  /* Set compression level from configuration */
+  ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compression_level);
+
+  char* inBuff = static_cast<char*>(malloc(kBufferSize));
+  char* outBuff = static_cast<char*>(malloc(kOutBufferSize));
+  bool success = true;
+
+  if (!inBuff || !outBuff) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to allocate compression buffers");
+    success = false;
+  } else {
+    /* Rewind source file */
+    if (lseek(fd_src, 0, SEEK_SET) == -1) {
+      fb_perror("lseek");
+      success = false;
+    } else {
+      ssize_t read_size;
+      while (success && (read_size = read(fd_src, inBuff, kBufferSize)) > 0) {
+        ZSTD_inBuffer input = { inBuff, static_cast<size_t>(read_size), 0 };
+
+        while (input.pos < input.size) {
+          ZSTD_outBuffer output = { outBuff, kOutBufferSize, 0 };
+          size_t remaining = ZSTD_compressStream2(cctx, &output, &input, ZSTD_e_continue);
+
+          if (ZSTD_isError(remaining)) {
+            FB_DEBUG(FB_DEBUG_CACHING, "Zstd compression error: " +
+                     std::string(ZSTD_getErrorName(remaining)));
+            success = false;
+            break;
+          }
+
+          if (output.pos > 0) {
+            if (fb_write(fd_dst, outBuff, output.pos) != static_cast<ssize_t>(output.pos)) {
+              fb_perror("write compressed data");
+              success = false;
+              break;
+            }
+          }
+        }
+      }
+
+      /* Finish compression */
+      if (success) {
+        ZSTD_inBuffer input = { inBuff, 0, 0 };
+        size_t remaining;
+        do {
+          ZSTD_outBuffer output = { outBuff, kOutBufferSize, 0 };
+          remaining = ZSTD_compressStream2(cctx, &output, &input, ZSTD_e_end);
+
+          if (ZSTD_isError(remaining)) {
+            FB_DEBUG(FB_DEBUG_CACHING, "Zstd compression finalization error: " +
+                     std::string(ZSTD_getErrorName(remaining)));
+            success = false;
+            break;
+          }
+
+          if (output.pos > 0) {
+            if (fb_write(fd_dst, outBuff, output.pos) != static_cast<ssize_t>(output.pos)) {
+              fb_perror("write compressed data");
+              success = false;
+              break;
+            }
+          }
+        } while (remaining > 0);
+      }
+
+      if (read_size == -1) {
+        fb_perror("read");
+        success = false;
+      }
+    }
+  }
+
+  free(inBuff);
+  free(outBuff);
+  ZSTD_freeCCtx(cctx);
+
+  return success;
+}
+
+char* compress_zstd(const char* uncompressed_data, size_t uncompressed_size,
+                    size_t* compressed_size_out, int compression_level) {
+  size_t compressed_bound = ZSTD_compressBound(uncompressed_size);
+  char *compressed_data = reinterpret_cast<char *>(malloc(compressed_bound));
+  if (!compressed_data) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to allocate compression buffer");
+    return nullptr;
+  }
+
+  size_t compressed_size = ZSTD_compress(compressed_data, compressed_bound, uncompressed_data,
+                                         uncompressed_size, compression_level);
+  if (ZSTD_isError(compressed_size)) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Zstd compression error: " +
+             std::string(ZSTD_getErrorName(compressed_size)));
+    free(compressed_data);
+    return nullptr;
+  }
+  *compressed_size_out = compressed_size;
+  return compressed_data;
+}
+
+/*
+ * Decompress data from fd_src to fd_dst using zstd decompression.
+ * Returns true on success, false on failure.
+ */
+bool decompress_file(int fd_src, int fd_dst) {
+  const size_t kBufferSize = ZSTD_DStreamInSize();
+  const size_t kOutBufferSize = ZSTD_DStreamOutSize();
+
+  ZSTD_DCtx* dctx = ZSTD_createDCtx();
+  if (!dctx) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to create zstd decompression context");
+    return false;
+  }
+
+  char* inBuff = static_cast<char*>(malloc(kBufferSize));
+  char* outBuff = static_cast<char*>(malloc(kOutBufferSize));
+  bool success = true;
+
+  if (!inBuff || !outBuff) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to allocate decompression buffers");
+    success = false;
+  } else {
+    /* Rewind source file */
+    if (lseek(fd_src, 0, SEEK_SET) == -1) {
+      fb_perror("lseek");
+      success = false;
+    } else {
+      size_t toRead = kBufferSize;
+      ssize_t read_size;
+
+      while (success && (read_size = read(fd_src, inBuff, toRead)) > 0) {
+        ZSTD_inBuffer input = { inBuff, static_cast<size_t>(read_size), 0 };
+
+        while (input.pos < input.size) {
+          ZSTD_outBuffer output = { outBuff, kOutBufferSize, 0 };
+          size_t ret = ZSTD_decompressStream(dctx, &output, &input);
+
+          if (ZSTD_isError(ret)) {
+            FB_DEBUG(FB_DEBUG_CACHING, "Zstd decompression error: " +
+                     std::string(ZSTD_getErrorName(ret)));
+            success = false;
+            break;
+          }
+
+          if (output.pos > 0) {
+            if (fb_write(fd_dst, outBuff, output.pos) != static_cast<ssize_t>(output.pos)) {
+              fb_perror("write decompressed data");
+              success = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (read_size == -1) {
+        fb_perror("read");
+        success = false;
+      }
+    }
+  }
+
+  free(inBuff);
+  free(outBuff);
+  ZSTD_freeDCtx(dctx);
+
+  return success;
 }
 
 }  /* namespace firebuild */

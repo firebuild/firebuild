@@ -406,7 +406,8 @@ setup() {
 }
 
 @test "pipe replaying" {
-  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -o 'max_inline_blob_size = 0' -o 'min_cpu_time = -1.0' -- echo foo)
+  # Disable compression for this test since it directly manipulates blob content
+  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -o 'max_inline_blob_size = 0' -o 'min_cpu_time = -1.0' -o 'compress_cache = false' -- echo foo)
   assert_streq "$result" "foo"
   assert_streq "$(strip_stderr stderr)" ""
 
@@ -415,7 +416,7 @@ setup() {
   echo quux > test_cache_dir/blobs/*/*/*
 
   # Replaying the "echo foo" command now needs to print "quux".
-  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -- echo foo)
+  result=$(./run-firebuild -o 'processes.skip_cache -= "echo"' -o 'compress_cache = false' -- echo foo)
   assert_streq "$result" "quux"
   assert_streq "$(strip_stderr stderr)" ""
 }
@@ -572,4 +573,32 @@ setup() {
       done
     done
   done
+}
+
+@test "cache compression - uncompressed cache" {
+  # Test with compression disabled
+  rm -rf test_cache_dir
+  export FIREBUILD_CACHE_DIR=test_cache_dir
+  
+  # First run with compression disabled
+  result=$(./run-firebuild -o 'compress_cache = false' -- bash -c "echo uncompressed test")
+  assert_streq "$result" "uncompressed test"
+  
+  # Check cache-format file does not contain "compressed"
+  if [ -f test_cache_dir/cache-format ]; then
+    if grep -q "(compressed)" test_cache_dir/cache-format; then
+      echo "Did not expect '(compressed)' in cache-format"
+      cat test_cache_dir/cache-format
+      return 1
+    fi
+  else
+    echo "cache-format file not found"
+    return 1
+  fi
+  
+  # Second run should use uncompressed cache
+  result=$(./run-firebuild -o 'compress_cache = false' -- bash -c "echo uncompressed test")
+  assert_streq "$result" "uncompressed test"
+  
+  unset FIREBUILD_CACHE_DIR
 }
