@@ -99,7 +99,8 @@ class BlobCache {
    */
   bool retrieve_file(int blob_fd,
                      const FileName *path_dst,
-                     bool append);
+                     bool append,
+                     bool decompress);
   /**
    * Get a read-only fd for a given entry in the cache.
    *
