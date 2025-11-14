@@ -36,11 +36,13 @@
 #include <list>
 #include <string>
 #include <stdexcept>
+#include <vector>
 #include <libconfig.h++>
 
 #include "common/config.h"
 #include "firebuild/debug.h"
 #include "firebuild/sigchild_callback.h"
+#include "firebuild/command_rewriter.h"
 #include "firebuild/config.h"
 #include "firebuild/connection_context.h"
 #include "firebuild/epoll.h"
@@ -281,15 +283,14 @@ int main(const int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-#ifdef __APPLE__
-    *_NSGetEnviron() = env_exec;
-    execvp(firebuild::Options::build_cmd()[0],
-           const_cast<char* const*>(firebuild::Options::build_cmd()));
-#else
+    /** Convert build command to vector of strings */
+    std::vector<std::string> build_cmd(firebuild::Options::build_cmd(),
+                                       firebuild::Options::build_cmd()
+                                       + firebuild::Options::build_cmd_argc());
+
     /* Resolve command if needed */
-    size_t build_cmd_len = strlen(firebuild::Options::build_cmd()[0]);
     const firebuild::FileName* executable = nullptr;
-    if (strchr(firebuild::Options::build_cmd()[0], '/') == NULL) {
+    if (strchr(build_cmd[0].c_str(), '/') == NULL) {
       /** Get PATH from the sanitized environment. */
       char* exec_path = nullptr;
       for (char **envp = env_exec; *envp != nullptr; ++envp) {
@@ -302,28 +303,39 @@ int main(const int argc, char *argv[]) {
 
       /* Resolve command using PATH */
       executable = firebuild::hash_cache->resolve_command(
-          firebuild::Options::build_cmd()[0], build_cmd_len, exec_path, strlen(exec_path),
+          build_cmd[0].c_str(), build_cmd[0].length(), exec_path, strlen(exec_path),
           firebuild::FileName::Get(std::filesystem::current_path()));
       if (executable == nullptr) {
         std::cerr << "FIREBUILD ERROR: Could not find executable '"
-                  << firebuild::Options::build_cmd()[0] << "' in PATH '" << exec_path << "'\n";
+                  << build_cmd[0] << "' in PATH '" << exec_path << "'\n";
         exit(EXIT_FAILURE);
       }
     } else {
       executable = firebuild::FileName::GetCanonicalized(
-          firebuild::Options::build_cmd()[0], build_cmd_len,
+          build_cmd[0].c_str(), build_cmd[0].length(),
           firebuild::FileName::Get(std::filesystem::current_path()));
     }
-#ifndef __APPLE__
-    bool is_static = false;
-    if (firebuild::hash_cache && firebuild::hash_cache->get_is_static(executable, &is_static)
-        && is_static && firebuild::qemu_user) {
-      firebuild::Options::prepend_to_build_cmd(firebuild::qemu_user->c_str());
-    }
-#endif
 
-    execvpe(firebuild::Options::build_cmd()[0],
-            const_cast<char* const*>(firebuild::Options::build_cmd()), env_exec);
+    bool rewritten_executable = false;
+    bool rewritten_args = false;
+    const char **final_argv = nullptr;
+    firebuild::CommandRewriter::maybe_rewrite(&executable, &build_cmd, &rewritten_executable,
+                                              &rewritten_args);
+    if (rewritten_args) {
+      final_argv = new const char*[build_cmd.size() + 1];
+      for (size_t i = 0; i < build_cmd.size(); ++i) {
+        final_argv[i] = build_cmd[i].c_str();
+      }
+      final_argv[build_cmd.size()] = nullptr;
+    } else {
+      final_argv = const_cast<const char**>(firebuild::Options::build_cmd());
+    }
+
+#ifdef __APPLE__
+    *_NSGetEnviron() = env_exec;
+    execvp(final_argv[0], const_cast<char* const*>(final_argv));
+#else
+    execvpe(final_argv[0], const_cast<char* const*>(final_argv), env_exec);
 #endif
     firebuild::fb_perror("Executing build command failed");
     exit(EXIT_FAILURE);

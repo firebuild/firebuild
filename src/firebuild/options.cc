@@ -28,8 +28,8 @@ namespace firebuild {
 char* Options::config_file_ = nullptr;
 char* Options::directory_ = nullptr;
 const char* Options::report_file_ = "firebuild-build-report.html";
-const char** Options::build_cmd_ = nullptr;
-bool Options::build_cmd_owned_ = false;
+const char* const * Options::build_cmd_ = nullptr;
+size_t Options::build_cmd_argc_ = 0;
 std::list<std::string>* Options::config_strings_ = nullptr;
 bool Options::quiet_ = false;
 bool Options::generate_report_ = false;
@@ -201,33 +201,13 @@ void Options::parse(const int argc, char *argv[]) {
   }
 
   if (argc > optind) {
-    build_cmd_ = const_cast<const char**>(argv + optind);
+    build_cmd_ = argv + optind;
+    build_cmd_argc_ = argc - optind;
   }
-}
-
-void Options::prepend_to_build_cmd(const char* cmd) {
-  size_t build_cmd_len = 0;
-  while (build_cmd_ && build_cmd_[build_cmd_len]) {
-    build_cmd_len++;
-  }
-  const char** new_build_cmd =
-      static_cast<const char**>(malloc(sizeof(char*) * (build_cmd_len + 2)));
-  new_build_cmd[0] = cmd;
-  for (size_t i = 0; i <= build_cmd_len; i++) {
-    new_build_cmd[i + 1] = build_cmd_[i];
-  }
-  if (build_cmd_owned_) {
-    ::free(build_cmd_);
-  }
-  build_cmd_ = new_build_cmd;
-  build_cmd_owned_ = true;
 }
 
 void Options::free() {
   delete(config_strings_);
-  if (build_cmd_owned_) {
-    ::free(build_cmd_);
-  }
 }
 
 }  /* namespace firebuild */
