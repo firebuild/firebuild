@@ -31,10 +31,12 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <tsl/hopscotch_set.h>
+#include <zstd.h>
 
 #include <vector>
 
 #include "firebuild/ascii_hash.h"
+#include "firebuild/config.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/debug.h"
 #include "firebuild/file_name.h"
@@ -140,6 +142,167 @@ static void construct_cached_file_name(const std::string &base, const Hash &key,
   memcpy(end, ascii, sizeof(ascii));
 }
 
+/*
+ * Compress data from fd_src to fd_dst using zstd compression.
+ * Returns true on success, false on failure.
+ */
+static bool compress_file(int fd_src, int fd_dst, loff_t size __attribute__((unused))) {
+  const size_t kBufferSize = ZSTD_CStreamInSize();
+  const size_t kOutBufferSize = ZSTD_CStreamOutSize();
+
+  ZSTD_CCtx* cctx = ZSTD_createCCtx();
+  if (!cctx) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to create zstd compression context");
+    return false;
+  }
+
+  /* Set compression level from configuration */
+  ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compression_level);
+
+  char* inBuff = static_cast<char*>(malloc(kBufferSize));
+  char* outBuff = static_cast<char*>(malloc(kOutBufferSize));
+  bool success = true;
+
+  if (!inBuff || !outBuff) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to allocate compression buffers");
+    success = false;
+  } else {
+    /* Rewind source file */
+    if (lseek(fd_src, 0, SEEK_SET) == -1) {
+      fb_perror("lseek");
+      success = false;
+    } else {
+      ssize_t read_size;
+      while (success && (read_size = read(fd_src, inBuff, kBufferSize)) > 0) {
+        ZSTD_inBuffer input = { inBuff, static_cast<size_t>(read_size), 0 };
+
+        while (input.pos < input.size) {
+          ZSTD_outBuffer output = { outBuff, kOutBufferSize, 0 };
+          size_t remaining = ZSTD_compressStream2(cctx, &output, &input, ZSTD_e_continue);
+
+          if (ZSTD_isError(remaining)) {
+            FB_DEBUG(FB_DEBUG_CACHING, "Zstd compression error: " +
+                     std::string(ZSTD_getErrorName(remaining)));
+            success = false;
+            break;
+          }
+
+          if (output.pos > 0) {
+            if (fb_write(fd_dst, outBuff, output.pos) != static_cast<ssize_t>(output.pos)) {
+              fb_perror("write compressed data");
+              success = false;
+              break;
+            }
+          }
+        }
+      }
+
+      /* Finish compression */
+      if (success) {
+        ZSTD_outBuffer output = { outBuff, kOutBufferSize, 0 };
+        size_t remaining = ZSTD_compressStream2(cctx, &output, nullptr, ZSTD_e_end);
+
+        while (success && remaining > 0) {
+          if (output.pos > 0) {
+            if (fb_write(fd_dst, outBuff, output.pos) != static_cast<ssize_t>(output.pos)) {
+              fb_perror("write compressed data");
+              success = false;
+              break;
+            }
+          }
+          output.pos = 0;
+          remaining = ZSTD_compressStream2(cctx, &output, nullptr, ZSTD_e_end);
+        }
+
+        if (ZSTD_isError(remaining)) {
+          FB_DEBUG(FB_DEBUG_CACHING, "Zstd compression finalization error: " +
+                   std::string(ZSTD_getErrorName(remaining)));
+          success = false;
+        }
+      }
+
+      if (read_size == -1) {
+        fb_perror("read");
+        success = false;
+      }
+    }
+  }
+
+  free(inBuff);
+  free(outBuff);
+  ZSTD_freeCCtx(cctx);
+
+  return success;
+}
+
+/*
+ * Decompress data from fd_src to fd_dst using zstd decompression.
+ * Returns true on success, false on failure.
+ */
+static bool decompress_file(int fd_src, int fd_dst) {
+  const size_t kBufferSize = ZSTD_DStreamInSize();
+  const size_t kOutBufferSize = ZSTD_DStreamOutSize();
+
+  ZSTD_DCtx* dctx = ZSTD_createDCtx();
+  if (!dctx) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to create zstd decompression context");
+    return false;
+  }
+
+  char* inBuff = static_cast<char*>(malloc(kBufferSize));
+  char* outBuff = static_cast<char*>(malloc(kOutBufferSize));
+  bool success = true;
+
+  if (!inBuff || !outBuff) {
+    FB_DEBUG(FB_DEBUG_CACHING, "Failed to allocate decompression buffers");
+    success = false;
+  } else {
+    /* Rewind source file */
+    if (lseek(fd_src, 0, SEEK_SET) == -1) {
+      fb_perror("lseek");
+      success = false;
+    } else {
+      size_t toRead = kBufferSize;
+      ssize_t read_size;
+
+      while (success && (read_size = read(fd_src, inBuff, toRead)) > 0) {
+        ZSTD_inBuffer input = { inBuff, static_cast<size_t>(read_size), 0 };
+
+        while (input.pos < input.size) {
+          ZSTD_outBuffer output = { outBuff, kOutBufferSize, 0 };
+          size_t ret = ZSTD_decompressStream(dctx, &output, &input);
+
+          if (ZSTD_isError(ret)) {
+            FB_DEBUG(FB_DEBUG_CACHING, "Zstd decompression error: " +
+                     std::string(ZSTD_getErrorName(ret)));
+            success = false;
+            break;
+          }
+
+          if (output.pos > 0) {
+            if (fb_write(fd_dst, outBuff, output.pos) != static_cast<ssize_t>(output.pos)) {
+              fb_perror("write decompressed data");
+              success = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (read_size == -1) {
+        fb_perror("read");
+        success = false;
+      }
+    }
+  }
+
+  free(inBuff);
+  free(outBuff);
+  ZSTD_freeDCtx(dctx);
+
+  return success;
+}
+
 bool BlobCache::store_file(const FileName *path,
                            int max_writers,
                            int fd_src,
@@ -221,7 +384,64 @@ bool BlobCache::store_file(const FileName *path,
     free(tmpfile);
     return false;
   }
-  close(fd_dst);
+
+  /* If compression is enabled, compress the file */
+  char *tmpfile_compressed = NULL;
+  off_t final_size = dst_st.st_size;
+  if (compress_cache) {
+    if (asprintf(&tmpfile_compressed, "%s/new_compressed.XXXXXX", base_dir_.c_str()) < 0) {
+      fb_perror("asprintf");
+      assert(0);
+      close(fd_dst);
+      unlink(tmpfile);
+      free(tmpfile);
+      return false;
+    }
+    int fd_compressed = mkstemp(tmpfile_compressed);
+    if (fd_compressed == -1) {
+      fb_perror("Failed mkstemp() for compressed file");
+      assert(0);
+      close(fd_dst);
+      unlink(tmpfile);
+      free(tmpfile);
+      free(tmpfile_compressed);
+      return false;
+    }
+
+    if (!compress_file(fd_dst, fd_compressed, dst_st.st_size)) {
+      FB_DEBUG(FB_DEBUG_CACHING, "failed to compress file");
+      close(fd_dst);
+      close(fd_compressed);
+      unlink(tmpfile);
+      unlink(tmpfile_compressed);
+      free(tmpfile);
+      free(tmpfile_compressed);
+      return false;
+    }
+
+    /* Get the compressed file size */
+    struct stat64 compressed_st;
+    if (fstat64(fd_compressed, &compressed_st) == -1) {
+      fb_perror("fstat on compressed file");
+      close(fd_dst);
+      close(fd_compressed);
+      unlink(tmpfile);
+      unlink(tmpfile_compressed);
+      free(tmpfile);
+      free(tmpfile_compressed);
+      return false;
+    }
+    final_size = compressed_st.st_size;
+
+    close(fd_compressed);
+    close(fd_dst);
+    /* Remove the uncompressed temp file and use the compressed one */
+    unlink(tmpfile);
+    free(tmpfile);
+    tmpfile = tmpfile_compressed;
+  } else {
+    close(fd_dst);
+  }
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
@@ -236,7 +456,7 @@ bool BlobCache::store_file(const FileName *path,
       return false;
     }
   } else {
-    execed_process_cacher->update_cached_bytes(dst_st.st_size);
+    execed_process_cacher->update_cached_bytes(final_size);
   }
   free(tmpfile);
 
@@ -283,7 +503,66 @@ bool BlobCache::move_store_file(const std::string &path,
     unlink(path.c_str());
     return false;
   }
-  close(fd);
+
+  /* If compression is enabled, compress the file in place */
+  off_t final_size = size;
+  if (compress_cache) {
+    char *tmpfile_compressed;
+    if (asprintf(&tmpfile_compressed, "%s.compressed", path.c_str()) < 0) {
+      fb_perror("asprintf");
+      assert(0);
+      close(fd);
+      unlink(path.c_str());
+      return false;
+    }
+    int fd_compressed = open(tmpfile_compressed, O_CREAT|O_WRONLY|O_TRUNC, 0600);
+    if (fd_compressed == -1) {
+      fb_perror("Failed opening compressed file");
+      assert(0);
+      close(fd);
+      unlink(path.c_str());
+      free(tmpfile_compressed);
+      return false;
+    }
+
+    if (!compress_file(fd, fd_compressed, size)) {
+      FB_DEBUG(FB_DEBUG_CACHING, "failed to compress file");
+      close(fd);
+      close(fd_compressed);
+      unlink(path.c_str());
+      unlink(tmpfile_compressed);
+      free(tmpfile_compressed);
+      return false;
+    }
+
+    /* Get the compressed file size */
+    struct stat64 compressed_st;
+    if (fstat64(fd_compressed, &compressed_st) == -1) {
+      fb_perror("fstat on compressed file");
+      close(fd);
+      close(fd_compressed);
+      unlink(path.c_str());
+      unlink(tmpfile_compressed);
+      free(tmpfile_compressed);
+      return false;
+    }
+    final_size = compressed_st.st_size;
+
+    close(fd);
+    close(fd_compressed);
+    /* Remove the original file and rename the compressed one */
+    unlink(path.c_str());
+    if (rename(tmpfile_compressed, path.c_str()) == -1) {
+      fb_perror("Failed renaming compressed file");
+      assert(0);
+      unlink(tmpfile_compressed);
+      free(tmpfile_compressed);
+      return false;
+    }
+    free(tmpfile_compressed);
+  } else {
+    close(fd);
+  }
 
   char* path_dst = reinterpret_cast<char*>(alloca(base_dir_.length() + kBlobCachePathLength + 1));
   construct_cached_file_name(base_dir_, key, true, path_dst);
@@ -298,7 +577,7 @@ bool BlobCache::move_store_file(const std::string &path,
       return false;
     }
   } else {
-    execed_process_cacher->update_cached_bytes(size);
+    execed_process_cacher->update_cached_bytes(final_size);
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -342,15 +621,33 @@ bool BlobCache::retrieve_file(int blob_fd,
     return false;
   }
 
-  if (!copy_file(blob_fd, 0, fd_dst, append)) {
-    FB_DEBUG(FB_DEBUG_CACHING, "Copying file from cache failed");
-    assert(0);
-    close(blob_fd);
-    close(fd_dst);
-    if (!append) {
-      unlink(path_dst->c_str());
+  bool success;
+  if (compress_cache) {
+    /* Decompress the file */
+    success = decompress_file(blob_fd, fd_dst);
+    if (!success) {
+      FB_DEBUG(FB_DEBUG_CACHING, "Decompressing file from cache failed");
+      assert(0);
+      close(blob_fd);
+      close(fd_dst);
+      if (!append) {
+        unlink(path_dst->c_str());
+      }
+      return false;
     }
-    return false;
+  } else {
+    /* Copy the file as-is */
+    success = copy_file(blob_fd, 0, fd_dst, append);
+    if (!success) {
+      FB_DEBUG(FB_DEBUG_CACHING, "Copying file from cache failed");
+      assert(0);
+      close(blob_fd);
+      close(fd_dst);
+      if (!append) {
+        unlink(path_dst->c_str());
+      }
+      return false;
+    }
   }
 
   close(fd_dst);
