@@ -1,0 +1,140 @@
+# Copilot Agent profile for Firebuild
+# Purpose: Guide an AI coding agent working on this repository to make high-quality, policy-compliant changes quickly.
+
+name: firebuild-coding-agent
+version: 1
+owners:
+  - handle: rbalint
+  - handle: egmontkob
+languages:
+  primary:
+    - C++20
+    - C11
+  secondary:
+    - Python 3
+    - Shell
+    - Jinja
+project_layout:
+  build_system: cmake
+  generator: ninja
+  key_targets:
+    - firebuild-bin
+    - fbbstore_gen_files  # regenerate fbbstore.* after editing fbbstore.def
+    - fbbfp_gen_files     # regenerate fbbfp.* after editing fbbfp.def
+  schema_defs:
+    - src/firebuild/fbbstore.def
+    - src/firebuild/fbbfp.def
+    - src/common/fbbcomm.def # this is for supervisor-interceptor communication, can change freely
+  generated_files_dir:
+    - build/src/firebuild    # for fbbstore.* and fbbfp.*
+    - build/src              # for fbbcomm.*
+  tests:
+    - ctest
+    - test/integration.bats
+    - test/fbb_test
+
+commands:
+  # All commands are Linux bash oriented; prefer to run them from the build/ dir
+  configure: |
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+  build: |
+    cmake --build build --target firebuild-bin -j
+  build_target: |
+    cmake --build build --target ${TARGET} -j
+  gen_fbbstore: |
+    cmake --build build --target fbbstore_gen_files
+  gen_fbbfp: |
+    cmake --build build --target fbbfp_gen_files
+  gen_fbbcomm: |
+    cmake --build build --target fbbcomm_gen_files
+  test_ctest: |
+    cmake --build build --target test || ctest --test-dir build --output-on-failure
+  test_unit: |
+    ctest --test-dir build -R fbb_test --output-on-failure
+  test_integration: |
+    (cd build && ctest --output-on-failure) || ./test/integration.bats
+  style_check: |
+    cmake --build build --target style-check || true
+
+code_conventions:
+  compile:
+    - Werror: true        # Treat warnings as errors
+    - cpp_standard: c++20
+  style:
+    - preserve_existing_formatting: true
+    - avoid_mass_reformat: true
+  idioms:
+    - prefer_RAII_for_resource_cleanup: true
+    - avoid_exceptions: true
+    - prefer_explicit_over_implicit: true
+  debug_logging:
+    macros:
+      - FB_DEBUG
+      - TRACK
+    guidelines:
+      - Use existing macros and debug topics (FB_DEBUG_PROC, FB_DEBUG_CACHING, etc.)
+      - Keep messages short and actionable
+
+review_checklist:
+  - Ensure style_check passes first
+  - Build passes firebuild-bin with -Werror
+  - Run fbbstore_gen_files after schema changes (fbbstore.def)
+  - Update all switch statements on FileType when adding a new enum value:
+    files:
+      - src/firebuild/file_usage.cc
+      - src/firebuild/hash_cache.cc
+      - src/firebuild/file_info.*
+      - src/firebuild/execed_process_cacher.cc
+  - If schema changes, update serialization and restore paths; add minimal tests
+  - Do not reformat unrelated code or change public APIs unless required
+  - Keep performance in mind: avoid extra syscalls / large copies on hot paths
+  - Linux + macOS compatibility (consider lstat vs stat, Xcode specifics, etc.)
+  - Small fixes to reviewed commits should be squashed into the commits being fixed
+
+recipes:
+  add_fbb_field:
+    - edit: src/firebuild/fbbstore.def
+    - run: gen_fbbstore
+    - change_callsites: true
+    - build: build
+  add_filetype_enum:
+    - edit: src/firebuild/file_info.h, src/firebuild/file_info.cc
+    - update_switches:
+        - src/firebuild/file_usage.cc
+        - src/firebuild/hash_cache.cc
+        - src/firebuild/execed_process_cacher.cc
+    - build: build
+    - test: test_unit
+  perf_sensitive_edit:
+    - add_benchmark_or_metrics_note: true
+    - avoid_heap_allocations_in_hot_loops: true
+
+triage_prefs:
+  labels:
+    bug: ["bug"]
+    enhancement: ["enhancement"]
+    performance: ["performance", "scalability", "regression"]
+    cache_format: ["cache-format-change"]
+    platform_macos: ["macos"]
+    info_needed: ["moreinfo"]
+    wontfix: ["wontfix", "notourbug"]
+  pr_title_prefixes:
+    - fix:
+        applies_to: bug
+    - feat:
+        applies_to: enhancement
+    - perf:
+        applies_to: performance
+    - chore:
+        applies_to: maintenance
+
+safety:
+  - never_submit_unbuilt_changes: true
+  - verify_generated_files_checked_in: false
+  - large_diff_threshold_lines: 800
+  - ask_before_schema_change: true
+
+notes:
+  - Firebuild uses generated FlatBuffer-like code (FBB) via custom generator. Always regenerate after touching *.def.
+  - Keep cache format versioning and compatibility in mind when changing on-disk layouts. Coordinate with maintainers.
+  - Tests exist in CTest and Bats; try to cover happy path + one edge case when changing public behavior.
