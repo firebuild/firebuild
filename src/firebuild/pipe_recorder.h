@@ -235,6 +235,15 @@ class PipeRecorder {
    */
   void open_backing_file();
   /**
+   * Prepare for appending len bytes: decide between in-memory buffering and file-backed storage.
+   * If staying in memory, ensures capacity is available. If switching to file, opens the backing
+   * file if needed and flushes any previously buffered memory content to the file.
+   *
+   * @return true if the caller should append into the in-memory buffer, false if it should append
+   *         into the backing file descriptor.
+   */
+  bool prepare_for_append(ssize_t len);
+  /**
    * Add non-empty data to this PipeRecorder from a memory buffer, using write().
    *
    * Internal private helper. Callers should call the static record_*() methods instead.
