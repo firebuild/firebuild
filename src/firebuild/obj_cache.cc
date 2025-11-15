@@ -550,20 +550,28 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
           /* The entry is usable and the referenced blobs were collected.  */
           unmap_entry(entry_buf, entry_len);
           usable_entries++;
-          *cache_bytes += entry_len;
+          *cache_bytes += entry_len + kMagicHeaderSize;
         } else {
           /* This entry is not usable, remove it. */
           unmap_entry(entry_buf, entry_len);
           if (unlinkat(dirfd(dir), entry.c_str(), 0) == 0) {
-            execed_process_cacher->update_cached_bytes(-entry_len);
+            execed_process_cacher->update_cached_bytes(-(entry_len + kMagicHeaderSize));
           } else {
             fb_perror("unlinkat");
           }
         }
       } else {
-        fb_error("File's type is unexpected, it is not a directory nor a regular file: " +
-                 path + "/" + entry.c_str());
-        *unexpected_file_bytes += file_size(nullptr, (path + "/" + entry.c_str()).c_str());
+        /* This entry is not retrievable (e.g., missing magic header, too small), remove it. */
+        struct stat st;
+        if (fstatat(dirfd(dir), entry.c_str(), &st, AT_SYMLINK_NOFOLLOW) == 0) {
+          if (unlinkat(dirfd(dir), entry.c_str(), 0) == 0) {
+            execed_process_cacher->update_cached_bytes(-st.st_size);
+          } else {
+            fb_perror("unlinkat");
+          }
+        } else {
+          fb_perror("fstatat");
+        }
       }
     }
   }
