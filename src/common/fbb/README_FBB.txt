@@ -580,6 +580,49 @@ Examples:
     uint16_t myuint = msg->get_myuint();
 
 
+C++ Wrapper Methods for FBB Fields (Automatic Casting)
+-------------------------------------------------------
+
+When working with embedded FBB fields (required, optional, or arrays of
+FBBs), the standard getters return generic pointers (FBBNS_Builder* or
+FBBNS_Serialized*) which need to be manually cast to specific types
+after checking the tag.
+
+To eliminate this boilerplate, C++ wrapper methods with automatic type
+casting are provided on the generic FBB types themselves:
+
+For array of FBBs:
+
+    // Old way - manual casting required
+    const FBBNS_Serialized *item = msg->get_myfbbarray_at(0);
+    int tag = item->get_tag();
+    assert(tag == FBBNS_TAG_bar);
+    const FBBNS_Serialized_bar *typed_item =
+        reinterpret_cast<const FBBNS_Serialized_bar *>(item);
+
+    // New way - automatic casting with wrapper
+    const FBBNS_Serialized *item = msg->get_myfbbarray_at(0);
+    auto typed_item = item->as_bar();
+
+For required or optional FBB:
+
+    // Old way - manual casting required
+    const FBBNS_Serialized *embedded = msg->get_myfbb();
+    const FBBNS_Serialized_bar *typed_embedded =
+        reinterpret_cast<const FBBNS_Serialized_bar *>(embedded);
+
+    // New way - automatic casting with wrapper
+    const FBBNS_Serialized *embedded = msg->get_myfbb();
+    auto typed_embedded = embedded->as_bar();
+
+The wrapper methods:
+  - Provide an as_<tagname>() method for each tag type
+  - No template parameters needed - just call the method by name
+  - Are only available in C++ (not in the C API)
+  - Do not affect performance (same reinterpret_cast underneath)
+  - Are backward compatible (existing code with manual casts works)
+
+
 Custom scalars
 --------------
 
