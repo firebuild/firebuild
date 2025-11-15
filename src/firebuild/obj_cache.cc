@@ -165,12 +165,11 @@ bool ObjCache::store(const Hash &key,
     return false;
   }
 
-  /* Write magic header first */
-  fb_write(fd_dst, kMagicHeader, kMagicHeaderSize);
+  char *entry_serial = reinterpret_cast<char *>(malloc(len + kMagicHeaderSize));
+  memcpy(entry_serial, kMagicHeader, kMagicHeaderSize);
 
-  char *entry_serial = reinterpret_cast<char *>(malloc(len));
-  entry->serialize(entry_serial);
-  fb_write(fd_dst, entry_serial, len);
+  entry->serialize(entry_serial + kMagicHeaderSize);
+  fb_write(fd_dst, entry_serial, len + kMagicHeaderSize);
   close(fd_dst);
 
   /* Create randomized object file */
@@ -185,7 +184,7 @@ bool ObjCache::store(const Hash &key,
   if (FB_DEBUGGING(FB_DEBUG_DETERMINISTIC_CACHE)) {
     /* Debugging: Instead of a randomized filename (which is fast to generate) use the content's
      * hash for a deterministic filename. */
-    XXH128_hash_t entry_hash = XXH3_128bits(entry_serial, len);
+    XXH128_hash_t entry_hash = XXH3_128bits(entry_serial, len + kMagicHeaderSize);
     XXH128_canonical_t canonical;
     XXH128_canonicalFromHash(&canonical, entry_hash);
     /* Use only the first part of the digest in for the subkey. */
