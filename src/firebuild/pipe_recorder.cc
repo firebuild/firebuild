@@ -58,48 +58,42 @@ void PipeRecorder::open_backing_file() {
   }
 }
 
-void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
-  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "len=%" PRIssize, len);
-
+bool PipeRecorder::prepare_for_append(ssize_t len) {
   assert(!deactivated_);
   assert(!abandoned_);
   assert_cmp(len, >, 0);
 
-  /* Check if we should use memory buffer for small data */
-  if (use_memory_buffer_ && (offset_ + len) <= max_inline_blob_size) {
-    /* Allocate or grow the memory buffer as needed */
-    if (mem_buffer_capacity_ < static_cast<size_t>(offset_ + len)) {
-      size_t new_capacity = offset_ + len;
-      char *new_buffer = static_cast<char*>(realloc(mem_buffer_, new_capacity));
-      if (!new_buffer) {
-        fb_perror("realloc");
-        /* Fall back to file-based storage */
-        use_memory_buffer_ = false;
-        if (mem_buffer_) {
-          free(mem_buffer_);
-          mem_buffer_ = NULL;
-          mem_buffer_capacity_ = 0;
+  if (use_memory_buffer_) {
+    /* Stay in memory if the total size remains under the inline threshold. */
+    if (offset_ + len <= max_inline_blob_size) {
+      size_t needed = static_cast<size_t>(offset_ + len);
+      if (mem_buffer_capacity_ < needed) {
+        char *new_buffer = static_cast<char*>(realloc(mem_buffer_, needed));
+        if (!new_buffer) {
+          fb_perror("realloc");
+          /* Fall back to file-based storage. */
+          use_memory_buffer_ = false;
+          if (mem_buffer_) {
+            free(mem_buffer_);
+            mem_buffer_ = NULL;
+            mem_buffer_capacity_ = 0;
+          }
+        } else {
+          mem_buffer_ = new_buffer;
+          mem_buffer_capacity_ = needed;
         }
-      } else {
-        mem_buffer_ = new_buffer;
-        mem_buffer_capacity_ = new_capacity;
       }
+      if (use_memory_buffer_) {
+        return true;
+      }
+      /* If realloc failed we fall through to file-based path. */
+    } else {
+      /* Exceeds inline threshold, switch to file-based storage. */
+      use_memory_buffer_ = false;
     }
-
-    if (use_memory_buffer_) {
-      /* Copy data to memory buffer */
-      memcpy(mem_buffer_ + offset_, buf, len);
-      offset_ += len;
-      assert_cmp(offset_, >, 0);
-      return;
-    }
-    /* If realloc failed, fall through to file-based storage */
-  } else if (use_memory_buffer_) {
-    /* Data exceeds threshold, switch to file-based storage */
-    use_memory_buffer_ = false;
   }
 
-  /* File-based storage */
+  /* File-based storage path */
   if (fd_ < 0) {
     open_backing_file();
     /* If we have buffered data, write it to the file first */
@@ -109,6 +103,20 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
       mem_buffer_ = NULL;
       mem_buffer_capacity_ = 0;
     }
+  }
+  return false;
+}
+
+void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
+  TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "len=%" PRIssize, len);
+
+  bool to_memory = prepare_for_append(len);
+  if (to_memory) {
+    /* Copy data to memory buffer */
+    memcpy(mem_buffer_ + offset_, buf, len);
+    offset_ += len;
+    assert_cmp(offset_, >, 0);
+    return;
   }
 
 #ifndef NDEBUG
@@ -124,56 +132,17 @@ void PipeRecorder::add_data_from_buffer(const char *buf, ssize_t len) {
 void PipeRecorder::add_data_from_unix_pipe(int pipe_fd, ssize_t len) {
   TRACKX(FB_DEBUG_PIPE, 1, 1, PipeRecorder, this, "pipe_fd=%d, len=%" PRIssize, pipe_fd, len);
 
-  assert(!deactivated_);
-  assert(!abandoned_);
-  assert_cmp(len, >, 0);
-
-  /* For pipes, we can't easily buffer in memory, so switch to file-based storage */
-  if (use_memory_buffer_ && (offset_ + len) > max_inline_blob_size) {
-    use_memory_buffer_ = false;
-  }
-
-  if (use_memory_buffer_ && (offset_ + len) <= max_inline_blob_size) {
-    /* Allocate or grow the memory buffer */
-    if (mem_buffer_capacity_ < static_cast<size_t>(offset_ + len)) {
-      size_t new_capacity = offset_ + len;
-      char *new_buffer = static_cast<char*>(realloc(mem_buffer_, new_capacity));
-      if (!new_buffer) {
-        fb_perror("realloc");
-        use_memory_buffer_ = false;
-        if (mem_buffer_) {
-          free(mem_buffer_);
-          mem_buffer_ = NULL;
-          mem_buffer_capacity_ = 0;
-        }
-      } else {
-        mem_buffer_ = new_buffer;
-        mem_buffer_capacity_ = new_capacity;
-      }
+  bool to_memory = prepare_for_append(len);
+  if (to_memory) {
+    /* Read from pipe into memory buffer */
+    ssize_t read_bytes = read(pipe_fd, mem_buffer_ + offset_, len);
+    if (read_bytes != len) {
+      fb_perror("read from pipe");
+      assert(0);
     }
-
-    if (use_memory_buffer_) {
-      /* Read from pipe into memory buffer */
-      ssize_t read_bytes = read(pipe_fd, mem_buffer_ + offset_, len);
-      if (read_bytes != len) {
-        fb_perror("read from pipe");
-        assert(0);
-      }
-      offset_ += len;
-      assert_cmp(offset_, >, 0);
-      return;
-    }
-  }
-
-  if (fd_ < 0) {
-    open_backing_file();
-    /* If we have buffered data, write it to the file first */
-    if (mem_buffer_ && offset_ > 0) {
-      fb_write(fd_, mem_buffer_, offset_);
-      free(mem_buffer_);
-      mem_buffer_ = NULL;
-      mem_buffer_capacity_ = 0;
-    }
+    offset_ += len;
+    assert_cmp(offset_, >, 0);
+    return;
   }
 
   /* Writing to a regular file. Also the caller must make sure by a preceding tee(2) call that
@@ -197,56 +166,17 @@ void PipeRecorder::add_data_from_regular_fd(int fd_in, loff_t off_in, ssize_t le
          fd_in, off_in, len);
 
   assert(fd_in >= 0);
-  assert(!deactivated_);
-  assert(!abandoned_);
-  assert_cmp(len, >, 0);
-
-  /* For regular files, switch to file-based storage if exceeds threshold */
-  if (use_memory_buffer_ && (offset_ + len) > max_inline_blob_size) {
-    use_memory_buffer_ = false;
-  }
-
-  if (use_memory_buffer_ && (offset_ + len) <= max_inline_blob_size) {
-    /* Allocate or grow the memory buffer */
-    if (mem_buffer_capacity_ < static_cast<size_t>(offset_ + len)) {
-      size_t new_capacity = offset_ + len;
-      char *new_buffer = static_cast<char*>(realloc(mem_buffer_, new_capacity));
-      if (!new_buffer) {
-        fb_perror("realloc");
-        use_memory_buffer_ = false;
-        if (mem_buffer_) {
-          free(mem_buffer_);
-          mem_buffer_ = NULL;
-          mem_buffer_capacity_ = 0;
-        }
-      } else {
-        mem_buffer_ = new_buffer;
-        mem_buffer_capacity_ = new_capacity;
-      }
+  bool to_memory = prepare_for_append(len);
+  if (to_memory) {
+    /* Read from file into memory buffer */
+    ssize_t read_bytes = pread(fd_in, mem_buffer_ + offset_, len, off_in);
+    if (read_bytes != len) {
+      fb_perror("pread from file");
+      assert(0);
     }
-
-    if (use_memory_buffer_) {
-      /* Read from file into memory buffer */
-      ssize_t read_bytes = pread(fd_in, mem_buffer_ + offset_, len, off_in);
-      if (read_bytes != len) {
-        fb_perror("pread from file");
-        assert(0);
-      }
-      offset_ += len;
-      assert_cmp(offset_, >, 0);
-      return;
-    }
-  }
-
-  if (fd_ < 0) {
-    open_backing_file();
-    /* If we have buffered data, write it to the file first */
-    if (mem_buffer_ && offset_ > 0) {
-      fb_write(fd_, mem_buffer_, offset_);
-      free(mem_buffer_);
-      mem_buffer_ = NULL;
-      mem_buffer_capacity_ = 0;
-    }
+    offset_ += len;
+    assert_cmp(offset_, >, 0);
+    return;
   }
 
   ssize_t saved = fb_copy_file_range(fd_in, &off_in, fd_, NULL, len, 0);
