@@ -28,3 +28,6 @@ src/firebuild/firebuild
 test/fbbtest.cc
 test/test_orphan
 test/test_random
+fbb_test.bin
+fbb_test_builder_debug.txt
+fbb_test_serialized_debug.txt
