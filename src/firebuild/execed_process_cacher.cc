@@ -62,7 +62,7 @@ class InlineDataMapCleaner {
 };
 
 static const XXH64_hash_t kFingerprintVersion = 0;
-static const unsigned int kCacheFormatVersion = 1;
+static const unsigned int kCacheFormatVersion = 2;
 static const char kCacheStatsFile[] = "stats";
 static const char kCacheSizeFile[] = "size";
 
