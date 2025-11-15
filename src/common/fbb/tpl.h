@@ -182,6 +182,16 @@ typedef struct _{{ NS }}_Builder {
   inline void debug(FILE *f) const {
     {{ ns }}_builder_debug(f, this);
   }
+
+  /* Wrapper methods for casting to specific tag types without manual reinterpret_cast */
+### for (msg, _) in msgs
+  inline const {{ NS }}_Builder_{{ msg }}* as_{{ msg }}() const {
+    return reinterpret_cast<const {{ NS }}_Builder_{{ msg }}*>(this);
+  }
+  inline {{ NS }}_Builder_{{ msg }}* as_{{ msg }}() {
+    return reinterpret_cast<{{ NS }}_Builder_{{ msg }}*>(this);
+  }
+### endfor
 #endif
 
 #ifdef __cplusplus
@@ -205,6 +215,13 @@ typedef struct _{{ NS }}_Serialized {
   inline void debug(FILE *f) const {
     {{ ns }}_serialized_debug(f, this);
   }
+
+  /* Wrapper methods for casting to specific tag types without manual reinterpret_cast */
+### for (msg, _) in msgs
+  inline const {{ NS }}_Serialized_{{ msg }}* as_{{ msg }}() const {
+    return reinterpret_cast<const {{ NS }}_Serialized_{{ msg }}*>(this);
+  }
+### endfor
 #endif
 
 #ifdef __cplusplus

@@ -589,7 +589,7 @@ FBBNS_Serialized*) which need to be manually cast to specific types
 after checking the tag.
 
 To eliminate this boilerplate, C++ wrapper methods with automatic type
-casting are provided:
+casting are provided on the generic FBB types themselves:
 
 For array of FBBs:
 
@@ -601,7 +601,8 @@ For array of FBBs:
         reinterpret_cast<const FBBNS_Serialized_bar *>(item);
 
     // New way - automatic casting with wrapper
-    auto typed_item = msg->get_myfbbarray_as<FBBNS_TAG_bar>(0);
+    const FBBNS_Serialized *item = msg->get_myfbbarray_at(0);
+    auto typed_item = item->as_bar();
 
 For required or optional FBB:
 
@@ -611,13 +612,14 @@ For required or optional FBB:
         reinterpret_cast<const FBBNS_Serialized_bar *>(embedded);
 
     // New way - automatic casting with wrapper
-    auto typed_embedded = msg->get_myfbb_as<FBBNS_TAG_bar>();
+    const FBBNS_Serialized *embedded = msg->get_myfbb();
+    auto typed_embedded = embedded->as_bar();
 
 The wrapper methods:
-  - Use C++ templates with tag-to-type mapping traits
-  - Are type-safe (tag parameter is checked at compile time)
+  - Provide an as_<tagname>() method for each tag type
+  - No template parameters needed - just call the method by name
   - Are only available in C++ (not in the C API)
-  - Do not affect performance (the cast happens at the same point)
+  - Do not affect performance (same reinterpret_cast underneath)
   - Are backward compatible (existing code with manual casts works)
 
 
