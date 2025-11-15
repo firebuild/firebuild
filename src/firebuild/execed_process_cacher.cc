@@ -1206,6 +1206,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
     ExecedProcess *proc,
     uint8_t **inouts_buf,
     size_t *inouts_buf_len,
+    bool *munmap_entry,
     Subkey* subkey_out) {
   TRACK(FB_DEBUG_PROC, "proc=%s", D(proc));
 
@@ -1233,7 +1234,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       break;
     }
     if (!obj_cache->retrieve(fingerprint, subkey.c_str(),
-                             &candidate_inouts_buf, &candidate_inouts_buf_len)) {
+                             &candidate_inouts_buf, &candidate_inouts_buf_len, munmap_entry)) {
       if (Options::generate_report()) {
         proc->set_shortcut_result(deduplicated_string(
             "could not retrieve " + d(subkey) + " from objcache").c_str());
@@ -1264,7 +1265,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       if (count == 2) {
         FB_DEBUG(FB_DEBUG_SHORTCUT,
                  "│   More than 1 matching candidates found, still using the first one");
-        ObjCache::unmap_entry(candidate_inouts_buf, candidate_inouts_buf_len);
+        ObjCache::free_entry(candidate_inouts_buf, candidate_inouts_buf_len, munmap_entry);
         break;
       }
 #else
@@ -1277,7 +1278,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       break;
 #endif
     } else {
-      ObjCache::unmap_entry(candidate_inouts_buf, candidate_inouts_buf_len);
+      ObjCache::free_entry(candidate_inouts_buf, candidate_inouts_buf_len, munmap_entry);
     }
   }
   /* The retval is currently the same as the memory address to unmap (i.e. *inouts_buf).
@@ -1680,8 +1681,9 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
   }
 
   Subkey subkey;
+  bool munmap_entry = false;
   if (proc->can_shortcut()) {
-    inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len, &subkey);
+    inouts = find_shortcut(proc, &inouts_buf, &inouts_buf_len, &munmap_entry, &subkey);
   }
 
   FB_DEBUG(FB_DEBUG_SHORTCUT, inouts ? "│ Shortcutting:" : "│ Not shortcutting.");
@@ -1701,7 +1703,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     }
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;
-    ObjCache::unmap_entry(inouts_buf, inouts_buf_len);
+    ObjCache::free_entry(inouts_buf, inouts_buf_len, munmap_entry);
   }
   FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
 
