@@ -31,13 +31,16 @@ workflows:
             sudo make -C build-make install
             tar --zstd -cf ${BITRISE_DEPLOY_DIR}/firebuild-$(git log -1 --format=%cd-%h --date=format:%Y-%m-%d).tar.zst /usr/local/bin/firebuild /usr/local/lib/libfirebuild.* /usr/local/etc/firebuild.conf /usr/local/share/firebuild
             # build self with Xcode
-            for i in 1 2; do
+            # build only once and without firebuild because that hangs, see:
+            # https://github.com/firebuild/firebuild/issues/1347
+            for i in 1; do
               rm -rf build-xcode
               # configure without firebuild, because that fails, see: https://github.com/firebuild/firebuild/issues/1345
               # time firebuild cmake -B build-xcode -G Xcode
               cmake -B build-xcode -G Xcode
               (cd build-xcode &&
-               time firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild)
+               # time firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild)
+               time xcodebuild)
             done
     - deploy-to-bitrise-io@2: {}
     envs:
