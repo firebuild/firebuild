@@ -1,4 +1,66 @@
 ==================
+0.8.5 / 2025-11-16
+==================
+  * supervisor: Add commas after single letter options in --help
+  * supervisor: Add bash-completion rules
+  * ci: Use firebuild/apt-eatmydata-action instead of prefixing apt with eatmydata
+  * tests: Wrap valgrind command directly with close_fds_exec
+  * ci: Don't test on Ubuntu 20.04
+  * Portuguese debconf templates translation
+  * ci: Update Bitrise's Brew step to version 1
+  * macos: Pass -DCMAKE_OSX_SYSROOT=macosx to cmake on macOS
+  * debian: Fix autopkgtest restriction allow-stder -> allow-stderr
+  * debian: Fix pedantic and informative Lintian errors
+  * bitrise: Drop cache restoring and saving steps
+  * tests: Clean up in "file operations" more thoroughly
+  * macos: Handle "compatibility-version" in TBD parsing
+  * supervisor: Allow shortcutting touch in LTO when coreutils provides it
+  * supervisor: Handle missed exec()-ed static binaries in popen() and system()
+  * build: Add .spec file for RPM based distributions
+  * ci: Build for AlmaLinux, too
+  * Handle truncate()
+  * Added po-debconf Catalan translation
+  * debian: Fix bash rebuild autopkgtest
+  * Allow shortcutting mkfifo() in lto-wrapper's make
+  * ci: Run CI every Monday at 4:10 AM
+  * test: Wait for each cloned process in test_cmd_clone
+  * interceptor: Refactor receiving full fbb messages from the supervisor
+  * macos: Stop intercepting deprecated posix_spawn_file_actions_add(f)chdir_np
+  * build: Rename Jinja2 templates to *.jinja2 to conform to best practice
+  * build: Generate common config.h instead of setting defined with -D...
+  * supervisor: Fix intercepting qemu-user running dynamically linked executables
+  * interceptor: Refactor receiving full fbb messages from the supervisor a bit more
+  * Allow rewriting arguments of exec() and posix_spawn()
+  * interceptor: Rewrite posix_spawn()'s path parameter, too, not just argv
+  * Intercept getrlimit(), setrlimit() and prlimit() calls
+  * macos: Decrease parallel sleep's parallelism to fix connect() error
+  * Intercept bind() and disable shortcutting only on successful ones
+  * supervisor: Support faliing mkdir() in read-only locations
+  * supervisor: Rewrite sphinx-build command line to include -E if needed
+  * gitignore: Ignore src/common/config.h
+  * supervisor: Print error instead of crashing when writing the report fails
+  * supervisor: Add space when printing "failed <call>" is not supported
+  * supervisor: Fix and extend misleading documentation of Process::get_absolute()
+  * supervisor: Factor out FileName::GetCanonicalized() from resolve_command_from_msg()
+  * test: Test clock_gettime() in test_static
+  * Intercept statically linked binaries using qemu-user
+  * supervisor: Implement inline blob storage for small pipe data
+  * supervisor: Inline small files instead of storing them as blobs
+  * ci: Drop expected coverage level to 74% from 75%
+  * debian: Suggest the out-of-archive qemu-user-interposable package
+  * supervisor: Rewrite the top level command with CommandRewriter
+  * supervisor: Pass -fno-pch-timestamp to clang when -emit-pch is passed
+  * github: Add instructions for Copilot to make working with it more efficient
+  * ci: Configure Xcode without firebuild temporarily
+  * ci: Disable rebuilding self on Bitrise, just build with Xcode
+  * Add magic "FBB\0" string to cache object files with 8-byte alignment
+  * Make GC remove cache objects without valid magic header
+  * Bump cache format version to 2 for magic header breaking change
+  * supervisor: Write the magic header and the cache entry in a single call
+  * supervisor: Factor out common parts of PipeRecorder::add_data_from_*()
+  * github: Instruct copilot to not duplicate code
+
+==================
 0.8.4 / 2024-12-17
 ==================
   * interceptor: Allow intercepting some orignal 64bit time and offset related remapped functions
