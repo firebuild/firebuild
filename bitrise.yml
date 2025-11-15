@@ -33,7 +33,9 @@ workflows:
             # build self with Xcode
             for i in 1 2; do
               rm -rf build-xcode
-              time firebuild cmake -B build-xcode -G Xcode
+              # configure without firebuild, because that fails, see: https://github.com/firebuild/firebuild/issues/1345
+              # time firebuild cmake -B build-xcode -G Xcode
+              cmake -B build-xcode -G Xcode
               (cd build-xcode &&
                time firebuild -o env_vars.pass_through+=\"PYTHONPATH\" -o env_vars.pass_through+=\"XML_CATALOG_FILES\" xcodebuild)
             done
