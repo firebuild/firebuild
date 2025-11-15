@@ -1264,7 +1264,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       if (count == 2) {
         FB_DEBUG(FB_DEBUG_SHORTCUT,
                  "│   More than 1 matching candidates found, still using the first one");
-        munmap(candidate_inouts_buf, candidate_inouts_buf_len);
+        ObjCache::unmap_entry(candidate_inouts_buf, candidate_inouts_buf_len);
         break;
       }
 #else
@@ -1277,7 +1277,7 @@ const FBBSTORE_Serialized_process_inputs_outputs * ExecedProcessCacher::find_sho
       break;
 #endif
     } else {
-      munmap(candidate_inouts_buf, candidate_inouts_buf_len);
+      ObjCache::unmap_entry(candidate_inouts_buf, candidate_inouts_buf_len);
     }
   }
   /* The retval is currently the same as the memory address to unmap (i.e. *inouts_buf).
@@ -1701,7 +1701,7 @@ bool ExecedProcessCacher::shortcut(ExecedProcess *proc, std::vector<int> *fds_ap
     }
     /* Trigger cleanup of ProcessInputsOutputs. */
     inouts = nullptr;
-    munmap(inouts_buf, inouts_buf_len);
+    ObjCache::unmap_entry(inouts_buf, inouts_buf_len);
   }
   FB_DEBUG(FB_DEBUG_SHORTCUT, "└─");
 

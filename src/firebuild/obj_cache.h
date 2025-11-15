@@ -93,6 +93,15 @@ class ObjCache {
   bool retrieve(const char* path,
                 uint8_t ** entry,
                 size_t * entry_len);
+  /**
+   * Unmap an entry previously retrieved from the obj-cache.
+   * This must be used instead of directly calling munmap() because the entry
+   * pointer is offset from the actual mmap() base address.
+   *
+   * @param entry The entry pointer returned by retrieve()
+   * @param entry_len The entry length returned by retrieve()
+   */
+  static void unmap_entry(uint8_t *entry, size_t entry_len);
   void mark_as_used(const Hash &key, const char * const subkey);
   std::vector<Subkey> list_subkeys(const Hash &key);
   /**
@@ -130,6 +139,9 @@ class ObjCache {
   std::string base_dir_;
   static constexpr char kDebugPostfix[] = "_debug.json";
   static constexpr char kDirDebugJson[] = "%_directory_debug.json";
+  /* Magic string "FBB\0" followed by 4 bytes of padding for 8-byte alignment */
+  static constexpr char kMagicHeader[8] = {'F', 'B', 'B', '\0', '\0', '\0', '\0', '\0'};
+  static constexpr size_t kMagicHeaderSize = sizeof(kMagicHeader);
 };
 /* singleton */
 extern ObjCache *obj_cache;

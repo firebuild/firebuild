@@ -21,6 +21,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -164,6 +165,9 @@ bool ObjCache::store(const Hash &key,
     return false;
   }
 
+  /* Write magic header first */
+  fb_write(fd_dst, kMagicHeader, kMagicHeaderSize);
+
   char *entry_serial = reinterpret_cast<char *>(malloc(len));
   entry->serialize(entry_serial);
   fb_write(fd_dst, entry_serial, len);
@@ -205,7 +209,7 @@ bool ObjCache::store(const Hash &key,
       return false;
     }
   } else {
-    execed_process_cacher->update_cached_bytes(len);
+    execed_process_cacher->update_cached_bytes(len + kMagicHeaderSize);
   }
 
   if (FB_DEBUGGING(FB_DEBUG_CACHING)) {
@@ -270,7 +274,7 @@ bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) 
   }
 
   uint8_t *p = NULL;
-  if (st.st_size > 0) {
+  if (st.st_size > static_cast<off_t>(kMagicHeaderSize)) {
     /* Zero bytes can't be mmapped, we're fine with p == NULL then.
      * Although a serialized entry probably can't be 0 bytes long. */
     p = reinterpret_cast<uint8_t*>(mmap(NULL, st.st_size, PROT_READ, MAP_SHARED, fd, 0));
@@ -280,17 +284,32 @@ bool ObjCache::retrieve(const char* path, uint8_t ** entry, size_t * entry_len) 
       close(fd);
       return false;
     }
+    /* Verify magic header */
+    if (memcmp(p, kMagicHeader, 4) != 0) {
+      fb_error("Invalid magic header in cache entry: " + std::string(path));
+      munmap(p, st.st_size);
+      close(fd);
+      return false;
+    }
   } else {
-    fb_error("0-sized cache entry: " + std::string(path));
-    assert(st.st_size <= 0);
+    fb_error("Cache entry too small (expected at least " + std::to_string(kMagicHeaderSize) +
+             " bytes): " + std::string(path));
+    assert(st.st_size <= static_cast<off_t>(kMagicHeaderSize));
     close(fd);
     return false;
   }
   close(fd);
 
-  *entry_len = st.st_size;
-  *entry = p;
+  /* Return pointer offset by header size, and length excluding header */
+  *entry_len = st.st_size - kMagicHeaderSize;
+  *entry = p + kMagicHeaderSize;
   return true;
+}
+
+void ObjCache::unmap_entry(uint8_t *entry, size_t entry_len) {
+  /* The entry pointer is offset by kMagicHeaderSize from the mmap base,
+   * so we need to adjust both the pointer and length for munmap. */
+  munmap(entry - kMagicHeaderSize, entry_len + kMagicHeaderSize);
 }
 
 void ObjCache::mark_as_used(const Hash &key,
@@ -529,12 +548,12 @@ void ObjCache::gc_obj_cache_dir(const std::string& path,
       if (retrieve((path + "/" + entry.c_str()).c_str(), &entry_buf, &entry_len)) {
         if (execed_process_cacher->is_entry_usable(entry_buf, referenced_blobs)) {
           /* The entry is usable and the referenced blobs were collected.  */
-          munmap(entry_buf, entry_len);
+          unmap_entry(entry_buf, entry_len);
           usable_entries++;
           *cache_bytes += entry_len;
         } else {
           /* This entry is not usable, remove it. */
-          munmap(entry_buf, entry_len);
+          unmap_entry(entry_buf, entry_len);
           if (unlinkat(dirfd(dir), entry.c_str(), 0) == 0) {
             execed_process_cacher->update_cached_bytes(-entry_len);
           } else {
