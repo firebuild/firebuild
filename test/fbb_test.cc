@@ -189,6 +189,15 @@ int main(int argc, char *argv[]) {
   assert(fbbtest_serialized_testing_has_optstr(msg));
   assert(fbbtest_serialized_testing_has_optfbb(msg));
 
+  /* Test the new wrapper methods for automatic casting of required/optional FBBs (C++ only) */
+  const FBBTEST_Serialized_testing2 *reqfbb_auto =
+      msg->get_reqfbb_as<FBBTEST_TAG_testing2>();
+  assert(fbbtest_serialized_testing2_get_t2(reqfbb_auto) == 60);
+  
+  const FBBTEST_Serialized_testing3 *optfbb_auto =
+      msg->get_optfbb_as<FBBTEST_TAG_testing3>();
+  assert(optfbb_auto != NULL);
+
   /* check the values of required and optional scalars */
   assert(fbbtest_serialized_testing_get_reqint(msg) == 42);
   assert(fbbtest_serialized_testing_get_optint(msg) == 100);
@@ -240,6 +249,12 @@ int main(int argc, char *argv[]) {
   assert(strcmp(fbbtest_serialized_testing_get_arrstr_at(fbb0, 1), "two") == 0);
   assert(strcmp(fbbtest_serialized_testing_get_arrstr_at(fbb0, 2), "three") == 0);
   assert(strcmp(fbbtest_serialized_testing_get_arrstr_at(fbb0, 3), "four") == 0);
+
+  /* Test the new wrapper method for automatic casting (C++ only) */
+  const FBBTEST_Serialized_testing *fbb0_auto =
+      msg->get_arrfbb_as<FBBTEST_TAG_testing>(0);
+  assert(fbbtest_serialized_testing_get_arrstr_count(fbb0_auto) == 4);
+  assert(strcmp(fbbtest_serialized_testing_get_arrstr_at(fbb0_auto, 0), "one") == 0);
 
   printf("fbb testing succeeded\n");
   return 0;
