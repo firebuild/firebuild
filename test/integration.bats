@@ -479,7 +479,7 @@ setup() {
   result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')
   assert_streq "$result" ""
   assert_streq "$(strip_stderr stderr)" ""
-  assert_streq "$(cat test_cache_dir/cache-format)" "1"
+  assert_streq "$(cat test_cache_dir/cache-format)" "2"
 
   # older cache versions are OK (assuming they are handled)
   echo 0 > test_cache_dir/cache-format
@@ -489,7 +489,7 @@ setup() {
   assert_streq "$(cat test_cache_dir/cache-format)" "0"
 
   # future cache versions prevent using the cache
-  echo 2 > test_cache_dir/cache-format
+  echo 9 > test_cache_dir/cache-format
   result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')
   assert_streq "$result" ""
   assert_streq "$(strip_stderr stderr)" "FIREBUILD ERROR: Cache format version is not supported, not reading or writing the cache"
