@@ -415,7 +415,8 @@ jobs:
         cp firebuild.spec ~/rpmbuild/SPECS/
         git config --global --add safe.directory $PWD
         # Create source tarball
-        git archive --format=tar.gz --prefix=firebuild-$(git describe --tags --abbrev=0 | sed 's/^v//')/ -o ~/rpmbuild/SOURCES/firebuild-$(git describe --tags --abbrev=0 | sed 's/^v//').tar.gz HEAD
+        SOURCE_VERSION=$(grep -m 1 set.FIREBUILD_VERSION CMakeLists.txt | sed 's/.* "//;s/".*//')
+        git archive --format=tar.gz --prefix=firebuild-${SOURCE_VERSION}/ -o ~/rpmbuild/SOURCES/firebuild-${SOURCE_VERSION}.tar.gz HEAD
     - name: Build RPM
       run: |
         rpmbuild -ba ~/rpmbuild/SPECS/firebuild.spec
