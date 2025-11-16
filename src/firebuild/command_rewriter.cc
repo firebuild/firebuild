@@ -32,10 +32,11 @@ namespace firebuild {
 
 /* Return whether the command was modified. */
 static bool add_argument(const std::string& executable_name_pattern,
-                             const std::string& arg,
-                             const std::string& executable_name,
-                             std::vector<std::string>* args,
-                             bool* rewritten_args) {
+                         const std::string& arg,
+                         const size_t position,
+                         const std::string& executable_name,
+                         std::vector<std::string>* args,
+                         bool* rewritten_args) {
   if (executable_name == executable_name_pattern
      && !dont_shortcut_matcher->match(executable_name)) {
     for (const std::string& existing_arg : *args) {
@@ -43,7 +44,7 @@ static bool add_argument(const std::string& executable_name_pattern,
         return false;
       }
     }
-    args->insert(args->begin() + 1, arg);
+    args->insert(args->begin() + position, arg);
     *rewritten_args = true;
     return true;
   }
@@ -97,8 +98,11 @@ void CommandRewriter::maybe_rewrite(
   };
   if (args->size() > 0) {
     const std::string executable_name = base_name(args->at(0).c_str());
-    if (add_argument("sphinx-build", "-E", executable_name, args, rewritten_args)) {
-      /* nothing more to do, continue to static check */
+    if (executable_name == "sphinx-build" && !has_argument("--fresh-env", *args)) {
+      /* sphinx needs -M to be the first argument if present and it is followed by 3 params to -M like:
+       * "sphinx-build -M <mode> <sourcedir> <builddir> ..." */
+      add_argument("sphinx-build", "-E", has_argument("-M", *args) ? 5 : 1, executable_name, args,
+                   rewritten_args);
     } else if ((executable_name.starts_with("clang"))
                && !has_argument("-fno-pch-timestamp", *args)) {
       replace_argument(executable_name, "-emit-pch",
