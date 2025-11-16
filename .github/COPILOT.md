@@ -35,6 +35,7 @@ ctest --test-dir build -R fbb_test --output-on-failure
 - Do not reformat unrelated code. Preserve the existing style.
 - Use existing debug macros (`FB_DEBUG`, `TRACK`) with appropriate topics.
 - Be careful on hot paths (hashing, cache I/O) — avoid extra allocations/syscalls.
+- Factor out common parts instead of duplicating code
 
 ## When changing schemas or enums
 

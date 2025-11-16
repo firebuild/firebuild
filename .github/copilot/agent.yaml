@@ -90,6 +90,7 @@ review_checklist:
   - Keep performance in mind: avoid extra syscalls / large copies on hot paths
   - Linux + macOS compatibility (consider lstat vs stat, Xcode specifics, etc.)
   - Small fixes to reviewed commits should be squashed into the commits being fixed
+  - Factor out common parts instead of duplicating code
 
 recipes:
   add_fbb_field:
