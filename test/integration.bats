@@ -547,3 +547,115 @@ setup() {
     done
   done
 }
+
+@test "cache compression - compressed cache" {
+  # Test with compression enabled
+  rm -rf test_cache_dir
+  export FIREBUILD_CACHE_DIR=test_cache_dir
+  
+  # First run with compression enabled (default)
+  result=$(./run-firebuild -o 'compress_cache = true' -- bash -c "echo compressed test")
+  assert_streq "$result" "compressed test"
+  
+  # Check cache-format file contains "compressed"
+  if [ -f test_cache_dir/cache-format ]; then
+    grep -q "(compressed)" test_cache_dir/cache-format || {
+      echo "Expected '(compressed)' in cache-format"
+      cat test_cache_dir/cache-format
+      return 1
+    }
+  else
+    echo "cache-format file not found"
+    return 1
+  fi
+  
+  # Second run should use compressed cache
+  result=$(./run-firebuild -o 'compress_cache = true' -- bash -c "echo compressed test")
+  assert_streq "$result" "compressed test"
+  
+  unset FIREBUILD_CACHE_DIR
+}
+
+@test "cache compression - uncompressed cache" {
+  # Test with compression disabled
+  rm -rf test_cache_dir
+  export FIREBUILD_CACHE_DIR=test_cache_dir
+  
+  # First run with compression disabled
+  result=$(./run-firebuild -o 'compress_cache = false' -- bash -c "echo uncompressed test")
+  assert_streq "$result" "uncompressed test"
+  
+  # Check cache-format file does not contain "compressed"
+  if [ -f test_cache_dir/cache-format ]; then
+    if grep -q "(compressed)" test_cache_dir/cache-format; then
+      echo "Did not expect '(compressed)' in cache-format"
+      cat test_cache_dir/cache-format
+      return 1
+    fi
+  else
+    echo "cache-format file not found"
+    return 1
+  fi
+  
+  # Second run should use uncompressed cache
+  result=$(./run-firebuild -o 'compress_cache = false' -- bash -c "echo uncompressed test")
+  assert_streq "$result" "uncompressed test"
+  
+  unset FIREBUILD_CACHE_DIR
+}
+
+@test "cache compression - format mismatch clears cache" {
+  # Test that changing compression setting clears the cache
+  rm -rf test_cache_dir
+  export FIREBUILD_CACHE_DIR=test_cache_dir
+  
+  # First run with compression enabled
+  result=$(./run-firebuild -o 'compress_cache = true' -- bash -c "echo test output")
+  assert_streq "$result" "test output"
+  
+  # Verify cache was created
+  [ -d test_cache_dir/objs ] || {
+    echo "Cache objs directory not created"
+    return 1
+  }
+  
+  # Create a marker file in cache to verify it gets cleared
+  touch test_cache_dir/objs/marker_file
+  
+  # Run with compression disabled - should clear cache
+  result=$(./run-firebuild -o 'compress_cache = false' -- bash -c "echo test output" 2>&1)
+  
+  # Check that marker file was removed (cache was cleared)
+  if [ -f test_cache_dir/objs/marker_file ]; then
+    echo "Cache was not cleared when format changed"
+    return 1
+  fi
+  
+  # Verify cache-format now shows uncompressed
+  if grep -q "(compressed)" test_cache_dir/cache-format; then
+    echo "cache-format still shows compressed"
+    cat test_cache_dir/cache-format
+    return 1
+  fi
+  
+  unset FIREBUILD_CACHE_DIR
+}
+
+@test "cache compression - different levels" {
+  # Test different compression levels
+  rm -rf test_cache_dir
+  export FIREBUILD_CACHE_DIR=test_cache_dir
+  
+  # Test with compression level 1 (default)
+  result=$(./run-firebuild -o 'compress_cache = true' -o 'compression_level = 1' -- bash -c "echo level 1")
+  assert_streq "$result" "level 1"
+  
+  # Clean cache
+  rm -rf test_cache_dir
+  
+  # Test with compression level 5
+  result=$(./run-firebuild -o 'compress_cache = true' -o 'compression_level = 5' -- bash -c "echo level 5")
+  assert_streq "$result" "level 5"
+  
+  unset FIREBUILD_CACHE_DIR
+}
