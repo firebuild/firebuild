@@ -1486,70 +1486,76 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
   for (i = 0; i < outputs->get_path_isreg_count(); i++) {
     auto file = reinterpret_cast<const FBBSTORE_Serialized_file *>(outputs->get_path_isreg_at(i));
     const auto path = FileName::Get(file->get_path(), file->get_path_len());
-    if (file->get_type() == ISREG) {
-      /* Check if data is inlined */
-      fbb_size_t inline_data_len = file->get_inline_data_count();
-      if (inline_data_len > 0) {
-        FB_DEBUG(FB_DEBUG_SHORTCUT,
-                 "│   Restoring file from inline data: "
-                 + d(path) + " size=" + d(inline_data_len));
-        const char *inline_data = file->get_inline_data();
+    switch (file->get_type()) {
+      case ISREG:
+        {
+          /* Check if data is inlined */
+          fbb_size_t inline_data_len = file->get_inline_data_count();
+          if (inline_data_len > 0) {
+            FB_DEBUG(FB_DEBUG_SHORTCUT,
+                     "│   Restoring file from inline data: "
+                     + d(path) + " size=" + d(inline_data_len));
+            const char *inline_data = file->get_inline_data();
 
-        /* Write inline data to file */
-        int fd = open(path->c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (fd < 0) {
-          FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Could not open file for writing: " + d(path));
-          return false;
-        }
-        ssize_t written = 0;
-        while (std::cmp_less(written, inline_data_len)) {
-          ssize_t n = write(fd, inline_data + written, inline_data_len - written);
-          if (n <= 0) {
+            /* Write inline data to file */
+            int fd = open(path->c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            if (fd < 0) {
+              FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Could not open file for writing: " + d(path));
+              return false;
+            }
+            ssize_t written = 0;
+            while (std::cmp_less(written, inline_data_len)) {
+              ssize_t n = write(fd, inline_data + written, inline_data_len - written);
+              if (n <= 0) {
+                close(fd);
+                FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Could not write inline data to file: " + d(path));
+                return false;
+              }
+              written += n;
+            }
             close(fd);
-            FB_DEBUG(FB_DEBUG_SHORTCUT, "│   Could not write inline data to file: " + d(path));
-            return false;
-          }
-          written += n;
-        }
-        close(fd);
-
-        /* Set mode if specified */
-        if (file->has_mode()) {
-          chmod(path->c_str(), file->get_mode());
-        }
-      } else {
-        FB_DEBUG(FB_DEBUG_SHORTCUT,
-                 "│   Fetching file from blobs cache: "
-                 + d(path));
-        if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false)) {
-          /* The file may not be writable but it may be expected and already checked. */
-          const FBBSTORE_Serialized_file* input_file =
-              find_input_file(
-                  reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(
-                      inouts->get_inputs()), path);
-          if (errno == EACCES && input_file && (file_to_file_info(file).mode_mask() & 0200)) {
-            /* The file has already been checked to be not writable and should be completely replaced
-             * from the cache. Let's remove it and try again. */
-            if (unlink(path->c_str()) == -1) {
-              fb_perror("Failed removing file to be replaced from cache");
-              assert(0);
-            }
-            /* Try retrieving the same file again. */
-            if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false)) {
-              fb_perror("Failed creating file from cache");
-              assert(0);
-            }
           } else {
-            fb_perror("Failed opening file to be recreated from cache");
-            assert(0);
+            FB_DEBUG(FB_DEBUG_SHORTCUT,
+                     "│   Fetching file from blobs cache: "
+                     + d(path));
+            if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx++], path, false)) {
+              /* The file may not be writable but it may be expected and already checked. */
+              const FBBSTORE_Serialized_file* input_file =
+                  find_input_file(
+                      reinterpret_cast<const FBBSTORE_Serialized_process_inputs *>(
+                          inouts->get_inputs()), path);
+              if (errno == EACCES && input_file && (file_to_file_info(file).mode_mask() & 0200)) {
+                /* The file has already been checked to be not writable and should be completely
+                 *  replaced from the cache. Let's remove it and try again. */
+                if (unlink(path->c_str()) == -1) {
+                  fb_perror("Failed removing file to be replaced from cache");
+                  assert(0);
+                }
+                /* Try retrieving the same file again. */
+                if (!blob_cache->retrieve_file(blob_fds[next_blob_fd_idx - 1], path, false)) {
+                  fb_perror("Failed creating file from cache");
+                  assert(0);
+                }
+              } else {
+                fb_perror("Failed opening file to be recreated from cache");
+                assert(0);
+              }
+            }
           }
         }
-        if (file->has_mode()) {
-          /* Refuse to apply setuid, setgid, sticky bit. */
-          // FIXME warn on them, even when we store them.
-          chmod(path->c_str(), file->get_mode() & 0777);
+        [[fallthrough]];
+      case EXIST:
+        {
+          if (file->has_mode()) {
+            /* Refuse to apply setuid, setgid, sticky bit. */
+            // FIXME warn on them, even when we store them.
+            chmod(path->c_str(), file->get_mode() & 0777);
+          }
         }
-      }
+        break;
+      default:
+        fb_perror(std::string("Unexpected file type in cache for " + d(path)).c_str());
+        assert(0);
     }
     if (registration_point) {
       FileUsageUpdate update = file_to_file_usage_update(path, file);
