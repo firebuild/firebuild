@@ -146,6 +146,7 @@ safe_remapped_functions = set({
   "freopen",
   "fstatfs",
   "fstatvfs",
+  "futimens",
   "gettimeofday",
   "ioctl",
   "mkostemp",
@@ -170,6 +171,7 @@ safe_remapped_functions = set({
   "time",
   "tmpfile",
   "utime",
+  "utimensat",
   "utimes",
   "wait3",
   "wait4"
