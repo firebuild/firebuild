@@ -126,6 +126,9 @@ jobs:
         ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
         echo $TZ > /etc/timezone
         apt-get -y install $BUILD_DEPS $TEST_DEPS g++ gcc git
+        [ ${{ matrix.container }} = "i386/debian" ] || apt-get install -y software-properties-common
+        [ ${{ matrix.container }} = "i386/debian" ] || add-apt-repository ppa:firebuild/qemu-backports
+        [ ${{ matrix.container }} = "i386/debian" ] || apt-get install -y qemu-user-interposable
     # use checkout@v1 that works in i386 containers without node
     - uses: actions/checkout@v1
       with:
