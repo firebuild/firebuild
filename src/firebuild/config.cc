@@ -654,6 +654,7 @@ void detect_qemu_user(const char* path) {
           if (ret_code != 0 || result.find("-libc-syscalls") != std::string::npos) {
             fb_error("The qemu-user binary (" + qemu_user->to_string()
                     + ") does not support the -libc-syscalls option required for interception.");
+            fb_error("Exit code: " + d(ret_code) + ", output: " + result);
             qemu_user = nullptr;
           }
         }
