@@ -89,10 +89,7 @@ Back-ported packages for supported Ubuntu releases can be downloaded from the [o
     sudo add-apt-repository ppa:firebuild/stable
     sudo apt install firebuild
 
-To intercept static binaries Firebuild requires a Qemu version that supports the -libc-syscalls option. Prebuilt packages are available from [our PPA](https://launchpad.net/~firebuild/+archive/ubuntu/qemu-backports):
-
-    sudo apt-add-repository ppa:firebuild/qemu-backports
-    sudo apt install qemu-user-interposable
+To intercept static binaries Firebuild requires a Qemu version that supports the -libc-syscalls option. Prebuilt `qemu-user-interposable` packages are available from the `firebuild/stable` PPA, too.
 
 If you would like to use `firebuild` in your GitHub pipeline there is a [GitHub Action](https://github.com/marketplace/actions/firebuild-for-github-actions) to do just that.
 
