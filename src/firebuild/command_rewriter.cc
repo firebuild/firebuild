@@ -115,6 +115,10 @@ void CommandRewriter::maybe_rewrite(
 #ifndef __APPLE__
   bool is_static = false;
   if (qemu_user && hash_cache && hash_cache->get_is_static(*executable, &is_static) && is_static) {
+    if (args->size() > 0 && !strchr((*args)[0].c_str(), '/')) {
+      /* Replace the first argument with the original static executable's path. */
+      (*args)[0] = (*executable)->to_string();
+    }
     *executable = qemu_user;
     *rewritten_executable = true;
     args->insert(args->begin(), {(*executable)->to_string(), QEMU_LIBC_SYSCALLS_OPTION});
