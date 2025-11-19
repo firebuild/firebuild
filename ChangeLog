@@ -1,3 +1,15 @@
+====================
+0.8.5.1 / 2025-11-19
+====================
+  * ci: Get RPM source version from CMakeList.txt
+  * supervisor: Add sphinx's -E option later if -M is set
+  * supervisor: Extend error with output of qemu-user binary
+  * interceptor: Mark utimensat() and futimens() as safe to intercept remapped
+  * readme: Update README.md that qemu-packages are available from firebuild/stable
+  * supervisor: Properly shortcut chmod command when it did not create file
+  * interceptor: Allow intercepting close() when already intercepting fclose()
+  * macos: Don't workaround recursively intercepting close() in fclose() on macOS
+  * supervisor: Pass static binaries to qemu with full path as argument
 ==================
 0.8.5 / 2025-11-16
 ==================
