@@ -648,8 +648,11 @@ generate("int", ["close", "SYS_close", "__close_nocancel"] + (["close$NOCANCEL"]
 generate("int", "fclose", "FILE *stream",
          before_lines=["int fd = safe_fileno(stream); /* save it here, we can't do fileno() after the fclose() */",
                        "if (i_am_intercepting) set_notify_on_read_write_state(fd);",
+                       "/* close() may be intercepted inside fclose() */",
+                       "FB_THREAD_LOCAL(interception_recursion_depth)++;",
                        "voidp_set_erase(&popened_streams, stream);"],
-         send_msg_condition="fd != -1",
+         after_lines=["FB_THREAD_LOCAL(interception_recursion_depth)--;"],
+         send_msg_condition="fd != -1 && strcmp(FB_THREAD_LOCAL(intercept_on), \"fclose\") == 0",
          msg="close",
          msg_skip_fields=["stream"],
          msg_add_fields=["fbbcomm_builder_close_set_fd(&ic_msg, fd);"])

@@ -142,6 +142,19 @@ int main() {
   }
   close(fd);
 
+  FILE *f;
+  f = fopen("test_nonempty_2.txt", "w");
+  if (f == NULL) {
+    perror("fopen" LOC);
+    exit(1);
+  }
+  i = fwrite(msg, 1, strlen(msg), f);
+  if (i != (int) strlen(msg)) {
+    perror("fwrite" LOC);
+    exit(1);
+  }
+  fclose(f);
+
   /* Only create _1, and not _2. */
   fd = creat("test_maybe_exists_1.txt", 0600);
   if (fd == -1) {
