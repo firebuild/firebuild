@@ -75,8 +75,6 @@ You can even accelerate a single command without any build system: `firebuild <c
 
 Firebuild does not support [compressing cache entries](https://github.com/firebuild/firebuild/issues/1087), nor [remote caches](https://github.com/firebuild/firebuild/issues/19) yet.
 
-Firebuild's interception works by preloading libfirebuild.so to the intercepted processes and interposing libc and system calls. As a result it can't intercept nor shortcut statically linked binaries.
-
 ## Installation
 
 Firebuild is available in [Arch Linux (AUR)](https://aur.archlinux.org/packages/firebuild),
