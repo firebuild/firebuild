@@ -182,6 +182,16 @@ typedef struct _{{ NS }}_Builder {
   inline void debug(FILE *f) const {
     {{ ns }}_builder_debug(f, this);
   }
+
+  /* Wrapper methods for casting to specific tag types without manual reinterpret_cast */
+### for (msg, _) in msgs
+  inline const {{ NS }}_Builder_{{ msg }}* as_{{ msg }}() const {
+    return reinterpret_cast<const {{ NS }}_Builder_{{ msg }}*>(this);
+  }
+  inline {{ NS }}_Builder_{{ msg }}* as_{{ msg }}() {
+    return reinterpret_cast<{{ NS }}_Builder_{{ msg }}*>(this);
+  }
+### endfor
 #endif
 
 #ifdef __cplusplus
@@ -205,6 +215,13 @@ typedef struct _{{ NS }}_Serialized {
   inline void debug(FILE *f) const {
     {{ ns }}_serialized_debug(f, this);
   }
+
+  /* Wrapper methods for casting to specific tag types without manual reinterpret_cast */
+### for (msg, _) in msgs
+  inline const {{ NS }}_Serialized_{{ msg }}* as_{{ msg }}() const {
+    return reinterpret_cast<const {{ NS }}_Serialized_{{ msg }}*>(this);
+  }
+### endfor
 #endif
 
 #ifdef __cplusplus
@@ -236,6 +253,23 @@ static inline int {{ ns }}_serialized_get_tag(const {{ NS }}_Serialized *msg) {
 
 #ifdef __cplusplus
 }  /* close extern "C" for the inline methods so that we can use C++ function overloading */
+
+/*
+ * Tag-to-type mapping traits for automatic casting of FBB getters.
+ * This allows using get_<field>_as<Tag>() to get properly typed pointers
+ * without manual casting.
+ */
+template<int Tag> struct {{ NS }}_Tag_To_Builder_Type;
+template<int Tag> struct {{ NS }}_Tag_To_Serialized_Type;
+
+### for (msg, _) in msgs
+template<> struct {{ NS }}_Tag_To_Builder_Type<{{ NS }}_TAG_{{ msg }}> {
+  using Type = {{ NS }}_Builder_{{ msg }};
+};
+template<> struct {{ NS }}_Tag_To_Serialized_Type<{{ NS }}_TAG_{{ msg }}> {
+  using Type = {{ NS }}_Serialized_{{ msg }};
+};
+### endfor
 #endif
 
 ### for (msg, fields) in msgs
@@ -876,6 +910,28 @@ inline std::string get_{{ var }}_as_string() const {
 {# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
 
 ###         endif
+###         if type == FBB
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Builder getter - required or optional FBB with automatic type casting (C++ only)
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+/* C-style API: not applicable for templates */
+###           endset
+###           set cxxfunc
+template<int Tag>
+inline const typename {{ NS }}_Tag_To_Builder_Type<Tag>::Type* get_{{ var }}_as() const {
+  return reinterpret_cast<const typename {{ NS }}_Tag_To_Builder_Type<Tag>::Type*>(get_{{ var }}());
+}
+###           endset
+###           do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
 ###       endif
 ###     else
 
@@ -1056,6 +1112,28 @@ inline {{ ctype }} get_{{ var }}_with_len_at(fbb_size_t idx, fbb_size_t *len_out
 }
 ###         endset
 ###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###       endif
+###       if type == FBB
+
+{# .......................................................................... #}
+###         set comment
+/*
+ * Builder getter - one item from an array of FBBs with automatic type casting (C++ only)
+ * {{ type }}[] {{ var }}
+ */
+###         endset
+###         set cfunc
+/* C-style API: not applicable for templates */
+###         endset
+###         set cxxfunc
+template<int Tag>
+inline const typename {{ NS }}_Tag_To_Builder_Type<Tag>::Type* get_{{ var }}_as(fbb_size_t idx) const {
+  return reinterpret_cast<const typename {{ NS }}_Tag_To_Builder_Type<Tag>::Type*>(get_{{ var }}_at(idx));
+}
+###         endset
+###         do builder_funcs.append((comment, cfunc, cxxfunc, 'c++'))
 {# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
 
 ###       endif
@@ -1308,6 +1386,28 @@ inline std::string get_{{ var }}_as_string() const {
 {# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
 
 ###         endif
+###         if type == FBB
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - required or optional FBB with automatic type casting (C++ only)
+ * {{ type }} {{ var }}
+ */
+###           endset
+###           set cfunc
+/* C-style API: not applicable for templates */
+###           endset
+###           set cxxfunc
+template<int Tag>
+inline const typename {{ NS }}_Tag_To_Serialized_Type<Tag>::Type* get_{{ var }}_as() const {
+  return reinterpret_cast<const typename {{ NS }}_Tag_To_Serialized_Type<Tag>::Type*>(get_{{ var }}());
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c++'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
 ###       endif
 ###     else
 
@@ -1465,6 +1565,28 @@ inline {{ ctype }} get_{{ var }}_with_len_at(fbb_size_t idx, fbb_size_t *len_out
 }
 ###           endset
 ###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c'))
+{# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
+
+###         endif
+###         if type == FBB
+
+{# .......................................................................... #}
+###           set comment
+/*
+ * Serialized getter - one item from an array of FBBs with automatic type casting (C++ only)
+ * {{ type }}[] {{ var }}
+ */
+###           endset
+###           set cfunc
+/* C-style API: not applicable for templates */
+###           endset
+###           set cxxfunc
+template<int Tag>
+inline const typename {{ NS }}_Tag_To_Serialized_Type<Tag>::Type* get_{{ var }}_as(fbb_size_t idx) const {
+  return reinterpret_cast<const typename {{ NS }}_Tag_To_Serialized_Type<Tag>::Type*>(get_{{ var }}_at(idx));
+}
+###           endset
+###           do serialized_funcs.append((comment, cfunc, cxxfunc, 'c++'))
 {# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ #}
 
 ###         endif
