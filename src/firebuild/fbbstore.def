@@ -76,6 +76,9 @@
       # Inline data for small blobs (if size <= max_inline_blob_size)
       # When this is present, the data is stored directly here instead of in blob cache
       (ARRAY, "char",                    "inline_data"),
+      # Source file for touch -r timestamp copy operation
+      # If set, this file's timestamp should be copied from the specified source file
+      (OPTIONAL, STRING,                "timestamp_source"),
     ]),
 
     ("dir", [

@@ -177,7 +177,8 @@ class Process {
     /* Returns true if the (sec, nsec) mtime pair matches a file previously
      * observed via fstatat() (as collected in mtime_to_file_). If source_file
      * is non-null it is set to the matched FileName*. */
-    bool is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec) const;
+    bool is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec,
+                              const FileName** source_file = nullptr) const;
   void set_expected_child(ExecedProcessEnv *ec) {
     assert_null(expected_child_);
     expected_child_ = ec;

@@ -56,6 +56,7 @@ class FileUsage {
   file_generation_t generation() const {return generation_;}
   int unknown_err() {return unknown_err_;}
   void set_unknown_err(int e) {unknown_err_ = e;}
+  const FileName* timestamp_source() const {return timestamp_source_;}
 
   FileType initial_type() const {return initial_state_.type();}
   void set_initial_type(FileType type) {initial_state_.set_type(type);}
@@ -103,10 +104,11 @@ class FileUsage {
   explicit FileUsage(FileType type = DONTKNOW) : initial_state_(type) {}
 
   FileUsage(const FileName* filename, const FileInfo *initial_state, bool written,
-            bool mode_changed, bool tmp_file, bool propagated, int unknown_err):
+            bool mode_changed, bool tmp_file, bool propagated, int unknown_err,
+            const FileName* timestamp_source = nullptr):
       initial_state_(*initial_state), written_(written), mode_changed_(mode_changed),
       tmp_file_(tmp_file), propagated_(propagated), generation_(filename->generation()),
-      unknown_err_(unknown_err) {}
+      timestamp_source_(timestamp_source), unknown_err_(unknown_err) {}
 
   /* Things that describe the filesystem when the process started up */
   FileInfo initial_state_;
@@ -130,6 +132,10 @@ class FileUsage {
 
   /** Generation of the file the process last seen (either by reading or writing to the file). */
   file_generation_t generation_ {0};
+
+  /** If this file's timestamp was set via touch -r, this points to the
+   *  source file that provided the timestamp. NULL if not applicable. */
+  const FileName* timestamp_source_ {nullptr};
 
   /* Note: stuff like the final hash are not stored here. They are
    * computed right before being placed in the cache, don't need to be
@@ -176,6 +182,11 @@ struct FileUsageHasher {
     } merged_state = {f.initial_type(), f.initial_mode(), f.initial_mode_mask(),
       f.written_, f.mode_changed_, f.tmp_file(), 0, f.generation_};
     hash = XXH3_64bits_withSeed(&merged_state, sizeof(merged_state), hash);
+    // Include timestamp_source in the hash
+    const FileName* ts_src = f.timestamp_source();
+    if (ts_src) {
+      hash = XXH3_64bits_withSeed(ts_src, sizeof(ts_src), hash);
+    }
     return hash;
   }
 };

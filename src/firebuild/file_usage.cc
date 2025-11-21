@@ -222,6 +222,11 @@ const FileUsage* FileUsage::merge(const FileUsageUpdate& update, const bool prop
     changed = true;
   }
 
+  if (timestamp_source_ != update.timestamp_source()) {
+    tmp.timestamp_source_ = update.timestamp_source();
+    changed = true;
+  }
+
   if (!changed) {
     return this;
   } else {

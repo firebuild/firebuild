@@ -18,6 +18,7 @@
 
 #include "firebuild/execed_process_cacher.h"
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -62,7 +63,7 @@ class InlineDataMapCleaner {
 };
 
 static const XXH64_hash_t kFingerprintVersion = 0;
-static const unsigned int kCacheFormatVersion = 2;
+static const unsigned int kCacheFormatVersion = 3;
 static const char kCacheStatsFile[] = "stats";
 static const char kCacheSizeFile[] = "size";
 
@@ -522,8 +523,8 @@ void ExecedProcessCacher::erase_fingerprint(const ExecedProcess *proc) {
 }
 
 static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* file_name,
-                     const FileInfo& fi, const char* inline_data = nullptr,
-                     size_t inline_data_len = 0) {
+                     const FileInfo& fi, const FileUsage* fu = nullptr,
+                     const char* inline_data = nullptr, size_t inline_data_len = 0) {
   FBBSTORE_Builder_file& new_file = files->emplace_back();
   new_file.set_path_with_length(file_name->c_str(), file_name->length());
   new_file.set_type(fi.type());
@@ -541,6 +542,11 @@ static void add_file(std::vector<FBBSTORE_Builder_file>* files, const FileName* 
   }
   if (inline_data && inline_data_len > 0) {
     new_file.set_inline_data(inline_data, inline_data_len);
+  }
+  /* Only store timestamp_source if the file still exists (wasn't deleted/temporary) */
+  if (fu && fu->timestamp_source() && fi.type() != NOTEXIST) {
+    const FileName* ts_src = fu->timestamp_source();
+    new_file.set_timestamp_source_with_length(ts_src->c_str(), ts_src->length());
   }
 }
 
@@ -876,9 +882,10 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
         {
           auto it = inline_data_map.find(filename);
           if (it != inline_data_map.end()) {
-            add_file(&out_path_isreg, filename, new_file_info, it->second.first, it->second.second);
+            add_file(&out_path_isreg, filename, new_file_info, fu,
+                     it->second.first, it->second.second);
           } else {
-            add_file(&out_path_isreg, filename, new_file_info);
+            add_file(&out_path_isreg, filename, new_file_info, fu);
           }
         }
         break;
@@ -890,7 +897,7 @@ void ExecedProcessCacher::store(ExecedProcess *proc) {
           proc->disable_shortcutting_only_this("Process created a temporary dir");
           return;
         }
-        add_file(&out_path_isdir, filename, new_file_info);
+        add_file(&out_path_isdir, filename, new_file_info, fu);
         out_path_isdir_filename_ptrs.insert(filename);
         break;
       case NOTEXIST:
@@ -1550,6 +1557,29 @@ bool ExecedProcessCacher::apply_shortcut(ExecedProcess *proc,
             /* Refuse to apply setuid, setgid, sticky bit. */
             // FIXME warn on them, even when we store them.
             chmod(path->c_str(), file->get_mode() & 0777);
+          }
+          /* Apply timestamp from source file if this was a touch -r operation */
+          if (file->has_timestamp_source()) {
+            const FileName* source_file =
+                FileName::Get(file->get_timestamp_source(), file->get_timestamp_source_len());
+            struct stat64 st;
+            if (stat64(source_file->c_str(), &st) == 0) {
+              struct timespec times[2];
+              times[0].tv_nsec = UTIME_OMIT;  // access time
+              times[1] = st.st_mtim;  // modification time
+              if (utimensat(AT_FDCWD, path->c_str(), times, 0) < 0) {
+                FB_DEBUG(FB_DEBUG_SHORTCUT,
+                         "│   Could not set timestamp from source file: "
+                         + d(path) + " <- " + d(source_file));
+              } else {
+                FB_DEBUG(FB_DEBUG_SHORTCUT,
+                         "│   Applied timestamp from source file: "
+                         + d(path) + " <- " + d(source_file));
+              }
+            } else {
+              FB_DEBUG(FB_DEBUG_SHORTCUT,
+                       "│   Source file for timestamp not found: " + d(source_file));
+            }
           }
         }
         break;

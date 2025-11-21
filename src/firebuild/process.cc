@@ -634,10 +634,14 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
   return 0;
 }
 
-bool Process::is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec) const {
+bool Process::is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec,
+                                   const FileName** source_file) const {
   auto it = mtime_to_file_.find(std::make_pair(mtim_sec, mtim_nsec));
   if (it == mtime_to_file_.end()) {
     return false;
+  }
+  if (source_file) {
+    *source_file = it->second;
   }
   return true;
 }
