@@ -505,7 +505,7 @@ setup() {
   result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')
   assert_streq "$result" ""
   assert_streq "$(strip_stderr stderr)" ""
-  assert_streq "$(cat test_cache_dir/cache-format)" "2"
+  assert_streq "$(cat test_cache_dir/cache-format)" "3"
 
   # older cache versions are OK (assuming they are handled)
   echo 0 > test_cache_dir/cache-format

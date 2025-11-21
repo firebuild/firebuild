@@ -54,6 +54,8 @@ class FileUsageUpdate {
   bool tmp_file() const {return tmp_file_;}
   file_generation_t generation() const {return generation_;}
   bool unknown_err() const {return unknown_err_;}
+  const FileName* timestamp_source() const {return timestamp_source_;}
+  void set_timestamp_source(const FileName* src) {timestamp_source_ = src;}
 
   bool get_initial_type(FileType *type_ptr) const;
   void set_initial_type(FileType type) {initial_state_.set_type(type);}
@@ -140,6 +142,10 @@ class FileUsageUpdate {
    * initial_state_.type_ or initial_state_.hash_ might modify it, but I don't think it'll be a
    * problem, since we don't query this variable before performing the lazy evaluation. */
   mutable int unknown_err_ {0};
+
+  /** If this file's timestamp was set via touch -r, this points to the
+   *  source file that provided the timestamp. NULL if not applicable. */
+  const FileName* timestamp_source_ {nullptr};
 };
 
 /* Global debugging methods.
