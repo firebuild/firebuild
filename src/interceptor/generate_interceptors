@@ -1514,6 +1514,8 @@ generate("int", "__xstat", "int ver, const char *pathname, struct stat *stat_buf
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__xstat64", "int ver, const char *pathname, struct stat64 *stat_buf",
          platforms=['linux'],
@@ -1523,6 +1525,8 @@ generate("int", "__xstat64", "int ver, const char *pathname, struct stat64 *stat
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__lxstat", "int ver, const char *pathname, struct stat *stat_buf",
          platforms=['linux'],
@@ -1533,6 +1537,8 @@ generate("int", "__lxstat", "int ver, const char *pathname, struct stat *stat_bu
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__lxstat64", "int ver, const char *pathname, struct stat64 *stat_buf",
          platforms=['linux'],
@@ -1543,6 +1549,8 @@ generate("int", "__lxstat64", "int ver, const char *pathname, struct stat64 *sta
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
          platforms=['linux'],
@@ -1551,6 +1559,8 @@ generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
          platforms=['linux'],
@@ -1559,6 +1569,8 @@ generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__fxstatat", "int ver, int fd, const char *pathname, struct stat *stat_buf, int flags",
          platforms=['linux'],
@@ -1568,6 +1580,8 @@ generate("int", "__fxstatat", "int ver, int fd, const char *pathname, struct sta
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", "__fxstatat64", "int ver, int fd, const char *pathname, struct stat64 *stat_buf, int flags",
          platforms=['linux'],
@@ -1577,6 +1591,8 @@ generate("int", "__fxstatat64", "int ver, int fd, const char *pathname, struct s
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 # cleaned up beginning with glibc 2.33
 generate("int", ["stat"] + (["__stat"] if target == "darwin" else []), "const char *pathname, struct stat *stat_buf",
@@ -1586,6 +1602,8 @@ generate("int", ["stat"] + (["__stat"] if target == "darwin" else []), "const ch
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", ["stat64", "SYS_stat64", "__stat64_time64"], "const char *pathname, struct stat64 *stat_buf",
          msg="fstatat",
@@ -1594,6 +1612,8 @@ generate("int", ["stat64", "SYS_stat64", "__stat64_time64"], "const char *pathna
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", ["lstat"] + (["__lstat"] if target == "darwin" else []), "const char *pathname, struct stat *stat_buf",
          msg="fstatat",
@@ -1603,6 +1623,8 @@ generate("int", ["lstat"] + (["__lstat"] if target == "darwin" else []), "const 
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", ["lstat64", "SYS_lstat64", "__lstat64_time64"], "const char *pathname, struct stat64 *stat_buf",
          msg="fstatat",
@@ -1612,6 +1634,8 @@ generate("int", ["lstat64", "SYS_lstat64", "__lstat64_time64"], "const char *pat
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", ["fstat", "SYS_newfstat"] + (["__fstat"] if target == "darwin" else []), "int fd, struct stat *stat_buf",
          msg="fstatat",
@@ -1619,6 +1643,8 @@ generate("int", ["fstat", "SYS_newfstat"] + (["__fstat"] if target == "darwin" e
          msg_add_fields=["if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 for func_guard in [(["fstat64", "SYS_fstat64", "__fstat64_time64"], None),
                    ("__fstat64", glibc_ge(2, 33))]:
@@ -1630,6 +1656,8 @@ for func_guard in [(["fstat64", "SYS_fstat64", "__fstat64_time64"], None),
            msg_add_fields=["if (success) {",
                            "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                            "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                           "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                           "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                            "}"])
 generate("int", ["fstatat", "SYS_newfstatat"] + (["__fstatat"] if target == "darwin" else []), "int fd, const char *pathname, struct stat *stat_buf, int flags",
          msg="fstatat",
@@ -1638,6 +1666,8 @@ generate("int", ["fstatat", "SYS_newfstatat"] + (["__fstatat"] if target == "dar
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 generate("int", ["fstatat64", "SYS_fstatat64", "__fstatat64_time64"], "int fd, const char *pathname, struct stat64 *stat_buf, int flags",
          msg="fstatat",
@@ -1646,6 +1676,8 @@ generate("int", ["fstatat64", "SYS_fstatat64", "__fstatat64_time64"], "int fd, c
                          "if (success) {",
                          "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, stat_buf->st_mode);",
                          "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, stat_buf->st_size);",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, stat64_mtim_sec_to_int64(stat_buf));",
+                         "  fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, stat64_mtim_nsec_to_int64(stat_buf));",
                          "}"])
 # since glibc 2.28
 for func_guard in [("SYS_statx", None), ("statx", glibc_ge(2, 28))]:
@@ -1654,13 +1686,19 @@ for func_guard in [("SYS_statx", None), ("statx", glibc_ge(2, 28))]:
            ifdef_guard=ifdef_guard,
            # TODO(rbalint) have separate statx() message with mask also sent
            msg="fstatat",
-           # Always query type and mode to let the supervisor have valid stx_mode
-           before_lines=["mask |= STATX_TYPE | STATX_MODE | STATX_SIZE;"],
+           # Always query type, mode and size to let the supervisor have valid fields
+           # Save original mask to check if mtime was requested by the application
+           before_lines=["unsigned int original_mask = mask;",
+                         "mask |= STATX_TYPE | STATX_MODE | STATX_SIZE;"],
            msg_skip_fields=["pathname", "mask", "statx_buf"],
            msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
                            "if (success) {",
                            "  fbbcomm_builder_fstatat_set_st_mode(&ic_msg, statx_buf->stx_mode);",
                            "  fbbcomm_builder_fstatat_set_st_size(&ic_msg, statx_buf->stx_size);",
+                           "  if (original_mask & STATX_MTIME) {",
+                           "    fbbcomm_builder_fstatat_set_st_mtim_sec(&ic_msg, statx_mtim_sec_to_int64(statx_buf));",
+                           "    fbbcomm_builder_fstatat_set_st_mtim_nsec(&ic_msg, statx_mtim_nsec_to_int64(statx_buf));",
+                           "  }",
                            # TODO(rbalint) handle when type and mode are not returned (e.g. because they are not requested by the intercepted application, just by the interceptor modifying the mask)
                            "}"])
 # Treat isfdtype() as a fstat()
@@ -1796,44 +1834,76 @@ generate("int", ["faccessat", "SYS_faccessat2"], "int dirfd, const char *pathnam
 generate("int", ["utime", "SYS_utime", "__utime64"], "const char *pathname, const struct utimbuf *times",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
-                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
+                         "if (times != NULL) {",
+                         "  fbbcomm_builder_utime_set_mtim_sec(&ic_msg, utimbuf_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_utime_set_mtim_nsec(&ic_msg, 0);",
+                         "}"])
 generate("int", ["utimes", "SYS_utimes", "__utimes64"], "const char *pathname, const struct timeval " + ("times[2]" if target == 'linux' else "*times"),
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
-                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
+                         "if (times != NULL) {",
+                         "  fbbcomm_builder_utime_set_mtim_sec(&ic_msg, timeval_array_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_utime_set_mtim_nsec(&ic_msg, timeval_array_mtim_usec_to_int64_nsec(times));",
+                         "}"])
 generate("int", ["lutimes", "__lutimes64"], "const char *pathname, const struct timeval " + ("times[2]" if target == 'linux' else "*times"),
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(utime, pathname);",
                          "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
+                         "if (times != NULL) {",
+                         "  fbbcomm_builder_utime_set_mtim_sec(&ic_msg, timeval_array_mtim_sec_to_int64(&(times[1])));",
+                         "  fbbcomm_builder_utime_set_mtim_nsec(&ic_msg, timeval_array_mtim_usec_to_int64_nsec(&(times[1])));",
+                         "}",
                          "fbbcomm_builder_utime_set_flags(&ic_msg, AT_SYMLINK_NOFOLLOW);"])
 generate("int", ["utimensat", "__utimensat64"], "int dirfd, const char *pathname, const struct timespec times[2], int flags",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
-                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || timespec_array_mtim_nsec_to_int64(times) == UTIME_NOW);",
+                         "if (times != NULL && timespec_array_mtim_nsec_to_int64(times) != UTIME_NOW) {",
+                         "  fbbcomm_builder_utime_set_mtim_sec(&ic_msg, timespec_array_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_utime_set_mtim_nsec(&ic_msg, timespec_array_mtim_nsec_to_int64(times));",
+                         "}"])
 generate("int", "SYS_utimensat", "int dirfd, const char *pathname, const struct timespec times[2], int flags",
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["if (pathname) BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
-                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL || timespec_array_mtim_nsec_to_int64(times) == UTIME_NOW);",
+                         "if (times != NULL && timespec_array_mtim_nsec_to_int64(times) != UTIME_NOW) {",
+                         "  fbbcomm_builder_utime_set_mtim_sec(&ic_msg, timespec_array_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_utime_set_mtim_nsec(&ic_msg, timespec_array_mtim_nsec_to_int64(times));",
+                         "}"])
 generate("int", ["futimesat", "SYS_futimesat", "__futimesat64"], "int dirfd, const char *pathname, const struct timeval times[2]",
          platforms=['linux'],
          msg="utime",
          msg_skip_fields=["pathname", "times"],
          msg_add_fields=["if (pathname) BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(utime, dirfd, pathname);",
-                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);"])
+                         "fbbcomm_builder_utime_set_all_utime_now(&ic_msg, times == NULL);",
+                         "if (times != NULL) {",
+                         "  fbbcomm_builder_utime_set_mtim_sec(&ic_msg, timeval_array_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_utime_set_mtim_nsec(&ic_msg, timeval_array_mtim_usec_to_int64_nsec(times));",
+                         "}"])
 
 # Intercept the futime family
 generate("int", ["futimes", "__futimes64"], "int fd, const struct timeval " + ("times[2]" if target == 'linux' else "*times"),
          msg="futime",
          msg_skip_fields=["times"],
-         msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL);"])
+         msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL);",
+                         "if (times != NULL) {",
+                         "  fbbcomm_builder_futime_set_mtim_sec(&ic_msg, timeval_array_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_futime_set_mtim_nsec(&ic_msg, timeval_array_mtim_usec_to_int64_nsec(times));",
+                         "}"])
 generate("int", ["futimens", "__futimens64"], "int fd, const struct timespec times[2]",
          msg="futime",
          msg_skip_fields=["times"],
-         msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL || (times[0].tv_nsec == UTIME_NOW && times[1].tv_nsec == UTIME_NOW));"])
+         msg_add_fields=["fbbcomm_builder_futime_set_all_utime_now(&ic_msg, times == NULL || timespec_array_mtim_nsec_to_int64(times) == UTIME_NOW);",
+                         "if (times != NULL && timespec_array_mtim_nsec_to_int64(times) != UTIME_NOW) {",
+                         "  fbbcomm_builder_futime_set_mtim_sec(&ic_msg, timespec_array_mtim_sec_to_int64(times));",
+                         "  fbbcomm_builder_futime_set_mtim_nsec(&ic_msg, timespec_array_mtim_nsec_to_int64(times));",
+                         "}"])
 
 # Intercept dlopen
 # The new library's constructor may generate intercepted calls.

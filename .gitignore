@@ -26,5 +26,7 @@ src/firebuild/fbbfp.cc
 src/firebuild/fbbstore.cc
 src/firebuild/firebuild
 test/fbbtest.cc
+test/test_mtime
 test/test_orphan
 test/test_random
+test/test_stat

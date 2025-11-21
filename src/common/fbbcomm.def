@@ -359,6 +359,10 @@
       (OPTIONAL, "mode_t", "st_mode"),
       # Returned file size
       (OPTIONAL, "off_t", "st_size"),
+      # Returned modification time (seconds)
+      (OPTIONAL, "int64_t", "st_mtim_sec"),
+      # Returned modification time (nanoseconds)
+      (OPTIONAL, "int64_t", "st_mtim_nsec"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),
@@ -499,6 +503,10 @@
       (OPTIONAL, STRING, "pathname"),
       # all timestamps should be set to current time
       (REQUIRED, "bool", "all_utime_now"),
+      # modification time being set (seconds), only when all_utime_now is false
+      (OPTIONAL, "int64_t", "mtim_sec"),
+      # modification time being set (nanoseconds), only when all_utime_now is false
+      (OPTIONAL, "int64_t", "mtim_nsec"),
       # flags for utimensat(), AT_SYMLINK_NOFOLLOW for lutimes()
       (OPTIONAL, "int", "flags", "fbbcomm_debug_at_flags"),
       # error no., when ret = -1
@@ -510,6 +518,10 @@
       (REQUIRED, "int", "fd"),
       # all timestamps should be set to current time
       (REQUIRED, "bool", "all_utime_now"),
+      # modification time being set (seconds), only when all_utime_now is false
+      (OPTIONAL, "int64_t", "mtim_sec"),
+      # modification time being set (nanoseconds), only when all_utime_now is false
+      (OPTIONAL, "int64_t", "mtim_nsec"),
       # error no., when ret = -1
       (OPTIONAL, "int", "error_no"),
     ]),

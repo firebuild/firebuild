@@ -70,6 +70,7 @@
 #ifndef STATX_TYPE
 #define STATX_TYPE 0x0001U
 #define STATX_MODE 0x0002U
+#define STATX_MTIME 0x0040U
 #define STATX_SIZE 0x0200U
 
 struct statx_timestamp {
