@@ -120,10 +120,14 @@ class ProcessFBBAdaptor {
     const int fd = msg->get_fd_with_fallback(AT_FDCWD);
     const mode_t st_mode = msg->get_st_mode_with_fallback(0);
     const off_t st_size = msg->get_st_size_with_fallback(0);
+    const int64_t st_mtim_sec = msg->get_st_mtim_sec_with_fallback(0);
+    const int64_t st_mtim_nsec = msg->get_st_mtim_nsec_with_fallback(0);
     const int flags = msg->get_flags_with_fallback(0);
     const int error = msg->get_error_no_with_fallback(0);
     return proc->handle_fstatat(fd, msg->get_pathname(), msg->get_pathname_len(),
-                                flags, st_mode, st_size, error);
+                                flags, st_mode, st_size,
+                                st_mtim_sec, st_mtim_nsec,
+                                error);
   }
 
   static int handle(Process *proc, const FBBCOMM_Serialized_faccessat *msg) {

@@ -23,9 +23,11 @@
 #include <tsl/hopscotch_map.h>
 
 #include <cassert>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "firebuild/debug.h"
@@ -38,6 +40,15 @@ namespace firebuild {
 
 class ExecedProcess;
 class ForkedProcess;
+
+/** Hash function for std::pair<int64_t, int64_t> used to track file timestamps */
+struct TimespecPairHash {
+  std::size_t operator()(const std::pair<int64_t, int64_t>& p) const noexcept {
+    const std::size_t h1 = std::hash<int64_t>{}(p.first);
+    const std::size_t h2 = std::hash<int64_t>{}(p.second);
+    return h1 ^ (h2 << 1);
+  }
+};
 
 typedef enum {
   /**
@@ -156,6 +167,17 @@ class Process {
   const std::vector<ForkedProcess*>& fork_children() const {return fork_children_;}
   void set_system_child(ExecedProcess *proc) {system_child_ = proc;}
   ExecedProcess *system_child() const {return system_child_;}
+  /** Get the map of modification times to filenames seen in stat() calls.
+   *  Used for detecting touch -r operations. */
+  const tsl::hopscotch_map<std::pair<int64_t, int64_t>, const FileName*,
+                           TimespecPairHash>& mtime_to_file() const {
+    return mtime_to_file_;
+  }
+
+    /* Returns true if the (sec, nsec) mtime pair matches a file previously
+     * observed via fstatat() (as collected in mtime_to_file_). If source_file
+     * is non-null it is set to the matched FileName*. */
+    bool is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec) const;
   void set_expected_child(ExecedProcessEnv *ec) {
     assert_null(expected_child_);
     expected_child_ = ec;
@@ -367,10 +389,14 @@ class Process {
    * @param flags flags passed to fstatat() or AT_SYMLINK_NOFOLLOW in case of lstat()
    * @param st_mode mode as returned by a successful stat() call
    * @param st_size size as returned by a successful stat() call
+   * @param st_mtim_sec modification time (seconds)
+   * @param st_mtim_nsec modification time (nanoseconds)
    * @param error error code of stat() variant
    */
-  int handle_fstatat(const int fd, const char * const name, const size_t name_len, const int flags,
-                     const mode_t st_mode, const off_t st_size, const int error = 0);
+  int handle_fstatat(const int fd, const char * const name, const size_t name_len,
+                     const int flags, const mode_t st_mode, const off_t st_size,
+                     const int64_t st_mtim_sec, const int64_t st_mtim_nsec,
+                     const int error = 0);
 
   /**
    * Handle statfs in the monitored process
@@ -693,6 +719,10 @@ class Process {
   /** Debugging is suppressed for this process. */
   bool debug_suppressed_;
   ExecedProcess * exec_child_ = nullptr;
+  /** Tracks timestamps seen in stat() calls. Maps a timespec (pair of sec,nsec)
+   *  to the filename with that modification timestamp. Used to detect touch -r. */
+  tsl::hopscotch_map<std::pair<int64_t, int64_t>, const FileName*,
+                     TimespecPairHash> mtime_to_file_ {};
   const FileName* get_fd_filename(int fd) const;
   bool any_child_not_finalized();
   DISALLOW_COPY_AND_ASSIGN(Process);

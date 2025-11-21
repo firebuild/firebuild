@@ -58,6 +58,7 @@ add_custom_target(gen_files ALL DEPENDS gen_decl.h gen_def.c gen_impl.c gen_impl
 set_source_files_properties(
   env.c
   ic_file_ops.c
+  time64_cast.c
   PROPERTIES COMPILE_FLAGS "${FAT_ARCH_C_FLAGS}")
 
 add_library(firebuild SHARED
@@ -65,6 +66,7 @@ add_library(firebuild SHARED
   ic_file_ops.c
   intercept.c
   interceptors.c
+  time64_cast.c
   $<TARGET_OBJECTS:common_objs>
   $<TARGET_OBJECTS:fbbcomm_c>)
 

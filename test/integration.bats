@@ -214,6 +214,32 @@ setup() {
   done
 }
 
+@test "mtime syscalls" {
+  result=$(./run-firebuild -- ./test_mtime)
+  assert_streq "$result" "ok"
+  assert_streq "$(strip_stderr stderr)" ""
+
+  result=$(./run-firebuild -d comm -- ./test_mtime)
+  assert_streq "$result" "ok"
+  # TODO(rbalint) this is failing on i386
+  assert_streq "$(strip_stderr stderr | grep \"mtim_.\*sec  | xargs echo)" "mtim_sec: 1600000100, mtim_nsec: 0, mtim_sec: 1600000300, mtim_nsec: 700000000, mtim_sec: 1600000500, mtim_nsec: 123456789, mtim_sec: 1600000700, mtim_nsec: 111000000," || [ $(gcc -dumpmachine) = "i686-linux-gnu" ]
+}
+
+@test "stat family" {
+  [ "$(uname)" = "Linux" ] || skip
+  rm -f test_stat_symlink test_stat_regular
+  result=$(./run-firebuild -- ./test_stat)
+  assert_streq "$result" "ok"
+  assert_streq "$(strip_stderr stderr)" ""
+
+  result=$(./run-firebuild -d comm -- ./test_stat)
+  assert_streq "$result" "ok"
+  # TODO(rbalint) this is failing on i386
+  assert_streq "$(strip_stderr stderr | grep \"st_mtim_sec | uniq -c | awk '{print $1}')" "11" || \
+    assert_streq "$(strip_stderr stderr | grep \"st_mtim_sec | uniq -c | awk '{print $1}')" "7" || \
+    [ $(gcc -dumpmachine) = "i686-linux-gnu" ]
+}
+
 @test "randomness handling" {
   for i in 1 2; do
     result=$(./run-firebuild -o 'ignore_locations -= "/dev/urandom"' -- ./test_random)

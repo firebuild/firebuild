@@ -73,6 +73,11 @@ add_test_binary(test_static)
 target_link_libraries(test_static "-static")
 endif()
 
+# mtime syscall test
+add_test_binary(test_mtime)
+# stat family test
+add_test_binary(test_stat)
+
 include_directories(${CMAKE_SOURCE_DIR}/src ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 file(CREATE_LINK ${CMAKE_SOURCE_DIR}/data "${CMAKE_BINARY_DIR}/test/data" SYMBOLIC)
 set_source_files_properties(fbb_test.cc PROPERTIES COMPILE_FLAGS "-Wno-cast-align")

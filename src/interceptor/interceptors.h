@@ -83,6 +83,7 @@ struct ustat;
 
 #include "./fbbcomm.h"
 #include "common/platform.h"
+#include "time64_cast.h"
 
 #ifndef __GLIBC_PREREQ
 #define FB_SSIZE_T ssize_t

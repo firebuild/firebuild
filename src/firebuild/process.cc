@@ -570,6 +570,7 @@ int Process::handle_unlink(const int dirfd, const char * const ar_name, const si
 
 int Process::handle_fstatat(const int fd, const char * const ar_name, const size_t ar_len,
                             const int flags, const mode_t st_mode, const off_t st_size,
+                            const int64_t st_mtim_sec, const int64_t st_mtim_nsec,
                             const int error) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
          "fd=%d, ar_name=%s, flags=%d, st_mode=%d, st_size=%" PRIoff ", error=%d",
@@ -623,7 +624,22 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
     return -1;
   }
 
+  /* Track the modification timestamp of this file if stat succeeded.
+   * This allows us to detect touch -r operations by correlating the timestamp
+   * with subsequent utime/futime calls. */
+  if (error == 0) {
+    mtime_to_file_[std::make_pair(st_mtim_sec, st_mtim_nsec)] = name;
+  }
+
   return 0;
+}
+
+bool Process::is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec) const {
+  auto it = mtime_to_file_.find(std::make_pair(mtim_sec, mtim_nsec));
+  if (it == mtime_to_file_.end()) {
+    return false;
+  }
+  return true;
 }
 
 int Process::handle_statfs(const char * const a_name, const size_t length,

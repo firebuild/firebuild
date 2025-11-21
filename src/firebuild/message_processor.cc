@@ -1276,7 +1276,13 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
       if (!ic_msg->has_error_no() && ffd && is_write(ffd->flags()) && ic_msg->get_all_utime_now()) {
         /* The fd has been opened for writing and the access and modification times should be set to
          * current time which happens automatically when the process is shortcut. This is safe. */
-      } else {
+      } else if (!ic_msg->has_error_no() && !ic_msg->get_all_utime_now()
+                 && ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec()
+                 && proc->is_touch_r_operation(ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec())) {
+        /* This is a touch -r operation copying timestamps from a file we stat'ed.
+         * For now, we allow this but don't implement full cache replay yet.
+         * TODO: Store the timestamp source in FileUsage and implement cache replay.
+         *       Then the following quirk can be removed. */
         ExecedProcess* next_exec_level;
         if (quirks & FB_QUIRK_LTO_WRAPPER && proc->exec_point()->args().size() > 0
             && (proc->exec_point()->args()[0] == "touch"
@@ -1293,12 +1299,28 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           proc->exec_point()->disable_shortcutting_bubble_up(
               "Changing file timestamps is not supported");
         }
+      } else {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Changing file timestamps is not supported");
       }
       break;
     }
     case FBBCOMM_TAG_utime: {
-      proc->exec_point()->disable_shortcutting_bubble_up(
-          "Changing file timestamps is not supported");
+      auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_utime *>(fbbcomm_buf);
+      if (!ic_msg->has_error_no() && !ic_msg->get_all_utime_now()
+          && ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec()
+          && proc->is_touch_r_operation(ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec())) {
+        /* This is a touch -r operation copying timestamps from a file we stat'ed.
+         * For now, we allow this but don't implement full cache replay yet.
+         * TODO: Store the timestamp source in FileUsage and implement cache replay. */
+        FB_DEBUG(FB_DEBUG_PROC,
+                 "Detected touch -r operation (utime), not allowing shortcutting yet");
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Changing file timestamps is not supported");
+      } else {
+        proc->exec_point()->disable_shortcutting_bubble_up(
+            "Changing file timestamps is not supported");
+      }
       break;
     }
     case FBBCOMM_TAG_clock_gettime: {
