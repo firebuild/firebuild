@@ -40,6 +40,8 @@ ctest --test-dir build -R fbb_test --output-on-failure
 ## When changing schemas or enums
 
 - If you edit `src/firebuild/fbbstore.def`, run `fbbstore_gen_files` and update call sites.
+- If changing `src/firebuild/fbbstore.def` and kCacheFormatVersion has not changed since
+  the latest tagged release, then bump it and update the relevant test.
 - When adding a new `FileType` enum value, update all switches in:
   - `src/firebuild/file_usage.cc`
   - `src/firebuild/hash_cache.cc`
@@ -49,7 +51,7 @@ ctest --test-dir build -R fbb_test --output-on-failure
 ## Review checklist
 
 - [ ] `firebuild-bin` builds with no warnings (`-Werror`).
-- [ ] Regenerated sources committed when schema changed.
+- [ ] Generated files must not be committed
 - [ ] Applicable tests added/updated (unit and/or integration).
 - [ ] No unrelated reformatting; public API changes called out.
 - [ ] Consider Linux/macOS differences where relevant.

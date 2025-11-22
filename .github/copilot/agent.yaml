@@ -133,7 +133,7 @@ safety:
   - never_submit_unbuilt_changes: true
   - verify_generated_files_checked_in: false
   - large_diff_threshold_lines: 800
-  - ask_before_schema_change: true
+  - ask_before_schema_change: false
 
 notes:
   - Firebuild uses generated FlatBuffer-like code (FBB) via custom generator. Always regenerate after touching *.def.
