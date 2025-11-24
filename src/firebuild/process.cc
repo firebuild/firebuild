@@ -626,9 +626,10 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
 
   /* Track the modification timestamp of this file if stat succeeded.
    * This allows us to detect touch -r operations by correlating the timestamp
-   * with subsequent utime/futime calls. */
+   * with subsequent utime/futime calls.
+   * The nsec portion is rounded down to usecs. */
   if (error == 0) {
-    mtime_to_file_[std::make_pair(st_mtim_sec, st_mtim_nsec)] = name;
+    mtime_to_file_[std::make_pair(st_mtim_sec, (st_mtim_nsec / 1000) * 1000)] = name;
   }
 
   return 0;
@@ -636,7 +637,7 @@ int Process::handle_fstatat(const int fd, const char * const ar_name, const size
 
 bool Process::is_touch_r_operation(int64_t mtim_sec, int64_t mtim_nsec,
                                    const FileName** source_file) const {
-  auto it = mtime_to_file_.find(std::make_pair(mtim_sec, mtim_nsec));
+  auto it = mtime_to_file_.find(std::make_pair(mtim_sec, (mtim_nsec / 1000) * 1000));
   if (it == mtime_to_file_.end()) {
     return false;
   }
