@@ -721,7 +721,9 @@ class Process {
   bool debug_suppressed_;
   ExecedProcess * exec_child_ = nullptr;
   /** Tracks timestamps seen in stat() calls. Maps a timespec (pair of sec,nsec)
-   *  to the filename with that modification timestamp. Used to detect touch -r. */
+   *  to the filename with that modification timestamp. Used to detect touch -r.
+   *  The nsec part is rounded down to usec-s, because sphinx-build and possibly
+   *  other programs do the same for copying file timestamps. */
   tsl::hopscotch_map<std::pair<int64_t, int64_t>, const FileName*,
                      TimespecPairHash> mtime_to_file_ {};
   const FileName* get_fd_filename(int fd) const;
