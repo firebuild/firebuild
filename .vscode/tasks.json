@@ -1,0 +1,21 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build firebuild-bin",
+			"type": "shell",
+			"command": "cmake",
+			"args": [
+				"--build",
+				"/home/rbalint/projects/firebuild/build",
+				"--target",
+				"firebuild-bin",
+				"-j"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gcc"
+			]
+		}
+	]
+}
