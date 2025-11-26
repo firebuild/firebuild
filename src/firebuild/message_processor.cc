@@ -1288,6 +1288,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           FileUsageUpdate update(ffd->filename(), DONTKNOW, true);
           update.set_timestamp_source(touch_source_file);
           proc->exec_point()->register_file_usage_update(ffd->filename(), update);
+        } else {
+          proc->exec_point()->disable_shortcutting_bubble_up(
+              "Can't file file changing file timestamps of");
         }
       } else {
         proc->exec_point()->disable_shortcutting_bubble_up(
@@ -1298,10 +1301,10 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
     case FBBCOMM_TAG_utime: {
       auto ic_msg = reinterpret_cast<const FBBCOMM_Serialized_utime *>(fbbcomm_buf);
       const FileName* touch_source_file = nullptr;
-        if (!ic_msg->has_error_no() && !ic_msg->get_all_utime_now()
-            && ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec()
-            && proc->is_touch_r_operation(ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec(),
-                                          &touch_source_file)) {
+      if (!ic_msg->has_error_no() && !ic_msg->get_all_utime_now()
+          && ic_msg->has_mtim_sec() && ic_msg->has_mtim_nsec()
+          && proc->is_touch_r_operation(ic_msg->get_mtim_sec(), ic_msg->get_mtim_nsec(),
+                                        &touch_source_file)) {
         /* This is a touch -r operation copying timestamps from a file we stat'ed.
          * Register the file usage with the timestamp source for cache replay. */
         FB_DEBUG(FB_DEBUG_PROC, "Detected touch -r operation (utime), allowing shortcutting");
@@ -1312,6 +1315,9 @@ static void proc_ic_msg(const FBBCOMM_Serialized *fbbcomm_buf, uint16_t ack_num,
           FileUsageUpdate update(target_file, DONTKNOW, true);
           update.set_timestamp_source(touch_source_file);
           proc->exec_point()->register_file_usage_update(target_file, update);
+        } else {
+          proc->exec_point()->disable_shortcutting_bubble_up(
+              "Changing timestamp with utime() without filename");
         }
       } else {
         proc->exec_point()->disable_shortcutting_bubble_up(
