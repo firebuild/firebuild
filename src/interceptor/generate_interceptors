@@ -506,7 +506,25 @@ generate("int", ["openat", "openat64", "SYS_openat"] + (["__openat", "openat$NOC
          tpl="open",
          msg_skip_fields=["pathname"],
          msg="open")
-# FIXME Intercept SYS_openat2 (#889). It's not the same as the glibc symbols __openat[64]_2.
+# Intercept SYS_openat2 (Linux 5.6+). Note: It's not the same as the glibc symbols __openat[64]_2.
+# When resolve_flags are set, don't canonicalize the path since the kernel will resolve it differently.
+generate("int", "SYS_openat2", "int dirfd, const char *pathname, struct open_how *how, size_t size",
+         platforms=["linux"],
+         tpl="open",
+         before_lines=["const int flags = how ? how->flags : 0;",
+                       "const mode_t mode = how ? how->mode : 0;",
+                       "const uint64_t resolve_flags = how ? how->resolve : 0;"],
+         msg_skip_fields=["pathname", "how", "size"],
+         msg_add_fields=["fbbcomm_builder_open_set_flags(&ic_msg, flags);",
+                         "if (__OPEN_NEEDS_MODE(flags)) fbbcomm_builder_open_set_mode(&ic_msg, mode);",
+                         "fbbcomm_builder_open_set_resolve_flags(&ic_msg, resolve_flags);",
+                         "if (resolve_flags) {",
+                         "  fbbcomm_builder_open_set_pathname(&ic_msg, pathname);",
+                         "} else {",
+                         "  BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(open, dirfd, pathname);",
+                         "}",
+                         "fbbcomm_builder_open_set_pre_open_sent(&ic_msg, pre_open_sent);"],
+         msg="open")
 
 # Intercept open_2 variants
 generate("int", ["__open_2", "__open64_2"], "const char *pathname, int flags",

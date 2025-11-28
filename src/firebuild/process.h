@@ -282,6 +282,8 @@ class Process {
    * @param ar_len length of ar_name
    * @param flags flags of open()
    * @param mode mode (create permissions) of open()
+   * @param is_openat2 true if the call is openat2()
+   * @param resolve_flags resolve flags of openat2(), ignored if is_openat2 is false
    * @param fd the return value, or -1 if file was open()ed successfully
    * @param error error code of open()
    * @param fd_conn fd to send ACK on when needed
@@ -290,7 +292,8 @@ class Process {
    * @param tmp_file the file was opened as a temporary file by mkstemp() or friends
    */
   int handle_open(const int dirfd, const char * const ar_name, const size_t ar_len, const int flags,
-                  const mode_t mode, const int fd, const int error, int fd_conn,
+                  const mode_t mode, const bool is_openat2, const int resolve_flags,
+                  const int fd, const int error, int fd_conn,
                   int ack_num, const bool pre_open_sent, bool tmp_file);
 
   /**

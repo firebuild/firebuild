@@ -664,7 +664,9 @@ static void process_posix_spawn_file_actions(const P * const ic_msg, Process* co
             int flags = action_open->get_flags();
             mode_t mode = action_open->get_mode();
             proc->handle_force_close(fd);
-            proc->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode, fd, 0, -1, 0,
+            proc->handle_open(AT_FDCWD, pathname, pathname_len, flags, mode,
+                              false /* is_openat2 */, 0 /* resolve_flags */,
+                              fd, 0, -1, 0,
                               is_write(flags), false);
             break;
           }

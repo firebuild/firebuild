@@ -72,6 +72,9 @@ struct ntptimeval;
 #include <sys/uio.h>
 #ifdef __linux__
 #include <sys/vfs.h>
+#if __has_include(<linux/openat2.h>)
+#include <linux/openat2.h>
+#endif
 #endif
 #include <sys/wait.h>
 #include <unistd.h>

@@ -55,6 +55,15 @@
       fprintf(f, "\\"");
     }
 
+    /* Debugger method for int fields that represent openat2()'s RESOLVE_* flags. */
+    static void fbbcomm_debug_resolve_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
+      (void)is_serialized;  /* unused */
+      (void)fbb;  /* unused */
+      fprintf(f, "\\"");
+      debug_resolve_flags(f, flags);
+      fprintf(f, "\\"");
+    }
+
     /* Debugger method for int fields that represent AT_* flags. */
     static void fbbcomm_debug_at_flags(FILE *f, int flags, bool is_serialized, const void *fbb) {
       (void)is_serialized;  /* unused */
@@ -260,6 +269,8 @@
       (REQUIRED, "int", "flags", "fbbcomm_debug_open_flags"),
       # mode if (flags & O_CREAT), decoding is left for Firebuild supervisor
       (OPTIONAL, "mode_t", "mode"),
+      # resolve flags for openat2(), presence indicates openat2() call
+      (OPTIONAL, "int", "resolve_flags", "fbbcomm_debug_resolve_flags"),
       # return value, the file descriptor if != -1
       (OPTIONAL, "int", "ret"),
       # error no., when ret = -1

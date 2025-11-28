@@ -46,7 +46,9 @@ class ProcessFBBAdaptor {
     int error = msg->get_error_no_with_fallback(0);
     int ret = msg->get_ret_with_fallback(-1);
     return proc->handle_open(dirfd, msg->get_pathname(), msg->get_pathname_len(), msg->get_flags(),
-                             msg->get_mode_with_fallback(0), ret, error, fd_conn, ack_num,
+                             msg->get_mode_with_fallback(0),
+                             msg->has_resolve_flags(), msg->get_resolve_flags_with_fallback(0),
+                             ret, error, fd_conn, ack_num,
                              msg->get_pre_open_sent(), msg->get_tmp_file_with_fallback(false));
   }
 
