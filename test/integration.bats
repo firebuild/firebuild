@@ -159,6 +159,44 @@ setup() {
   done
 }
 
+@test "exec*p() PATH registration invalidates cache when earlier executable appears" {
+  # Test that exec*p() registers paths where executable was not found
+  # so cache is invalidated when a new executable appears earlier in PATH
+
+  # Create test directories
+  mkdir -p execp_test_a execp_test_b execp_test_c
+
+  # Create a test executable only in the "c" directory
+  cat > execp_test_c/testcmd << 'SCRIPT'
+#!/bin/sh
+echo "from_c"
+SCRIPT
+  chmod +x execp_test_c/testcmd
+
+  # Run with PATH that puts c last (a:b:c)
+  export PATH="$(pwd)/execp_test_a:$(pwd)/execp_test_b:$(pwd)/execp_test_c:$PATH"
+
+  # First run - should execute from c and cache
+  result1=$(./run-firebuild -- testcmd)
+  assert_streq "$result1" "from_c"
+  assert_streq "$(strip_stderr stderr)" ""
+
+  # Now create testcmd in directory "a" (earlier in PATH)
+  cat > execp_test_a/testcmd << 'SCRIPT'
+#!/bin/sh
+echo "from_a"
+SCRIPT
+  chmod +x execp_test_a/testcmd
+
+  # Second run - should execute from a (NOT from cache which would give c)
+  result2=$(./run-firebuild -- testcmd)
+  assert_streq "$result2" "from_a"
+  assert_streq "$(strip_stderr stderr)" ""
+
+  # Cleanup
+  rm -rf execp_test_a execp_test_b execp_test_c
+}
+
 @test "closedir() inside an rm -r" {
   for i in 1 2; do
     result=$(./run-firebuild -- bash -c 'mkdir -p TeMp/FoO; rm -r TeMp')
