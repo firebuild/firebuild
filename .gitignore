@@ -30,3 +30,4 @@ test/test_mtime
 test/test_orphan
 test/test_random
 test/test_stat
+_codeql*
