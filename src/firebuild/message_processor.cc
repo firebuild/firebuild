@@ -41,6 +41,7 @@
 #include "firebuild/epoll.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/file_name.h"
+#include "firebuild/file_usage_update.h"
 #include "firebuild/execed_process.h"
 #include "firebuild/execed_process_cacher.h"
 #include "firebuild/hash_cache.h"
@@ -768,8 +769,25 @@ static const FileName* resolve_command_from_msg(const T* ic_msg, const char* com
       std::vector<std::string> env = ic_msg->get_env_as_vector();
       size_t path_len = 0;
       const char* path = Env::get_var(env, "PATH", &path_len);
-      return hash_cache->resolve_command(command, command_len, path, path_len,
-                                         proc->wd());
+      std::vector<const FileName*> paths_checked, paths_checked_is_dir;
+      const FileName* result = hash_cache->resolve_command(command, command_len, path, path_len,
+                                                           proc->wd(), &paths_checked,
+                                                           &paths_checked_is_dir);
+      /* Register paths that were searched but did not contain the executable.
+       * These should be registered as NOTEXIST so that if a new executable appears
+       * earlier in PATH, the cache entry will be invalidated. */
+      ExecedProcess* exec_point = proc->exec_point();
+      if (exec_point) {
+        for (const FileName* checked_path : paths_checked) {
+          FileUsageUpdate update(checked_path, NOTEXIST);
+          exec_point->register_file_usage_update(checked_path, update);
+        }
+        for (const FileName* checked_path : paths_checked_is_dir) {
+          FileUsageUpdate update(checked_path, ISDIR);
+          exec_point->register_file_usage_update(checked_path, update);
+        }
+      }
+      return result;
     }
   } else {
     return proc->get_absolute(AT_FDCWD, command, command_len);

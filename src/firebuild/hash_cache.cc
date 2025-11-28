@@ -476,7 +476,9 @@ bool HashCache::file_info_matches(const FileName *path, const FileInfo& query) {
 }
 
 const FileName* HashCache::resolve_command(const char* cmd, size_t cmd_len,
-                                          const char* path, size_t path_len, const FileName* wd) {
+                                          const char* path, size_t path_len, const FileName* wd,
+                                          std::vector<const FileName*>* paths_checked,
+                                          std::vector<const FileName*>* paths_checked_is_dir) {
   TRACK(FB_DEBUG_PROC, "cmd=%s, path=%s", D(cmd), D(path));
 
   size_t candidate_buf_size = path_len + 1 + cmd_len + 1;
@@ -537,8 +539,16 @@ const FileName* HashCache::resolve_command(const char* cmd, size_t cmd_len,
     bool is_directory = false;
     if (this->get_statinfo(candidate, &is_directory, nullptr)) {
       if (!is_directory) {
+        /* Found the executable, return it without adding to paths_checked. */
         return candidate;
       }
+    }
+    /* Candidate was not found or is a directory; record it if caller wants to track searched
+     * paths. */
+    if (paths_checked && !is_directory) {
+      paths_checked->push_back(candidate);
+    } else if (paths_checked_is_dir && is_directory) {
+      paths_checked_is_dir->push_back(candidate);
     }
     if (colon == nullptr) {
       break;

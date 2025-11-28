@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include <string>
+#include <vector>
 
 #include "firebuild/file_info.h"
 #include "firebuild/file_name.h"
@@ -123,9 +124,13 @@ class HashCache {
    */
   bool file_info_matches(const FileName *path, const FileInfo& query);
 
-  /** Resolve a command on the PATH */
+  /** Resolve a command on the PATH.
+   *  Optionally populates paths_checked with the paths that were chhecked before the executable
+   *  was found (i.e., paths where the executable was NOT found). */
   const FileName* resolve_command(const char* cmd, size_t cmd_len,
-                                  const char* path, size_t path_len, const FileName* cwd);
+                                  const char* path, size_t path_len, const FileName* cwd,
+                                  std::vector<const FileName*>* paths_checked = nullptr,
+                                  std::vector<const FileName*>* paths_checked_is_dir = nullptr);
 
 #ifndef __APPLE__
   /** Check if the file is static */
