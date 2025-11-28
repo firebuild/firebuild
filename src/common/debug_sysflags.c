@@ -20,6 +20,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <sched.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -27,6 +28,11 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#ifdef __linux__
+#if __has_include(<linux/openat2.h>)
+#include <linux/openat2.h>
+#endif
+#endif
 
 #include "common/platform.h"
 
@@ -131,6 +137,32 @@ void debug_open_flags(FILE *f, int flags) {
   DEBUG_BITMAP_FLAG(f, flags, O_TMPFILE)
 #endif
   DEBUG_BITMAP_FLAG(f, flags, O_TRUNC)
+  DEBUG_BITMAP_END_HEX(f, flags)
+}
+
+/**
+ * Debug-print RESOLVE_* flags from openat2()'s struct open_how.
+ */
+void debug_resolve_flags(FILE *f, int flags) {
+  DEBUG_BITMAP_START(f, flags)
+#ifdef RESOLVE_NO_XDEV
+  DEBUG_BITMAP_FLAG(f, flags, RESOLVE_NO_XDEV)
+#endif
+#ifdef RESOLVE_NO_MAGICLINKS
+  DEBUG_BITMAP_FLAG(f, flags, RESOLVE_NO_MAGICLINKS)
+#endif
+#ifdef RESOLVE_NO_SYMLINKS
+  DEBUG_BITMAP_FLAG(f, flags, RESOLVE_NO_SYMLINKS)
+#endif
+#ifdef RESOLVE_BENEATH
+  DEBUG_BITMAP_FLAG(f, flags, RESOLVE_BENEATH)
+#endif
+#ifdef RESOLVE_IN_ROOT
+  DEBUG_BITMAP_FLAG(f, flags, RESOLVE_IN_ROOT)
+#endif
+#ifdef RESOLVE_CACHED
+  DEBUG_BITMAP_FLAG(f, flags, RESOLVE_CACHED)
+#endif
   DEBUG_BITMAP_END_HEX(f, flags)
 }
 

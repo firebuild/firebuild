@@ -209,13 +209,25 @@ int Process::handle_pre_open(const int dirfd, const char * const ar_name, const 
 }
 
 int Process::handle_open(const int dirfd, const char * const ar_name, const size_t ar_len,
-                         const int flags, const mode_t mode, const int fd, const int error,
+                         const int flags, const mode_t mode,
+                         const bool is_openat2, const int resolve_flags,
+                         const int fd, const int error,
                          int fd_conn, const int ack_num, const bool pre_open_sent,
                          const bool tmp_file) {
   TRACKX(FB_DEBUG_PROC, 1, 1, Process, this,
-         "dirfd=%d, ar_name=%s, flags=%d, mode=0%03o, pre_open_sent=%d, fd=%d, error=%d, "
-         "fd_conn=%s, ack_num=%d",
-         dirfd, D(ar_name), flags, mode, fd, pre_open_sent, error, D_FD(fd_conn), ack_num);
+         "dirfd=%d, ar_name=%s, flags=%d, mode=0%03o, is_openat2=%d, resolve_flags=%d, "
+         "pre_open_sent=%d, fd=%d, error=%d, fd_conn=%s, ack_num=%d",
+         dirfd, D(ar_name), flags, mode, is_openat2, resolve_flags, pre_open_sent, fd, error,
+         D_FD(fd_conn), ack_num);
+
+  /* openat2() with resolve_flags set uses non-standard path resolution that we cannot emulate. */
+  if (is_openat2 && resolve_flags != 0) {
+    exec_point()->disable_shortcutting_bubble_up("openat2() with RESOLVE_* flags is not supported");
+    if (ack_num != 0) {
+      ack_msg(fd_conn, ack_num);
+    }
+    return -1;
+  }
 
   /* O_TMPFILE is actually multiple bits, 0x410000 */
 #ifdef O_TMPFILE
@@ -291,7 +303,9 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
     handle_close(oldfd, 0);
 
     /* Register the opening of the new file, no matter if succeeded or failed. */
-    return handle_open(AT_FDCWD, ar_name, ar_len, flags, 0666, fd, error, fd_conn,
+    return handle_open(AT_FDCWD, ar_name, ar_len, flags, 0666,
+                       false /* is_openat2 */, 0 /* resolve_flags */,
+                       fd, error, fd_conn,
                        ack_num, pre_open_sent, false);
   } else {
     /* Without a name pre_open should not have been sent. */
@@ -316,7 +330,8 @@ int Process::handle_freopen(const char * const ar_name, const size_t ar_len,
 
       /* Register the reopening, no matter if succeeded or failed. */
       return handle_open(AT_FDCWD, filename->c_str(), filename->length(),
-                         flags, 0666, fd, error, fd_conn, ack_num, pre_open_sent, false);
+                         flags, 0666, false /* is_openat2 */, 0 /* resolve_flags */,
+                         fd, error, fd_conn, ack_num, pre_open_sent, false);
     }
   }
 }
@@ -440,7 +455,8 @@ int Process::handle_dlopen(const std::vector<std::string>& libs,
     if (strchr(looked_up_filename, '/')) {
       /* Failed to dlopen() a relative or absolute filename, register the file as missing. */
       handle_open(AT_FDCWD, looked_up_filename, looked_up_filename_len,
-                  O_RDONLY, 0, -1, ENOENT, 0, 0, false, false);
+                  O_RDONLY, 0, false /* is_openat2 */, 0 /* resolve_flags */,
+                  -1, ENOENT, 0, 0, false, false);
     } else {
       /* Failed dlopen() could not find the file on the search path. */
       /* TODO(rbalint) allow shortcutting the process and mark the file as missing on all the

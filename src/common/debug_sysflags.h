@@ -24,6 +24,7 @@
 #endif
 
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -32,6 +33,7 @@ extern "C" {
 #endif
 
 void debug_open_flags(FILE *f, int flags);
+void debug_resolve_flags(FILE *f, int flags);
 void debug_at_flags(FILE *f, int flags);
 void debug_psfa_attr_flags(FILE *f, int flags);
 void debug_fcntl_cmd(FILE *f, int cmd);
