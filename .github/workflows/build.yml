@@ -30,7 +30,7 @@ jobs:
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: firebuild/apt-eatmydata-action@v1
-    - uses: firebuild/firebuild-action@v4.1
+    - uses: firebuild/firebuild-action@v4.2
       with:
         key: build-on-ubuntu-lts
     - name: install-deps
@@ -82,7 +82,7 @@ jobs:
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: firebuild/apt-eatmydata-action@v1
-    - uses: firebuild/firebuild-action@v4.1
+    - uses: firebuild/firebuild-action@v4.2
       with:
         key: test-with-valgrind
     - name: install-deps
@@ -166,7 +166,7 @@ jobs:
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: firebuild/apt-eatmydata-action@v1
-    - uses: firebuild/firebuild-action@v4.1
+    - uses: firebuild/firebuild-action@v4.2
       with:
         key: clang-build
     - name: install-deps
@@ -206,7 +206,7 @@ jobs:
     - name: restore-cached-debs
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
-    - uses: firebuild/firebuild-action@v4.1
+    - uses: firebuild/firebuild-action@v4.2
       with:
         key: rebuild-self
     - name: install-deps
@@ -247,7 +247,7 @@ jobs:
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: firebuild/apt-eatmydata-action@v1
-    - uses: firebuild/firebuild-action@v4.1
+    - uses: firebuild/firebuild-action@v4.2
       with:
         key: build-other-projects
     - name: install-deps
@@ -294,7 +294,7 @@ jobs:
       run: |
         [ -d ~/.cache/debs ] && sudo cp ~/.cache/debs/* /var/cache/apt/archives/ || mkdir -p ~/.cache/debs
     - uses: firebuild/apt-eatmydata-action@v1
-    - uses: firebuild/firebuild-action@v4.1
+    - uses: firebuild/firebuild-action@v4.2
       with:
         key: build-deb-${{ matrix.os }}
     - name: install-deps
