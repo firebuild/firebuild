@@ -759,9 +759,9 @@ void *pthread_start_routine_wrapper(void *routine_and_arg) {
 /**
  * Find the last occurence of needle string in the haystack string using strrstr
  */
-static char* last_strstr(const char* haystack, const char* needle) {
-  char* last = NULL;
-  char* found = strstr(haystack, needle);
+static const char* last_strstr(const char* haystack, const char* needle) {
+  const char* last = NULL;
+  const char* found = strstr(haystack, needle);
   while (found) {
     last = found;
     found = strstr(found + 1, needle);
