@@ -1,3 +1,23 @@
+==================
+0.8.6 / 2026-02-09
+==================
+  * readme: Stop saying that firebuild can't intercept static binaries
+  * ci: Use firebuild-action@v4.1
+  * copilot: Update instructions
+  * Implement timestamp tracking and touch -r detection
+  * Allow shortcutting for all touch -r operations
+  * suprvisor: Round timestamps to microseconds when detecting touch -r
+  * build: Add vscode settings
+  * supervisor: Don't silently ignore touch -r edge cases
+  * Add zstd compression support for caches
+  * configuration: Bump default maximal cache size to 20GB
+  * Add _codeql to .gitignore
+  * Add support for openat2() syscall (Linux 5.6+)
+  * Implement exec*p() PATH registration to invalidate cache when earlier executable appears
+  * config: Skip shortcutting unlikely shortcutting points
+  * ci: Bump firebuild-action to v4.2
+  * interceptor: Add support for GLibc 2.43's openat2()
+  * build: Constify last_strstr()
 ====================
 0.8.5.1 / 2025-11-19
 ====================

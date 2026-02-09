@@ -1,6 +1,6 @@
 
 Name:           firebuild
-Version:        0.8.5.1
+Version:        0.8.6
 Release:        1%{?dist}
 Summary:        Automatic build accelerator cache
 
