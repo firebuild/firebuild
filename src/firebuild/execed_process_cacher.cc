@@ -72,6 +72,19 @@ unsigned int ExecedProcessCacher::cache_format_ = 0;
 /* singleton*/
 ExecedProcessCacher* execed_process_cacher;
 
+static void write_cache_format_file(const char* cache_format_file) {
+  FILE* f;
+  if (!(f = fopen(cache_format_file, "w"))) {
+    fb_perror("creating cache-format file failed");
+    exit(EXIT_FAILURE);
+  }
+  if (fprintf(f, "%d\n", kCacheFormatVersion) <= 0) {
+    fb_perror("writing cache-format file failed");
+    exit(EXIT_FAILURE);
+  }
+  fclose(f);
+}
+
 void ExecedProcessCacher::init(const libconfig::Config* cfg) {
   std::string cache_dir;
   char* cache_dir_env;
@@ -130,20 +143,22 @@ void ExecedProcessCacher::init(const libconfig::Config* cfg) {
       } else {
         /* Cache is in a prior format. Either use it considering the differences where needed
          * or upgrade it. */
+        /* For now the cache is just cleared. */
+        fb_info("Cache format version is outdated, clearing the cache");
+        // remove all files in the cache dir, but keep the dir itself and the cache-format file
+        for (const auto& entry : std::filesystem::directory_iterator(cache_dir)) {
+          std::error_code ec;
+          std::filesystem::remove_all(entry.path(), ec);
+          if (ec) {
+            fb_error("Failed to clear cache: " + ec.message());
+          }
+        }
+        write_cache_format_file(cache_format_file);
       }
       fclose(f);
     }
   } else {
-    FILE* f;
-    if (!(f = fopen(cache_format_file, "wx"))) {
-      fb_perror("creating cache-format file failed");
-      exit(EXIT_FAILURE);
-    }
-    if (fprintf(f, "%d\n", kCacheFormatVersion) <= 0) {
-      fb_perror("writing cache-format file failed");
-      exit(EXIT_FAILURE);
-    }
-    fclose(f);
+    write_cache_format_file(cache_format_file);
   }
   free(cache_format_file);
 

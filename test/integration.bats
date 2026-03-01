@@ -546,12 +546,12 @@ SCRIPT
   assert_streq "$(strip_stderr stderr)" ""
   assert_streq "$(cat test_cache_dir/cache-format)" "3"
 
-  # older cache versions are OK (assuming they are handled)
+  # older cache versions are upgraded
   echo 0 > test_cache_dir/cache-format
   result=$(./run-firebuild -d cache -- bash -c 'echo foo > foo')
-  assert_streq "$result" ""
+  assert_streq "$result" "FIREBUILD: Cache format version is outdated, clearing the cache"
   assert_streq "$(strip_stderr stderr)" ""
-  assert_streq "$(cat test_cache_dir/cache-format)" "0"
+  assert_streq "$(cat test_cache_dir/cache-format)" "3"
 
   # future cache versions prevent using the cache
   echo 9 > test_cache_dir/cache-format
