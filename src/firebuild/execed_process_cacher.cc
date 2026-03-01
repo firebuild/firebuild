@@ -1991,6 +1991,10 @@ void ExecedProcessCacher::reset_stored_stats() {
 }
 
 void ExecedProcessCacher::update_stored_stats() {
+  if (no_store_) {
+    /* In read-only mode, don't update cache metadata */
+    return;
+  }
   // FIXME(rbalint) There is a slight chance for two parallel builds updating the stats at the
   // same time making them inaccurate.
   add_stored_stats();
@@ -2029,6 +2033,10 @@ void ExecedProcessCacher::read_stored_cached_bytes() {
 }
 
 void ExecedProcessCacher::update_stored_bytes() {
+  if (no_store_) {
+    /* In read-only mode, don't update cache metadata */
+    return;
+  }
   // FIXME(rbalint) There is a slight chance for two parallel builds updating the size at the
   // same time making the file content inaccurate.
   const std::string size_file = cache_dir_ + "/" + kCacheSizeFile;
@@ -2057,6 +2065,10 @@ bool ExecedProcessCacher::is_gc_needed() const {
 }
 
 void ExecedProcessCacher::gc() {
+  if (no_fetch_ || no_store_) {
+    fb_info("Garbage collection is disabled in read-only and no-fetch mode, skipping.");
+    return;
+  }
   gc_runs_++;
   /* Remove unusable entries first. */
   tsl::hopscotch_set<AsciiHash> referenced_blobs {};
