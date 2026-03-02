@@ -491,6 +491,9 @@ def not_glibc_ge(major, minor):
 def apple_ge(major, minor):
   return '#if (defined __APPLE__) && (__MAC_OS_X_VERSION_MIN_REQUIRED >= {}{}00)'.format(str(major).zfill(2), str(minor).zfill(2))
 
+def not_loongarch_lp64():
+  return "#if !defined(__loongarch_lp64)"
+
 # Initialize the output files with their headers.
 # Also truncate them before we'll reopen them plenty of times for appending.
 for gen in set(libc_outputs + syscall_outputs):
@@ -1528,6 +1531,7 @@ generate("ssize_t", "__readlinkat_chk", "int dirfd, const char *pathname, char *
 # mysterious hacks prior to glibc 2.33
 generate("int", "__xstat", "int ver, const char *pathname, struct stat *stat_buf",
          platforms=["linux"],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1539,6 +1543,7 @@ generate("int", "__xstat", "int ver, const char *pathname, struct stat *stat_buf
                          "}"])
 generate("int", "__xstat64", "int ver, const char *pathname, struct stat64 *stat_buf",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1550,6 +1555,7 @@ generate("int", "__xstat64", "int ver, const char *pathname, struct stat64 *stat
                          "}"])
 generate("int", "__lxstat", "int ver, const char *pathname, struct stat *stat_buf",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1562,6 +1568,7 @@ generate("int", "__lxstat", "int ver, const char *pathname, struct stat *stat_bu
                          "}"])
 generate("int", "__lxstat64", "int ver, const char *pathname, struct stat64 *stat_buf",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_SET_ABSOLUTE_CANONICAL(fstatat, pathname);",
@@ -1574,6 +1581,7 @@ generate("int", "__lxstat64", "int ver, const char *pathname, struct stat64 *sta
                          "}"])
 generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "stat_buf"],
          msg_add_fields=["if (success) {",
@@ -1584,6 +1592,7 @@ generate("int", "__fxstat", "int ver, int fd, struct stat *stat_buf",
                          "}"])
 generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "stat_buf"],
          msg_add_fields=["if (success) {",
@@ -1594,6 +1603,7 @@ generate("int", "__fxstat64", "int ver, int fd, struct stat64 *stat_buf",
                          "}"])
 generate("int", "__fxstatat", "int ver, int fd, const char *pathname, struct stat *stat_buf, int flags",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
@@ -1605,6 +1615,7 @@ generate("int", "__fxstatat", "int ver, int fd, const char *pathname, struct sta
                          "}"])
 generate("int", "__fxstatat64", "int ver, int fd, const char *pathname, struct stat64 *stat_buf, int flags",
          platforms=['linux'],
+         ifdef_guard=not_loongarch_lp64(),
          msg="fstatat",
          msg_skip_fields=["ver", "pathname", "stat_buf"],
          msg_add_fields=["BUILDER_MAYBE_SET_ABSOLUTE_CANONICAL(fstatat, fd, pathname);",
@@ -2107,9 +2118,11 @@ skip("getdents", "SYS_getdents", "getdents64", "SYS_getdents64", "getdirentries"
 # mysterious hacks prior to glibc 2.33 (also note the pointer "dev_t *")
 generate("int", "__xmknod", "int ver, const char *path, mode_t mode, dev_t *dev",
          platforms=["linux"],
+         ifdef_guard=not_loongarch_lp64(),
          tpl="once")
 generate("int", "__xmknodat", "int ver, int dirfd, const char *path, mode_t mode, dev_t *dev",
          platforms=["linux"],
+         ifdef_guard=not_loongarch_lp64(),
          tpl="once")
 # cleaned up beginning with glibc 2.33
 generate("int", ["mknod", "SYS_mknod"], "const char *path, mode_t mode, dev_t dev",
