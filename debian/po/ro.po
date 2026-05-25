@@ -1,0 +1,106 @@
+# Romanian translation of firebuild.
+# Mesajele în limba română pentru pachetul firebuild.
+# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the firebuild package.
+#
+# Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: firebuild\n"
+"Report-Msgid-Bugs-To: firebuild@packages.debian.org\n"
+"POT-Creation-Date: 2022-11-14 17:54+0100\n"
+"PO-Revision-Date: 2026-05-12 12:00+0200\n"
+"Last-Translator: Remus-Gabriel Chelu <remusgabriel.chelu@disroot.org>\n"
+"Language-Team: Romanian <debian-l10n-romanian@lists.debian.org>\n"
+"Language: ro\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.8\n"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Do you accept the terms of the Firebuild license?"
+msgstr "Acceptați termenii licenței Firebuild?"
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Firebuild users are required to acknowledge and accept the license. Please "
+"find it below. If you accept this license, the package installation will "
+"continue. If you refuse it, it will be interrupted."
+msgstr ""
+"Utilizatorii Firebuild trebuie să ia la cunoștință și să accepte licența. O "
+"găsiți mai jos. Dacă acceptați această licență, instalarea pachetului va "
+"continua. Dacă o refuzați, instalarea va fi întreruptă."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid "Firebuild is free for personal use or commercial trial."
+msgstr ""
+"Firebuild este liber pentru uzul personal sau de testare/evaluare pentru cel "
+"comercial."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Non-trial commercial use requires licenses available from https://"
+"firebuild.com."
+msgstr ""
+"Utilizarea comercială în afara perioadei de probă necesită licențe "
+"disponibile pe situl https://firebuild.com."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"Modification and redistribution are permitted, but commercial use of "
+"derivative works is subject to the same requirements of this license."
+msgstr ""
+"Modificarea și redistribuirea sunt permise, însă utilizarea comercială a "
+"lucrărilor derivate este supusă acelorași cerințe prevăzute de prezenta "
+"licență."
+
+#. Type: boolean
+#. Description
+#: ../templates:1001
+msgid ""
+"THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+"IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+"FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+"AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+"LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING "
+"FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS "
+"IN THE SOFTWARE."
+msgstr ""
+"SOFTWARE-UL ESTE FURNIZAT \"AȘA CUM ESTE\", FĂRĂ NICI UN FEL DE GARANȚIE, "
+"EXPRESĂ SAU IMPLICITĂ, INCLUSIV, DAR FĂRĂ A SE LIMITA LA GARANȚIILE DE "
+"COMERCIALIZARE, DE ADECVARE LA UN ANUMIT SCOP ȘI DE NE ÎNCĂLCARE A "
+"BREVETELOR. ÎN NICIUN CAZ, AUTORII SAU DEȚINĂTORII DREPTURILOR DE AUTOR NU "
+"VOR FI RĂSPUNZĂTORI PENTRU ORICE RECLAMAȚIE, DAUNE SAU ALTE RĂSPUNDERI, FIE "
+"CĂ ESTE VORBA DE O ACȚIUNE CONTRACTUALĂ, DELICTUALĂ SAU DE ALTĂ NATURĂ, CARE "
+"REZULTĂ DIN, DERIVĂ DIN SAU ESTE LEGATĂ DE SOFTWARE SAU DE UTILIZAREA SA SAU "
+"DE ALTE TRANZACȚII CU ACESTA."
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid "The license has been refused"
+msgstr "Licența a fost respinsă"
+
+#. Type: error
+#. Description
+#: ../templates:2001
+msgid ""
+"Please remove the firebuild packages or reinstall the firebuild package "
+"(e.g. via apt-get install --reinstall firebuild) to get prompted to accept "
+"the license again."
+msgstr ""
+"Vă rugăm să dezinstalați pachetul firebuild sau să reinstalați pachetul "
+"firebuild (de exemplu, folosind comanda «apt-get install --reinstall "
+"firebuild») pentru a vi se solicita din nou să acceptați licența."
