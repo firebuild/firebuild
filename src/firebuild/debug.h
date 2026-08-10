@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 
 #include <cassert>
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>

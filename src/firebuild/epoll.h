@@ -34,6 +34,7 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <cstdio>
 #include <queue>
 #include <vector>
 

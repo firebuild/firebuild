@@ -25,6 +25,8 @@
 #include <unistd.h>
 
 #include <cassert>
+#include <string>
+#include <vector>
 
 #include "common/firebuild_common.h"
 #include "common/platform.h"

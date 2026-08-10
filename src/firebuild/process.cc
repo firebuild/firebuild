@@ -38,7 +38,10 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "common/firebuild_common.h"
 #include "common/platform.h"

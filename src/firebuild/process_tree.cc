@@ -20,6 +20,8 @@
 
 #include <math.h>
 #include <cstdio>
+#include <memory>
+#include <vector>
 
 #include "common/platform.h"
 #include "firebuild/debug.h"

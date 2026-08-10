@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <string>
 #include <vector>
 
 #include "firebuild/base64.h"

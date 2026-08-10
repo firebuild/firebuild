@@ -23,6 +23,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include <string>
+#include <vector>
+
 #include "common/debug_sysflags.h"
 #include "firebuild/exe_matcher.h"
 #include "firebuild/options.h"

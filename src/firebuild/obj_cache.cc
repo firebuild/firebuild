@@ -30,7 +30,9 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "firebuild/blob_cache.h"
 #include "firebuild/config.h"

@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cstdio>
 #include <limits>
 #include <set>
 #include <sstream>

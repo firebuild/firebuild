@@ -21,6 +21,8 @@
 
 #include <cinttypes>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include <libconfig.h++>
 
