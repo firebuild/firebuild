@@ -379,8 +379,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: install-deps
       run: |
-        # TODO(rbalint) use packaged cpplint when it becomes available https://bugs.debian.org/960847
-        pip3 install cpplint==1.5.4
+        pip3 install cpplint
     - name: style-check
       run: env PATH=$HOME/.local/bin:$PATH cpplint --recursive src test
       # this will be used by other jobs to invalidate cache after a week
