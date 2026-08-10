@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <tsl/hopscotch_set.h>
 
+#include <string>
 #include <vector>
 
 #include "firebuild/ascii_hash.h"

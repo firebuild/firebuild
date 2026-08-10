@@ -20,6 +20,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef __cplusplus
+#include <cstdio>
+#endif
+
 #include "common/firebuild_common.h"
 
 #ifdef __cplusplus

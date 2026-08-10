@@ -29,6 +29,7 @@
 #include <time.h>
 
 #include <cassert>
+#include <cstdio>
 #include <vector>
 
 #include "common/firebuild_common.h"

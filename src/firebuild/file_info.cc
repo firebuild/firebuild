@@ -18,6 +18,9 @@
 
 #include "firebuild/file_info.h"
 
+#include <cstdio>
+#include <string>
+
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"
 #include "firebuild/hash.h"

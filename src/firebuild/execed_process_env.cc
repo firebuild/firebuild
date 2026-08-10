@@ -17,6 +17,7 @@
  */
 
 #include <memory>
+#include <string>
 
 #include "firebuild/execed_process_env.h"
 #include "firebuild/debug.h"

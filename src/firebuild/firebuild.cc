@@ -32,6 +32,7 @@
 #include <time.h>
 #include <fcntl.h>
 
+#include <cstdio>
 #include <iostream>
 #include <list>
 #include <string>

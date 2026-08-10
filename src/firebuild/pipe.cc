@@ -29,8 +29,10 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "common/firebuild_common.h"
 #include "firebuild/debug.h"

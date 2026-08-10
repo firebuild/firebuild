@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <unordered_set>

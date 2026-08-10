@@ -19,6 +19,7 @@
 #include <tsl/hopscotch_map.h>
 
 #include <cstring>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>

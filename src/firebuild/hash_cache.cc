@@ -18,6 +18,9 @@
 
 #include "firebuild/hash_cache.h"
 
+#include <string>
+#include <vector>
+
 #include "firebuild/debug.h"
 #include "firebuild/blob_cache.h"
 #include "firebuild/config.h"

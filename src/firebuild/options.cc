@@ -18,6 +18,10 @@
 
 #include <getopt.h>
 
+#include <cstdio>
+#include <list>
+#include <string>
+
 #include "firebuild/options.h"
 
 #include "common/config.h"

@@ -17,6 +17,7 @@
  */
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "firebuild/file_name.h"

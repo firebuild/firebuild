@@ -31,6 +31,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
+#include <list>
 #include <limits>
 #include <map>
 #include <regex>
