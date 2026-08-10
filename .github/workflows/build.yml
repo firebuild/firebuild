@@ -371,7 +371,7 @@ jobs:
         xcodebuild
 
   style-checks:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       week: ${{ steps.week-of-year.outputs.week }} # map step output to job output
     timeout-minutes: 2
