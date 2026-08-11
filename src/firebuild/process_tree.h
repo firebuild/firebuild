@@ -115,8 +115,8 @@ struct pending_popen_t {
 class ProcessTree {
  public:
   ProcessTree()
-      : inherited_fd_pipes_(), fb_pid2proc_(), pid2proc_(), ppid2fork_child_sock_(),
-        pid2exec_child_sock_(), pid2posix_spawn_child_sock_(),
+      : inherited_fd_pipes_(), fb_pid2proc_(8192), pid2proc_(8192), ppid2fork_child_sock_(128),
+        pid2exec_child_sock_(128), pid2posix_spawn_child_sock_(),
         top_dir_(FileName::Get(std::filesystem::current_path())) {
   }
   ~ProcessTree();
