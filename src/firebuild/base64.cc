@@ -18,7 +18,9 @@
 
 #include <firebuild/base64.h>
 
-#include <firebuild/debug.h>
+#include <cstdint>
+
+#include "firebuild/debug.h"
 
 namespace firebuild {
 
