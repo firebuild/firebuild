@@ -101,7 +101,7 @@ jobs:
         cp /var/cache/apt/archives/*deb ~/.cache/debs/
 
   # build on various Debian derivative releases in docker
-  build-in-docker:
+  build-in-docker-debian-matrix:
     strategy:
       matrix:
         container: ["ubuntu:rolling", "ubuntu:devel", "i386/debian"]
@@ -426,3 +426,35 @@ jobs:
     - name: List built RPMs
       run: |
         ls -lh ~/rpmbuild/RPMS/*/*.rpm ~/rpmbuild/SRPMS/*.rpm || true
+
+  build-on-archlinux:
+    needs: style-checks
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    timeout-minutes: 20
+    steps:
+    - name: Install Git
+      run: |
+        pacman -Syu --noconfirm git
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Configure Git safe directory
+      run: |
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+    - name: Install build and test dependencies
+      run: |
+        pacman -S --noconfirm cmake libconfig jemalloc libelf xxhash python-jinja bats bc moreutils fakeroot clang dash
+    - name: Install hopscotch-map
+      run: |
+        git clone https://github.com/Tessil/hopscotch-map.git /tmp/hopscotch-map
+        cmake -S /tmp/hopscotch-map -B /tmp/hopscotch-map/build -DCMAKE_INSTALL_PREFIX=/usr
+        cmake --build /tmp/hopscotch-map/build
+        cmake --install /tmp/hopscotch-map/build
+    - name: Build
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=Debug .
+        cmake --build . --parallel "$(nproc)" --target all check-bins
+    - name: Test
+      run: |
+        cmake --build . --parallel "$(nproc)" --target check
